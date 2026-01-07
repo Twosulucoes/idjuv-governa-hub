@@ -107,6 +107,7 @@ const App = () => (
               <Route path="/admin/auditoria" element={<AuditoriaPage />} />
               <Route path="/admin/perfis" element={<GestaoPerfilPage />} />
               <Route path="/admin/backup" element={<BackupOffsitePage />} />
+              <Route path="/admin/disaster-recovery" element={<DisasterRecoveryPage />} />
               {/* Redirect old /acesso to new admin route */}
               <Route path="/acesso" element={<ControleAcessoAdminPage />} />
               
