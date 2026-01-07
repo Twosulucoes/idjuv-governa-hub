@@ -1,0 +1,82 @@
+{
+  "ultima_atualizacao": "2025-12-29",
+  "fonte": "Lei nº 2.301, de 29 de dezembro de 2025",
+  "total_cargos": 98,
+  "valor_total_mensal": 457045.11,
+  "valor_total_mensal_formatado": "R$ 457.045,11",
+  "por_diretoria": {
+    "Presidência": {
+      "quantidade": 21,
+      "cargos": ["Presidente", "Assessor Jurídico", "Assessor Especial", "Chefe de Gabinete", "Chefe de Controle Interno", "Assessor de Comunicação", "Presidente da CPL", "Pregoeiro", "Membro da CPL", "Secretária da Presidência", "Assistente Técnico"]
+    },
+    "DIRAF": {
+      "quantidade": 58,
+      "cargos": ["Diretor", "Secretária de Diretoria", "Chefe de Divisão", "Chefe de Núcleo", "Chefe de Unidade Local"]
+    },
+    "DIESP": {
+      "quantidade": 13,
+      "cargos": ["Diretor", "Secretária de Diretoria", "Chefe de Divisão", "Chefe de Núcleo"]
+    },
+    "DIJUV": {
+      "quantidade": 6,
+      "cargos": ["Diretor", "Secretária de Diretoria", "Chefe de Divisão", "Chefe de Núcleo"]
+    }
+  },
+  "por_codigo": {
+    "SUBSÍDIO": { "quantidade": 4, "valor_unitario": null, "descricao": "Cargos de Subsídio (Presidente e Diretores)" },
+    "CNETS-I": { "quantidade": 3, "valor_unitario": 8987.17, "descricao": "Assessoria de nível superior" },
+    "CNES-II": { "quantidade": 3, "valor_unitario": 6719.37, "descricao": "Chefia de nível II" },
+    "CNES-III": { "quantidade": 16, "valor_unitario": 5392.29, "descricao": "Chefia de nível III / Assistentes Técnicos" },
+    "CNES-IV": { "quantidade": 3, "valor_unitario": 4199.61, "descricao": "Membros de comissões" },
+    "CDS-I": { "quantidade": 24, "valor_unitario": 3359.69, "descricao": "Secretárias e Chefes de Núcleo" },
+    "CDS-II": { "quantidade": 43, "valor_unitario": 2696.16, "descricao": "Secretárias de Diretoria e Chefes de Unidade Local" }
+  },
+  "ocupacao": {
+    "ocupados": 9,
+    "vagos": 89,
+    "percentual_ocupacao": 9.18
+  },
+  "estrutura_organizacional": {
+    "nivel_superior": {
+      "nome": "Presidência",
+      "descricao": "Nível de Administração Superior"
+    },
+    "assessoramento": {
+      "unidades": [
+        "Chefia de Gabinete",
+        "Assessoria Jurídica",
+        "Assessoria Especial",
+        "Controle Interno",
+        "Comissão de Contratação",
+        "ASCOM"
+      ]
+    },
+    "execucao_instrumental": {
+      "nome": "DIRAF - Diretoria Administrativa e Financeira",
+      "divisoes": [
+        { "nome": "DiCOF", "descricao": "Divisão de Contabilidade, Orçamento e Finanças", "nucleos": ["NuPrO", "NuFI", "NuCont"] },
+        { "nome": "DiAGP", "descricao": "Divisão Administrativa e Gestão Patrimonial", "nucleos": ["NuDoc", "NuPat", "NuAC"] },
+        { "nome": "DRH", "descricao": "Divisão de Recursos Humanos", "nucleos": ["NuP", "NuF"] },
+        { "nome": "DiTI", "descricao": "Divisão de Tecnologia da Informação", "nucleos": ["NuST", "NuProg"] }
+      ]
+    },
+    "execucao_programatica": [
+      {
+        "nome": "DIESP - Diretoria de Esporte",
+        "divisoes": [
+          { "nome": "DiGEL", "descricao": "Divisão de Gestão de Esporte e Lazer", "nucleos": ["NuDeC", "NuPAF"] },
+          { "nome": "DiRE", "descricao": "Divisão de Esporte de Alto Rendimento", "nucleos": ["NuRE", "NuGAO"] },
+          { "nome": "DiEDE", "descricao": "Divisão de Educação e Desporto Estudantil", "nucleos": ["NuED", "NuBase"] },
+          { "nome": "DiGI", "descricao": "Divisão de Gestão Inclusiva e Qualidade de Vida", "nucleos": ["NuInc", "NuPar"] }
+        ]
+      },
+      {
+        "nome": "DIJUV - Diretoria da Juventude",
+        "divisoes": [
+          { "nome": "DiPP", "descricao": "Divisão de Programas e Projetos", "nucleos": ["NAT", "CRJuv"] },
+          { "nome": "DAPT", "descricao": "Divisão de Articulação de Políticas Transversais", "nucleos": ["NuREL", "NuPol"] }
+        ]
+      }
+    ]
+  }
+}

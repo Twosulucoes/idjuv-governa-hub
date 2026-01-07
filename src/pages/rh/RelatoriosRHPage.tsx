@@ -1,0 +1,509 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { 
+  FileText, 
+  Building2, 
+  Users, 
+  History,
+  Download,
+  FileDown,
+  Loader2
+} from "lucide-react";
+import { toast } from "sonner";
+import { 
+  generateRelatorioServidoresDiretoria,
+  generateRelatorioServidoresVinculo,
+  generateRelatorioHistoricoFuncional
+} from "@/lib/pdfRelatoriosRH";
+import { VINCULO_LABELS, SITUACAO_LABELS, MOVIMENTACAO_LABELS } from "@/types/rh";
+
+export default function RelatoriosRHPage() {
+  const [selectedUnidade, setSelectedUnidade] = useState<string>("all");
+  const [selectedVinculo, setSelectedVinculo] = useState<string>("all");
+  const [selectedServidor, setSelectedServidor] = useState<string>("");
+  const [loadingReport, setLoadingReport] = useState<string | null>(null);
+
+  // Fetch unidades
+  const { data: unidades = [] } = useQuery({
+    queryKey: ["unidades-relatorio"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("estrutura_organizacional")
+        .select("id, nome, sigla, tipo")
+        .eq("ativo", true)
+        .order("nivel")
+        .order("nome");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch servidores
+  const { data: servidores = [] } = useQuery({
+    queryKey: ["servidores-relatorio"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("servidores")
+        .select(`
+          id, 
+          nome_completo, 
+          cpf, 
+          matricula,
+          vinculo,
+          situacao,
+          data_admissao,
+          cargo:cargos!servidores_cargo_atual_id_fkey(id, nome, sigla),
+          unidade:estrutura_organizacional!servidores_unidade_atual_id_fkey(id, nome, sigla)
+        `)
+        .eq("ativo", true)
+        .order("nome_completo");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const handleGerarRelatorioDiretoria = async () => {
+    setLoadingReport("diretoria");
+    try {
+      const filteredServidores = selectedUnidade === "all" 
+        ? servidores 
+        : servidores.filter(s => s.unidade?.id === selectedUnidade);
+
+      if (filteredServidores.length === 0) {
+        toast.error("Nenhum servidor encontrado para gerar o relatório");
+        return;
+      }
+
+      // Group by unidade
+      const servidoresPorUnidade: Record<string, {
+        unidade_nome: string;
+        unidade_sigla: string | null;
+        servidores: typeof filteredServidores;
+      }> = {};
+
+      filteredServidores.forEach(s => {
+        const unidadeId = s.unidade?.id || "sem_lotacao";
+        const unidadeNome = s.unidade?.nome || "Sem Lotação";
+        const unidadeSigla = s.unidade?.sigla || null;
+        
+        if (!servidoresPorUnidade[unidadeId]) {
+          servidoresPorUnidade[unidadeId] = {
+            unidade_nome: unidadeNome,
+            unidade_sigla: unidadeSigla,
+            servidores: []
+          };
+        }
+        servidoresPorUnidade[unidadeId].servidores.push(s);
+      });
+
+      await generateRelatorioServidoresDiretoria({
+        grupos: Object.values(servidoresPorUnidade).map(g => ({
+          unidade_nome: g.unidade_nome,
+          unidade_sigla: g.unidade_sigla,
+          servidores: g.servidores.map(s => ({
+            nome: s.nome_completo,
+            cpf: s.cpf,
+            matricula: s.matricula,
+            cargo: s.cargo?.nome || "-",
+            vinculo: VINCULO_LABELS[s.vinculo as keyof typeof VINCULO_LABELS] || s.vinculo,
+            situacao: SITUACAO_LABELS[s.situacao as keyof typeof SITUACAO_LABELS] || s.situacao
+          }))
+        })),
+        totalServidores: filteredServidores.length,
+        dataGeracao: new Date().toLocaleDateString('pt-BR'),
+        filtroUnidade: selectedUnidade === "all" ? null : unidades.find(u => u.id === selectedUnidade)?.nome || null
+      });
+
+      toast.success("Relatório gerado com sucesso!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao gerar relatório");
+    } finally {
+      setLoadingReport(null);
+    }
+  };
+
+  const handleGerarRelatorioVinculo = async () => {
+    setLoadingReport("vinculo");
+    try {
+      const filteredServidores = selectedVinculo === "all" 
+        ? servidores 
+        : servidores.filter(s => s.vinculo === selectedVinculo);
+
+      if (filteredServidores.length === 0) {
+        toast.error("Nenhum servidor encontrado para gerar o relatório");
+        return;
+      }
+
+      // Group by vinculo
+      const servidoresPorVinculo: Record<string, typeof filteredServidores> = {};
+
+      filteredServidores.forEach(s => {
+        if (!servidoresPorVinculo[s.vinculo]) {
+          servidoresPorVinculo[s.vinculo] = [];
+        }
+        servidoresPorVinculo[s.vinculo].push(s);
+      });
+
+      await generateRelatorioServidoresVinculo({
+        grupos: Object.entries(servidoresPorVinculo).map(([vinculo, lista]) => ({
+          vinculo: VINCULO_LABELS[vinculo as keyof typeof VINCULO_LABELS] || vinculo,
+          servidores: lista.map(s => ({
+            nome: s.nome_completo,
+            cpf: s.cpf,
+            matricula: s.matricula,
+            cargo: s.cargo?.nome || "-",
+            unidade: s.unidade?.sigla || s.unidade?.nome || "-",
+            situacao: SITUACAO_LABELS[s.situacao as keyof typeof SITUACAO_LABELS] || s.situacao
+          }))
+        })),
+        totalServidores: filteredServidores.length,
+        dataGeracao: new Date().toLocaleDateString('pt-BR'),
+        filtroVinculo: selectedVinculo === "all" ? null : VINCULO_LABELS[selectedVinculo as keyof typeof VINCULO_LABELS] || null
+      });
+
+      toast.success("Relatório gerado com sucesso!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao gerar relatório");
+    } finally {
+      setLoadingReport(null);
+    }
+  };
+
+  const handleGerarRelatorioHistorico = async () => {
+    if (!selectedServidor) {
+      toast.error("Selecione um servidor");
+      return;
+    }
+
+    setLoadingReport("historico");
+    try {
+      // Fetch servidor completo
+      const { data: servidor, error: sErr } = await supabase
+        .from("servidores")
+        .select(`
+          *,
+          cargo:cargos!servidores_cargo_atual_id_fkey(id, nome, sigla),
+          unidade:estrutura_organizacional!servidores_unidade_atual_id_fkey(id, nome, sigla)
+        `)
+        .eq("id", selectedServidor)
+        .single();
+
+      if (sErr) throw sErr;
+
+      // Fetch historico funcional
+      const { data: historico, error: hErr } = await supabase
+        .from("historico_funcional")
+        .select(`
+          *,
+          cargo_anterior:cargos!historico_funcional_cargo_anterior_id_fkey(nome),
+          cargo_novo:cargos!historico_funcional_cargo_novo_id_fkey(nome),
+          unidade_anterior:estrutura_organizacional!historico_funcional_unidade_anterior_id_fkey(nome, sigla),
+          unidade_nova:estrutura_organizacional!historico_funcional_unidade_nova_id_fkey(nome, sigla)
+        `)
+        .eq("servidor_id", selectedServidor)
+        .order("data_evento", { ascending: false });
+
+      if (hErr) throw hErr;
+
+      // Fetch portarias
+      const { data: portarias, error: pErr } = await supabase
+        .from("portarias_servidor")
+        .select("*")
+        .eq("servidor_id", selectedServidor)
+        .order("data_publicacao", { ascending: false });
+
+      if (pErr) throw pErr;
+
+      // Fetch ferias
+      const { data: ferias, error: fErr } = await supabase
+        .from("ferias_servidor")
+        .select("*")
+        .eq("servidor_id", selectedServidor)
+        .order("data_inicio", { ascending: false });
+
+      if (fErr) throw fErr;
+
+      // Fetch licencas
+      const { data: licencas, error: lErr } = await supabase
+        .from("licencas_afastamentos")
+        .select("*")
+        .eq("servidor_id", selectedServidor)
+        .order("data_inicio", { ascending: false });
+
+      if (lErr) throw lErr;
+
+      await generateRelatorioHistoricoFuncional({
+        servidor: {
+          nome: servidor.nome_completo,
+          cpf: servidor.cpf,
+          matricula: servidor.matricula,
+          cargo: servidor.cargo?.nome || "-",
+          unidade: servidor.unidade?.nome || "-",
+          vinculo: VINCULO_LABELS[servidor.vinculo as keyof typeof VINCULO_LABELS] || servidor.vinculo,
+          situacao: SITUACAO_LABELS[servidor.situacao as keyof typeof SITUACAO_LABELS] || servidor.situacao,
+          data_admissao: servidor.data_admissao
+        },
+        historico: (historico || []).map(h => ({
+          data: h.data_evento,
+          tipo: MOVIMENTACAO_LABELS[h.tipo as keyof typeof MOVIMENTACAO_LABELS] || h.tipo,
+          descricao: h.descricao || "",
+          portaria: h.portaria_numero,
+          cargo_anterior: h.cargo_anterior?.nome,
+          cargo_novo: h.cargo_novo?.nome,
+          unidade_anterior: h.unidade_anterior?.nome,
+          unidade_nova: h.unidade_nova?.nome
+        })),
+        portarias: (portarias || []).map(p => ({
+          numero: p.numero,
+          ano: p.ano,
+          tipo: p.tipo,
+          assunto: p.assunto,
+          data_publicacao: p.data_publicacao
+        })),
+        ferias: (ferias || []).map(f => ({
+          periodo_aquisitivo: `${f.periodo_aquisitivo_inicio} a ${f.periodo_aquisitivo_fim}`,
+          data_inicio: f.data_inicio,
+          data_fim: f.data_fim,
+          dias: f.dias_gozados
+        })),
+        licencas: (licencas || []).map(l => ({
+          tipo: l.tipo_licenca || l.tipo_afastamento,
+          data_inicio: l.data_inicio,
+          data_fim: l.data_fim,
+          dias: l.dias_afastamento
+        })),
+        dataGeracao: new Date().toLocaleDateString('pt-BR')
+      });
+
+      toast.success("Relatório gerado com sucesso!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao gerar relatório");
+    } finally {
+      setLoadingReport(null);
+    }
+  };
+
+  return (
+    <ProtectedRoute allowedRoles={["admin", "manager"]}>
+      <AdminLayout>
+        <div className="container mx-auto py-8 px-4">
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-8">
+            <div className="p-3 bg-primary/10 rounded-xl">
+              <FileText className="h-8 w-8 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Relatórios de RH</h1>
+              <p className="text-muted-foreground">
+                Gere relatórios em PDF do quadro de servidores
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {/* Relatório por Diretoria/Unidade */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Building2 className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Servidores por Diretoria</CardTitle>
+                    <CardDescription>Lista de servidores agrupados por unidade organizacional</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Filtrar por unidade (opcional)</Label>
+                  <Select value={selectedUnidade} onValueChange={setSelectedUnidade}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas as unidades" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as unidades</SelectItem>
+                      {unidades.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.sigla ? `${u.sigla} - ${u.nome}` : u.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button 
+                  className="w-full" 
+                  onClick={handleGerarRelatorioDiretoria}
+                  disabled={loadingReport === "diretoria"}
+                >
+                  {loadingReport === "diretoria" ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  Gerar Relatório PDF
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Relatório por Vínculo */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-success/10 rounded-lg">
+                    <Users className="h-5 w-5 text-success" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Servidores por Vínculo</CardTitle>
+                    <CardDescription>Lista de servidores agrupados por tipo de vínculo funcional</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Filtrar por vínculo (opcional)</Label>
+                  <Select value={selectedVinculo} onValueChange={setSelectedVinculo}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos os vínculos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os vínculos</SelectItem>
+                      {Object.entries(VINCULO_LABELS).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button 
+                  className="w-full" 
+                  onClick={handleGerarRelatorioVinculo}
+                  disabled={loadingReport === "vinculo"}
+                >
+                  {loadingReport === "vinculo" ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  Gerar Relatório PDF
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Histórico Funcional Individual */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-info/10 rounded-lg">
+                    <History className="h-5 w-5 text-info" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Histórico Funcional</CardTitle>
+                    <CardDescription>Histórico completo de um servidor específico</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Selecione o servidor *</Label>
+                  <Select value={selectedServidor} onValueChange={setSelectedServidor}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Escolha um servidor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {servidores.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.nome_completo} {s.matricula ? `(${s.matricula})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button 
+                  className="w-full" 
+                  onClick={handleGerarRelatorioHistorico}
+                  disabled={loadingReport === "historico" || !selectedServidor}
+                >
+                  {loadingReport === "historico" ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  Gerar Relatório PDF
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Summary Cards */}
+          <div className="mt-8 grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <Users className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Servidores</p>
+                  <p className="text-2xl font-bold">{servidores.length}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="p-3 bg-success/10 rounded-lg">
+                  <Building2 className="h-6 w-6 text-success" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Unidades</p>
+                  <p className="text-2xl font-bold">{unidades.length}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="p-3 bg-info/10 rounded-lg">
+                  <Users className="h-6 w-6 text-info" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Comissionados</p>
+                  <p className="text-2xl font-bold">
+                    {servidores.filter(s => s.vinculo === 'comissionado').length}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="p-3 bg-warning/10 rounded-lg">
+                  <Users className="h-6 w-6 text-warning" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Efetivos</p>
+                  <p className="text-2xl font-bold">
+                    {servidores.filter(s => s.vinculo === 'efetivo').length}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </AdminLayout>
+    </ProtectedRoute>
+  );
+}

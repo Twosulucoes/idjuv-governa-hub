@@ -1,0 +1,589 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* IDJUV - Sistema de Governança Administrativa
+   Design System Institucional - Cores do Estado de Roraima
+   
+   TIPOGRAFIA
+   - Títulos: Merriweather (serif)
+   - Corpo: Source Sans 3 (sans-serif)
+   
+   HIERARQUIA
+   H1: 2.5rem / 40px - Títulos principais
+   H2: 2rem / 32px - Seções
+   H3: 1.5rem / 24px - Subseções
+   H4: 1.25rem / 20px - Cards
+   Body: 1rem / 16px - Texto normal
+   Small: 0.875rem / 14px - Legendas, meta
+   XSmall: 0.75rem / 12px - Badges, labels
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&family=Merriweather:wght@400;700&display=swap');
+
+@layer base {
+  :root {
+    /* Cores institucionais IDJUV - Baseadas na logo oficial */
+    --background: 200 15% 98%;
+    --foreground: 210 50% 18%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 210 50% 18%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 50% 18%;
+
+    /* Azul escuro institucional - cor principal (da logo IDJUV) */
+    --primary: 210 65% 25%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Verde vibrante institucional - cor secundária (da logo IDJUV) */
+    --secondary: 120 50% 38%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 200 12% 92%;
+    --muted-foreground: 210 20% 45%;
+
+    /* Azul claro - accent (seta da logo) */
+    --accent: 200 85% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Amarelo/dourado - destaque (bandeira brasileira na logo) */
+    --highlight: 48 95% 50%;
+    --highlight-foreground: 210 50% 18%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Estados de sucesso, alerta, info */
+    --success: 120 50% 38%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 48 95% 50%;
+    --warning-foreground: 210 50% 18%;
+    
+    --info: 200 85% 50%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 200 15% 88%;
+    --input: 200 15% 88%;
+    --ring: 210 65% 25%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar institucional */
+    --sidebar-background: 210 65% 25%;
+    --sidebar-foreground: 200 15% 95%;
+    --sidebar-primary: 120 50% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 200 85% 50%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 210 50% 35%;
+    --sidebar-ring: 120 50% 45%;
+
+    /* Fontes */
+    --font-sans: 'Source Sans 3', system-ui, sans-serif;
+    --font-serif: 'Merriweather', Georgia, serif;
+
+    /* Sombras consistentes */
+    --shadow-xs: 0 1px 2px 0 hsl(210 50% 18% / 0.04);
+    --shadow-sm: 0 1px 3px 0 hsl(210 50% 18% / 0.06), 0 1px 2px -1px hsl(210 50% 18% / 0.06);
+    --shadow-md: 0 4px 6px -1px hsl(210 50% 18% / 0.08), 0 2px 4px -2px hsl(210 50% 18% / 0.08);
+    --shadow-lg: 0 10px 15px -3px hsl(210 50% 18% / 0.1), 0 4px 6px -4px hsl(210 50% 18% / 0.08);
+    --shadow-xl: 0 20px 25px -5px hsl(210 50% 18% / 0.1), 0 8px 10px -6px hsl(210 50% 18% / 0.08);
+    --shadow-card: 0 2px 8px -2px hsl(210 50% 18% / 0.1);
+
+    /* Espaçamentos padrão */
+    --spacing-section: 4rem;
+    --spacing-component: 1.5rem;
+    --spacing-element: 1rem;
+    --spacing-compact: 0.5rem;
+
+    /* Tamanhos de logo (altura) */
+    --logo-header-desktop: 3.5rem;
+    --logo-header-mobile: 2.5rem;
+    --logo-footer: 3rem;
+    --logo-sidebar: 2rem;
+    --logo-card: 2.5rem;
+    --logo-hero: 4rem;
+    --logo-gov-small: 1.75rem;
+  }
+
+  .dark {
+    /* Fundo escuro com tom azulado suave */
+    --background: 210 30% 8%;
+    --foreground: 200 20% 96%;
+
+    /* Cards com contraste adequado */
+    --card: 210 28% 12%;
+    --card-foreground: 200 20% 96%;
+
+    /* Popovers */
+    --popover: 210 28% 14%;
+    --popover-foreground: 200 20% 96%;
+
+    /* Azul vibrante para ações primárias */
+    --primary: 200 85% 55%;
+    --primary-foreground: 210 30% 8%;
+
+    /* Verde institucional vibrante */
+    --secondary: 120 55% 50%;
+    --secondary-foreground: 210 30% 8%;
+
+    /* Muted com melhor legibilidade */
+    --muted: 210 22% 18%;
+    --muted-foreground: 200 18% 70%;
+
+    /* Accent - azul claro */
+    --accent: 200 90% 60%;
+    --accent-foreground: 210 30% 8%;
+
+    /* Amarelo/dourado para destaque */
+    --highlight: 48 95% 55%;
+    --highlight-foreground: 210 30% 8%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Estados mais vibrantes no dark mode */
+    --success: 120 60% 50%;
+    --success-foreground: 210 30% 8%;
+    
+    --warning: 48 95% 55%;
+    --warning-foreground: 210 30% 8%;
+    
+    --info: 200 90% 60%;
+    --info-foreground: 210 30% 8%;
+
+    /* Bordas mais visíveis */
+    --border: 210 20% 22%;
+    --input: 210 20% 20%;
+    --ring: 200 85% 55%;
+
+    /* Sidebar com melhor contraste */
+    --sidebar-background: 210 30% 10%;
+    --sidebar-foreground: 200 20% 96%;
+    --sidebar-primary: 120 55% 50%;
+    --sidebar-primary-foreground: 210 30% 8%;
+    --sidebar-accent: 200 50% 35%;
+    --sidebar-accent-foreground: 200 20% 96%;
+    --sidebar-border: 210 20% 18%;
+    --sidebar-ring: 120 55% 50%;
+
+    /* Sombras para dark mode */
+    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.2);
+    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.3), 0 1px 2px -1px hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.35), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.4), 0 4px 6px -4px hsl(0 0% 0% / 0.35);
+    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.4), 0 8px 10px -6px hsl(0 0% 0% / 0.35);
+    --shadow-card: 0 2px 8px -2px hsl(0 0% 0% / 0.4);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 8rem; /* Compensar header fixo */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Transição suave entre temas */
+  html,
+  html *,
+  html *::before,
+  html *::after {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+
+  /* Desabilitar transição em elementos que não devem animar */
+  html [data-no-transition],
+  html [data-no-transition] * {
+    transition: none !important;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-size: 1rem;
+    line-height: 1.6;
+    letter-spacing: -0.01em;
+    overflow-x: hidden;
+  }
+
+  /* Hierarquia tipográfica consistente */
+  h1 {
+    @apply font-serif font-bold tracking-tight;
+    font-size: clamp(2rem, 5vw, 2.5rem);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    @apply font-serif font-bold tracking-tight;
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+  }
+
+  h3 {
+    @apply font-serif font-bold;
+    font-size: clamp(1.25rem, 3vw, 1.5rem);
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  h4 {
+    @apply font-sans font-semibold;
+    font-size: 1.25rem;
+    line-height: 1.35;
+  }
+
+  h5 {
+    @apply font-sans font-semibold;
+    font-size: 1.125rem;
+    line-height: 1.4;
+  }
+
+  h6 {
+    @apply font-sans font-medium uppercase tracking-wide;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    letter-spacing: 0.05em;
+  }
+
+  p {
+    line-height: 1.7;
+    letter-spacing: -0.005em;
+  }
+
+  small, .text-small {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .text-xs, caption {
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+}
+
+@layer components {
+  /* ========================================
+     LOGO SYSTEM - Tamanhos e proporções
+     ======================================== */
+  
+  /* Logo com proporção preservada */
+  .logo {
+    @apply object-contain flex-shrink-0;
+    height: auto;
+    max-height: 100%;
+  }
+
+  /* Tamanhos por contexto */
+  .logo-header {
+    height: var(--logo-header-desktop);
+  }
+
+  @media (max-width: 768px) {
+    .logo-header {
+      height: var(--logo-header-mobile);
+    }
+  }
+
+  .logo-footer {
+    height: var(--logo-footer);
+  }
+
+  .logo-sidebar {
+    height: var(--logo-sidebar);
+  }
+
+  .logo-card {
+    height: var(--logo-card);
+  }
+
+  .logo-hero {
+    height: var(--logo-hero);
+  }
+
+  .logo-gov {
+    height: var(--logo-gov-small);
+  }
+
+  /* Container de logo para fundos escuros (apenas quando necessário) */
+  .logo-container-gov {
+    @apply bg-white/95 dark:bg-white/90 rounded p-1.5 backdrop-blur-sm;
+  }
+
+  /* ========================================
+     HEADER INSTITUCIONAL
+     ======================================== */
+  
+  .header-gov {
+    @apply bg-primary text-primary-foreground;
+    box-shadow: var(--shadow-md);
+  }
+
+  /* ========================================
+     CARDS E CONTAINERS
+     ======================================== */
+
+  .card-processo {
+    @apply bg-card border border-border p-6;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+
+  .card-processo:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+  }
+
+  /* Card com destaque superior */
+  .card-accent-top {
+    @apply border-t-4 border-t-accent;
+  }
+  
+  .card-secondary-top {
+    @apply border-t-4 border-t-secondary;
+  }
+
+  .card-primary-left {
+    @apply border-l-4 border-l-primary;
+  }
+
+  /* ========================================
+     STATUS BADGES
+     ======================================== */
+
+  .badge-pendente {
+    @apply bg-warning/15 text-warning border border-warning/30;
+  }
+  
+  .badge-andamento {
+    @apply bg-info/15 text-info border border-info/30;
+  }
+  
+  .badge-concluido {
+    @apply bg-success/15 text-success border border-success/30;
+  }
+
+  .badge-institucional {
+    @apply bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-full text-sm font-medium;
+  }
+
+  /* ========================================
+     SEÇÕES E LAYOUT
+     ======================================== */
+
+  .section-documento {
+    @apply border-b border-border last:border-b-0;
+    padding: var(--spacing-section) var(--spacing-component);
+  }
+
+  /* ========================================
+     NAVEGAÇÃO
+     ======================================== */
+
+  .nav-lateral {
+    @apply bg-sidebar-background text-sidebar-foreground min-h-screen;
+  }
+
+  /* ========================================
+     BOTÕES INSTITUCIONAIS
+     ======================================== */
+
+  .btn-gov {
+    @apply bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-6 py-2.5 transition-colors;
+    border-radius: var(--radius);
+  }
+
+  .btn-gov-secondary {
+    @apply bg-secondary hover:bg-secondary/90 text-secondary-foreground font-medium px-6 py-2.5 transition-colors;
+    border-radius: var(--radius);
+  }
+
+  .btn-gov-outline {
+    @apply border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground font-medium px-6 py-2.5 transition-colors;
+    border-radius: var(--radius);
+  }
+
+  /* ========================================
+     TABELAS
+     ======================================== */
+
+  .table-gov {
+    @apply w-full border-collapse;
+  }
+
+  .table-gov th {
+    @apply bg-muted text-foreground font-semibold text-left px-4 py-3 border-b-2 border-primary/20;
+  }
+
+  .table-gov td {
+    @apply px-4 py-3 border-b border-border;
+  }
+
+  .table-gov tr:hover {
+    @apply bg-muted/50;
+  }
+
+  /* ========================================
+     FLUXOGRAMA
+     ======================================== */
+
+  .fluxo-etapa {
+    @apply bg-card border-2 border-primary/30 p-4 text-center relative;
+    border-radius: var(--radius);
+  }
+
+  .fluxo-etapa::after {
+    content: '';
+    @apply absolute -bottom-6 left-1/2 w-0.5 h-6 bg-primary/30 -translate-x-1/2;
+  }
+
+  .fluxo-etapa:last-child::after {
+    @apply hidden;
+  }
+
+  /* ========================================
+     CHECKLIST E ALERTAS
+     ======================================== */
+
+  .checklist-item {
+    @apply flex items-start gap-3 p-3 border border-border bg-card;
+    border-radius: var(--radius);
+  }
+
+  .checklist-item.checked {
+    @apply bg-success/10 border-success/30;
+  }
+
+  .alerta-conformidade {
+    @apply bg-warning/10 border-l-4 border-warning p-4;
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+
+  .accent-highlight {
+    @apply bg-accent/10 border-l-4 border-accent p-4;
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+
+  /* ========================================
+     HERO E SEÇÕES DESTAQUE
+     ======================================== */
+
+  .hero-gov {
+    @apply bg-gradient-to-br from-primary via-primary/95 to-secondary/80 text-primary-foreground;
+  }
+
+  .gradient-institucional {
+    background: linear-gradient(135deg, 
+      hsl(var(--primary)) 0%, 
+      hsl(210 65% 35%) 50%,
+      hsl(var(--secondary)) 100%
+    );
+  }
+
+  /* ========================================
+     FAIXA DECORATIVA (Bandeira)
+     ======================================== */
+
+  .faixa-brasil {
+    background: linear-gradient(90deg, 
+      hsl(var(--primary)) 0%, 
+      hsl(var(--primary)) 33.33%, 
+      hsl(var(--highlight)) 33.33%, 
+      hsl(var(--highlight)) 66.66%, 
+      hsl(var(--secondary)) 66.66%, 
+      hsl(var(--secondary)) 100%
+    );
+    height: 4px;
+  }
+
+  .faixa-brasil-vertical {
+    background: linear-gradient(180deg, 
+      hsl(var(--primary)) 0%, 
+      hsl(var(--primary)) 33.33%, 
+      hsl(var(--highlight)) 33.33%, 
+      hsl(var(--highlight)) 66.66%, 
+      hsl(var(--secondary)) 66.66%, 
+      hsl(var(--secondary)) 100%
+    );
+    width: 4px;
+  }
+
+  /* ========================================
+     DIVISORES
+     ======================================== */
+
+  .divider-decorativo {
+    @apply relative;
+  }
+  
+  .divider-decorativo::after {
+    content: '';
+    @apply absolute bottom-0 left-0 w-16 h-1 bg-secondary;
+    border-radius: var(--radius);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Animações */
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { 
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to { 
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Utilitários de espaçamento consistente */
+  .section-padding {
+    padding-top: var(--spacing-section);
+    padding-bottom: var(--spacing-section);
+  }
+
+  .component-padding {
+    padding: var(--spacing-component);
+  }
+
+  /* Scroll suave para mobile */
+  .scroll-smooth-mobile {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Prevenir scroll horizontal indesejado */
+  .no-horizontal-scroll {
+    overflow-x: hidden;
+  }
+}
