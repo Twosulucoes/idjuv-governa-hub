@@ -36,9 +36,30 @@ async function sha256(data: Uint8Array): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// Função para converter hex para bytes
+function hexToBytes(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+  }
+  return bytes;
+}
+
 // Função para criptografar dados (AES-256-GCM)
-async function encryptData(data: Uint8Array, keyBase64: string): Promise<{ encrypted: Uint8Array; iv: Uint8Array }> {
-  const keyData = Uint8Array.from(atob(keyBase64), c => c.charCodeAt(0));
+async function encryptData(data: Uint8Array, keyString: string): Promise<{ encrypted: Uint8Array; iv: Uint8Array }> {
+  // Suporta chave em hex (64 chars) ou texto (será hashado)
+  let keyData: Uint8Array;
+  
+  if (/^[a-fA-F0-9]{64}$/.test(keyString)) {
+    // Chave em formato hexadecimal (32 bytes = 64 hex chars)
+    keyData = hexToBytes(keyString);
+  } else {
+    // Se não for hex, usar hash SHA-256 da string
+    const encoder = new TextEncoder();
+    const keyBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(keyString));
+    keyData = new Uint8Array(keyBuffer);
+  }
+  
   const key = await crypto.subtle.importKey(
     'raw',
     keyData.buffer as ArrayBuffer,
@@ -58,8 +79,17 @@ async function encryptData(data: Uint8Array, keyBase64: string): Promise<{ encry
 }
 
 // Função para descriptografar dados
-async function decryptData(encrypted: Uint8Array, iv: Uint8Array, keyBase64: string): Promise<Uint8Array> {
-  const keyData = Uint8Array.from(atob(keyBase64), c => c.charCodeAt(0));
+async function decryptData(encrypted: Uint8Array, iv: Uint8Array, keyString: string): Promise<Uint8Array> {
+  let keyData: Uint8Array;
+  
+  if (/^[a-fA-F0-9]{64}$/.test(keyString)) {
+    keyData = hexToBytes(keyString);
+  } else {
+    const encoder = new TextEncoder();
+    const keyBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(keyString));
+    keyData = new Uint8Array(keyBuffer);
+  }
+  
   const key = await crypto.subtle.importKey(
     'raw',
     keyData.buffer as ArrayBuffer,
@@ -138,27 +168,55 @@ serve(async (req) => {
     switch (action) {
       case 'test-connection': {
         // Testar conexão com Supabase destino
-        const { data, error } = await supabaseDest.storage.listBuckets();
+        console.log('Testando conexão com destino:', destUrl);
         
-        if (error) {
-          throw new Error(`Falha na conexão: ${error.message}`);
-        }
-
-        // Verificar se bucket existe, se não criar
-        const bucketExists = data?.some(b => b.name === 'idjuv-backups');
-        if (!bucketExists) {
-          const { error: createError } = await supabaseDest.storage.createBucket('idjuv-backups', {
-            public: false
-          });
-          if (createError && !createError.message.includes('already exists')) {
-            throw new Error(`Falha ao criar bucket: ${createError.message}`);
+        try {
+          const { data, error } = await supabaseDest.storage.listBuckets();
+          
+          if (error) {
+            console.error('Erro ao listar buckets:', error);
+            throw new Error(`Falha na conexão: ${error.message}`);
           }
-        }
 
-        return new Response(
-          JSON.stringify({ success: true, message: 'Conexão estabelecida com sucesso' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+          console.log('Buckets encontrados:', data?.map(b => b.name));
+
+          // Verificar se bucket existe, se não tentar criar
+          const bucketExists = data?.some(b => b.name === 'idjuv-backups');
+          if (!bucketExists) {
+            console.log('Bucket não existe, tentando criar...');
+            // Nota: A criação do bucket requer service_role key com permissões adequadas
+            // Se falhar, informar o usuário para criar manualmente
+            const { error: createError } = await supabaseDest.storage.createBucket('idjuv-backups', {
+              public: false
+            });
+            if (createError) {
+              if (createError.message.includes('already exists')) {
+                console.log('Bucket já existe');
+              } else if (createError.message.includes('row-level security') || createError.message.includes('policy')) {
+                // RLS está ativo, o bucket precisa ser criado manualmente
+                console.warn('RLS ativo no destino. Bucket deve ser criado manualmente.');
+                return new Response(
+                  JSON.stringify({ 
+                    success: false, 
+                    message: 'Conexão OK, mas o bucket "idjuv-backups" precisa ser criado manualmente no projeto de destino. Acesse o Supabase de destino e crie o bucket.',
+                    needsManualBucket: true
+                  }),
+                  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+              } else {
+                throw new Error(`Falha ao criar bucket: ${createError.message}`);
+              }
+            }
+          }
+
+          return new Response(
+            JSON.stringify({ success: true, message: 'Conexão estabelecida com sucesso' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (connError) {
+          console.error('Erro de conexão:', connError);
+          throw connError;
+        }
       }
 
       case 'execute-backup': {
