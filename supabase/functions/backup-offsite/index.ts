@@ -196,10 +196,11 @@ serve(async (req) => {
                 // RLS está ativo, o bucket precisa ser criado manualmente
                 console.warn('RLS ativo no destino. Bucket deve ser criado manualmente.');
                 return new Response(
-                  JSON.stringify({ 
-                    success: false, 
-                    message: 'Conexão OK, mas o bucket "idjuv-backups" precisa ser criado manualmente no projeto de destino. Acesse o Supabase de destino e crie o bucket.',
-                    needsManualBucket: true
+                  JSON.stringify({
+                    success: false,
+                    error: 'Conexão OK, mas não foi possível criar o bucket "idjuv-backups" no destino. Isso normalmente indica que a chave do destino NÃO é uma service role key. Ajuste a chave do destino ou crie o bucket manualmente e tente novamente.',
+                    needsManualBucket: true,
+                    needsServiceRoleKey: true,
                   }),
                   { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
                 );

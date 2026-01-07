@@ -117,10 +117,18 @@ export const useBackupOffsite = () => {
       body: { action, ...params }
     });
 
-    if (response.error) throw response.error;
-    if (!response.data.success) throw new Error(response.data.error);
+    if (response.error) {
+      throw new Error(response.error.message || 'Falha ao chamar função');
+    }
 
-    return response.data;
+    const data: any = response.data;
+
+    if (!data?.success) {
+      const msg = data?.error || data?.message || 'Falha ao executar operação';
+      throw new Error(msg);
+    }
+
+    return data;
   }, []);
 
   // Testar conexão
