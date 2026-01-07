@@ -341,6 +341,185 @@ export type Database = {
           },
         ]
       }
+      backup_config: {
+        Row: {
+          buckets_included: string[] | null
+          created_at: string | null
+          enabled: boolean | null
+          encryption_enabled: boolean | null
+          id: string
+          last_backup_at: string | null
+          last_backup_status:
+            | Database["public"]["Enums"]["backup_status"]
+            | null
+          retention_daily: number | null
+          retention_monthly: number | null
+          retention_weekly: number | null
+          schedule_cron: string | null
+          updated_at: string | null
+          weekly_day: number | null
+        }
+        Insert: {
+          buckets_included?: string[] | null
+          created_at?: string | null
+          enabled?: boolean | null
+          encryption_enabled?: boolean | null
+          id?: string
+          last_backup_at?: string | null
+          last_backup_status?:
+            | Database["public"]["Enums"]["backup_status"]
+            | null
+          retention_daily?: number | null
+          retention_monthly?: number | null
+          retention_weekly?: number | null
+          schedule_cron?: string | null
+          updated_at?: string | null
+          weekly_day?: number | null
+        }
+        Update: {
+          buckets_included?: string[] | null
+          created_at?: string | null
+          enabled?: boolean | null
+          encryption_enabled?: boolean | null
+          id?: string
+          last_backup_at?: string | null
+          last_backup_status?:
+            | Database["public"]["Enums"]["backup_status"]
+            | null
+          retention_daily?: number | null
+          retention_monthly?: number | null
+          retention_weekly?: number | null
+          schedule_cron?: string | null
+          updated_at?: string | null
+          weekly_day?: number | null
+        }
+        Relationships: []
+      }
+      backup_history: {
+        Row: {
+          backup_type: Database["public"]["Enums"]["backup_type"]
+          completed_at: string | null
+          created_at: string | null
+          db_checksum: string | null
+          db_file_path: string | null
+          db_file_size: number | null
+          duration_seconds: number | null
+          error_details: Json | null
+          error_message: string | null
+          id: string
+          manifest_checksum: string | null
+          manifest_path: string | null
+          metadata: Json | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["backup_status"] | null
+          storage_checksum: string | null
+          storage_file_path: string | null
+          storage_file_size: number | null
+          storage_objects_count: number | null
+          system_version: string | null
+          total_size: number | null
+          trigger_mode: string | null
+          triggered_by: string | null
+        }
+        Insert: {
+          backup_type: Database["public"]["Enums"]["backup_type"]
+          completed_at?: string | null
+          created_at?: string | null
+          db_checksum?: string | null
+          db_file_path?: string | null
+          db_file_size?: number | null
+          duration_seconds?: number | null
+          error_details?: Json | null
+          error_message?: string | null
+          id?: string
+          manifest_checksum?: string | null
+          manifest_path?: string | null
+          metadata?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["backup_status"] | null
+          storage_checksum?: string | null
+          storage_file_path?: string | null
+          storage_file_size?: number | null
+          storage_objects_count?: number | null
+          system_version?: string | null
+          total_size?: number | null
+          trigger_mode?: string | null
+          triggered_by?: string | null
+        }
+        Update: {
+          backup_type?: Database["public"]["Enums"]["backup_type"]
+          completed_at?: string | null
+          created_at?: string | null
+          db_checksum?: string | null
+          db_file_path?: string | null
+          db_file_size?: number | null
+          duration_seconds?: number | null
+          error_details?: Json | null
+          error_message?: string | null
+          id?: string
+          manifest_checksum?: string | null
+          manifest_path?: string | null
+          metadata?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["backup_status"] | null
+          storage_checksum?: string | null
+          storage_file_path?: string | null
+          storage_file_size?: number | null
+          storage_objects_count?: number | null
+          system_version?: string | null
+          total_size?: number | null
+          trigger_mode?: string | null
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
+      backup_integrity_checks: {
+        Row: {
+          backup_id: string | null
+          checked_at: string | null
+          checked_by: string | null
+          created_at: string | null
+          db_checksum_valid: boolean | null
+          details: Json | null
+          id: string
+          is_valid: boolean | null
+          manifest_valid: boolean | null
+          storage_checksum_valid: boolean | null
+        }
+        Insert: {
+          backup_id?: string | null
+          checked_at?: string | null
+          checked_by?: string | null
+          created_at?: string | null
+          db_checksum_valid?: boolean | null
+          details?: Json | null
+          id?: string
+          is_valid?: boolean | null
+          manifest_valid?: boolean | null
+          storage_checksum_valid?: boolean | null
+        }
+        Update: {
+          backup_id?: string | null
+          checked_at?: string | null
+          checked_by?: string | null
+          created_at?: string | null
+          db_checksum_valid?: boolean | null
+          details?: Json | null
+          id?: string
+          is_valid?: boolean | null
+          manifest_valid?: boolean | null
+          storage_checksum_valid?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backup_integrity_checks_backup_id_fkey"
+            columns: ["backup_id"]
+            isOneToOne: false
+            referencedRelation: "backup_history"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       banco_horas: {
         Row: {
           ano: number
@@ -2884,6 +3063,8 @@ export type Database = {
         | "approve"
         | "reject"
         | "submit"
+      backup_status: "pending" | "running" | "success" | "failed" | "partial"
+      backup_type: "daily" | "weekly" | "monthly" | "manual"
       categoria_cargo:
         | "efetivo"
         | "comissionado"
@@ -3231,6 +3412,8 @@ export const Constants = {
         "reject",
         "submit",
       ],
+      backup_status: ["pending", "running", "success", "failed", "partial"],
+      backup_type: ["daily", "weekly", "monthly", "manual"],
       categoria_cargo: [
         "efetivo",
         "comissionado",
