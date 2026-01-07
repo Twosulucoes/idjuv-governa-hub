@@ -73,6 +73,9 @@ import GestaoDocumentosPage from "./pages/admin/GestaoDocumentosPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminHelpPage from "./pages/admin/AdminHelpPage";
 import ControleAcessoAdminPage from "./pages/admin/ControleAcessoAdminPage";
+import CentralAprovacoesPage from "./pages/admin/CentralAprovacoesPage";
+import AuditoriaPage from "./pages/admin/AuditoriaPage";
+import GestaoPerfilPage from "./pages/admin/GestaoPerfilPage";
 
 const queryClient = new QueryClient();
 
@@ -98,6 +101,9 @@ const App = () => (
               <Route path="/admin/usuarios" element={<GerenciamentoUsuariosPage />} />
               <Route path="/admin/documentos" element={<GestaoDocumentosPage />} />
               <Route path="/admin/acesso" element={<ControleAcessoAdminPage />} />
+              <Route path="/admin/aprovacoes" element={<CentralAprovacoesPage />} />
+              <Route path="/admin/auditoria" element={<AuditoriaPage />} />
+              <Route path="/admin/perfis" element={<GestaoPerfilPage />} />
               {/* Redirect old /acesso to new admin route */}
               <Route path="/acesso" element={<ControleAcessoAdminPage />} />
               
