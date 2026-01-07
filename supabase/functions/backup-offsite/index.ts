@@ -273,13 +273,28 @@ serve(async (req) => {
         let storageChecksum = '';
 
         try {
-          // 1. Backup do banco de dados via pg_dump simulation
-          // Como não temos acesso direto ao pg_dump, vamos exportar tabelas principais
+          // 1. Backup COMPLETO do banco de dados - todas as tabelas
+          // Lista completa de tabelas para permitir restauração total
           const tables = [
-            'profiles', 'servidores', 'cargos', 'estrutura_organizacional',
-            'documentos', 'ferias_servidor', 'licencas_afastamentos',
-            'historico_funcional', 'lotacoes', 'agenda_unidade',
-            'unidades_locais', 'patrimonio_unidade', 'audit_logs'
+            // Usuários e permissões
+            'profiles', 'user_roles', 'user_permissions', 'user_org_units', 'user_security_settings',
+            'role_permissions', 'module_access_scopes',
+            // Estrutura organizacional
+            'estrutura_organizacional', 'cargos', 'composicao_cargos',
+            // Servidores e RH
+            'servidores', 'lotacoes', 'historico_funcional', 'portarias_servidor', 'ocorrencias_servidor',
+            'ferias_servidor', 'licencas_afastamentos',
+            // Ponto e frequência
+            'configuracao_jornada', 'horarios_jornada', 'registros_ponto', 'justificativas_ponto',
+            'solicitacoes_ajuste_ponto', 'banco_horas', 'lancamentos_banco_horas', 'frequencia_mensal',
+            'feriados', 'viagens_diarias',
+            // Unidades locais
+            'unidades_locais', 'agenda_unidade', 'documentos_cedencia', 'termos_cessao',
+            'patrimonio_unidade', 'nomeacoes_chefe_unidade',
+            // Documentos e aprovações
+            'documentos', 'approval_requests', 'approval_delegations',
+            // Auditoria e backup (meta)
+            'audit_logs', 'backup_config', 'backup_history', 'backup_integrity_checks'
           ];
 
           const dbData: Record<string, unknown[]> = {};
