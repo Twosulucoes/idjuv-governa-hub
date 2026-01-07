@@ -281,6 +281,16 @@ serve(async (req) => {
             dbFileName += '.enc';
           }
 
+          // Garantir que o bucket existe no destino (e que a chave tem permissão)
+          const { data: destBuckets, error: destBucketsError } = await supabaseDest.storage.listBuckets();
+          if (destBucketsError) {
+            throw new Error(`Falha ao acessar buckets do destino: ${destBucketsError.message}`);
+          }
+          const hasBackupBucket = destBuckets?.some((b) => b.name === 'idjuv-backups');
+          if (!hasBackupBucket) {
+            throw new Error('Bucket "idjuv-backups" não encontrado no destino. Confirme que ele foi criado no projeto de destino e que a chave do destino é uma service role key.');
+          }
+
           // Upload do banco
           const { error: dbUploadError } = await supabaseDest.storage
             .from('idjuv-backups')
@@ -652,9 +662,10 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
-      { 
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        // Importante: retornar 200 para que o client consiga ler o JSON de erro
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }

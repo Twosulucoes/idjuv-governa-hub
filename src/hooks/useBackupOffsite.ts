@@ -114,7 +114,10 @@ export const useBackupOffsite = () => {
     if (!session) throw new Error('Não autenticado');
 
     const response = await supabase.functions.invoke('backup-offsite', {
-      body: { action, ...params }
+      body: { action, ...params },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`
+      }
     });
 
     if (response.error) {
