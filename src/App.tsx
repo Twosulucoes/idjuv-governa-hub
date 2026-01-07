@@ -77,6 +77,7 @@ import CentralAprovacoesPage from "./pages/admin/CentralAprovacoesPage";
 import AuditoriaPage from "./pages/admin/AuditoriaPage";
 import GestaoPerfilPage from "./pages/admin/GestaoPerfilPage";
 import BackupOffsitePage from "./pages/admin/BackupOffsitePage";
+import DisasterRecoveryPage from "./pages/admin/DisasterRecoveryPage";
 
 const queryClient = new QueryClient();
 
