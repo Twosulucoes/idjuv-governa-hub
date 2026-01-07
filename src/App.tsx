@@ -76,6 +76,7 @@ import ControleAcessoAdminPage from "./pages/admin/ControleAcessoAdminPage";
 import CentralAprovacoesPage from "./pages/admin/CentralAprovacoesPage";
 import AuditoriaPage from "./pages/admin/AuditoriaPage";
 import GestaoPerfilPage from "./pages/admin/GestaoPerfilPage";
+import BackupOffsitePage from "./pages/admin/BackupOffsitePage";
 
 const queryClient = new QueryClient();
 
@@ -104,6 +105,7 @@ const App = () => (
               <Route path="/admin/aprovacoes" element={<CentralAprovacoesPage />} />
               <Route path="/admin/auditoria" element={<AuditoriaPage />} />
               <Route path="/admin/perfis" element={<GestaoPerfilPage />} />
+              <Route path="/admin/backup" element={<BackupOffsitePage />} />
               {/* Redirect old /acesso to new admin route */}
               <Route path="/acesso" element={<ControleAcessoAdminPage />} />
               
