@@ -1542,6 +1542,129 @@ export type Database = {
           },
         ]
       }
+      memorandos_lotacao: {
+        Row: {
+          ano: number
+          assinatura_recebimento: string | null
+          cargo_id: string | null
+          cargo_nome: string | null
+          created_at: string | null
+          data_emissao: string
+          data_entrega: string | null
+          data_inicio_exercicio: string
+          documento_url: string | null
+          emitido_por: string | null
+          emitido_por_nome: string | null
+          entregue: boolean | null
+          id: string
+          lotacao_id: string
+          numero_protocolo: string
+          observacoes: string | null
+          observacoes_entrega: string | null
+          recebido_por: string | null
+          servidor_id: string
+          servidor_matricula: string | null
+          servidor_nome: string
+          status: string | null
+          tipo_movimentacao: string
+          unidade_destino_id: string
+          unidade_destino_nome: string
+          updated_at: string | null
+        }
+        Insert: {
+          ano?: number
+          assinatura_recebimento?: string | null
+          cargo_id?: string | null
+          cargo_nome?: string | null
+          created_at?: string | null
+          data_emissao?: string
+          data_entrega?: string | null
+          data_inicio_exercicio: string
+          documento_url?: string | null
+          emitido_por?: string | null
+          emitido_por_nome?: string | null
+          entregue?: boolean | null
+          id?: string
+          lotacao_id: string
+          numero_protocolo: string
+          observacoes?: string | null
+          observacoes_entrega?: string | null
+          recebido_por?: string | null
+          servidor_id: string
+          servidor_matricula?: string | null
+          servidor_nome: string
+          status?: string | null
+          tipo_movimentacao: string
+          unidade_destino_id: string
+          unidade_destino_nome: string
+          updated_at?: string | null
+        }
+        Update: {
+          ano?: number
+          assinatura_recebimento?: string | null
+          cargo_id?: string | null
+          cargo_nome?: string | null
+          created_at?: string | null
+          data_emissao?: string
+          data_entrega?: string | null
+          data_inicio_exercicio?: string
+          documento_url?: string | null
+          emitido_por?: string | null
+          emitido_por_nome?: string | null
+          entregue?: boolean | null
+          id?: string
+          lotacao_id?: string
+          numero_protocolo?: string
+          observacoes?: string | null
+          observacoes_entrega?: string | null
+          recebido_por?: string | null
+          servidor_id?: string
+          servidor_matricula?: string | null
+          servidor_nome?: string
+          status?: string | null
+          tipo_movimentacao?: string
+          unidade_destino_id?: string
+          unidade_destino_nome?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memorandos_lotacao_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memorandos_lotacao_emitido_por_fkey"
+            columns: ["emitido_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memorandos_lotacao_lotacao_id_fkey"
+            columns: ["lotacao_id"]
+            isOneToOne: false
+            referencedRelation: "lotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memorandos_lotacao_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memorandos_lotacao_unidade_destino_id_fkey"
+            columns: ["unidade_destino_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       module_access_scopes: {
         Row: {
           access_scope: Database["public"]["Enums"]["access_scope"]
@@ -2909,6 +3032,7 @@ export type Database = {
         Args: { p_unidade_id: string }
         Returns: string
       }
+      gerar_protocolo_memorando_lotacao: { Args: never; Returns: string }
       get_chefe_unidade_atual: {
         Args: { p_unidade_id: string }
         Returns: {
