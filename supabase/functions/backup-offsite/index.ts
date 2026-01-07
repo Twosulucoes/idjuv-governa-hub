@@ -171,6 +171,7 @@ serve(async (req) => {
         console.log('Testando conexão com destino:', destUrl);
         
         try {
+          // Primeiro, testar se conseguimos listar buckets
           const { data, error } = await supabaseDest.storage.listBuckets();
           
           if (error) {
@@ -180,35 +181,60 @@ serve(async (req) => {
 
           console.log('Buckets encontrados:', data?.map(b => b.name));
 
-          // Verificar se bucket existe, se não tentar criar
+          // Verificar se bucket idjuv-backups existe
           const bucketExists = data?.some(b => b.name === 'idjuv-backups');
+          
           if (!bucketExists) {
+            // Tentar criar o bucket automaticamente
             console.log('Bucket não existe, tentando criar...');
-            // Nota: A criação do bucket requer service_role key com permissões adequadas
-            // Se falhar, informar o usuário para criar manualmente
             const { error: createError } = await supabaseDest.storage.createBucket('idjuv-backups', {
               public: false
             });
+            
             if (createError) {
+              // Se já existe (condição de corrida), tudo bem
               if (createError.message.includes('already exists')) {
-                console.log('Bucket já existe');
-              } else if (createError.message.includes('row-level security') || createError.message.includes('policy')) {
-                // RLS está ativo, o bucket precisa ser criado manualmente
-                console.warn('RLS ativo no destino. Bucket deve ser criado manualmente.');
+                console.log('Bucket já existe (condição de corrida)');
+              } else {
+                // Qualquer outro erro: informar que precisa criar manualmente
+                console.warn('Não foi possível criar bucket:', createError.message);
                 return new Response(
                   JSON.stringify({
                     success: false,
-                    error: 'Conexão OK, mas não foi possível criar o bucket "idjuv-backups" no destino. Isso normalmente indica que a chave do destino NÃO é uma service role key. Ajuste a chave do destino ou crie o bucket manualmente e tente novamente.',
+                    error: `Bucket "idjuv-backups" não encontrado no destino e não foi possível criá-lo automaticamente. Por favor, crie o bucket manualmente no projeto de destino e tente novamente. Detalhe: ${createError.message}`,
                     needsManualBucket: true,
-                    needsServiceRoleKey: true,
                   }),
                   { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
                 );
-              } else {
-                throw new Error(`Falha ao criar bucket: ${createError.message}`);
               }
+            } else {
+              console.log('Bucket criado com sucesso');
             }
+          } else {
+            console.log('Bucket idjuv-backups já existe no destino');
           }
+
+          // Testar se conseguimos fazer upload no bucket
+          const testData = new TextEncoder().encode('test');
+          const testPath = `_connection_test_${Date.now()}.txt`;
+          
+          const { error: uploadError } = await supabaseDest.storage
+            .from('idjuv-backups')
+            .upload(testPath, testData, { upsert: true });
+          
+          if (uploadError) {
+            console.error('Erro ao testar upload:', uploadError);
+            return new Response(
+              JSON.stringify({
+                success: false,
+                error: `Conexão OK, mas falha ao gravar no bucket: ${uploadError.message}. Verifique as permissões do bucket.`,
+              }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
+          // Limpar arquivo de teste
+          await supabaseDest.storage.from('idjuv-backups').remove([testPath]);
 
           return new Response(
             JSON.stringify({ success: true, message: 'Conexão estabelecida com sucesso' }),
