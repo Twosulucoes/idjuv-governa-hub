@@ -160,6 +160,187 @@ export type Database = {
           },
         ]
       }
+      approval_delegations: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          delegate_id: string
+          delegator_id: string
+          id: string
+          is_active: boolean | null
+          module_name: string | null
+          reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          valid_from: string
+          valid_until: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          delegate_id: string
+          delegator_id: string
+          id?: string
+          is_active?: boolean | null
+          module_name?: string | null
+          reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          valid_from: string
+          valid_until: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          delegate_id?: string
+          delegator_id?: string
+          id?: string
+          is_active?: boolean | null
+          module_name?: string | null
+          reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          valid_from?: string
+          valid_until?: string
+        }
+        Relationships: []
+      }
+      approval_requests: {
+        Row: {
+          approved_at: string | null
+          approver_decision: string | null
+          approver_id: string | null
+          attachments: Json | null
+          created_at: string | null
+          due_date: string | null
+          electronic_signature: Json | null
+          entity_id: string
+          entity_type: string
+          id: string
+          justification: string | null
+          module_name: string
+          priority: string | null
+          requester_id: string
+          requester_org_unit_id: string | null
+          status: Database["public"]["Enums"]["approval_status"] | null
+          status_history: Json | null
+          submitted_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approver_decision?: string | null
+          approver_id?: string | null
+          attachments?: Json | null
+          created_at?: string | null
+          due_date?: string | null
+          electronic_signature?: Json | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          justification?: string | null
+          module_name: string
+          priority?: string | null
+          requester_id: string
+          requester_org_unit_id?: string | null
+          status?: Database["public"]["Enums"]["approval_status"] | null
+          status_history?: Json | null
+          submitted_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approver_decision?: string | null
+          approver_id?: string | null
+          attachments?: Json | null
+          created_at?: string | null
+          due_date?: string | null
+          electronic_signature?: Json | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          justification?: string | null
+          module_name?: string
+          priority?: string | null
+          requester_id?: string
+          requester_org_unit_id?: string | null
+          status?: Database["public"]["Enums"]["approval_status"] | null
+          status_history?: Json | null
+          submitted_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_requests_requester_org_unit_id_fkey"
+            columns: ["requester_org_unit_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_logs: {
+        Row: {
+          action: Database["public"]["Enums"]["audit_action"]
+          after_data: Json | null
+          before_data: Json | null
+          description: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          ip_address: unknown
+          metadata: Json | null
+          module_name: string | null
+          org_unit_id: string | null
+          role_at_time: Database["public"]["Enums"]["app_role"] | null
+          timestamp: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["audit_action"]
+          after_data?: Json | null
+          before_data?: Json | null
+          description?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          module_name?: string | null
+          org_unit_id?: string | null
+          role_at_time?: Database["public"]["Enums"]["app_role"] | null
+          timestamp?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["audit_action"]
+          after_data?: Json | null
+          before_data?: Json | null
+          description?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          module_name?: string | null
+          org_unit_id?: string | null
+          role_at_time?: Database["public"]["Enums"]["app_role"] | null
+          timestamp?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_org_unit_id_fkey"
+            columns: ["org_unit_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       banco_horas: {
         Row: {
           ano: number
@@ -1181,6 +1362,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      module_access_scopes: {
+        Row: {
+          access_scope: Database["public"]["Enums"]["access_scope"]
+          can_approve: boolean | null
+          can_create: boolean | null
+          can_delete: boolean | null
+          can_edit: boolean | null
+          created_at: string | null
+          id: string
+          module_name: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          access_scope?: Database["public"]["Enums"]["access_scope"]
+          can_approve?: boolean | null
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          created_at?: string | null
+          id?: string
+          module_name: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          access_scope?: Database["public"]["Enums"]["access_scope"]
+          can_approve?: boolean | null
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          created_at?: string | null
+          id?: string
+          module_name?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
       }
       nomeacoes_chefe_unidade: {
         Row: {
@@ -2216,6 +2433,44 @@ export type Database = {
         }
         Relationships: []
       }
+      user_org_units: {
+        Row: {
+          access_scope: Database["public"]["Enums"]["access_scope"] | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_primary: boolean | null
+          unidade_id: string
+          user_id: string
+        }
+        Insert: {
+          access_scope?: Database["public"]["Enums"]["access_scope"] | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_primary?: boolean | null
+          unidade_id: string
+          user_id: string
+        }
+        Update: {
+          access_scope?: Database["public"]["Enums"]["access_scope"] | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_primary?: boolean | null
+          unidade_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_org_units_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_permissions: {
         Row: {
           created_at: string
@@ -2254,6 +2509,69 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_security_settings: {
+        Row: {
+          active_sessions: number | null
+          created_at: string | null
+          deactivated_at: string | null
+          deactivated_by: string | null
+          deactivation_reason: string | null
+          failed_login_attempts: number | null
+          force_password_change: boolean | null
+          id: string
+          is_active: boolean | null
+          last_login_at: string | null
+          last_login_ip: unknown
+          locked_until: string | null
+          mfa_enabled: boolean | null
+          mfa_method: string | null
+          mfa_required: boolean | null
+          password_changed_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          active_sessions?: number | null
+          created_at?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          deactivation_reason?: string | null
+          failed_login_attempts?: number | null
+          force_password_change?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          last_login_at?: string | null
+          last_login_ip?: unknown
+          locked_until?: string | null
+          mfa_enabled?: boolean | null
+          mfa_method?: string | null
+          mfa_required?: boolean | null
+          password_changed_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          active_sessions?: number | null
+          created_at?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          deactivation_reason?: string | null
+          failed_login_attempts?: number | null
+          force_password_change?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          last_login_at?: string | null
+          last_login_ip?: unknown
+          locked_until?: string | null
+          mfa_enabled?: boolean | null
+          mfa_method?: string | null
+          mfa_required?: boolean | null
+          password_changed_at?: string | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
@@ -2403,6 +2721,11 @@ export type Database = {
         }
         Returns: number
       }
+      can_approve: {
+        Args: { _module_name?: string; _user_id: string }
+        Returns: boolean
+      }
+      can_view_audit: { Args: { _user_id: string }; Returns: boolean }
       gerar_protocolo_cedencia: {
         Args: { p_unidade_id: string }
         Returns: string
@@ -2455,6 +2778,24 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin_user: { Args: { _user_id: string }; Returns: boolean }
+      log_audit: {
+        Args: {
+          _action: Database["public"]["Enums"]["audit_action"]
+          _after_data?: Json
+          _before_data?: Json
+          _description?: string
+          _entity_id?: string
+          _entity_type?: string
+          _metadata?: Json
+          _module_name?: string
+        }
+        Returns: string
+      }
+      user_has_unit_access: {
+        Args: { _unidade_id: string; _user_id: string }
+        Returns: boolean
+      }
       verificar_conflito_agenda: {
         Args: {
           p_agenda_id?: string
@@ -2469,6 +2810,7 @@ export type Database = {
       }
     }
     Enums: {
+      access_scope: "all" | "org_unit" | "local_unit" | "own" | "readonly"
       app_permission:
         | "users.read"
         | "users.create"
@@ -2487,7 +2829,61 @@ export type Database = {
         | "processes.update"
         | "processes.delete"
         | "processes.approve"
-      app_role: "admin" | "manager" | "user" | "guest"
+        | "roles.manage"
+        | "permissions.manage"
+        | "documents.view"
+        | "documents.create"
+        | "documents.edit"
+        | "documents.delete"
+        | "requests.create"
+        | "requests.view"
+        | "requests.approve"
+        | "requests.reject"
+        | "audit.view"
+        | "audit.export"
+        | "approval.delegate"
+        | "org_units.manage"
+        | "mfa.manage"
+      app_role:
+        | "admin"
+        | "manager"
+        | "user"
+        | "guest"
+        | "presidencia"
+        | "diraf"
+        | "rh"
+        | "ti_admin"
+        | "gabinete"
+        | "controle_interno"
+        | "juridico"
+        | "cpl"
+        | "ascom"
+        | "cadastrador_local"
+        | "cadastrador_setor"
+        | "cadastrador_leitura"
+      approval_status:
+        | "draft"
+        | "submitted"
+        | "in_review"
+        | "approved"
+        | "rejected"
+        | "cancelled"
+      audit_action:
+        | "login"
+        | "logout"
+        | "login_failed"
+        | "password_change"
+        | "password_reset"
+        | "create"
+        | "update"
+        | "delete"
+        | "view"
+        | "export"
+        | "upload"
+        | "download"
+        | "approve"
+        | "reject"
+        | "submit"
       categoria_cargo:
         | "efetivo"
         | "comissionado"
@@ -2757,6 +3153,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      access_scope: ["all", "org_unit", "local_unit", "own", "readonly"],
       app_permission: [
         "users.read",
         "users.create",
@@ -2775,8 +3172,65 @@ export const Constants = {
         "processes.update",
         "processes.delete",
         "processes.approve",
+        "roles.manage",
+        "permissions.manage",
+        "documents.view",
+        "documents.create",
+        "documents.edit",
+        "documents.delete",
+        "requests.create",
+        "requests.view",
+        "requests.approve",
+        "requests.reject",
+        "audit.view",
+        "audit.export",
+        "approval.delegate",
+        "org_units.manage",
+        "mfa.manage",
       ],
-      app_role: ["admin", "manager", "user", "guest"],
+      app_role: [
+        "admin",
+        "manager",
+        "user",
+        "guest",
+        "presidencia",
+        "diraf",
+        "rh",
+        "ti_admin",
+        "gabinete",
+        "controle_interno",
+        "juridico",
+        "cpl",
+        "ascom",
+        "cadastrador_local",
+        "cadastrador_setor",
+        "cadastrador_leitura",
+      ],
+      approval_status: [
+        "draft",
+        "submitted",
+        "in_review",
+        "approved",
+        "rejected",
+        "cancelled",
+      ],
+      audit_action: [
+        "login",
+        "logout",
+        "login_failed",
+        "password_change",
+        "password_reset",
+        "create",
+        "update",
+        "delete",
+        "view",
+        "export",
+        "upload",
+        "download",
+        "approve",
+        "reject",
+        "submit",
+      ],
       categoria_cargo: [
         "efetivo",
         "comissionado",
