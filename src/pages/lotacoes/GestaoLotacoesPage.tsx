@@ -52,10 +52,12 @@ import {
   Calendar,
   FileText,
   UserCheck,
-  UserX
+  UserX,
+  FileOutput
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { MemorandoLotacaoDialog } from "@/components/lotacoes/MemorandoLotacaoDialog";
 
 type Lotacao = {
   id: string;
@@ -109,6 +111,7 @@ export default function GestaoLotacoesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isMemorandoOpen, setIsMemorandoOpen] = useState(false);
   const [selectedLotacao, setSelectedLotacao] = useState<Lotacao | null>(null);
   const [showInactive, setShowInactive] = useState(false);
   const [filterUnidade, setFilterUnidade] = useState<string>("all");
@@ -529,6 +532,20 @@ export default function GestaoLotacoesPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
+                          {lotacao.ativo && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setSelectedLotacao(lotacao);
+                                setIsMemorandoOpen(true);
+                              }}
+                              title="Gerar Memorando"
+                              className="text-primary hover:text-primary"
+                            >
+                              <FileOutput className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -731,6 +748,13 @@ export default function GestaoLotacoesPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          {/* Memorando Lotação Dialog */}
+          <MemorandoLotacaoDialog
+            open={isMemorandoOpen}
+            onOpenChange={setIsMemorandoOpen}
+            lotacao={selectedLotacao}
+          />
         </div>
       </AdminLayout>
     </ProtectedRoute>
