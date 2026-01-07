@@ -1,1 +1,4 @@
 project_id = "tewgloptmijuaychoxnq"
+
+[functions.backup-offsite]
+verify_jwt = false
