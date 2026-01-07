@@ -11,6 +11,9 @@ import ReactFlow, {
   Panel,
   MarkerType,
   ReactFlowProvider,
+  Connection,
+  addEdge,
+  useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -20,13 +23,24 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
   Search, 
-  ZoomIn, 
-  ZoomOut, 
-  Maximize2, 
-  Download, 
   RefreshCw,
-  LayoutGrid
+  LayoutGrid,
+  Link2,
+  Link2Off,
+  Save,
+  X
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const nodeTypes = {
   unidade: UnidadeNode,
@@ -37,6 +51,10 @@ interface OrganogramaCanvasProps {
   contarServidores: (unidadeId: string, incluirSub?: boolean) => number;
   onSelectUnidade: (unidade: UnidadeOrganizacional | null) => void;
   selectedUnidade?: UnidadeOrganizacional | null;
+  editMode?: boolean;
+  onEditModeChange?: (editing: boolean) => void;
+  onUpdateHierarchy?: (unidadeId: string, novoSuperiorId: string | null) => Promise<boolean>;
+  onVerifyCycle?: (unidadeId: string, novoSuperiorId: string) => boolean;
 }
 
 function OrganogramaCanvasInner({
@@ -44,11 +62,18 @@ function OrganogramaCanvasInner({
   contarServidores,
   onSelectUnidade,
   selectedUnidade,
+  editMode = false,
+  onEditModeChange,
+  onUpdateHierarchy,
+  onVerifyCycle,
 }: OrganogramaCanvasProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [pendingConnection, setPendingConnection] = useState<{ source: string; target: string } | null>(null);
+  const { toast } = useToast();
+  const reactFlowInstance = useReactFlow();
 
   // Inicializar todos os nós como expandidos
   useEffect(() => {
@@ -181,72 +206,230 @@ function OrganogramaCanvasInner({
     setExpandedNodes(new Set(roots));
   };
 
+  // Handler para conexão no modo edição
+  const onConnect = useCallback((connection: Connection) => {
+    if (!editMode || !connection.source || !connection.target) return;
+    
+    // target se tornará subordinado de source
+    const sourceUnidade = unidades.find(u => u.id === connection.source);
+    const targetUnidade = unidades.find(u => u.id === connection.target);
+    
+    if (!sourceUnidade || !targetUnidade) return;
+    
+    // Verificar se criaria ciclo
+    if (onVerifyCycle && onVerifyCycle(connection.source, connection.target)) {
+      toast({
+        title: 'Conexão inválida',
+        description: 'Esta conexão criaria um ciclo na hierarquia.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Abrir confirmação
+    setPendingConnection({ 
+      source: connection.source, 
+      target: connection.target 
+    });
+  }, [editMode, unidades, onVerifyCycle, toast]);
+
+  // Confirmar conexão
+  const confirmConnection = async () => {
+    if (!pendingConnection || !onUpdateHierarchy) return;
+    
+    const success = await onUpdateHierarchy(pendingConnection.target, pendingConnection.source);
+    
+    if (success) {
+      toast({
+        title: 'Hierarquia atualizada',
+        description: 'A conexão foi salva com sucesso.',
+      });
+    }
+    
+    setPendingConnection(null);
+  };
+
+  // Handler para deletar aresta
+  const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
+    if (!editMode) return;
+    
+    // Mostrar confirmação para remover conexão
+    const targetUnidade = unidades.find(u => u.id === edge.target);
+    if (targetUnidade) {
+      setPendingConnection({ source: '', target: edge.target });
+    }
+  }, [editMode, unidades]);
+
+  // Remover conexão (tornar raiz)
+  const removeConnection = async () => {
+    if (!pendingConnection || !onUpdateHierarchy) return;
+    
+    const success = await onUpdateHierarchy(pendingConnection.target, null);
+    
+    if (success) {
+      toast({
+        title: 'Conexão removida',
+        description: 'A unidade agora é uma raiz.',
+      });
+    }
+    
+    setPendingConnection(null);
+  };
+
+  // Nome das unidades para o diálogo
+  const sourceUnidade = pendingConnection?.source 
+    ? unidades.find(u => u.id === pendingConnection.source) 
+    : null;
+  const targetUnidade = pendingConnection?.target 
+    ? unidades.find(u => u.id === pendingConnection.target) 
+    : null;
+
   return (
-    <div className="w-full h-[600px] bg-muted/20 rounded-lg border">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        nodeTypes={nodeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.1}
-        maxZoom={2}
-        attributionPosition="bottom-left"
-      >
-        {/* Painel de controles superior */}
-        <Panel position="top-left" className="flex gap-2 p-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar unidade..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-64 bg-background"
-            />
-          </div>
-        </Panel>
+    <>
+      <AlertDialog open={!!pendingConnection} onOpenChange={() => setPendingConnection(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingConnection?.source ? 'Confirmar nova hierarquia' : 'Remover conexão'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingConnection?.source ? (
+                <>
+                  Deseja que <strong>{targetUnidade?.nome}</strong> seja subordinada a{' '}
+                  <strong>{sourceUnidade?.nome}</strong>?
+                </>
+              ) : (
+                <>
+                  Deseja remover a conexão de <strong>{targetUnidade?.nome}</strong>?
+                  <br />
+                  A unidade se tornará uma raiz independente.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={pendingConnection?.source ? confirmConnection : removeConnection}
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <div className={`w-full h-[600px] rounded-lg border ${editMode ? 'ring-2 ring-primary ring-offset-2 bg-primary/5' : 'bg-muted/20'}`}>
+        <ReactFlow
+          nodes={nodes.map(n => ({ 
+            ...n, 
+            data: { ...n.data, editMode } 
+          }))}
+          edges={edges.map(e => ({
+            ...e,
+            style: { 
+              ...e.style, 
+              stroke: editMode ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+              strokeWidth: editMode ? 3 : 2,
+              cursor: editMode ? 'pointer' : 'default',
+            },
+            animated: editMode,
+          }))}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onEdgeClick={onEdgeClick}
+          nodeTypes={nodeTypes}
+          fitView
+          fitViewOptions={{ padding: 0.2 }}
+          minZoom={0.1}
+          maxZoom={2}
+          attributionPosition="bottom-left"
+          connectionLineStyle={{ stroke: 'hsl(var(--primary))', strokeWidth: 3 }}
+          connectionMode={editMode ? 'loose' as any : 'strict' as any}
+          edgesUpdatable={editMode}
+          edgesFocusable={editMode}
+          nodesDraggable={!editMode}
+          nodesConnectable={editMode}
+        >
+          {/* Modo edição banner */}
+          {editMode && (
+            <Panel position="top-center" className="p-2">
+              <div className="bg-primary text-primary-foreground px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg">
+                <Link2 className="h-4 w-4" />
+                <span className="font-medium">Modo Edição de Ligações</span>
+                <span className="text-primary-foreground/80 text-sm ml-2">
+                  Arraste entre os pontos para conectar
+                </span>
+              </div>
+            </Panel>
+          )}
 
-        <Panel position="top-right" className="flex gap-2 p-2">
-          <Button variant="outline" size="sm" onClick={expandAll}>
-            <LayoutGrid className="h-4 w-4 mr-1" />
-            Expandir
-          </Button>
-          <Button variant="outline" size="sm" onClick={collapseAll}>
-            <RefreshCw className="h-4 w-4 mr-1" />
-            Colapsar
-          </Button>
-        </Panel>
+          {/* Painel de controles superior */}
+          <Panel position="top-left" className="flex gap-2 p-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar unidade..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-64 bg-background"
+                disabled={editMode}
+              />
+            </div>
+          </Panel>
 
-        {/* Controles de zoom */}
-        <Controls 
-          showZoom
-          showFitView
-          showInteractive={false}
-          className="bg-background border shadow-md"
-        />
+          <Panel position="top-right" className="flex gap-2 p-2">
+            {!editMode ? (
+              <>
+                <Button variant="outline" size="sm" onClick={expandAll}>
+                  <LayoutGrid className="h-4 w-4 mr-1" />
+                  Expandir
+                </Button>
+                <Button variant="outline" size="sm" onClick={collapseAll}>
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Colapsar
+                </Button>
+              </>
+            ) : (
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                onClick={() => onEditModeChange?.(false)}
+              >
+                <X className="h-4 w-4 mr-1" />
+                Sair do Modo Edição
+              </Button>
+            )}
+          </Panel>
 
-        {/* Minimapa */}
-        <MiniMap 
-          nodeColor={(node) => {
-            const unidade = node.data?.unidade as UnidadeOrganizacional;
-            if (!unidade) return '#888';
-            switch (unidade.tipo) {
-              case 'presidencia': return 'hsl(var(--primary))';
-              case 'diretoria': return 'hsl(var(--secondary))';
-              case 'departamento': return 'hsl(var(--accent))';
-              default: return 'hsl(var(--muted-foreground))';
-            }
-          }}
-          className="bg-background border"
-          maskColor="rgba(0,0,0,0.1)"
-        />
+          {/* Controles de zoom */}
+          <Controls 
+            showZoom
+            showFitView
+            showInteractive={false}
+            className="bg-background border shadow-md"
+          />
 
-        {/* Background */}
-        <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
-      </ReactFlow>
-    </div>
+          {/* Minimapa */}
+          <MiniMap 
+            nodeColor={(node) => {
+              const unidade = node.data?.unidade as UnidadeOrganizacional;
+              if (!unidade) return '#888';
+              switch (unidade.tipo) {
+                case 'presidencia': return 'hsl(var(--primary))';
+                case 'diretoria': return 'hsl(var(--secondary))';
+                case 'departamento': return 'hsl(var(--accent))';
+                default: return 'hsl(var(--muted-foreground))';
+              }
+            }}
+            className="bg-background border"
+            maskColor="rgba(0,0,0,0.1)"
+          />
+
+          {/* Background */}
+          <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+        </ReactFlow>
+      </div>
+    </>
   );
 }
 

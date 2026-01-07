@@ -13,10 +13,11 @@ interface UnidadeNodeData {
   hasChildren: boolean;
   onToggleExpand?: (id: string) => void;
   onSelect?: (unidade: UnidadeOrganizacional) => void;
+  editMode?: boolean;
 }
 
 function UnidadeNode({ data, selected }: NodeProps<UnidadeNodeData>) {
-  const { unidade, servidoresCount, isExpanded, hasChildren, onToggleExpand, onSelect } = data;
+  const { unidade, servidoresCount, isExpanded, hasChildren, onToggleExpand, onSelect, editMode } = data;
   const cores = CORES_UNIDADE[unidade.tipo];
 
   const handleClick = (e: React.MouseEvent) => {
@@ -44,7 +45,13 @@ function UnidadeNode({ data, selected }: NodeProps<UnidadeNodeData>) {
       <Handle
         type="target"
         position={Position.Top}
-        className="!bg-muted-foreground !w-3 !h-3 !border-2 !border-background"
+        className={cn(
+          "!border-2 !border-background transition-all",
+          editMode 
+            ? "!bg-primary !w-5 !h-5 hover:!w-6 hover:!h-6 !cursor-crosshair" 
+            : "!bg-muted-foreground !w-3 !h-3"
+        )}
+        isConnectable={editMode}
       />
 
       {/* Badge do tipo */}
@@ -109,8 +116,21 @@ function UnidadeNode({ data, selected }: NodeProps<UnidadeNodeData>) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-muted-foreground !w-3 !h-3 !border-2 !border-background"
+        className={cn(
+          "!border-2 !border-background transition-all",
+          editMode 
+            ? "!bg-primary !w-5 !h-5 hover:!w-6 hover:!h-6 !cursor-crosshair" 
+            : "!bg-muted-foreground !w-3 !h-3"
+        )}
+        isConnectable={editMode}
       />
+
+      {/* Indicador de modo edição */}
+      {editMode && (
+        <div className="absolute -top-2 -right-2 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+          <span className="text-[8px] text-primary-foreground font-bold">✎</span>
+        </div>
+      )}
     </div>
   );
 }

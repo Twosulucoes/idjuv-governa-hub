@@ -14,7 +14,9 @@ import {
   Settings, 
   BarChart3,
   ArrowLeft,
-  Network
+  Network,
+  Link2,
+  Link2Off
 } from 'lucide-react';
 
 import { useOrganograma } from '@/hooks/useOrganograma';
@@ -24,8 +26,9 @@ import { UnidadeOrganizacional, LABELS_UNIDADE } from '@/types/organograma';
 import { AdminOnly } from '@/components/auth';
 
 export default function OrganogramaPage() {
-  const { unidades, lotacoes, loading, error, contarServidores, getLotacoesByUnidade } = useOrganograma();
+  const { unidades, lotacoes, loading, error, contarServidores, getLotacoesByUnidade, atualizarHierarquia, verificarCiclo } = useOrganograma();
   const [selectedUnidade, setSelectedUnidade] = useState<UnidadeOrganizacional | null>(null);
+  const [editMode, setEditMode] = useState(false);
 
   // Estatísticas
   const totalUnidades = unidades.length;
@@ -94,6 +97,23 @@ export default function OrganogramaPage() {
               Imprimir
             </Button>
             <AdminOnly>
+              <Button 
+                variant={editMode ? "secondary" : "outline"} 
+                size="sm"
+                onClick={() => setEditMode(!editMode)}
+              >
+                {editMode ? (
+                  <>
+                    <Link2Off className="h-4 w-4 mr-2" />
+                    Sair Edição
+                  </>
+                ) : (
+                  <>
+                    <Link2 className="h-4 w-4 mr-2" />
+                    Editar Ligações
+                  </>
+                )}
+              </Button>
               <Button variant="default" size="sm" asChild>
                 <Link to="/organograma/gestao">
                   <Settings className="h-4 w-4 mr-2" />
@@ -171,9 +191,19 @@ export default function OrganogramaPage() {
           <TabsContent value="visual">
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">Estrutura Hierárquica</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  Estrutura Hierárquica
+                  {editMode && (
+                    <span className="text-sm font-normal text-primary bg-primary/10 px-2 py-1 rounded">
+                      Modo Edição Ativo
+                    </span>
+                  )}
+                </CardTitle>
                 <CardDescription>
-                  Clique nas unidades para ver detalhes. Use o scroll para navegar e os controles para zoom.
+                  {editMode 
+                    ? 'Arraste do ponto inferior de uma unidade para o ponto superior de outra para alterar a hierarquia. Clique em uma linha para removê-la.'
+                    : 'Clique nas unidades para ver detalhes. Use o scroll para navegar e os controles para zoom.'
+                  }
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
@@ -182,8 +212,12 @@ export default function OrganogramaPage() {
                     <OrganogramaCanvas
                       unidades={unidades}
                       contarServidores={contarServidores}
-                      onSelectUnidade={setSelectedUnidade}
-                      selectedUnidade={selectedUnidade}
+                      onSelectUnidade={editMode ? () => {} : setSelectedUnidade}
+                      selectedUnidade={editMode ? null : selectedUnidade}
+                      editMode={editMode}
+                      onEditModeChange={setEditMode}
+                      onUpdateHierarchy={atualizarHierarquia}
+                      onVerifyCycle={verificarCiclo}
                     />
                   </div>
                   {selectedUnidade && (
