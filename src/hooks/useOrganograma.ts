@@ -122,6 +122,73 @@ export function useOrganograma() {
     return count;
   }, [lotacoes, unidades]);
 
+  // Atualizar hierarquia (superior_id)
+  const atualizarHierarquia = useCallback(async (
+    unidadeId: string, 
+    novoSuperiorId: string | null
+  ): Promise<boolean> => {
+    try {
+      // Calcular novo nível baseado no superior
+      let novoNivel = 1;
+      if (novoSuperiorId) {
+        const superior = unidades.find(u => u.id === novoSuperiorId);
+        novoNivel = (superior?.nivel || 0) + 1;
+      }
+
+      const { error } = await supabase
+        .from('estrutura_organizacional')
+        .update({ 
+          superior_id: novoSuperiorId,
+          nivel: novoNivel,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', unidadeId);
+
+      if (error) throw error;
+
+      // Atualizar níveis dos subordinados recursivamente
+      const atualizarNiveisSubordinados = async (parentId: string, parentNivel: number) => {
+        const subordinados = unidades.filter(u => u.superior_id === parentId);
+        for (const sub of subordinados) {
+          await supabase
+            .from('estrutura_organizacional')
+            .update({ nivel: parentNivel + 1 })
+            .eq('id', sub.id);
+          await atualizarNiveisSubordinados(sub.id, parentNivel + 1);
+        }
+      };
+
+      await atualizarNiveisSubordinados(unidadeId, novoNivel);
+      await fetchUnidades();
+      
+      return true;
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao atualizar hierarquia',
+        description: err.message,
+        variant: 'destructive',
+      });
+      return false;
+    }
+  }, [unidades, fetchUnidades, toast]);
+
+  // Verificar se criaria ciclo
+  const verificarCiclo = useCallback((unidadeId: string, novoSuperiorId: string): boolean => {
+    if (unidadeId === novoSuperiorId) return true;
+    
+    // Verificar se novoSuperior é descendente de unidade
+    const verificarDescendentes = (parentId: string): boolean => {
+      const filhos = unidades.filter(u => u.superior_id === parentId);
+      for (const filho of filhos) {
+        if (filho.id === novoSuperiorId) return true;
+        if (verificarDescendentes(filho.id)) return true;
+      }
+      return false;
+    };
+    
+    return verificarDescendentes(unidadeId);
+  }, [unidades]);
+
   return {
     unidades,
     lotacoes,
@@ -131,5 +198,7 @@ export function useOrganograma() {
     getLotacoesByUnidade,
     contarServidores,
     refetch: fetchUnidades,
+    atualizarHierarquia,
+    verificarCiclo,
   };
 }
