@@ -581,6 +581,51 @@ export type Database = {
           },
         ]
       }
+      cargo_unidade_compatibilidade: {
+        Row: {
+          cargo_id: string | null
+          created_at: string | null
+          id: string
+          observacao: string | null
+          quantidade_maxima: number | null
+          tipo_unidade: Database["public"]["Enums"]["tipo_unidade"] | null
+          unidade_especifica_id: string | null
+        }
+        Insert: {
+          cargo_id?: string | null
+          created_at?: string | null
+          id?: string
+          observacao?: string | null
+          quantidade_maxima?: number | null
+          tipo_unidade?: Database["public"]["Enums"]["tipo_unidade"] | null
+          unidade_especifica_id?: string | null
+        }
+        Update: {
+          cargo_id?: string | null
+          created_at?: string | null
+          id?: string
+          observacao?: string | null
+          quantidade_maxima?: number | null
+          tipo_unidade?: Database["public"]["Enums"]["tipo_unidade"] | null
+          unidade_especifica_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cargo_unidade_compatibilidade_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargo_unidade_compatibilidade_unidade_especifica_id_fkey"
+            columns: ["unidade_especifica_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cargos: {
         Row: {
           ativo: boolean | null
