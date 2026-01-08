@@ -29,24 +29,49 @@ import {
   Eye,
   Users,
   UserCheck,
-  UserX,
+  ArrowRightLeft,
   Building2,
   FileDown,
+  Briefcase,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { 
-  type Servidor, 
-  type VinculoFuncional,
   type SituacaoFuncional,
-  VINCULO_LABELS, 
   SITUACAO_LABELS,
-  SITUACAO_COLORS 
+  SITUACAO_COLORS,
+  type TipoServidor,
+  TIPO_SERVIDOR_LABELS,
+  TIPO_SERVIDOR_COLORS,
 } from "@/types/rh";
+
+interface ServidorCompleto {
+  id: string;
+  nome_completo: string;
+  cpf: string;
+  matricula?: string;
+  foto_url?: string;
+  tipo_servidor?: TipoServidor;
+  situacao: SituacaoFuncional;
+  orgao_origem?: string;
+  orgao_destino_cessao?: string;
+  funcao_exercida?: string;
+  ativo?: boolean;
+  cargo?: {
+    id: string;
+    nome: string;
+    sigla?: string;
+  };
+  unidade?: {
+    id: string;
+    nome: string;
+    sigla?: string;
+  };
+}
 
 export default function GestaoServidoresPage() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterVinculo, setFilterVinculo] = useState<string>("all");
+  const [filterTipoServidor, setFilterTipoServidor] = useState<string>("all");
   const [filterSituacao, setFilterSituacao] = useState<string>("all");
   const [filterUnidade, setFilterUnidade] = useState<string>("all");
 
@@ -57,7 +82,17 @@ export default function GestaoServidoresPage() {
       const { data, error } = await supabase
         .from("servidores")
         .select(`
-          *,
+          id,
+          nome_completo,
+          cpf,
+          matricula,
+          foto_url,
+          tipo_servidor,
+          situacao,
+          orgao_origem,
+          orgao_destino_cessao,
+          funcao_exercida,
+          ativo,
           cargo:cargos!servidores_cargo_atual_id_fkey(id, nome, sigla),
           unidade:estrutura_organizacional!servidores_unidade_atual_id_fkey(id, nome, sigla)
         `)
@@ -65,7 +100,7 @@ export default function GestaoServidoresPage() {
         .order("nome_completo");
       
       if (error) throw error;
-      return data as unknown as Servidor[];
+      return data as unknown as ServidorCompleto[];
     },
   });
 
@@ -90,18 +125,19 @@ export default function GestaoServidoresPage() {
       s.cpf?.includes(searchTerm) ||
       s.matricula?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesVinculo = filterVinculo === "all" || s.vinculo === filterVinculo;
+    const matchesTipoServidor = filterTipoServidor === "all" || s.tipo_servidor === filterTipoServidor;
     const matchesSituacao = filterSituacao === "all" || s.situacao === filterSituacao;
-    const matchesUnidade = filterUnidade === "all" || s.unidade_atual_id === filterUnidade;
+    const matchesUnidade = filterUnidade === "all" || s.unidade?.id === filterUnidade;
     
-    return matchesSearch && matchesVinculo && matchesSituacao && matchesUnidade;
+    return matchesSearch && matchesTipoServidor && matchesSituacao && matchesUnidade;
   });
 
-  // Stats
-  const totalAtivos = servidores.filter(s => s.situacao === 'ativo').length;
-  const totalAfastados = servidores.filter(s => ['afastado', 'licenca', 'ferias', 'cedido'].includes(s.situacao)).length;
-  const totalComissionados = servidores.filter(s => s.vinculo === 'comissionado').length;
-  const totalEfetivos = servidores.filter(s => s.vinculo === 'efetivo').length;
+  // Stats por tipo de servidor
+  const totalEfetivos = servidores.filter(s => s.tipo_servidor === 'efetivo_idjuv').length;
+  const totalComissionados = servidores.filter(s => s.tipo_servidor === 'comissionado_idjuv').length;
+  const totalCedidosEntrada = servidores.filter(s => s.tipo_servidor === 'cedido_entrada').length;
+  const totalCedidosSaida = servidores.filter(s => s.tipo_servidor === 'cedido_saida').length;
+  const totalSemTipo = servidores.filter(s => !s.tipo_servidor).length;
 
   const getInitials = (nome: string) => {
     return nome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
@@ -109,6 +145,21 @@ export default function GestaoServidoresPage() {
 
   const formatCPF = (cpf: string) => {
     return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  };
+
+  const getTipoServidorBadge = (tipo?: TipoServidor) => {
+    if (!tipo) {
+      return (
+        <Badge variant="outline" className="bg-muted text-muted-foreground">
+          Não classificado
+        </Badge>
+      );
+    }
+    return (
+      <Badge className={TIPO_SERVIDOR_COLORS[tipo]}>
+        {TIPO_SERVIDOR_LABELS[tipo]}
+      </Badge>
+    );
   };
 
   return (
@@ -124,7 +175,7 @@ export default function GestaoServidoresPage() {
               <div>
                 <h1 className="text-3xl font-bold text-foreground">Gestão de Servidores</h1>
                 <p className="text-muted-foreground">
-                  Cadastro e gerenciamento de servidores do instituto
+                  Cadastro e gerenciamento por tipo de servidor
                 </p>
               </div>
             </div>
@@ -141,34 +192,25 @@ export default function GestaoServidoresPage() {
             </div>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <Card>
+          {/* Stats Cards - Por Tipo de Servidor */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <Card className="cursor-pointer hover:bg-muted/50 transition-colors" 
+                  onClick={() => setFilterTipoServidor('efetivo_idjuv')}>
               <CardContent className="flex items-center gap-4 p-4">
                 <div className="p-3 bg-success/10 rounded-lg">
                   <UserCheck className="h-6 w-6 text-success" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Ativos</p>
-                  <p className="text-2xl font-bold">{totalAtivos}</p>
+                  <p className="text-sm text-muted-foreground">Efetivos IDJuv</p>
+                  <p className="text-2xl font-bold">{totalEfetivos}</p>
                 </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="p-3 bg-warning/10 rounded-lg">
-                  <UserX className="h-6 w-6 text-warning" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Afastados</p>
-                  <p className="text-2xl font-bold">{totalAfastados}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
+            <Card className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => setFilterTipoServidor('comissionado_idjuv')}>
               <CardContent className="flex items-center gap-4 p-4">
                 <div className="p-3 bg-primary/10 rounded-lg">
-                  <Building2 className="h-6 w-6 text-primary" />
+                  <Briefcase className="h-6 w-6 text-primary" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Comissionados</p>
@@ -176,17 +218,44 @@ export default function GestaoServidoresPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => setFilterTipoServidor('cedido_entrada')}>
               <CardContent className="flex items-center gap-4 p-4">
                 <div className="p-3 bg-info/10 rounded-lg">
-                  <Users className="h-6 w-6 text-info" />
+                  <ArrowRightLeft className="h-6 w-6 text-info" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Efetivos</p>
-                  <p className="text-2xl font-bold">{totalEfetivos}</p>
+                  <p className="text-sm text-muted-foreground">Cedidos (Entrada)</p>
+                  <p className="text-2xl font-bold">{totalCedidosEntrada}</p>
                 </div>
               </CardContent>
             </Card>
+            <Card className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => setFilterTipoServidor('cedido_saida')}>
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="p-3 bg-warning/10 rounded-lg">
+                  <Building2 className="h-6 w-6 text-warning" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Cedidos (Saída)</p>
+                  <p className="text-2xl font-bold">{totalCedidosSaida}</p>
+                </div>
+              </CardContent>
+            </Card>
+            {totalSemTipo > 0 && (
+              <Card className="cursor-pointer hover:bg-muted/50 transition-colors border-destructive/50"
+                    onClick={() => setFilterTipoServidor('sem_tipo')}>
+                <CardContent className="flex items-center gap-4 p-4">
+                  <div className="p-3 bg-destructive/10 rounded-lg">
+                    <Users className="h-6 w-6 text-destructive" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-destructive">Sem Tipo</p>
+                    <p className="text-2xl font-bold text-destructive">{totalSemTipo}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Filters */}
@@ -200,15 +269,16 @@ export default function GestaoServidoresPage() {
                 className="pl-10"
               />
             </div>
-            <Select value={filterVinculo} onValueChange={setFilterVinculo}>
-              <SelectTrigger className="w-full lg:w-[180px]">
-                <SelectValue placeholder="Vínculo" />
+            <Select value={filterTipoServidor} onValueChange={setFilterTipoServidor}>
+              <SelectTrigger className="w-full lg:w-[220px]">
+                <SelectValue placeholder="Tipo de Servidor" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos os vínculos</SelectItem>
-                {Object.entries(VINCULO_LABELS).map(([key, label]) => (
+                <SelectItem value="all">Todos os tipos</SelectItem>
+                {Object.entries(TIPO_SERVIDOR_LABELS).map(([key, label]) => (
                   <SelectItem key={key} value={key}>{label}</SelectItem>
                 ))}
+                <SelectItem value="sem_tipo">Sem classificação</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filterSituacao} onValueChange={setFilterSituacao}>
@@ -243,10 +313,9 @@ export default function GestaoServidoresPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Servidor</TableHead>
-                  <TableHead>CPF</TableHead>
-                  <TableHead>Vínculo</TableHead>
-                  <TableHead>Cargo</TableHead>
-                  <TableHead>Unidade</TableHead>
+                  <TableHead>Tipo de Servidor</TableHead>
+                  <TableHead>Cargo / Função</TableHead>
+                  <TableHead>Lotação / Órgão</TableHead>
                   <TableHead className="text-center">Situação</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -254,13 +323,13 @@ export default function GestaoServidoresPage() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={6} className="text-center py-8">
                       Carregando...
                     </TableCell>
                   </TableRow>
                 ) : filteredServidores.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       Nenhum servidor encontrado
                     </TableCell>
                   </TableRow>
@@ -278,25 +347,40 @@ export default function GestaoServidoresPage() {
                           </Avatar>
                           <div>
                             <p className="font-medium">{servidor.nome_completo}</p>
-                            {servidor.matricula && (
-                              <p className="text-xs text-muted-foreground">Mat: {servidor.matricula}</p>
-                            )}
+                            <p className="text-xs text-muted-foreground">
+                              {servidor.matricula ? `Mat: ${servidor.matricula}` : formatCPF(servidor.cpf)}
+                            </p>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {formatCPF(servidor.cpf)}
+                      <TableCell>
+                        {getTipoServidorBadge(servidor.tipo_servidor as TipoServidor)}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">
-                          {VINCULO_LABELS[servidor.vinculo as VinculoFuncional]}
-                        </Badge>
+                        {servidor.tipo_servidor === 'cedido_entrada' 
+                          ? servidor.funcao_exercida || 'Função não informada'
+                          : servidor.cargo?.nome || '-'}
                       </TableCell>
                       <TableCell>
-                        {servidor.cargo?.nome || '-'}
-                      </TableCell>
-                      <TableCell>
-                        {servidor.unidade?.sigla || servidor.unidade?.nome || '-'}
+                        {servidor.tipo_servidor === 'cedido_entrada' 
+                          ? (
+                            <div>
+                              <p>{servidor.unidade?.sigla || servidor.unidade?.nome || '-'}</p>
+                              {servidor.orgao_origem && (
+                                <p className="text-xs text-muted-foreground">
+                                  Origem: {servidor.orgao_origem}
+                                </p>
+                              )}
+                            </div>
+                          )
+                          : servidor.tipo_servidor === 'cedido_saida'
+                          ? (
+                            <div>
+                              <p className="text-warning">{servidor.orgao_destino_cessao || 'Órgão não informado'}</p>
+                              <p className="text-xs text-muted-foreground">Cedido para outro órgão</p>
+                            </div>
+                          )
+                          : servidor.unidade?.sigla || servidor.unidade?.nome || '-'}
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge className={SITUACAO_COLORS[servidor.situacao as SituacaoFuncional]}>

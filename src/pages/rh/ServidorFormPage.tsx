@@ -56,8 +56,11 @@ import { toast } from "sonner";
 import { 
   type VinculoFuncional,
   type SituacaoFuncional,
+  type TipoServidor,
   VINCULO_LABELS,
   SITUACAO_LABELS,
+  TIPO_SERVIDOR_LABELS,
+  REGRAS_TIPO_SERVIDOR,
   UFS,
   ESTADOS_CIVIS,
   ESCOLARIDADES,
@@ -89,10 +92,14 @@ type FormData = {
   endereco_uf: string;
   endereco_cep: string;
   matricula: string;
+  tipo_servidor: TipoServidor | '';
   vinculo: VinculoFuncional;
   situacao: SituacaoFuncional;
   cargo_atual_id: string;
   unidade_atual_id: string;
+  orgao_origem: string;
+  orgao_destino_cessao: string;
+  funcao_exercida: string;
   data_admissao: string;
   data_posse: string;
   data_exercicio: string;
@@ -141,10 +148,14 @@ const initialFormData: FormData = {
   endereco_uf: '',
   endereco_cep: '',
   matricula: '',
+  tipo_servidor: '',
   vinculo: 'comissionado',
   situacao: 'ativo',
   cargo_atual_id: '',
   unidade_atual_id: '',
+  orgao_origem: '',
+  orgao_destino_cessao: '',
+  funcao_exercida: '',
   data_admissao: '',
   data_posse: '',
   data_exercicio: '',
@@ -248,10 +259,14 @@ export default function ServidorFormPage() {
         endereco_uf: servidor.endereco_uf || '',
         endereco_cep: servidor.endereco_cep || '',
         matricula: servidor.matricula || '',
+        tipo_servidor: servidor.tipo_servidor || '',
         vinculo: servidor.vinculo || 'comissionado',
         situacao: servidor.situacao || 'ativo',
         cargo_atual_id: servidor.cargo_atual_id || '',
         unidade_atual_id: servidor.unidade_atual_id || '',
+        orgao_origem: servidor.orgao_origem || '',
+        orgao_destino_cessao: servidor.orgao_destino_cessao || '',
+        funcao_exercida: servidor.funcao_exercida || '',
         data_admissao: servidor.data_admissao || '',
         data_posse: servidor.data_posse || '',
         data_exercicio: servidor.data_exercicio || '',
@@ -311,10 +326,14 @@ export default function ServidorFormPage() {
         endereco_uf: data.endereco_uf || null,
         endereco_cep: data.endereco_cep?.replace(/\D/g, '') || null,
         matricula: matriculaFinal || null,
+        tipo_servidor: data.tipo_servidor || null,
         vinculo: data.vinculo,
         situacao: data.situacao,
         cargo_atual_id: data.cargo_atual_id || null,
         unidade_atual_id: data.unidade_atual_id || null,
+        orgao_origem: data.orgao_origem || null,
+        orgao_destino_cessao: data.orgao_destino_cessao || null,
+        funcao_exercida: data.funcao_exercida || null,
         data_admissao: data.data_admissao || null,
         data_posse: data.data_posse || null,
         data_exercicio: data.data_exercicio || null,
