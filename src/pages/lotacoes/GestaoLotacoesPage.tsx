@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   Plus, 
   Search, 
@@ -53,11 +54,17 @@ import {
   FileText,
   UserCheck,
   UserX,
-  FileOutput
+  FileOutput,
+  AlertTriangle
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { MemorandoLotacaoDialog } from "@/components/lotacoes/MemorandoLotacaoDialog";
+import { 
+  encerrarLotacaoAnterior, 
+  atualizarCargoAtualServidor,
+  buscarLotacaoAtiva 
+} from "@/lib/matriculaUtils";
 
 type Lotacao = {
   id: string;
@@ -111,11 +118,14 @@ export default function GestaoLotacoesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isMemorandoOpen, setIsMemorandoOpen] = useState(false);
   const [selectedLotacao, setSelectedLotacao] = useState<Lotacao | null>(null);
   const [showInactive, setShowInactive] = useState(false);
   const [filterUnidade, setFilterUnidade] = useState<string>("all");
   const [filterCargo, setFilterCargo] = useState<string>("all");
+  const [lotacaoAtivaServidor, setLotacaoAtivaServidor] = useState<any>(null);
+  const [isCheckingLotacao, setIsCheckingLotacao] = useState(false);
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState<LotacaoFormData>({
@@ -128,6 +138,28 @@ export default function GestaoLotacoesPage() {
     documento_referencia: '',
     observacao: '',
   });
+
+  // Verificar lotação ativa quando servidor é selecionado
+  useEffect(() => {
+    const checkLotacaoAtiva = async () => {
+      if (!formData.servidor_id || selectedLotacao) {
+        setLotacaoAtivaServidor(null);
+        return;
+      }
+      
+      setIsCheckingLotacao(true);
+      try {
+        const lotacao = await buscarLotacaoAtiva(formData.servidor_id);
+        setLotacaoAtivaServidor(lotacao);
+      } catch (error) {
+        console.error("Erro ao verificar lotação:", error);
+      } finally {
+        setIsCheckingLotacao(false);
+      }
+    };
+    
+    checkLotacaoAtiva();
+  }, [formData.servidor_id, selectedLotacao]);
 
   // Fetch lotações
   const { data: lotacoes = [], isLoading } = useQuery({
@@ -196,9 +228,18 @@ export default function GestaoLotacoesPage() {
     },
   });
 
-  // Create mutation
+  // Create mutation com encerramento automático de lotação anterior
   const createMutation = useMutation({
     mutationFn: async (data: LotacaoFormData) => {
+      // Encerrar lotação ativa anterior (se existir)
+      await encerrarLotacaoAnterior(
+        data.servidor_id,
+        data.data_inicio,
+        data.cargo_id || null,
+        data.unidade_id
+      );
+      
+      // Criar nova lotação
       const { error } = await supabase.from("lotacoes").insert({
         servidor_id: data.servidor_id,
         unidade_id: data.unidade_id,
@@ -211,11 +252,21 @@ export default function GestaoLotacoesPage() {
         ativo: true,
       });
       if (error) throw error;
+      
+      // Atualizar cargo atual do servidor
+      await atualizarCargoAtualServidor(
+        data.servidor_id,
+        data.cargo_id || null,
+        data.unidade_id
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lotacoes"] });
+      queryClient.invalidateQueries({ queryKey: ["servidores-rh"] });
       toast.success("Lotação criada com sucesso!");
       setIsFormOpen(false);
+      setIsConfirmOpen(false);
+      setLotacaoAtivaServidor(null);
       resetForm();
     },
     onError: (error: any) => {
@@ -288,6 +339,7 @@ export default function GestaoLotacoesPage() {
       observacao: '',
     });
     setSelectedLotacao(null);
+    setLotacaoAtivaServidor(null);
   };
 
   const handleEdit = (lotacao: Lotacao) => {
@@ -319,8 +371,17 @@ export default function GestaoLotacoesPage() {
     if (selectedLotacao) {
       updateMutation.mutate({ id: selectedLotacao.id, data: formData });
     } else {
-      createMutation.mutate(formData);
+      // Se tem lotação ativa, abrir confirmação
+      if (lotacaoAtivaServidor) {
+        setIsConfirmOpen(true);
+      } else {
+        createMutation.mutate(formData);
+      }
     }
+  };
+
+  const handleConfirmCreate = () => {
+    createMutation.mutate(formData);
   };
 
   const handleOpenCreate = () => {
@@ -581,12 +642,29 @@ export default function GestaoLotacoesPage() {
               </DialogHeader>
               
               <div className="grid gap-4 py-4">
+                {/* Alerta de lotação ativa */}
+                {!selectedLotacao && lotacaoAtivaServidor && (
+                  <Alert variant="destructive" className="border-warning bg-warning/10">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Atenção:</strong> Este servidor já possui uma lotação ativa em{" "}
+                      <strong>{lotacaoAtivaServidor.unidade?.sigla || lotacaoAtivaServidor.unidade?.nome}</strong>
+                      {lotacaoAtivaServidor.cargo && (
+                        <> como <strong>{lotacaoAtivaServidor.cargo?.sigla || lotacaoAtivaServidor.cargo?.nome}</strong></>
+                      )}.
+                      <br />
+                      Ao criar esta nova lotação, a anterior será <strong>automaticamente encerrada</strong> e registrada no histórico funcional.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="servidor">Servidor *</Label>
                     <Select
                       value={formData.servidor_id}
                       onValueChange={(value) => setFormData({ ...formData, servidor_id: value })}
+                      disabled={!!selectedLotacao}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o servidor" />
@@ -755,6 +833,42 @@ export default function GestaoLotacoesPage() {
             onOpenChange={setIsMemorandoOpen}
             lotacao={selectedLotacao}
           />
+
+          {/* Confirmação de troca de lotação */}
+          <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-warning" />
+                  Confirmar Movimentação
+                </AlertDialogTitle>
+                <AlertDialogDescription className="space-y-2">
+                  <p>
+                    O servidor já possui uma lotação ativa em{" "}
+                    <strong>{lotacaoAtivaServidor?.unidade?.sigla || lotacaoAtivaServidor?.unidade?.nome}</strong>
+                    {lotacaoAtivaServidor?.cargo && (
+                      <> como <strong>{lotacaoAtivaServidor?.cargo?.sigla || lotacaoAtivaServidor?.cargo?.nome}</strong></>
+                    )}.
+                  </p>
+                  <p>
+                    Ao confirmar, a lotação anterior será <strong>automaticamente encerrada</strong> e registrada no histórico funcional do servidor.
+                  </p>
+                  <p className="font-medium text-foreground">
+                    Deseja continuar com a movimentação?
+                  </p>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={handleConfirmCreate}
+                  disabled={createMutation.isPending}
+                >
+                  {createMutation.isPending ? "Processando..." : "Confirmar Movimentação"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </AdminLayout>
     </ProtectedRoute>
