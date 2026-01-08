@@ -1,17 +1,14 @@
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Gera uma matrícula automática no formato IDJUV-YYYY-NNNNN
+ * Gera uma matrícula automática no formato 0001, 0002, etc.
  */
 export async function gerarMatricula(): Promise<string> {
-  const ano = new Date().getFullYear();
-  const prefixo = `IDJUV-${ano}-`;
-  
-  // Buscar a maior matrícula do ano atual
+  // Buscar a maior matrícula existente
   const { data, error } = await supabase
     .from("servidores")
     .select("matricula")
-    .like("matricula", `${prefixo}%`)
+    .not("matricula", "is", null)
     .order("matricula", { ascending: false })
     .limit(1);
   
@@ -23,14 +20,14 @@ export async function gerarMatricula(): Promise<string> {
   let sequencial = 1;
   
   if (data && data.length > 0 && data[0].matricula) {
-    const ultimaMatricula = data[0].matricula;
-    const partes = ultimaMatricula.split("-");
-    if (partes.length === 3) {
-      sequencial = parseInt(partes[2], 10) + 1;
+    // Extrair número da matrícula (pode ser formato antigo ou novo)
+    const numeros = data[0].matricula.replace(/\D/g, '');
+    if (numeros) {
+      sequencial = parseInt(numeros, 10) + 1;
     }
   }
   
-  return `${prefixo}${sequencial.toString().padStart(5, "0")}`;
+  return sequencial.toString().padStart(4, "0");
 }
 
 /**
