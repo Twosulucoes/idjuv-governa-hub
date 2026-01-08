@@ -49,6 +49,11 @@ interface UserData {
   role: AppRole;
   permissions: AppPermission[];
   createdAt: string;
+  tipoUsuario: 'servidor' | 'tecnico';
+  isActive: boolean;
+  servidorNome?: string;
+  servidorMatricula?: string;
+  cpf?: string;
 }
 
 // ============================================
@@ -65,6 +70,7 @@ const GerenciamentoUsuariosContent: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<AppRole | 'all'>('all');
+  const [filterTipo, setFilterTipo] = useState<'all' | 'servidor' | 'tecnico'>('servidor');
   
   // Modal de edição
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
@@ -79,13 +85,28 @@ const GerenciamentoUsuariosContent: React.FC = () => {
   const loadUsers = async () => {
     setIsLoading(true);
     try {
-      // Buscar profiles
+      // Buscar profiles com dados do servidor
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (profilesError) throw profilesError;
+
+      // Buscar servidores vinculados
+      const servidorIds = profiles?.filter(p => p.servidor_id).map(p => p.servidor_id) || [];
+      let servidoresMap: Record<string, { nome: string; matricula: string }> = {};
+      
+      if (servidorIds.length > 0) {
+        const { data: servidores } = await supabase
+          .from('servidores')
+          .select('id, nome_completo, matricula')
+          .in('id', servidorIds);
+        
+        servidores?.forEach(s => {
+          servidoresMap[s.id] = { nome: s.nome_completo, matricula: s.matricula };
+        });
+      }
 
       // Buscar roles
       const { data: roles, error: rolesError } = await supabase
@@ -105,6 +126,7 @@ const GerenciamentoUsuariosContent: React.FC = () => {
       const usersData: UserData[] = (profiles || []).map(profile => {
         const userRole = roles?.find(r => r.user_id === profile.id);
         const userPermissions = permissions?.filter(p => p.user_id === profile.id) || [];
+        const servidor = profile.servidor_id ? servidoresMap[profile.servidor_id] : null;
         
         return {
           id: profile.id,
@@ -113,7 +135,12 @@ const GerenciamentoUsuariosContent: React.FC = () => {
           avatarUrl: profile.avatar_url,
           role: (userRole?.role as AppRole) || 'user',
           permissions: userPermissions.map(p => p.permission as AppPermission),
-          createdAt: profile.created_at
+          createdAt: profile.created_at,
+          tipoUsuario: profile.tipo_usuario || 'servidor',
+          isActive: profile.is_active ?? true,
+          servidorNome: servidor?.nome,
+          servidorMatricula: servidor?.matricula,
+          cpf: profile.cpf
         };
       });
 
@@ -249,11 +276,14 @@ const GerenciamentoUsuariosContent: React.FC = () => {
   const filteredUsers = users.filter(user => {
     const matchesSearch = 
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
+      (user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+      (user.servidorNome?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+      (user.servidorMatricula?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
     
     const matchesRole = filterRole === 'all' || user.role === filterRole;
+    const matchesTipo = filterTipo === 'all' || user.tipoUsuario === filterTipo;
     
-    return matchesSearch && matchesRole;
+    return matchesSearch && matchesRole && matchesTipo;
   });
 
   // ============================================
@@ -314,12 +344,23 @@ const GerenciamentoUsuariosContent: React.FC = () => {
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por nome ou email..."
+                  placeholder="Buscar por nome, email, servidor ou matrícula..."
                   className="pl-10"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
+              
+              <Select value={filterTipo} onValueChange={(v) => setFilterTipo(v as 'all' | 'servidor' | 'tecnico')}>
+                <SelectTrigger className="w-full md:w-48">
+                  <SelectValue placeholder="Tipo de usuário" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="servidor">Usuários-Servidores</SelectItem>
+                  <SelectItem value="tecnico">Usuários Técnicos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
+                </SelectContent>
+              </Select>
               
               <Select value={filterRole} onValueChange={(v) => setFilterRole(v as AppRole | 'all')}>
                 <SelectTrigger className="w-full md:w-48">
