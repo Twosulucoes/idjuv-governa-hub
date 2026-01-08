@@ -56,11 +56,11 @@ export function useOrganograma() {
         .from('lotacoes')
         .select(`
           *,
-          servidor:profiles!lotacoes_servidor_id_fkey(
+          servidor:servidores!lotacoes_servidor_id_fkey(
             id,
-            full_name,
-            avatar_url,
-            email
+            nome_completo,
+            foto_url,
+            email_institucional
           ),
           cargo:cargos(
             id,
@@ -73,12 +73,20 @@ export function useOrganograma() {
 
       if (error) throw error;
       
-      // Cast the data properly
-      const typedData = (data || []).map(item => ({
-        ...item,
-        servidor: item.servidor as Lotacao['servidor'],
-        cargo: item.cargo as Lotacao['cargo']
-      }));
+      // Cast the data properly - map servidores fields to expected interface
+      const typedData = (data || []).map(item => {
+        const servidorData = item.servidor as { id: string; nome_completo: string; foto_url?: string; email_institucional?: string } | null;
+        return {
+          ...item,
+          servidor: servidorData ? {
+            id: servidorData.id,
+            full_name: servidorData.nome_completo,
+            avatar_url: servidorData.foto_url,
+            email: servidorData.email_institucional
+          } : undefined,
+          cargo: item.cargo as Lotacao['cargo']
+        };
+      });
       
       setLotacoes(typedData);
     } catch (err: any) {
