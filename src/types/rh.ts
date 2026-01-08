@@ -2,7 +2,10 @@
 // TIPOS DO SISTEMA DE RH
 // ============================================
 
-// Enums
+// Re-exportar tipos de servidor
+export * from './servidor';
+
+// Enums (mantidos para compatibilidade)
 export type VinculoFuncional = 
   | 'efetivo'
   | 'comissionado'
