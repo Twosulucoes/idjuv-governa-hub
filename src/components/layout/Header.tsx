@@ -225,52 +225,81 @@ export function Header() {
         </div>
       </div>
 
-      {/* Mobile Navigation - Overlay */}
+      {/* Mobile Navigation - Full Screen Overlay */}
       {mobileMenuOpen && (
         <>
           {/* Backdrop */}
           <div 
-            className="lg:hidden fixed inset-0 bg-black/50 z-40"
+            className="lg:hidden fixed inset-0 bg-black/50 z-40 tap-highlight-none"
             onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
           />
           
-          {/* Menu Panel */}
-          <div className="lg:hidden fixed inset-x-0 top-[calc(var(--logo-header-mobile)+5rem)] bottom-0 bg-background z-50 overflow-y-auto scroll-smooth-mobile animate-fade-in">
-            <nav className="container mx-auto px-4 py-4 space-y-1">
-              {menuItems.map((item) => (
-                <div key={item.title} className="space-y-1">
-                  <Link
-                    to={item.href}
-                    className={cn(
-                      "flex items-center px-4 py-3 rounded-lg hover:bg-muted text-foreground transition-colors",
-                      location.pathname === item.href && "bg-muted text-primary"
+          {/* Menu Panel - Full height with safe area */}
+          <div className="lg:hidden fixed inset-x-0 top-0 bottom-0 bg-background z-50 flex flex-col animate-fade-in safe-area-inset-bottom">
+            {/* Header do menu mobile */}
+            <div className="flex items-center justify-between p-4 border-b bg-background sticky top-0 z-10 safe-area-inset-top">
+              <LogoIdjuv className="h-8" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 rounded-full touch-target"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Fechar menu"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+
+            {/* Conteúdo do menu com scroll */}
+            <nav className="flex-1 overflow-y-auto overscroll-contain scroll-container px-4 py-4">
+              <div className="space-y-1">
+                {menuItems.map((item) => (
+                  <div key={item.title} className="space-y-1">
+                    <Link
+                      to={item.href}
+                      className={cn(
+                        "flex items-center px-4 py-3.5 rounded-lg hover:bg-muted text-foreground transition-colors touch-target tap-highlight-subtle",
+                        location.pathname === item.href && "bg-muted text-primary"
+                      )}
+                      onClick={() => !item.items && setMobileMenuOpen(false)}
+                    >
+                      <item.icon className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
+                      <span className="font-medium text-base">{item.title}</span>
+                      {item.items && <ChevronDown className="w-4 h-4 ml-auto text-muted-foreground" />}
+                    </Link>
+                    {item.items && (
+                      <div className="ml-8 space-y-0.5 border-l-2 border-muted pl-4">
+                        {item.items.map((subItem) => (
+                          <Link
+                            key={subItem.href}
+                            to={subItem.href}
+                            className={cn(
+                              "block px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors touch-target-sm",
+                              location.pathname === subItem.href && "text-primary bg-muted font-medium"
+                            )}
+                            onClick={() => setMobileMenuOpen(false)}
+                          >
+                            {subItem.title}
+                          </Link>
+                        ))}
+                      </div>
                     )}
-                    onClick={() => !item.items && setMobileMenuOpen(false)}
-                  >
-                    <item.icon className="w-5 h-5 mr-3 text-primary" />
-                    <span className="font-medium">{item.title}</span>
-                    {item.items && <ChevronDown className="w-4 h-4 ml-auto text-muted-foreground" />}
-                  </Link>
-                  {item.items && (
-                    <div className="ml-8 space-y-0.5 border-l-2 border-muted pl-4">
-                      {item.items.map((subItem) => (
-                        <Link
-                          key={subItem.href}
-                          to={subItem.href}
-                          className={cn(
-                            "block px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors",
-                            location.pathname === subItem.href && "text-primary bg-muted font-medium"
-                          )}
-                          onClick={() => setMobileMenuOpen(false)}
-                        >
-                          {subItem.title}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+                  </div>
+                ))}
+              </div>
             </nav>
+
+            {/* Footer do menu mobile */}
+            <div className="border-t p-4 bg-muted/30 safe-area-inset-bottom">
+              <Link 
+                to="/acesso"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-center w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg font-medium touch-target"
+              >
+                Área Restrita
+              </Link>
+            </div>
           </div>
         </>
       )}
