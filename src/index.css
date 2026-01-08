@@ -586,4 +586,127 @@
   .no-horizontal-scroll {
     overflow-x: hidden;
   }
+
+  /* ========================================
+     UTILITÁRIOS MOBILE UX
+     ======================================== */
+
+  /* Safe area para dispositivos com notch */
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .safe-area-all {
+    padding-top: env(safe-area-inset-top, 0);
+    padding-right: env(safe-area-inset-right, 0);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-left: env(safe-area-inset-left, 0);
+  }
+
+  /* Touch-friendly targets (mínimo 44x44px recomendado) */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .touch-target-sm {
+    min-height: 36px;
+    min-width: 36px;
+  }
+
+  /* Scroll container com inércia */
+  .scroll-container {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  /* Scrollbar mais sutil em mobile */
+  .scroll-container::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .scroll-container::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scroll-container::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 2px;
+  }
+
+  /* Esconder scrollbar mantendo funcionalidade */
+  .scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Sticky footer para formulários mobile */
+  .mobile-sticky-footer {
+    @apply fixed bottom-0 left-0 right-0 p-4 bg-background border-t shadow-lg;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0));
+  }
+
+  /* Container que ocupa viewport inteira menos header */
+  .mobile-full-height {
+    min-height: calc(100vh - 8rem);
+    min-height: calc(100dvh - 8rem);
+  }
+
+  /* Prevenir zoom indesejado em inputs no iOS */
+  @supports (-webkit-touch-callout: none) {
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="search"],
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Tap highlight mais sutil */
+  .tap-highlight-none {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .tap-highlight-subtle {
+    -webkit-tap-highlight-color: hsl(var(--primary) / 0.1);
+  }
+
+  /* Flexbox helpers mobile */
+  .flex-mobile-col {
+    @apply flex flex-col sm:flex-row;
+  }
+
+  .flex-mobile-col-reverse {
+    @apply flex flex-col-reverse sm:flex-row;
+  }
+
+  /* Grid responsivo para cards */
+  .grid-mobile-1 {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+
+  /* Botão flutuante de ação */
+  .fab {
+    @apply fixed right-4 bottom-4 h-14 w-14 rounded-full shadow-lg flex items-center justify-center;
+    z-index: 40;
+  }
+
+  .fab-with-safe-area {
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0));
+  }
 }
