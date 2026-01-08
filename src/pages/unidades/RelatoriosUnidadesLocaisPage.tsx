@@ -24,7 +24,12 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
-  Ban
+  Ban,
+  Eye,
+  Settings2,
+  FileDown,
+  List,
+  LayoutGrid
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -40,11 +45,29 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Switch } from '@/components/ui/switch';
+
+import {
+  downloadRelatorioUnidadesPDF,
+  type UnidadeRelatorioData,
+  type CamposRelatorio,
+  type ConfiguracaoRelatorio,
+} from '@/lib/pdfRelatorioUnidades';
 
 // Tipos
 interface UnidadeRelatorio {
@@ -116,6 +139,27 @@ const MUNICIPIOS_RORAIMA = [
   'Pacaraima', 'Rorainópolis', 'São João da Baliza', 'São Luiz', 'Uiramutã'
 ];
 
+// Campos disponíveis para exportação
+const CAMPOS_DISPONIVEIS = [
+  { key: 'codigo', label: 'Código', grupo: 'Identificação' },
+  { key: 'nome', label: 'Nome', grupo: 'Identificação' },
+  { key: 'tipo', label: 'Tipo', grupo: 'Identificação' },
+  { key: 'municipio', label: 'Município', grupo: 'Localização' },
+  { key: 'endereco', label: 'Endereço', grupo: 'Localização' },
+  { key: 'status', label: 'Status', grupo: 'Situação' },
+  { key: 'natureza', label: 'Natureza de Uso', grupo: 'Situação' },
+  { key: 'diretoria', label: 'Diretoria Vinculada', grupo: 'Estrutura' },
+  { key: 'capacidade', label: 'Capacidade', grupo: 'Características' },
+  { key: 'horario', label: 'Horário de Funcionamento', grupo: 'Características' },
+  { key: 'chefe', label: 'Chefe/Responsável', grupo: 'Gestão' },
+  { key: 'patrimonio', label: 'Patrimônio', grupo: 'Acervos' },
+  { key: 'agendamentos', label: 'Agendamentos', grupo: 'Acervos' },
+  { key: 'termos', label: 'Termos de Cessão', grupo: 'Acervos' },
+  { key: 'areas', label: 'Áreas Disponíveis', grupo: 'Características' },
+  { key: 'regras', label: 'Regras de Uso', grupo: 'Características' },
+  { key: 'observacoes', label: 'Observações', grupo: 'Outros' },
+] as const;
+
 // Componente de estatísticas
 const StatCard = ({ title, value, icon: Icon, description, variant = 'default' }: {
   title: string;
@@ -155,6 +199,8 @@ function RelatoriosUnidadesLocaisContent() {
   const [unidades, setUnidades] = useState<UnidadeRelatorio[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtersOpen, setFiltersOpen] = useState(true);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   // Filtros
   const [searchTerm, setSearchTerm] = useState('');
@@ -167,7 +213,7 @@ function RelatoriosUnidadesLocaisContent() {
   const [filterComPatrimonio, setFilterComPatrimonio] = useState<boolean | 'all'>('all');
   const [filterComAgendamentos, setFilterComAgendamentos] = useState<boolean | 'all'>('all');
   
-  // Colunas visíveis
+  // Colunas visíveis na tela
   const [visibleColumns, setVisibleColumns] = useState({
     codigo: true,
     nome: true,
@@ -182,6 +228,30 @@ function RelatoriosUnidadesLocaisContent() {
     capacidade: false,
     natureza: false
   });
+
+  // Configuração de exportação
+  const [exportMode, setExportMode] = useState<'lista' | 'detalhado' | 'resumo'>('lista');
+  const [exportCampos, setExportCampos] = useState<CamposRelatorio>({
+    codigo: true,
+    nome: true,
+    tipo: true,
+    municipio: true,
+    endereco: false,
+    status: true,
+    natureza: false,
+    diretoria: false,
+    capacidade: false,
+    horario: false,
+    chefe: true,
+    patrimonio: true,
+    agendamentos: false,
+    termos: false,
+    areas: false,
+    regras: false,
+    observacoes: false,
+  });
+  const [exportIncluirEstatisticas, setExportIncluirEstatisticas] = useState(true);
+  const [exportIncluirTotalizadores, setExportIncluirTotalizadores] = useState(true);
 
   useEffect(() => {
     loadUnidades();
@@ -290,7 +360,7 @@ function RelatoriosUnidadesLocaisContent() {
     filterStatus !== 'all' || filterNatureza !== 'all' || filterDiretoria !== 'all' ||
     filterComChefe !== 'all' || filterComPatrimonio !== 'all' || filterComAgendamentos !== 'all';
 
-  // Exportar dados
+  // Exportar para CSV
   const exportToCSV = () => {
     const headers = [
       'Código', 'Nome', 'Tipo', 'Município', 'Status', 'Natureza',
@@ -323,7 +393,65 @@ function RelatoriosUnidadesLocaisContent() {
     link.download = `relatorio-unidades-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success('Relatório exportado com sucesso!');
+    toast.success('Relatório CSV exportado com sucesso!');
+  };
+
+  // Exportar para PDF
+  const exportToPDF = async () => {
+    setExporting(true);
+    try {
+      const config: ConfiguracaoRelatorio = {
+        titulo: 'RELATÓRIO DE UNIDADES LOCAIS',
+        subtitulo: hasActiveFilters ? 'Relatório com filtros aplicados' : 'Relatório completo do acervo',
+        modo: exportMode,
+        campos: exportCampos,
+        filtros: {
+          municipio: filterMunicipio,
+          tipo: filterTipo,
+          status: filterStatus,
+          natureza: filterNatureza,
+          diretoria: filterDiretoria,
+          comChefe: filterComChefe,
+          comPatrimonio: filterComPatrimonio,
+          comAgendamentos: filterComAgendamentos,
+          busca: searchTerm,
+        },
+        incluirEstatisticas: exportIncluirEstatisticas,
+        incluirTotalizadores: exportIncluirTotalizadores,
+      };
+
+      await downloadRelatorioUnidadesPDF(filteredUnidades as UnidadeRelatorioData[], config);
+      toast.success('Relatório PDF exportado com sucesso!');
+      setExportDialogOpen(false);
+    } catch (error) {
+      console.error('Erro ao exportar PDF:', error);
+      toast.error('Erro ao exportar relatório PDF');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Selecionar/desmarcar todos os campos
+  const toggleAllCampos = (selected: boolean) => {
+    setExportCampos({
+      codigo: selected,
+      nome: selected,
+      tipo: selected,
+      municipio: selected,
+      endereco: selected,
+      status: selected,
+      natureza: selected,
+      diretoria: selected,
+      capacidade: selected,
+      horario: selected,
+      chefe: selected,
+      patrimonio: selected,
+      agendamentos: selected,
+      termos: selected,
+      areas: selected,
+      regras: selected,
+      observacoes: selected,
+    });
   };
 
   // Diretorias únicas
@@ -340,6 +468,18 @@ function RelatoriosUnidadesLocaisContent() {
       default: return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
     }
   };
+
+  // Agrupar campos por categoria
+  const camposPorGrupo = useMemo(() => {
+    const grupos: Record<string, typeof CAMPOS_DISPONIVEIS[number][]> = {};
+    CAMPOS_DISPONIVEIS.forEach(campo => {
+      if (!grupos[campo.grupo]) {
+        grupos[campo.grupo] = [];
+      }
+      grupos[campo.grupo].push(campo);
+    });
+    return grupos;
+  }, []);
 
   if (loading) {
     return (
@@ -375,10 +515,15 @@ function RelatoriosUnidadesLocaisContent() {
                 Exportar
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setExportDialogOpen(true)}>
+                <FileText className="h-4 w-4 mr-2" />
+                Exportar PDF (personalizado)
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={exportToCSV}>
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Exportar CSV
+                Exportar CSV (todos os campos)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -609,8 +754,53 @@ function RelatoriosUnidadesLocaisContent() {
             </Card>
           </Collapsible>
 
-          {/* Tabela */}
+          {/* Tabela de visualização */}
           <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Eye className="h-5 w-5" />
+                  Visualização em Tela
+                </CardTitle>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Settings2 className="h-4 w-4 mr-2" />
+                      Colunas
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <div className="p-2 space-y-2">
+                      {Object.entries(visibleColumns).map(([key, value]) => (
+                        <div key={key} className="flex items-center gap-2">
+                          <Checkbox
+                            id={`col-${key}`}
+                            checked={value}
+                            onCheckedChange={(checked) => 
+                              setVisibleColumns(prev => ({ ...prev, [key]: !!checked }))
+                            }
+                          />
+                          <Label htmlFor={`col-${key}`} className="text-sm capitalize cursor-pointer">
+                            {key === 'codigo' ? 'Código' :
+                             key === 'nome' ? 'Nome' :
+                             key === 'tipo' ? 'Tipo' :
+                             key === 'municipio' ? 'Município' :
+                             key === 'status' ? 'Status' :
+                             key === 'chefe' ? 'Chefe' :
+                             key === 'patrimonio' ? 'Patrimônio' :
+                             key === 'agendamentos' ? 'Agendamentos' :
+                             key === 'termos' ? 'Termos' :
+                             key === 'diretoria' ? 'Diretoria' :
+                             key === 'capacidade' ? 'Capacidade' :
+                             key === 'natureza' ? 'Natureza' : key}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </CardHeader>
             <CardContent className="p-0">
               <ScrollArea className="h-[600px]">
                 <Table>
@@ -878,12 +1068,6 @@ function RelatoriosUnidadesLocaisContent() {
                       <span>Termos de cessão vigentes</span>
                       <span className="font-medium">{stats.termosVigentes}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Unidades com agendamentos</span>
-                      <span className="font-medium">
-                        {filteredUnidades.filter(u => u.total_agendamentos > 0).length}
-                      </span>
-                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -891,6 +1075,179 @@ function RelatoriosUnidadesLocaisContent() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Modal de Exportação PDF */}
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileDown className="h-5 w-5" />
+              Exportar Relatório PDF
+            </DialogTitle>
+            <DialogDescription>
+              Configure as opções de exportação. Selecione o modo, os campos desejados e as opções adicionais.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Modo de Exportação */}
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">Modo de Exportação</Label>
+              <RadioGroup 
+                value={exportMode} 
+                onValueChange={(v) => setExportMode(v as 'lista' | 'detalhado' | 'resumo')}
+                className="grid grid-cols-3 gap-4"
+              >
+                <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-muted/50">
+                  <RadioGroupItem value="lista" id="mode-lista" />
+                  <Label htmlFor="mode-lista" className="cursor-pointer flex-1">
+                    <div className="flex items-center gap-2">
+                      <List className="h-4 w-4" />
+                      <span className="font-medium">Lista</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Tabela compacta com todos os registros
+                    </p>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-muted/50">
+                  <RadioGroupItem value="detalhado" id="mode-detalhado" />
+                  <Label htmlFor="mode-detalhado" className="cursor-pointer flex-1">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      <span className="font-medium">Detalhado</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Ficha completa de cada unidade
+                    </p>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-muted/50">
+                  <RadioGroupItem value="resumo" id="mode-resumo" />
+                  <Label htmlFor="mode-resumo" className="cursor-pointer flex-1">
+                    <div className="flex items-center gap-2">
+                      <LayoutGrid className="h-4 w-4" />
+                      <span className="font-medium">Resumo</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Estatísticas e totalizadores
+                    </p>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <Separator />
+
+            {/* Seleção de Campos */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold">Campos para Exportação</Label>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => toggleAllCampos(true)}>
+                    Selecionar todos
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => toggleAllCampos(false)}>
+                    Limpar
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                {Object.entries(camposPorGrupo).map(([grupo, campos]) => (
+                  <div key={grupo} className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">{grupo}</p>
+                    <div className="space-y-2">
+                      {campos.map(campo => (
+                        <div key={campo.key} className="flex items-center gap-2">
+                          <Checkbox
+                            id={`export-${campo.key}`}
+                            checked={exportCampos[campo.key as keyof CamposRelatorio]}
+                            onCheckedChange={(checked) => 
+                              setExportCampos(prev => ({ ...prev, [campo.key]: !!checked }))
+                            }
+                          />
+                          <Label htmlFor={`export-${campo.key}`} className="text-sm cursor-pointer">
+                            {campo.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Opções Adicionais */}
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">Opções Adicionais</Label>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="incluir-estatisticas" className="cursor-pointer">
+                      Incluir estatísticas
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Adiciona resumo estatístico no início do relatório
+                    </p>
+                  </div>
+                  <Switch
+                    id="incluir-estatisticas"
+                    checked={exportIncluirEstatisticas}
+                    onCheckedChange={setExportIncluirEstatisticas}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="incluir-totalizadores" className="cursor-pointer">
+                      Incluir totalizadores
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Adiciona totais ao final do relatório
+                    </p>
+                  </div>
+                  <Switch
+                    id="incluir-totalizadores"
+                    checked={exportIncluirTotalizadores}
+                    onCheckedChange={setExportIncluirTotalizadores}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Info sobre filtros */}
+            {hasActiveFilters && (
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm">
+                  <strong>Nota:</strong> O relatório será gerado com os filtros atualmente aplicados 
+                  ({filteredUnidades.length} de {unidades.length} unidades).
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={exportToPDF} disabled={exporting}>
+              {exporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Gerando PDF...
+                </>
+              ) : (
+                <>
+                  <FileDown className="h-4 w-4 mr-2" />
+                  Exportar PDF
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
