@@ -378,7 +378,7 @@ export default function ServidorDetalheePage() {
               <SituacaoFuncionalTab
                 servidorId={servidor.id}
                 servidorNome={servidor.nome_completo}
-                tipoServidor={servidor.tipo_servidor as TipoServidor}
+                tipoServidor={(servidor as any).tipo_servidor as TipoServidor | undefined}
               />
             </TabsContent>
 
