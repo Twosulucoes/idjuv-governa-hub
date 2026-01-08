@@ -106,9 +106,30 @@ export const adminMenuConfig: AdminMenuSection[] = [
       {
         id: "unidades-locais",
         label: "Unidades Locais",
-        href: "/unidades",
         icon: Building2,
-        keywords: ["unidades", "locais", "ginásios", "estádios", "parques", "piscinas"],
+        children: [
+          {
+            id: "gestao-unidades",
+            label: "Gestão de Unidades",
+            href: "/unidades",
+            icon: Building2,
+            keywords: ["unidades", "locais", "ginásios", "estádios", "parques", "piscinas"],
+          },
+          {
+            id: "relatorios-unidades",
+            label: "Relatórios de Unidades",
+            href: "/unidades/relatorios",
+            icon: BarChart3,
+            keywords: ["relatórios", "unidades", "acervo", "patrimônio"],
+          },
+          {
+            id: "cedencia-unidades",
+            label: "Cedências e Termos",
+            href: "/unidades/cedencia",
+            icon: FileText,
+            keywords: ["cedência", "termos", "cessão", "agendamentos"],
+          },
+        ],
       },
       {
         id: "documentos",
@@ -389,6 +410,13 @@ export const adminMenuConfig: AdminMenuSection[] = [
         href: "/rh/relatorios",
         icon: FileSpreadsheet,
         keywords: ["relatórios", "rh", "pessoal"],
+      },
+      {
+        id: "relatorios-unidades",
+        label: "Relatórios de Unidades",
+        href: "/unidades/relatorios",
+        icon: Building2,
+        keywords: ["relatórios", "unidades", "acervo", "patrimônio", "esportivas"],
       },
     ],
   },

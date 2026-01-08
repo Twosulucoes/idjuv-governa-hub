@@ -162,6 +162,20 @@ export type Database = {
             foreignKeyName: "agenda_unidade_unidade_local_id_fkey"
             columns: ["unidade_local_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_patrimonio"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "agenda_unidade_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_unidades_locais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_unidade_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
             referencedRelation: "v_relatorio_uso_unidades"
             referencedColumns: ["unidade_id"]
           },
@@ -2070,6 +2084,20 @@ export type Database = {
             foreignKeyName: "nomeacoes_chefe_unidade_unidade_local_id_fkey"
             columns: ["unidade_local_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_patrimonio"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "nomeacoes_chefe_unidade_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_unidades_locais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nomeacoes_chefe_unidade_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
             referencedRelation: "v_relatorio_uso_unidades"
             referencedColumns: ["unidade_id"]
           },
@@ -2201,6 +2229,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_cedencias_a_vencer"
             referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "patrimonio_unidade_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_patrimonio"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "patrimonio_unidade_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_unidades_locais"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "patrimonio_unidade_unidade_local_id_fkey"
@@ -3131,6 +3173,20 @@ export type Database = {
             foreignKeyName: "termos_cessao_unidade_local_id_fkey"
             columns: ["unidade_local_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_patrimonio"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "termos_cessao_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_unidades_locais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "termos_cessao_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
             referencedRelation: "v_relatorio_uso_unidades"
             referencedColumns: ["unidade_id"]
           },
@@ -3567,6 +3623,91 @@ export type Database = {
         }
         Relationships: []
       }
+      v_relatorio_patrimonio: {
+        Row: {
+          anexos: string[] | null
+          categoria: string | null
+          codigo_unidade: string | null
+          created_at: string | null
+          data_aquisicao: string | null
+          descricao: string | null
+          estado_conservacao:
+            | Database["public"]["Enums"]["estado_conservacao"]
+            | null
+          id: string | null
+          item: string | null
+          municipio: string | null
+          nome_unidade: string | null
+          numero_tombo: string | null
+          observacoes: string | null
+          quantidade: number | null
+          situacao: Database["public"]["Enums"]["situacao_patrimonio"] | null
+          tipo_unidade: Database["public"]["Enums"]["tipo_unidade_local"] | null
+          unidade_id: string | null
+          unidade_status:
+            | Database["public"]["Enums"]["status_unidade_local"]
+            | null
+          updated_at: string | null
+          valor_estimado: number | null
+          valor_total: number | null
+        }
+        Relationships: []
+      }
+      v_relatorio_unidades_locais: {
+        Row: {
+          agendamentos_aprovados: number | null
+          agendamentos_pendentes: number | null
+          areas_disponiveis: string[] | null
+          autoridade_autorizadora: string | null
+          capacidade: number | null
+          chefe_ato_numero: string | null
+          chefe_atual_cargo: string | null
+          chefe_atual_id: string | null
+          chefe_atual_nome: string | null
+          chefe_data_inicio: string | null
+          codigo_unidade: string | null
+          created_at: string | null
+          diretoria_vinculada: string | null
+          documentos: string[] | null
+          endereco_completo: string | null
+          estrutura_disponivel: string | null
+          fotos: string[] | null
+          horario_funcionamento: string | null
+          id: string | null
+          municipio: string | null
+          natureza_uso: string | null
+          nome_unidade: string | null
+          observacoes: string | null
+          patrimonio_bom_estado: number | null
+          patrimonio_manutencao: number | null
+          patrimonio_valor_total: number | null
+          regras_de_uso: string | null
+          status: Database["public"]["Enums"]["status_unidade_local"] | null
+          termos_vigentes: number | null
+          tipo_unidade: Database["public"]["Enums"]["tipo_unidade_local"] | null
+          total_agendamentos: number | null
+          total_patrimonio: number | null
+          total_termos_cessao: number | null
+          unidade_administrativa: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nomeacoes_chefe_unidade_servidor_id_fkey"
+            columns: ["chefe_atual_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nomeacoes_chefe_unidade_servidor_id_fkey"
+            columns: ["chefe_atual_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_relatorio_uso_unidades: {
         Row: {
           ano_referencia: number | null
@@ -3674,6 +3815,7 @@ export type Database = {
       }
     }
     Functions: {
+      atualizar_codigos_unidades_locais: { Args: never; Returns: undefined }
       calcular_horas_trabalhadas: {
         Args: {
           p_entrada1: string
