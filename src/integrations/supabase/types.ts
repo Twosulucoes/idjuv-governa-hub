@@ -1732,14 +1732,14 @@ export type Database = {
             foreignKeyName: "lotacoes_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "servidores"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "lotacoes_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
+            referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
           {
