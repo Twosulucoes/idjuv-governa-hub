@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { gerarMatricula } from "@/lib/matriculaUtils";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
@@ -279,6 +280,12 @@ export default function ServidorFormPage() {
   // Mutation
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
+      // Gerar matrícula automaticamente se for novo servidor e não tiver matrícula
+      let matriculaFinal = data.matricula;
+      if (!isEditing && !matriculaFinal) {
+        matriculaFinal = await gerarMatricula();
+      }
+
       const payload = {
         nome_completo: data.nome_completo,
         nome_social: data.nome_social || null,
@@ -303,7 +310,7 @@ export default function ServidorFormPage() {
         endereco_cidade: data.endereco_cidade || null,
         endereco_uf: data.endereco_uf || null,
         endereco_cep: data.endereco_cep?.replace(/\D/g, '') || null,
-        matricula: data.matricula || null,
+        matricula: matriculaFinal || null,
         vinculo: data.vinculo,
         situacao: data.situacao,
         cargo_atual_id: data.cargo_atual_id || null,
@@ -831,7 +838,15 @@ export default function ServidorFormPage() {
                         <Input
                           value={formData.matricula}
                           onChange={(e) => updateField('matricula', e.target.value)}
+                          placeholder={isEditing ? "" : "Gerada automaticamente"}
+                          disabled={!isEditing && !formData.matricula}
+                          className={!isEditing && !formData.matricula ? "bg-muted" : ""}
                         />
+                        {!isEditing && !formData.matricula && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Será gerada automaticamente no formato IDJUV-2025-00001
+                          </p>
+                        )}
                       </div>
                       <div>
                         <Label>Vínculo</Label>
