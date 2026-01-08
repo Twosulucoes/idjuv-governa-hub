@@ -64,6 +64,28 @@ export default function ServidorDetalheePage() {
     enabled: !!id,
   });
 
+  // Fetch lotação vigente da tabela lotacoes
+  const { data: lotacaoVigente } = useQuery({
+    queryKey: ["lotacao-vigente", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lotacoes")
+        .select(`
+          *,
+          unidade:estrutura_organizacional!lotacoes_unidade_id_fkey(id, nome, sigla),
+          cargo:cargos!lotacoes_cargo_id_fkey(id, nome, sigla)
+        `)
+        .eq("servidor_id", id)
+        .eq("ativo", true)
+        .order("data_inicio", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
   // Fetch histórico funcional
   const { data: historico = [] } = useQuery({
     queryKey: ["historico-funcional", id],
@@ -205,7 +227,7 @@ export default function ServidorDetalheePage() {
                   </Badge>
                 </div>
                 <p className="text-muted-foreground mt-1">
-                  {servidor.cargo?.nome || 'Sem cargo'} • {servidor.unidade?.sigla || servidor.unidade?.nome || 'Sem lotação'}
+                  {servidor.cargo?.nome || 'Sem cargo'} • {lotacaoVigente?.unidade?.sigla || lotacaoVigente?.unidade?.nome || servidor.unidade?.sigla || servidor.unidade?.nome || 'Sem lotação'}
                 </p>
                 {servidor.matricula && (
                   <p className="text-sm text-muted-foreground">Matrícula: {servidor.matricula}</p>
@@ -399,7 +421,16 @@ export default function ServidorDetalheePage() {
                   <CardContent className="space-y-3">
                     <InfoRow label="Matrícula" value={servidor.matricula || '-'} />
                     <InfoRow label="Cargo" value={servidor.cargo?.nome || '-'} />
-                    <InfoRow label="Lotação" value={servidor.unidade?.nome || '-'} />
+                    <InfoRow 
+                      label="Lotação" 
+                      value={lotacaoVigente?.unidade?.nome || servidor.unidade?.nome || '-'} 
+                    />
+                    {lotacaoVigente?.funcao_exercida && (
+                      <InfoRow label="Função Exercida" value={lotacaoVigente.funcao_exercida} />
+                    )}
+                    {lotacaoVigente?.data_inicio && (
+                      <InfoRow label="Início da Lotação" value={formatDate(lotacaoVigente.data_inicio)} />
+                    )}
                     <InfoRow label="Carga Horária" value={servidor.carga_horaria ? `${servidor.carga_horaria}h/semana` : '-'} />
                     <InfoRow label="Data de Admissão" value={formatDate(servidor.data_admissao)} />
                     <InfoRow label="Data de Posse" value={formatDate(servidor.data_posse)} />
