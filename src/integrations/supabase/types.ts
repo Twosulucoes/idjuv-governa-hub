@@ -138,6 +138,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "agenda_unidade_aprovador_id_fkey"
+            columns: ["aprovador_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "agenda_unidade_unidade_local_id_fkey"
             columns: ["unidade_local_id"]
             isOneToOne: false
@@ -590,6 +597,7 @@ export type Database = {
           lei_criacao_data: string | null
           lei_criacao_numero: string | null
           lei_documento_url: string | null
+          natureza: Database["public"]["Enums"]["natureza_cargo"] | null
           nivel_hierarquico: number | null
           nome: string
           quantidade_vagas: number | null
@@ -614,6 +622,7 @@ export type Database = {
           lei_criacao_data?: string | null
           lei_criacao_numero?: string | null
           lei_documento_url?: string | null
+          natureza?: Database["public"]["Enums"]["natureza_cargo"] | null
           nivel_hierarquico?: number | null
           nome: string
           quantidade_vagas?: number | null
@@ -638,6 +647,7 @@ export type Database = {
           lei_criacao_data?: string | null
           lei_criacao_numero?: string | null
           lei_documento_url?: string | null
+          natureza?: Database["public"]["Enums"]["natureza_cargo"] | null
           nivel_hierarquico?: number | null
           nome?: string
           quantidade_vagas?: number | null
@@ -648,6 +658,124 @@ export type Database = {
           vencimento_base?: number | null
         }
         Relationships: []
+      }
+      cessoes: {
+        Row: {
+          ativa: boolean | null
+          ato_data: string | null
+          ato_doe_data: string | null
+          ato_doe_numero: string | null
+          ato_numero: string | null
+          ato_retorno_data: string | null
+          ato_retorno_numero: string | null
+          ato_tipo: string | null
+          ato_url: string | null
+          cargo_destino: string | null
+          cargo_origem: string | null
+          created_at: string | null
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string
+          data_retorno: string | null
+          funcao_exercida_idjuv: string | null
+          fundamentacao_legal: string | null
+          id: string
+          observacoes: string | null
+          onus: string | null
+          orgao_destino: string | null
+          orgao_origem: string | null
+          servidor_id: string
+          tipo: string
+          unidade_idjuv_id: string | null
+          updated_at: string | null
+          updated_by: string | null
+          vinculo_origem: string | null
+        }
+        Insert: {
+          ativa?: boolean | null
+          ato_data?: string | null
+          ato_doe_data?: string | null
+          ato_doe_numero?: string | null
+          ato_numero?: string | null
+          ato_retorno_data?: string | null
+          ato_retorno_numero?: string | null
+          ato_tipo?: string | null
+          ato_url?: string | null
+          cargo_destino?: string | null
+          cargo_origem?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio: string
+          data_retorno?: string | null
+          funcao_exercida_idjuv?: string | null
+          fundamentacao_legal?: string | null
+          id?: string
+          observacoes?: string | null
+          onus?: string | null
+          orgao_destino?: string | null
+          orgao_origem?: string | null
+          servidor_id: string
+          tipo: string
+          unidade_idjuv_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          vinculo_origem?: string | null
+        }
+        Update: {
+          ativa?: boolean | null
+          ato_data?: string | null
+          ato_doe_data?: string | null
+          ato_doe_numero?: string | null
+          ato_numero?: string | null
+          ato_retorno_data?: string | null
+          ato_retorno_numero?: string | null
+          ato_tipo?: string | null
+          ato_url?: string | null
+          cargo_destino?: string | null
+          cargo_origem?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          data_retorno?: string | null
+          funcao_exercida_idjuv?: string | null
+          fundamentacao_legal?: string | null
+          id?: string
+          observacoes?: string | null
+          onus?: string | null
+          orgao_destino?: string | null
+          orgao_origem?: string | null
+          servidor_id?: string
+          tipo?: string
+          unidade_idjuv_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          vinculo_origem?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cessoes_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cessoes_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cessoes_unidade_idjuv_id_fkey"
+            columns: ["unidade_idjuv_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       composicao_cargos: {
         Row: {
@@ -1089,6 +1217,13 @@ export type Database = {
             referencedRelation: "servidores"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ferias_servidor_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
         ]
       }
       frequencia_mensal: {
@@ -1262,6 +1397,13 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historico_funcional_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
           {
@@ -1508,47 +1650,72 @@ export type Database = {
             referencedRelation: "servidores"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "licencas_afastamentos_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
         ]
       }
       lotacoes: {
         Row: {
           ativo: boolean | null
+          ato_data: string | null
+          ato_numero: string | null
+          ato_url: string | null
           cargo_id: string | null
           created_at: string | null
           data_fim: string | null
           data_inicio: string
           documento_referencia: string | null
+          funcao_exercida: string | null
           id: string
           observacao: string | null
+          orgao_externo: string | null
           servidor_id: string
+          tipo_lotacao: Database["public"]["Enums"]["tipo_lotacao"] | null
           tipo_movimentacao: string | null
           unidade_id: string
           updated_at: string | null
         }
         Insert: {
           ativo?: boolean | null
+          ato_data?: string | null
+          ato_numero?: string | null
+          ato_url?: string | null
           cargo_id?: string | null
           created_at?: string | null
           data_fim?: string | null
           data_inicio?: string
           documento_referencia?: string | null
+          funcao_exercida?: string | null
           id?: string
           observacao?: string | null
+          orgao_externo?: string | null
           servidor_id: string
+          tipo_lotacao?: Database["public"]["Enums"]["tipo_lotacao"] | null
           tipo_movimentacao?: string | null
           unidade_id: string
           updated_at?: string | null
         }
         Update: {
           ativo?: boolean | null
+          ato_data?: string | null
+          ato_numero?: string | null
+          ato_url?: string | null
           cargo_id?: string | null
           created_at?: string | null
           data_fim?: string | null
           data_inicio?: string
           documento_referencia?: string | null
+          funcao_exercida?: string | null
           id?: string
           observacao?: string | null
+          orgao_externo?: string | null
           servidor_id?: string
+          tipo_lotacao?: Database["public"]["Enums"]["tipo_lotacao"] | null
           tipo_movimentacao?: string | null
           unidade_id?: string
           updated_at?: string | null
@@ -1699,6 +1866,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "memorandos_lotacao_lotacao_id_fkey"
+            columns: ["lotacao_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["lotacao_id"]
+          },
+          {
             foreignKeyName: "memorandos_lotacao_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
@@ -1827,6 +2001,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "nomeacoes_chefe_unidade_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "nomeacoes_chefe_unidade_unidade_local_id_fkey"
             columns: ["unidade_local_id"]
             isOneToOne: false
@@ -1886,6 +2067,13 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencias_servidor_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
         ]
@@ -2067,6 +2255,13 @@ export type Database = {
             referencedRelation: "servidores"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "portarias_servidor_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -2121,6 +2316,123 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provimentos: {
+        Row: {
+          ato_encerramento_data: string | null
+          ato_encerramento_numero: string | null
+          ato_encerramento_tipo: string | null
+          ato_nomeacao_data: string | null
+          ato_nomeacao_doe_data: string | null
+          ato_nomeacao_doe_numero: string | null
+          ato_nomeacao_numero: string | null
+          ato_nomeacao_tipo: string | null
+          ato_nomeacao_url: string | null
+          cargo_id: string
+          created_at: string | null
+          created_by: string | null
+          data_encerramento: string | null
+          data_exercicio: string | null
+          data_nomeacao: string
+          data_posse: string | null
+          id: string
+          motivo_encerramento: string | null
+          observacoes: string | null
+          servidor_id: string
+          status: Database["public"]["Enums"]["status_provimento"] | null
+          unidade_id: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          ato_encerramento_data?: string | null
+          ato_encerramento_numero?: string | null
+          ato_encerramento_tipo?: string | null
+          ato_nomeacao_data?: string | null
+          ato_nomeacao_doe_data?: string | null
+          ato_nomeacao_doe_numero?: string | null
+          ato_nomeacao_numero?: string | null
+          ato_nomeacao_tipo?: string | null
+          ato_nomeacao_url?: string | null
+          cargo_id: string
+          created_at?: string | null
+          created_by?: string | null
+          data_encerramento?: string | null
+          data_exercicio?: string | null
+          data_nomeacao: string
+          data_posse?: string | null
+          id?: string
+          motivo_encerramento?: string | null
+          observacoes?: string | null
+          servidor_id: string
+          status?: Database["public"]["Enums"]["status_provimento"] | null
+          unidade_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          ato_encerramento_data?: string | null
+          ato_encerramento_numero?: string | null
+          ato_encerramento_tipo?: string | null
+          ato_nomeacao_data?: string | null
+          ato_nomeacao_doe_data?: string | null
+          ato_nomeacao_doe_numero?: string | null
+          ato_nomeacao_numero?: string | null
+          ato_nomeacao_tipo?: string | null
+          ato_nomeacao_url?: string | null
+          cargo_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          data_encerramento?: string | null
+          data_exercicio?: string | null
+          data_nomeacao?: string
+          data_posse?: string | null
+          id?: string
+          motivo_encerramento?: string | null
+          observacoes?: string | null
+          servidor_id?: string
+          status?: Database["public"]["Enums"]["status_provimento"] | null
+          unidade_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provimentos_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provimentos_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provimentos_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provimentos_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
             referencedColumns: ["id"]
           },
         ]
@@ -2309,6 +2621,7 @@ export type Database = {
           estado_civil: string | null
           formacao_academica: string | null
           foto_url: string | null
+          funcao_exercida: string | null
           gratificacoes: number | null
           id: string
           instituicao_ensino: string | null
@@ -2319,6 +2632,8 @@ export type Database = {
           nome_completo: string
           nome_social: string | null
           observacoes: string | null
+          orgao_destino_cessao: string | null
+          orgao_origem: string | null
           pis_pasep: string | null
           regime_juridico: string | null
           remuneracao_bruta: number | null
@@ -2331,6 +2646,7 @@ export type Database = {
           telefone_celular: string | null
           telefone_emergencia: string | null
           telefone_fixo: string | null
+          tipo_servidor: Database["public"]["Enums"]["tipo_servidor"] | null
           titulo_eleitor: string | null
           titulo_secao: string | null
           titulo_zona: string | null
@@ -2389,6 +2705,7 @@ export type Database = {
           estado_civil?: string | null
           formacao_academica?: string | null
           foto_url?: string | null
+          funcao_exercida?: string | null
           gratificacoes?: number | null
           id?: string
           instituicao_ensino?: string | null
@@ -2399,6 +2716,8 @@ export type Database = {
           nome_completo: string
           nome_social?: string | null
           observacoes?: string | null
+          orgao_destino_cessao?: string | null
+          orgao_origem?: string | null
           pis_pasep?: string | null
           regime_juridico?: string | null
           remuneracao_bruta?: number | null
@@ -2411,6 +2730,7 @@ export type Database = {
           telefone_celular?: string | null
           telefone_emergencia?: string | null
           telefone_fixo?: string | null
+          tipo_servidor?: Database["public"]["Enums"]["tipo_servidor"] | null
           titulo_eleitor?: string | null
           titulo_secao?: string | null
           titulo_zona?: string | null
@@ -2469,6 +2789,7 @@ export type Database = {
           estado_civil?: string | null
           formacao_academica?: string | null
           foto_url?: string | null
+          funcao_exercida?: string | null
           gratificacoes?: number | null
           id?: string
           instituicao_ensino?: string | null
@@ -2479,6 +2800,8 @@ export type Database = {
           nome_completo?: string
           nome_social?: string | null
           observacoes?: string | null
+          orgao_destino_cessao?: string | null
+          orgao_origem?: string | null
           pis_pasep?: string | null
           regime_juridico?: string | null
           remuneracao_bruta?: number | null
@@ -2491,6 +2814,7 @@ export type Database = {
           telefone_celular?: string | null
           telefone_emergencia?: string | null
           telefone_fixo?: string | null
+          tipo_servidor?: Database["public"]["Enums"]["tipo_servidor"] | null
           titulo_eleitor?: string | null
           titulo_secao?: string | null
           titulo_zona?: string | null
@@ -3084,6 +3408,100 @@ export type Database = {
             referencedRelation: "servidores"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "viagens_diarias_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vinculos_funcionais: {
+        Row: {
+          ativo: boolean | null
+          ato_data: string | null
+          ato_doe_data: string | null
+          ato_doe_numero: string | null
+          ato_numero: string | null
+          ato_tipo: string | null
+          ato_url: string | null
+          created_at: string | null
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string
+          fundamentacao_legal: string | null
+          id: string
+          observacoes: string | null
+          onus_origem: boolean | null
+          orgao_destino: string | null
+          orgao_origem: string | null
+          servidor_id: string
+          tipo_vinculo: Database["public"]["Enums"]["tipo_vinculo_funcional"]
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          ato_data?: string | null
+          ato_doe_data?: string | null
+          ato_doe_numero?: string | null
+          ato_numero?: string | null
+          ato_tipo?: string | null
+          ato_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio: string
+          fundamentacao_legal?: string | null
+          id?: string
+          observacoes?: string | null
+          onus_origem?: boolean | null
+          orgao_destino?: string | null
+          orgao_origem?: string | null
+          servidor_id: string
+          tipo_vinculo: Database["public"]["Enums"]["tipo_vinculo_funcional"]
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          ato_data?: string | null
+          ato_doe_data?: string | null
+          ato_doe_numero?: string | null
+          ato_numero?: string | null
+          ato_tipo?: string | null
+          ato_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          fundamentacao_legal?: string | null
+          id?: string
+          observacoes?: string | null
+          onus_origem?: boolean | null
+          orgao_destino?: string | null
+          orgao_origem?: string | null
+          servidor_id?: string
+          tipo_vinculo?: Database["public"]["Enums"]["tipo_vinculo_funcional"]
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vinculos_funcionais_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vinculos_funcionais_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -3123,6 +3541,65 @@ export type Database = {
         }
         Relationships: []
       }
+      v_servidores_situacao: {
+        Row: {
+          cargo_id: string | null
+          cargo_natureza: Database["public"]["Enums"]["natureza_cargo"] | null
+          cargo_nome: string | null
+          cargo_sigla: string | null
+          cessao_id: string | null
+          cessao_inicio: string | null
+          cessao_onus: string | null
+          cessao_orgao_destino: string | null
+          cessao_orgao_origem: string | null
+          cessao_tipo: string | null
+          cpf: string | null
+          data_nomeacao: string | null
+          data_posse: string | null
+          email_institucional: string | null
+          foto_url: string | null
+          id: string | null
+          lotacao_funcao: string | null
+          lotacao_id: string | null
+          lotacao_inicio: string | null
+          matricula: string | null
+          nome_completo: string | null
+          provimento_id: string | null
+          provimento_status:
+            | Database["public"]["Enums"]["status_provimento"]
+            | null
+          situacao: Database["public"]["Enums"]["situacao_funcional"] | null
+          telefone_celular: string | null
+          tipo_lotacao: Database["public"]["Enums"]["tipo_lotacao"] | null
+          tipo_servidor: Database["public"]["Enums"]["tipo_servidor"] | null
+          tipo_vinculo:
+            | Database["public"]["Enums"]["tipo_vinculo_funcional"]
+            | null
+          unidade_id: string | null
+          unidade_nome: string | null
+          unidade_sigla: string | null
+          vinculo_id: string | null
+          vinculo_inicio: string | null
+          vinculo_orgao_destino: string | null
+          vinculo_orgao_origem: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lotacoes_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provimentos_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_usuarios_sistema: {
         Row: {
           avatar_url: string | null
@@ -3154,6 +3631,13 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
         ]
@@ -3358,6 +3842,7 @@ export type Database = {
         | "estagiario"
       categoria_portaria: "estruturante" | "normativa" | "pessoal" | "delegacao"
       estado_conservacao: "otimo" | "bom" | "regular" | "ruim" | "inservivel"
+      natureza_cargo: "efetivo" | "comissionado"
       situacao_funcional:
         | "ativo"
         | "afastado"
@@ -3392,6 +3877,7 @@ export type Database = {
         | "pendente_justificativa"
         | "justificado"
         | "aprovado"
+      status_provimento: "ativo" | "suspenso" | "encerrado" | "vacante"
       status_solicitacao: "pendente" | "aprovada" | "rejeitada" | "cancelada"
       status_termo_cessao: "pendente" | "emitido" | "assinado" | "cancelado"
       status_unidade_local: "ativa" | "inativa" | "manutencao" | "interditada"
@@ -3433,6 +3919,11 @@ export type Database = {
         | "mandato_eletivo"
         | "mandato_classista"
         | "outra"
+      tipo_lotacao:
+        | "lotacao_interna"
+        | "designacao"
+        | "cessao_interna"
+        | "lotacao_externa"
       tipo_movimentacao_funcional:
         | "nomeacao"
         | "exoneracao"
@@ -3469,6 +3960,11 @@ export type Database = {
         | "falta"
         | "ferias"
         | "licenca"
+      tipo_servidor:
+        | "efetivo_idjuv"
+        | "comissionado_idjuv"
+        | "cedido_entrada"
+        | "cedido_saida"
       tipo_unidade:
         | "presidencia"
         | "diretoria"
@@ -3486,6 +3982,11 @@ export type Database = {
         | "quadra"
         | "outro"
       tipo_usuario: "servidor" | "tecnico"
+      tipo_vinculo_funcional:
+        | "efetivo_idjuv"
+        | "comissionado_idjuv"
+        | "cedido_entrada"
+        | "cedido_saida"
       vinculo_funcional:
         | "efetivo"
         | "comissionado"
@@ -3709,6 +4210,7 @@ export const Constants = {
       ],
       categoria_portaria: ["estruturante", "normativa", "pessoal", "delegacao"],
       estado_conservacao: ["otimo", "bom", "regular", "ruim", "inservivel"],
+      natureza_cargo: ["efetivo", "comissionado"],
       situacao_funcional: [
         "ativo",
         "afastado",
@@ -3748,6 +4250,7 @@ export const Constants = {
         "justificado",
         "aprovado",
       ],
+      status_provimento: ["ativo", "suspenso", "encerrado", "vacante"],
       status_solicitacao: ["pendente", "aprovada", "rejeitada", "cancelada"],
       status_termo_cessao: ["pendente", "emitido", "assinado", "cancelado"],
       status_unidade_local: ["ativa", "inativa", "manutencao", "interditada"],
@@ -3793,6 +4296,12 @@ export const Constants = {
         "mandato_classista",
         "outra",
       ],
+      tipo_lotacao: [
+        "lotacao_interna",
+        "designacao",
+        "cessao_interna",
+        "lotacao_externa",
+      ],
       tipo_movimentacao_funcional: [
         "nomeacao",
         "exoneracao",
@@ -3832,6 +4341,12 @@ export const Constants = {
         "ferias",
         "licenca",
       ],
+      tipo_servidor: [
+        "efetivo_idjuv",
+        "comissionado_idjuv",
+        "cedido_entrada",
+        "cedido_saida",
+      ],
       tipo_unidade: [
         "presidencia",
         "diretoria",
@@ -3851,6 +4366,12 @@ export const Constants = {
         "outro",
       ],
       tipo_usuario: ["servidor", "tecnico"],
+      tipo_vinculo_funcional: [
+        "efetivo_idjuv",
+        "comissionado_idjuv",
+        "cedido_entrada",
+        "cedido_saida",
+      ],
       vinculo_funcional: [
         "efetivo",
         "comissionado",
