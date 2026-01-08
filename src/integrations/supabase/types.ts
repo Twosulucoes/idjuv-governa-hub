@@ -565,6 +565,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "banco_horas_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
         ]
       }
       cargos: {
@@ -736,6 +743,13 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: true
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "configuracao_jornada_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: true
+            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
         ]
@@ -954,6 +968,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "estrutura_organizacional_servidor_responsavel_id_fkey"
+            columns: ["servidor_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "estrutura_organizacional_superior_id_fkey"
             columns: ["superior_id"]
             isOneToOne: false
@@ -1143,6 +1164,13 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "frequencia_mensal_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
         ]
@@ -1336,6 +1364,13 @@ export type Database = {
             columns: ["aprovador_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "justificativas_ponto_aprovador_id_fkey"
+            columns: ["aprovador_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
           {
@@ -1534,6 +1569,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "lotacoes_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "lotacoes_unidade_id_fkey"
             columns: ["unidade_id"]
             isOneToOne: false
@@ -1643,6 +1685,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "memorandos_lotacao_emitido_por_fkey"
+            columns: ["emitido_por"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "memorandos_lotacao_lotacao_id_fkey"
             columns: ["lotacao_id"]
             isOneToOne: false
@@ -1654,6 +1703,13 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memorandos_lotacao_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
           {
@@ -2016,29 +2072,58 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          blocked_at: string | null
+          blocked_reason: string | null
+          cpf: string | null
           created_at: string
           email: string | null
           full_name: string | null
           id: string
+          is_active: boolean
+          requires_password_change: boolean | null
+          servidor_id: string | null
+          tipo_usuario: Database["public"]["Enums"]["tipo_usuario"]
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
+          blocked_at?: string | null
+          blocked_reason?: string | null
+          cpf?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id: string
+          is_active?: boolean
+          requires_password_change?: boolean | null
+          servidor_id?: string | null
+          tipo_usuario?: Database["public"]["Enums"]["tipo_usuario"]
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
+          blocked_at?: string | null
+          blocked_reason?: string | null
+          cpf?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id?: string
+          is_active?: boolean
+          requires_password_change?: boolean | null
+          servidor_id?: string | null
+          tipo_usuario?: Database["public"]["Enums"]["tipo_usuario"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       registros_ponto: {
         Row: {
@@ -2131,10 +2216,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "registros_ponto_aprovador_id_fkey"
+            columns: ["aprovador_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "registros_ponto_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_ponto_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
         ]
@@ -2482,6 +2581,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "solicitacoes_ajuste_ponto_aprovador_id_fkey"
+            columns: ["aprovador_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "solicitacoes_ajuste_ponto_registro_ponto_id_fkey"
             columns: ["registro_ponto_id"]
             isOneToOne: false
@@ -2493,6 +2599,13 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_ajuste_ponto_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
         ]
@@ -3010,6 +3123,41 @@ export type Database = {
         }
         Relationships: []
       }
+      v_usuarios_sistema: {
+        Row: {
+          avatar_url: string | null
+          blocked_at: string | null
+          blocked_reason: string | null
+          cargo_nome: string | null
+          cpf: string | null
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string | null
+          is_active: boolean | null
+          servidor_id: string | null
+          servidor_matricula: string | null
+          servidor_nome: string | null
+          servidor_situacao:
+            | Database["public"]["Enums"]["situacao_funcional"]
+            | null
+          servidor_vinculo:
+            | Database["public"]["Enums"]["vinculo_funcional"]
+            | null
+          tipo_usuario: Database["public"]["Enums"]["tipo_usuario"] | null
+          unidade_nome: string | null
+          user_role: Database["public"]["Enums"]["app_role"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       calcular_horas_trabalhadas: {
@@ -3028,6 +3176,14 @@ export type Database = {
         Returns: boolean
       }
       can_view_audit: { Args: { _user_id: string }; Returns: boolean }
+      criar_usuario_para_servidor: {
+        Args: {
+          p_email: string
+          p_role?: Database["public"]["Enums"]["app_role"]
+          p_servidor_id: string
+        }
+        Returns: string
+      }
       gerar_protocolo_cedencia: {
         Args: { p_unidade_id: string }
         Returns: string
@@ -3052,6 +3208,10 @@ export type Database = {
           nome: string
           tipo: Database["public"]["Enums"]["tipo_unidade"]
         }[]
+      }
+      get_permissions_from_servidor: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_permission"][]
       }
       get_subordinados_unidade: {
         Args: { p_unidade_id: string }
@@ -3082,6 +3242,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin_user: { Args: { _user_id: string }; Returns: boolean }
+      is_usuario_tecnico: { Args: { _user_id: string }; Returns: boolean }
       log_audit: {
         Args: {
           _action: Database["public"]["Enums"]["audit_action"]
@@ -3324,6 +3485,7 @@ export type Database = {
         | "complexo"
         | "quadra"
         | "outro"
+      tipo_usuario: "servidor" | "tecnico"
       vinculo_funcional:
         | "efetivo"
         | "comissionado"
@@ -3688,6 +3850,7 @@ export const Constants = {
         "quadra",
         "outro",
       ],
+      tipo_usuario: ["servidor", "tecnico"],
       vinculo_funcional: [
         "efetivo",
         "comissionado",
