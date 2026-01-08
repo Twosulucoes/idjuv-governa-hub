@@ -62,6 +62,7 @@ import ModelosDocumentosPage from "./pages/rh/ModelosDocumentosPage";
 import GestaoUnidadesLocaisPage from "./pages/unidades/GestaoUnidadesLocaisPage";
 import UnidadeDetalhePage from "./pages/unidades/UnidadeDetalhePage";
 import RelatoriosCedenciaPage from "./pages/unidades/RelatoriosCedenciaPage";
+import RelatoriosUnidadesLocaisPage from "./pages/unidades/RelatoriosUnidadesLocaisPage";
 
 import NoticiasPage from "./pages/NoticiasPage";
 
@@ -133,7 +134,8 @@ const App = () => (
               {/* Unidades Locais */}
               <Route path="/unidades" element={<GestaoUnidadesLocaisPage />} />
               <Route path="/unidades/gestao" element={<GestaoUnidadesLocaisPage />} />
-              <Route path="/unidades/relatorios" element={<RelatoriosCedenciaPage />} />
+              <Route path="/unidades/relatorios" element={<RelatoriosUnidadesLocaisPage />} />
+              <Route path="/unidades/cedencia" element={<RelatoriosCedenciaPage />} />
               <Route path="/unidades/:id" element={<UnidadeDetalhePage />} />
               
               {/* RH - Gestão de Servidores */}
