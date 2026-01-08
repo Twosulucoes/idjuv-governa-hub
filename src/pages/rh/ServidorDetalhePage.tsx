@@ -65,25 +65,46 @@ export default function ServidorDetalheePage() {
   });
 
   // Fetch lotação vigente da tabela lotacoes
+  // Busca por servidor_id = servidores.id OU por user_id do servidor
   const { data: lotacaoVigente } = useQuery({
-    queryKey: ["lotacao-vigente", id],
+    queryKey: ["lotacao-vigente", id, servidor?.user_id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Primeiro tenta buscar pelo id do servidor
+      let { data, error } = await supabase
         .from("lotacoes")
         .select(`
           *,
           unidade:estrutura_organizacional!lotacoes_unidade_id_fkey(id, nome, sigla),
           cargo:cargos!lotacoes_cargo_id_fkey(id, nome, sigla)
         `)
-        .eq("servidor_id", id)
+        .eq("servidor_id", id!)
         .eq("ativo", true)
         .order("data_inicio", { ascending: false })
         .limit(1)
         .maybeSingle();
+      
+      // Se não encontrou e o servidor tem user_id, busca pelo user_id
+      if (!data && servidor?.user_id) {
+        const result = await supabase
+          .from("lotacoes")
+          .select(`
+            *,
+            unidade:estrutura_organizacional!lotacoes_unidade_id_fkey(id, nome, sigla),
+            cargo:cargos!lotacoes_cargo_id_fkey(id, nome, sigla)
+          `)
+          .eq("servidor_id", servidor.user_id)
+          .eq("ativo", true)
+          .order("data_inicio", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        data = result.data;
+        error = result.error;
+      }
+      
       if (error) throw error;
       return data;
     },
-    enabled: !!id,
+    enabled: !!id && !!servidor,
   });
 
   // Fetch histórico funcional

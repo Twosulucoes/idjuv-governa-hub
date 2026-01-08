@@ -3583,22 +3583,7 @@ export type Database = {
           vinculo_orgao_destino: string | null
           vinculo_orgao_origem: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "lotacoes_unidade_id_fkey"
-            columns: ["unidade_id"]
-            isOneToOne: false
-            referencedRelation: "estrutura_organizacional"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "provimentos_cargo_id_fkey"
-            columns: ["cargo_id"]
-            isOneToOne: false
-            referencedRelation: "cargos"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       v_usuarios_sistema: {
         Row: {
