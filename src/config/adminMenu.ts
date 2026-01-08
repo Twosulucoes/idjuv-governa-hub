@@ -176,9 +176,23 @@ export const adminMenuConfig: AdminMenuSection[] = [
       {
         id: "usuarios",
         label: "Usuários do Sistema",
-        href: "/admin/usuarios",
         icon: UserCog,
-        keywords: ["usuários", "acesso", "permissões", "login"],
+        children: [
+          {
+            id: "usuarios-servidores",
+            label: "Gerenciar Usuários",
+            href: "/admin/usuarios",
+            icon: Users,
+            keywords: ["usuários", "acesso", "permissões", "login"],
+          },
+          {
+            id: "usuarios-tecnicos",
+            label: "Usuários Técnicos",
+            href: "/admin/usuarios-tecnicos",
+            icon: Settings,
+            keywords: ["técnicos", "manutenção", "suporte", "desenvolvedor"],
+          },
+        ],
       },
     ],
   },

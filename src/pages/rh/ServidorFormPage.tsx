@@ -339,17 +339,60 @@ export default function ServidorFormPage() {
         observacoes: data.observacoes || null,
       };
 
+      let servidorId: string | null = null;
+
       if (isEditing && id) {
         const { error } = await supabase
           .from("servidores")
           .update(payload)
           .eq("id", id);
         if (error) throw error;
+        servidorId = id;
       } else {
-        const { error } = await supabase
+        // Inserir novo servidor
+        const { data: novoServidor, error } = await supabase
           .from("servidores")
-          .insert(payload);
+          .insert(payload)
+          .select("id")
+          .single();
         if (error) throw error;
+        servidorId = novoServidor.id;
+
+        // Criar usuário automaticamente para o servidor
+        const emailParaUsuario = data.email_institucional || data.email_pessoal;
+        if (emailParaUsuario && servidorId) {
+          try {
+            // Gerar senha temporária
+            const tempPassword = generateTempPassword();
+            
+            // Criar usuário no Auth
+            const { error: authError } = await supabase.auth.signUp({
+              email: emailParaUsuario,
+              password: tempPassword,
+              options: {
+                emailRedirectTo: `${window.location.origin}/auth`,
+                data: {
+                  full_name: data.nome_completo,
+                  servidor_id: servidorId,
+                  cpf: data.cpf.replace(/\D/g, ''),
+                  tipo_usuario: 'servidor',
+                  role: 'user'
+                }
+              }
+            });
+
+            if (authError) {
+              console.error('Erro ao criar usuário:', authError);
+              // Não lançar erro - servidor foi criado com sucesso
+              toast.info('Servidor cadastrado! Usuário pode ser criado posteriormente.');
+            } else {
+              toast.success('Usuário criado! Email de confirmação enviado.');
+            }
+          } catch (userError) {
+            console.error('Erro ao criar usuário:', userError);
+            toast.info('Servidor cadastrado! Usuário pode ser criado posteriormente.');
+          }
+        }
       }
     },
     onSuccess: () => {
@@ -361,6 +404,16 @@ export default function ServidorFormPage() {
       toast.error(`Erro ao salvar: ${error.message}`);
     },
   });
+
+  // Função para gerar senha temporária
+  const generateTempPassword = (): string => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -78,6 +78,7 @@ import AuditoriaPage from "./pages/admin/AuditoriaPage";
 import GestaoPerfilPage from "./pages/admin/GestaoPerfilPage";
 import BackupOffsitePage from "./pages/admin/BackupOffsitePage";
 import DisasterRecoveryPage from "./pages/admin/DisasterRecoveryPage";
+import UsuariosTecnicosPage from "./pages/admin/UsuariosTecnicosPage";
 
 const queryClient = new QueryClient();
 
@@ -108,6 +109,7 @@ const App = () => (
               <Route path="/admin/perfis" element={<GestaoPerfilPage />} />
               <Route path="/admin/backup" element={<BackupOffsitePage />} />
               <Route path="/admin/disaster-recovery" element={<DisasterRecoveryPage />} />
+              <Route path="/admin/usuarios-tecnicos" element={<UsuariosTecnicosPage />} />
               {/* Redirect old /acesso to new admin route */}
               <Route path="/acesso" element={<ControleAcessoAdminPage />} />
               
