@@ -29,19 +29,19 @@ interface LotacaoData {
   tipo_movimentacao: string | null;
   servidor?: {
     id: string;
-    full_name: string;
-    email: string;
-  };
+    nome_completo: string;
+    matricula: string | null;
+  } | null;
   unidade?: {
     id: string;
     nome: string;
     sigla: string | null;
-  };
+  } | null;
   cargo?: {
     id: string;
     nome: string;
     sigla: string | null;
-  };
+  } | null;
 }
 
 interface MemorandoLotacaoDialogProps {
@@ -81,8 +81,8 @@ export function MemorandoLotacaoDialog({ open, onOpenChange, lotacao }: Memorand
         numero_protocolo: protocolo,
         lotacao_id: lotacao.id,
         servidor_id: lotacao.servidor_id,
-        servidor_nome: lotacao.servidor?.full_name || '',
-        servidor_matricula: matriculaServidor || null,
+        servidor_nome: lotacao.servidor?.nome_completo || '',
+        servidor_matricula: matriculaServidor || lotacao.servidor?.matricula || null,
         unidade_destino_id: lotacao.unidade_id,
         unidade_destino_nome: lotacao.unidade?.nome || '',
         cargo_id: lotacao.cargo_id,
@@ -112,9 +112,8 @@ export function MemorandoLotacaoDialog({ open, onOpenChange, lotacao }: Memorand
         numeroProtocolo: protocolo,
         dataEmissao: format(new Date(), 'dd/MM/yyyy'),
         servidor: {
-          nome: lotacao?.servidor?.full_name || '',
-          matricula: matriculaServidor || undefined,
-          email: lotacao?.servidor?.email,
+          nome: lotacao?.servidor?.nome_completo || '',
+          matricula: matriculaServidor || lotacao?.servidor?.matricula || undefined,
         },
         unidadeDestino: {
           nome: lotacao?.unidade?.nome || '',
@@ -174,8 +173,10 @@ export function MemorandoLotacaoDialog({ open, onOpenChange, lotacao }: Memorand
               <User className="h-4 w-4" />
               Servidor
             </div>
-            <p className="font-semibold">{lotacao.servidor?.full_name}</p>
-            <p className="text-sm text-muted-foreground">{lotacao.servidor?.email}</p>
+            <p className="font-semibold">{lotacao.servidor?.nome_completo}</p>
+            {lotacao.servidor?.matricula && (
+              <p className="text-sm text-muted-foreground">Matrícula: {lotacao.servidor.matricula}</p>
+            )}
           </div>
 
           {/* Dados da Lotação */}

@@ -79,19 +79,19 @@ type Lotacao = {
   observacao: string | null;
   servidor?: {
     id: string;
-    full_name: string;
-    email: string;
-  };
+    nome_completo: string;
+    matricula: string | null;
+  } | null;
   unidade?: {
     id: string;
     nome: string;
     sigla: string | null;
-  };
+  } | null;
   cargo?: {
     id: string;
     nome: string;
     sigla: string | null;
-  };
+  } | null;
 };
 
 type LotacaoFormData = {
@@ -161,7 +161,7 @@ export default function GestaoLotacoesPage() {
     checkLotacaoAtiva();
   }, [formData.servidor_id, selectedLotacao]);
 
-  // Fetch lotações
+  // Fetch lotações com join via profiles para pegar servidor_id
   const { data: lotacoes = [], isLoading } = useQuery({
     queryKey: ["lotacoes", showInactive],
     queryFn: async () => {
@@ -169,7 +169,6 @@ export default function GestaoLotacoesPage() {
         .from("lotacoes")
         .select(`
           *,
-          servidor:profiles!lotacoes_servidor_id_fkey(id, full_name, email),
           unidade:estrutura_organizacional!lotacoes_unidade_id_fkey(id, nome, sigla),
           cargo:cargos!lotacoes_cargo_id_fkey(id, nome, sigla)
         `)
@@ -181,23 +180,94 @@ export default function GestaoLotacoesPage() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as Lotacao[];
+      
+      // Buscar dados dos servidores via profiles -> servidores
+      const servidorIds = [...new Set(data?.map(l => l.servidor_id) || [])];
+      
+      if (servidorIds.length > 0) {
+        // Primeiro buscar o servidor_id de cada profile
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, servidor_id')
+          .in('id', servidorIds);
+        
+        const servidorIdMap = new Map<string, string>();
+        profiles?.forEach(p => {
+          if (p.servidor_id) {
+            servidorIdMap.set(p.id, p.servidor_id);
+          }
+        });
+        
+        // Buscar dados dos servidores
+        const servidorIdsReais = [...new Set(profiles?.filter(p => p.servidor_id).map(p => p.servidor_id) || [])];
+        
+        if (servidorIdsReais.length > 0) {
+          const { data: servidores } = await supabase
+            .from('servidores')
+            .select('id, nome_completo, matricula')
+            .in('id', servidorIdsReais);
+          
+          const servidoresMap = new Map<string, { id: string; nome_completo: string; matricula: string | null }>();
+          servidores?.forEach(s => {
+            servidoresMap.set(s.id, s);
+          });
+          
+          // Adicionar dados do servidor a cada lotação
+          return (data || []).map(lotacao => {
+            const servidorId = servidorIdMap.get(lotacao.servidor_id);
+            const servidor = servidorId ? servidoresMap.get(servidorId) : null;
+            return {
+              ...lotacao,
+              servidor: servidor || null
+            };
+          }) as Lotacao[];
+        }
+      }
+      
+      return (data || []).map(l => ({ ...l, servidor: null })) as Lotacao[];
     },
   });
 
-  // Fetch servidores (profiles)
+  // Fetch servidores para o select (apenas ativos)
   const { data: servidores = [] } = useQuery({
-    queryKey: ["servidores"],
+    queryKey: ["servidores-lotacoes"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name, email")
-        .order("full_name");
+      // Buscar servidores ativos
+      const { data: servidoresList, error } = await supabase
+        .from("servidores")
+        .select("id, nome_completo, matricula, user_id")
+        .eq("ativo", true)
+        .order("nome_completo");
       if (error) throw error;
-      return data;
+      
+      // Buscar o profile_id correspondente para cada servidor
+      const userIds = servidoresList?.filter(s => s.user_id).map(s => s.user_id) || [];
+      
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, servidor_id')
+          .in('servidor_id', servidoresList?.map(s => s.id) || []);
+        
+        // Mapear servidor_id -> profile_id
+        const servidorToProfile = new Map<string, string>();
+        profiles?.forEach(p => {
+          if (p.servidor_id) {
+            servidorToProfile.set(p.servidor_id, p.id);
+          }
+        });
+        
+        return servidoresList?.map(s => ({
+          id: servidorToProfile.get(s.id) || s.id, // Usar profile_id se existir
+          nome_completo: s.nome_completo,
+          matricula: s.matricula,
+          servidor_id: s.id
+        })) || [];
+      }
+      
+      return servidoresList || [];
     },
   });
-
   // Fetch unidades
   const { data: unidades = [] } = useQuery({
     queryKey: ["unidades"],
@@ -392,7 +462,8 @@ export default function GestaoLotacoesPage() {
   // Filtering
   const filteredLotacoes = lotacoes.filter((lot) => {
     const matchesSearch = 
-      lot.servidor?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lot.servidor?.nome_completo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lot.servidor?.matricula?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lot.unidade?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lot.cargo?.nome?.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -546,8 +617,10 @@ export default function GestaoLotacoesPage() {
                     <TableRow key={lotacao.id} className={!lotacao.ativo ? "opacity-60" : ""}>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{lotacao.servidor?.full_name || 'N/A'}</p>
-                          <p className="text-sm text-muted-foreground">{lotacao.servidor?.email}</p>
+                          <p className="font-medium">{lotacao.servidor?.nome_completo || 'N/A'}</p>
+                          {lotacao.servidor?.matricula && (
+                            <p className="text-sm text-muted-foreground">Matrícula: {lotacao.servidor.matricula}</p>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -672,7 +745,7 @@ export default function GestaoLotacoesPage() {
                       <SelectContent>
                         {servidores.map((s) => (
                           <SelectItem key={s.id} value={s.id}>
-                            {s.full_name || s.email}
+                            {s.nome_completo}{s.matricula ? ` (${s.matricula})` : ''}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -806,8 +879,8 @@ export default function GestaoLotacoesPage() {
                 </AlertDialogTitle>
                 <AlertDialogDescription>
                   {selectedLotacao?.ativo
-                    ? `A lotação de ${selectedLotacao?.servidor?.full_name} na unidade ${selectedLotacao?.unidade?.sigla || selectedLotacao?.unidade?.nome} será encerrada.`
-                    : `A lotação de ${selectedLotacao?.servidor?.full_name} será reativada.`}
+                    ? `A lotação de ${selectedLotacao?.servidor?.nome_completo} na unidade ${selectedLotacao?.unidade?.sigla || selectedLotacao?.unidade?.nome} será encerrada.`
+                    : `A lotação de ${selectedLotacao?.servidor?.nome_completo} será reativada.`}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
