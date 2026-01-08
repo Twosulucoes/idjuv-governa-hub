@@ -844,7 +844,7 @@ export default function ServidorFormPage() {
                         />
                         {!isEditing && !formData.matricula && (
                           <p className="text-xs text-muted-foreground mt-1">
-                            Será gerada automaticamente no formato IDJUV-2025-00001
+                            Será gerada automaticamente (ex: 0001)
                           </p>
                         )}
                       </div>

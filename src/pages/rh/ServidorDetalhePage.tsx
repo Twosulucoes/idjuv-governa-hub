@@ -39,6 +39,7 @@ import {
   SITUACAO_COLORS,
   MOVIMENTACAO_LABELS
 } from "@/types/rh";
+import { HistoricoFuncionalTab } from "@/components/rh/HistoricoFuncionalTab";
 
 export default function ServidorDetalheePage() {
   const navigate = useNavigate();
@@ -442,58 +443,9 @@ export default function ServidorDetalheePage() {
               </div>
             </TabsContent>
 
-            {/* Histórico Funcional */}
+            {/* Histórico Funcional Completo */}
             <TabsContent value="historico">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <History className="h-5 w-5 text-primary" />
-                    Linha do Tempo Funcional
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {historico.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8">
-                      Nenhum registro no histórico funcional.
-                    </p>
-                  ) : (
-                    <div className="relative border-l-2 border-primary/30 pl-6 space-y-6">
-                      {historico.map((item) => (
-                        <div key={item.id} className="relative">
-                          <div className="absolute -left-[31px] w-4 h-4 rounded-full bg-primary border-2 border-background" />
-                          <div className="bg-muted/50 rounded-lg p-4">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <Badge variant="outline" className="mb-2">
-                                  {MOVIMENTACAO_LABELS[item.tipo]}
-                                </Badge>
-                                <p className="text-sm text-muted-foreground">
-                                  {formatDate(item.data_evento)}
-                                </p>
-                              </div>
-                              {item.portaria_numero && (
-                                <Badge variant="secondary">
-                                  Portaria {item.portaria_numero}
-                                </Badge>
-                              )}
-                            </div>
-                            {item.descricao && (
-                              <p className="text-sm mt-2">{item.descricao}</p>
-                            )}
-                            {(item.cargo_novo || item.unidade_nova) && (
-                              <div className="mt-2 text-sm text-muted-foreground">
-                                {item.cargo_novo && <span>Cargo: {item.cargo_novo.nome}</span>}
-                                {item.cargo_novo && item.unidade_nova && ' • '}
-                                {item.unidade_nova && <span>Unidade: {item.unidade_nova.nome}</span>}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <HistoricoFuncionalTab servidorId={id!} />
             </TabsContent>
 
             {/* Portarias */}
