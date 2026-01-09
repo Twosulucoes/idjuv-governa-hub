@@ -118,6 +118,39 @@ interface RelatorioHistoricoFuncionalData {
   dataGeracao: string;
 }
 
+// Interface para Relatório de Vagas por Cargo
+interface CargoVagaItem {
+  id: string;
+  nome: string;
+  sigla: string | null;
+  natureza: string;
+  quantidade_vagas: number;
+  vagas_ocupadas: number;
+  vagas_disponiveis: number;
+  percentual_ocupacao: number;
+  vencimento_base: number | null;
+}
+
+interface GrupoNatureza {
+  natureza: string;
+  natureza_label: string;
+  cargos: CargoVagaItem[];
+  total_previstas: number;
+  total_ocupadas: number;
+  total_disponiveis: number;
+}
+
+interface RelatorioVagasCargoData {
+  grupos: GrupoNatureza[];
+  totalCargos: number;
+  totalPrevistas: number;
+  totalOcupadas: number;
+  totalDisponiveis: number;
+  percentualGeral: number;
+  dataGeracao: string;
+  filtroNatureza: string | null;
+}
+
 // ===== Relatório por Diretoria =====
 
 export const generateRelatorioServidoresDiretoria = async (data: RelatorioServidoresDiretoriaData): Promise<void> => {
@@ -444,4 +477,163 @@ export const generateRelatorioHistoricoFuncional = async (data: RelatorioHistori
   
   const nomeArquivo = data.servidor.nome.replace(/\s+/g, '_').substring(0, 30);
   doc.save(`Historico_Funcional_${nomeArquivo}_${data.dataGeracao.replace(/\//g, '-')}.pdf`);
+};
+
+// ===== Relatório de Vagas por Cargo =====
+
+const NATUREZA_LABELS: Record<string, string> = {
+  comissionado: 'Cargos Comissionados',
+  efetivo: 'Cargos Efetivos',
+  funcao_gratificada: 'Funções Gratificadas',
+  temporario: 'Cargos Temporários',
+  estagiario: 'Estagiários',
+};
+
+export const generateRelatorioVagasCargo = async (data: RelatorioVagasCargoData): Promise<void> => {
+  const logos = await loadLogos();
+  const doc = new jsPDF();
+  const { width, contentWidth } = getPageDimensions(doc);
+  
+  const subtitulo = data.filtroNatureza 
+    ? `Filtro: ${NATUREZA_LABELS[data.filtroNatureza] || data.filtroNatureza}` 
+    : 'Todas as Naturezas de Cargo';
+  
+  let y = await generateInstitutionalHeader(doc, {
+    titulo: 'RELATÓRIO DE VAGAS DISPONÍVEIS POR CARGO',
+    subtitulo,
+    fundoEscuro: true,
+  }, logos);
+  
+  // Info geral
+  setColor(doc, CORES.cinzaMedio);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Data de geração: ${data.dataGeracao}`, PAGINA.margemEsquerda, y);
+  doc.text(`Total de cargos: ${data.totalCargos}`, width - PAGINA.margemDireita - 40, y);
+  y += 10;
+  
+  // Iterar grupos por natureza
+  data.grupos.forEach((grupo) => {
+    if (grupo.cargos.length === 0) return;
+    
+    y = checkPageBreak(doc, y, 70);
+    
+    // Header do grupo
+    setColor(doc, CORES.cinzaMuitoClaro, 'fill');
+    doc.rect(PAGINA.margemEsquerda, y - 5, contentWidth, 8, 'F');
+    setColor(doc, CORES.textoEscuro);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`▶ ${grupo.natureza_label.toUpperCase()} (${grupo.cargos.length} cargos)`, PAGINA.margemEsquerda + 2, y);
+    y += 10;
+    
+    // Table header
+    setColor(doc, CORES.cinzaMedio);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Cargo', PAGINA.margemEsquerda + 2, y);
+    doc.text('Símbolo', 95, y);
+    doc.text('Previstas', 120, y);
+    doc.text('Ocupadas', 142, y);
+    doc.text('Disponíveis', 164, y);
+    doc.text('%', 190, y);
+    y += 2;
+    setColor(doc, CORES.cinzaMuitoClaro, 'draw');
+    doc.setLineWidth(0.2);
+    doc.line(PAGINA.margemEsquerda, y, width - PAGINA.margemDireita, y);
+    y += 4;
+    
+    // Rows
+    setColor(doc, CORES.textoEscuro);
+    doc.setFont('helvetica', 'normal');
+    grupo.cargos.forEach((c) => {
+      y = checkPageBreak(doc, y, 30);
+      
+      doc.text(c.nome.substring(0, 40), PAGINA.margemEsquerda + 2, y);
+      doc.text((c.sigla || '-').substring(0, 12), 95, y);
+      doc.text(String(c.quantidade_vagas), 125, y);
+      doc.text(String(c.vagas_ocupadas), 149, y);
+      doc.text(String(c.vagas_disponiveis), 172, y);
+      
+      // Colorir percentual
+      const pct = c.percentual_ocupacao;
+      if (pct >= 100) {
+        setColor(doc, { r: 220, g: 38, b: 38 }); // vermelho
+      } else if (pct >= 75) {
+        setColor(doc, { r: 234, g: 179, b: 8 }); // amarelo
+      } else {
+        setColor(doc, { r: 34, g: 197, b: 94 }); // verde
+      }
+      doc.text(`${pct.toFixed(0)}%`, 190, y);
+      setColor(doc, CORES.textoEscuro);
+      y += 5;
+    });
+    
+    // Subtotal do grupo
+    y += 2;
+    setColor(doc, CORES.cinzaClaro, 'fill');
+    doc.rect(PAGINA.margemEsquerda, y - 4, contentWidth, 7, 'F');
+    setColor(doc, CORES.textoEscuro);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text(`Subtotal ${grupo.natureza_label}:`, PAGINA.margemEsquerda + 2, y);
+    doc.text(String(grupo.total_previstas), 125, y);
+    doc.text(String(grupo.total_ocupadas), 149, y);
+    doc.text(String(grupo.total_disponiveis), 172, y);
+    const pctGrupo = grupo.total_previstas > 0 ? (grupo.total_ocupadas / grupo.total_previstas) * 100 : 0;
+    doc.text(`${pctGrupo.toFixed(0)}%`, 190, y);
+    y += 12;
+  });
+  
+  // Resumo geral
+  y = checkPageBreak(doc, y, 60);
+  y = addSectionHeader(doc, 'RESUMO GERAL', y);
+  
+  const col1 = PAGINA.margemEsquerda;
+  const col2 = PAGINA.margemEsquerda + contentWidth / 2;
+  const colWidth = contentWidth / 2 - 5;
+  
+  addField(doc, 'Total de Cargos', String(data.totalCargos), col1, y, colWidth);
+  addField(doc, 'Vagas Previstas', String(data.totalPrevistas), col2, y, colWidth);
+  y += 12;
+  
+  addField(doc, 'Vagas Ocupadas', String(data.totalOcupadas), col1, y, colWidth);
+  addField(doc, 'Vagas Disponíveis', String(data.totalDisponiveis), col2, y, colWidth);
+  y += 12;
+  
+  // Barra de progresso visual
+  const barWidth = 120;
+  const barHeight = 12;
+  const barX = col1;
+  const barY = y;
+  
+  // Fundo da barra
+  setColor(doc, CORES.cinzaMuitoClaro, 'fill');
+  doc.rect(barX, barY, barWidth, barHeight, 'F');
+  
+  // Preenchimento
+  const fillWidth = (data.percentualGeral / 100) * barWidth;
+  if (data.percentualGeral >= 90) {
+    setColor(doc, { r: 220, g: 38, b: 38 }, 'fill');
+  } else if (data.percentualGeral >= 70) {
+    setColor(doc, { r: 234, g: 179, b: 8 }, 'fill');
+  } else {
+    setColor(doc, { r: 34, g: 197, b: 94 }, 'fill');
+  }
+  doc.rect(barX, barY, fillWidth, barHeight, 'F');
+  
+  // Borda
+  setColor(doc, CORES.cinzaMedio, 'draw');
+  doc.rect(barX, barY, barWidth, barHeight, 'S');
+  
+  // Texto do percentual
+  setColor(doc, CORES.textoEscuro);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text(`Taxa de Ocupação: ${data.percentualGeral.toFixed(1)}%`, barX + barWidth + 10, barY + 8);
+  
+  generateInstitutionalFooter(doc, { sistema: 'Sistema de Gestão de RH - IDJUV' });
+  addPageNumbers(doc);
+  
+  doc.save(`Relatorio_Vagas_Cargo_${data.dataGeracao.replace(/\//g, '-')}.pdf`);
 };
