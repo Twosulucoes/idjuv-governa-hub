@@ -3855,6 +3855,10 @@ export type Database = {
         }
         Returns: string
       }
+      fn_atualizar_situacao_servidor: {
+        Args: { p_servidor_id: string }
+        Returns: undefined
+      }
       gerar_protocolo_cedencia: {
         Args: { p_unidade_id: string }
         Returns: string

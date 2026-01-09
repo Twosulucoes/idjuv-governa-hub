@@ -26,14 +26,12 @@ import {
   User, 
   FileText, 
   MapPin, 
-  Phone, 
-  Building2,
-  Briefcase,
   GraduationCap,
   Wallet,
   Loader2,
   Download,
-  FileDown
+  FileDown,
+  Settings
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -54,10 +52,6 @@ import {
 } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 import { 
-  type SituacaoFuncional,
-  type TipoServidor,
-  SITUACAO_LABELS,
-  TIPO_SERVIDOR_LABELS,
   UFS,
   ESTADOS_CIVIS,
   ESCOLARIDADES,
@@ -89,12 +83,7 @@ type FormData = {
   endereco_uf: string;
   endereco_cep: string;
   matricula: string;
-  tipo_servidor: TipoServidor | '';
-  situacao: SituacaoFuncional;
-  data_admissao: string;
   carga_horaria: string;
-  regime_juridico: string;
-  remuneracao_bruta: string;
   escolaridade: string;
   formacao_academica: string;
   instituicao_ensino: string;
@@ -137,12 +126,7 @@ const initialFormData: FormData = {
   endereco_uf: '',
   endereco_cep: '',
   matricula: '',
-  tipo_servidor: '',
-  situacao: 'ativo',
-  data_admissao: '',
   carga_horaria: '40',
-  regime_juridico: '',
-  remuneracao_bruta: '',
   escolaridade: '',
   formacao_academica: '',
   instituicao_ensino: '',
@@ -240,12 +224,7 @@ export default function ServidorFormPage() {
         endereco_uf: servidor.endereco_uf || '',
         endereco_cep: servidor.endereco_cep || '',
         matricula: servidor.matricula || '',
-        tipo_servidor: servidor.tipo_servidor || '',
-        situacao: servidor.situacao || 'ativo',
-        data_admissao: servidor.data_admissao || '',
         carga_horaria: servidor.carga_horaria?.toString() || '40',
-        regime_juridico: servidor.regime_juridico || '',
-        remuneracao_bruta: servidor.remuneracao_bruta?.toString() || '',
         escolaridade: servidor.escolaridade || '',
         formacao_academica: servidor.formacao_academica || '',
         instituicao_ensino: servidor.instituicao_ensino || '',
@@ -299,12 +278,7 @@ export default function ServidorFormPage() {
         endereco_uf: data.endereco_uf || null,
         endereco_cep: data.endereco_cep?.replace(/\D/g, '') || null,
         matricula: matriculaFinal || null,
-        tipo_servidor: data.tipo_servidor || null,
-        situacao: data.situacao,
-        data_admissao: data.data_admissao || null,
         carga_horaria: parseInt(data.carga_horaria) || 40,
-        regime_juridico: data.regime_juridico || null,
-        remuneracao_bruta: parseFloat(data.remuneracao_bruta) || null,
         escolaridade: data.escolaridade || null,
         formacao_academica: data.formacao_academica || null,
         instituicao_ensino: data.instituicao_ensino || null,
@@ -529,7 +503,7 @@ export default function ServidorFormPage() {
 
           <form onSubmit={handleSubmit}>
             <Tabs defaultValue="pessoal" className="space-y-6">
-              <TabsList className="grid grid-cols-3 lg:grid-cols-6 gap-2">
+              <TabsList className="grid grid-cols-3 lg:grid-cols-5 gap-2">
                 <TabsTrigger value="pessoal" className="flex items-center gap-2">
                   <User className="h-4 w-4" />
                   <span className="hidden sm:inline">Pessoal</span>
@@ -541,10 +515,6 @@ export default function ServidorFormPage() {
                 <TabsTrigger value="endereco" className="flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
                   <span className="hidden sm:inline">Endereço</span>
-                </TabsTrigger>
-                <TabsTrigger value="funcional" className="flex items-center gap-2">
-                  <Briefcase className="h-4 w-4" />
-                  <span className="hidden sm:inline">Funcional</span>
                 </TabsTrigger>
                 <TabsTrigger value="formacao" className="flex items-center gap-2">
                   <GraduationCap className="h-4 w-4" />
@@ -845,124 +815,6 @@ export default function ServidorFormPage() {
                 </Card>
               </TabsContent>
 
-              {/* Dados Funcionais */}
-              <TabsContent value="funcional">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Briefcase className="h-5 w-5 text-primary" />
-                      Dados Funcionais
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <Label>Matrícula</Label>
-                        <Input
-                          value={formData.matricula}
-                          onChange={(e) => updateField('matricula', e.target.value)}
-                          placeholder={isEditing ? "" : "Gerada automaticamente"}
-                          disabled={!isEditing && !formData.matricula}
-                          className={!isEditing && !formData.matricula ? "bg-muted" : ""}
-                        />
-                        {!isEditing && !formData.matricula && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Será gerada automaticamente (ex: 0001)
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <Label>Tipo de Servidor</Label>
-                        <Select value={formData.tipo_servidor} onValueChange={(v) => updateField('tipo_servidor', v as TipoServidor)}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o tipo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(TIPO_SERVIDOR_LABELS).map(([key, label]) => (
-                              <SelectItem key={key} value={key}>{label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Situação</Label>
-                        <Select value={formData.situacao} onValueChange={(v) => updateField('situacao', v as SituacaoFuncional)}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(SITUACAO_LABELS).map(([key, label]) => (
-                              <SelectItem key={key} value={key}>{label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Carga Horária (h/sem)</Label>
-                        <Input
-                          type="number"
-                          value={formData.carga_horaria}
-                          onChange={(e) => updateField('carga_horaria', e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <Label>Data de Admissão</Label>
-                        <Input
-                          type="date"
-                          value={formData.data_admissao}
-                          onChange={(e) => updateField('data_admissao', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label>Remuneração Bruta (R$)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={formData.remuneracao_bruta}
-                          onChange={(e) => updateField('remuneracao_bruta', e.target.value)}
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <Label>Regime Jurídico</Label>
-                        <Input
-                          value={formData.regime_juridico}
-                          onChange={(e) => updateField('regime_juridico', e.target.value)}
-                          placeholder="Ex: Estatutário, CLT, etc."
-                        />
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox 
-                          id="acumula_cargo"
-                          checked={formData.acumula_cargo}
-                          onCheckedChange={(v) => updateField('acumula_cargo', v as boolean)}
-                        />
-                        <Label htmlFor="acumula_cargo">Acumula cargo público</Label>
-                      </div>
-                      {formData.acumula_cargo && (
-                        <div>
-                          <Label>Descrição do Acúmulo</Label>
-                          <Textarea
-                            value={formData.acumulo_descricao}
-                            onChange={(e) => updateField('acumulo_descricao', e.target.value)}
-                            placeholder="Descreva o cargo acumulado..."
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
               {/* Formação */}
               <TabsContent value="formacao">
                 <Card>
@@ -1074,16 +926,75 @@ export default function ServidorFormPage() {
               </TabsContent>
             </Tabs>
 
-            {/* Observações e Submit */}
+            {/* Informações Adicionais */}
             <Card className="mt-6">
-              <CardContent className="pt-6">
-                <Label>Observações Gerais</Label>
-                <Textarea
-                  value={formData.observacoes}
-                  onChange={(e) => updateField('observacoes', e.target.value)}
-                  placeholder="Observações adicionais..."
-                  rows={3}
-                />
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5 text-primary" />
+                  Informações Adicionais
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label>Matrícula</Label>
+                    <Input
+                      value={formData.matricula}
+                      onChange={(e) => updateField('matricula', e.target.value)}
+                      placeholder={isEditing ? "" : "Gerada automaticamente"}
+                      disabled={!isEditing && !formData.matricula}
+                      className={!isEditing && !formData.matricula ? "bg-muted" : ""}
+                    />
+                    {!isEditing && !formData.matricula && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Será gerada automaticamente (ex: 0001)
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Label>Carga Horária (h/sem)</Label>
+                    <Input
+                      type="number"
+                      value={formData.carga_horaria}
+                      onChange={(e) => updateField('carga_horaria', e.target.value)}
+                    />
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="acumula_cargo"
+                      checked={formData.acumula_cargo}
+                      onCheckedChange={(v) => updateField('acumula_cargo', v as boolean)}
+                    />
+                    <Label htmlFor="acumula_cargo">Acumula cargo público</Label>
+                  </div>
+                  {formData.acumula_cargo && (
+                    <div>
+                      <Label>Descrição do Acúmulo</Label>
+                      <Textarea
+                        value={formData.acumulo_descricao}
+                        onChange={(e) => updateField('acumulo_descricao', e.target.value)}
+                        placeholder="Descreva o cargo acumulado..."
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+                
+                <div>
+                  <Label>Observações Gerais</Label>
+                  <Textarea
+                    value={formData.observacoes}
+                    onChange={(e) => updateField('observacoes', e.target.value)}
+                    placeholder="Observações adicionais..."
+                    rows={3}
+                  />
+                </div>
               </CardContent>
             </Card>
 
