@@ -130,45 +130,158 @@ function OrganogramaCanvasInner({
   useEffect(() => {
     const HORIZONTAL_SPACING = 320;
     const VERTICAL_SPACING = 180;
+    const ASSESSORIA_HORIZONTAL_OFFSET = 400; // Offset para assessorias ficarem ao lado
 
-    // Agrupar por nível
-    const niveis: Record<number, UnidadeOrganizacional[]> = {};
-    visibleUnidades.forEach(u => {
-      if (!niveis[u.nivel]) niveis[u.nivel] = [];
-      niveis[u.nivel].push(u);
-    });
+    // Separar Presidência, Assessorias (nível 1 coordenação) e demais unidades
+    const presidencia = visibleUnidades.find(u => u.tipo === 'presidencia');
+    const assessorias = visibleUnidades.filter(u => 
+      u.nivel === 1 && 
+      u.tipo === 'coordenacao' && 
+      u.superior_id === presidencia?.id
+    );
+    const diretorias = visibleUnidades.filter(u => 
+      u.nivel === 2 && 
+      u.tipo === 'diretoria'
+    );
+    const demaisUnidades = visibleUnidades.filter(u => 
+      u.tipo !== 'presidencia' && 
+      !(u.nivel === 1 && u.tipo === 'coordenacao' && u.superior_id === presidencia?.id) &&
+      u.nivel > 2
+    );
 
     // Posicionar nós
     const newNodes: Node[] = [];
     const positions: Record<string, { x: number; y: number }> = {};
 
-    Object.keys(niveis).sort((a, b) => Number(a) - Number(b)).forEach((nivelStr) => {
-      const nivel = Number(nivelStr);
-      const unidadesNivel = niveis[nivel];
-      const totalWidth = (unidadesNivel.length - 1) * HORIZONTAL_SPACING;
-      const startX = -totalWidth / 2;
+    // 1. Presidência no centro-topo
+    if (presidencia) {
+      const presX = 0;
+      const presY = 0;
+      positions[presidencia.id] = { x: presX, y: presY };
+      
+      const hasChildren = unidades.some(u => u.superior_id === presidencia.id);
+      newNodes.push({
+        id: presidencia.id,
+        type: 'unidade',
+        position: { x: presX, y: presY },
+        data: {
+          unidade: presidencia,
+          servidoresCount: contarServidores(presidencia.id, false),
+          isExpanded: expandedNodes.has(presidencia.id),
+          hasChildren,
+          onToggleExpand: toggleExpand,
+          onSelect: onSelectUnidade,
+        },
+        selected: selectedUnidade?.id === presidencia.id,
+      });
+    }
 
-      unidadesNivel.forEach((unidade, index) => {
-        const x = startX + index * HORIZONTAL_SPACING;
-        const y = (nivel - 1) * VERTICAL_SPACING;
+    // 2. Assessorias ao lado direito da Presidência (Nível 1)
+    if (assessorias.length > 0) {
+      const assessoriaStartX = ASSESSORIA_HORIZONTAL_OFFSET;
+      const assessoriaSpacing = 140; // Espaçamento vertical entre assessorias
+
+      assessorias.forEach((assessoria, index) => {
+        const x = assessoriaStartX;
+        const y = -((assessorias.length - 1) * assessoriaSpacing / 2) + (index * assessoriaSpacing);
         
-        positions[unidade.id] = { x, y };
+        positions[assessoria.id] = { x, y };
         
-        const hasChildren = unidades.some(u => u.superior_id === unidade.id);
-        
+        const hasChildren = unidades.some(u => u.superior_id === assessoria.id);
         newNodes.push({
-          id: unidade.id,
+          id: assessoria.id,
           type: 'unidade',
           position: { x, y },
           data: {
-            unidade,
-            servidoresCount: contarServidores(unidade.id, false),
-            isExpanded: expandedNodes.has(unidade.id),
+            unidade: assessoria,
+            servidoresCount: contarServidores(assessoria.id, false),
+            isExpanded: expandedNodes.has(assessoria.id),
             hasChildren,
             onToggleExpand: toggleExpand,
             onSelect: onSelectUnidade,
           },
-          selected: selectedUnidade?.id === unidade.id,
+          selected: selectedUnidade?.id === assessoria.id,
+        });
+      });
+    }
+
+    // 3. Diretorias abaixo da Presidência (Nível 2)
+    if (diretorias.length > 0) {
+      const totalWidthDir = (diretorias.length - 1) * HORIZONTAL_SPACING;
+      const startXDir = -totalWidthDir / 2;
+      
+      diretorias.forEach((diretoria, index) => {
+        const x = startXDir + index * HORIZONTAL_SPACING;
+        const y = VERTICAL_SPACING; // Uma linha abaixo da Presidência
+        
+        positions[diretoria.id] = { x, y };
+        
+        const hasChildren = unidades.some(u => u.superior_id === diretoria.id);
+        newNodes.push({
+          id: diretoria.id,
+          type: 'unidade',
+          position: { x, y },
+          data: {
+            unidade: diretoria,
+            servidoresCount: contarServidores(diretoria.id, false),
+            isExpanded: expandedNodes.has(diretoria.id),
+            hasChildren,
+            onToggleExpand: toggleExpand,
+            onSelect: onSelectUnidade,
+          },
+          selected: selectedUnidade?.id === diretoria.id,
+        });
+      });
+    }
+
+    // 4. Demais unidades (níveis 3+) agrupadas por superior
+    const niveisRestantes: Record<number, UnidadeOrganizacional[]> = {};
+    demaisUnidades.forEach(u => {
+      if (!niveisRestantes[u.nivel]) niveisRestantes[u.nivel] = [];
+      niveisRestantes[u.nivel].push(u);
+    });
+
+    Object.keys(niveisRestantes).sort((a, b) => Number(a) - Number(b)).forEach((nivelStr) => {
+      const nivel = Number(nivelStr);
+      const unidadesNivel = niveisRestantes[nivel];
+      
+      // Agrupar por superior para melhor posicionamento
+      const porSuperior: Record<string, UnidadeOrganizacional[]> = {};
+      unidadesNivel.forEach(u => {
+        if (u.superior_id) {
+          if (!porSuperior[u.superior_id]) porSuperior[u.superior_id] = [];
+          porSuperior[u.superior_id].push(u);
+        }
+      });
+
+      Object.entries(porSuperior).forEach(([superiorId, filhos]) => {
+        const superiorPos = positions[superiorId];
+        if (!superiorPos) return;
+
+        const totalWidth = (filhos.length - 1) * HORIZONTAL_SPACING;
+        const startX = superiorPos.x - totalWidth / 2;
+
+        filhos.forEach((unidade, index) => {
+          const x = startX + index * HORIZONTAL_SPACING;
+          const y = (nivel - 1) * VERTICAL_SPACING;
+          
+          positions[unidade.id] = { x, y };
+          
+          const hasChildren = unidades.some(u => u.superior_id === unidade.id);
+          newNodes.push({
+            id: unidade.id,
+            type: 'unidade',
+            position: { x, y },
+            data: {
+              unidade,
+              servidoresCount: contarServidores(unidade.id, false),
+              isExpanded: expandedNodes.has(unidade.id),
+              hasChildren,
+              onToggleExpand: toggleExpand,
+              onSelect: onSelectUnidade,
+            },
+            selected: selectedUnidade?.id === unidade.id,
+          });
         });
       });
     });
@@ -176,20 +289,29 @@ function OrganogramaCanvasInner({
     // Gerar arestas
     const newEdges: Edge[] = visibleUnidades
       .filter(u => u.superior_id && positions[u.superior_id])
-      .map(u => ({
-        id: `${u.superior_id}-${u.id}`,
-        source: u.superior_id!,
-        target: u.id,
-        type: 'smoothstep',
-        animated: false,
-        style: { stroke: 'hsl(var(--muted-foreground))', strokeWidth: 2 },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: 'hsl(var(--muted-foreground))',
-          width: 20,
-          height: 20,
-        },
-      }));
+      .map(u => {
+        // Arestas para assessorias usam estilo diferente (horizontal)
+        const isAssessoria = assessorias.some(a => a.id === u.id);
+        
+        return {
+          id: `${u.superior_id}-${u.id}`,
+          source: u.superior_id!,
+          target: u.id,
+          type: isAssessoria ? 'straight' : 'smoothstep',
+          animated: false,
+          style: { 
+            stroke: isAssessoria ? 'hsl(var(--warning))' : 'hsl(var(--muted-foreground))', 
+            strokeWidth: 2,
+            strokeDasharray: isAssessoria ? '5,5' : undefined,
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: isAssessoria ? 'hsl(var(--warning))' : 'hsl(var(--muted-foreground))',
+            width: 20,
+            height: 20,
+          },
+        };
+      });
 
     setNodes(newNodes);
     setEdges(newEdges);
