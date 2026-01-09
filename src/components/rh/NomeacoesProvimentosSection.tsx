@@ -17,11 +17,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Award,
   Plus,
   Loader2,
   MoreHorizontal,
   UserX,
+  AlertCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -65,7 +72,9 @@ export function NomeacoesProvimentosSection({ servidorId, servidorNome, tipoServ
     setShowExoneracaoForm(true);
   };
 
+  // Verificar se já tem provimento ativo
   const provimentoAtivo = provimentos.find(p => p.status === 'ativo');
+  const temProvimentoAtivo = !!provimentoAtivo;
 
   return (
     <>
@@ -74,11 +83,37 @@ export function NomeacoesProvimentosSection({ servidorId, servidorNome, tipoServ
           <CardTitle className="text-lg flex items-center gap-2">
             <Award className="h-5 w-5 text-primary" />
             Nomeações / Provimentos
+            {temProvimentoAtivo && (
+              <Badge variant="default" className="ml-2 bg-success text-success-foreground">
+                Ativo
+              </Badge>
+            )}
           </CardTitle>
-          <Button size="sm" onClick={() => setShowProvimentoForm(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Nova Nomeação
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <Button 
+                    size="sm" 
+                    onClick={() => setShowProvimentoForm(true)}
+                    variant={temProvimentoAtivo ? "outline" : "default"}
+                  >
+                    {temProvimentoAtivo ? (
+                      <AlertCircle className="h-4 w-4 mr-1" />
+                    ) : (
+                      <Plus className="h-4 w-4 mr-1" />
+                    )}
+                    Nova Nomeação
+                  </Button>
+                </div>
+              </TooltipTrigger>
+              {temProvimentoAtivo && (
+                <TooltipContent>
+                  <p>Servidor já possui nomeação ativa</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -157,6 +192,7 @@ export function NomeacoesProvimentosSection({ servidorId, servidorNome, tipoServ
         tipoServidor={tipoServidor}
         open={showProvimentoForm}
         onOpenChange={setShowProvimentoForm}
+        temProvimentoAtivo={temProvimentoAtivo}
       />
 
       {selectedProvimento && (
