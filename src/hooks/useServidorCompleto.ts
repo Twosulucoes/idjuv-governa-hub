@@ -255,8 +255,11 @@ export function useCreateLotacao() {
       data_inicio: string;
       funcao_exercida?: string;
       orgao_externo?: string;
+      ato_tipo?: string;
       ato_numero?: string;
       ato_data?: string;
+      ato_doe_numero?: string;
+      ato_doe_data?: string;
       tipo_movimentacao?: string;
       observacao?: string;
     }) => {

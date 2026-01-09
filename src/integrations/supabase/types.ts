@@ -1722,7 +1722,10 @@ export type Database = {
         Row: {
           ativo: boolean | null
           ato_data: string | null
+          ato_doe_data: string | null
+          ato_doe_numero: string | null
           ato_numero: string | null
+          ato_tipo: string | null
           ato_url: string | null
           cargo_id: string | null
           created_at: string | null
@@ -1742,7 +1745,10 @@ export type Database = {
         Insert: {
           ativo?: boolean | null
           ato_data?: string | null
+          ato_doe_data?: string | null
+          ato_doe_numero?: string | null
           ato_numero?: string | null
+          ato_tipo?: string | null
           ato_url?: string | null
           cargo_id?: string | null
           created_at?: string | null
@@ -1762,7 +1768,10 @@ export type Database = {
         Update: {
           ativo?: boolean | null
           ato_data?: string | null
+          ato_doe_data?: string | null
+          ato_doe_numero?: string | null
           ato_numero?: string | null
+          ato_tipo?: string | null
           ato_url?: string | null
           cargo_id?: string | null
           created_at?: string | null

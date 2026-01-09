@@ -46,8 +46,11 @@ export function LotacaoForm({ servidorId, servidorNome, tipoServidor, open, onOp
   const [dataInicio, setDataInicio] = useState('');
   const [funcaoExercida, setFuncaoExercida] = useState('');
   const [orgaoExterno, setOrgaoExterno] = useState('');
+  const [atoTipo, setAtoTipo] = useState('');
   const [atoNumero, setAtoNumero] = useState('');
   const [atoData, setAtoData] = useState('');
+  const [atoDoeNumero, setAtoDoeNumero] = useState('');
+  const [atoDoeData, setAtoDoeData] = useState('');
   const [tipoMovimentacao, setTipoMovimentacao] = useState('');
   const [observacao, setObservacao] = useState('');
 
@@ -99,8 +102,11 @@ export function LotacaoForm({ servidorId, servidorNome, tipoServidor, open, onOp
     setDataInicio('');
     setFuncaoExercida('');
     setOrgaoExterno('');
+    setAtoTipo('');
     setAtoNumero('');
     setAtoData('');
+    setAtoDoeNumero('');
+    setAtoDoeData('');
     setTipoMovimentacao('');
     setObservacao('');
   };
@@ -118,8 +124,11 @@ export function LotacaoForm({ servidorId, servidorNome, tipoServidor, open, onOp
       data_inicio: dataInicio,
       funcao_exercida: funcaoExercida || undefined,
       orgao_externo: isLotacaoExterna ? orgaoExterno : undefined,
+      ato_tipo: atoTipo || undefined,
       ato_numero: atoNumero || undefined,
       ato_data: atoData || undefined,
+      ato_doe_numero: atoDoeNumero || undefined,
+      ato_doe_data: atoDoeData || undefined,
       tipo_movimentacao: tipoMovimentacao || undefined,
       observacao: observacao || undefined,
     });
@@ -246,6 +255,21 @@ export function LotacaoForm({ servidorId, servidorNome, tipoServidor, open, onOp
                 </Select>
               </div>
               <div>
+                <Label>Tipo do Ato</Label>
+                <Select value={atoTipo} onValueChange={setAtoTipo}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="portaria">Portaria</SelectItem>
+                    <SelectItem value="decreto">Decreto</SelectItem>
+                    <SelectItem value="memorando">Memorando</SelectItem>
+                    <SelectItem value="oficio">Ofício</SelectItem>
+                    <SelectItem value="ordem_servico">Ordem de Serviço</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label>Nº do Ato</Label>
                 <Input
                   value={atoNumero}
@@ -253,12 +277,30 @@ export function LotacaoForm({ servidorId, servidorNome, tipoServidor, open, onOp
                   placeholder="Ex: 001/2024"
                 />
               </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label>Data do Ato</Label>
                 <Input
                   type="date"
                   value={atoData}
                   onChange={(e) => setAtoData(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>Nº DOE (Diário Oficial)</Label>
+                <Input
+                  value={atoDoeNumero}
+                  onChange={(e) => setAtoDoeNumero(e.target.value)}
+                  placeholder="Ex: 4567"
+                />
+              </div>
+              <div>
+                <Label>Data Publicação DOE</Label>
+                <Input
+                  type="date"
+                  value={atoDoeData}
+                  onChange={(e) => setAtoDoeData(e.target.value)}
                 />
               </div>
             </div>
