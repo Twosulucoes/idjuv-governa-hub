@@ -39,7 +39,6 @@ import {
 } from "@/types/rh";
 import { type TipoServidor } from "@/types/servidor";
 import { HistoricoFuncionalTab } from "@/components/rh/HistoricoFuncionalTab";
-import { SituacaoFuncionalTab } from "@/components/rh/SituacaoFuncionalTab";
 
 export default function ServidorDetalheePage() {
   const navigate = useNavigate();
@@ -337,12 +336,8 @@ export default function ServidorDetalheePage() {
             </div>
           </div>
 
-          <Tabs defaultValue="situacao" className="space-y-6">
-            <TabsList className="grid grid-cols-3 lg:grid-cols-6 gap-2">
-              <TabsTrigger value="situacao" className="flex items-center gap-2">
-                <Briefcase className="h-4 w-4" />
-                <span className="hidden sm:inline">Situação</span>
-              </TabsTrigger>
+          <Tabs defaultValue="dados" className="space-y-6">
+            <TabsList className="grid grid-cols-2 lg:grid-cols-5 gap-2">
               <TabsTrigger value="dados" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
                 <span className="hidden sm:inline">Dados</span>
@@ -364,15 +359,6 @@ export default function ServidorDetalheePage() {
                 <span className="hidden sm:inline">Viagens</span>
               </TabsTrigger>
             </TabsList>
-
-            {/* Situação Funcional */}
-            <TabsContent value="situacao">
-              <SituacaoFuncionalTab
-                servidorId={servidor.id}
-                servidorNome={servidor.nome_completo}
-                tipoServidor={(servidor as any).tipo_servidor as TipoServidor | undefined}
-              />
-            </TabsContent>
 
             {/* Dados Cadastrais */}
             <TabsContent value="dados" className="space-y-6">
@@ -502,7 +488,11 @@ export default function ServidorDetalheePage() {
 
             {/* Histórico Funcional Completo */}
             <TabsContent value="historico">
-              <HistoricoFuncionalTab servidorId={id!} />
+              <HistoricoFuncionalTab 
+                servidorId={id!} 
+                servidorNome={servidor.nome_completo}
+                tipoServidor={(servidor as any).tipo_servidor as TipoServidor | undefined}
+              />
             </TabsContent>
 
             {/* Portarias */}
