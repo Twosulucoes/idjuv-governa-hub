@@ -20,21 +20,31 @@ import {
   Users, 
   History,
   Download,
-  FileDown,
-  Loader2
+  Loader2,
+  Briefcase
 } from "lucide-react";
 import { toast } from "sonner";
 import { 
   generateRelatorioServidoresDiretoria,
   generateRelatorioServidoresVinculo,
-  generateRelatorioHistoricoFuncional
+  generateRelatorioHistoricoFuncional,
+  generateRelatorioVagasCargo
 } from "@/lib/pdfRelatoriosRH";
 import { VINCULO_LABELS, SITUACAO_LABELS, MOVIMENTACAO_LABELS } from "@/types/rh";
+
+const NATUREZA_LABELS: Record<string, string> = {
+  comissionado: 'Cargos Comissionados',
+  efetivo: 'Cargos Efetivos',
+  funcao_gratificada: 'Funções Gratificadas',
+  temporario: 'Cargos Temporários',
+  estagiario: 'Estagiários',
+};
 
 export default function RelatoriosRHPage() {
   const [selectedUnidade, setSelectedUnidade] = useState<string>("all");
   const [selectedVinculo, setSelectedVinculo] = useState<string>("all");
   const [selectedServidor, setSelectedServidor] = useState<string>("");
+  const [selectedNatureza, setSelectedNatureza] = useState<string>("all");
   const [loadingReport, setLoadingReport] = useState<string | null>(null);
 
   // Fetch unidades
@@ -73,6 +83,47 @@ export default function RelatoriosRHPage() {
         .order("nome_completo");
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Fetch cargos com contagem de vagas ocupadas
+  const { data: cargosComVagas = [] } = useQuery({
+    queryKey: ["cargos-vagas-relatorio"],
+    queryFn: async () => {
+      // Buscar cargos
+      const { data: cargos, error: cErr } = await supabase
+        .from("cargos")
+        .select("id, nome, sigla, natureza, quantidade_vagas, vencimento_base")
+        .eq("ativo", true)
+        .order("natureza")
+        .order("nome");
+      
+      if (cErr) throw cErr;
+      
+      // Buscar contagem de provimentos ativos por cargo
+      const { data: provimentos, error: pErr } = await supabase
+        .from("provimentos")
+        .select("cargo_id")
+        .eq("status", "ativo");
+      
+      if (pErr) throw pErr;
+      
+      // Contar ocupação por cargo
+      const ocupacaoPorCargo: Record<string, number> = {};
+      (provimentos || []).forEach(p => {
+        if (p.cargo_id) {
+          ocupacaoPorCargo[p.cargo_id] = (ocupacaoPorCargo[p.cargo_id] || 0) + 1;
+        }
+      });
+      
+      return (cargos || []).map(c => ({
+        ...c,
+        vagas_ocupadas: ocupacaoPorCargo[c.id] || 0,
+        vagas_disponiveis: Math.max(0, (c.quantidade_vagas || 0) - (ocupacaoPorCargo[c.id] || 0)),
+        percentual_ocupacao: c.quantidade_vagas && c.quantidade_vagas > 0 
+          ? ((ocupacaoPorCargo[c.id] || 0) / c.quantidade_vagas) * 100 
+          : 0
+      }));
     },
   });
 
@@ -300,6 +351,76 @@ export default function RelatoriosRHPage() {
     }
   };
 
+  const handleGerarRelatorioVagas = async () => {
+    setLoadingReport("vagas");
+    try {
+      const filteredCargos = selectedNatureza === "all"
+        ? cargosComVagas
+        : cargosComVagas.filter(c => c.natureza === selectedNatureza);
+
+      if (filteredCargos.length === 0) {
+        toast.error("Nenhum cargo encontrado para gerar o relatório");
+        return;
+      }
+
+      // Agrupar por natureza
+      const cargosPorNatureza: Record<string, typeof filteredCargos> = {};
+      filteredCargos.forEach(c => {
+        const natureza = c.natureza || 'outros';
+        if (!cargosPorNatureza[natureza]) {
+          cargosPorNatureza[natureza] = [];
+        }
+        cargosPorNatureza[natureza].push(c);
+      });
+
+      const grupos = Object.entries(cargosPorNatureza).map(([natureza, cargos]) => {
+        const total_previstas = cargos.reduce((acc, c) => acc + (c.quantidade_vagas || 0), 0);
+        const total_ocupadas = cargos.reduce((acc, c) => acc + c.vagas_ocupadas, 0);
+        return {
+          natureza,
+          natureza_label: NATUREZA_LABELS[natureza] || natureza,
+          cargos: cargos.map(c => ({
+            id: c.id,
+            nome: c.nome,
+            sigla: c.sigla,
+            natureza: c.natureza || 'outros',
+            quantidade_vagas: c.quantidade_vagas || 0,
+            vagas_ocupadas: c.vagas_ocupadas,
+            vagas_disponiveis: c.vagas_disponiveis,
+            percentual_ocupacao: c.percentual_ocupacao,
+            vencimento_base: c.vencimento_base
+          })),
+          total_previstas,
+          total_ocupadas,
+          total_disponiveis: total_previstas - total_ocupadas
+        };
+      });
+
+      const totalPrevistas = filteredCargos.reduce((acc, c) => acc + (c.quantidade_vagas || 0), 0);
+      const totalOcupadas = filteredCargos.reduce((acc, c) => acc + c.vagas_ocupadas, 0);
+      const totalDisponiveis = totalPrevistas - totalOcupadas;
+      const percentualGeral = totalPrevistas > 0 ? (totalOcupadas / totalPrevistas) * 100 : 0;
+
+      await generateRelatorioVagasCargo({
+        grupos,
+        totalCargos: filteredCargos.length,
+        totalPrevistas,
+        totalOcupadas,
+        totalDisponiveis,
+        percentualGeral,
+        dataGeracao: new Date().toLocaleDateString('pt-BR'),
+        filtroNatureza: selectedNatureza === "all" ? null : selectedNatureza
+      });
+
+      toast.success("Relatório gerado com sucesso!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao gerar relatório");
+    } finally {
+      setLoadingReport(null);
+    }
+  };
+
   return (
     <ProtectedRoute allowedRoles={["admin", "manager"]}>
       <AdminLayout>
@@ -441,6 +562,49 @@ export default function RelatoriosRHPage() {
                   disabled={loadingReport === "historico" || !selectedServidor}
                 >
                   {loadingReport === "historico" ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  Gerar Relatório PDF
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Relatório de Vagas por Cargo */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-warning/10 rounded-lg">
+                    <Briefcase className="h-5 w-5 text-warning" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Vagas por Cargo</CardTitle>
+                    <CardDescription>Distribuição de vagas ocupadas e disponíveis por cargo</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Filtrar por natureza (opcional)</Label>
+                  <Select value={selectedNatureza} onValueChange={setSelectedNatureza}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas as naturezas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as naturezas</SelectItem>
+                      {Object.entries(NATUREZA_LABELS).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button 
+                  className="w-full" 
+                  onClick={handleGerarRelatorioVagas}
+                  disabled={loadingReport === "vagas"}
+                >
+                  {loadingReport === "vagas" ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
                     <Download className="h-4 w-4 mr-2" />
