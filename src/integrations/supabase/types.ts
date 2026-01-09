@@ -4043,6 +4043,7 @@ export type Database = {
         | "exonerado"
         | "aposentado"
         | "falecido"
+        | "inativo"
       situacao_patrimonio:
         | "em_uso"
         | "em_estoque"
@@ -4411,6 +4412,7 @@ export const Constants = {
         "exonerado",
         "aposentado",
         "falecido",
+        "inativo",
       ],
       situacao_patrimonio: [
         "em_uso",
