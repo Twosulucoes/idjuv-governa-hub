@@ -32,9 +32,7 @@ import { ptBR } from "date-fns/locale";
 import { 
   type Servidor,
   type HistoricoFuncional,
-  type VinculoFuncional,
   type SituacaoFuncional,
-  VINCULO_LABELS, 
   SITUACAO_LABELS,
   SITUACAO_COLORS,
   MOVIMENTACAO_LABELS
@@ -245,9 +243,6 @@ export default function ServidorDetalheePage() {
                   <Badge className={SITUACAO_COLORS[servidor.situacao as SituacaoFuncional]}>
                     {SITUACAO_LABELS[servidor.situacao as SituacaoFuncional]}
                   </Badge>
-                  <Badge variant="outline">
-                    {VINCULO_LABELS[servidor.vinculo as VinculoFuncional]}
-                  </Badge>
                 </div>
                 <p className="text-muted-foreground mt-1">
                   {servidor.cargo?.nome || 'Sem cargo'} • {lotacaoVigente?.unidade?.sigla || lotacaoVigente?.unidade?.nome || servidor.unidade?.sigla || servidor.unidade?.nome || 'Sem lotação'}
@@ -302,7 +297,6 @@ export default function ServidorDetalheePage() {
                     endereco_uf: servidor.endereco_uf,
                     endereco_cep: servidor.endereco_cep,
                     matricula: servidor.matricula,
-                    vinculo: servidor.vinculo,
                     situacao: servidor.situacao,
                     cargo_nome: servidor.cargo?.nome,
                     cargo_sigla: servidor.cargo?.sigla,
@@ -311,8 +305,6 @@ export default function ServidorDetalheePage() {
                     carga_horaria: servidor.carga_horaria,
                     regime_juridico: servidor.regime_juridico,
                     data_admissao: servidor.data_admissao,
-                    data_posse: servidor.data_posse,
-                    data_exercicio: servidor.data_exercicio,
                     data_desligamento: servidor.data_desligamento,
                     escolaridade: servidor.escolaridade,
                     formacao_academica: servidor.formacao_academica,
@@ -469,8 +461,6 @@ export default function ServidorDetalheePage() {
                     )}
                     <InfoRow label="Carga Horária" value={servidor.carga_horaria ? `${servidor.carga_horaria}h/semana` : '-'} />
                     <InfoRow label="Data de Admissão" value={formatDate(servidor.data_admissao)} />
-                    <InfoRow label="Data de Posse" value={formatDate(servidor.data_posse)} />
-                    <InfoRow label="Data de Exercício" value={formatDate(servidor.data_exercicio)} />
                     <InfoRow label="Remuneração Bruta" value={formatCurrency(servidor.remuneracao_bruta)} />
                   </CardContent>
                 </Card>

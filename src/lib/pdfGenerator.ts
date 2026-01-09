@@ -1040,7 +1040,6 @@ interface FichaCadastralData {
   
   // Dados Funcionais
   matricula?: string | null;
-  vinculo: string;
   situacao: string;
   cargo_nome?: string | null;
   cargo_sigla?: string | null;
@@ -1049,8 +1048,6 @@ interface FichaCadastralData {
   carga_horaria?: number | null;
   regime_juridico?: string | null;
   data_admissao?: string | null;
-  data_posse?: string | null;
-  data_exercicio?: string | null;
   data_desligamento?: string | null;
   
   // Formação
@@ -1256,8 +1253,7 @@ export const generateFichaCadastral = (data: FichaCadastralData): void => {
   // ============ DADOS FUNCIONAIS ============
   y = addSection('5. DADOS FUNCIONAIS', y);
   
-  addFieldRow('Vínculo', VINCULO_LABELS_PDF[data.vinculo] || data.vinculo, col1, y, colWidth * 0.5);
-  addFieldRow('Situação', SITUACAO_LABELS_PDF[data.situacao] || data.situacao, col1 + colWidth * 0.4, y, colWidth * 0.5);
+  addFieldRow('Situação', SITUACAO_LABELS_PDF[data.situacao] || data.situacao, col1, y, colWidth * 0.5);
   addFieldRow('Regime Jurídico', data.regime_juridico || '-', col2, y, colWidth);
   y += 10;
   
@@ -1267,10 +1263,8 @@ export const generateFichaCadastral = (data: FichaCadastralData): void => {
   addFieldRow('Lotação', data.unidade_nome ? `${data.unidade_nome}${data.unidade_sigla ? ` (${data.unidade_sigla})` : ''}` : '-', col1, y, contentWidth);
   y += 10;
   
-  addFieldRow('Carga Horária', data.carga_horaria ? `${data.carga_horaria}h/semana` : '-', col1, y, colWidth * 0.4);
-  addFieldRow('Admissão', formatDatePDF(data.data_admissao), col1 + colWidth * 0.35, y, colWidth * 0.35);
-  addFieldRow('Posse', formatDatePDF(data.data_posse), col2, y, colWidth * 0.35);
-  addFieldRow('Exercício', formatDatePDF(data.data_exercicio), col2 + colWidth * 0.35, y, colWidth * 0.35);
+  addFieldRow('Carga Horária', data.carga_horaria ? `${data.carga_horaria}h/semana` : '-', col1, y, colWidth * 0.5);
+  addFieldRow('Admissão', formatDatePDF(data.data_admissao), col2, y, colWidth * 0.5);
   y += 12;
   
   // ============ PÁGINA 2 ============
