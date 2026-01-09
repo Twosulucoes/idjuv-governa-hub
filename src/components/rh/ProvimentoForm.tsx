@@ -508,22 +508,68 @@ export function ProvimentoForm({
                         Unidade selecionada automaticamente: <strong>{unidadesCompativeis[0].nome}</strong>
                       </AlertDescription>
                     </Alert>
+                  ) : unidadesCompativeis.length === 0 ? (
+                    <Alert>
+                      <AlertDescription>
+                        Este cargo pode ser lotado em qualquer unidade. Selecione abaixo:
+                      </AlertDescription>
+                    </Alert>
                   ) : (
-                    <Select value={unidadeId} onValueChange={setUnidadeId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione a unidade" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {unidadesCompativeis.map((u) => (
-                          <SelectItem key={u.id} value={u.id}>
-                            {u.sigla && `${u.sigla} - `}{u.nome}
-                            <span className="text-muted-foreground ml-2">
-                              ({LABELS_UNIDADE[u.tipo as TipoUnidade] || u.tipo})
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        {unidadesCompativeis.length} unidades compatíveis com este cargo:
+                      </p>
+                      <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                        {/* Agrupar unidades por tipo hierárquico */}
+                        {(() => {
+                          const ordemTipos: TipoUnidade[] = ['presidencia', 'coordenacao', 'diretoria', 'departamento', 'divisao', 'setor', 'secao'];
+                          const grupos: Record<string, typeof unidadesCompativeis> = {};
+                          
+                          unidadesCompativeis.forEach(u => {
+                            const tipo = (u.tipo as TipoUnidade) || 'outros';
+                            if (!grupos[tipo]) grupos[tipo] = [];
+                            grupos[tipo].push(u);
+                          });
+                          
+                          return ordemTipos.map(tipo => {
+                            const unidadesTipo = grupos[tipo];
+                            if (!unidadesTipo || unidadesTipo.length === 0) return null;
+                            
+                            return (
+                              <div key={tipo} className="space-y-1">
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-2">
+                                  {LABELS_UNIDADE[tipo] || tipo}
+                                </p>
+                                {unidadesTipo.map((u) => (
+                                  <div
+                                    key={u.id}
+                                    onClick={() => setUnidadeId(u.id)}
+                                    className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                                      unidadeId === u.id 
+                                        ? 'border-primary bg-primary/5 ring-2 ring-primary' 
+                                        : 'hover:border-primary/50 hover:bg-muted/50'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <span className="font-medium">
+                                          {u.sigla && <span className="text-primary">{u.sigla}</span>}
+                                          {u.sigla && ' - '}
+                                          {u.nome}
+                                        </span>
+                                      </div>
+                                      {unidadeId === u.id && (
+                                        <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </>
                   )}
                 </div>
               )}
