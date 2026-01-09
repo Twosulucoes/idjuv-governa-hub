@@ -231,13 +231,8 @@ export interface Servidor {
   
   // Dados funcionais
   matricula?: string;
-  vinculo: VinculoFuncional;
   situacao: SituacaoFuncional;
-  cargo_atual_id?: string;
-  unidade_atual_id?: string;
   data_admissao?: string;
-  data_posse?: string;
-  data_exercicio?: string;
   data_desligamento?: string;
   carga_horaria?: number;
   regime_juridico?: string;

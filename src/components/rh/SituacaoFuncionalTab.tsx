@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -12,7 +11,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Link2,
   Award,
   Building2,
   ArrowLeftRight,
@@ -25,18 +23,15 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  useVinculosServidor,
   useProvimentosServidor,
   useLotacoesServidor,
   useCessoesServidor,
 } from "@/hooks/useServidorCompleto";
-import { VinculoFuncionalForm } from "./VinculoFuncionalForm";
 import { ProvimentoForm } from "./ProvimentoForm";
 import { LotacaoForm } from "./LotacaoForm";
 import { CessaoForm } from "./CessaoForm";
 import {
   type TipoServidor,
-  TIPO_VINCULO_LABELS,
   STATUS_PROVIMENTO_LABELS,
   STATUS_PROVIMENTO_COLORS,
   TIPO_LOTACAO_LABELS,
@@ -50,13 +45,11 @@ interface Props {
 
 export function SituacaoFuncionalTab({ servidorId, servidorNome, tipoServidor }: Props) {
   // States para modais
-  const [showVinculoForm, setShowVinculoForm] = useState(false);
   const [showProvimentoForm, setShowProvimentoForm] = useState(false);
   const [showLotacaoForm, setShowLotacaoForm] = useState(false);
   const [showCessaoForm, setShowCessaoForm] = useState(false);
 
   // Dados
-  const { data: vinculos = [], isLoading: loadingVinculos } = useVinculosServidor(servidorId);
   const { data: provimentos = [], isLoading: loadingProvimentos } = useProvimentosServidor(servidorId);
   const { data: lotacoes = [], isLoading: loadingLotacoes } = useLotacoesServidor(servidorId);
   const { data: cessoes = [], isLoading: loadingCessoes } = useCessoesServidor(servidorId);
@@ -66,7 +59,6 @@ export function SituacaoFuncionalTab({ servidorId, servidorNome, tipoServidor }:
     return format(new Date(date), "dd/MM/yyyy", { locale: ptBR });
   };
 
-  const vinculoAtivo = vinculos.find(v => v.ativo);
   const provimentoAtivo = provimentos.find(p => p.status === 'ativo');
   const lotacaoAtiva = lotacoes.find(l => l.ativo);
   const cessaoAtiva = cessoes.find(c => c.ativa);
@@ -79,23 +71,7 @@ export function SituacaoFuncionalTab({ servidorId, servidorNome, tipoServidor }:
           <CardTitle className="text-lg">Situação Funcional Atual</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Vínculo */}
-            <div className="p-3 rounded-lg bg-muted/50">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                <Link2 className="h-4 w-4" />
-                Vínculo
-              </div>
-              {vinculoAtivo ? (
-                <>
-                  <p className="font-medium">{TIPO_VINCULO_LABELS[vinculoAtivo.tipo_vinculo]}</p>
-                  <p className="text-sm text-muted-foreground">Desde {formatDate(vinculoAtivo.data_inicio)}</p>
-                </>
-              ) : (
-                <p className="text-muted-foreground text-sm">Não definido</p>
-              )}
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Provimento */}
             <div className="p-3 rounded-lg bg-muted/50">
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
@@ -148,64 +124,6 @@ export function SituacaoFuncionalTab({ servidorId, servidorNome, tipoServidor }:
               )}
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Vínculos */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Link2 className="h-5 w-5 text-primary" />
-            Vínculos Funcionais
-          </CardTitle>
-          <Button size="sm" onClick={() => setShowVinculoForm(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Novo Vínculo
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {loadingVinculos ? (
-            <div className="flex justify-center py-4">
-              <Loader2 className="h-5 w-5 animate-spin" />
-            </div>
-          ) : vinculos.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">Nenhum vínculo registrado</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Início</TableHead>
-                  <TableHead>Término</TableHead>
-                  <TableHead>Órgão Origem/Destino</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {vinculos.map((v) => (
-                  <TableRow key={v.id}>
-                    <TableCell className="font-medium">{TIPO_VINCULO_LABELS[v.tipo_vinculo]}</TableCell>
-                    <TableCell>{formatDate(v.data_inicio)}</TableCell>
-                    <TableCell>{formatDate(v.data_fim)}</TableCell>
-                    <TableCell>{v.orgao_origem || v.orgao_destino || '-'}</TableCell>
-                    <TableCell>
-                      {v.ativo ? (
-                        <Badge className="bg-success/20 text-success border-success/30">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Ativo
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">
-                          <XCircle className="h-3 w-3 mr-1" />
-                          Encerrado
-                        </Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
         </CardContent>
       </Card>
 
@@ -384,13 +302,6 @@ export function SituacaoFuncionalTab({ servidorId, servidorNome, tipoServidor }:
       </Card>
 
       {/* Modais */}
-      <VinculoFuncionalForm
-        servidorId={servidorId}
-        servidorNome={servidorNome}
-        open={showVinculoForm}
-        onOpenChange={setShowVinculoForm}
-      />
-      
       <ProvimentoForm
         servidorId={servidorId}
         servidorNome={servidorNome}

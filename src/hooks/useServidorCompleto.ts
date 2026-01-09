@@ -3,10 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { 
   TipoServidor, 
-  TipoVinculoFuncional, 
   TipoLotacao,
   StatusProvimento,
-  VinculoFuncional,
   Provimento,
   Cessao,
   LotacaoCompleta,
@@ -26,25 +24,6 @@ export function useServidoresSituacao() {
       if (error) throw error;
       return data as ServidorSituacao[];
     },
-  });
-}
-
-// Hook para buscar vínculos funcionais de um servidor
-export function useVinculosServidor(servidorId: string | undefined) {
-  return useQuery({
-    queryKey: ["vinculos", servidorId],
-    queryFn: async () => {
-      if (!servidorId) return [];
-      const { data, error } = await supabase
-        .from("vinculos_funcionais")
-        .select("*")
-        .eq("servidor_id", servidorId)
-        .order("data_inicio", { ascending: false });
-      
-      if (error) throw error;
-      return data as VinculoFuncional[];
-    },
-    enabled: !!servidorId,
   });
 }
 
@@ -117,33 +96,6 @@ export function useLotacoesServidor(servidorId: string | undefined) {
 }
 
 // Mutations
-
-// Criar vínculo funcional
-export function useCreateVinculo() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async (vinculo: Omit<VinculoFuncional, 'id' | 'created_at'>) => {
-      const { data, error } = await supabase
-        .from("vinculos_funcionais")
-        .insert(vinculo)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["vinculos", data.servidor_id] });
-      queryClient.invalidateQueries({ queryKey: ["servidores-situacao"] });
-      queryClient.invalidateQueries({ queryKey: ["servidores-rh"] });
-      toast.success("Vínculo funcional criado!");
-    },
-    onError: (error: any) => {
-      toast.error(`Erro ao criar vínculo: ${error.message}`);
-    },
-  });
-}
 
 // Criar provimento
 export function useCreateProvimento() {

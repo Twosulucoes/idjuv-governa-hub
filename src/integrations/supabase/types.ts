@@ -3758,18 +3758,26 @@ export type Database = {
           telefone_celular: string | null
           tipo_lotacao: Database["public"]["Enums"]["tipo_lotacao"] | null
           tipo_servidor: Database["public"]["Enums"]["tipo_servidor"] | null
-          tipo_vinculo:
-            | Database["public"]["Enums"]["tipo_vinculo_funcional"]
-            | null
           unidade_id: string | null
           unidade_nome: string | null
           unidade_sigla: string | null
-          vinculo_id: string | null
-          vinculo_inicio: string | null
-          vinculo_orgao_destino: string | null
-          vinculo_orgao_origem: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "lotacoes_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provimentos_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_usuarios_sistema: {
         Row: {
@@ -3789,9 +3797,7 @@ export type Database = {
           servidor_situacao:
             | Database["public"]["Enums"]["situacao_funcional"]
             | null
-          servidor_vinculo:
-            | Database["public"]["Enums"]["vinculo_funcional"]
-            | null
+          servidor_tipo: Database["public"]["Enums"]["tipo_servidor"] | null
           tipo_usuario: Database["public"]["Enums"]["tipo_usuario"] | null
           unidade_nome: string | null
           user_role: Database["public"]["Enums"]["app_role"] | null

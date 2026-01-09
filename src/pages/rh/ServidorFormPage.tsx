@@ -54,13 +54,10 @@ import {
 } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 import { 
-  type VinculoFuncional,
   type SituacaoFuncional,
   type TipoServidor,
-  VINCULO_LABELS,
   SITUACAO_LABELS,
   TIPO_SERVIDOR_LABELS,
-  REGRAS_TIPO_SERVIDOR,
   UFS,
   ESTADOS_CIVIS,
   ESCOLARIDADES,
@@ -93,16 +90,8 @@ type FormData = {
   endereco_cep: string;
   matricula: string;
   tipo_servidor: TipoServidor | '';
-  vinculo: VinculoFuncional;
   situacao: SituacaoFuncional;
-  cargo_atual_id: string;
-  unidade_atual_id: string;
-  orgao_origem: string;
-  orgao_destino_cessao: string;
-  funcao_exercida: string;
   data_admissao: string;
-  data_posse: string;
-  data_exercicio: string;
   carga_horaria: string;
   regime_juridico: string;
   remuneracao_bruta: string;
@@ -149,16 +138,8 @@ const initialFormData: FormData = {
   endereco_cep: '',
   matricula: '',
   tipo_servidor: '',
-  vinculo: 'comissionado',
   situacao: 'ativo',
-  cargo_atual_id: '',
-  unidade_atual_id: '',
-  orgao_origem: '',
-  orgao_destino_cessao: '',
-  funcao_exercida: '',
   data_admissao: '',
-  data_posse: '',
-  data_exercicio: '',
   carga_horaria: '40',
   regime_juridico: '',
   remuneracao_bruta: '',
@@ -260,16 +241,8 @@ export default function ServidorFormPage() {
         endereco_cep: servidor.endereco_cep || '',
         matricula: servidor.matricula || '',
         tipo_servidor: servidor.tipo_servidor || '',
-        vinculo: servidor.vinculo || 'comissionado',
         situacao: servidor.situacao || 'ativo',
-        cargo_atual_id: servidor.cargo_atual_id || '',
-        unidade_atual_id: servidor.unidade_atual_id || '',
-        orgao_origem: servidor.orgao_origem || '',
-        orgao_destino_cessao: servidor.orgao_destino_cessao || '',
-        funcao_exercida: servidor.funcao_exercida || '',
         data_admissao: servidor.data_admissao || '',
-        data_posse: servidor.data_posse || '',
-        data_exercicio: servidor.data_exercicio || '',
         carga_horaria: servidor.carga_horaria?.toString() || '40',
         regime_juridico: servidor.regime_juridico || '',
         remuneracao_bruta: servidor.remuneracao_bruta?.toString() || '',
@@ -327,16 +300,8 @@ export default function ServidorFormPage() {
         endereco_cep: data.endereco_cep?.replace(/\D/g, '') || null,
         matricula: matriculaFinal || null,
         tipo_servidor: data.tipo_servidor || null,
-        vinculo: data.vinculo,
         situacao: data.situacao,
-        cargo_atual_id: data.cargo_atual_id || null,
-        unidade_atual_id: data.unidade_atual_id || null,
-        orgao_origem: data.orgao_origem || null,
-        orgao_destino_cessao: data.orgao_destino_cessao || null,
-        funcao_exercida: data.funcao_exercida || null,
         data_admissao: data.data_admissao || null,
-        data_posse: data.data_posse || null,
-        data_exercicio: data.data_exercicio || null,
         carga_horaria: parseInt(data.carga_horaria) || 40,
         regime_juridico: data.regime_juridico || null,
         remuneracao_bruta: parseFloat(data.remuneracao_bruta) || null,
@@ -506,29 +471,19 @@ export default function ServidorFormPage() {
                     <DropdownMenuSeparator />
                     <DropdownMenuLabel>Documentos Preenchidos</DropdownMenuLabel>
                     <DropdownMenuItem onClick={() => {
-                      const cargoSelecionado = cargos.find(c => c.id === formData.cargo_atual_id);
-                      const unidadeSelecionada = unidades.find(u => u.id === formData.unidade_atual_id);
                       generateFichaCadastral({
                         ...servidor,
-                        cargo_nome: cargoSelecionado?.nome,
-                        cargo_sigla: cargoSelecionado?.sigla,
-                        unidade_nome: unidadeSelecionada?.nome,
-                        unidade_sigla: unidadeSelecionada?.sigla,
                       });
                     }}>
                       <FileText className="h-4 w-4 mr-2" />
                       Ficha Cadastral Completa
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => {
-                      const cargoSelecionado = cargos.find(c => c.id === formData.cargo_atual_id);
-                      const unidadeSelecionada = unidades.find(u => u.id === formData.unidade_atual_id);
                       generateDeclaracaoAcumulacao({
                         nome_completo: servidor.nome_completo,
                         cpf: servidor.cpf,
                         rg: servidor.rg,
                         rg_orgao_expedidor: servidor.rg_orgao_expedidor,
-                        cargo_nome: cargoSelecionado?.nome,
-                        unidade_nome: unidadeSelecionada?.nome,
                         acumula_cargo: servidor.acumula_cargo || false,
                         acumulo_descricao: servidor.acumulo_descricao,
                       });
@@ -537,15 +492,11 @@ export default function ServidorFormPage() {
                       Declaração de Acumulação
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => {
-                      const cargoSelecionado = cargos.find(c => c.id === formData.cargo_atual_id);
-                      const unidadeSelecionada = unidades.find(u => u.id === formData.unidade_atual_id);
                       generateDeclaracaoBens({
                         nome_completo: servidor.nome_completo,
                         cpf: servidor.cpf,
                         rg: servidor.rg,
                         rg_orgao_expedidor: servidor.rg_orgao_expedidor,
-                        cargo_nome: cargoSelecionado?.nome,
-                        unidade_nome: unidadeSelecionada?.nome,
                         data_admissao: servidor.data_admissao,
                       });
                     }}>
@@ -921,13 +872,13 @@ export default function ServidorFormPage() {
                         )}
                       </div>
                       <div>
-                        <Label>Vínculo</Label>
-                        <Select value={formData.vinculo} onValueChange={(v) => updateField('vinculo', v as VinculoFuncional)}>
+                        <Label>Tipo de Servidor</Label>
+                        <Select value={formData.tipo_servidor} onValueChange={(v) => updateField('tipo_servidor', v as TipoServidor)}>
                           <SelectTrigger>
-                            <SelectValue />
+                            <SelectValue placeholder="Selecione o tipo" />
                           </SelectTrigger>
                           <SelectContent>
-                            {Object.entries(VINCULO_LABELS).map(([key, label]) => (
+                            {Object.entries(TIPO_SERVIDOR_LABELS).map(([key, label]) => (
                               <SelectItem key={key} value={key}>{label}</SelectItem>
                             ))}
                           </SelectContent>
@@ -942,36 +893,6 @@ export default function ServidorFormPage() {
                           <SelectContent>
                             {Object.entries(SITUACAO_LABELS).map(([key, label]) => (
                               <SelectItem key={key} value={key}>{label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Cargo</Label>
-                        <Select value={formData.cargo_atual_id} onValueChange={(v) => updateField('cargo_atual_id', v)}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o cargo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {cargos.map((c) => (
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.sigla ? `${c.sigla} - ${c.nome}` : c.nome}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Unidade de Lotação</Label>
-                        <Select value={formData.unidade_atual_id} onValueChange={(v) => updateField('unidade_atual_id', v)}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione a unidade" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {unidades.map((u) => (
-                              <SelectItem key={u.id} value={u.id}>
-                                {u.sigla ? `${u.sigla} - ${u.nome}` : u.nome}
-                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -995,22 +916,6 @@ export default function ServidorFormPage() {
                           type="date"
                           value={formData.data_admissao}
                           onChange={(e) => updateField('data_admissao', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label>Data da Posse</Label>
-                        <Input
-                          type="date"
-                          value={formData.data_posse}
-                          onChange={(e) => updateField('data_posse', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label>Data do Exercício</Label>
-                        <Input
-                          type="date"
-                          value={formData.data_exercicio}
-                          onChange={(e) => updateField('data_exercicio', e.target.value)}
                         />
                       </div>
                       <div>
