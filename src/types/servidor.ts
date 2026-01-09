@@ -86,35 +86,8 @@ export const NATUREZA_CARGO_LABELS: Record<NaturezaCargo, string> = {
 
 // Interfaces
 
-export interface VinculoFuncional {
-  id: string;
-  servidor_id: string;
-  tipo_vinculo: TipoVinculoFuncional;
-  data_inicio: string;
-  data_fim?: string;
-  ativo: boolean;
-  
-  // Ato
-  ato_tipo?: string;
-  ato_numero?: string;
-  ato_data?: string;
-  ato_doe_numero?: string;
-  ato_doe_data?: string;
-  ato_url?: string;
-  
-  // Cessão entrada
-  orgao_origem?: string;
-  onus_origem?: boolean;
-  
-  // Cessão saída
-  orgao_destino?: string;
-  
-  fundamentacao_legal?: string;
-  observacoes?: string;
-  
-  created_at?: string;
-  created_by?: string;
-}
+// Interface VinculoFuncional removida - tabela foi dropada
+// Dados de vínculo agora são gerenciados via servidores.tipo_servidor + cessoes
 
 export interface Provimento {
   id: string;
