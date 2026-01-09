@@ -15,9 +15,14 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { NomeacoesProvimentosSection } from "./NomeacoesProvimentosSection";
+import { CessoesSection } from "./CessoesSection";
+import { type TipoServidor } from "@/types/servidor";
 
 interface HistoricoFuncionalTabProps {
   servidorId: string;
+  servidorNome: string;
+  tipoServidor?: TipoServidor;
 }
 
 const TIPO_MOVIMENTACAO_LABELS: Record<string, string> = {
@@ -48,7 +53,7 @@ const TIPO_MOVIMENTACAO_COLORS: Record<string, string> = {
   progressao: "bg-cyan-100 text-cyan-700 border-cyan-200",
 };
 
-export function HistoricoFuncionalTab({ servidorId }: HistoricoFuncionalTabProps) {
+export function HistoricoFuncionalTab({ servidorId, servidorNome, tipoServidor }: HistoricoFuncionalTabProps) {
   // Buscar histórico funcional
   const { data: historico = [], isLoading: loadingHistorico } = useQuery({
     queryKey: ["historico-funcional", servidorId],
@@ -133,6 +138,19 @@ export function HistoricoFuncionalTab({ servidorId }: HistoricoFuncionalTabProps
 
   return (
     <div className="space-y-6">
+      {/* Nomeações / Provimentos */}
+      <NomeacoesProvimentosSection 
+        servidorId={servidorId} 
+        servidorNome={servidorNome}
+        tipoServidor={tipoServidor}
+      />
+
+      {/* Cessões */}
+      <CessoesSection 
+        servidorId={servidorId} 
+        servidorNome={servidorNome}
+      />
+
       {/* Lotações */}
       <Card>
         <CardHeader className="pb-3">
