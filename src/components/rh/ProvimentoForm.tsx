@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Award, AlertTriangle, CheckCircle2, Search, Filter } from "lucide-react";
+import { Loader2, Award, AlertTriangle, CheckCircle2, Search, Building2, GitBranch } from "lucide-react";
 import { useCreateProvimento } from "@/hooks/useServidorCompleto";
 import {
   type NaturezaCargo,
@@ -53,6 +53,8 @@ interface CargoComDisponibilidade {
   disponiveis: number;
 }
 
+type StepType = 'natureza' | 'cargo' | 'diretoria' | 'divisao' | 'nucleo' | 'dados';
+
 export function ProvimentoForm({ 
   servidorId, 
   servidorNome, 
@@ -64,11 +66,15 @@ export function ProvimentoForm({
   const createProvimento = useCreateProvimento();
   
   // Estado do wizard
-  const [step, setStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState<StepType>('natureza');
   const [naturezaSelecionada, setNaturezaSelecionada] = useState<NaturezaCargo | ''>('');
-  const [filtroTipoUnidade, setFiltroTipoUnidade] = useState<TipoUnidade | 'todos'>('todos');
   const [buscaCargo, setBuscaCargo] = useState('');
   const [cargoId, setCargoId] = useState('');
+  
+  // Seleção em cascata
+  const [diretoriaId, setDiretoriaId] = useState('');
+  const [divisaoId, setDivisaoId] = useState('');
+  const [nucleoId, setNucleoId] = useState('');
   const [unidadeId, setUnidadeId] = useState('');
   
   // Datas
@@ -89,56 +95,28 @@ export function ProvimentoForm({
   const regras = tipoServidor ? REGRAS_TIPO_SERVIDOR[tipoServidor] : null;
   const naturezasPermitidas = regras?.tiposCargo || ['efetivo', 'comissionado'];
 
-  // Tipos de unidade para filtro (baseado no banco de dados)
-  const tiposUnidade: ('todos' | TipoUnidade)[] = [
-    'todos',
-    'presidencia',
-    'diretoria',
-    'departamento',
-    'divisao',
-    'setor',
-    'coordenacao',
-    'secao',
-  ];
-
   // Buscar cargos com disponibilidade
   const { data: cargos = [], isLoading: loadingCargos } = useQuery({
-    queryKey: ["cargos-disponibilidade", naturezaSelecionada, filtroTipoUnidade],
+    queryKey: ["cargos-disponibilidade", naturezaSelecionada],
     queryFn: async () => {
       if (!naturezaSelecionada) return [];
       
-      // Buscar cargos
-      let queryBase = supabase
+      const { data: cargosData, error: cargosError } = await supabase
         .from("cargos")
         .select("id, nome, sigla, natureza, quantidade_vagas, vencimento_base")
         .eq("ativo", true)
-        .eq("natureza", naturezaSelecionada);
+        .eq("natureza", naturezaSelecionada)
+        .order("nome");
       
-      const { data: cargosData, error: cargosError } = await queryBase.order("nome");
       if (cargosError) throw cargosError;
       if (!cargosData) return [];
 
-      // Buscar provimentos ativos para contar ocupadas
       const { data: provimentosAtivos, error: provError } = await supabase
         .from("provimentos")
         .select("cargo_id")
         .eq("status", "ativo");
       if (provError) throw provError;
 
-      // Se filtrar por tipo de unidade, buscar compatibilidades
-      let cargosCompativeis: string[] | null = null;
-      if (filtroTipoUnidade !== 'todos') {
-        const { data: compatData } = await supabase
-          .from("cargo_unidade_compatibilidade")
-          .select("cargo_id")
-          .eq("tipo_unidade", filtroTipoUnidade);
-        
-        if (compatData && compatData.length > 0) {
-          cargosCompativeis = compatData.map(c => c.cargo_id).filter(Boolean) as string[];
-        }
-      }
-
-      // Contar ocupadas por cargo
       const ocupadasPorCargo: Record<string, number> = {};
       provimentosAtivos?.forEach(p => {
         if (p.cargo_id) {
@@ -146,7 +124,6 @@ export function ProvimentoForm({
         }
       });
 
-      // Montar lista com disponibilidade
       const result: CargoComDisponibilidade[] = cargosData
         .map(cargo => {
           const ocupadas = ocupadasPorCargo[cargo.id] || 0;
@@ -157,22 +134,154 @@ export function ProvimentoForm({
             disponiveis: vagas - ocupadas,
           };
         })
-        .filter(cargo => {
-          // Filtrar apenas cargos com vagas disponíveis
-          if (cargo.disponiveis <= 0) return false;
-          
-          // Filtrar por tipo de unidade se especificado
-          if (cargosCompativeis !== null && !cargosCompativeis.includes(cargo.id)) {
-            return false;
-          }
-          
-          return true;
-        });
+        .filter(cargo => cargo.disponiveis > 0);
 
       return result;
     },
     enabled: !!naturezaSelecionada,
   });
+
+  // Cargo selecionado
+  const cargoSelecionado = useMemo(() => 
+    cargos.find(c => c.id === cargoId), 
+    [cargos, cargoId]
+  );
+
+  // Determinar steps necessários baseado no cargo
+  const stepsNecessarios = useMemo((): StepType[] => {
+    if (!cargoSelecionado) return ['natureza', 'cargo', 'dados'];
+    
+    const cargoNome = cargoSelecionado.nome.toLowerCase();
+    
+    // Chefe de Núcleo: precisa escolher Diretoria → Divisão → Núcleo
+    if (cargoNome.includes('núcleo')) {
+      return ['natureza', 'cargo', 'diretoria', 'divisao', 'nucleo', 'dados'];
+    }
+    // Chefe de Divisão: precisa escolher Diretoria → Divisão
+    if (cargoNome.includes('divisão')) {
+      return ['natureza', 'cargo', 'diretoria', 'divisao', 'dados'];
+    }
+    // Secretária de Diretoria, Diretor: precisa escolher Diretoria
+    if (cargoNome.includes('diretoria') || cargoNome.includes('diretor')) {
+      return ['natureza', 'cargo', 'diretoria', 'dados'];
+    }
+    // Cargos com unidade fixa (Presidente, Assessor, Chefe Gabinete, etc.)
+    return ['natureza', 'cargo', 'dados'];
+  }, [cargoSelecionado]);
+
+  // Índice do step atual
+  const stepIndex = stepsNecessarios.indexOf(currentStep);
+  const totalSteps = stepsNecessarios.length;
+
+  // Buscar diretorias disponíveis para o cargo
+  const { data: diretorias = [], isLoading: loadingDiretorias } = useQuery({
+    queryKey: ["diretorias-disponiveis", cargoId],
+    queryFn: async () => {
+      if (!cargoId) return [];
+      
+      // Buscar diretorias (tipo = 'diretoria')
+      const { data, error } = await supabase
+        .from("estrutura_organizacional")
+        .select("id, nome, sigla, tipo")
+        .eq("tipo", "diretoria")
+        .eq("ativo", true)
+        .order("nome");
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: stepsNecessarios.includes('diretoria') && !!cargoId,
+  });
+
+  // Buscar divisões da diretoria selecionada
+  const { data: divisoes = [], isLoading: loadingDivisoes } = useQuery({
+    queryKey: ["divisoes-diretoria", diretoriaId],
+    queryFn: async () => {
+      if (!diretoriaId) return [];
+      
+      const { data, error } = await supabase
+        .from("estrutura_organizacional")
+        .select("id, nome, sigla, tipo")
+        .eq("superior_id", diretoriaId)
+        .eq("tipo", "divisao")
+        .eq("ativo", true)
+        .order("nome");
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: stepsNecessarios.includes('divisao') && !!diretoriaId,
+  });
+
+  // Buscar núcleos da divisão selecionada
+  const { data: nucleos = [], isLoading: loadingNucleos } = useQuery({
+    queryKey: ["nucleos-divisao", divisaoId],
+    queryFn: async () => {
+      if (!divisaoId) return [];
+      
+      const { data, error } = await supabase
+        .from("estrutura_organizacional")
+        .select("id, nome, sigla, tipo")
+        .eq("superior_id", divisaoId)
+        .eq("tipo", "setor")
+        .eq("ativo", true)
+        .order("nome");
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: stepsNecessarios.includes('nucleo') && !!divisaoId,
+  });
+
+  // Buscar unidade automática para cargos com unidade fixa
+  const { data: unidadeAutomatica } = useQuery({
+    queryKey: ["unidade-automatica", cargoId],
+    queryFn: async () => {
+      if (!cargoSelecionado) return null;
+      
+      const cargoNome = cargoSelecionado.nome.toLowerCase();
+      let sigla = '';
+      
+      if (cargoNome.includes('presidente')) sigla = 'PRES';
+      else if (cargoNome.includes('gabinete')) sigla = 'GAB';
+      else if (cargoNome.includes('controle interno')) sigla = 'CI';
+      else if (cargoNome.includes('jurídico')) sigla = 'ASJUR';
+      else if (cargoNome.includes('especial')) sigla = 'ASESP';
+      else if (cargoNome.includes('comunicação')) sigla = 'ASCOM';
+      else if (cargoNome.includes('contratação') || cargoNome.includes('licitação') || cargoNome.includes('pregoeiro')) sigla = 'CPL';
+      else if (cargoNome.includes('assistente técnico')) sigla = 'GAB';
+      else if (cargoNome.includes('secretária da presidência')) sigla = 'PRES';
+      else if (cargoNome.includes('unidade local')) sigla = 'NuUL';
+      
+      if (!sigla) return null;
+      
+      const { data } = await supabase
+        .from("estrutura_organizacional")
+        .select("id, nome, sigla")
+        .eq("sigla", sigla)
+        .single();
+      
+      return data;
+    },
+    enabled: !stepsNecessarios.includes('diretoria') && !!cargoSelecionado,
+  });
+
+  // Auto-definir unidadeId baseado na seleção
+  useEffect(() => {
+    if (unidadeAutomatica) {
+      setUnidadeId(unidadeAutomatica.id);
+    }
+  }, [unidadeAutomatica]);
+
+  useEffect(() => {
+    if (stepsNecessarios.includes('nucleo') && nucleoId) {
+      setUnidadeId(nucleoId);
+    } else if (stepsNecessarios.includes('divisao') && !stepsNecessarios.includes('nucleo') && divisaoId) {
+      setUnidadeId(divisaoId);
+    } else if (stepsNecessarios.includes('diretoria') && !stepsNecessarios.includes('divisao') && diretoriaId) {
+      setUnidadeId(diretoriaId);
+    }
+  }, [nucleoId, divisaoId, diretoriaId, stepsNecessarios]);
 
   // Filtrar cargos por busca
   const cargosFiltrados = useMemo(() => {
@@ -184,67 +293,6 @@ export function ProvimentoForm({
     );
   }, [cargos, buscaCargo]);
 
-  // Buscar unidades compatíveis com o cargo
-  const { data: unidadesCompativeis = [], isLoading: loadingUnidades } = useQuery({
-    queryKey: ["unidades-compativeis", cargoId],
-    queryFn: async () => {
-      if (!cargoId) return [];
-      
-      // Primeiro busca regras de compatibilidade
-      const { data: regrasCompat } = await supabase
-        .from("cargo_unidade_compatibilidade")
-        .select("tipo_unidade, unidade_especifica_id")
-        .eq("cargo_id", cargoId);
-      
-      // Se há regras específicas, filtra unidades
-      if (regrasCompat && regrasCompat.length > 0) {
-        const tiposPermitidos = regrasCompat
-          .filter(r => r.tipo_unidade)
-          .map(r => r.tipo_unidade);
-        const unidadesEspecificas = regrasCompat
-          .filter(r => r.unidade_especifica_id)
-          .map(r => r.unidade_especifica_id);
-        
-        let query = supabase
-          .from("estrutura_organizacional")
-          .select("id, nome, sigla, tipo")
-          .eq("ativo", true);
-        
-        if (unidadesEspecificas.length > 0) {
-          query = query.in("id", unidadesEspecificas);
-        } else if (tiposPermitidos.length > 0) {
-          query = query.in("tipo", tiposPermitidos);
-        }
-        
-        const { data, error } = await query.order("nome");
-        if (error) throw error;
-        return data;
-      }
-      
-      // Se não há regras, retorna todas
-      const { data, error } = await supabase
-        .from("estrutura_organizacional")
-        .select("id, nome, sigla, tipo")
-        .eq("ativo", true)
-        .order("nome");
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!cargoId,
-  });
-
-  // Auto-selecionar unidade se só há uma opção
-  useEffect(() => {
-    if (unidadesCompativeis.length === 1 && !unidadeId) {
-      setUnidadeId(unidadesCompativeis[0].id);
-    }
-  }, [unidadesCompativeis, unidadeId]);
-
-  const cargoSelecionado = useMemo(() => 
-    cargos.find(c => c.id === cargoId), 
-    [cargos, cargoId]
-  );
-
   const formatCurrency = (value: number | null) => {
     if (value === null || value === undefined) return '-';
     return new Intl.NumberFormat('pt-BR', {
@@ -254,11 +302,13 @@ export function ProvimentoForm({
   };
 
   const resetForm = () => {
-    setStep(1);
+    setCurrentStep('natureza');
     setNaturezaSelecionada('');
-    setFiltroTipoUnidade('todos');
     setBuscaCargo('');
     setCargoId('');
+    setDiretoriaId('');
+    setDivisaoId('');
+    setNucleoId('');
     setUnidadeId('');
     setDataNomeacao('');
     setDataPosse('');
@@ -297,10 +347,43 @@ export function ProvimentoForm({
   };
 
   const canProceed = () => {
-    if (step === 1) return !!naturezaSelecionada;
-    if (step === 2) return !!cargoId;
-    if (step === 3) return true; // Unidade é opcional
-    return false;
+    switch (currentStep) {
+      case 'natureza': return !!naturezaSelecionada;
+      case 'cargo': return !!cargoId;
+      case 'diretoria': return !!diretoriaId;
+      case 'divisao': return !!divisaoId;
+      case 'nucleo': return !!nucleoId;
+      default: return false;
+    }
+  };
+
+  const goToNextStep = () => {
+    const nextIndex = stepIndex + 1;
+    if (nextIndex < stepsNecessarios.length) {
+      setCurrentStep(stepsNecessarios[nextIndex]);
+    }
+  };
+
+  const goToPrevStep = () => {
+    const prevIndex = stepIndex - 1;
+    if (prevIndex >= 0) {
+      setCurrentStep(stepsNecessarios[prevIndex]);
+      // Limpar seleções ao voltar
+      if (stepsNecessarios[stepIndex] === 'nucleo') setNucleoId('');
+      if (stepsNecessarios[stepIndex] === 'divisao') { setDivisaoId(''); setNucleoId(''); }
+      if (stepsNecessarios[stepIndex] === 'diretoria') { setDiretoriaId(''); setDivisaoId(''); setNucleoId(''); }
+    }
+  };
+
+  const getStepLabel = (step: StepType) => {
+    switch (step) {
+      case 'natureza': return 'Natureza';
+      case 'cargo': return 'Cargo';
+      case 'diretoria': return 'Diretoria';
+      case 'divisao': return 'Divisão';
+      case 'nucleo': return 'Núcleo';
+      case 'dados': return 'Dados';
+    }
   };
 
   return (
@@ -339,7 +422,6 @@ export function ProvimentoForm({
           </Alert>
         )}
 
-        {/* Conteúdo bloqueado se já tem provimento ativo */}
         {temProvimentoAtivo ? (
           <div className="flex justify-end pt-4">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -348,29 +430,34 @@ export function ProvimentoForm({
           </div>
         ) : (
           <>
-            {/* Stepper */}
-            <div className="flex items-center gap-2 mb-4">
-              {[1, 2, 3, 4].map((s) => (
-                <div key={s} className="flex items-center gap-2">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    step === s 
+            {/* Stepper dinâmico */}
+            <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-2">
+              {stepsNecessarios.map((step, idx) => (
+                <div key={step} className="flex items-center gap-1 flex-shrink-0">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium ${
+                    currentStep === step 
                       ? 'bg-primary text-primary-foreground' 
-                      : step > s 
-                        ? 'bg-success text-success-foreground' 
+                      : idx < stepIndex 
+                        ? 'bg-green-500 text-white' 
                         : 'bg-muted text-muted-foreground'
                   }`}>
-                    {step > s ? <CheckCircle2 className="h-4 w-4" /> : s}
+                    {idx < stepIndex ? <CheckCircle2 className="h-4 w-4" /> : idx + 1}
                   </div>
-                  {s < 4 && <div className={`h-0.5 w-8 ${step > s ? 'bg-success' : 'bg-muted'}`} />}
+                  <span className={`text-xs hidden sm:inline ${currentStep === step ? 'font-medium' : 'text-muted-foreground'}`}>
+                    {getStepLabel(step)}
+                  </span>
+                  {idx < stepsNecessarios.length - 1 && (
+                    <div className={`h-0.5 w-4 ${idx < stepIndex ? 'bg-green-500' : 'bg-muted'}`} />
+                  )}
                 </div>
               ))}
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Step 1: Natureza do Cargo */}
-              {step === 1 && (
+              {/* Step: Natureza do Cargo */}
+              {currentStep === 'natureza' && (
                 <div className="space-y-4">
-                  <h4 className="font-medium">1. Selecione a Natureza do Cargo</h4>
+                  <h4 className="font-medium">Selecione a Natureza do Cargo</h4>
                   <div className="grid grid-cols-2 gap-4">
                     {naturezasPermitidas.map((nat) => (
                       <div
@@ -394,42 +481,19 @@ export function ProvimentoForm({
                 </div>
               )}
 
-              {/* Step 2: Selecionar Cargo */}
-              {step === 2 && (
+              {/* Step: Selecionar Cargo */}
+              {currentStep === 'cargo' && (
                 <div className="space-y-4">
-                  <h4 className="font-medium">2. Selecione o Cargo</h4>
+                  <h4 className="font-medium">Selecione o Cargo Disponível</h4>
                   
-                  {/* Filtros */}
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="flex-1">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Buscar cargo por nome ou sigla..."
-                          value={buscaCargo}
-                          onChange={(e) => setBuscaCargo(e.target.value)}
-                          className="pl-9"
-                        />
-                      </div>
-                    </div>
-                    <div className="w-full sm:w-48">
-                      <Select 
-                        value={filtroTipoUnidade} 
-                        onValueChange={(v) => setFiltroTipoUnidade(v as TipoUnidade | 'todos')}
-                      >
-                        <SelectTrigger>
-                          <Filter className="h-4 w-4 mr-2" />
-                          <SelectValue placeholder="Filtrar por unidade" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {tiposUnidade.map((tipo) => (
-                            <SelectItem key={tipo} value={tipo}>
-                              {tipo === 'todos' ? 'Todas as Unidades' : LABELS_UNIDADE[tipo] || tipo}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar cargo por nome ou sigla..."
+                      value={buscaCargo}
+                      onChange={(e) => setBuscaCargo(e.target.value)}
+                      className="pl-9"
+                    />
                   </div>
 
                   {loadingCargos ? (
@@ -441,7 +505,7 @@ export function ProvimentoForm({
                       <AlertDescription>
                         {cargos.length === 0 
                           ? `Nenhum cargo ${NATUREZA_CARGO_LABELS[naturezaSelecionada as NaturezaCargo]} com vagas disponíveis.`
-                          : 'Nenhum cargo encontrado com os filtros aplicados.'
+                          : 'Nenhum cargo encontrado com a busca aplicada.'
                         }
                       </AlertDescription>
                     </Alert>
@@ -450,7 +514,14 @@ export function ProvimentoForm({
                       {cargosFiltrados.map((cargo) => (
                         <div
                           key={cargo.id}
-                          onClick={() => setCargoId(cargo.id)}
+                          onClick={() => {
+                            setCargoId(cargo.id);
+                            // Reset seleções dependentes
+                            setDiretoriaId('');
+                            setDivisaoId('');
+                            setNucleoId('');
+                            setUnidadeId('');
+                          }}
                           className={`p-4 border rounded-lg cursor-pointer transition-all ${
                             cargoId === cargo.id 
                               ? 'border-primary bg-primary/5 ring-2 ring-primary' 
@@ -465,7 +536,7 @@ export function ProvimentoForm({
                                 {cargo.nome}
                               </p>
                               <div className="flex flex-wrap items-center gap-3 mt-2 text-sm">
-                                <span className="font-semibold text-success">
+                                <span className="font-semibold text-green-600">
                                   {formatCurrency(cargo.vencimento_base)}
                                 </span>
                                 <Separator orientation="vertical" className="h-4" />
@@ -488,106 +559,178 @@ export function ProvimentoForm({
                 </div>
               )}
 
-              {/* Step 3: Selecionar Unidade */}
-              {step === 3 && (
+              {/* Step: Selecionar Diretoria */}
+              {currentStep === 'diretoria' && (
                 <div className="space-y-4">
-                  <h4 className="font-medium">3. Selecione a Unidade</h4>
+                  <h4 className="font-medium flex items-center gap-2">
+                    <Building2 className="h-5 w-5" />
+                    Selecione a Diretoria
+                  </h4>
+                  
                   <div className="p-3 bg-muted rounded-lg text-sm">
                     <p><strong>Cargo:</strong> {cargoSelecionado?.sigla && `${cargoSelecionado.sigla} - `}{cargoSelecionado?.nome}</p>
-                    <p><strong>Valor:</strong> {formatCurrency(cargoSelecionado?.vencimento_base ?? null)}</p>
                   </div>
-                  
-                  {loadingUnidades ? (
+
+                  {loadingDiretorias ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin" />
                     </div>
-                  ) : unidadesCompativeis.length === 1 ? (
-                    <Alert className="border-success bg-success/10">
-                      <CheckCircle2 className="h-4 w-4 text-success" />
-                      <AlertDescription>
-                        Unidade selecionada automaticamente: <strong>{unidadesCompativeis[0].nome}</strong>
-                      </AlertDescription>
-                    </Alert>
-                  ) : unidadesCompativeis.length === 0 ? (
+                  ) : diretorias.length === 0 ? (
                     <Alert>
-                      <AlertDescription>
-                        Este cargo pode ser lotado em qualquer unidade. Selecione abaixo:
-                      </AlertDescription>
+                      <AlertDescription>Nenhuma diretoria disponível.</AlertDescription>
                     </Alert>
                   ) : (
-                    <>
-                      <p className="text-sm text-muted-foreground">
-                        {unidadesCompativeis.length} unidades compatíveis com este cargo:
-                      </p>
-                      <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
-                        {/* Agrupar unidades por tipo hierárquico */}
-                        {(() => {
-                          const ordemTipos: TipoUnidade[] = ['presidencia', 'coordenacao', 'diretoria', 'departamento', 'divisao', 'setor', 'secao'];
-                          const grupos: Record<string, typeof unidadesCompativeis> = {};
-                          
-                          unidadesCompativeis.forEach(u => {
-                            const tipo = (u.tipo as TipoUnidade) || 'outros';
-                            if (!grupos[tipo]) grupos[tipo] = [];
-                            grupos[tipo].push(u);
-                          });
-                          
-                          return ordemTipos.map(tipo => {
-                            const unidadesTipo = grupos[tipo];
-                            if (!unidadesTipo || unidadesTipo.length === 0) return null;
-                            
-                            return (
-                              <div key={tipo} className="space-y-1">
-                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-2">
-                                  {LABELS_UNIDADE[tipo] || tipo}
-                                </p>
-                                {unidadesTipo.map((u) => (
-                                  <div
-                                    key={u.id}
-                                    onClick={() => setUnidadeId(u.id)}
-                                    className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                                      unidadeId === u.id 
-                                        ? 'border-primary bg-primary/5 ring-2 ring-primary' 
-                                        : 'hover:border-primary/50 hover:bg-muted/50'
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <div>
-                                        <span className="font-medium">
-                                          {u.sigla && <span className="text-primary">{u.sigla}</span>}
-                                          {u.sigla && ' - '}
-                                          {u.nome}
-                                        </span>
-                                      </div>
-                                      {unidadeId === u.id && (
-                                        <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            );
-                          });
-                        })()}
-                      </div>
-                    </>
+                    <div className="space-y-2">
+                      {diretorias.map((dir) => (
+                        <div
+                          key={dir.id}
+                          onClick={() => {
+                            setDiretoriaId(dir.id);
+                            setDivisaoId('');
+                            setNucleoId('');
+                          }}
+                          className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                            diretoriaId === dir.id 
+                              ? 'border-primary bg-primary/5 ring-2 ring-primary' 
+                              : 'hover:border-primary/50 hover:bg-muted/50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">
+                              {dir.sigla && <span className="text-primary">{dir.sigla}</span>}
+                              {dir.sigla && ' - '}
+                              {dir.nome}
+                            </span>
+                            {diretoriaId === dir.id && <CheckCircle2 className="h-5 w-5 text-primary" />}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}
 
-              {/* Step 4: Dados do Ato */}
-              {step === 4 && (
+              {/* Step: Selecionar Divisão */}
+              {currentStep === 'divisao' && (
+                <div className="space-y-4">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <GitBranch className="h-5 w-5" />
+                    Selecione a Divisão
+                  </h4>
+                  
+                  <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
+                    <p><strong>Cargo:</strong> {cargoSelecionado?.sigla && `${cargoSelecionado.sigla} - `}{cargoSelecionado?.nome}</p>
+                    <p><strong>Diretoria:</strong> {diretorias.find(d => d.id === diretoriaId)?.nome}</p>
+                  </div>
+
+                  {loadingDivisoes ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : divisoes.length === 0 ? (
+                    <Alert>
+                      <AlertDescription>Nenhuma divisão encontrada nesta diretoria.</AlertDescription>
+                    </Alert>
+                  ) : (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {divisoes.map((div) => (
+                        <div
+                          key={div.id}
+                          onClick={() => {
+                            setDivisaoId(div.id);
+                            setNucleoId('');
+                          }}
+                          className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                            divisaoId === div.id 
+                              ? 'border-primary bg-primary/5 ring-2 ring-primary' 
+                              : 'hover:border-primary/50 hover:bg-muted/50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">
+                              {div.sigla && <span className="text-primary">{div.sigla}</span>}
+                              {div.sigla && ' - '}
+                              {div.nome}
+                            </span>
+                            {divisaoId === div.id && <CheckCircle2 className="h-5 w-5 text-primary" />}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Step: Selecionar Núcleo */}
+              {currentStep === 'nucleo' && (
+                <div className="space-y-4">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <GitBranch className="h-5 w-5" />
+                    Selecione o Núcleo/Setor
+                  </h4>
+                  
+                  <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
+                    <p><strong>Cargo:</strong> {cargoSelecionado?.sigla && `${cargoSelecionado.sigla} - `}{cargoSelecionado?.nome}</p>
+                    <p><strong>Diretoria:</strong> {diretorias.find(d => d.id === diretoriaId)?.nome}</p>
+                    <p><strong>Divisão:</strong> {divisoes.find(d => d.id === divisaoId)?.nome}</p>
+                  </div>
+
+                  {loadingNucleos ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : nucleos.length === 0 ? (
+                    <Alert>
+                      <AlertDescription>Nenhum núcleo/setor encontrado nesta divisão.</AlertDescription>
+                    </Alert>
+                  ) : (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {nucleos.map((nuc) => (
+                        <div
+                          key={nuc.id}
+                          onClick={() => setNucleoId(nuc.id)}
+                          className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                            nucleoId === nuc.id 
+                              ? 'border-primary bg-primary/5 ring-2 ring-primary' 
+                              : 'hover:border-primary/50 hover:bg-muted/50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">
+                              {nuc.sigla && <span className="text-primary">{nuc.sigla}</span>}
+                              {nuc.sigla && ' - '}
+                              {nuc.nome}
+                            </span>
+                            {nucleoId === nuc.id && <CheckCircle2 className="h-5 w-5 text-primary" />}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Step: Dados do Ato */}
+              {currentStep === 'dados' && (
                 <div className="space-y-6">
-                  <h4 className="font-medium">4. Dados da Nomeação</h4>
+                  <h4 className="font-medium">Dados da Nomeação</h4>
                   
                   {/* Resumo */}
                   <div className="p-4 bg-muted rounded-lg space-y-1">
                     <p className="text-sm"><strong>Natureza:</strong> {NATUREZA_CARGO_LABELS[naturezaSelecionada as NaturezaCargo]}</p>
                     <p className="text-sm"><strong>Cargo:</strong> {cargoSelecionado?.sigla && `${cargoSelecionado.sigla} - `}{cargoSelecionado?.nome}</p>
                     <p className="text-sm"><strong>Valor:</strong> {formatCurrency(cargoSelecionado?.vencimento_base ?? null)}</p>
-                    {unidadeId && (
-                      <p className="text-sm">
-                        <strong>Unidade:</strong> {unidadesCompativeis.find(u => u.id === unidadeId)?.nome}
-                      </p>
+                    {diretoriaId && (
+                      <p className="text-sm"><strong>Diretoria:</strong> {diretorias.find(d => d.id === diretoriaId)?.nome}</p>
+                    )}
+                    {divisaoId && (
+                      <p className="text-sm"><strong>Divisão:</strong> {divisoes.find(d => d.id === divisaoId)?.nome}</p>
+                    )}
+                    {nucleoId && (
+                      <p className="text-sm"><strong>Núcleo:</strong> {nucleos.find(n => n.id === nucleoId)?.nome}</p>
+                    )}
+                    {unidadeAutomatica && !diretoriaId && (
+                      <p className="text-sm"><strong>Unidade:</strong> {unidadeAutomatica.nome}</p>
                     )}
                   </div>
 
@@ -690,15 +833,15 @@ export function ProvimentoForm({
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => step > 1 ? setStep(step - 1) : onOpenChange(false)}
+                  onClick={() => stepIndex > 0 ? goToPrevStep() : onOpenChange(false)}
                 >
-                  {step === 1 ? 'Cancelar' : 'Voltar'}
+                  {stepIndex === 0 ? 'Cancelar' : 'Voltar'}
                 </Button>
                 
-                {step < 4 ? (
+                {currentStep !== 'dados' ? (
                   <Button 
                     type="button" 
-                    onClick={() => setStep(step + 1)}
+                    onClick={goToNextStep}
                     disabled={!canProceed()}
                   >
                     Próximo
