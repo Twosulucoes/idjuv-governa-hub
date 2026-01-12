@@ -55,12 +55,12 @@ export function TabelasImpostosTab() {
                       <TableRow key={faixa.id}>
                         <TableCell className="font-medium">{index + 1}ª Faixa</TableCell>
                         <TableCell className="text-right font-mono">
-                          {formatCurrency(faixa.faixa_inicial)}
+                          {formatCurrency(faixa.valor_minimo)}
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          {faixa.faixa_final >= 99999999
+                          {faixa.valor_maximo >= 99999999
                             ? "Sem limite"
-                            : formatCurrency(faixa.faixa_final)}
+                            : formatCurrency(faixa.valor_maximo)}
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           {faixa.aliquota.toFixed(2)}%
@@ -123,18 +123,18 @@ export function TabelasImpostosTab() {
                           {index === 0 ? "Isento" : `${index}ª Faixa`}
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          {formatCurrency(faixa.faixa_inicial)}
+                          {formatCurrency(faixa.valor_minimo)}
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          {faixa.faixa_final >= 99999999
+                          {faixa.valor_maximo >= 99999999
                             ? "Sem limite"
-                            : formatCurrency(faixa.faixa_final)}
+                            : formatCurrency(faixa.valor_maximo)}
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           {faixa.aliquota.toFixed(1)}%
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          {formatCurrency(faixa.deducao)}
+                          {formatCurrency(faixa.parcela_deduzir)}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           A partir de{" "}

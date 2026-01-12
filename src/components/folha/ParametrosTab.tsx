@@ -1,23 +1,31 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Edit2, Loader2 } from "lucide-react";
-import { useParametrosFolha, useSaveParametro } from "@/hooks/useFolhaPagamento";
+import { useParametrosFolha } from "@/hooks/useFolhaPagamento";
 import { ParametroForm } from "./ParametroForm";
-import type { ParametroFolha } from "@/types/folha";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+interface ParametroData {
+  id: string;
+  tipo_parametro: string;
+  valor: number;
+  descricao?: string;
+  vigencia_inicio: string;
+  vigencia_fim?: string;
+  ativo?: boolean;
+}
+
 export function ParametrosTab() {
   const { data: parametros, isLoading } = useParametrosFolha();
-  const [editingParametro, setEditingParametro] = useState<ParametroFolha | null>(null);
+  const [editingParametro, setEditingParametro] = useState<ParametroData | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
-  const handleEdit = (param: ParametroFolha) => {
+  const handleEdit = (param: ParametroData) => {
     setEditingParametro(param);
     setIsFormOpen(true);
   };
@@ -32,20 +40,20 @@ export function ParametrosTab() {
     setEditingParametro(null);
   };
 
-  const formatValue = (chave: string, valor: number) => {
-    if (chave.includes("SALARIO") || chave.includes("TETO") || chave.includes("DEDUCAO")) {
+  const formatValue = (tipo: string, valor: number) => {
+    if (tipo.includes("SALARIO") || tipo.includes("TETO") || tipo.includes("DEDUCAO")) {
       return valor.toLocaleString("pt-BR", {
         style: "currency",
         currency: "BRL",
       });
     }
-    if (chave.includes("ALIQUOTA") || chave.includes("PERCENTUAL")) {
+    if (tipo.includes("ALIQUOTA") || tipo.includes("PERCENTUAL")) {
       return `${valor}%`;
     }
     return valor.toString();
   };
 
-  const isVigente = (param: ParametroFolha) => {
+  const isVigente = (param: ParametroData) => {
     const hoje = new Date();
     const inicio = new Date(param.vigencia_inicio);
     const fim = param.vigencia_fim ? new Date(param.vigencia_fim) : null;
@@ -116,13 +124,13 @@ export function ParametrosTab() {
                   parametros?.map((param) => (
                     <TableRow key={param.id}>
                       <TableCell className="font-mono font-medium">
-                        {param.chave}
+                        {param.tipo_parametro}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {param.descricao || "-"}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {formatValue(param.chave, param.valor)}
+                        {formatValue(param.tipo_parametro, param.valor)}
                       </TableCell>
                       <TableCell className="text-sm">
                         {format(new Date(param.vigencia_inicio), "dd/MM/yyyy", { locale: ptBR })}
@@ -134,15 +142,15 @@ export function ParametrosTab() {
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge variant={isVigente(param) ? "default" : "secondary"}>
-                          {isVigente(param) ? "Vigente" : "Expirado"}
+                        <Badge variant={isVigente(param as ParametroData) ? "default" : "secondary"}>
+                          {isVigente(param as ParametroData) ? "Vigente" : "Expirado"}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleEdit(param)}
+                          onClick={() => handleEdit(param as ParametroData)}
                         >
                           <Edit2 className="h-4 w-4" />
                         </Button>

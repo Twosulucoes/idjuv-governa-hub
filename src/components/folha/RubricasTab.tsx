@@ -8,32 +8,41 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Plus, Search, Edit2, Trash2, Loader2 } from "lucide-react";
 import { useRubricas, useDeleteRubrica } from "@/hooks/useFolhaPagamento";
 import { RubricaForm } from "./RubricaForm";
-import type { Rubrica, TipoRubrica } from "@/types/folha";
-import { TIPO_RUBRICA_LABELS, TIPO_CALCULO_LABELS } from "@/types/folha";
+import { TIPO_RUBRICA_LABELS, type TipoRubrica } from "@/types/folha";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const TIPO_COLORS: Record<TipoRubrica, string> = {
   provento: "bg-green-100 text-green-800",
   desconto: "bg-red-100 text-red-800",
-  neutro: "bg-gray-100 text-gray-800",
+  encargo: "bg-orange-100 text-orange-800",
   informativo: "bg-blue-100 text-blue-800",
 };
+
+interface RubricaData {
+  id: string;
+  codigo: string;
+  descricao: string;
+  tipo: TipoRubrica;
+  incide_inss?: boolean;
+  incide_irrf?: boolean;
+  ativo?: boolean;
+}
 
 export function RubricasTab() {
   const { data: rubricas, isLoading } = useRubricas();
   const deleteRubrica = useDeleteRubrica();
   const [search, setSearch] = useState("");
-  const [editingRubrica, setEditingRubrica] = useState<Rubrica | null>(null);
+  const [editingRubrica, setEditingRubrica] = useState<RubricaData | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const filteredRubricas = rubricas?.filter(
     (r) =>
       r.codigo.toLowerCase().includes(search.toLowerCase()) ||
-      r.nome.toLowerCase().includes(search.toLowerCase())
+      r.descricao.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleEdit = (rubrica: Rubrica) => {
+  const handleEdit = (rubrica: RubricaData) => {
     setEditingRubrica(rubrica);
     setIsFormOpen(true);
   };
@@ -95,7 +104,7 @@ export function RubricasTab() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar por código ou nome..."
+              placeholder="Buscar por código ou descrição..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10"
@@ -113,9 +122,8 @@ export function RubricasTab() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[100px]">Código</TableHead>
-                  <TableHead>Nome</TableHead>
+                  <TableHead>Descrição</TableHead>
                   <TableHead className="w-[120px]">Tipo</TableHead>
-                  <TableHead className="w-[150px]">Cálculo</TableHead>
                   <TableHead className="w-[100px] text-center">INSS</TableHead>
                   <TableHead className="w-[100px] text-center">IRRF</TableHead>
                   <TableHead className="w-[80px] text-center">Ativo</TableHead>
@@ -125,7 +133,7 @@ export function RubricasTab() {
               <TableBody>
                 {filteredRubricas?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Nenhuma rubrica encontrada
                     </TableCell>
                   </TableRow>
@@ -135,24 +143,21 @@ export function RubricasTab() {
                       <TableCell className="font-mono font-medium">
                         {rubrica.codigo}
                       </TableCell>
-                      <TableCell>{rubrica.nome}</TableCell>
+                      <TableCell>{rubrica.descricao}</TableCell>
                       <TableCell>
-                        <Badge className={TIPO_COLORS[rubrica.tipo]}>
-                          {TIPO_RUBRICA_LABELS[rubrica.tipo]}
+                        <Badge className={TIPO_COLORS[rubrica.tipo as TipoRubrica] || "bg-gray-100 text-gray-800"}>
+                          {TIPO_RUBRICA_LABELS[rubrica.tipo as TipoRubrica] || rubrica.tipo}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {TIPO_CALCULO_LABELS[rubrica.tipo_calculo]}
+                      <TableCell className="text-center">
+                        {rubrica.incide_inss ? "✓" : "-"}
                       </TableCell>
                       <TableCell className="text-center">
-                        {rubrica.incidencia_inss ? "✓" : "-"}
+                        {rubrica.incide_irrf ? "✓" : "-"}
                       </TableCell>
                       <TableCell className="text-center">
-                        {rubrica.incidencia_irrf ? "✓" : "-"}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant={rubrica.ativa ? "default" : "secondary"}>
-                          {rubrica.ativa ? "Sim" : "Não"}
+                        <Badge variant={rubrica.ativo ? "default" : "secondary"}>
+                          {rubrica.ativo ? "Sim" : "Não"}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -160,7 +165,7 @@ export function RubricasTab() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleEdit(rubrica)}
+                            onClick={() => handleEdit(rubrica as RubricaData)}
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>

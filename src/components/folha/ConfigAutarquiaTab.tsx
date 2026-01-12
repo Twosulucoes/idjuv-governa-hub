@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Save, Building2 } from "lucide-react";
 import { useConfigAutarquia, useSaveConfigAutarquia } from "@/hooks/useFolhaPagamento";
 import { UFS } from "@/types/rh";
-import { MaskedInput } from "@/components/ui/masked-input";
 
 const configSchema = z.object({
   razao_social: z.string().min(3, "Razão social é obrigatória"),
@@ -149,11 +148,7 @@ export function ConfigAutarquiaTab() {
                 <FormItem>
                   <FormLabel>CNPJ *</FormLabel>
                   <FormControl>
-                    <MaskedInput
-                      mask="99.999.999/9999-99"
-                      {...field}
-                      placeholder="00.000.000/0000-00"
-                    />
+                    <Input {...field} placeholder="00.000.000/0000-00" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -226,7 +221,7 @@ export function ConfigAutarquiaTab() {
                 <FormItem>
                   <FormLabel>CEP</FormLabel>
                   <FormControl>
-                    <MaskedInput mask="99999-999" {...field} placeholder="00000-000" />
+                    <Input {...field} placeholder="00000-000" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -343,11 +338,7 @@ export function ConfigAutarquiaTab() {
                 <FormItem>
                   <FormLabel>Telefone</FormLabel>
                   <FormControl>
-                    <MaskedInput
-                      mask="(99) 9999-9999"
-                      {...field}
-                      placeholder="(00) 0000-0000"
-                    />
+                    <Input {...field} placeholder="(00) 0000-0000" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -414,11 +405,7 @@ export function ConfigAutarquiaTab() {
                 <FormItem>
                   <FormLabel>CPF do Responsável</FormLabel>
                   <FormControl>
-                    <MaskedInput
-                      mask="999.999.999-99"
-                      {...field}
-                      placeholder="000.000.000-00"
-                    />
+                    <Input {...field} placeholder="000.000.000-00" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -460,11 +447,7 @@ export function ConfigAutarquiaTab() {
                 <FormItem>
                   <FormLabel>CPF do Contador</FormLabel>
                   <FormControl>
-                    <MaskedInput
-                      mask="999.999.999-99"
-                      {...field}
-                      placeholder="000.000.000-00"
-                    />
+                    <Input {...field} placeholder="000.000.000-00" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
