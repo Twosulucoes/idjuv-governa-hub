@@ -23,6 +23,7 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2, ArrowLeftRight } from "lucide-react";
 import { useCreateCessao } from "@/hooks/useServidorCompleto";
 import { TIPOS_ATO, TIPOS_ONUS } from "@/types/servidor";
+import { UppercaseInput, UppercaseTextarea } from "@/components/ui/masked-input";
 
 interface Props {
   servidorId: string;
@@ -207,24 +208,24 @@ export function CessaoForm({ servidorId, servidorNome, open, onOpenChange }: Pro
           {isEntrada && (
             <div className="space-y-4">
               <h4 className="font-medium text-sm text-muted-foreground">Dados do Órgão de Origem</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <Label>Órgão de Origem *</Label>
-                  <Input
-                    value={orgaoOrigem}
-                    onChange={(e) => setOrgaoOrigem(e.target.value)}
-                    placeholder="Nome do órgão cedente"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label>Cargo no Órgão de Origem</Label>
-                  <Input
-                    value={cargoOrigem}
-                    onChange={(e) => setCargoOrigem(e.target.value)}
-                    placeholder="Cargo ocupado no órgão cedente"
-                  />
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <Label>Órgão de Origem *</Label>
+                    <UppercaseInput
+                      value={orgaoOrigem}
+                      onChange={(value) => setOrgaoOrigem(value)}
+                      placeholder="Nome do órgão cedente"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>Cargo no Órgão de Origem</Label>
+                    <UppercaseInput
+                      value={cargoOrigem}
+                      onChange={(value) => setCargoOrigem(value)}
+                      placeholder="Cargo ocupado no órgão cedente"
+                    />
+                  </div>
                 <div>
                   <Label>Vínculo de Origem</Label>
                   <Select value={vinculoOrigem} onValueChange={setVinculoOrigem}>
@@ -258,42 +259,42 @@ export function CessaoForm({ servidorId, servidorNome, open, onOpenChange }: Pro
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label>Função Exercida no IDJuv</Label>
-                  <Input
-                    value={funcaoExercidaIdjuv}
-                    onChange={(e) => setFuncaoExercidaIdjuv(e.target.value)}
-                    placeholder="Função que exercerá"
-                  />
-                </div>
+                  <div>
+                    <Label>Função Exercida no IDJuv</Label>
+                    <UppercaseInput
+                      value={funcaoExercidaIdjuv}
+                      onChange={(value) => setFuncaoExercidaIdjuv(value)}
+                      placeholder="Função que exercerá"
+                    />
+                  </div>
               </div>
             </div>
           )}
 
           {/* Campos de Saída */}
           {!isEntrada && (
-            <div className="space-y-4">
-              <h4 className="font-medium text-sm text-muted-foreground">Dados do Órgão de Destino</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <Label>Órgão de Destino *</Label>
-                  <Input
-                    value={orgaoDestino}
-                    onChange={(e) => setOrgaoDestino(e.target.value)}
-                    placeholder="Nome do órgão cessionário"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label>Cargo no Órgão de Destino</Label>
-                  <Input
-                    value={cargoDestino}
-                    onChange={(e) => setCargoDestino(e.target.value)}
-                    placeholder="Cargo que ocupará"
-                  />
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground">Dados do Órgão de Destino</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <Label>Órgão de Destino *</Label>
+                    <UppercaseInput
+                      value={orgaoDestino}
+                      onChange={(value) => setOrgaoDestino(value)}
+                      placeholder="Nome do órgão cessionário"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>Cargo no Órgão de Destino</Label>
+                    <UppercaseInput
+                      value={cargoDestino}
+                      onChange={(value) => setCargoDestino(value)}
+                      placeholder="Cargo que ocupará"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
           )}
 
           {/* Ônus */}
@@ -368,17 +369,17 @@ export function CessaoForm({ servidorId, servidorNome, open, onOpenChange }: Pro
           <div className="space-y-4">
             <div>
               <Label>Fundamentação Legal</Label>
-              <Input
+              <UppercaseInput
                 value={fundamentacaoLegal}
-                onChange={(e) => setFundamentacaoLegal(e.target.value)}
+                onChange={(value) => setFundamentacaoLegal(value)}
                 placeholder="Ex: Lei nº 1234/2020, Art. 5º"
               />
             </div>
             <div>
               <Label>Observações</Label>
-              <Textarea
+              <UppercaseTextarea
                 value={observacoes}
-                onChange={(e) => setObservacoes(e.target.value)}
+                onChange={(value) => setObservacoes(value)}
                 placeholder="Observações adicionais..."
               />
             </div>

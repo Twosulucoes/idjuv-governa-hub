@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { formatCPF, formatTelefone, formatCEP, formatPISPASEP } from './formatters';
 
 export interface CampoExportacao {
   id: string;
@@ -10,9 +11,9 @@ export interface CampoExportacao {
 // Definição de todos os campos disponíveis para exportação
 export const CAMPOS_EXPORTACAO: CampoExportacao[] = [
   // Dados Pessoais
-  { id: 'nome_completo', label: 'Nome Completo', categoria: 'Dados Pessoais', getValue: (s) => s.nome_completo },
-  { id: 'nome_social', label: 'Nome Social', categoria: 'Dados Pessoais', getValue: (s) => s.nome_social },
-  { id: 'cpf', label: 'CPF', categoria: 'Dados Pessoais', getValue: (s) => s.cpf },
+  { id: 'nome_completo', label: 'Nome Completo', categoria: 'Dados Pessoais', getValue: (s) => s.nome_completo?.toUpperCase() },
+  { id: 'nome_social', label: 'Nome Social', categoria: 'Dados Pessoais', getValue: (s) => s.nome_social?.toUpperCase() },
+  { id: 'cpf', label: 'CPF', categoria: 'Dados Pessoais', getValue: (s) => formatCPF(s.cpf || '') },
   { id: 'rg_numero', label: 'RG - Número', categoria: 'Dados Pessoais', getValue: (s) => s.rg_numero },
   { id: 'rg_orgao', label: 'RG - Órgão Emissor', categoria: 'Dados Pessoais', getValue: (s) => s.rg_orgao },
   { id: 'rg_uf', label: 'RG - UF', categoria: 'Dados Pessoais', getValue: (s) => s.rg_uf },
@@ -28,7 +29,7 @@ export const CAMPOS_EXPORTACAO: CampoExportacao[] = [
   { id: 'titulo_eleitor', label: 'Título de Eleitor', categoria: 'Documentos', getValue: (s) => s.titulo_eleitor },
   { id: 'titulo_zona', label: 'Título - Zona', categoria: 'Documentos', getValue: (s) => s.titulo_zona },
   { id: 'titulo_secao', label: 'Título - Seção', categoria: 'Documentos', getValue: (s) => s.titulo_secao },
-  { id: 'pis_pasep', label: 'PIS/PASEP', categoria: 'Documentos', getValue: (s) => s.pis_pasep },
+  { id: 'pis_pasep', label: 'PIS/PASEP', categoria: 'Documentos', getValue: (s) => formatPISPASEP(s.pis_pasep || '') },
   { id: 'ctps_numero', label: 'CTPS - Número', categoria: 'Documentos', getValue: (s) => s.ctps_numero },
   { id: 'ctps_serie', label: 'CTPS - Série', categoria: 'Documentos', getValue: (s) => s.ctps_serie },
   { id: 'ctps_uf', label: 'CTPS - UF', categoria: 'Documentos', getValue: (s) => s.ctps_uf },
@@ -40,20 +41,20 @@ export const CAMPOS_EXPORTACAO: CampoExportacao[] = [
   // Contato
   { id: 'email', label: 'E-mail Pessoal', categoria: 'Contato', getValue: (s) => s.email },
   { id: 'email_institucional', label: 'E-mail Institucional', categoria: 'Contato', getValue: (s) => s.email_institucional },
-  { id: 'telefone_fixo', label: 'Telefone Fixo', categoria: 'Contato', getValue: (s) => s.telefone_fixo },
-  { id: 'telefone_celular', label: 'Telefone Celular', categoria: 'Contato', getValue: (s) => s.telefone_celular },
-  { id: 'contato_emergencia_nome', label: 'Contato Emergência - Nome', categoria: 'Contato', getValue: (s) => s.contato_emergencia_nome },
+  { id: 'telefone_fixo', label: 'Telefone Fixo', categoria: 'Contato', getValue: (s) => formatTelefone(s.telefone_fixo || '') },
+  { id: 'telefone_celular', label: 'Telefone Celular', categoria: 'Contato', getValue: (s) => formatTelefone(s.telefone_celular || '') },
+  { id: 'contato_emergencia_nome', label: 'Contato Emergência - Nome', categoria: 'Contato', getValue: (s) => s.contato_emergencia_nome?.toUpperCase() },
   { id: 'contato_emergencia_parentesco', label: 'Contato Emergência - Parentesco', categoria: 'Contato', getValue: (s) => s.contato_emergencia_parentesco },
-  { id: 'contato_emergencia_telefone', label: 'Contato Emergência - Telefone', categoria: 'Contato', getValue: (s) => s.contato_emergencia_telefone },
+  { id: 'contato_emergencia_telefone', label: 'Contato Emergência - Telefone', categoria: 'Contato', getValue: (s) => formatTelefone(s.contato_emergencia_telefone || '') },
   
   // Endereço
-  { id: 'endereco_logradouro', label: 'Logradouro', categoria: 'Endereço', getValue: (s) => s.endereco_logradouro },
+  { id: 'endereco_logradouro', label: 'Logradouro', categoria: 'Endereço', getValue: (s) => s.endereco_logradouro?.toUpperCase() },
   { id: 'endereco_numero', label: 'Número', categoria: 'Endereço', getValue: (s) => s.endereco_numero },
-  { id: 'endereco_complemento', label: 'Complemento', categoria: 'Endereço', getValue: (s) => s.endereco_complemento },
-  { id: 'endereco_bairro', label: 'Bairro', categoria: 'Endereço', getValue: (s) => s.endereco_bairro },
-  { id: 'endereco_cidade', label: 'Cidade', categoria: 'Endereço', getValue: (s) => s.endereco_cidade },
+  { id: 'endereco_complemento', label: 'Complemento', categoria: 'Endereço', getValue: (s) => s.endereco_complemento?.toUpperCase() },
+  { id: 'endereco_bairro', label: 'Bairro', categoria: 'Endereço', getValue: (s) => s.endereco_bairro?.toUpperCase() },
+  { id: 'endereco_cidade', label: 'Cidade', categoria: 'Endereço', getValue: (s) => s.endereco_cidade?.toUpperCase() },
   { id: 'endereco_uf', label: 'UF', categoria: 'Endereço', getValue: (s) => s.endereco_uf },
-  { id: 'endereco_cep', label: 'CEP', categoria: 'Endereço', getValue: (s) => s.endereco_cep },
+  { id: 'endereco_cep', label: 'CEP', categoria: 'Endereço', getValue: (s) => formatCEP(s.endereco_cep || '') },
   
   // Dados Bancários
   { id: 'banco_codigo', label: 'Banco - Código', categoria: 'Dados Bancários', getValue: (s) => s.banco_codigo },
