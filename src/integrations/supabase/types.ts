@@ -1584,6 +1584,320 @@ export type Database = {
           },
         ]
       }
+      fichas_financeiras: {
+        Row: {
+          banco_agencia: string | null
+          banco_codigo: string | null
+          banco_conta: string | null
+          banco_nome: string | null
+          banco_tipo_conta: string | null
+          base_consignavel: number | null
+          base_inss: number | null
+          base_irrf: number | null
+          cargo_id: string | null
+          cargo_nome: string | null
+          cargo_vencimento: number | null
+          centro_custo_codigo: string | null
+          centro_custo_id: string | null
+          created_at: string | null
+          data_processamento: string | null
+          folha_id: string | null
+          id: string
+          inconsistencias: Json | null
+          inss_patronal: number | null
+          lotacao_id: string | null
+          margem_consignavel_usada: number | null
+          outras_entidades: number | null
+          processado: boolean | null
+          quantidade_dependentes: number | null
+          rat: number | null
+          servidor_id: string | null
+          tem_inconsistencia: boolean | null
+          total_descontos: number | null
+          total_encargos: number | null
+          total_proventos: number | null
+          updated_at: string | null
+          valor_deducao_dependentes: number | null
+          valor_inss: number | null
+          valor_irrf: number | null
+          valor_liquido: number | null
+        }
+        Insert: {
+          banco_agencia?: string | null
+          banco_codigo?: string | null
+          banco_conta?: string | null
+          banco_nome?: string | null
+          banco_tipo_conta?: string | null
+          base_consignavel?: number | null
+          base_inss?: number | null
+          base_irrf?: number | null
+          cargo_id?: string | null
+          cargo_nome?: string | null
+          cargo_vencimento?: number | null
+          centro_custo_codigo?: string | null
+          centro_custo_id?: string | null
+          created_at?: string | null
+          data_processamento?: string | null
+          folha_id?: string | null
+          id?: string
+          inconsistencias?: Json | null
+          inss_patronal?: number | null
+          lotacao_id?: string | null
+          margem_consignavel_usada?: number | null
+          outras_entidades?: number | null
+          processado?: boolean | null
+          quantidade_dependentes?: number | null
+          rat?: number | null
+          servidor_id?: string | null
+          tem_inconsistencia?: boolean | null
+          total_descontos?: number | null
+          total_encargos?: number | null
+          total_proventos?: number | null
+          updated_at?: string | null
+          valor_deducao_dependentes?: number | null
+          valor_inss?: number | null
+          valor_irrf?: number | null
+          valor_liquido?: number | null
+        }
+        Update: {
+          banco_agencia?: string | null
+          banco_codigo?: string | null
+          banco_conta?: string | null
+          banco_nome?: string | null
+          banco_tipo_conta?: string | null
+          base_consignavel?: number | null
+          base_inss?: number | null
+          base_irrf?: number | null
+          cargo_id?: string | null
+          cargo_nome?: string | null
+          cargo_vencimento?: number | null
+          centro_custo_codigo?: string | null
+          centro_custo_id?: string | null
+          created_at?: string | null
+          data_processamento?: string | null
+          folha_id?: string | null
+          id?: string
+          inconsistencias?: Json | null
+          inss_patronal?: number | null
+          lotacao_id?: string | null
+          margem_consignavel_usada?: number | null
+          outras_entidades?: number | null
+          processado?: boolean | null
+          quantidade_dependentes?: number | null
+          rat?: number | null
+          servidor_id?: string | null
+          tem_inconsistencia?: boolean | null
+          total_descontos?: number | null
+          total_encargos?: number | null
+          total_proventos?: number | null
+          updated_at?: string | null
+          valor_deducao_dependentes?: number | null
+          valor_inss?: number | null
+          valor_irrf?: number | null
+          valor_liquido?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fichas_financeiras_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fichas_financeiras_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fichas_financeiras_folha_id_fkey"
+            columns: ["folha_id"]
+            isOneToOne: false
+            referencedRelation: "folhas_pagamento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fichas_financeiras_lotacao_id_fkey"
+            columns: ["lotacao_id"]
+            isOneToOne: false
+            referencedRelation: "lotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fichas_financeiras_lotacao_id_fkey"
+            columns: ["lotacao_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["lotacao_id"]
+          },
+          {
+            foreignKeyName: "fichas_financeiras_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fichas_financeiras_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      folhas_pagamento: {
+        Row: {
+          competencia_ano: number
+          competencia_mes: number
+          created_at: string | null
+          created_by: string | null
+          data_fechamento: string | null
+          data_processamento: string | null
+          fechado_por: string | null
+          hash_fechamento: string | null
+          id: string
+          justificativa_reabertura: string | null
+          observacoes: string | null
+          processado_por: string | null
+          quantidade_reaberturas: number | null
+          quantidade_servidores: number | null
+          reaberto: boolean | null
+          reaberto_em: string | null
+          reaberto_por: string | null
+          status: Database["public"]["Enums"]["status_folha"] | null
+          tempo_processamento_ms: number | null
+          tipo_folha: Database["public"]["Enums"]["tipo_folha"]
+          total_bruto: number | null
+          total_descontos: number | null
+          total_encargos_patronais: number | null
+          total_inss_patronal: number | null
+          total_inss_servidor: number | null
+          total_irrf: number | null
+          total_liquido: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          competencia_ano: number
+          competencia_mes: number
+          created_at?: string | null
+          created_by?: string | null
+          data_fechamento?: string | null
+          data_processamento?: string | null
+          fechado_por?: string | null
+          hash_fechamento?: string | null
+          id?: string
+          justificativa_reabertura?: string | null
+          observacoes?: string | null
+          processado_por?: string | null
+          quantidade_reaberturas?: number | null
+          quantidade_servidores?: number | null
+          reaberto?: boolean | null
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          status?: Database["public"]["Enums"]["status_folha"] | null
+          tempo_processamento_ms?: number | null
+          tipo_folha: Database["public"]["Enums"]["tipo_folha"]
+          total_bruto?: number | null
+          total_descontos?: number | null
+          total_encargos_patronais?: number | null
+          total_inss_patronal?: number | null
+          total_inss_servidor?: number | null
+          total_irrf?: number | null
+          total_liquido?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          competencia_ano?: number
+          competencia_mes?: number
+          created_at?: string | null
+          created_by?: string | null
+          data_fechamento?: string | null
+          data_processamento?: string | null
+          fechado_por?: string | null
+          hash_fechamento?: string | null
+          id?: string
+          justificativa_reabertura?: string | null
+          observacoes?: string | null
+          processado_por?: string | null
+          quantidade_reaberturas?: number | null
+          quantidade_servidores?: number | null
+          reaberto?: boolean | null
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          status?: Database["public"]["Enums"]["status_folha"] | null
+          tempo_processamento_ms?: number | null
+          tipo_folha?: Database["public"]["Enums"]["tipo_folha"]
+          total_bruto?: number | null
+          total_descontos?: number | null
+          total_encargos_patronais?: number | null
+          total_inss_patronal?: number | null
+          total_inss_servidor?: number | null
+          total_irrf?: number | null
+          total_liquido?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folhas_pagamento_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folhas_pagamento_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folhas_pagamento_fechado_por_fkey"
+            columns: ["fechado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folhas_pagamento_fechado_por_fkey"
+            columns: ["fechado_por"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folhas_pagamento_processado_por_fkey"
+            columns: ["processado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folhas_pagamento_processado_por_fkey"
+            columns: ["processado_por"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folhas_pagamento_reaberto_por_fkey"
+            columns: ["reaberto_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folhas_pagamento_reaberto_por_fkey"
+            columns: ["reaberto_por"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       frequencia_mensal: {
         Row: {
           ano: number
@@ -1926,6 +2240,75 @@ export type Database = {
             columns: ["registro_ponto_id"]
             isOneToOne: false
             referencedRelation: "registros_ponto"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lancamentos_folha: {
+        Row: {
+          competencia_referencia: string | null
+          created_at: string | null
+          ficha_id: string | null
+          id: string
+          incidiu_inss: boolean | null
+          incidiu_irrf: boolean | null
+          observacao: string | null
+          origem: Database["public"]["Enums"]["origem_lancamento"] | null
+          referencia: number | null
+          rubrica_codigo: string
+          rubrica_descricao: string
+          rubrica_id: string | null
+          rubrica_tipo: Database["public"]["Enums"]["tipo_rubrica"]
+          valor_base: number | null
+          valor_calculado: number
+        }
+        Insert: {
+          competencia_referencia?: string | null
+          created_at?: string | null
+          ficha_id?: string | null
+          id?: string
+          incidiu_inss?: boolean | null
+          incidiu_irrf?: boolean | null
+          observacao?: string | null
+          origem?: Database["public"]["Enums"]["origem_lancamento"] | null
+          referencia?: number | null
+          rubrica_codigo: string
+          rubrica_descricao: string
+          rubrica_id?: string | null
+          rubrica_tipo: Database["public"]["Enums"]["tipo_rubrica"]
+          valor_base?: number | null
+          valor_calculado: number
+        }
+        Update: {
+          competencia_referencia?: string | null
+          created_at?: string | null
+          ficha_id?: string | null
+          id?: string
+          incidiu_inss?: boolean | null
+          incidiu_irrf?: boolean | null
+          observacao?: string | null
+          origem?: Database["public"]["Enums"]["origem_lancamento"] | null
+          referencia?: number | null
+          rubrica_codigo?: string
+          rubrica_descricao?: string
+          rubrica_id?: string | null
+          rubrica_tipo?: Database["public"]["Enums"]["tipo_rubrica"]
+          valor_base?: number | null
+          valor_calculado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lancamentos_folha_ficha_id_fkey"
+            columns: ["ficha_id"]
+            isOneToOne: false
+            referencedRelation: "fichas_financeiras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_folha_rubrica_id_fkey"
+            columns: ["rubrica_id"]
+            isOneToOne: false
+            referencedRelation: "rubricas"
             referencedColumns: ["id"]
           },
         ]
@@ -3039,6 +3422,189 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"]
         }
         Relationships: []
+      }
+      rubricas: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          codigo_esocial: string | null
+          compoe_liquido: boolean | null
+          created_at: string | null
+          created_by: string | null
+          descricao: string
+          formula_expressao: string | null
+          formula_referencia: string | null
+          formula_tipo: Database["public"]["Enums"]["formula_tipo"]
+          formula_valor: number | null
+          id: string
+          incide_13: boolean | null
+          incide_base_consignavel: boolean | null
+          incide_ferias: boolean | null
+          incide_fgts: boolean | null
+          incide_inss: boolean | null
+          incide_irrf: boolean | null
+          natureza: Database["public"]["Enums"]["natureza_rubrica"]
+          observacoes: string | null
+          ordem_calculo: number | null
+          prioridade_desconto: number | null
+          tipo: Database["public"]["Enums"]["tipo_rubrica"]
+          updated_at: string | null
+          updated_by: string | null
+          valor_maximo: number | null
+          valor_minimo: number | null
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          codigo_esocial?: string | null
+          compoe_liquido?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao: string
+          formula_expressao?: string | null
+          formula_referencia?: string | null
+          formula_tipo: Database["public"]["Enums"]["formula_tipo"]
+          formula_valor?: number | null
+          id?: string
+          incide_13?: boolean | null
+          incide_base_consignavel?: boolean | null
+          incide_ferias?: boolean | null
+          incide_fgts?: boolean | null
+          incide_inss?: boolean | null
+          incide_irrf?: boolean | null
+          natureza: Database["public"]["Enums"]["natureza_rubrica"]
+          observacoes?: string | null
+          ordem_calculo?: number | null
+          prioridade_desconto?: number | null
+          tipo: Database["public"]["Enums"]["tipo_rubrica"]
+          updated_at?: string | null
+          updated_by?: string | null
+          valor_maximo?: number | null
+          valor_minimo?: number | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          codigo_esocial?: string | null
+          compoe_liquido?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string
+          formula_expressao?: string | null
+          formula_referencia?: string | null
+          formula_tipo?: Database["public"]["Enums"]["formula_tipo"]
+          formula_valor?: number | null
+          id?: string
+          incide_13?: boolean | null
+          incide_base_consignavel?: boolean | null
+          incide_ferias?: boolean | null
+          incide_fgts?: boolean | null
+          incide_inss?: boolean | null
+          incide_irrf?: boolean | null
+          natureza?: Database["public"]["Enums"]["natureza_rubrica"]
+          observacoes?: string | null
+          ordem_calculo?: number | null
+          prioridade_desconto?: number | null
+          tipo?: Database["public"]["Enums"]["tipo_rubrica"]
+          updated_at?: string | null
+          updated_by?: string | null
+          valor_maximo?: number | null
+          valor_minimo?: number | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rubricas_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rubricas_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rubricas_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rubricas_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rubricas_historico: {
+        Row: {
+          alterado_em: string | null
+          alterado_por: string | null
+          campos_alterados: string[] | null
+          dados_anteriores: Json
+          dados_novos: Json
+          id: string
+          justificativa: string | null
+          rubrica_id: string | null
+          versao: number
+        }
+        Insert: {
+          alterado_em?: string | null
+          alterado_por?: string | null
+          campos_alterados?: string[] | null
+          dados_anteriores: Json
+          dados_novos: Json
+          id?: string
+          justificativa?: string | null
+          rubrica_id?: string | null
+          versao: number
+        }
+        Update: {
+          alterado_em?: string | null
+          alterado_por?: string | null
+          campos_alterados?: string[] | null
+          dados_anteriores?: Json
+          dados_novos?: Json
+          id?: string
+          justificativa?: string | null
+          rubrica_id?: string | null
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rubricas_historico_alterado_por_fkey"
+            columns: ["alterado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rubricas_historico_alterado_por_fkey"
+            columns: ["alterado_por"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rubricas_historico_rubrica_id_fkey"
+            columns: ["rubrica_id"]
+            isOneToOne: false
+            referencedRelation: "rubricas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       servidores: {
         Row: {
