@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, Play, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Play, AlertTriangle, CheckCircle2, XCircle, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,9 @@ interface ProcessarFolhaDialogProps {
 interface ResultadoProcessamento {
   sucesso: boolean;
   servidores_processados?: number;
+  total_servidores_ativos?: number;
+  total_com_provimento?: number;
+  total_sem_vencimento?: number;
   erros?: Array<{ servidor_id: string; nome: string; erro: string }>;
   erro?: string;
 }
@@ -42,7 +45,18 @@ export function ProcessarFolhaDialog({
 
       if (error) throw error;
 
-      const res = data as unknown as ResultadoProcessamento;
+      // Normalizar resposta (suporta tanto inglês quanto português)
+      const rawData = data as any;
+      const res: ResultadoProcessamento = {
+        sucesso: rawData.sucesso ?? rawData.success ?? false,
+        servidores_processados: rawData.servidores_processados ?? rawData.servers_processed ?? 0,
+        total_servidores_ativos: rawData.total_servidores_ativos,
+        total_com_provimento: rawData.total_com_provimento,
+        total_sem_vencimento: rawData.total_sem_vencimento,
+        erros: rawData.erros ?? rawData.errors ?? [],
+        erro: rawData.erro ?? rawData.error,
+      };
+      
       setResultado(res);
 
       if (res.sucesso) {
@@ -85,9 +99,9 @@ export function ProcessarFolhaDialog({
               <AlertDescription>
                 Este processo irá:
                 <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
-                  <li>Buscar todos os servidores ativos com provimento</li>
+                  <li>Buscar todos os servidores ativos <strong>com provimento ativo</strong></li>
                   <li>Calcular vencimento base, INSS e IRRF</li>
-                  <li>Aplicar consignações ativas</li>
+                  <li>Aplicar deduções de dependentes</li>
                   <li>Gerar fichas financeiras individuais</li>
                   <li>Atualizar totalizadores da folha</li>
                 </ul>
@@ -111,30 +125,57 @@ export function ProcessarFolhaDialog({
           )}
 
           {resultado && resultado.sucesso && (
-            <Alert className="border-green-200 bg-green-50">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <AlertTitle className="text-green-800">Processamento Concluído</AlertTitle>
-              <AlertDescription className="text-green-700">
-                <p>
-                  <strong>{resultado.servidores_processados}</strong> servidores
-                  processados com sucesso.
-                </p>
-                {resultado.erros && resultado.erros.length > 0 && (
-                  <div className="mt-3">
-                    <p className="font-medium text-orange-700">
-                      {resultado.erros.length} erro(s) encontrado(s):
-                    </p>
-                    <ul className="mt-1 text-sm space-y-1">
+            <div className="space-y-3">
+              <Alert className="border-green-200 bg-green-50">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <AlertTitle className="text-green-800">Processamento Concluído</AlertTitle>
+                <AlertDescription className="text-green-700">
+                  <p>
+                    <strong>{resultado.servidores_processados}</strong> servidores
+                    processados com sucesso.
+                  </p>
+                </AlertDescription>
+              </Alert>
+
+              {/* Diagnóstico detalhado */}
+              {(resultado.total_servidores_ativos !== undefined || resultado.total_com_provimento !== undefined) && (
+                <Alert className="border-blue-200 bg-blue-50">
+                  <Info className="h-4 w-4 text-blue-600" />
+                  <AlertTitle className="text-blue-800">Diagnóstico</AlertTitle>
+                  <AlertDescription className="text-blue-700 text-sm">
+                    <ul className="space-y-1 mt-1">
+                      {resultado.total_servidores_ativos !== undefined && (
+                        <li>• Servidores ativos no sistema: <strong>{resultado.total_servidores_ativos}</strong></li>
+                      )}
+                      {resultado.total_com_provimento !== undefined && (
+                        <li>• Com provimento ativo (elegíveis): <strong>{resultado.total_com_provimento}</strong></li>
+                      )}
+                      {resultado.total_sem_vencimento !== undefined && resultado.total_sem_vencimento > 0 && (
+                        <li className="text-orange-600">• Pulados por cargo sem vencimento: <strong>{resultado.total_sem_vencimento}</strong></li>
+                      )}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {resultado.erros && resultado.erros.length > 0 && (
+                <Alert className="border-orange-200 bg-orange-50">
+                  <AlertTriangle className="h-4 w-4 text-orange-600" />
+                  <AlertTitle className="text-orange-800">
+                    {resultado.erros.length} erro(s) encontrado(s)
+                  </AlertTitle>
+                  <AlertDescription>
+                    <ul className="mt-1 text-sm space-y-1 max-h-32 overflow-auto">
                       {resultado.erros.map((e, i) => (
                         <li key={i} className="text-orange-600">
                           • {e.nome}: {e.erro}
                         </li>
                       ))}
                     </ul>
-                  </div>
-                )}
-              </AlertDescription>
-            </Alert>
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
           )}
 
           {resultado && !resultado.sucesso && (
