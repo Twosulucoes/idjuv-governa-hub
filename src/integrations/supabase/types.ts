@@ -595,6 +595,48 @@ export type Database = {
           },
         ]
       }
+      bancos_cnab: {
+        Row: {
+          ativo: boolean | null
+          codigo_banco: string
+          configuracao_cnab240: Json | null
+          configuracao_cnab400: Json | null
+          created_at: string | null
+          id: string
+          layout_cnab240: boolean | null
+          layout_cnab400: boolean | null
+          nome: string
+          nome_reduzido: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo_banco: string
+          configuracao_cnab240?: Json | null
+          configuracao_cnab400?: Json | null
+          created_at?: string | null
+          id?: string
+          layout_cnab240?: boolean | null
+          layout_cnab400?: boolean | null
+          nome: string
+          nome_reduzido?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo_banco?: string
+          configuracao_cnab240?: Json | null
+          configuracao_cnab400?: Json | null
+          created_at?: string | null
+          id?: string
+          layout_cnab240?: boolean | null
+          layout_cnab400?: boolean | null
+          nome?: string
+          nome_reduzido?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       cargo_unidade_compatibilidade: {
         Row: {
           cargo_id: string | null
@@ -717,6 +759,56 @@ export type Database = {
           vencimento_base?: number | null
         }
         Relationships: []
+      }
+      centros_custo: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          created_at: string | null
+          descricao: string
+          elemento_despesa: string | null
+          fonte_recurso: string | null
+          id: string
+          natureza_despesa: string | null
+          programa_trabalho: string | null
+          unidade_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          created_at?: string | null
+          descricao: string
+          elemento_despesa?: string | null
+          fonte_recurso?: string | null
+          id?: string
+          natureza_despesa?: string | null
+          programa_trabalho?: string | null
+          unidade_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          created_at?: string | null
+          descricao?: string
+          elemento_despesa?: string | null
+          fonte_recurso?: string | null
+          id?: string
+          natureza_despesa?: string | null
+          programa_trabalho?: string | null
+          unidade_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "centros_custo_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cessoes: {
         Row: {
@@ -875,6 +967,134 @@ export type Database = {
           },
         ]
       }
+      config_autarquia: {
+        Row: {
+          ativo: boolean | null
+          cargo_responsavel: string | null
+          cnpj: string
+          codigo_municipio: string | null
+          cpf_contabil: string | null
+          cpf_responsavel: string | null
+          crc_contabil: string | null
+          created_at: string | null
+          created_by: string | null
+          email_institucional: string | null
+          endereco_bairro: string | null
+          endereco_cep: string | null
+          endereco_cidade: string | null
+          endereco_complemento: string | null
+          endereco_logradouro: string | null
+          endereco_numero: string | null
+          endereco_uf: string | null
+          esocial_ambiente: string | null
+          esocial_processo_emissao: string | null
+          id: string
+          natureza_juridica: string | null
+          nome_fantasia: string | null
+          razao_social: string
+          regime_tributario: string | null
+          responsavel_contabil: string | null
+          responsavel_legal: string | null
+          site: string | null
+          telefone: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          cargo_responsavel?: string | null
+          cnpj: string
+          codigo_municipio?: string | null
+          cpf_contabil?: string | null
+          cpf_responsavel?: string | null
+          crc_contabil?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          email_institucional?: string | null
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_complemento?: string | null
+          endereco_logradouro?: string | null
+          endereco_numero?: string | null
+          endereco_uf?: string | null
+          esocial_ambiente?: string | null
+          esocial_processo_emissao?: string | null
+          id?: string
+          natureza_juridica?: string | null
+          nome_fantasia?: string | null
+          razao_social: string
+          regime_tributario?: string | null
+          responsavel_contabil?: string | null
+          responsavel_legal?: string | null
+          site?: string | null
+          telefone?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          cargo_responsavel?: string | null
+          cnpj?: string
+          codigo_municipio?: string | null
+          cpf_contabil?: string | null
+          cpf_responsavel?: string | null
+          crc_contabil?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          email_institucional?: string | null
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_complemento?: string | null
+          endereco_logradouro?: string | null
+          endereco_numero?: string | null
+          endereco_uf?: string | null
+          esocial_ambiente?: string | null
+          esocial_processo_emissao?: string | null
+          id?: string
+          natureza_juridica?: string | null
+          nome_fantasia?: string | null
+          razao_social?: string
+          regime_tributario?: string | null
+          responsavel_contabil?: string | null
+          responsavel_legal?: string | null
+          site?: string | null
+          telefone?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_autarquia_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_autarquia_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_autarquia_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_autarquia_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       configuracao_jornada: {
         Row: {
           carga_horaria_semanal: number | null
@@ -936,6 +1156,85 @@ export type Database = {
             foreignKeyName: "configuracao_jornada_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: true
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contas_autarquia: {
+        Row: {
+          agencia: string
+          agencia_digito: string | null
+          ativo: boolean | null
+          banco_id: string | null
+          codigo_cedente: string | null
+          codigo_transmissao: string | null
+          conta: string
+          conta_digito: string | null
+          convenio_pagamento: string | null
+          created_at: string | null
+          created_by: string | null
+          descricao: string
+          id: string
+          tipo_conta: string | null
+          updated_at: string | null
+          uso_principal: string | null
+        }
+        Insert: {
+          agencia: string
+          agencia_digito?: string | null
+          ativo?: boolean | null
+          banco_id?: string | null
+          codigo_cedente?: string | null
+          codigo_transmissao?: string | null
+          conta: string
+          conta_digito?: string | null
+          convenio_pagamento?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao: string
+          id?: string
+          tipo_conta?: string | null
+          updated_at?: string | null
+          uso_principal?: string | null
+        }
+        Update: {
+          agencia?: string
+          agencia_digito?: string | null
+          ativo?: boolean | null
+          banco_id?: string | null
+          codigo_cedente?: string | null
+          codigo_transmissao?: string | null
+          conta?: string
+          conta_digito?: string | null
+          convenio_pagamento?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string
+          id?: string
+          tipo_conta?: string | null
+          updated_at?: string | null
+          uso_principal?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contas_autarquia_banco_id_fkey"
+            columns: ["banco_id"]
+            isOneToOne: false
+            referencedRelation: "bancos_cnab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_autarquia_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_autarquia_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
             referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
@@ -2160,6 +2459,80 @@ export type Database = {
           },
         ]
       }
+      parametros_folha: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          id: string
+          observacoes: string | null
+          tipo_parametro: string
+          updated_at: string | null
+          updated_by: string | null
+          valor: number
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          observacoes?: string | null
+          tipo_parametro: string
+          updated_at?: string | null
+          updated_by?: string | null
+          valor: number
+          vigencia_fim?: string | null
+          vigencia_inicio: string
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          observacoes?: string | null
+          tipo_parametro?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          valor?: number
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parametros_folha_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parametros_folha_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parametros_folha_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parametros_folha_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patrimonio_unidade: {
         Row: {
           anexos: string[] | null
@@ -3024,6 +3397,117 @@ export type Database = {
           {
             foreignKeyName: "solicitacoes_ajuste_ponto_servidor_id_fkey"
             columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tabela_inss: {
+        Row: {
+          aliquota: number
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          faixa_ordem: number
+          id: string
+          valor_maximo: number | null
+          valor_minimo: number
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          aliquota: number
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          faixa_ordem: number
+          id?: string
+          valor_maximo?: number | null
+          valor_minimo: number
+          vigencia_fim?: string | null
+          vigencia_inicio: string
+        }
+        Update: {
+          aliquota?: number
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          faixa_ordem?: number
+          id?: string
+          valor_maximo?: number | null
+          valor_minimo?: number
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tabela_inss_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tabela_inss_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tabela_irrf: {
+        Row: {
+          aliquota: number
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          faixa_ordem: number
+          id: string
+          parcela_deduzir: number
+          valor_maximo: number | null
+          valor_minimo: number
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          aliquota: number
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          faixa_ordem: number
+          id?: string
+          parcela_deduzir?: number
+          valor_maximo?: number | null
+          valor_minimo: number
+          vigencia_fim?: string | null
+          vigencia_inicio: string
+        }
+        Update: {
+          aliquota?: number
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          faixa_ordem?: number
+          id?: string
+          parcela_deduzir?: number
+          valor_maximo?: number | null
+          valor_minimo?: number
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tabela_irrf_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tabela_irrf_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
@@ -4033,7 +4517,15 @@ export type Database = {
         | "estagiario"
       categoria_portaria: "estruturante" | "normativa" | "pessoal" | "delegacao"
       estado_conservacao: "otimo" | "bom" | "regular" | "ruim" | "inservivel"
+      formula_tipo:
+        | "valor_fixo"
+        | "percentual_base"
+        | "quantidade_valor"
+        | "calculo_especial"
+        | "referencia_cargo"
       natureza_cargo: "efetivo" | "comissionado"
+      natureza_rubrica: "remuneratorio" | "indenizatorio" | "informativo"
+      origem_lancamento: "automatico" | "manual" | "importado" | "retroativo"
       situacao_funcional:
         | "ativo"
         | "afastado"
@@ -4062,6 +4554,15 @@ export type Database = {
         | "publicado"
         | "vigente"
         | "revogado"
+      status_evento_esocial:
+        | "pendente"
+        | "gerado"
+        | "validado"
+        | "enviado"
+        | "aceito"
+        | "rejeitado"
+        | "erro"
+      status_folha: "aberta" | "previa" | "processando" | "fechada" | "reaberta"
       status_nomeacao: "ativo" | "encerrado" | "revogado"
       status_ponto:
         | "completo"
@@ -4091,6 +4592,13 @@ export type Database = {
         | "decreto"
         | "lei"
         | "outro"
+      tipo_folha:
+        | "mensal"
+        | "complementar"
+        | "13_1a_parcela"
+        | "13_2a_parcela"
+        | "rescisao"
+        | "retroativos"
       tipo_justificativa:
         | "atestado"
         | "declaracao"
@@ -4152,6 +4660,7 @@ export type Database = {
         | "falta"
         | "ferias"
         | "licenca"
+      tipo_rubrica: "provento" | "desconto" | "informativo" | "encargo"
       tipo_servidor:
         | "efetivo_idjuv"
         | "comissionado_idjuv"
@@ -4402,7 +4911,16 @@ export const Constants = {
       ],
       categoria_portaria: ["estruturante", "normativa", "pessoal", "delegacao"],
       estado_conservacao: ["otimo", "bom", "regular", "ruim", "inservivel"],
+      formula_tipo: [
+        "valor_fixo",
+        "percentual_base",
+        "quantidade_valor",
+        "calculo_especial",
+        "referencia_cargo",
+      ],
       natureza_cargo: ["efetivo", "comissionado"],
+      natureza_rubrica: ["remuneratorio", "indenizatorio", "informativo"],
+      origem_lancamento: ["automatico", "manual", "importado", "retroativo"],
       situacao_funcional: [
         "ativo",
         "afastado",
@@ -4435,6 +4953,16 @@ export const Constants = {
         "vigente",
         "revogado",
       ],
+      status_evento_esocial: [
+        "pendente",
+        "gerado",
+        "validado",
+        "enviado",
+        "aceito",
+        "rejeitado",
+        "erro",
+      ],
+      status_folha: ["aberta", "previa", "processando", "fechada", "reaberta"],
       status_nomeacao: ["ativo", "encerrado", "revogado"],
       status_ponto: [
         "completo",
@@ -4466,6 +4994,14 @@ export const Constants = {
         "decreto",
         "lei",
         "outro",
+      ],
+      tipo_folha: [
+        "mensal",
+        "complementar",
+        "13_1a_parcela",
+        "13_2a_parcela",
+        "rescisao",
+        "retroativos",
       ],
       tipo_justificativa: [
         "atestado",
@@ -4534,6 +5070,7 @@ export const Constants = {
         "ferias",
         "licenca",
       ],
+      tipo_rubrica: ["provento", "desconto", "informativo", "encargo"],
       tipo_servidor: [
         "efetivo_idjuv",
         "comissionado_idjuv",
