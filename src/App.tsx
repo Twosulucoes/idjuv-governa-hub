@@ -61,6 +61,7 @@ import ModelosDocumentosPage from "./pages/rh/ModelosDocumentosPage";
 // Folha de Pagamento
 import ConfiguracaoFolhaPage from "./pages/folha/ConfiguracaoFolhaPage";
 import GestaoFolhaPagamentoPage from "./pages/folha/GestaoFolhaPagamentoPage";
+import FolhaDetalhePage from "./pages/folha/FolhaDetalhePage";
 
 // Unidades Locais
 import GestaoUnidadesLocaisPage from "./pages/unidades/GestaoUnidadesLocaisPage";
@@ -156,6 +157,7 @@ const App = () => (
               {/* Folha de Pagamento */}
               <Route path="/folha/configuracao" element={<ConfiguracaoFolhaPage />} />
               <Route path="/folha/gestao" element={<GestaoFolhaPagamentoPage />} />
+              <Route path="/folha/:id" element={<FolhaDetalhePage />} />
               
               <Route path="/governanca/portarias" element={<PortariasPage />} />
               <Route path="/governanca/relatorio" element={<RelatorioGovernancaPage />} />
