@@ -9,6 +9,8 @@ type ContaInsert = Database['public']['Tables']['contas_autarquia']['Insert'];
 type FolhaInsert = Database['public']['Tables']['folhas_pagamento']['Insert'];
 type FolhaStatus = Database['public']['Enums']['status_folha'];
 type ConfigInsert = Database['public']['Tables']['config_autarquia']['Insert'];
+type FaixaINSSInsert = Database['public']['Tables']['tabela_inss']['Insert'];
+type FaixaIRRFInsert = Database['public']['Tables']['tabela_irrf']['Insert'];
 
 // ============== RUBRICAS ==============
 export function useRubricas(apenasAtivas = false) {
@@ -88,7 +90,19 @@ export function useSaveParametro() {
   });
 }
 
-// ============== TABELAS INSS/IRRF ==============
+export function useDeleteParametro() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('parametros_folha').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['parametros-folha'] }); toast.success('Parâmetro excluído!'); },
+    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
+  });
+}
+
+// ============== TABELAS INSS ==============
 export function useTabelaINSS() {
   return useQuery({
     queryKey: ['tabela-inss'],
@@ -100,6 +114,39 @@ export function useTabelaINSS() {
   });
 }
 
+export function useSaveFaixaINSS() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (faixa: Partial<FaixaINSSInsert> & { id?: string }) => {
+      if (faixa.id) {
+        const { id, ...rest } = faixa;
+        const { data, error } = await supabase.from('tabela_inss').update(rest).eq('id', id).select().single();
+        if (error) throw error;
+        return data;
+      } else {
+        const { data, error } = await supabase.from('tabela_inss').insert(faixa as FaixaINSSInsert).select().single();
+        if (error) throw error;
+        return data;
+      }
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tabela-inss'] }); toast.success('Faixa INSS salva!'); },
+    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
+  });
+}
+
+export function useDeleteFaixaINSS() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('tabela_inss').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tabela-inss'] }); toast.success('Faixa INSS excluída!'); },
+    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
+  });
+}
+
+// ============== TABELAS IRRF ==============
 export function useTabelaIRRF() {
   return useQuery({
     queryKey: ['tabela-irrf'],
@@ -108,6 +155,38 @@ export function useTabelaIRRF() {
       if (error) throw error;
       return data;
     },
+  });
+}
+
+export function useSaveFaixaIRRF() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (faixa: Partial<FaixaIRRFInsert> & { id?: string }) => {
+      if (faixa.id) {
+        const { id, ...rest } = faixa;
+        const { data, error } = await supabase.from('tabela_irrf').update(rest).eq('id', id).select().single();
+        if (error) throw error;
+        return data;
+      } else {
+        const { data, error } = await supabase.from('tabela_irrf').insert(faixa as FaixaIRRFInsert).select().single();
+        if (error) throw error;
+        return data;
+      }
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tabela-irrf'] }); toast.success('Faixa IRRF salva!'); },
+    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
+  });
+}
+
+export function useDeleteFaixaIRRF() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('tabela_irrf').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tabela-irrf'] }); toast.success('Faixa IRRF excluída!'); },
+    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
   });
 }
 
@@ -153,6 +232,18 @@ export function useSaveContaAutarquia() {
       }
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['contas-autarquia'] }); toast.success('Conta salva!'); },
+    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
+  });
+}
+
+export function useDeleteContaAutarquia() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('contas_autarquia').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['contas-autarquia'] }); toast.success('Conta excluída!'); },
     onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
   });
 }

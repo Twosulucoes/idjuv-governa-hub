@@ -4,14 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Edit2, Loader2, Landmark } from "lucide-react";
-import { useBancosCNAB, useContasAutarquia } from "@/hooks/useFolhaPagamento";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Plus, Edit2, Trash2, Loader2, Landmark } from "lucide-react";
+import { useBancosCNAB, useContasAutarquia, useDeleteContaAutarquia } from "@/hooks/useFolhaPagamento";
 import { ContaAutarquiaForm } from "./ContaAutarquiaForm";
 import type { ContaAutarquia } from "@/types/folha";
 
 export function BancosContasTab() {
-  const { data: bancos, isLoading: loadingBancos } = useBancosCNAB();
+  const { data: bancos, isLoading: loadingBancos } = useBancosCNAB(false);
   const { data: contas, isLoading: loadingContas } = useContasAutarquia();
+  const deleteContaAutarquia = useDeleteContaAutarquia();
   const [editingConta, setEditingConta] = useState<ContaAutarquia | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
@@ -73,14 +75,14 @@ export function BancosContasTab() {
                         <TableCell>{banco.nome}</TableCell>
                         <TableCell className="text-center">
                           {banco.layout_cnab240 ? (
-                            <Badge variant="outline" className="bg-green-50">Sim</Badge>
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Sim</Badge>
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>
                         <TableCell className="text-center">
                           {banco.layout_cnab400 ? (
-                            <Badge variant="outline" className="bg-green-50">Sim</Badge>
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Sim</Badge>
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
@@ -154,7 +156,7 @@ export function BancosContasTab() {
                     <TableHead>Conta</TableHead>
                     <TableHead>Uso</TableHead>
                     <TableHead className="w-[80px] text-center">Status</TableHead>
-                    <TableHead className="w-[60px]"></TableHead>
+                    <TableHead className="w-[100px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -190,13 +192,39 @@ export function BancosContasTab() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(conta)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEdit(conta)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir Conta Bancária?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Esta ação não pode ser desfeita. A conta "{conta.descricao}" será removida permanentemente.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteContaAutarquia.mutate(conta.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Excluir
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
