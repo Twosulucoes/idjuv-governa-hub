@@ -55,6 +55,7 @@ import ServidorDetalhePage from "./pages/rh/ServidorDetalhePage";
 import GestaoViagensPage from "./pages/rh/GestaoViagensPage";
 import GestaoFeriasPage from "./pages/rh/GestaoFeriasPage";
 import GestaoLicencasPage from "./pages/rh/GestaoLicencasPage";
+import GestaoFrequenciaPage from "./pages/rh/GestaoFrequenciaPage";
 import RelatoriosRHPage from "./pages/rh/RelatoriosRHPage";
 import ModelosDocumentosPage from "./pages/rh/ModelosDocumentosPage";
 
@@ -151,6 +152,7 @@ const App = () => (
               <Route path="/rh/viagens" element={<GestaoViagensPage />} />
               <Route path="/rh/ferias" element={<GestaoFeriasPage />} />
               <Route path="/rh/licencas" element={<GestaoLicencasPage />} />
+              <Route path="/rh/frequencia" element={<GestaoFrequenciaPage />} />
               <Route path="/rh/relatorios" element={<RelatoriosRHPage />} />
               <Route path="/rh/modelos" element={<ModelosDocumentosPage />} />
               

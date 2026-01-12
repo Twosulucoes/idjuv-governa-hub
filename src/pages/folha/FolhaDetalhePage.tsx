@@ -29,6 +29,7 @@ import {
   Send,
   Eye,
   Info,
+  Printer,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +41,7 @@ import { PendenciasServidoresDialog } from "@/components/folha/PendenciasServido
 import { GerarRemessaDialog } from "@/components/folha/GerarRemessaDialog";
 import { GerarESocialDialog } from "@/components/folha/GerarESocialDialog";
 import { format } from "date-fns";
+import { generateContracheque } from "@/lib/pdfContracheque";
 
 export default function FolhaDetalhePage() {
   const { id } = useParams<{ id: string }>();
@@ -501,14 +503,51 @@ export default function FolhaDetalhePage() {
                               )}
                             </TableCell>
                             <TableCell className="text-center">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => navigate(`/rh/servidores/${ficha.servidor?.id}`)}
-                                title="Ver servidor"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
+                              <div className="flex items-center justify-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => navigate(`/rh/servidores/${ficha.servidor?.id}`)}
+                                  title="Ver servidor"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    if (folha) {
+                                      generateContracheque({
+                                        ficha: {
+                                          id: ficha.id,
+                                          servidor_id: ficha.servidor_id || "",
+                                          cargo_nome: ficha.cargo_nome || undefined,
+                                          total_proventos: ficha.total_proventos || 0,
+                                          total_descontos: ficha.total_descontos || 0,
+                                          valor_liquido: ficha.valor_liquido || 0,
+                                          base_inss: ficha.base_inss || undefined,
+                                          valor_inss: ficha.valor_inss || undefined,
+                                          base_irrf: ficha.base_irrf || undefined,
+                                          valor_irrf: ficha.valor_irrf || undefined,
+                                          quantidade_dependentes: ficha.quantidade_dependentes || undefined,
+                                          servidor: ficha.servidor ? {
+                                            nome_completo: ficha.servidor.nome_completo,
+                                            cpf: ficha.servidor.cpf || "",
+                                            matricula: ficha.servidor.matricula || undefined,
+                                          } : undefined,
+                                        },
+                                        competencia: `${MESES[folha.competencia_mes - 1]}/${folha.competencia_ano}`,
+                                        competenciaAno: folha.competencia_ano,
+                                        competenciaMes: folha.competencia_mes,
+                                      });
+                                      toast.success("Contracheque gerado!");
+                                    }
+                                  }}
+                                  title="Gerar Contracheque"
+                                >
+                                  <Printer className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}

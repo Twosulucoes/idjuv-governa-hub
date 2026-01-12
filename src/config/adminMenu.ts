@@ -182,6 +182,13 @@ export const adminMenuConfig: AdminMenuSection[] = [
         keywords: ["licença", "afastamento", "ausência"],
       },
       {
+        id: "frequencia",
+        label: "Gestão de Frequência",
+        href: "/rh/frequencia",
+        icon: Clock,
+        keywords: ["frequência", "ponto", "faltas", "atestado", "presença"],
+      },
+      {
         id: "viagens",
         label: "Viagens e Diárias",
         href: "/rh/viagens",
