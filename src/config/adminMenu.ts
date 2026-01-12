@@ -28,6 +28,7 @@ import {
   Network,
   ClipboardList,
   HelpCircle,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -212,6 +213,27 @@ export const adminMenuConfig: AdminMenuSection[] = [
             href: "/admin/usuarios-tecnicos",
             icon: Settings,
             keywords: ["técnicos", "manutenção", "suporte", "desenvolvedor"],
+          },
+        ],
+      },
+      {
+        id: "folha-pagamento",
+        label: "Folha de Pagamento",
+        icon: Wallet,
+        children: [
+          {
+            id: "gestao-folha",
+            label: "Gestão de Folhas",
+            href: "/folha/gestao",
+            icon: FileSpreadsheet,
+            keywords: ["folha", "pagamento", "salário", "remuneração"],
+          },
+          {
+            id: "configuracao-folha",
+            label: "Configuração",
+            href: "/folha/configuracao",
+            icon: Settings,
+            keywords: ["configuração", "folha", "rubricas", "parâmetros"],
           },
         ],
       },
