@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { MaskedInput, UppercaseInput, UppercaseTextarea } from "@/components/ui/masked-input";
 import { 
   ArrowLeft, 
   Save, 
@@ -539,18 +540,18 @@ export default function ServidorFormPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="md:col-span-2">
                         <Label>Nome Completo *</Label>
-                        <Input
+                        <UppercaseInput
                           value={formData.nome_completo}
-                          onChange={(e) => updateField('nome_completo', e.target.value)}
+                          onChange={(value) => updateField('nome_completo', value)}
                           placeholder="Nome completo do servidor"
                           required
                         />
                       </div>
                       <div>
                         <Label>Nome Social</Label>
-                        <Input
+                        <UppercaseInput
                           value={formData.nome_social}
-                          onChange={(e) => updateField('nome_social', e.target.value)}
+                          onChange={(value) => updateField('nome_social', value)}
                           placeholder="Nome social (se aplicável)"
                         />
                       </div>
@@ -590,16 +591,16 @@ export default function ServidorFormPage() {
                       </div>
                       <div>
                         <Label>Nacionalidade</Label>
-                        <Input
+                        <UppercaseInput
                           value={formData.nacionalidade}
-                          onChange={(e) => updateField('nacionalidade', e.target.value)}
+                          onChange={(value) => updateField('nacionalidade', value)}
                         />
                       </div>
                       <div>
                         <Label>Naturalidade (Cidade)</Label>
-                        <Input
+                        <UppercaseInput
                           value={formData.naturalidade_cidade}
-                          onChange={(e) => updateField('naturalidade_cidade', e.target.value)}
+                          onChange={(value) => updateField('naturalidade_cidade', value)}
                         />
                       </div>
                       <div>
@@ -638,18 +639,18 @@ export default function ServidorFormPage() {
                       </div>
                       <div>
                         <Label>Telefone Fixo</Label>
-                        <Input
+                        <MaskedInput
+                          mask="telefone"
                           value={formData.telefone_fixo}
-                          onChange={(e) => updateField('telefone_fixo', e.target.value)}
-                          placeholder="(00) 0000-0000"
+                          onChange={(value) => updateField('telefone_fixo', value)}
                         />
                       </div>
                       <div>
                         <Label>Telefone Celular</Label>
-                        <Input
+                        <MaskedInput
+                          mask="telefone"
                           value={formData.telefone_celular}
-                          onChange={(e) => updateField('telefone_celular', e.target.value)}
-                          placeholder="(00) 00000-0000"
+                          onChange={(value) => updateField('telefone_celular', value)}
                         />
                       </div>
                     </div>
@@ -670,25 +671,26 @@ export default function ServidorFormPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label>CPF *</Label>
-                        <Input
+                        <MaskedInput
+                          mask="cpf"
                           value={formData.cpf}
-                          onChange={(e) => updateField('cpf', e.target.value)}
-                          placeholder="000.000.000-00"
+                          onChange={(value) => updateField('cpf', value)}
                           required
                         />
                       </div>
                       <div>
                         <Label>RG</Label>
-                        <Input
+                        <MaskedInput
+                          mask="rg"
                           value={formData.rg}
-                          onChange={(e) => updateField('rg', e.target.value)}
+                          onChange={(value) => updateField('rg', value)}
                         />
                       </div>
                       <div>
                         <Label>Órgão Expedidor</Label>
-                        <Input
+                        <UppercaseInput
                           value={formData.rg_orgao_expedidor}
-                          onChange={(e) => updateField('rg_orgao_expedidor', e.target.value)}
+                          onChange={(value) => updateField('rg_orgao_expedidor', value)}
                           placeholder="SSP"
                         />
                       </div>
@@ -707,9 +709,10 @@ export default function ServidorFormPage() {
                       </div>
                       <div>
                         <Label>PIS/PASEP</Label>
-                        <Input
+                        <MaskedInput
+                          mask="pis"
                           value={formData.pis_pasep}
-                          onChange={(e) => updateField('pis_pasep', e.target.value)}
+                          onChange={(value) => updateField('pis_pasep', value)}
                         />
                       </div>
                     </div>
@@ -719,9 +722,10 @@ export default function ServidorFormPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label>Título de Eleitor</Label>
-                        <Input
+                        <MaskedInput
+                          mask="titulo_eleitor"
                           value={formData.titulo_eleitor}
-                          onChange={(e) => updateField('titulo_eleitor', e.target.value)}
+                          onChange={(value) => updateField('titulo_eleitor', value)}
                         />
                       </div>
                       <div>
@@ -756,17 +760,17 @@ export default function ServidorFormPage() {
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div>
                         <Label>CEP</Label>
-                        <Input
+                        <MaskedInput
+                          mask="cep"
                           value={formData.endereco_cep}
-                          onChange={(e) => updateField('endereco_cep', e.target.value)}
-                          placeholder="00000-000"
+                          onChange={(value) => updateField('endereco_cep', value)}
                         />
                       </div>
                       <div className="md:col-span-3">
                         <Label>Logradouro</Label>
-                        <Input
+                        <UppercaseInput
                           value={formData.endereco_logradouro}
-                          onChange={(e) => updateField('endereco_logradouro', e.target.value)}
+                          onChange={(value) => updateField('endereco_logradouro', value)}
                         />
                       </div>
                       <div>
@@ -778,23 +782,23 @@ export default function ServidorFormPage() {
                       </div>
                       <div>
                         <Label>Complemento</Label>
-                        <Input
+                        <UppercaseInput
                           value={formData.endereco_complemento}
-                          onChange={(e) => updateField('endereco_complemento', e.target.value)}
+                          onChange={(value) => updateField('endereco_complemento', value)}
                         />
                       </div>
                       <div className="md:col-span-2">
                         <Label>Bairro</Label>
-                        <Input
+                        <UppercaseInput
                           value={formData.endereco_bairro}
-                          onChange={(e) => updateField('endereco_bairro', e.target.value)}
+                          onChange={(value) => updateField('endereco_bairro', value)}
                         />
                       </div>
                       <div className="md:col-span-2">
                         <Label>Cidade</Label>
-                        <Input
+                        <UppercaseInput
                           value={formData.endereco_cidade}
-                          onChange={(e) => updateField('endereco_cidade', e.target.value)}
+                          onChange={(value) => updateField('endereco_cidade', value)}
                         />
                       </div>
                       <div className="md:col-span-2">
@@ -841,17 +845,17 @@ export default function ServidorFormPage() {
                       </div>
                       <div>
                         <Label>Curso / Formação</Label>
-                        <Input
+                        <UppercaseInput
                           value={formData.formacao_academica}
-                          onChange={(e) => updateField('formacao_academica', e.target.value)}
+                          onChange={(value) => updateField('formacao_academica', value)}
                           placeholder="Ex: Administração, Direito..."
                         />
                       </div>
                       <div>
                         <Label>Instituição de Ensino</Label>
-                        <Input
+                        <UppercaseInput
                           value={formData.instituicao_ensino}
-                          onChange={(e) => updateField('instituicao_ensino', e.target.value)}
+                          onChange={(value) => updateField('instituicao_ensino', value)}
                         />
                       </div>
                       <div>
@@ -908,16 +912,18 @@ export default function ServidorFormPage() {
                       </div>
                       <div>
                         <Label>Agência</Label>
-                        <Input
+                        <MaskedInput
+                          mask="agencia"
                           value={formData.banco_agencia}
-                          onChange={(e) => updateField('banco_agencia', e.target.value)}
+                          onChange={(value) => updateField('banco_agencia', value)}
                         />
                       </div>
                       <div>
                         <Label>Conta</Label>
-                        <Input
+                        <MaskedInput
+                          mask="conta"
                           value={formData.banco_conta}
-                          onChange={(e) => updateField('banco_conta', e.target.value)}
+                          onChange={(value) => updateField('banco_conta', value)}
                         />
                       </div>
                     </div>

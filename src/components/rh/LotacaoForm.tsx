@@ -28,6 +28,7 @@ import {
   TIPO_LOTACAO_LABELS,
   REGRAS_TIPO_SERVIDOR,
 } from "@/types/servidor";
+import { UppercaseInput, UppercaseTextarea } from "@/components/ui/masked-input";
 
 interface Props {
   servidorId: string;
@@ -215,9 +216,9 @@ export function LotacaoForm({ servidorId, servidorNome, tipoServidor, open, onOp
           {isLotacaoExterna && (
             <div>
               <Label>Órgão Externo (Cessão de Saída)</Label>
-              <Input
+              <UppercaseInput
                 value={orgaoExterno}
-                onChange={(e) => setOrgaoExterno(e.target.value)}
+                onChange={(value) => setOrgaoExterno(value)}
                 placeholder="Nome do órgão de destino"
               />
             </div>
@@ -226,9 +227,9 @@ export function LotacaoForm({ servidorId, servidorNome, tipoServidor, open, onOp
           {/* Função */}
           <div>
             <Label>Função Exercida</Label>
-            <Input
+            <UppercaseInput
               value={funcaoExercida}
-              onChange={(e) => setFuncaoExercida(e.target.value)}
+              onChange={(value) => setFuncaoExercida(value)}
               placeholder="Descrição da função exercida"
             />
           </div>
@@ -309,9 +310,9 @@ export function LotacaoForm({ servidorId, servidorNome, tipoServidor, open, onOp
           {/* Observações */}
           <div>
             <Label>Observações</Label>
-            <Textarea
+            <UppercaseTextarea
               value={observacao}
-              onChange={(e) => setObservacao(e.target.value)}
+              onChange={(value) => setObservacao(value)}
               placeholder="Observações adicionais..."
             />
           </div>

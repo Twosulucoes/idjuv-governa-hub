@@ -186,6 +186,15 @@
     box-sizing: border-box;
   }
 
+  /* Classe para inputs em maiúsculas */
+  .uppercase {
+    text-transform: uppercase;
+  }
+
+  .uppercase::placeholder {
+    text-transform: none;
+  }
+
   html {
     scroll-behavior: smooth;
     scroll-padding-top: 8rem; /* Compensar header fixo */

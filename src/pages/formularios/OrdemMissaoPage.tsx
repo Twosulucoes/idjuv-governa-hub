@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
 import { generateOrdemMissao, generateDocumentNumber } from '@/lib/pdfGenerator';
+import { toUpperCase } from '@/lib/formatters';
 
 const ordemMissaoSchema = z.object({
   servidor: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres'),
@@ -133,7 +134,12 @@ const OrdemMissaoPage = () => {
                           <FormItem>
                             <FormLabel>Nome Completo *</FormLabel>
                             <FormControl>
-                              <Input placeholder="Nome do servidor" {...field} />
+                              <Input 
+                                placeholder="Nome do servidor" 
+                                {...field} 
+                                className="uppercase"
+                                onChange={(e) => field.onChange(toUpperCase(e.target.value))}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -158,15 +164,20 @@ const OrdemMissaoPage = () => {
                     <FormField
                       control={form.control}
                       name="cargo"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Cargo/Função *</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Cargo ou função do servidor" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Cargo/Função *</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Cargo ou função do servidor" 
+                                {...field}
+                                className="uppercase"
+                                onChange={(e) => field.onChange(toUpperCase(e.target.value))}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                     />
                   </div>
 
@@ -179,15 +190,20 @@ const OrdemMissaoPage = () => {
                     <FormField
                       control={form.control}
                       name="destino"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Destino *</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Cidade/Estado de destino" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Destino *</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Cidade/Estado de destino" 
+                                {...field}
+                                className="uppercase"
+                                onChange={(e) => field.onChange(toUpperCase(e.target.value))}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                     />
 
                     <FormField
