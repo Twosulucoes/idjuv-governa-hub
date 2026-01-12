@@ -19,9 +19,9 @@ interface ServidorPendencia {
   matricula: string | null;
   data_nascimento: string | null;
   pis_pasep: string | null;
-  banco: string | null;
-  agencia: string | null;
-  conta: string | null;
+  banco_codigo: string | null;
+  banco_agencia: string | null;
+  banco_conta: string | null;
   cargo_nome: string | null;
 }
 
@@ -43,9 +43,9 @@ export function PendenciasServidoresDialog({
           matricula,
           data_nascimento,
           pis_pasep,
-          banco,
-          agencia,
-          conta,
+          banco_codigo,
+          banco_agencia,
+          banco_conta,
           cargo_atual:cargos!servidores_cargo_atual_id_fkey(nome)
         `)
         .eq("situacao", "ativo")
@@ -65,9 +65,9 @@ export function PendenciasServidoresDialog({
     const pendencias: string[] = [];
     if (!servidor.data_nascimento) pendencias.push("Data Nascimento");
     if (!servidor.pis_pasep) pendencias.push("PIS/PASEP");
-    if (!servidor.banco) pendencias.push("Banco");
-    if (!servidor.agencia) pendencias.push("Agência");
-    if (!servidor.conta) pendencias.push("Conta");
+    if (!servidor.banco_codigo) pendencias.push("Banco");
+    if (!servidor.banco_agencia) pendencias.push("Agência");
+    if (!servidor.banco_conta) pendencias.push("Conta");
     return pendencias;
   };
 
