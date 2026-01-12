@@ -7,20 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Save, X } from "lucide-react";
 import { useSaveParametro } from "@/hooks/useFolhaPagamento";
-import type { ParametroFolha } from "@/types/folha";
 
 const PARAMETROS_PREDEFINIDOS = [
-  { chave: "SALARIO_MINIMO", descricao: "Salário mínimo nacional" },
-  { chave: "TETO_INSS", descricao: "Teto de contribuição do INSS" },
-  { chave: "DEDUCAO_DEPENDENTE_IRRF", descricao: "Dedução por dependente para IRRF" },
-  { chave: "SALARIO_FAMILIA_COTA", descricao: "Valor da cota do salário-família" },
-  { chave: "SALARIO_FAMILIA_LIMITE", descricao: "Limite salarial para salário-família" },
-  { chave: "ALIQUOTA_FGTS", descricao: "Alíquota do FGTS" },
-  { chave: "TETO_RPPS", descricao: "Teto do Regime Próprio de Previdência" },
+  { tipo: "SALARIO_MINIMO", descricao: "Salário mínimo nacional" },
+  { tipo: "TETO_INSS", descricao: "Teto de contribuição do INSS" },
+  { tipo: "DEDUCAO_DEPENDENTE_IRRF", descricao: "Dedução por dependente para IRRF" },
+  { tipo: "SALARIO_FAMILIA_COTA", descricao: "Valor da cota do salário-família" },
+  { tipo: "SALARIO_FAMILIA_LIMITE", descricao: "Limite salarial para salário-família" },
+  { tipo: "ALIQUOTA_FGTS", descricao: "Alíquota do FGTS" },
+  { tipo: "TETO_RPPS", descricao: "Teto do Regime Próprio de Previdência" },
 ];
 
 const parametroSchema = z.object({
-  chave: z.string().min(3, "Chave é obrigatória"),
+  tipo_parametro: z.string().min(3, "Tipo é obrigatório"),
   valor: z.coerce.number().min(0, "Valor deve ser maior ou igual a zero"),
   descricao: z.string().optional(),
   vigencia_inicio: z.string().min(1, "Data de início é obrigatória"),
@@ -29,8 +28,17 @@ const parametroSchema = z.object({
 
 type ParametroFormData = z.infer<typeof parametroSchema>;
 
+interface ParametroData {
+  id?: string;
+  tipo_parametro: string;
+  valor: number;
+  descricao?: string;
+  vigencia_inicio: string;
+  vigencia_fim?: string;
+}
+
 interface ParametroFormProps {
-  parametro?: ParametroFolha | null;
+  parametro?: ParametroData | null;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -41,7 +49,7 @@ export function ParametroForm({ parametro, onSuccess, onCancel }: ParametroFormP
   const form = useForm<ParametroFormData>({
     resolver: zodResolver(parametroSchema),
     defaultValues: {
-      chave: parametro?.chave || "",
+      tipo_parametro: parametro?.tipo_parametro || "",
       valor: parametro?.valor || 0,
       descricao: parametro?.descricao || "",
       vigencia_inicio: parametro?.vigencia_inicio?.split("T")[0] || new Date().toISOString().split("T")[0],
@@ -49,11 +57,11 @@ export function ParametroForm({ parametro, onSuccess, onCancel }: ParametroFormP
     },
   });
 
-  const chave = form.watch("chave");
+  const tipoParametro = form.watch("tipo_parametro");
 
-  const handleChaveChange = (novaChave: string) => {
-    form.setValue("chave", novaChave);
-    const predefinido = PARAMETROS_PREDEFINIDOS.find((p) => p.chave === novaChave);
+  const handleTipoChange = (novoTipo: string) => {
+    form.setValue("tipo_parametro", novoTipo);
+    const predefinido = PARAMETROS_PREDEFINIDOS.find((p) => p.tipo === novoTipo);
     if (predefinido && !form.getValues("descricao")) {
       form.setValue("descricao", predefinido.descricao);
     }
@@ -80,11 +88,11 @@ export function ParametroForm({ parametro, onSuccess, onCancel }: ParametroFormP
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
-          name="chave"
+          name="tipo_parametro"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Parâmetro *</FormLabel>
-              <Select onValueChange={handleChaveChange} value={field.value}>
+              <FormLabel>Tipo de Parâmetro *</FormLabel>
+              <Select onValueChange={handleTipoChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione ou digite" />
@@ -92,8 +100,8 @@ export function ParametroForm({ parametro, onSuccess, onCancel }: ParametroFormP
                 </FormControl>
                 <SelectContent>
                   {PARAMETROS_PREDEFINIDOS.map((p) => (
-                    <SelectItem key={p.chave} value={p.chave}>
-                      {p.chave}
+                    <SelectItem key={p.tipo} value={p.tipo}>
+                      {p.tipo}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -121,9 +129,9 @@ export function ParametroForm({ parametro, onSuccess, onCancel }: ParametroFormP
                 <Input {...field} type="number" step="0.01" min={0} />
               </FormControl>
               <FormDescription>
-                {chave.includes("SALARIO") || chave.includes("TETO") || chave.includes("DEDUCAO")
+                {tipoParametro.includes("SALARIO") || tipoParametro.includes("TETO") || tipoParametro.includes("DEDUCAO")
                   ? "Valor em Reais (R$)"
-                  : chave.includes("ALIQUOTA")
+                  : tipoParametro.includes("ALIQUOTA")
                   ? "Valor em percentual (%)"
                   : "Valor numérico"}
               </FormDescription>

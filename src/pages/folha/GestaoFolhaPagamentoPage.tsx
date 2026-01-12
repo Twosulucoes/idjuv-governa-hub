@@ -1,34 +1,18 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { 
-  Plus, 
-  FileText, 
-  Calculator, 
-  Check, 
-  Lock, 
-  DollarSign, 
-  Loader2, 
-  Eye,
-  Download,
-  Users
-} from "lucide-react";
-import { useFolhasPagamento, useCreateFolha, useUpdateFolhaStatus } from "@/hooks/useFolhaPagamento";
+import { Plus, FileText, Check, Loader2, Eye, Users } from "lucide-react";
+import { useFolhasPagamento, useUpdateFolhaStatus } from "@/hooks/useFolhaPagamento";
 import { NovaFolhaForm } from "@/components/folha/NovaFolhaForm";
-import { 
-  STATUS_FOLHA_LABELS, 
-  STATUS_FOLHA_COLORS, 
-  TIPO_FOLHA_LABELS, 
-  MESES,
-  type StatusFolha 
-} from "@/types/folha";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import type { Database } from "@/integrations/supabase/types";
+
+type FolhaStatus = Database['public']['Enums']['status_folha'];
+import { STATUS_FOLHA_LABELS, STATUS_FOLHA_COLORS, MESES } from "@/types/folha";
 import { useNavigate } from "react-router-dom";
 
 const currentYear = new Date().getFullYear();
@@ -42,8 +26,8 @@ export default function GestaoFolhaPagamentoPage() {
   const { data: folhas, isLoading } = useFolhasPagamento(anoFiltro);
   const updateStatus = useUpdateFolhaStatus();
 
-  const formatCurrency = (value: number) => {
-    return value.toLocaleString("pt-BR", {
+  const formatCurrency = (value: number | null | undefined) => {
+    return (value || 0).toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL",
     });
@@ -54,18 +38,16 @@ export default function GestaoFolhaPagamentoPage() {
   };
 
   const canAdvanceStatus = (status: StatusFolha) => {
-    return ["rascunho", "calculada", "conferida", "aprovada"].includes(status);
+    return ["previa", "aberta", "processando"].includes(status);
   };
 
   const getNextStatus = (current: StatusFolha): StatusFolha | null => {
     const flow: Record<StatusFolha, StatusFolha | null> = {
-      rascunho: "calculada",
-      calculando: null,
-      calculada: "conferida",
-      conferida: "aprovada",
-      aprovada: "fechada",
-      fechada: "paga",
-      paga: null,
+      previa: "aberta",
+      aberta: "processando",
+      processando: "fechada",
+      fechada: null,
+      reaberta: "aberta",
     };
     return flow[current];
   };
@@ -98,7 +80,7 @@ export default function GestaoFolhaPagamentoPage() {
               <DialogHeader>
                 <DialogTitle>Criar Nova Folha</DialogTitle>
                 <DialogDescription>
-                  Selecione o mês, ano e tipo de folha a ser criada
+                  Selecione o mês e ano da folha a ser criada
                 </DialogDescription>
               </DialogHeader>
               <NovaFolhaForm onSuccess={() => setIsFormOpen(false)} />
@@ -116,7 +98,7 @@ export default function GestaoFolhaPagamentoPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
-                {folhas?.filter(f => !["fechada", "paga"].includes(f.status)).length || 0}
+                {folhas?.filter(f => !["fechada"].includes(f.status)).length || 0}
               </p>
             </CardContent>
           </Card>
@@ -128,7 +110,7 @@ export default function GestaoFolhaPagamentoPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
-                {formatCurrency(folhas?.reduce((sum, f) => sum + (f.total_bruto || 0), 0) || 0)}
+                {formatCurrency(folhas?.reduce((sum, f) => sum + (f.total_bruto || 0), 0))}
               </p>
             </CardContent>
           </Card>
@@ -140,7 +122,7 @@ export default function GestaoFolhaPagamentoPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-orange-600">
-                {formatCurrency(folhas?.reduce((sum, f) => sum + (f.total_descontos || 0), 0) || 0)}
+                {formatCurrency(folhas?.reduce((sum, f) => sum + (f.total_descontos || 0), 0))}
               </p>
             </CardContent>
           </Card>
@@ -152,7 +134,7 @@ export default function GestaoFolhaPagamentoPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-green-600">
-                {formatCurrency(folhas?.reduce((sum, f) => sum + (f.total_liquido || 0), 0) || 0)}
+                {formatCurrency(folhas?.reduce((sum, f) => sum + (f.total_liquido || 0), 0))}
               </p>
             </CardContent>
           </Card>
@@ -191,7 +173,6 @@ export default function GestaoFolhaPagamentoPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Competência</TableHead>
-                      <TableHead>Tipo</TableHead>
                       <TableHead className="text-center">Servidores</TableHead>
                       <TableHead className="text-right">Bruto</TableHead>
                       <TableHead className="text-right">Descontos</TableHead>
@@ -203,7 +184,7 @@ export default function GestaoFolhaPagamentoPage() {
                   <TableBody>
                     {folhas?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                        <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                           <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                           <p>Nenhuma folha cadastrada para {anoFiltro}</p>
                           <Button 
@@ -219,17 +200,12 @@ export default function GestaoFolhaPagamentoPage() {
                       folhas?.map((folha) => (
                         <TableRow key={folha.id}>
                           <TableCell className="font-medium">
-                            {MESES[folha.mes - 1]}/{folha.ano}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {TIPO_FOLHA_LABELS[folha.tipo]}
-                            </Badge>
+                            {MESES[folha.competencia_mes - 1]}/{folha.competencia_ano}
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">
                               <Users className="h-4 w-4 text-muted-foreground" />
-                              {folha.quantidade_servidores}
+                              {folha.quantidade_fichas || 0}
                             </div>
                           </TableCell>
                           <TableCell className="text-right font-mono">
@@ -242,8 +218,8 @@ export default function GestaoFolhaPagamentoPage() {
                             {formatCurrency(folha.total_liquido)}
                           </TableCell>
                           <TableCell className="text-center">
-                            <Badge className={STATUS_FOLHA_COLORS[folha.status]}>
-                              {STATUS_FOLHA_LABELS[folha.status]}
+                            <Badge className={STATUS_FOLHA_COLORS[folha.status as StatusFolha] || "bg-gray-100"}>
+                              {STATUS_FOLHA_LABELS[folha.status as StatusFolha] || folha.status}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -256,11 +232,11 @@ export default function GestaoFolhaPagamentoPage() {
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              {canAdvanceStatus(folha.status) && (
+                              {canAdvanceStatus(folha.status as StatusFolha) && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => handleAdvanceStatus(folha.id, folha.status)}
+                                  onClick={() => handleAdvanceStatus(folha.id, folha.status as StatusFolha)}
                                   title="Avançar status"
                                   disabled={updateStatus.isPending}
                                 >

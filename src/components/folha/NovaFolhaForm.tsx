@@ -7,16 +7,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Plus } from "lucide-react";
 import { useCreateFolha, useFolhasPagamento } from "@/hooks/useFolhaPagamento";
-import { MESES, TIPO_FOLHA_LABELS, type TipoFolha } from "@/types/folha";
+import { MESES, STATUS_FOLHA_LABELS } from "@/types/folha";
 import { toast } from "sonner";
 
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
 
 const novaFolhaSchema = z.object({
-  ano: z.coerce.number().int().min(2020).max(2100),
-  mes: z.coerce.number().int().min(1).max(12),
-  tipo: z.enum(["normal", "complementar", "decimo_terceiro", "ferias", "rescisao"]),
+  competencia_ano: z.coerce.number().int().min(2020).max(2100),
+  competencia_mes: z.coerce.number().int().min(1).max(12),
   observacoes: z.string().optional(),
 });
 
@@ -33,9 +32,8 @@ export function NovaFolhaForm({ onSuccess }: NovaFolhaFormProps) {
   const form = useForm<NovaFolhaFormData>({
     resolver: zodResolver(novaFolhaSchema),
     defaultValues: {
-      ano: currentYear,
-      mes: currentMonth,
-      tipo: "normal",
+      competencia_ano: currentYear,
+      competencia_mes: currentMonth,
       observacoes: "",
     },
   });
@@ -43,23 +41,18 @@ export function NovaFolhaForm({ onSuccess }: NovaFolhaFormProps) {
   const onSubmit = (data: NovaFolhaFormData) => {
     // Verificar se já existe folha para a competência
     const existe = folhasExistentes?.find(
-      (f) => f.ano === data.ano && f.mes === data.mes && f.tipo === data.tipo
+      (f) => f.competencia_ano === data.competencia_ano && f.competencia_mes === data.competencia_mes
     );
 
     if (existe) {
-      toast.error("Já existe uma folha para esta competência e tipo.");
+      toast.error("Já existe uma folha para esta competência.");
       return;
     }
 
     createFolha.mutate(
       {
         ...data,
-        status: "rascunho",
-        total_bruto: 0,
-        total_descontos: 0,
-        total_liquido: 0,
-        total_encargos: 0,
-        quantidade_servidores: 0,
+        status: "previa",
       },
       {
         onSuccess: () => {
@@ -77,7 +70,7 @@ export function NovaFolhaForm({ onSuccess }: NovaFolhaFormProps) {
         <div className="grid gap-4 grid-cols-2">
           <FormField
             control={form.control}
-            name="mes"
+            name="competencia_mes"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Mês *</FormLabel>
@@ -105,7 +98,7 @@ export function NovaFolhaForm({ onSuccess }: NovaFolhaFormProps) {
 
           <FormField
             control={form.control}
-            name="ano"
+            name="competencia_ano"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Ano *</FormLabel>
@@ -131,34 +124,6 @@ export function NovaFolhaForm({ onSuccess }: NovaFolhaFormProps) {
             )}
           />
         </div>
-
-        <FormField
-          control={form.control}
-          name="tipo"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Tipo de Folha *</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o tipo" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {Object.entries(TIPO_FOLHA_LABELS).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                Folha Normal é a mensal regular. Use Complementar para pagamentos adicionais.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
         <FormField
           control={form.control}

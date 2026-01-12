@@ -9,29 +9,37 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Save, X } from "lucide-react";
 import { useSaveRubrica } from "@/hooks/useFolhaPagamento";
-import type { Rubrica, TipoRubrica, TipoCalculoRubrica } from "@/types/folha";
-import { TIPO_RUBRICA_LABELS, TIPO_CALCULO_LABELS } from "@/types/folha";
+import { TIPO_RUBRICA_LABELS, type TipoRubrica } from "@/types/folha";
 
 const rubricaSchema = z.object({
   codigo: z.string().min(1, "Código é obrigatório"),
-  nome: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
-  tipo: z.enum(["provento", "desconto", "neutro", "informativo"]),
-  tipo_calculo: z.enum(["fixo", "percentual_base", "percentual_bruto", "formula", "referencia", "manual"]),
+  descricao: z.string().min(3, "Descrição deve ter pelo menos 3 caracteres"),
+  tipo: z.enum(["provento", "desconto", "encargo", "informativo"]),
   percentual: z.coerce.number().min(0).max(100).optional(),
   valor_fixo: z.coerce.number().min(0).optional(),
-  formula_calculo: z.string().optional(),
-  incidencia_irrf: z.boolean().default(false),
-  incidencia_inss: z.boolean().default(false),
-  incidencia_fgts: z.boolean().default(false),
-  ativa: z.boolean().default(true),
-  ordem_calculo: z.coerce.number().int().min(1).default(100),
-  descricao: z.string().optional(),
+  incide_irrf: z.boolean().default(false),
+  incide_inss: z.boolean().default(false),
+  incide_fgts: z.boolean().default(false),
+  ativo: z.boolean().default(true),
 });
 
 type RubricaFormData = z.infer<typeof rubricaSchema>;
 
+interface RubricaData {
+  id?: string;
+  codigo: string;
+  descricao: string;
+  tipo: TipoRubrica;
+  percentual?: number;
+  valor_fixo?: number;
+  incide_irrf?: boolean;
+  incide_inss?: boolean;
+  incide_fgts?: boolean;
+  ativo?: boolean;
+}
+
 interface RubricaFormProps {
-  rubrica?: Rubrica | null;
+  rubrica?: RubricaData | null;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -43,22 +51,16 @@ export function RubricaForm({ rubrica, onSuccess, onCancel }: RubricaFormProps) 
     resolver: zodResolver(rubricaSchema),
     defaultValues: {
       codigo: rubrica?.codigo || "",
-      nome: rubrica?.nome || "",
-      tipo: (rubrica?.tipo as TipoRubrica) || "provento",
-      tipo_calculo: (rubrica?.tipo_calculo as TipoCalculoRubrica) || "manual",
+      descricao: rubrica?.descricao || "",
+      tipo: rubrica?.tipo || "provento",
       percentual: rubrica?.percentual || undefined,
       valor_fixo: rubrica?.valor_fixo || undefined,
-      formula_calculo: rubrica?.formula_calculo || "",
-      incidencia_irrf: rubrica?.incidencia_irrf ?? false,
-      incidencia_inss: rubrica?.incidencia_inss ?? false,
-      incidencia_fgts: rubrica?.incidencia_fgts ?? false,
-      ativa: rubrica?.ativa ?? true,
-      ordem_calculo: rubrica?.ordem_calculo || 100,
-      descricao: rubrica?.descricao || "",
+      incide_irrf: rubrica?.incide_irrf ?? false,
+      incide_inss: rubrica?.incide_inss ?? false,
+      incide_fgts: rubrica?.incide_fgts ?? false,
+      ativo: rubrica?.ativo ?? true,
     },
   });
-
-  const tipoCalculo = form.watch("tipo_calculo");
 
   const onSubmit = (data: RubricaFormData) => {
     saveRubrica.mutate(
@@ -94,37 +96,6 @@ export function RubricaForm({ rubrica, onSuccess, onCancel }: RubricaFormProps) 
 
           <FormField
             control={form.control}
-            name="ordem_calculo"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Ordem de Cálculo</FormLabel>
-                <FormControl>
-                  <Input {...field} type="number" min={1} />
-                </FormControl>
-                <FormDescription>Define a sequência de processamento</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <FormField
-          control={form.control}
-          name="nome"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nome *</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder="Nome da rubrica" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormField
-            control={form.control}
             name="tipo"
             render={({ field }) => (
               <FormItem>
@@ -147,35 +118,23 @@ export function RubricaForm({ rubrica, onSuccess, onCancel }: RubricaFormProps) 
               </FormItem>
             )}
           />
-
-          <FormField
-            control={form.control}
-            name="tipo_calculo"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tipo de Cálculo *</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Como calcular" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {Object.entries(TIPO_CALCULO_LABELS).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
         </div>
 
-        {/* Campos condicionais baseados no tipo de cálculo */}
-        {(tipoCalculo === "percentual_base" || tipoCalculo === "percentual_bruto") && (
+        <FormField
+          control={form.control}
+          name="descricao"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Descrição *</FormLabel>
+              <FormControl>
+                <Textarea {...field} placeholder="Descrição detalhada da rubrica" rows={2} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid gap-4 md:grid-cols-2">
           <FormField
             control={form.control}
             name="percentual"
@@ -189,9 +148,7 @@ export function RubricaForm({ rubrica, onSuccess, onCancel }: RubricaFormProps) 
               </FormItem>
             )}
           />
-        )}
 
-        {tipoCalculo === "fixo" && (
           <FormField
             control={form.control}
             name="valor_fixo"
@@ -205,40 +162,7 @@ export function RubricaForm({ rubrica, onSuccess, onCancel }: RubricaFormProps) 
               </FormItem>
             )}
           />
-        )}
-
-        {tipoCalculo === "formula" && (
-          <FormField
-            control={form.control}
-            name="formula_calculo"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Fórmula de Cálculo</FormLabel>
-                <FormControl>
-                  <Textarea {...field} placeholder="Descreva a fórmula de cálculo" rows={3} />
-                </FormControl>
-                <FormDescription>
-                  Use variáveis como SALARIO_BASE, BRUTO, HORAS_TRAB, etc.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-
-        <FormField
-          control={form.control}
-          name="descricao"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Descrição</FormLabel>
-              <FormControl>
-                <Textarea {...field} placeholder="Descrição detalhada da rubrica" rows={2} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        </div>
 
         {/* Incidências */}
         <div className="space-y-4">
@@ -246,7 +170,7 @@ export function RubricaForm({ rubrica, onSuccess, onCancel }: RubricaFormProps) 
           <div className="grid gap-4 md:grid-cols-3">
             <FormField
               control={form.control}
-              name="incidencia_inss"
+              name="incide_inss"
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                   <div className="space-y-0.5">
@@ -264,7 +188,7 @@ export function RubricaForm({ rubrica, onSuccess, onCancel }: RubricaFormProps) 
 
             <FormField
               control={form.control}
-              name="incidencia_irrf"
+              name="incide_irrf"
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                   <div className="space-y-0.5">
@@ -282,7 +206,7 @@ export function RubricaForm({ rubrica, onSuccess, onCancel }: RubricaFormProps) 
 
             <FormField
               control={form.control}
-              name="incidencia_fgts"
+              name="incide_fgts"
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                   <div className="space-y-0.5">
@@ -302,7 +226,7 @@ export function RubricaForm({ rubrica, onSuccess, onCancel }: RubricaFormProps) 
 
         <FormField
           control={form.control}
-          name="ativa"
+          name="ativo"
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
