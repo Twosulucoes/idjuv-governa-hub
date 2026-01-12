@@ -12,9 +12,9 @@ import { TIPO_RUBRICA_LABELS, type TipoRubrica } from "@/types/folha";
 
 // Labels para campos do banco de dados
 const NATUREZA_LABELS = {
-  fixa: "Fixa",
-  variavel: "Variável",
-  eventual: "Eventual",
+  remuneratorio: "Remuneratório",
+  indenizatorio: "Indenizatório",
+  informativo: "Informativo",
 } as const;
 
 const FORMULA_TIPO_LABELS = {
@@ -29,7 +29,7 @@ const rubricaSchema = z.object({
   codigo: z.string().min(1, "Código é obrigatório").max(10, "Código deve ter no máximo 10 caracteres"),
   descricao: z.string().min(3, "Descrição deve ter pelo menos 3 caracteres"),
   tipo: z.enum(["provento", "desconto", "encargo", "informativo"]),
-  natureza: z.enum(["fixa", "variavel", "eventual"]),
+  natureza: z.enum(["remuneratorio", "indenizatorio", "informativo"]),
   formula_tipo: z.enum(["valor_fixo", "percentual_base", "quantidade_valor", "referencia_cargo", "calculo_especial"]),
   formula_valor: z.coerce.number().min(0).optional().nullable(),
   formula_referencia: z.string().max(50).optional().nullable(),
@@ -81,7 +81,7 @@ export function RubricaForm({ rubrica, onSuccess, onCancel }: RubricaFormProps) 
       codigo: rubrica?.codigo || "",
       descricao: rubrica?.descricao || "",
       tipo: rubrica?.tipo || "provento",
-      natureza: (rubrica?.natureza as "fixa" | "variavel" | "eventual") || "fixa",
+      natureza: (rubrica?.natureza as "remuneratorio" | "indenizatorio" | "informativo") || "remuneratorio",
       formula_tipo: (rubrica?.formula_tipo as "valor_fixo" | "percentual_base" | "quantidade_valor" | "referencia_cargo" | "calculo_especial") || "valor_fixo",
       formula_valor: rubrica?.formula_valor ?? undefined,
       formula_referencia: rubrica?.formula_referencia || "",
@@ -224,18 +224,16 @@ export function RubricaForm({ rubrica, onSuccess, onCancel }: RubricaFormProps) 
                 </Select>
                 <FormMessage />
               </FormItem>
-            );}}
+            )}
           />
 
           <FormField
             control={form.control}
             name="formula_valor"
-            render={({ field }) => {
-              const ft = formulaTipo;
-              return (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel>
-                  {ft === "percentual_base" ? "Percentual (%)" : "Valor (R$)"}
+                  {formulaTipo === "percentual_base" ? "Percentual (%)" : "Valor (R$)"}
                 </FormLabel>
                 <FormControl>
                   <Input 
@@ -244,7 +242,7 @@ export function RubricaForm({ rubrica, onSuccess, onCancel }: RubricaFormProps) 
                     type="number" 
                     step="0.01" 
                     min={0} 
-                    placeholder={ft === "percentual_base" ? "Ex: 11.5" : "Ex: 500.00"}
+                    placeholder={formulaTipo === "percentual_base" ? "Ex: 11.5" : "Ex: 500.00"}
                   />
                 </FormControl>
                 <FormMessage />
