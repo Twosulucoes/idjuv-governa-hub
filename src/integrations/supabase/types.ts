@@ -2558,6 +2558,131 @@ export type Database = {
           },
         ]
       }
+      itens_ficha_financeira: {
+        Row: {
+          base_calculo: number | null
+          created_at: string | null
+          descricao: string
+          ficha_id: string
+          id: string
+          ordem: number | null
+          percentual: number | null
+          referencia: string | null
+          rubrica_id: string | null
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          base_calculo?: number | null
+          created_at?: string | null
+          descricao: string
+          ficha_id: string
+          id?: string
+          ordem?: number | null
+          percentual?: number | null
+          referencia?: string | null
+          rubrica_id?: string | null
+          tipo: string
+          valor?: number
+        }
+        Update: {
+          base_calculo?: number | null
+          created_at?: string | null
+          descricao?: string
+          ficha_id?: string
+          id?: string
+          ordem?: number | null
+          percentual?: number | null
+          referencia?: string | null
+          rubrica_id?: string | null
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itens_ficha_financeira_ficha_id_fkey"
+            columns: ["ficha_id"]
+            isOneToOne: false
+            referencedRelation: "fichas_financeiras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itens_ficha_financeira_rubrica_id_fkey"
+            columns: ["rubrica_id"]
+            isOneToOne: false
+            referencedRelation: "rubricas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itens_retorno_bancario: {
+        Row: {
+          codigo_ocorrencia: string | null
+          created_at: string | null
+          data_pagamento: string | null
+          descricao_ocorrencia: string | null
+          ficha_id: string | null
+          id: string
+          retorno_id: string
+          servidor_id: string | null
+          status: string | null
+          valor: number | null
+        }
+        Insert: {
+          codigo_ocorrencia?: string | null
+          created_at?: string | null
+          data_pagamento?: string | null
+          descricao_ocorrencia?: string | null
+          ficha_id?: string | null
+          id?: string
+          retorno_id: string
+          servidor_id?: string | null
+          status?: string | null
+          valor?: number | null
+        }
+        Update: {
+          codigo_ocorrencia?: string | null
+          created_at?: string | null
+          data_pagamento?: string | null
+          descricao_ocorrencia?: string | null
+          ficha_id?: string | null
+          id?: string
+          retorno_id?: string
+          servidor_id?: string | null
+          status?: string | null
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itens_retorno_bancario_ficha_id_fkey"
+            columns: ["ficha_id"]
+            isOneToOne: false
+            referencedRelation: "fichas_financeiras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itens_retorno_bancario_retorno_id_fkey"
+            columns: ["retorno_id"]
+            isOneToOne: false
+            referencedRelation: "retornos_bancarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itens_retorno_bancario_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itens_retorno_bancario_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       justificativas_ponto: {
         Row: {
           aprovador_id: string | null
@@ -3952,6 +4077,179 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      remessas_bancarias: {
+        Row: {
+          arquivo_url: string | null
+          conta_autarquia_id: string
+          created_at: string | null
+          data_geracao: string | null
+          enviado_em: string | null
+          enviado_por: string | null
+          folha_id: string
+          gerado_por: string | null
+          hash_arquivo: string | null
+          id: string
+          layout: string
+          nome_arquivo: string
+          numero_remessa: number
+          observacoes: string | null
+          quantidade_registros: number | null
+          status: string | null
+          updated_at: string | null
+          valor_total: number | null
+        }
+        Insert: {
+          arquivo_url?: string | null
+          conta_autarquia_id: string
+          created_at?: string | null
+          data_geracao?: string | null
+          enviado_em?: string | null
+          enviado_por?: string | null
+          folha_id: string
+          gerado_por?: string | null
+          hash_arquivo?: string | null
+          id?: string
+          layout?: string
+          nome_arquivo: string
+          numero_remessa: number
+          observacoes?: string | null
+          quantidade_registros?: number | null
+          status?: string | null
+          updated_at?: string | null
+          valor_total?: number | null
+        }
+        Update: {
+          arquivo_url?: string | null
+          conta_autarquia_id?: string
+          created_at?: string | null
+          data_geracao?: string | null
+          enviado_em?: string | null
+          enviado_por?: string | null
+          folha_id?: string
+          gerado_por?: string | null
+          hash_arquivo?: string | null
+          id?: string
+          layout?: string
+          nome_arquivo?: string
+          numero_remessa?: number
+          observacoes?: string | null
+          quantidade_registros?: number | null
+          status?: string | null
+          updated_at?: string | null
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remessas_bancarias_conta_autarquia_id_fkey"
+            columns: ["conta_autarquia_id"]
+            isOneToOne: false
+            referencedRelation: "contas_autarquia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessas_bancarias_enviado_por_fkey"
+            columns: ["enviado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessas_bancarias_enviado_por_fkey"
+            columns: ["enviado_por"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessas_bancarias_folha_id_fkey"
+            columns: ["folha_id"]
+            isOneToOne: false
+            referencedRelation: "folhas_pagamento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessas_bancarias_gerado_por_fkey"
+            columns: ["gerado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessas_bancarias_gerado_por_fkey"
+            columns: ["gerado_por"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      retornos_bancarios: {
+        Row: {
+          arquivo_nome: string | null
+          arquivo_url: string | null
+          created_at: string | null
+          data_processamento: string | null
+          detalhes: Json | null
+          id: string
+          processado_por: string | null
+          quantidade_pagos: number | null
+          quantidade_rejeitados: number | null
+          remessa_id: string | null
+          valor_pago: number | null
+          valor_rejeitado: number | null
+        }
+        Insert: {
+          arquivo_nome?: string | null
+          arquivo_url?: string | null
+          created_at?: string | null
+          data_processamento?: string | null
+          detalhes?: Json | null
+          id?: string
+          processado_por?: string | null
+          quantidade_pagos?: number | null
+          quantidade_rejeitados?: number | null
+          remessa_id?: string | null
+          valor_pago?: number | null
+          valor_rejeitado?: number | null
+        }
+        Update: {
+          arquivo_nome?: string | null
+          arquivo_url?: string | null
+          created_at?: string | null
+          data_processamento?: string | null
+          detalhes?: Json | null
+          id?: string
+          processado_por?: string | null
+          quantidade_pagos?: number | null
+          quantidade_rejeitados?: number | null
+          remessa_id?: string | null
+          valor_pago?: number | null
+          valor_rejeitado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retornos_bancarios_processado_por_fkey"
+            columns: ["processado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retornos_bancarios_processado_por_fkey"
+            columns: ["processado_por"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retornos_bancarios_remessa_id_fkey"
+            columns: ["remessa_id"]
+            isOneToOne: false
+            referencedRelation: "remessas_bancarias"
             referencedColumns: ["id"]
           },
         ]
@@ -5508,6 +5806,10 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_permission"][]
       }
+      get_proximo_numero_remessa: {
+        Args: { p_ano: number; p_conta_id: string }
+        Returns: number
+      }
       get_subordinados_unidade: {
         Args: { p_unidade_id: string }
         Returns: {
@@ -5551,6 +5853,7 @@ export type Database = {
         }
         Returns: string
       }
+      processar_folha_pagamento: { Args: { p_folha_id: string }; Returns: Json }
       user_has_unit_access: {
         Args: { _unidade_id: string; _user_id: string }
         Returns: boolean
