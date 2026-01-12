@@ -5,7 +5,6 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -31,6 +30,7 @@ import {
   generateRelatorioVagasCargo
 } from "@/lib/pdfRelatoriosRH";
 import { VINCULO_LABELS, SITUACAO_LABELS, MOVIMENTACAO_LABELS } from "@/types/rh";
+import { ExportacaoServidoresCard } from "@/components/rh/ExportacaoServidoresCard";
 
 const NATUREZA_LABELS: Record<string, string> = {
   comissionado: 'Cargos Comissionados',
@@ -613,6 +613,9 @@ export default function RelatoriosRHPage() {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Relatório Configurável para Planilha */}
+            <ExportacaoServidoresCard />
           </div>
 
           {/* Summary Cards */}
