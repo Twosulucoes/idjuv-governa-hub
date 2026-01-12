@@ -52,6 +52,7 @@ export function NovaFolhaForm({ onSuccess }: NovaFolhaFormProps) {
     createFolha.mutate(
       {
         ...data,
+        tipo_folha: "mensal",
         status: "previa",
       },
       {
