@@ -9,10 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Plus, FileText, Check, Loader2, Eye, Users } from "lucide-react";
 import { useFolhasPagamento, useUpdateFolhaStatus } from "@/hooks/useFolhaPagamento";
 import { NovaFolhaForm } from "@/components/folha/NovaFolhaForm";
-import type { Database } from "@/integrations/supabase/types";
-
-type FolhaStatus = Database['public']['Enums']['status_folha'];
-import { STATUS_FOLHA_LABELS, STATUS_FOLHA_COLORS, MESES } from "@/types/folha";
+import { STATUS_FOLHA_LABELS, STATUS_FOLHA_COLORS, MESES, type StatusFolha } from "@/types/folha";
 import { useNavigate } from "react-router-dom";
 
 const currentYear = new Date().getFullYear();
@@ -205,7 +202,7 @@ export default function GestaoFolhaPagamentoPage() {
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">
                               <Users className="h-4 w-4 text-muted-foreground" />
-                              {folha.quantidade_fichas || 0}
+                              {folha.quantidade_servidores || 0}
                             </div>
                           </TableCell>
                           <TableCell className="text-right font-mono">
