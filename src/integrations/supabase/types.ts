@@ -1161,6 +1161,132 @@ export type Database = {
           },
         ]
       }
+      consignacoes: {
+        Row: {
+          ativo: boolean | null
+          competencia_fim: string | null
+          competencia_inicio: string | null
+          consignataria_cnpj: string | null
+          consignataria_codigo: string | null
+          consignataria_nome: string
+          created_at: string | null
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string
+          data_quitacao: string | null
+          data_suspensao: string | null
+          id: string
+          motivo_suspensao: string | null
+          numero_contrato: string | null
+          observacoes: string | null
+          parcelas_pagas: number | null
+          quitado: boolean | null
+          rubrica_id: string | null
+          saldo_devedor: number | null
+          servidor_id: string | null
+          suspenso: boolean | null
+          tipo_consignacao: string | null
+          total_parcelas: number
+          updated_at: string | null
+          valor_parcela: number
+          valor_total: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          competencia_fim?: string | null
+          competencia_inicio?: string | null
+          consignataria_cnpj?: string | null
+          consignataria_codigo?: string | null
+          consignataria_nome: string
+          created_at?: string | null
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio: string
+          data_quitacao?: string | null
+          data_suspensao?: string | null
+          id?: string
+          motivo_suspensao?: string | null
+          numero_contrato?: string | null
+          observacoes?: string | null
+          parcelas_pagas?: number | null
+          quitado?: boolean | null
+          rubrica_id?: string | null
+          saldo_devedor?: number | null
+          servidor_id?: string | null
+          suspenso?: boolean | null
+          tipo_consignacao?: string | null
+          total_parcelas: number
+          updated_at?: string | null
+          valor_parcela: number
+          valor_total?: number | null
+        }
+        Update: {
+          ativo?: boolean | null
+          competencia_fim?: string | null
+          competencia_inicio?: string | null
+          consignataria_cnpj?: string | null
+          consignataria_codigo?: string | null
+          consignataria_nome?: string
+          created_at?: string | null
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          data_quitacao?: string | null
+          data_suspensao?: string | null
+          id?: string
+          motivo_suspensao?: string | null
+          numero_contrato?: string | null
+          observacoes?: string | null
+          parcelas_pagas?: number | null
+          quitado?: boolean | null
+          rubrica_id?: string | null
+          saldo_devedor?: number | null
+          servidor_id?: string | null
+          suspenso?: boolean | null
+          tipo_consignacao?: string | null
+          total_parcelas?: number
+          updated_at?: string | null
+          valor_parcela?: number
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consignacoes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consignacoes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consignacoes_rubrica_id_fkey"
+            columns: ["rubrica_id"]
+            isOneToOne: false
+            referencedRelation: "rubricas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consignacoes_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consignacoes_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contas_autarquia: {
         Row: {
           agencia: string
@@ -1236,6 +1362,95 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dependentes_irrf: {
+        Row: {
+          ativo: boolean | null
+          certidao_url: string | null
+          cpf: string | null
+          created_at: string | null
+          created_by: string | null
+          data_fim_deducao: string | null
+          data_inicio_deducao: string
+          data_nascimento: string
+          deduz_irrf: boolean | null
+          documento_url: string | null
+          grau_instrucao: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          servidor_id: string | null
+          tipo_dependente: string
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          certidao_url?: string | null
+          cpf?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_fim_deducao?: string | null
+          data_inicio_deducao: string
+          data_nascimento: string
+          deduz_irrf?: boolean | null
+          documento_url?: string | null
+          grau_instrucao?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          servidor_id?: string | null
+          tipo_dependente: string
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          certidao_url?: string | null
+          cpf?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_fim_deducao?: string | null
+          data_inicio_deducao?: string
+          data_nascimento?: string
+          deduz_irrf?: boolean | null
+          documento_url?: string | null
+          grau_instrucao?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          servidor_id?: string | null
+          tipo_dependente?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dependentes_irrf_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dependentes_irrf_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dependentes_irrf_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dependentes_irrf_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
         ]
@@ -1472,6 +1687,217 @@ export type Database = {
             columns: ["cargo_chefe_id"]
             isOneToOne: false
             referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eventos_esocial: {
+        Row: {
+          competencia_ano: number | null
+          competencia_mes: number | null
+          created_at: string | null
+          data_envio: string | null
+          data_geracao: string | null
+          data_retorno: string | null
+          folha_id: string | null
+          gerado_por: string | null
+          id: string
+          id_evento: string | null
+          lote_id: string | null
+          mensagem_retorno: string | null
+          payload: Json
+          payload_xml: string | null
+          protocolo_envio: string | null
+          recibo: string | null
+          sequencia_lote: number | null
+          servidor_id: string | null
+          status: Database["public"]["Enums"]["status_evento_esocial"] | null
+          tentativas_envio: number | null
+          tipo_evento: string
+          updated_at: string | null
+        }
+        Insert: {
+          competencia_ano?: number | null
+          competencia_mes?: number | null
+          created_at?: string | null
+          data_envio?: string | null
+          data_geracao?: string | null
+          data_retorno?: string | null
+          folha_id?: string | null
+          gerado_por?: string | null
+          id?: string
+          id_evento?: string | null
+          lote_id?: string | null
+          mensagem_retorno?: string | null
+          payload: Json
+          payload_xml?: string | null
+          protocolo_envio?: string | null
+          recibo?: string | null
+          sequencia_lote?: number | null
+          servidor_id?: string | null
+          status?: Database["public"]["Enums"]["status_evento_esocial"] | null
+          tentativas_envio?: number | null
+          tipo_evento: string
+          updated_at?: string | null
+        }
+        Update: {
+          competencia_ano?: number | null
+          competencia_mes?: number | null
+          created_at?: string | null
+          data_envio?: string | null
+          data_geracao?: string | null
+          data_retorno?: string | null
+          folha_id?: string | null
+          gerado_por?: string | null
+          id?: string
+          id_evento?: string | null
+          lote_id?: string | null
+          mensagem_retorno?: string | null
+          payload?: Json
+          payload_xml?: string | null
+          protocolo_envio?: string | null
+          recibo?: string | null
+          sequencia_lote?: number | null
+          servidor_id?: string | null
+          status?: Database["public"]["Enums"]["status_evento_esocial"] | null
+          tentativas_envio?: number | null
+          tipo_evento?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eventos_esocial_folha_id_fkey"
+            columns: ["folha_id"]
+            isOneToOne: false
+            referencedRelation: "folhas_pagamento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eventos_esocial_gerado_por_fkey"
+            columns: ["gerado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eventos_esocial_gerado_por_fkey"
+            columns: ["gerado_por"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eventos_esocial_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eventos_esocial_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exportacoes_folha: {
+        Row: {
+          arquivo_url: string | null
+          banco_id: string | null
+          enviado_em: string | null
+          enviado_por: string | null
+          folha_id: string | null
+          gerado_em: string | null
+          gerado_por: string | null
+          hash_arquivo: string | null
+          id: string
+          mensagem_status: string | null
+          nome_arquivo: string
+          quantidade_registros: number | null
+          status: string | null
+          tamanho_bytes: number | null
+          tipo_exportacao: string
+          valor_total: number | null
+        }
+        Insert: {
+          arquivo_url?: string | null
+          banco_id?: string | null
+          enviado_em?: string | null
+          enviado_por?: string | null
+          folha_id?: string | null
+          gerado_em?: string | null
+          gerado_por?: string | null
+          hash_arquivo?: string | null
+          id?: string
+          mensagem_status?: string | null
+          nome_arquivo: string
+          quantidade_registros?: number | null
+          status?: string | null
+          tamanho_bytes?: number | null
+          tipo_exportacao: string
+          valor_total?: number | null
+        }
+        Update: {
+          arquivo_url?: string | null
+          banco_id?: string | null
+          enviado_em?: string | null
+          enviado_por?: string | null
+          folha_id?: string | null
+          gerado_em?: string | null
+          gerado_por?: string | null
+          hash_arquivo?: string | null
+          id?: string
+          mensagem_status?: string | null
+          nome_arquivo?: string
+          quantidade_registros?: number | null
+          status?: string | null
+          tamanho_bytes?: number | null
+          tipo_exportacao?: string
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exportacoes_folha_banco_id_fkey"
+            columns: ["banco_id"]
+            isOneToOne: false
+            referencedRelation: "bancos_cnab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exportacoes_folha_enviado_por_fkey"
+            columns: ["enviado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exportacoes_folha_enviado_por_fkey"
+            columns: ["enviado_por"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exportacoes_folha_folha_id_fkey"
+            columns: ["folha_id"]
+            isOneToOne: false
+            referencedRelation: "folhas_pagamento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exportacoes_folha_gerado_por_fkey"
+            columns: ["gerado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exportacoes_folha_gerado_por_fkey"
+            columns: ["gerado_por"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
         ]
@@ -3015,6 +3441,134 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_relatorio_uso_unidades"
             referencedColumns: ["unidade_id"]
+          },
+        ]
+      }
+      pensoes_alimenticias: {
+        Row: {
+          ativo: boolean | null
+          banco_agencia: string | null
+          banco_codigo: string | null
+          banco_conta: string | null
+          banco_nome: string | null
+          banco_tipo_conta: string | null
+          base_calculo: string | null
+          beneficiario_cpf: string | null
+          beneficiario_data_nascimento: string | null
+          beneficiario_nome: string
+          beneficiario_parentesco: string | null
+          comarca: string | null
+          created_at: string | null
+          created_by: string | null
+          data_decisao: string | null
+          data_fim: string | null
+          data_inicio: string
+          decisao_judicial_url: string | null
+          id: string
+          numero_processo: string | null
+          observacoes: string | null
+          percentual: number | null
+          pix_chave: string | null
+          pix_tipo: string | null
+          prioridade: number | null
+          servidor_id: string | null
+          tipo_calculo: string
+          updated_at: string | null
+          valor_fixo: number | null
+          vara_judicial: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          banco_agencia?: string | null
+          banco_codigo?: string | null
+          banco_conta?: string | null
+          banco_nome?: string | null
+          banco_tipo_conta?: string | null
+          base_calculo?: string | null
+          beneficiario_cpf?: string | null
+          beneficiario_data_nascimento?: string | null
+          beneficiario_nome: string
+          beneficiario_parentesco?: string | null
+          comarca?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_decisao?: string | null
+          data_fim?: string | null
+          data_inicio: string
+          decisao_judicial_url?: string | null
+          id?: string
+          numero_processo?: string | null
+          observacoes?: string | null
+          percentual?: number | null
+          pix_chave?: string | null
+          pix_tipo?: string | null
+          prioridade?: number | null
+          servidor_id?: string | null
+          tipo_calculo: string
+          updated_at?: string | null
+          valor_fixo?: number | null
+          vara_judicial?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          banco_agencia?: string | null
+          banco_codigo?: string | null
+          banco_conta?: string | null
+          banco_nome?: string | null
+          banco_tipo_conta?: string | null
+          base_calculo?: string | null
+          beneficiario_cpf?: string | null
+          beneficiario_data_nascimento?: string | null
+          beneficiario_nome?: string
+          beneficiario_parentesco?: string | null
+          comarca?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_decisao?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          decisao_judicial_url?: string | null
+          id?: string
+          numero_processo?: string | null
+          observacoes?: string | null
+          percentual?: number | null
+          pix_chave?: string | null
+          pix_tipo?: string | null
+          prioridade?: number | null
+          servidor_id?: string | null
+          tipo_calculo?: string
+          updated_at?: string | null
+          valor_fixo?: number | null
+          vara_judicial?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pensoes_alimenticias_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pensoes_alimenticias_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pensoes_alimenticias_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pensoes_alimenticias_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
           },
         ]
       }
