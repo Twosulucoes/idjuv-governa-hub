@@ -3,11 +3,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Save, Building2 } from "lucide-react";
+import { Loader2, Save, Building2, Server } from "lucide-react";
 import { useConfigAutarquia, useSaveConfigAutarquia } from "@/hooks/useFolhaPagamento";
 import { UFS } from "@/types/rh";
 
@@ -16,15 +16,16 @@ const configSchema = z.object({
   nome_fantasia: z.string().optional(),
   cnpj: z.string().min(14, "CNPJ inválido"),
   natureza_juridica: z.string().optional(),
-  codigo_municipio: z.string().optional(),
+  codigo_municipio: z.string().max(10).optional(),
+  regime_tributario: z.string().optional(),
   endereco_logradouro: z.string().optional(),
-  endereco_numero: z.string().optional(),
+  endereco_numero: z.string().max(30).optional(),
   endereco_complemento: z.string().optional(),
   endereco_bairro: z.string().optional(),
   endereco_cidade: z.string().optional(),
   endereco_uf: z.string().optional(),
   endereco_cep: z.string().optional(),
-  telefone: z.string().optional(),
+  telefone: z.string().max(30).optional(),
   email_institucional: z.string().email("E-mail inválido").optional().or(z.literal("")),
   site: z.string().optional(),
   responsavel_legal: z.string().optional(),
@@ -32,7 +33,9 @@ const configSchema = z.object({
   cargo_responsavel: z.string().optional(),
   responsavel_contabil: z.string().optional(),
   cpf_contabil: z.string().optional(),
-  crc_contabil: z.string().optional(),
+  crc_contabil: z.string().max(30).optional(),
+  esocial_ambiente: z.string().optional(),
+  esocial_processo_emissao: z.string().max(10).optional(),
 });
 
 type ConfigFormData = z.infer<typeof configSchema>;
@@ -49,6 +52,7 @@ export function ConfigAutarquiaTab() {
       cnpj: "",
       natureza_juridica: "",
       codigo_municipio: "",
+      regime_tributario: "",
       endereco_logradouro: "",
       endereco_numero: "",
       endereco_complemento: "",
@@ -65,6 +69,8 @@ export function ConfigAutarquiaTab() {
       responsavel_contabil: "",
       cpf_contabil: "",
       crc_contabil: "",
+      esocial_ambiente: "",
+      esocial_processo_emissao: "",
     },
   });
 
@@ -76,6 +82,7 @@ export function ConfigAutarquiaTab() {
         cnpj: config.cnpj || "",
         natureza_juridica: config.natureza_juridica || "",
         codigo_municipio: config.codigo_municipio || "",
+        regime_tributario: config.regime_tributario || "",
         endereco_logradouro: config.endereco_logradouro || "",
         endereco_numero: config.endereco_numero || "",
         endereco_complemento: config.endereco_complemento || "",
@@ -92,6 +99,8 @@ export function ConfigAutarquiaTab() {
         responsavel_contabil: config.responsavel_contabil || "",
         cpf_contabil: config.cpf_contabil || "",
         crc_contabil: config.crc_contabil || "",
+        esocial_ambiente: config.esocial_ambiente || "",
+        esocial_processo_emissao: config.esocial_processo_emissao || "",
       });
     }
   }, [config, form]);
@@ -148,7 +157,7 @@ export function ConfigAutarquiaTab() {
                 <FormItem>
                   <FormLabel>CNPJ *</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="00.000.000/0000-00" />
+                    <Input {...field} placeholder="00.000.000/0000-00" maxLength={18} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -182,9 +191,34 @@ export function ConfigAutarquiaTab() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="1104">1104 - Autarquia Estadual</SelectItem>
-                      <SelectItem value="1105">1105 - Autarquia Municipal</SelectItem>
-                      <SelectItem value="1201">1201 - Fundação Pública Direito Público</SelectItem>
+                      <SelectItem value="1104 - Autarquia Estadual">1104 - Autarquia Estadual</SelectItem>
+                      <SelectItem value="1105 - Autarquia Municipal">1105 - Autarquia Municipal</SelectItem>
+                      <SelectItem value="1201 - Fundação Pública Direito Público">1201 - Fundação Pública Direito Público</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="regime_tributario"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Regime Tributário</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Imune">Imune</SelectItem>
+                      <SelectItem value="Isento">Isento</SelectItem>
+                      <SelectItem value="Lucro Real">Lucro Real</SelectItem>
+                      <SelectItem value="Lucro Presumido">Lucro Presumido</SelectItem>
+                      <SelectItem value="Simples Nacional">Simples Nacional</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -199,7 +233,7 @@ export function ConfigAutarquiaTab() {
                 <FormItem>
                   <FormLabel>Código IBGE Município</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="1400100" />
+                    <Input {...field} placeholder="1400100" maxLength={10} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -221,7 +255,7 @@ export function ConfigAutarquiaTab() {
                 <FormItem>
                   <FormLabel>CEP</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="00000-000" />
+                    <Input {...field} placeholder="00000-000" maxLength={10} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -249,7 +283,7 @@ export function ConfigAutarquiaTab() {
                 <FormItem>
                   <FormLabel>Número</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Nº" />
+                    <Input {...field} placeholder="Nº" maxLength={30} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -338,7 +372,7 @@ export function ConfigAutarquiaTab() {
                 <FormItem>
                   <FormLabel>Telefone</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="(00) 0000-0000" />
+                    <Input {...field} placeholder="(00) 0000-0000" maxLength={30} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -405,7 +439,7 @@ export function ConfigAutarquiaTab() {
                 <FormItem>
                   <FormLabel>CPF do Responsável</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="000.000.000-00" />
+                    <Input {...field} placeholder="000.000.000-00" maxLength={14} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -447,7 +481,7 @@ export function ConfigAutarquiaTab() {
                 <FormItem>
                   <FormLabel>CPF do Contador</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="000.000.000-00" />
+                    <Input {...field} placeholder="000.000.000-00" maxLength={14} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -461,8 +495,69 @@ export function ConfigAutarquiaTab() {
                 <FormItem>
                   <FormLabel>CRC do Contador</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="CRC/UF 000000" />
+                    <Input {...field} placeholder="CRC/UF 000000" maxLength={30} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
+        </Card>
+
+        {/* eSocial */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Server className="h-5 w-5" />
+              Configurações eSocial
+            </CardTitle>
+            <CardDescription>
+              Parâmetros para envio de eventos ao eSocial
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="esocial_ambiente"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ambiente eSocial</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o ambiente" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="1 - Produção">1 - Produção</SelectItem>
+                      <SelectItem value="2 - Produção Restrita (Homologação)">2 - Produção Restrita (Homologação)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Ambiente 1 para envio real, 2 para testes
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="esocial_processo_emissao"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Processo de Emissão</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="1">1 - Aplicativo do Empregador</SelectItem>
+                      <SelectItem value="2">2 - Aplicativo Governamental</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
