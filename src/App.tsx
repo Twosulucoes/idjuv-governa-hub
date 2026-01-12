@@ -58,6 +58,10 @@ import GestaoLicencasPage from "./pages/rh/GestaoLicencasPage";
 import RelatoriosRHPage from "./pages/rh/RelatoriosRHPage";
 import ModelosDocumentosPage from "./pages/rh/ModelosDocumentosPage";
 
+// Folha de Pagamento
+import ConfiguracaoFolhaPage from "./pages/folha/ConfiguracaoFolhaPage";
+import GestaoFolhaPagamentoPage from "./pages/folha/GestaoFolhaPagamentoPage";
+
 // Unidades Locais
 import GestaoUnidadesLocaisPage from "./pages/unidades/GestaoUnidadesLocaisPage";
 import UnidadeDetalhePage from "./pages/unidades/UnidadeDetalhePage";
@@ -148,6 +152,10 @@ const App = () => (
               <Route path="/rh/licencas" element={<GestaoLicencasPage />} />
               <Route path="/rh/relatorios" element={<RelatoriosRHPage />} />
               <Route path="/rh/modelos" element={<ModelosDocumentosPage />} />
+              
+              {/* Folha de Pagamento */}
+              <Route path="/folha/configuracao" element={<ConfiguracaoFolhaPage />} />
+              <Route path="/folha/gestao" element={<GestaoFolhaPagamentoPage />} />
               
               <Route path="/governanca/portarias" element={<PortariasPage />} />
               <Route path="/governanca/relatorio" element={<RelatorioGovernancaPage />} />
