@@ -5446,11 +5446,23 @@ export type Database = {
         }
         Returns: number
       }
+      calcular_inss_servidor: {
+        Args: { p_base_inss: number; p_vigencia?: string }
+        Returns: number
+      }
+      calcular_irrf: {
+        Args: { p_base_irrf: number; p_vigencia?: string }
+        Returns: number
+      }
       can_approve: {
         Args: { _module_name?: string; _user_id: string }
         Returns: boolean
       }
       can_view_audit: { Args: { _user_id: string }; Returns: boolean }
+      count_dependentes_irrf: {
+        Args: { p_data_referencia?: string; p_servidor_id: string }
+        Returns: number
+      }
       criar_usuario_para_servidor: {
         Args: {
           p_email: string
@@ -5487,6 +5499,10 @@ export type Database = {
           nome: string
           tipo: Database["public"]["Enums"]["tipo_unidade"]
         }[]
+      }
+      get_parametro_vigente: {
+        Args: { p_tipo: string; p_vigencia?: string }
+        Returns: number
       }
       get_permissions_from_servidor: {
         Args: { _user_id: string }
