@@ -9,7 +9,8 @@ export function TabelasImpostosTab() {
   const { data: tabelaINSS, isLoading: loadingINSS } = useTabelaINSS();
   const { data: tabelaIRRF, isLoading: loadingIRRF } = useTabelaIRRF();
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number | null | undefined) => {
+    if (value == null) return "R$ 0,00";
     return value.toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL",
