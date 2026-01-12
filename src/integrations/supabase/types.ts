@@ -5758,7 +5758,7 @@ export type Database = {
       }
       can_view_audit: { Args: { _user_id: string }; Returns: boolean }
       count_dependentes_irrf: {
-        Args: { p_data_referencia?: string; p_servidor_id: string }
+        Args: { p_data?: string; p_servidor_id: string }
         Returns: number
       }
       criar_usuario_para_servidor: {
@@ -5798,10 +5798,9 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_unidade"]
         }[]
       }
-      get_parametro_vigente: {
-        Args: { p_tipo: string; p_vigencia?: string }
-        Returns: number
-      }
+      get_parametro_vigente:
+        | { Args: { p_tipo: string; p_vigencia?: string }; Returns: number }
+        | { Args: { p_data?: string; p_tipo: string }; Returns: number }
       get_permissions_from_servidor: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_permission"][]
