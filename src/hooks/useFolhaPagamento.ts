@@ -197,6 +197,40 @@ export function useUpdateFolhaStatus() {
   });
 }
 
+// ============== REMESSAS BANCÁRIAS ==============
+export function useRemessasFolha(folhaId?: string) {
+  return useQuery({
+    queryKey: ['remessas-bancarias', folhaId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('remessas_bancarias')
+        .select(`*, conta:contas_autarquia(descricao, banco:bancos_cnab(nome))`)
+        .eq('folha_id', folhaId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!folhaId,
+  });
+}
+
+// ============== EVENTOS ESOCIAL ==============
+export function useEventosESocialFolha(folhaId?: string) {
+  return useQuery({
+    queryKey: ['eventos-esocial', folhaId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('eventos_esocial')
+        .select(`*, servidor:servidores(nome_completo)`)
+        .eq('folha_id', folhaId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!folhaId,
+  });
+}
+
 // ============== CONFIG AUTARQUIA ==============
 export function useConfigAutarquia() {
   return useQuery({
