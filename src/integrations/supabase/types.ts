@@ -6393,6 +6393,8 @@ export type Database = {
         | "divisao"
         | "secao"
         | "coordenacao"
+        | "assessoria"
+        | "nucleo"
       tipo_unidade_local:
         | "ginasio"
         | "estadio"
@@ -6804,6 +6806,8 @@ export const Constants = {
         "divisao",
         "secao",
         "coordenacao",
+        "assessoria",
+        "nucleo",
       ],
       tipo_unidade_local: [
         "ginasio",
