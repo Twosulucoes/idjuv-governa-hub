@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
@@ -99,6 +99,11 @@ const ESCOLARIDADE_OPTIONS = [
 
 export function CargoForm({ cargo, composicao: initialComposicao = [], onSubmit, onCancel, isLoading }: CargoFormProps) {
   const [composicao, setComposicao] = useState<ComposicaoItem[]>(initialComposicao);
+  
+  // Sincronizar estado quando initialComposicao mudar (novo cargo selecionado)
+  useEffect(() => {
+    setComposicao(initialComposicao);
+  }, [initialComposicao]);
   
   const form = useForm<CargoFormData>({
     resolver: zodResolver(cargoSchema),
