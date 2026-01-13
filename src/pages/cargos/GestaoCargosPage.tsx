@@ -216,8 +216,13 @@ export default function GestaoCargosPage() {
       setSelectedCargo(null);
       setSelectedComposicao([]);
     },
-    onError: () => {
-      toast.error("Erro ao criar cargo");
+    onError: (error: Error) => {
+      console.error("Erro ao criar cargo:", error);
+      if (error.message.includes("composicao_cargos") || error.message.includes("row-level security")) {
+        toast.error("Erro ao salvar distribuição de vagas. Verifique suas permissões de acesso.");
+      } else {
+        toast.error("Erro ao criar cargo: " + error.message);
+      }
     },
   });
 
@@ -276,8 +281,13 @@ export default function GestaoCargosPage() {
       setSelectedCargo(null);
       setSelectedComposicao([]);
     },
-    onError: () => {
-      toast.error("Erro ao atualizar cargo");
+    onError: (error: Error) => {
+      console.error("Erro ao atualizar cargo:", error);
+      if (error.message.includes("composicao_cargos") || error.message.includes("row-level security")) {
+        toast.error("Erro ao salvar distribuição de vagas. Verifique suas permissões de acesso.");
+      } else {
+        toast.error("Erro ao atualizar cargo: " + error.message);
+      }
     },
   });
 

@@ -23,6 +23,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 import { ComposicaoCargosEditor } from "./ComposicaoCargosEditor";
 
 export type ComposicaoItem = {
@@ -122,8 +125,21 @@ export function CargoForm({ cargo, composicao: initialComposicao = [], onSubmit,
   });
 
   const handleFormSubmit = (data: CargoFormData) => {
+    // Validar soma de vagas distribuídas
+    const totalDistribuido = composicao.reduce((sum, c) => sum + c.quantidade_vagas, 0);
+    
+    if (totalDistribuido > data.quantidade_vagas) {
+      toast.error(`Total distribuído (${totalDistribuido}) excede o total de vagas do cargo (${data.quantidade_vagas}). Ajuste a distribuição ou aumente o número de vagas.`);
+      return;
+    }
+    
     onSubmit(data, composicao);
   };
+
+  // Calcular se há inconsistência na distribuição
+  const totalDistribuido = composicao.reduce((sum, c) => sum + c.quantidade_vagas, 0);
+  const vagasFormulario = form.watch("quantidade_vagas") || 0;
+  const hasDistributionWarning = totalDistribuido > 0 && totalDistribuido !== vagasFormulario;
 
   return (
     <Form {...form}>
@@ -356,6 +372,17 @@ export function CargoForm({ cargo, composicao: initialComposicao = [], onSubmit,
 
           {/* Lotação / Distribuição por Unidade */}
           <TabsContent value="lotacao" className="space-y-4 pt-4">
+            {hasDistributionWarning && (
+              <Alert variant={totalDistribuido > vagasFormulario ? "destructive" : "default"} className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {totalDistribuido > vagasFormulario 
+                    ? `Total distribuído (${totalDistribuido}) excede as vagas do cargo (${vagasFormulario}). Corrija antes de salvar.`
+                    : `Total distribuído (${totalDistribuido}) é menor que as vagas do cargo (${vagasFormulario}). Restam ${vagasFormulario - totalDistribuido} vagas a distribuir.`
+                  }
+                </AlertDescription>
+              </Alert>
+            )}
             <ComposicaoCargosEditor
               cargoId={cargo?.id}
               value={composicao}
