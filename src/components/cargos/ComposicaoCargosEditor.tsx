@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, Building2, Users } from "lucide-react";
-
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Plus, X, Building2, Users, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 type ComposicaoItem = {
   id?: string;
   unidade_id: string;
@@ -110,13 +111,33 @@ export function ComposicaoCargosEditor({ cargoId, value, onChange }: ComposicaoC
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Building2 className="h-4 w-4" />
           Distribuição por Unidade
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>Defina em quais unidades este cargo será disponibilizado e quantas vagas cada unidade terá. As alterações serão salvas ao clicar em "Salvar".</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Alerta informativo quando vazio */}
+        {value.length === 0 && (
+          <Alert className="bg-info/10 border-info/30">
+            <Info className="h-4 w-4 text-info" />
+            <AlertDescription className="text-sm">
+              Nenhuma unidade vinculada ainda. Defina a distribuição de vagas por unidade conforme previsto na lei de criação do cargo.
+            </AlertDescription>
+          </Alert>
+        )}
+        
         {/* Resumo */}
         <div className="flex gap-4 p-3 bg-muted/50 rounded-lg text-sm">
           <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Total de vagas:</span>
+            <span className="text-muted-foreground">Total distribuído:</span>
             <Badge variant="outline">{totalVagas}</Badge>
           </div>
           {cargoId && (
