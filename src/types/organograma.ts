@@ -7,7 +7,9 @@ export type TipoUnidade =
   | 'setor'
   | 'divisao'
   | 'secao'
-  | 'coordenacao';
+  | 'coordenacao'
+  | 'assessoria'
+  | 'nucleo';
 
 export interface UnidadeOrganizacional {
   id: string;
@@ -74,6 +76,8 @@ export const CORES_UNIDADE: Record<TipoUnidade, { bg: string; border: string; te
   divisao: { bg: 'bg-info', border: 'border-info', text: 'text-primary-foreground' },
   secao: { bg: 'bg-success', border: 'border-success', text: 'text-primary-foreground' },
   coordenacao: { bg: 'bg-warning', border: 'border-warning', text: 'text-primary-foreground' },
+  assessoria: { bg: 'bg-amber-500', border: 'border-amber-500', text: 'text-white' },
+  nucleo: { bg: 'bg-slate-500', border: 'border-slate-500', text: 'text-white' },
 };
 
 export const LABELS_UNIDADE: Record<TipoUnidade, string> = {
@@ -84,4 +88,6 @@ export const LABELS_UNIDADE: Record<TipoUnidade, string> = {
   divisao: 'Divisão',
   secao: 'Seção',
   coordenacao: 'Coordenação',
+  assessoria: 'Assessoria',
+  nucleo: 'Núcleo',
 };

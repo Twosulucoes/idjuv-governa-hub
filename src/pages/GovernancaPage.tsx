@@ -32,15 +32,9 @@ const governancaItems = [
   },
   {
     title: "Organograma Interativo",
-    description: "Visualização gráfica da hierarquia institucional",
+    description: "Visualização gráfica da hierarquia institucional com dados em tempo real",
     icon: Network,
     href: "/organograma",
-  },
-  {
-    title: "Organograma (Legado)",
-    description: "Estrutura organizacional e hierarquia institucional",
-    icon: Building2,
-    href: "/governanca/organograma",
   },
   {
     title: "Portarias Estruturantes",

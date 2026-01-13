@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
 
@@ -29,7 +29,6 @@ import LeiCriacaoPage from "./pages/governanca/LeiCriacaoPage";
 import MatrizRaciPage from "./pages/governanca/MatrizRaciPage";
 import DecretoPage from "./pages/governanca/DecretoPage";
 import RegimentoInternoPage from "./pages/governanca/RegimentoInternoPage";
-import OrganogramaPageOld from "./pages/governanca/OrganogramaPage";
 import OrganogramaPage from "./pages/organograma/OrganogramaPage";
 import GestaoOrganogramaPage from "./pages/organograma/GestaoOrganogramaPage";
 import GestaoCargosPage from "./pages/cargos/GestaoCargosPage";
@@ -150,7 +149,7 @@ const App = () => (
                 <Route path="/governanca/matriz-raci" element={<MatrizRaciPage />} />
                 <Route path="/governanca/decreto" element={<DecretoPage />} />
                 <Route path="/governanca/regimento" element={<RegimentoInternoPage />} />
-                <Route path="/governanca/organograma" element={<OrganogramaPageOld />} />
+                <Route path="/governanca/organograma" element={<Navigate to="/organograma" replace />} />
                 <Route path="/governanca/estrutura" element={<EstruturaOrganizacionalPage />} />
                 <Route path="/governanca/portarias" element={<PortariasPage />} />
                 <Route path="/governanca/relatorio" element={<RelatorioGovernancaPage />} />
