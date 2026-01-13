@@ -51,18 +51,18 @@ function mapPreCadastroToServidor(
     naturalidade_cidade: pc.naturalidade_cidade,
     naturalidade_uf: pc.naturalidade_uf,
     
-    // Documentos
+    // Documentos (usando nomes corretos da tabela servidores)
     pis_pasep: pc.pis_pasep,
     titulo_eleitor: pc.titulo_eleitor,
-    titulo_eleitor_zona: pc.titulo_zona,
-    titulo_eleitor_secao: pc.titulo_secao,
-    cnh: pc.cnh_numero,
+    titulo_zona: pc.titulo_zona,
+    titulo_secao: pc.titulo_secao,
+    cnh_numero: pc.cnh_numero,
     cnh_categoria: pc.cnh_categoria,
     cnh_validade: pc.cnh_validade,
-    reservista: pc.certificado_reservista,
+    certificado_reservista: pc.certificado_reservista,
     
     // Contato
-    email: pc.email,
+    email_pessoal: pc.email,
     email_institucional: pc.email,
     telefone_celular: pc.telefone_celular,
     telefone_fixo: pc.telefone_fixo,
