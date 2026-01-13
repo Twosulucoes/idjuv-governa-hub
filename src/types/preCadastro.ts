@@ -206,19 +206,16 @@ export const DOCUMENTOS_CHECKLIST = {
   ],
   escolaridade: [
     { key: 'doc_diploma', label: 'Diploma ou Certificado exigido para o cargo' },
-    { key: 'doc_historico_escolar', label: 'Histórico Escolar' },
     { key: 'doc_registro_conselho', label: 'Registro em Conselho Profissional (quando exigido)' },
   ],
   certidoes: [
     { key: 'doc_certidao_criminal_estadual', label: 'Certidão Negativa Criminal - Justiça Estadual' },
     { key: 'doc_certidao_criminal_federal', label: 'Certidão Negativa Criminal - Justiça Federal' },
     { key: 'doc_quitacao_eleitoral', label: 'Certidão de Quitação Eleitoral' },
-    { key: 'doc_certidao_improbidade', label: 'Certidão de Improbidade Administrativa' },
   ],
   declaracoes: [
     { key: 'doc_declaracao_acumulacao', label: 'Declaração de Não Acumulação de Cargos' },
     { key: 'doc_declaracao_bens', label: 'Declaração de Bens e Valores' },
-    { key: 'doc_termo_responsabilidade', label: 'Termo de Responsabilidade Funcional' },
   ],
   bancarios: [
     { key: 'doc_comprovante_bancario', label: 'Comprovante de Conta Bancária' },
