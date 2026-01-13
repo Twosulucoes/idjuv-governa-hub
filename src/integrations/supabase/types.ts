@@ -3817,6 +3817,264 @@ export type Database = {
           },
         ]
       }
+      pre_cadastros: {
+        Row: {
+          ano_conclusao: number | null
+          banco_agencia: string | null
+          banco_codigo: string | null
+          banco_conta: string | null
+          banco_nome: string | null
+          banco_tipo_conta: string | null
+          certidao_tipo: string | null
+          certificado_reservista: string | null
+          cnh_categoria: string | null
+          cnh_numero: string | null
+          cnh_validade: string | null
+          codigo_acesso: string
+          conselho_numero: string | null
+          convertido_em: string | null
+          convertido_por: string | null
+          cpf: string
+          created_at: string | null
+          cursos_complementares: Json | null
+          data_envio: string | null
+          data_nascimento: string | null
+          dependentes: Json | null
+          doc_certidao: boolean | null
+          doc_certidao_criminal_estadual: boolean | null
+          doc_certidao_criminal_federal: boolean | null
+          doc_certidao_improbidade: boolean | null
+          doc_certificado_reservista: boolean | null
+          doc_comprovante_bancario: boolean | null
+          doc_comprovante_residencia: boolean | null
+          doc_cpf: boolean | null
+          doc_declaracao_acumulacao: boolean | null
+          doc_declaracao_bens: boolean | null
+          doc_diploma: boolean | null
+          doc_historico_escolar: boolean | null
+          doc_pis_pasep: boolean | null
+          doc_quitacao_eleitoral: boolean | null
+          doc_registro_conselho: boolean | null
+          doc_rg: boolean | null
+          doc_termo_responsabilidade: boolean | null
+          doc_titulo_eleitor: boolean | null
+          email: string
+          endereco_bairro: string | null
+          endereco_cep: string | null
+          endereco_cidade: string | null
+          endereco_complemento: string | null
+          endereco_logradouro: string | null
+          endereco_numero: string | null
+          endereco_uf: string | null
+          escolaridade: string | null
+          estado_civil: string | null
+          experiencia_resumo: string | null
+          formacao_academica: string | null
+          foto_url: string | null
+          habilidades: string[] | null
+          id: string
+          idiomas: Json | null
+          instituicao_ensino: string | null
+          ip_envio: string | null
+          nacionalidade: string | null
+          naturalidade_cidade: string | null
+          naturalidade_uf: string | null
+          nome_completo: string
+          nome_social: string | null
+          observacoes: string | null
+          pis_pasep: string | null
+          registro_conselho: string | null
+          rg: string | null
+          rg_data_emissao: string | null
+          rg_orgao_expedidor: string | null
+          rg_uf: string | null
+          servidor_id: string | null
+          sexo: string | null
+          status: string | null
+          telefone_celular: string | null
+          telefone_fixo: string | null
+          titulo_eleitor: string | null
+          titulo_secao: string | null
+          titulo_zona: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ano_conclusao?: number | null
+          banco_agencia?: string | null
+          banco_codigo?: string | null
+          banco_conta?: string | null
+          banco_nome?: string | null
+          banco_tipo_conta?: string | null
+          certidao_tipo?: string | null
+          certificado_reservista?: string | null
+          cnh_categoria?: string | null
+          cnh_numero?: string | null
+          cnh_validade?: string | null
+          codigo_acesso: string
+          conselho_numero?: string | null
+          convertido_em?: string | null
+          convertido_por?: string | null
+          cpf: string
+          created_at?: string | null
+          cursos_complementares?: Json | null
+          data_envio?: string | null
+          data_nascimento?: string | null
+          dependentes?: Json | null
+          doc_certidao?: boolean | null
+          doc_certidao_criminal_estadual?: boolean | null
+          doc_certidao_criminal_federal?: boolean | null
+          doc_certidao_improbidade?: boolean | null
+          doc_certificado_reservista?: boolean | null
+          doc_comprovante_bancario?: boolean | null
+          doc_comprovante_residencia?: boolean | null
+          doc_cpf?: boolean | null
+          doc_declaracao_acumulacao?: boolean | null
+          doc_declaracao_bens?: boolean | null
+          doc_diploma?: boolean | null
+          doc_historico_escolar?: boolean | null
+          doc_pis_pasep?: boolean | null
+          doc_quitacao_eleitoral?: boolean | null
+          doc_registro_conselho?: boolean | null
+          doc_rg?: boolean | null
+          doc_termo_responsabilidade?: boolean | null
+          doc_titulo_eleitor?: boolean | null
+          email: string
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_complemento?: string | null
+          endereco_logradouro?: string | null
+          endereco_numero?: string | null
+          endereco_uf?: string | null
+          escolaridade?: string | null
+          estado_civil?: string | null
+          experiencia_resumo?: string | null
+          formacao_academica?: string | null
+          foto_url?: string | null
+          habilidades?: string[] | null
+          id?: string
+          idiomas?: Json | null
+          instituicao_ensino?: string | null
+          ip_envio?: string | null
+          nacionalidade?: string | null
+          naturalidade_cidade?: string | null
+          naturalidade_uf?: string | null
+          nome_completo: string
+          nome_social?: string | null
+          observacoes?: string | null
+          pis_pasep?: string | null
+          registro_conselho?: string | null
+          rg?: string | null
+          rg_data_emissao?: string | null
+          rg_orgao_expedidor?: string | null
+          rg_uf?: string | null
+          servidor_id?: string | null
+          sexo?: string | null
+          status?: string | null
+          telefone_celular?: string | null
+          telefone_fixo?: string | null
+          titulo_eleitor?: string | null
+          titulo_secao?: string | null
+          titulo_zona?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ano_conclusao?: number | null
+          banco_agencia?: string | null
+          banco_codigo?: string | null
+          banco_conta?: string | null
+          banco_nome?: string | null
+          banco_tipo_conta?: string | null
+          certidao_tipo?: string | null
+          certificado_reservista?: string | null
+          cnh_categoria?: string | null
+          cnh_numero?: string | null
+          cnh_validade?: string | null
+          codigo_acesso?: string
+          conselho_numero?: string | null
+          convertido_em?: string | null
+          convertido_por?: string | null
+          cpf?: string
+          created_at?: string | null
+          cursos_complementares?: Json | null
+          data_envio?: string | null
+          data_nascimento?: string | null
+          dependentes?: Json | null
+          doc_certidao?: boolean | null
+          doc_certidao_criminal_estadual?: boolean | null
+          doc_certidao_criminal_federal?: boolean | null
+          doc_certidao_improbidade?: boolean | null
+          doc_certificado_reservista?: boolean | null
+          doc_comprovante_bancario?: boolean | null
+          doc_comprovante_residencia?: boolean | null
+          doc_cpf?: boolean | null
+          doc_declaracao_acumulacao?: boolean | null
+          doc_declaracao_bens?: boolean | null
+          doc_diploma?: boolean | null
+          doc_historico_escolar?: boolean | null
+          doc_pis_pasep?: boolean | null
+          doc_quitacao_eleitoral?: boolean | null
+          doc_registro_conselho?: boolean | null
+          doc_rg?: boolean | null
+          doc_termo_responsabilidade?: boolean | null
+          doc_titulo_eleitor?: boolean | null
+          email?: string
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_complemento?: string | null
+          endereco_logradouro?: string | null
+          endereco_numero?: string | null
+          endereco_uf?: string | null
+          escolaridade?: string | null
+          estado_civil?: string | null
+          experiencia_resumo?: string | null
+          formacao_academica?: string | null
+          foto_url?: string | null
+          habilidades?: string[] | null
+          id?: string
+          idiomas?: Json | null
+          instituicao_ensino?: string | null
+          ip_envio?: string | null
+          nacionalidade?: string | null
+          naturalidade_cidade?: string | null
+          naturalidade_uf?: string | null
+          nome_completo?: string
+          nome_social?: string | null
+          observacoes?: string | null
+          pis_pasep?: string | null
+          registro_conselho?: string | null
+          rg?: string | null
+          rg_data_emissao?: string | null
+          rg_orgao_expedidor?: string | null
+          rg_uf?: string | null
+          servidor_id?: string | null
+          sexo?: string | null
+          status?: string | null
+          telefone_celular?: string | null
+          telefone_fixo?: string | null
+          titulo_eleitor?: string | null
+          titulo_secao?: string | null
+          titulo_zona?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pre_cadastros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pre_cadastros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -5795,6 +6053,7 @@ export type Database = {
         Args: { p_servidor_id: string }
         Returns: undefined
       }
+      gerar_codigo_pre_cadastro: { Args: never; Returns: string }
       gerar_protocolo_cedencia: {
         Args: { p_unidade_id: string }
         Returns: string
