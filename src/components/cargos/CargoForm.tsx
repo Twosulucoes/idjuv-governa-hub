@@ -103,7 +103,7 @@ export function CargoForm({ cargo, composicao: initialComposicao = [], onSubmit,
   // Sincronizar estado quando initialComposicao mudar (novo cargo selecionado)
   useEffect(() => {
     setComposicao(initialComposicao);
-  }, [initialComposicao]);
+  }, [JSON.stringify(initialComposicao)]);
   
   const form = useForm<CargoFormData>({
     resolver: zodResolver(cargoSchema),
