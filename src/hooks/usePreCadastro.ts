@@ -27,7 +27,7 @@ function mapToDatabase(dados: Partial<PreCadastro>): Record<string, any> {
 }
 
 // Helper para mapear pré-cadastro para servidor
-// Campos mapeados: cnh_numero, titulo_zona, titulo_secao, certificado_reservista, email_pessoal
+// Construção EXPLÍCITA - apenas campos que existem na tabela servidores
 function mapPreCadastroToServidor(
   pc: PreCadastro,
   extras: {
@@ -38,69 +38,75 @@ function mapPreCadastroToServidor(
     dataAdmissao: string;
   }
 ): Record<string, any> {
-  return {
-    nome_completo: pc.nome_completo,
-    nome_social: pc.nome_social,
-    cpf: pc.cpf,
-    rg: pc.rg,
-    rg_orgao_expedidor: pc.rg_orgao_expedidor,
-    rg_uf: pc.rg_uf,
-    data_nascimento: pc.data_nascimento,
-    sexo: pc.sexo,
-    estado_civil: pc.estado_civil,
-    nacionalidade: pc.nacionalidade,
-    naturalidade_cidade: pc.naturalidade_cidade,
-    naturalidade_uf: pc.naturalidade_uf,
-    
-    // Documentos (usando nomes corretos da tabela servidores)
-    pis_pasep: pc.pis_pasep,
-    titulo_eleitor: pc.titulo_eleitor,
-    titulo_zona: pc.titulo_zona,
-    titulo_secao: pc.titulo_secao,
-    cnh_numero: pc.cnh_numero,
-    cnh_categoria: pc.cnh_categoria,
-    cnh_validade: pc.cnh_validade,
-    certificado_reservista: pc.certificado_reservista,
-    
-    // Contato
-    email_pessoal: pc.email,
-    email_institucional: pc.email,
-    telefone_celular: pc.telefone_celular,
-    telefone_fixo: pc.telefone_fixo,
-    
-    // Endereço
-    endereco_cep: pc.endereco_cep,
-    endereco_logradouro: pc.endereco_logradouro,
-    endereco_numero: pc.endereco_numero,
-    endereco_complemento: pc.endereco_complemento,
-    endereco_bairro: pc.endereco_bairro,
-    endereco_cidade: pc.endereco_cidade,
-    endereco_uf: pc.endereco_uf,
-    
-    // Escolaridade
-    escolaridade: pc.escolaridade,
-    formacao_academica: pc.formacao_academica,
-    instituicao_ensino: pc.instituicao_ensino,
-    ano_conclusao: pc.ano_conclusao,
-    
-    // Dados bancários
-    banco_codigo: pc.banco_codigo,
-    banco_nome: pc.banco_nome,
-    banco_agencia: pc.banco_agencia,
-    banco_conta: pc.banco_conta,
-    banco_tipo_conta: pc.banco_tipo_conta,
-    
-    // Dados do vínculo
-    matricula: extras.matricula,
-    tipo_servidor: extras.tipoServidor,
-    cargo_atual_id: extras.cargoId || null,
-    unidade_atual_id: extras.unidadeId,
-    data_admissao: extras.dataAdmissao,
-    
-    // Status
-    situacao: 'ativo',
-    ativo: true,
-  };
+  // Construir objeto explicitamente para evitar campos inexistentes
+  const servidor: Record<string, any> = {};
+  
+  // Dados pessoais
+  if (pc.nome_completo) servidor.nome_completo = pc.nome_completo;
+  if (pc.nome_social) servidor.nome_social = pc.nome_social;
+  if (pc.cpf) servidor.cpf = pc.cpf;
+  if (pc.rg) servidor.rg = pc.rg;
+  if (pc.rg_orgao_expedidor) servidor.rg_orgao_expedidor = pc.rg_orgao_expedidor;
+  if (pc.rg_uf) servidor.rg_uf = pc.rg_uf;
+  if (pc.data_nascimento) servidor.data_nascimento = pc.data_nascimento;
+  if (pc.sexo) servidor.sexo = pc.sexo;
+  if (pc.estado_civil) servidor.estado_civil = pc.estado_civil;
+  if (pc.nacionalidade) servidor.nacionalidade = pc.nacionalidade;
+  if (pc.naturalidade_cidade) servidor.naturalidade_cidade = pc.naturalidade_cidade;
+  if (pc.naturalidade_uf) servidor.naturalidade_uf = pc.naturalidade_uf;
+  
+  // Documentos - usando APENAS campos que existem em servidores
+  if (pc.pis_pasep) servidor.pis_pasep = pc.pis_pasep;
+  if (pc.titulo_eleitor) servidor.titulo_eleitor = pc.titulo_eleitor;
+  if (pc.titulo_zona) servidor.titulo_zona = pc.titulo_zona;
+  if (pc.titulo_secao) servidor.titulo_secao = pc.titulo_secao;
+  if (pc.cnh_numero) servidor.cnh_numero = pc.cnh_numero;
+  if (pc.cnh_categoria) servidor.cnh_categoria = pc.cnh_categoria;
+  if (pc.cnh_validade) servidor.cnh_validade = pc.cnh_validade;
+  if (pc.certificado_reservista) servidor.certificado_reservista = pc.certificado_reservista;
+  
+  // Contato
+  if (pc.email) {
+    servidor.email_pessoal = pc.email;
+    servidor.email_institucional = pc.email;
+  }
+  if (pc.telefone_celular) servidor.telefone_celular = pc.telefone_celular;
+  if (pc.telefone_fixo) servidor.telefone_fixo = pc.telefone_fixo;
+  
+  // Endereço
+  if (pc.endereco_cep) servidor.endereco_cep = pc.endereco_cep;
+  if (pc.endereco_logradouro) servidor.endereco_logradouro = pc.endereco_logradouro;
+  if (pc.endereco_numero) servidor.endereco_numero = pc.endereco_numero;
+  if (pc.endereco_complemento) servidor.endereco_complemento = pc.endereco_complemento;
+  if (pc.endereco_bairro) servidor.endereco_bairro = pc.endereco_bairro;
+  if (pc.endereco_cidade) servidor.endereco_cidade = pc.endereco_cidade;
+  if (pc.endereco_uf) servidor.endereco_uf = pc.endereco_uf;
+  
+  // Escolaridade
+  if (pc.escolaridade) servidor.escolaridade = pc.escolaridade;
+  if (pc.formacao_academica) servidor.formacao_academica = pc.formacao_academica;
+  if (pc.instituicao_ensino) servidor.instituicao_ensino = pc.instituicao_ensino;
+  if (pc.ano_conclusao) servidor.ano_conclusao = pc.ano_conclusao;
+  
+  // Dados bancários
+  if (pc.banco_codigo) servidor.banco_codigo = pc.banco_codigo;
+  if (pc.banco_nome) servidor.banco_nome = pc.banco_nome;
+  if (pc.banco_agencia) servidor.banco_agencia = pc.banco_agencia;
+  if (pc.banco_conta) servidor.banco_conta = pc.banco_conta;
+  if (pc.banco_tipo_conta) servidor.banco_tipo_conta = pc.banco_tipo_conta;
+  
+  // Dados do vínculo (sempre presentes)
+  servidor.matricula = extras.matricula;
+  servidor.tipo_servidor = extras.tipoServidor;
+  servidor.cargo_atual_id = extras.cargoId || null;
+  servidor.unidade_atual_id = extras.unidadeId;
+  servidor.data_admissao = extras.dataAdmissao;
+  
+  // Status
+  servidor.situacao = 'ativo';
+  servidor.ativo = true;
+  
+  return servidor;
 }
 
 export function usePreCadastro(codigoAcesso?: string) {
@@ -325,16 +331,13 @@ export function usePreCadastros() {
       const matricula = await gerarMatricula();
       
       // 4. Mapear e inserir servidor
-      const servidorDataRaw = mapPreCadastroToServidor(preCadastro, {
+      const servidorData = mapPreCadastroToServidor(preCadastro, {
         matricula,
         tipoServidor,
         cargoId,
         unidadeId,
         dataAdmissao,
       });
-
-      // Defesa: nunca enviar colunas inexistentes para o backend (ex.: "cnh")
-      const { cnh: _cnh, ...servidorData } = servidorDataRaw as any;
       
       const { data: novoServidor, error: srvError } = await supabase
         .from('servidores')
