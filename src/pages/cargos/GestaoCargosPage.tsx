@@ -627,6 +627,7 @@ export default function GestaoCargosPage() {
                 </DialogTitle>
               </DialogHeader>
               <CargoForm
+                key={selectedCargo?.id || 'new'}
                 cargo={selectedCargo}
                 composicao={selectedComposicao}
                 onSubmit={handleFormSubmit}
