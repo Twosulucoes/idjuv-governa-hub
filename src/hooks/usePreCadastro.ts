@@ -27,6 +27,7 @@ function mapToDatabase(dados: Partial<PreCadastro>): Record<string, any> {
 }
 
 // Helper para mapear pré-cadastro para servidor
+// Campos mapeados: cnh_numero, titulo_zona, titulo_secao, certificado_reservista, email_pessoal
 function mapPreCadastroToServidor(
   pc: PreCadastro,
   extras: {
