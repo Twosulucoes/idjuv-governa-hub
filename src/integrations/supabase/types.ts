@@ -2025,6 +2025,8 @@ export type Database = {
           cargo_vencimento: number | null
           centro_custo_codigo: string | null
           centro_custo_id: string | null
+          competencia_ano: number | null
+          competencia_mes: number | null
           created_at: string | null
           data_processamento: string | null
           folha_id: string | null
@@ -2039,9 +2041,12 @@ export type Database = {
           rat: number | null
           servidor_id: string | null
           tem_inconsistencia: boolean | null
+          tipo_folha: string | null
           total_descontos: number | null
           total_encargos: number | null
           total_proventos: number | null
+          unidade_id: string | null
+          unidade_nome: string | null
           updated_at: string | null
           valor_deducao_dependentes: number | null
           valor_inss: number | null
@@ -2062,6 +2067,8 @@ export type Database = {
           cargo_vencimento?: number | null
           centro_custo_codigo?: string | null
           centro_custo_id?: string | null
+          competencia_ano?: number | null
+          competencia_mes?: number | null
           created_at?: string | null
           data_processamento?: string | null
           folha_id?: string | null
@@ -2076,9 +2083,12 @@ export type Database = {
           rat?: number | null
           servidor_id?: string | null
           tem_inconsistencia?: boolean | null
+          tipo_folha?: string | null
           total_descontos?: number | null
           total_encargos?: number | null
           total_proventos?: number | null
+          unidade_id?: string | null
+          unidade_nome?: string | null
           updated_at?: string | null
           valor_deducao_dependentes?: number | null
           valor_inss?: number | null
@@ -2099,6 +2109,8 @@ export type Database = {
           cargo_vencimento?: number | null
           centro_custo_codigo?: string | null
           centro_custo_id?: string | null
+          competencia_ano?: number | null
+          competencia_mes?: number | null
           created_at?: string | null
           data_processamento?: string | null
           folha_id?: string | null
@@ -2113,9 +2125,12 @@ export type Database = {
           rat?: number | null
           servidor_id?: string | null
           tem_inconsistencia?: boolean | null
+          tipo_folha?: string | null
           total_descontos?: number | null
           total_encargos?: number | null
           total_proventos?: number | null
+          unidade_id?: string | null
+          unidade_nome?: string | null
           updated_at?: string | null
           valor_deducao_dependentes?: number | null
           valor_inss?: number | null
@@ -2170,6 +2185,13 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fichas_financeiras_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
             referencedColumns: ["id"]
           },
         ]
