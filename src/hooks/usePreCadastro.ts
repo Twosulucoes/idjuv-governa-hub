@@ -49,7 +49,18 @@ function mapPreCadastroToServidor(
   if (pc.rg_orgao_expedidor) servidor.rg_orgao_expedidor = pc.rg_orgao_expedidor;
   if (pc.rg_uf) servidor.rg_uf = pc.rg_uf;
   if (pc.data_nascimento) servidor.data_nascimento = pc.data_nascimento;
-  if (pc.sexo) servidor.sexo = pc.sexo;
+  // Converter sexo para formato aceito pela tabela (M, F, O)
+  if (pc.sexo) {
+    const sexoMap: Record<string, string> = {
+      'Masculino': 'M',
+      'Feminino': 'F',
+      'Outro': 'O',
+      'M': 'M',
+      'F': 'F',
+      'O': 'O',
+    };
+    servidor.sexo = sexoMap[pc.sexo] || 'O';
+  }
   if (pc.estado_civil) servidor.estado_civil = pc.estado_civil;
   if (pc.nacionalidade) servidor.nacionalidade = pc.nacionalidade;
   if (pc.naturalidade_cidade) servidor.naturalidade_cidade = pc.naturalidade_cidade;
