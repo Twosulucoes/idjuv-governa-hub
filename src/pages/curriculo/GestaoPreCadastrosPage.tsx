@@ -46,6 +46,7 @@ import { formatCPF } from "@/lib/formatters";
 import type { PreCadastro, StatusPreCadastro } from "@/types/preCadastro";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { ConversaoServidorDialog } from "@/components/curriculo/ConversaoServidorDialog";
 
 const STATUS_CONFIG: Record<
   StatusPreCadastro,
@@ -59,7 +60,7 @@ const STATUS_CONFIG: Record<
 };
 
 export default function GestaoPreCadastrosPage() {
-  const { preCadastros, isLoading, aprovar, rejeitar } = usePreCadastros();
+  const { preCadastros, isLoading, aprovar, rejeitar, converter, isConverting } = usePreCadastros();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusPreCadastro | "todos">("todos");
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; id: string | null }>({
@@ -68,6 +69,10 @@ export default function GestaoPreCadastrosPage() {
   });
   const [rejectReason, setRejectReason] = useState("");
   const [detailDialog, setDetailDialog] = useState<{
+    open: boolean;
+    data: PreCadastro | null;
+  }>({ open: false, data: null });
+  const [conversaoDialog, setConversaoDialog] = useState<{
     open: boolean;
     data: PreCadastro | null;
   }>({ open: false, data: null });
@@ -286,7 +291,11 @@ export default function GestaoPreCadastrosPage() {
                               </>
                             )}
                             {p.status === "aprovado" && (
-                              <DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  setConversaoDialog({ open: true, data: p })
+                                }
+                              >
                                 <UserPlus className="h-4 w-4 mr-2" />
                                 Converter em Servidor
                               </DropdownMenuItem>
@@ -410,6 +419,15 @@ export default function GestaoPreCadastrosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de Conversão */}
+      <ConversaoServidorDialog
+        open={conversaoDialog.open}
+        onOpenChange={(open) => setConversaoDialog({ open, data: null })}
+        preCadastro={conversaoDialog.data}
+        onConverter={converter}
+        isConverting={isConverting}
+      />
     </AdminLayout>
   );
 }
