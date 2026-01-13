@@ -295,6 +295,24 @@ export default function FolhaDetalhePage() {
           </Alert>
         )}
 
+        {/* Alerta de dados bancários faltantes */}
+        {fichas && fichas.length > 0 && (() => {
+          const semDadosBancarios = fichas.filter(f => !f.banco_codigo || !f.banco_agencia || !f.banco_conta);
+          if (semDadosBancarios.length > 0) {
+            return (
+              <Alert className="border-orange-200 bg-orange-50">
+                <Info className="h-4 w-4 text-orange-600" />
+                <AlertTitle className="text-orange-800">Dados Bancários Incompletos</AlertTitle>
+                <AlertDescription className="text-orange-700">
+                  {semDadosBancarios.length} servidor(es) sem dados bancários cadastrados. 
+                  A remessa CNAB não incluirá esses servidores.
+                </AlertDescription>
+              </Alert>
+            );
+          }
+          return null;
+        })()}
+
         {/* Cards de Resumo */}
         <div className="grid gap-4 md:grid-cols-4">
           <Card>

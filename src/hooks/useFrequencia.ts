@@ -325,7 +325,7 @@ export function useRecalcularFrequencia() {
           ? ((diasTrabalhados + atestados + ferias + licencas + abonos) / diasUteis) * 100
           : 0;
 
-      // Upsert na tabela frequencia_mensal
+      // Upsert na tabela frequencia_mensal - usando nomes corretos das colunas
       const { data, error } = await supabase
         .from("frequencia_mensal")
         .upsert(
@@ -335,11 +335,11 @@ export function useRecalcularFrequencia() {
             mes,
             dias_uteis: diasUteis,
             dias_trabalhados: diasTrabalhados,
-            faltas,
-            atestados,
-            ferias,
-            licencas,
-            abonos,
+            dias_falta: faltas,
+            dias_atestado: atestados,
+            dias_ferias: ferias,
+            dias_licenca: licencas,
+            dias_folga: abonos,
             percentual_presenca: Math.round(percentualPresenca * 10) / 10,
             updated_at: new Date().toISOString(),
           },
