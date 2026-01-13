@@ -1,0 +1,10 @@
+export { DadosPessoaisForm } from "./DadosPessoaisForm";
+export { DocumentosForm } from "./DocumentosForm";
+export { EnderecoForm } from "./EnderecoForm";
+export { PrevidenciaForm } from "./PrevidenciaForm";
+export { EscolaridadeForm } from "./EscolaridadeForm";
+export { AptidoesForm } from "./AptidoesForm";
+export { ChecklistForm } from "./ChecklistForm";
+export { DadosBancariosForm } from "./DadosBancariosForm";
+export { DependentesForm } from "./DependentesForm";
+export { RevisaoForm } from "./RevisaoForm";
