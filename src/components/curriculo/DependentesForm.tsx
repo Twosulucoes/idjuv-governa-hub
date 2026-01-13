@@ -9,6 +9,7 @@ import { MaskedInput } from "@/components/ui/masked-input";
 import { Trash2, Plus, User } from "lucide-react";
 import type { PreCadastro, Dependente } from "@/types/preCadastro";
 import { PARENTESCOS } from "@/types/preCadastro";
+import { formatDateBR } from "@/lib/formatters";
 
 interface Props {
   dados: Partial<PreCadastro>;
@@ -69,7 +70,7 @@ export function DependentesForm({ dados, onChange }: Props) {
                         </p>
                         {dep.data_nascimento && (
                           <p className="text-xs text-muted-foreground">
-                            Nascimento: {new Date(dep.data_nascimento).toLocaleDateString("pt-BR")}
+                            Nascimento: {formatDateBR(dep.data_nascimento)}
                           </p>
                         )}
                       </div>

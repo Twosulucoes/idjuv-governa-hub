@@ -101,6 +101,32 @@ export const toUpperCase = (value: string): string => {
 };
 
 // ========================================
+// FORMATAÇÃO DE DATAS
+// ========================================
+
+/**
+ * Formata uma data para o padrão brasileiro DD/MM/YYYY
+ * Corrige o problema de fuso horário ao converter datas YYYY-MM-DD
+ */
+export const formatDateBR = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return "-";
+  
+  // Se já contém 'T', é timestamp ISO completo - usar conversão normal
+  if (dateStr.includes('T')) {
+    return new Date(dateStr).toLocaleDateString("pt-BR");
+  }
+  
+  // Formato YYYY-MM-DD - converter diretamente para DD/MM/YYYY
+  // Evita problema de fuso horário do new Date()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr.split('-').reverse().join('/');
+  }
+  
+  // Fallback para outros formatos
+  return new Date(dateStr).toLocaleDateString("pt-BR");
+};
+
+// ========================================
 // VALIDAÇÕES
 // ========================================
 

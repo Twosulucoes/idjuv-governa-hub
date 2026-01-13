@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import type { PreCadastro, Dependente, Idioma } from "@/types/preCadastro";
-import { formatCPF } from "@/lib/formatters";
+import { formatCPF, formatDateBR } from "@/lib/formatters";
 import { DOCUMENTOS_CHECKLIST } from "@/types/preCadastro";
 
 interface Props {
@@ -153,11 +153,7 @@ export function RevisaoForm({ dados }: Props) {
             <div>
               <span className="text-muted-foreground">Data Nascimento:</span>
               <p className="font-medium">
-                {dados.data_nascimento
-                  ? dados.data_nascimento.includes('T') 
-                    ? new Date(dados.data_nascimento).toLocaleDateString("pt-BR")
-                    : dados.data_nascimento.split('-').reverse().join('/')
-                  : "-"}
+{formatDateBR(dados.data_nascimento)}
               </p>
             </div>
             <div>
