@@ -116,7 +116,7 @@ export function DependentesForm({ dados, onChange }: Props) {
                     id="dep_cpf"
                     mask="cpf"
                     value={novoDependente.cpf}
-                    onValueChange={(value) =>
+                    onChange={(value) =>
                       setNovoDependente({ ...novoDependente, cpf: value })
                     }
                     placeholder="000.000.000-00"

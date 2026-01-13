@@ -31,7 +31,7 @@ export function EnderecoForm({ dados, onChange }: Props) {
             id="endereco_cep"
             mask="cep"
             value={dados.endereco_cep || ""}
-            onValueChange={(value) => handleChange("endereco_cep", value)}
+            onChange={(value) => handleChange("endereco_cep", value)}
             placeholder="00000-000"
             className="max-w-[180px]"
           />

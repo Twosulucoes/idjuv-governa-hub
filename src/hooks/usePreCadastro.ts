@@ -1,8 +1,28 @@
-import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { PreCadastro } from '@/types/preCadastro';
+import type { Json } from '@/integrations/supabase/types';
+
+// Helper para converter dados do banco para o tipo PreCadastro
+function mapToPreCadastro(data: any): PreCadastro {
+  return {
+    ...data,
+    idiomas: data.idiomas || [],
+    cursos_complementares: data.cursos_complementares || [],
+    dependentes: data.dependentes || [],
+    habilidades: data.habilidades || [],
+  };
+}
+
+// Helper para converter dados do formulário para o banco
+function mapToDatabase(dados: Partial<PreCadastro>): Record<string, any> {
+  const result: Record<string, any> = { ...dados };
+  if (dados.idiomas) result.idiomas = dados.idiomas as unknown as Json;
+  if (dados.cursos_complementares) result.cursos_complementares = dados.cursos_complementares as unknown as Json;
+  if (dados.dependentes) result.dependentes = dados.dependentes as unknown as Json;
+  return result;
+}
 
 export function usePreCadastro(codigoAcesso?: string) {
   const queryClient = useQueryClient();
@@ -17,10 +37,11 @@ export function usePreCadastro(codigoAcesso?: string) {
         .from('pre_cadastros')
         .select('*')
         .eq('codigo_acesso', codigoAcesso)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
-      return data as PreCadastro;
+      if (!data) return null;
+      return mapToPreCadastro(data);
     },
     enabled: !!codigoAcesso,
   });
@@ -37,21 +58,20 @@ export function usePreCadastro(codigoAcesso?: string) {
     mutationFn: async (dados: Partial<PreCadastro>) => {
       const codigo = await gerarCodigo();
       
+      const dbData = mapToDatabase({
+        ...dados,
+        codigo_acesso: codigo,
+        status: 'rascunho',
+      });
+      
       const { data, error } = await supabase
         .from('pre_cadastros')
-        .insert({
-          codigo_acesso: codigo,
-          nome_completo: dados.nome_completo || '',
-          cpf: dados.cpf || '',
-          email: dados.email || '',
-          status: 'rascunho',
-          ...dados,
-        })
+        .insert(dbData as any)
         .select()
         .single();
       
       if (error) throw error;
-      return data as PreCadastro;
+      return mapToPreCadastro(data);
     },
     onSuccess: () => {
       toast.success('Pré-cadastro iniciado com sucesso!');
@@ -64,18 +84,20 @@ export function usePreCadastro(codigoAcesso?: string) {
   // Atualizar pré-cadastro existente
   const atualizarMutation = useMutation({
     mutationFn: async ({ id, dados }: { id: string; dados: Partial<PreCadastro> }) => {
+      const dbData = mapToDatabase({
+        ...dados,
+        updated_at: new Date().toISOString(),
+      });
+      
       const { data, error } = await supabase
         .from('pre_cadastros')
-        .update({
-          ...dados,
-          updated_at: new Date().toISOString(),
-        })
+        .update(dbData)
         .eq('id', id)
         .select()
         .single();
       
       if (error) throw error;
-      return data as PreCadastro;
+      return mapToPreCadastro(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pre-cadastro'] });
@@ -100,7 +122,7 @@ export function usePreCadastro(codigoAcesso?: string) {
         .single();
       
       if (error) throw error;
-      return data as PreCadastro;
+      return mapToPreCadastro(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pre-cadastro'] });
@@ -135,7 +157,7 @@ export function usePreCadastros() {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as PreCadastro[];
+      return (data || []).map(mapToPreCadastro);
     },
   });
 
@@ -153,7 +175,7 @@ export function usePreCadastros() {
         .single();
       
       if (error) throw error;
-      return data as PreCadastro;
+      return mapToPreCadastro(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pre-cadastros'] });
@@ -176,7 +198,7 @@ export function usePreCadastros() {
         .single();
       
       if (error) throw error;
-      return data as PreCadastro;
+      return mapToPreCadastro(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pre-cadastros'] });

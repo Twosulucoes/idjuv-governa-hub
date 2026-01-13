@@ -156,7 +156,7 @@ export function DadosPessoaisForm({ dados, onChange }: Props) {
               id="telefone_celular"
               mask="telefone"
               value={dados.telefone_celular || ""}
-              onValueChange={(value) => handleChange("telefone_celular", value)}
+              onChange={(value) => handleChange("telefone_celular", value)}
               placeholder="(00) 00000-0000"
             />
           </div>
@@ -168,7 +168,7 @@ export function DadosPessoaisForm({ dados, onChange }: Props) {
             id="telefone_fixo"
             mask="telefone"
             value={dados.telefone_fixo || ""}
-            onValueChange={(value) => handleChange("telefone_fixo", value)}
+            onChange={(value) => handleChange("telefone_fixo", value)}
             placeholder="(00) 0000-0000"
           />
         </div>

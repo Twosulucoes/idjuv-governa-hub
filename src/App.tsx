@@ -87,6 +87,11 @@ import BackupOffsitePage from "./pages/admin/BackupOffsitePage";
 import DisasterRecoveryPage from "./pages/admin/DisasterRecoveryPage";
 import UsuariosTecnicosPage from "./pages/admin/UsuariosTecnicosPage";
 
+// Mini-Currículo / Pré-Cadastro
+import MiniCurriculoPage from "./pages/curriculo/MiniCurriculoPage";
+import MiniCurriculoSucessoPage from "./pages/curriculo/MiniCurriculoSucessoPage";
+import GestaoPreCadastrosPage from "./pages/curriculo/GestaoPreCadastrosPage";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -119,6 +124,12 @@ const App = () => (
               <Route path="/admin/usuarios-tecnicos" element={<UsuariosTecnicosPage />} />
               {/* Redirect old /acesso to new admin route */}
               <Route path="/acesso" element={<ControleAcessoAdminPage />} />
+              
+              {/* Mini-Currículo / Pré-Cadastro (Público) */}
+              <Route path="/curriculo" element={<MiniCurriculoPage />} />
+              <Route path="/curriculo/sucesso" element={<MiniCurriculoSucessoPage />} />
+              <Route path="/curriculo/:codigo" element={<MiniCurriculoPage />} />
+              <Route path="/admin/pre-cadastros" element={<GestaoPreCadastrosPage />} />
               
               {/* Governança */}
               <Route path="/governanca" element={<GovernancaPage />} />
