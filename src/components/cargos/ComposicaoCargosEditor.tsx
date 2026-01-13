@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,9 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Plus, X, Building2, Users, Info } from "lucide-react";
+import { Plus, X, Building2, Users, Info, AlertTriangle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { toast } from "sonner";
 
 type ComposicaoItem = {
   id?: string;
@@ -28,11 +29,20 @@ type ComposicaoCargosEditorProps = {
   cargoId?: string;
   value: ComposicaoItem[];
   onChange: (items: ComposicaoItem[]) => void;
+  initialValue?: ComposicaoItem[];
 };
 
-export function ComposicaoCargosEditor({ cargoId, value, onChange }: ComposicaoCargosEditorProps) {
+export function ComposicaoCargosEditor({ cargoId, value, onChange, initialValue = [] }: ComposicaoCargosEditorProps) {
   const [selectedUnidade, setSelectedUnidade] = useState("");
   const [quantidade, setQuantidade] = useState(1);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Detectar mudanças comparando com valor inicial
+  useEffect(() => {
+    const currentStr = JSON.stringify(value.map(v => ({ u: v.unidade_id, q: v.quantidade_vagas })).sort((a, b) => a.u.localeCompare(b.u)));
+    const initialStr = JSON.stringify(initialValue.map(v => ({ u: v.unidade_id, q: v.quantidade_vagas })).sort((a, b) => a.u.localeCompare(b.u)));
+    setHasChanges(currentStr !== initialStr);
+  }, [value, initialValue]);
 
   const { data: unidades = [] } = useQuery({
     queryKey: ["unidades-ativas"],
@@ -77,6 +87,8 @@ export function ComposicaoCargosEditor({ cargoId, value, onChange }: ComposicaoC
     const unidade = unidades.find(u => u.id === selectedUnidade);
     if (!unidade) return;
 
+    console.log("[ComposicaoCargosEditor] Adicionando unidade:", unidade.nome, "Quantidade:", quantidade);
+
     onChange([
       ...value,
       {
@@ -86,15 +98,23 @@ export function ComposicaoCargosEditor({ cargoId, value, onChange }: ComposicaoC
         unidade_sigla: unidade.sigla || undefined,
       },
     ]);
+    
+    toast.info(`${unidade.nome} adicionada. Clique em "Atualizar" ou "Criar Cargo" para salvar.`, {
+      duration: 4000,
+    });
+    
     setSelectedUnidade("");
     setQuantidade(1);
   };
 
   const handleRemove = (unidadeId: string) => {
+    const unidade = value.find(v => v.unidade_id === unidadeId);
+    console.log("[ComposicaoCargosEditor] Removendo unidade:", unidade?.unidade_nome);
     onChange(value.filter(v => v.unidade_id !== unidadeId));
   };
 
   const handleUpdateQuantidade = (unidadeId: string, novaQuantidade: number) => {
+    console.log("[ComposicaoCargosEditor] Atualizando quantidade da unidade:", unidadeId, "para:", novaQuantidade);
     onChange(
       value.map(v =>
         v.unidade_id === unidadeId ? { ...v, quantidade_vagas: novaQuantidade } : v
@@ -108,7 +128,7 @@ export function ComposicaoCargosEditor({ cargoId, value, onChange }: ComposicaoC
   return (
     <Card>
       <CardHeader className="py-3">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
+        <CardTitle className="text-sm font-medium flex items-center gap-2 flex-wrap">
           <Building2 className="h-4 w-4" />
           Distribuição por Unidade
           <TooltipProvider>
@@ -118,11 +138,19 @@ export function ComposicaoCargosEditor({ cargoId, value, onChange }: ComposicaoC
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
                 <p>
-                  Defina a distribuição de vagas por unidade. As alterações serão salvas ao clicar em "Salvar" ou "Atualizar".
+                  Defina a distribuição de vagas por unidade. As alterações serão salvas ao clicar em "Criar Cargo" ou "Atualizar".
                 </p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+          
+          {/* Badge de alterações pendentes */}
+          {hasChanges && (
+            <Badge variant="outline" className="bg-warning/20 text-warning border-warning/30 ml-auto flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              Alterações pendentes
+            </Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

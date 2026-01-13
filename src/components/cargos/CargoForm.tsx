@@ -98,11 +98,13 @@ const ESCOLARIDADE_OPTIONS = [
 ];
 
 export function CargoForm({ cargo, composicao: initialComposicao = [], onSubmit, onCancel, isLoading }: CargoFormProps) {
-  const [composicao, setComposicao] = useState<ComposicaoItem[]>(initialComposicao);
+  const [composicao, setComposicao] = useState<ComposicaoItem[]>([...initialComposicao]);
+  const [initialComposicaoSnapshot] = useState<ComposicaoItem[]>([...initialComposicao]);
   
   // Sincronizar estado quando initialComposicao mudar (novo cargo selecionado)
   useEffect(() => {
-    setComposicao(initialComposicao);
+    console.log("[CargoForm] Sincronizando composição inicial:", initialComposicao);
+    setComposicao([...initialComposicao]);
   }, [JSON.stringify(initialComposicao)]);
   
   const form = useForm<CargoFormData>({
@@ -130,14 +132,20 @@ export function CargoForm({ cargo, composicao: initialComposicao = [], onSubmit,
   });
 
   const handleFormSubmit = (data: CargoFormData) => {
+    console.log("=== CARGO FORM SUBMIT ===");
+    console.log("Dados do formulário:", data);
+    console.log("Composição atual:", composicao);
+    
     // Validar soma de vagas distribuídas
     const totalDistribuido = composicao.reduce((sum, c) => sum + c.quantidade_vagas, 0);
     
     if (totalDistribuido > data.quantidade_vagas) {
+      console.error("VALIDAÇÃO FALHOU: Total distribuído excede vagas");
       toast.error(`Total distribuído (${totalDistribuido}) excede o total de vagas do cargo (${data.quantidade_vagas}). Ajuste a distribuição ou aumente o número de vagas.`);
       return;
     }
     
+    console.log("Chamando onSubmit com composição:", composicao);
     onSubmit(data, composicao);
   };
 
@@ -392,6 +400,7 @@ export function CargoForm({ cargo, composicao: initialComposicao = [], onSubmit,
               cargoId={cargo?.id}
               value={composicao}
               onChange={setComposicao}
+              initialValue={initialComposicaoSnapshot}
             />
           </TabsContent>
 

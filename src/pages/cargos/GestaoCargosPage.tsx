@@ -172,6 +172,10 @@ export default function GestaoCargosPage() {
 
   const createMutation = useMutation({
     mutationFn: async ({ data, composicao }: { data: CargoFormData; composicao: ComposicaoItem[] }) => {
+      console.log("=== CREATE MUTATION INICIADA ===");
+      console.log("Dados:", data);
+      console.log("Composição recebida:", composicao);
+      
       // Criar o cargo
       const { data: novoCargo, error } = await supabase.from("cargos").insert({
         nome: data.nome,
@@ -194,10 +198,18 @@ export default function GestaoCargosPage() {
         lei_documento_url: data.lei_documento_url || null,
         ativo: true,
       }).select("id").single();
-      if (error) throw error;
+      
+      if (error) {
+        console.error("Erro ao criar cargo:", error);
+        throw error;
+      }
+      
+      console.log("Cargo criado com ID:", novoCargo?.id);
 
       // Criar composição de cargos
       if (composicao.length > 0 && novoCargo) {
+        console.log("Inserindo composição:", composicao.map(c => ({ unidade_id: c.unidade_id, quantidade_vagas: c.quantidade_vagas })));
+        
         const { error: compError } = await supabase.from("composicao_cargos").insert(
           composicao.map(c => ({
             cargo_id: novoCargo.id,
@@ -205,7 +217,15 @@ export default function GestaoCargosPage() {
             quantidade_vagas: c.quantidade_vagas,
           }))
         );
-        if (compError) throw compError;
+        
+        if (compError) {
+          console.error("Erro ao inserir composição:", compError);
+          throw compError;
+        }
+        
+        console.log("Composição inserida com sucesso!");
+      } else {
+        console.log("ATENÇÃO: Composição vazia, nada será inserido na composicao_cargos");
       }
     },
     onSuccess: () => {
@@ -228,6 +248,11 @@ export default function GestaoCargosPage() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data, composicao }: { id: string; data: CargoFormData; composicao: ComposicaoItem[] }) => {
+      console.log("=== UPDATE MUTATION INICIADA ===");
+      console.log("ID do cargo:", id);
+      console.log("Dados:", data);
+      console.log("Composição recebida:", composicao);
+      
       // Atualizar o cargo
       const { error } = await supabase
         .from("cargos")
@@ -252,17 +277,31 @@ export default function GestaoCargosPage() {
           lei_documento_url: data.lei_documento_url || null,
         })
         .eq("id", id);
-      if (error) throw error;
+      
+      if (error) {
+        console.error("Erro ao atualizar cargo:", error);
+        throw error;
+      }
+      
+      console.log("Cargo atualizado, agora deletando composições antigas...");
 
       // Deletar composições existentes e recriar
       const { error: deleteError } = await supabase
         .from("composicao_cargos")
         .delete()
         .eq("cargo_id", id);
-      if (deleteError) throw deleteError;
+      
+      if (deleteError) {
+        console.error("Erro ao deletar composições antigas:", deleteError);
+        throw deleteError;
+      }
+      
+      console.log("Composições antigas deletadas");
 
       // Criar novas composições
       if (composicao.length > 0) {
+        console.log("Inserindo novas composições:", composicao.map(c => ({ unidade_id: c.unidade_id, quantidade_vagas: c.quantidade_vagas })));
+        
         const { error: compError } = await supabase.from("composicao_cargos").insert(
           composicao.map(c => ({
             cargo_id: id,
@@ -270,7 +309,15 @@ export default function GestaoCargosPage() {
             quantidade_vagas: c.quantidade_vagas,
           }))
         );
-        if (compError) throw compError;
+        
+        if (compError) {
+          console.error("Erro ao inserir novas composições:", compError);
+          throw compError;
+        }
+        
+        console.log("Novas composições inseridas com sucesso!");
+      } else {
+        console.log("ATENÇÃO: Composição vazia, nada será inserido na composicao_cargos");
       }
     },
     onSuccess: () => {
@@ -353,11 +400,34 @@ export default function GestaoCargosPage() {
   };
 
   const handleFormSubmit = (data: CargoFormData, composicao: ComposicaoItem[]) => {
+    console.log("=== HANDLE FORM SUBMIT (PAGE) ===");
+    console.log("selectedCargo:", selectedCargo?.id);
+    console.log("Dados recebidos:", data);
+    console.log("Composição recebida:", composicao);
+    
     if (selectedCargo) {
       updateMutation.mutate({ id: selectedCargo.id, data, composicao });
     } else {
       createMutation.mutate({ data, composicao });
     }
+  };
+
+  const handleCloseForm = () => {
+    // Verificar se há alterações pendentes
+    const currentStr = JSON.stringify(selectedComposicao.map(v => ({ u: v.unidade_id, q: v.quantidade_vagas })).sort((a, b) => a.u.localeCompare(b.u)));
+    const composicaoAtual = selectedCargo?.composicao?.map(c => ({ u: c.unidade_id, q: c.quantidade_vagas })).sort((a, b) => a.u.localeCompare(b.u)) || [];
+    const originalStr = JSON.stringify(composicaoAtual);
+    
+    if (currentStr !== originalStr && selectedComposicao.length > 0) {
+      const confirmClose = window.confirm("Há alterações não salvas na distribuição de vagas. Deseja fechar mesmo assim?");
+      if (!confirmClose) {
+        return;
+      }
+    }
+    
+    setIsFormOpen(false);
+    setSelectedCargo(null);
+    setSelectedComposicao([]);
   };
 
   const handleOpenCreate = () => {
@@ -619,7 +689,13 @@ export default function GestaoCargosPage() {
           </div>
 
           {/* Form Dialog */}
-          <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+          <Dialog open={isFormOpen} onOpenChange={(open) => {
+            if (!open) {
+              handleCloseForm();
+            } else {
+              setIsFormOpen(true);
+            }
+          }}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
@@ -631,7 +707,7 @@ export default function GestaoCargosPage() {
                 cargo={selectedCargo}
                 composicao={selectedComposicao}
                 onSubmit={handleFormSubmit}
-                onCancel={() => setIsFormOpen(false)}
+                onCancel={handleCloseForm}
                 isLoading={createMutation.isPending || updateMutation.isPending}
               />
             </DialogContent>
