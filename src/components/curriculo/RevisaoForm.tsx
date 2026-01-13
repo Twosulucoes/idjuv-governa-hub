@@ -154,7 +154,9 @@ export function RevisaoForm({ dados }: Props) {
               <span className="text-muted-foreground">Data Nascimento:</span>
               <p className="font-medium">
                 {dados.data_nascimento
-                  ? new Date(dados.data_nascimento).toLocaleDateString("pt-BR")
+                  ? dados.data_nascimento.includes('T') 
+                    ? new Date(dados.data_nascimento).toLocaleDateString("pt-BR")
+                    : dados.data_nascimento.split('-').reverse().join('/')
                   : "-"}
               </p>
             </div>
