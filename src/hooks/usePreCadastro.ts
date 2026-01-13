@@ -325,13 +325,16 @@ export function usePreCadastros() {
       const matricula = await gerarMatricula();
       
       // 4. Mapear e inserir servidor
-      const servidorData = mapPreCadastroToServidor(preCadastro, {
+      const servidorDataRaw = mapPreCadastroToServidor(preCadastro, {
         matricula,
         tipoServidor,
         cargoId,
         unidadeId,
         dataAdmissao,
       });
+
+      // Defesa: nunca enviar colunas inexistentes para o backend (ex.: "cnh")
+      const { cnh: _cnh, ...servidorData } = servidorDataRaw as any;
       
       const { data: novoServidor, error: srvError } = await supabase
         .from('servidores')
