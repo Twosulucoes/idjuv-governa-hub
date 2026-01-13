@@ -32,7 +32,7 @@ export function DocumentosForm({ dados, onChange }: Props) {
             id="cpf"
             mask="cpf"
             value={dados.cpf || ""}
-            onValueChange={(value) => handleChange("cpf", value)}
+            onChange={(value) => handleChange("cpf", value)}
             placeholder="000.000.000-00"
           />
         </div>

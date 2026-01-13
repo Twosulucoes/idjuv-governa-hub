@@ -28,7 +28,7 @@ export function PrevidenciaForm({ dados, onChange }: Props) {
             id="pis_pasep"
             mask="pis"
             value={dados.pis_pasep || ""}
-            onValueChange={(value) => handleChange("pis_pasep", value)}
+            onChange={(value) => handleChange("pis_pasep", value)}
             placeholder="000.00000.00-0"
             className="max-w-[200px]"
           />
