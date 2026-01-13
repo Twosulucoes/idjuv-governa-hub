@@ -8,3 +8,4 @@ export { ChecklistForm } from "./ChecklistForm";
 export { DadosBancariosForm } from "./DadosBancariosForm";
 export { DependentesForm } from "./DependentesForm";
 export { RevisaoForm } from "./RevisaoForm";
+export { OrientacoesDocumentosCard } from "./OrientacoesDocumentosCard";

@@ -24,6 +24,7 @@ import {
   DadosBancariosForm,
   DependentesForm,
   RevisaoForm,
+  OrientacoesDocumentosCard,
 } from "@/components/curriculo";
 import { usePreCadastro } from "@/hooks/usePreCadastro";
 import { gerarPdfMiniCurriculo } from "@/lib/pdfMiniCurriculo";
@@ -197,6 +198,9 @@ export default function MiniCurriculoPage() {
       </header>
 
       <main className="container max-w-4xl mx-auto px-4 py-8">
+        {/* Orientações e Documentos */}
+        <OrientacoesDocumentosCard />
+
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
