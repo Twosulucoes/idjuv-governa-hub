@@ -33,7 +33,10 @@ import {
   Building2,
   FileDown,
   Briefcase,
+  CreditCard,
+  AlertTriangle,
 } from "lucide-react";
+import { EdicaoLoteBancarioDialog } from "@/components/rh/EdicaoLoteBancarioDialog";
 import { useNavigate } from "react-router-dom";
 import { 
   type SituacaoFuncional,
@@ -74,6 +77,7 @@ export default function GestaoServidoresPage() {
   const [filterTipoServidor, setFilterTipoServidor] = useState<string>("all");
   const [filterSituacao, setFilterSituacao] = useState<string>("all");
   const [filterUnidade, setFilterUnidade] = useState<string>("all");
+  const [showEdicaoBancaria, setShowEdicaoBancaria] = useState(false);
 
   // Fetch servidores
   const { data: servidores = [], isLoading } = useQuery({
@@ -93,6 +97,9 @@ export default function GestaoServidoresPage() {
           orgao_destino_cessao,
           funcao_exercida,
           ativo,
+          banco_codigo,
+          banco_agencia,
+          banco_conta,
           cargo:cargos!servidores_cargo_atual_id_fkey(id, nome, sigla),
           unidade:estrutura_organizacional!servidores_unidade_atual_id_fkey(id, nome, sigla)
         `)
@@ -100,7 +107,7 @@ export default function GestaoServidoresPage() {
         .order("nome_completo");
       
       if (error) throw error;
-      return data as unknown as ServidorCompleto[];
+      return data as unknown as (ServidorCompleto & { banco_codigo?: string; banco_agencia?: string; banco_conta?: string })[];
     },
   });
 
@@ -138,6 +145,7 @@ export default function GestaoServidoresPage() {
   const totalCedidosEntrada = servidores.filter(s => s.tipo_servidor === 'cedido_entrada').length;
   const totalCedidosSaida = servidores.filter(s => s.tipo_servidor === 'cedido_saida').length;
   const totalSemTipo = servidores.filter(s => !s.tipo_servidor).length;
+  const totalSemDadosBancarios = servidores.filter(s => !s.banco_codigo || !s.banco_agencia || !s.banco_conta).length;
 
   const getInitials = (nome: string) => {
     return nome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
@@ -181,6 +189,20 @@ export default function GestaoServidoresPage() {
             </div>
 
             <div className="flex gap-2">
+              {totalSemDadosBancarios > 0 && (
+                <Button 
+                  variant="outline" 
+                  className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                  onClick={() => setShowEdicaoBancaria(true)}
+                >
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  {totalSemDadosBancarios} sem banco
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => setShowEdicaoBancaria(true)}>
+                <CreditCard className="h-4 w-4 mr-2" />
+                Dados Bancários
+              </Button>
               <Button variant="outline">
                 <FileDown className="h-4 w-4 mr-2" />
                 Exportar
@@ -406,6 +428,12 @@ export default function GestaoServidoresPage() {
             </Table>
           </div>
         </div>
+
+        {/* Dialog de Edição em Lote de Dados Bancários */}
+        <EdicaoLoteBancarioDialog
+          open={showEdicaoBancaria}
+          onOpenChange={setShowEdicaoBancaria}
+        />
       </AdminLayout>
     </ProtectedRoute>
   );

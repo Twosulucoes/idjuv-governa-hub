@@ -174,8 +174,8 @@ export default function FolhaDetalhePage() {
   const podeProcessar = status === "previa" || status === "aberta";
   const podeFechar = status === "processando";
   const podeReabrir = status === "fechada" || status === "reaberta";
-  const podeGerarRemessa = (status === "fechada" || status === "processando") && (fichas?.length || 0) > 0;
-  const podeGerarESocial = (status === "fechada" || status === "processando") && (fichas?.length || 0) > 0;
+  const podeGerarRemessa = status !== "previa" && (fichas?.length || 0) > 0;
+  const podeGerarESocial = status !== "previa" && (fichas?.length || 0) > 0;
 
   return (
     <AdminLayout>
