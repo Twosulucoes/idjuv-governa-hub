@@ -9,3 +9,4 @@ export { DadosBancariosForm } from "./DadosBancariosForm";
 export { DependentesForm } from "./DependentesForm";
 export { RevisaoForm } from "./RevisaoForm";
 export { OrientacoesDocumentosCard } from "./OrientacoesDocumentosCard";
+export { PendenciasPreCadastroDialog } from "./PendenciasPreCadastroDialog";

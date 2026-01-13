@@ -39,6 +39,7 @@ import {
   Clock,
   CheckCircle,
   XCircle,
+  ClipboardList,
 } from "lucide-react";
 import { usePreCadastros } from "@/hooks/usePreCadastro";
 import { gerarPdfMiniCurriculo } from "@/lib/pdfMiniCurriculo";
@@ -47,6 +48,7 @@ import type { PreCadastro, StatusPreCadastro } from "@/types/preCadastro";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ConversaoServidorDialog } from "@/components/curriculo/ConversaoServidorDialog";
+import { PendenciasPreCadastroDialog } from "@/components/curriculo/PendenciasPreCadastroDialog";
 
 const STATUS_CONFIG: Record<
   StatusPreCadastro,
@@ -76,6 +78,7 @@ export default function GestaoPreCadastrosPage() {
     open: boolean;
     data: PreCadastro | null;
   }>({ open: false, data: null });
+  const [pendenciasDialog, setPendenciasDialog] = useState(false);
 
   const filteredData = preCadastros?.filter((p) => {
     const matchesSearch =
@@ -120,6 +123,10 @@ export default function GestaoPreCadastrosPage() {
               Gerencie os pré-cadastros de candidatos a servidor
             </p>
           </div>
+          <Button onClick={() => setPendenciasDialog(true)} variant="outline">
+            <ClipboardList className="h-4 w-4 mr-2" />
+            Verificar Pendências
+          </Button>
         </div>
 
         {/* Stats */}
@@ -427,6 +434,17 @@ export default function GestaoPreCadastrosPage() {
         preCadastro={conversaoDialog.data}
         onConverter={converter}
         isConverting={isConverting}
+      />
+
+      {/* Dialog de Pendências */}
+      <PendenciasPreCadastroDialog
+        open={pendenciasDialog}
+        onOpenChange={setPendenciasDialog}
+        preCadastros={preCadastros || []}
+        onVerDetalhes={(pc) => {
+          setPendenciasDialog(false);
+          setDetailDialog({ open: true, data: pc });
+        }}
       />
     </AdminLayout>
   );
