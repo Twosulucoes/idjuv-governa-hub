@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, X, Building2, Users, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { toast } from "sonner";
+
 type ComposicaoItem = {
   id?: string;
   unidade_id: string;
@@ -33,57 +33,6 @@ type ComposicaoCargosEditorProps = {
 export function ComposicaoCargosEditor({ cargoId, value, onChange }: ComposicaoCargosEditorProps) {
   const [selectedUnidade, setSelectedUnidade] = useState("");
   const [quantidade, setQuantidade] = useState(1);
-
-  // Auto-persistência (quando estiver editando um cargo existente)
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const skipFirstPersistRef = useRef(true);
-
-  useEffect(() => {
-    skipFirstPersistRef.current = true;
-    setSaveState("idle");
-  }, [cargoId]);
-
-  useEffect(() => {
-    if (!cargoId) return;
-
-    // Evita persistir ao abrir o formulário (primeiro render com os dados vindos do backend)
-    if (skipFirstPersistRef.current) {
-      skipFirstPersistRef.current = false;
-      return;
-    }
-
-    setSaveState("saving");
-
-    const t = window.setTimeout(async () => {
-      try {
-        // Estratégia simples e consistente: substitui tudo do cargo
-        const { error: deleteError } = await supabase
-          .from("composicao_cargos")
-          .delete()
-          .eq("cargo_id", cargoId);
-        if (deleteError) throw deleteError;
-
-        if (value.length > 0) {
-          const { error: insertError } = await supabase.from("composicao_cargos").insert(
-            value.map((c) => ({
-              cargo_id: cargoId,
-              unidade_id: c.unidade_id,
-              quantidade_vagas: c.quantidade_vagas,
-            }))
-          );
-          if (insertError) throw insertError;
-        }
-
-        setSaveState("saved");
-      } catch (err: any) {
-        console.error("Erro ao salvar composição_cargos:", err);
-        setSaveState("error");
-        toast.error("Não foi possível salvar a distribuição por unidade.");
-      }
-    }, 650);
-
-    return () => window.clearTimeout(t);
-  }, [cargoId, value]);
 
   const { data: unidades = [] } = useQuery({
     queryKey: ["unidades-ativas"],
@@ -162,20 +111,6 @@ export function ComposicaoCargosEditor({ cargoId, value, onChange }: ComposicaoC
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Building2 className="h-4 w-4" />
           Distribuição por Unidade
-          {cargoId && saveState !== "idle" && (
-            <Badge
-              variant="outline"
-              className={
-                saveState === "saving"
-                  ? "bg-muted/50"
-                  : saveState === "error"
-                    ? "bg-destructive/20 text-destructive border-destructive/30"
-                    : "bg-success/20 text-success border-success/30"
-              }
-            >
-              {saveState === "saving" ? "Salvando..." : saveState === "error" ? "Erro" : "Salvo"}
-            </Badge>
-          )}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -183,9 +118,7 @@ export function ComposicaoCargosEditor({ cargoId, value, onChange }: ComposicaoC
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
                 <p>
-                  {cargoId
-                    ? "As alterações são salvas automaticamente."
-                    : "Defina a distribuição agora e ela será salva quando você criar o cargo."}
+                  Defina a distribuição de vagas por unidade. As alterações serão salvas ao clicar em "Salvar" ou "Atualizar".
                 </p>
               </TooltipContent>
             </Tooltip>
