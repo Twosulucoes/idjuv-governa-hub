@@ -1,7 +1,7 @@
 // ============================================
 // PÁGINA DE AUTENTICAÇÃO
 // ============================================
-// Login, Cadastro e Recuperação de Senha
+// Login e Recuperação de Senha (cadastro feito pelo admin)
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
@@ -11,9 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Mail, Lock, User, ArrowLeft, Shield, KeyRound, CheckCircle } from 'lucide-react';
+import { Loader2, Mail, Lock, ArrowLeft, Shield, KeyRound, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
 
@@ -24,16 +23,6 @@ import { z } from 'zod';
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres')
-});
-
-const signupSchema = z.object({
-  fullName: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres'),
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
-  confirmPassword: z.string()
-}).refine(data => data.password === data.confirmPassword, {
-  message: 'Senhas não coincidem',
-  path: ['confirmPassword']
 });
 
 const resetPasswordSchema = z.object({
@@ -56,9 +45,9 @@ const AuthPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { signIn, signUp, resetPassword, updatePassword, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { signIn, resetPassword, updatePassword, isAuthenticated, isLoading: authLoading } = useAuth();
   
-  const [activeTab, setActiveTab] = useState<'login' | 'signup' | 'forgot'>('login');
+  const [activeTab, setActiveTab] = useState<'login' | 'forgot'>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -68,7 +57,6 @@ const AuthPage: React.FC = () => {
   
   // Form states
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
-  const [signupForm, setSignupForm] = useState({ fullName: '', email: '', password: '', confirmPassword: '' });
   const [forgotForm, setForgotForm] = useState({ email: '' });
   const [newPasswordForm, setNewPasswordForm] = useState({ password: '', confirmPassword: '' });
 
@@ -155,29 +143,6 @@ const AuthPage: React.FC = () => {
     }
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(null);
-    
-    try {
-      signupSchema.parse(signupForm);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        setError(err.errors[0].message);
-        return;
-      }
-    }
-    
-    setIsLoading(true);
-    const { error } = await signUp(signupForm.email, signupForm.password, signupForm.fullName);
-    setIsLoading(false);
-    
-    if (!error) {
-      setActiveTab('login');
-      setLoginForm({ email: signupForm.email, password: '' });
-    }
-  };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -446,170 +411,89 @@ const AuthPage: React.FC = () => {
               </CardFooter>
             </>
           ) : (
-            // Formulário de Login/Signup
-            <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as 'login' | 'signup'); setError(null); setSuccess(null); }}>
-              <CardHeader className="pb-2">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="login">Entrar</TabsTrigger>
-                  <TabsTrigger value="signup">Cadastrar</TabsTrigger>
-                </TabsList>
+            // Formulário de Login (sem cadastro público)
+            <>
+              <CardHeader className="text-center">
+                <div className="flex justify-center mb-2">
+                  <div className="p-2 bg-primary/10 rounded-full">
+                    <Shield className="h-6 w-6 text-primary" />
+                  </div>
+                </div>
+                <CardTitle>Entrar no Sistema</CardTitle>
+                <CardDescription>
+                  Use suas credenciais para acessar
+                </CardDescription>
               </CardHeader>
 
-              <CardContent className="pt-4">
-                {/* Alerta de erro */}
+              <CardContent>
                 {error && (
                   <Alert variant="destructive" className="mb-4">
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
 
-                {/* Tab Login */}
-                <TabsContent value="login" className="mt-0">
-                  <form onSubmit={handleLogin} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="login-email">Email</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="login-email"
-                          type="email"
-                          placeholder="seu@email.com"
-                          className="pl-10"
-                          value={loginForm.email}
-                          onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-                          required
-                        />
-                      </div>
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="login-email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="login-email"
+                        type="email"
+                        placeholder="seu@email.com"
+                        className="pl-10"
+                        value={loginForm.email}
+                        onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                        required
+                      />
                     </div>
+                  </div>
 
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <Label htmlFor="login-password">Senha</Label>
-                        <button
-                          type="button"
-                          onClick={() => { setActiveTab('forgot'); setError(null); }}
-                          className="text-xs text-primary hover:underline"
-                        >
-                          Esqueci a senha
-                        </button>
-                      </div>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="login-password"
-                          type="password"
-                          placeholder="••••••••"
-                          className="pl-10"
-                          value={loginForm.password}
-                          onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                          required
-                        />
-                      </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="login-password">Senha</Label>
+                      <button
+                        type="button"
+                        onClick={() => { setActiveTab('forgot'); setError(null); }}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Esqueci a senha
+                      </button>
                     </div>
-
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Entrando...
-                        </>
-                      ) : (
-                        'Entrar'
-                      )}
-                    </Button>
-                  </form>
-                </TabsContent>
-
-                {/* Tab Signup */}
-                <TabsContent value="signup" className="mt-0">
-                  <form onSubmit={handleSignup} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-name">Nome completo</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="signup-name"
-                          type="text"
-                          placeholder="Seu nome"
-                          className="pl-10"
-                          value={signupForm.fullName}
-                          onChange={(e) => setSignupForm({ ...signupForm, fullName: e.target.value })}
-                          required
-                        />
-                      </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="login-password"
+                        type="password"
+                        placeholder="••••••••"
+                        className="pl-10"
+                        value={loginForm.password}
+                        onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                        required
+                      />
                     </div>
+                  </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-email">Email</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="signup-email"
-                          type="email"
-                          placeholder="seu@email.com"
-                          className="pl-10"
-                          value={signupForm.email}
-                          onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-password">Senha</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="signup-password"
-                          type="password"
-                          placeholder="Mínimo 6 caracteres"
-                          className="pl-10"
-                          value={signupForm.password}
-                          onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-confirm">Confirmar senha</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="signup-confirm"
-                          type="password"
-                          placeholder="Repita a senha"
-                          className="pl-10"
-                          value={signupForm.confirmPassword}
-                          onChange={(e) => setSignupForm({ ...signupForm, confirmPassword: e.target.value })}
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Cadastrando...
-                        </>
-                      ) : (
-                        'Criar conta'
-                      )}
-                    </Button>
-                  </form>
-                </TabsContent>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Entrando...
+                      </>
+                    ) : (
+                      'Entrar'
+                    )}
+                  </Button>
+                </form>
               </CardContent>
-            </Tabs>
-          )}
 
-          {activeTab !== 'forgot' && (
-            <CardFooter className="flex justify-center border-t pt-4">
-              <Link to="/" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1">
-                <ArrowLeft className="h-4 w-4" />
-                Voltar para o início
-              </Link>
-            </CardFooter>
+              <CardFooter className="flex justify-center border-t pt-4">
+                <Link to="/" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1">
+                  <ArrowLeft className="h-4 w-4" />
+                  Voltar para o início
+                </Link>
+              </CardFooter>
+            </>
           )}
         </Card>
       </div>
