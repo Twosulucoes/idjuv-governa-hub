@@ -12,6 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AlertTriangle,
@@ -547,7 +553,7 @@ function TabelaPendencias({
               {tipo !== "completos" && (
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
-                    {pendenciasDoTipo.slice(0, 4).map((p) => (
+                    {pendenciasDoTipo.map((p) => (
                       <Badge
                         key={p.campo}
                         variant="outline"
@@ -556,11 +562,6 @@ function TabelaPendencias({
                         {p.descricao}
                       </Badge>
                     ))}
-                    {pendenciasDoTipo.length > 4 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{pendenciasDoTipo.length - 4}
-                      </Badge>
-                    )}
                   </div>
                 </TableCell>
               )}
