@@ -1455,6 +1455,152 @@ export type Database = {
           },
         ]
       }
+      designacoes: {
+        Row: {
+          aprovado_por: string | null
+          ativo: boolean | null
+          ato_data: string | null
+          ato_doe_data: string | null
+          ato_doe_numero: string | null
+          ato_numero: string | null
+          ato_tipo: string | null
+          created_at: string | null
+          created_by: string | null
+          data_aprovacao: string | null
+          data_fim: string | null
+          data_inicio: string
+          id: string
+          justificativa: string | null
+          lotacao_id: string | null
+          motivo_rejeicao: string | null
+          observacao: string | null
+          servidor_id: string
+          status: string | null
+          unidade_destino_id: string
+          unidade_origem_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          aprovado_por?: string | null
+          ativo?: boolean | null
+          ato_data?: string | null
+          ato_doe_data?: string | null
+          ato_doe_numero?: string | null
+          ato_numero?: string | null
+          ato_tipo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_aprovacao?: string | null
+          data_fim?: string | null
+          data_inicio: string
+          id?: string
+          justificativa?: string | null
+          lotacao_id?: string | null
+          motivo_rejeicao?: string | null
+          observacao?: string | null
+          servidor_id: string
+          status?: string | null
+          unidade_destino_id: string
+          unidade_origem_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          aprovado_por?: string | null
+          ativo?: boolean | null
+          ato_data?: string | null
+          ato_doe_data?: string | null
+          ato_doe_numero?: string | null
+          ato_numero?: string | null
+          ato_tipo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_aprovacao?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          id?: string
+          justificativa?: string | null
+          lotacao_id?: string | null
+          motivo_rejeicao?: string | null
+          observacao?: string | null
+          servidor_id?: string
+          status?: string | null
+          unidade_destino_id?: string
+          unidade_origem_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "designacoes_aprovado_por_fkey"
+            columns: ["aprovado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "designacoes_aprovado_por_fkey"
+            columns: ["aprovado_por"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "designacoes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "designacoes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "designacoes_lotacao_id_fkey"
+            columns: ["lotacao_id"]
+            isOneToOne: false
+            referencedRelation: "lotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "designacoes_lotacao_id_fkey"
+            columns: ["lotacao_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["lotacao_id"]
+          },
+          {
+            foreignKeyName: "designacoes_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "designacoes_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "designacoes_unidade_destino_id_fkey"
+            columns: ["unidade_destino_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "designacoes_unidade_origem_id_fkey"
+            columns: ["unidade_origem_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documentos: {
         Row: {
           arquivo_url: string | null
