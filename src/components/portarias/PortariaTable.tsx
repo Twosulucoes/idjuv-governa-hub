@@ -49,6 +49,7 @@ interface PortariaTableProps {
   onView?: (portaria: Portaria) => void;
   onGeneratePdf?: (portaria: Portaria) => void;
   onRegistrarPublicacao?: (portaria: Portaria) => void;
+  onRegistrarAssinatura?: (portaria: Portaria) => void;
 }
 
 export function PortariaTable({
@@ -57,6 +58,7 @@ export function PortariaTable({
   onView,
   onGeneratePdf,
   onRegistrarPublicacao,
+  onRegistrarAssinatura,
 }: PortariaTableProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [sortConfig, setSortConfig] = useState<{
@@ -267,11 +269,20 @@ export function PortariaTable({
                       </DropdownMenuItem>
                     )}
                     
+                    {portaria.status === 'aguardando_assinatura' && (
+                      <DropdownMenuItem
+                        onClick={() => onRegistrarAssinatura?.(portaria)}
+                      >
+                        <FileSignature className="h-4 w-4 mr-2" />
+                        Registrar Assinatura
+                      </DropdownMenuItem>
+                    )}
+                    
                     {portaria.status === 'assinado' && (
                       <DropdownMenuItem
                         onClick={() => enviarParaPublicacao.mutate(portaria.id)}
                       >
-                        <FileSignature className="h-4 w-4 mr-2" />
+                        <Send className="h-4 w-4 mr-2" />
                         Enviar para Publicação
                       </DropdownMenuItem>
                     )}
