@@ -18,9 +18,9 @@ export type TipoVinculoFuncional =
   | 'cedido_saida';
 
 // Tipos de Lotação
+// NOTA: 'designacao' foi removida - designações agora são entidades separadas (tabela designacoes)
 export type TipoLotacao = 
   | 'lotacao_interna'      // Lotação interna padrão
-  | 'designacao'           // Designação temporária
   | 'cessao_interna'       // Cessão dentro do IDJuv
   | 'lotacao_externa';     // Cessão de saída (lotação em outro órgão)
 
@@ -60,7 +60,6 @@ export const TIPO_VINCULO_LABELS: Record<TipoVinculoFuncional, string> = {
 
 export const TIPO_LOTACAO_LABELS: Record<TipoLotacao, string> = {
   lotacao_interna: 'Lotação Interna',
-  designacao: 'Designação',
   cessao_interna: 'Cessão Interna',
   lotacao_externa: 'Lotação Externa (Cessão Saída)',
 };

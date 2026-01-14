@@ -105,9 +105,10 @@ type LotacaoFormData = {
   observacao: string;
 };
 
+// NOTA: 'designacao' removida - designações agora são entidades separadas
 const TIPOS_MOVIMENTACAO = [
   { value: 'nomeacao', label: 'Nomeação' },
-  { value: 'designacao', label: 'Designação' },
+  { value: 'lotacao_inicial', label: 'Lotação Inicial' },
   { value: 'transferencia', label: 'Transferência' },
   { value: 'redistribuicao', label: 'Redistribuição' },
   { value: 'cessao', label: 'Cessão' },
