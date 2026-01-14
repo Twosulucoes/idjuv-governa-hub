@@ -36,6 +36,14 @@ const CATEGORIAS_COLETIVAS: Record<CategoriaColetiva, string> = {
   designacao_coletiva: 'Designação Coletiva',
 };
 
+// Mapeamento de categoria coletiva para tipo de movimentação funcional
+type TipoMovimentacao = 'nomeacao' | 'exoneracao' | 'designacao';
+const CATEGORIA_TO_TIPO_MOVIMENTACAO: Record<CategoriaColetiva, TipoMovimentacao> = {
+  nomeacao_coletiva: 'nomeacao',
+  exoneracao_coletiva: 'exoneracao',
+  designacao_coletiva: 'designacao',
+};
+
 const TEXTO_PADRAO_CABECALHO = `O PRESIDENTE DO INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA – IDJuv, no uso das atribuições legais que lhe são conferidas pela Lei nº 2.301, de 29 de dezembro de 2025, e demais normas aplicáveis,
 
 CONSIDERANDO o disposto no art. 7º, §3º, da Lei nº 2.301/2025, que estabelece que a investidura nos cargos em comissão do IDJuv dar-se-á por ato do Diretor Presidente;
@@ -91,17 +99,77 @@ export function PortariaColetivaDialog({
   const fetchServidoresData = async () => {
     const { data: servidoresData, error } = await supabase
       .from('v_servidores_situacao')
-      .select('id, nome_completo, cpf, cargo_nome, cargo_sigla')
+      .select('id, nome_completo, cpf, cargo_nome, cargo_sigla, cargo_id, unidade_id, unidade_nome')
       .in('id', selectedIds);
 
     if (error) throw error;
 
     return (servidoresData || []).map((s) => ({
+      id: s.id,
       nome_completo: s.nome_completo || '',
       cpf: s.cpf || '',
       cargo: s.cargo_nome || '',
       codigo: s.cargo_sigla || '',
+      cargo_id: s.cargo_id,
+      unidade_id: s.unidade_id,
+      unidade_nome: s.unidade_nome || '',
     }));
+  };
+
+  const registrarHistoricoFuncional = async (
+    servidores: Array<{
+      id: string;
+      nome_completo: string;
+      cargo_id: string | null;
+      unidade_id: string | null;
+      unidade_nome: string;
+      cargo: string;
+    }>,
+    portariaNumero: string,
+    portariaData: string
+  ) => {
+    const tipoMovimentacao = CATEGORIA_TO_TIPO_MOVIMENTACAO[categoria];
+    const categoriaLabel = CATEGORIAS_COLETIVAS[categoria];
+    
+    const registros = servidores.map((servidor) => {
+      const descricaoBase = `${categoriaLabel} via Portaria nº ${portariaNumero}`;
+      
+      return {
+        servidor_id: servidor.id,
+        tipo: tipoMovimentacao,
+        data_evento: portariaData,
+        data_vigencia_inicio: portariaData,
+        portaria_numero: portariaNumero,
+        portaria_data: portariaData,
+        cargo_novo_id: categoria === 'nomeacao_coletiva' || categoria === 'designacao_coletiva' 
+          ? servidor.cargo_id 
+          : null,
+        cargo_anterior_id: categoria === 'exoneracao_coletiva' 
+          ? servidor.cargo_id 
+          : null,
+        unidade_nova_id: categoria === 'nomeacao_coletiva' || categoria === 'designacao_coletiva'
+          ? servidor.unidade_id
+          : null,
+        unidade_anterior_id: categoria === 'exoneracao_coletiva'
+          ? servidor.unidade_id
+          : null,
+        descricao: `${descricaoBase}. Cargo: ${servidor.cargo || 'N/A'}. Unidade: ${servidor.unidade_nome || 'N/A'}.`,
+        ato_tipo: 'portaria',
+        ato_numero: portariaNumero,
+        ato_data: portariaData,
+      };
+    });
+
+    const { error } = await supabase
+      .from('historico_funcional')
+      .insert(registros);
+
+    if (error) {
+      console.error('Erro ao registrar histórico funcional:', error);
+      throw error;
+    }
+
+    return registros.length;
   };
 
   const handleGeneratePdf = async () => {
@@ -129,6 +197,7 @@ export function PortariaColetivaDialog({
       const nomeArquivo = `Portaria_Coletiva_${numero.replace(/\//g, '-')}.pdf`;
       doc.save(nomeArquivo);
 
+      // Criar registro da portaria na tabela documentos
       await createPortaria.mutateAsync({
         titulo: `Portaria Coletiva - ${CATEGORIAS_COLETIVAS[categoria]}`,
         numero,
@@ -141,7 +210,14 @@ export function PortariaColetivaDialog({
         conteudo_html: cabecalho,
       });
 
-      toast.success('PDF gerado com sucesso!');
+      // Registrar no histórico funcional de cada servidor
+      const qtdRegistros = await registrarHistoricoFuncional(
+        servidoresParaPdf,
+        numero,
+        dataDocumento
+      );
+
+      toast.success(`PDF gerado e ${qtdRegistros} registro(s) adicionado(s) ao histórico funcional!`);
       onSuccess?.();
       onOpenChange(false);
       handleReset();
