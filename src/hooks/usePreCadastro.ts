@@ -152,6 +152,37 @@ export function usePreCadastro(codigoAcesso?: string) {
   // Criar novo pré-cadastro
   const criarMutation = useMutation({
     mutationFn: async (dados: Partial<PreCadastro>) => {
+      // Verificar se CPF já existe antes de criar
+      if (dados.cpf) {
+        // Verificar se já existe servidor com este CPF
+        const { data: servidorExistente } = await supabase
+          .from('servidores')
+          .select('id, nome_completo, matricula')
+          .eq('cpf', dados.cpf)
+          .maybeSingle();
+
+        if (servidorExistente) {
+          throw new Error(
+            `CPF já cadastrado como servidor: ${servidorExistente.nome_completo} (Matrícula: ${servidorExistente.matricula})`
+          );
+        }
+
+        // Verificar se já existe pré-cadastro ativo com este CPF
+        const { data: preCadastroExistente } = await supabase
+          .from('pre_cadastros')
+          .select('id, nome_completo, codigo_acesso, status')
+          .eq('cpf', dados.cpf)
+          .neq('status', 'convertido')
+          .neq('status', 'rejeitado')
+          .maybeSingle();
+
+        if (preCadastroExistente) {
+          throw new Error(
+            `CPF já possui pré-cadastro: ${preCadastroExistente.nome_completo} (Código: ${preCadastroExistente.codigo_acesso}, Status: ${preCadastroExistente.status})`
+          );
+        }
+      }
+
       const codigo = await gerarCodigo();
       
       const dbData = mapToDatabase({
