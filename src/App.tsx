@@ -93,6 +93,7 @@ import UsuariosTecnicosPage from "./pages/admin/UsuariosTecnicosPage";
 import MiniCurriculoPage from "./pages/curriculo/MiniCurriculoPage";
 import MiniCurriculoSucessoPage from "./pages/curriculo/MiniCurriculoSucessoPage";
 import GestaoPreCadastrosPage from "./pages/curriculo/GestaoPreCadastrosPage";
+import DiagnosticoPendenciasPage from "./pages/curriculo/DiagnosticoPendenciasPage";
 
 // Auth Protection
 import RequireAuthOrRedirect from "./components/auth/RequireAuthOrRedirect";
@@ -143,6 +144,7 @@ const App = () => (
                 <Route path="/admin/disaster-recovery" element={<DisasterRecoveryPage />} />
                 <Route path="/admin/usuarios-tecnicos" element={<UsuariosTecnicosPage />} />
                 <Route path="/admin/pre-cadastros" element={<GestaoPreCadastrosPage />} />
+                <Route path="/admin/pre-cadastros/pendencias" element={<DiagnosticoPendenciasPage />} />
                 <Route path="/acesso" element={<ControleAcessoAdminPage />} />
                 
                 {/* Governança */}

@@ -565,6 +565,10 @@ export function usePreCadastros() {
     },
   });
 
+  const refetchPreCadastros = () => {
+    queryClient.invalidateQueries({ queryKey: ['pre-cadastros'] });
+  };
+
   return {
     preCadastros,
     isLoading,
@@ -572,5 +576,6 @@ export function usePreCadastros() {
     rejeitar: rejeitarMutation.mutateAsync,
     converter: converterMutation.mutateAsync,
     isConverting: converterMutation.isPending,
+    refetch: refetchPreCadastros,
   };
 }
