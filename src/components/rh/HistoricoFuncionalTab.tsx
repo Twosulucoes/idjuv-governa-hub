@@ -14,9 +14,9 @@ import {
   UserX
 } from "lucide-react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { NomeacoesProvimentosSection } from "./NomeacoesProvimentosSection";
 import { CessoesSection } from "./CessoesSection";
+import { DesignacoesSection } from "./DesignacoesSection";
 import { type TipoServidor } from "@/types/servidor";
 
 interface HistoricoFuncionalTabProps {
@@ -150,6 +150,9 @@ export function HistoricoFuncionalTab({ servidorId, servidorNome, tipoServidor }
         servidorId={servidorId} 
         servidorNome={servidorNome}
       />
+
+      {/* Designações Temporárias */}
+      <DesignacoesSection servidorId={servidorId} />
 
       {/* Lotações */}
       <Card>
