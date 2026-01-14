@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { gerarMatricula } from "@/lib/matriculaUtils";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -100,6 +101,7 @@ type FormData = {
   acumula_cargo: boolean;
   acumulo_descricao: string;
   observacoes: string;
+  indicacao: string;
 };
 
 const initialFormData: FormData = {
@@ -143,13 +145,16 @@ const initialFormData: FormData = {
   acumula_cargo: false,
   acumulo_descricao: '',
   observacoes: '',
+  indicacao: '',
 };
 
 export default function ServidorFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const isEditing = !!id;
+  const isAdmin = user?.role === 'admin' || user?.role === 'ti_admin' || user?.role === 'presidencia';
 
   const [formData, setFormData] = useState<FormData>(initialFormData);
 
@@ -241,6 +246,7 @@ export default function ServidorFormPage() {
         acumula_cargo: servidor.acumula_cargo || false,
         acumulo_descricao: servidor.acumulo_descricao || '',
         observacoes: servidor.observacoes || '',
+        indicacao: servidor.indicacao || '',
       });
     }
   }, [servidor]);
@@ -296,6 +302,7 @@ export default function ServidorFormPage() {
         acumula_cargo: data.acumula_cargo,
         acumulo_descricao: data.acumulo_descricao || null,
         observacoes: data.observacoes || null,
+        indicacao: data.indicacao || null,
       };
 
       let servidorId: string | null = null;
@@ -1001,6 +1008,28 @@ export default function ServidorFormPage() {
                     rows={3}
                   />
                 </div>
+
+                {/* Campo de Indicação - Apenas para Admins */}
+                {isAdmin && (
+                  <>
+                    <Separator />
+                    <div className="border border-dashed border-muted-foreground/30 rounded-lg p-4 bg-muted/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="h-2 w-2 rounded-full bg-amber-500" />
+                        <Label className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
+                          Informação Estratégica (Restrito)
+                        </Label>
+                      </div>
+                      <Textarea
+                        value={formData.indicacao}
+                        onChange={(e) => updateField('indicacao', e.target.value)}
+                        placeholder="Indicação..."
+                        rows={2}
+                        className="text-sm"
+                      />
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
 
