@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,7 +49,6 @@ import type { PreCadastro, StatusPreCadastro } from "@/types/preCadastro";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ConversaoServidorDialog } from "@/components/curriculo/ConversaoServidorDialog";
-import { PendenciasPreCadastroDialog } from "@/components/curriculo/PendenciasPreCadastroDialog";
 
 const STATUS_CONFIG: Record<
   StatusPreCadastro,
@@ -62,6 +62,7 @@ const STATUS_CONFIG: Record<
 };
 
 export default function GestaoPreCadastrosPage() {
+  const navigate = useNavigate();
   const { preCadastros, isLoading, aprovar, rejeitar, converter, isConverting } = usePreCadastros();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusPreCadastro | "todos">("todos");
@@ -78,7 +79,6 @@ export default function GestaoPreCadastrosPage() {
     open: boolean;
     data: PreCadastro | null;
   }>({ open: false, data: null });
-  const [pendenciasDialog, setPendenciasDialog] = useState(false);
 
   const filteredData = preCadastros?.filter((p) => {
     const matchesSearch =
@@ -123,7 +123,7 @@ export default function GestaoPreCadastrosPage() {
               Gerencie os pré-cadastros de candidatos a servidor
             </p>
           </div>
-          <Button onClick={() => setPendenciasDialog(true)} variant="outline">
+          <Button onClick={() => navigate("/admin/pre-cadastros/pendencias")} variant="outline">
             <ClipboardList className="h-4 w-4 mr-2" />
             Verificar Pendências
           </Button>
@@ -434,17 +434,6 @@ export default function GestaoPreCadastrosPage() {
         preCadastro={conversaoDialog.data}
         onConverter={converter}
         isConverting={isConverting}
-      />
-
-      {/* Dialog de Pendências */}
-      <PendenciasPreCadastroDialog
-        open={pendenciasDialog}
-        onOpenChange={setPendenciasDialog}
-        preCadastros={preCadastros || []}
-        onVerDetalhes={(pc) => {
-          setPendenciasDialog(false);
-          setDetailDialog({ open: true, data: pc });
-        }}
       />
     </AdminLayout>
   );
