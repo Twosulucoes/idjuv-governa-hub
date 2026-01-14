@@ -26,15 +26,17 @@ interface DadosUnidade {
   sigla?: string;
 }
 
-// Configurações do documento
+// Configurações do documento - Margens padrão ABNT (3cm esquerda, 2cm demais)
 const CONFIG = {
-  marginLeft: 25,
-  marginRight: 25,
-  marginTop: 30,
-  marginBottom: 25,
+  marginLeft: 30,    // 3cm - margem esquerda (padrão ABNT)
+  marginRight: 20,   // 2cm - margem direita
+  marginTop: 25,     // 2.5cm - margem superior
+  marginBottom: 20,  // 2cm - margem inferior
   pageWidth: 210,
   pageHeight: 297,
-  headerHeight: 35,
+  headerHeight: 30,
+  lineHeight: 5,     // altura padrão de linha
+  tableRowMinHeight: 8, // altura mínima de linha de tabela
 };
 
 // Função auxiliar para formatar data por extenso
@@ -70,8 +72,6 @@ function formatarCPF(cpf: string): string {
 
 // Adiciona cabeçalho padrão
 function addHeader(doc: jsPDF) {
-  const contentWidth = CONFIG.pageWidth - CONFIG.marginLeft - CONFIG.marginRight;
-  
   // Brasão (simulado com texto)
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
@@ -79,17 +79,27 @@ function addHeader(doc: jsPDF) {
   
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text('INSTITUTO DE DESENVOLVIMENTO DA JUVENTUDE DO ESTADO DE RORAIMA', CONFIG.pageWidth / 2, CONFIG.marginTop + 5, { align: 'center' });
+  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA', CONFIG.pageWidth / 2, CONFIG.marginTop + 5, { align: 'center' });
   doc.text('IDJUV', CONFIG.pageWidth / 2, CONFIG.marginTop + 10, { align: 'center' });
   
   // Linha separadora
-  doc.setLineWidth(0.5);
-  doc.line(CONFIG.marginLeft, CONFIG.marginTop + 15, CONFIG.pageWidth - CONFIG.marginRight, CONFIG.marginTop + 15);
+  doc.setLineWidth(0.3);
+  doc.line(CONFIG.marginLeft, CONFIG.marginTop + 14, CONFIG.pageWidth - CONFIG.marginRight, CONFIG.marginTop + 14);
+}
+
+// Verifica se há espaço suficiente na página para o conteúdo
+function checkPageSpace(doc: jsPDF, currentY: number, requiredSpace: number): number {
+  if (currentY + requiredSpace > CONFIG.pageHeight - CONFIG.marginBottom - 15) {
+    doc.addPage();
+    addHeader(doc);
+    return CONFIG.marginTop + 20;
+  }
+  return currentY;
 }
 
 // Adiciona rodapé padrão
 function addFooter(doc: jsPDF, pageNumber: number, totalPages: number) {
-  const footerY = CONFIG.pageHeight - CONFIG.marginBottom + 10;
+  const footerY = CONFIG.pageHeight - 10;
   
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
@@ -501,7 +511,7 @@ export function generatePortariaColetivaComTabela(
 
   addHeader(doc);
 
-  let y = CONFIG.marginTop + 25;
+  let y = CONFIG.marginTop + 20;
   const contentWidth = CONFIG.pageWidth - CONFIG.marginLeft - CONFIG.marginRight;
 
   // Título - PORTARIA Nº ___/IDJuv/PRESI/GAB/AAAA DE DD DE MES DE AAAA
@@ -513,150 +523,157 @@ export function generatePortariaColetivaComTabela(
     doc.text(line, CONFIG.pageWidth / 2, y, { align: 'center' });
     y += 5;
   });
-  y += 10;
+  y += 8;
 
   // Cabeçalho personalizado (preâmbulo)
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   const cabecalhoLines = doc.splitTextToSize(cabecalho, contentWidth);
   cabecalhoLines.forEach((line: string) => {
-    if (y > CONFIG.pageHeight - 50) {
-      doc.addPage();
-      addHeader(doc);
-      y = CONFIG.marginTop + 25;
-    }
+    y = checkPageSpace(doc, y, 6);
     doc.text(line, CONFIG.marginLeft, y);
     y += 5;
   });
-  y += 8;
+  y += 6;
 
   // Art. 1º - Introdução
   const verbo = tipoAcao === 'nomeacao' ? 'NOMEAR' : 'EXONERAR';
   const artigo1 = `Art. 1º ${verbo} os servidores abaixo relacionados para os respectivos cargos em comissão do Instituto de Desporto, Juventude e Lazer do Estado de Roraima – IDJuv:`;
   const artigo1Lines = doc.splitTextToSize(artigo1, contentWidth);
+  y = checkPageSpace(doc, y, artigo1Lines.length * 5 + 10);
   doc.text(artigo1Lines, CONFIG.marginLeft, y, { align: 'justify' });
-  y += artigo1Lines.length * 5 + 8;
+  y += artigo1Lines.length * 5 + 6;
 
-  // Tabela
+  // Configuração da tabela com larguras proporcionais ao conteúdo
   const colWidths = {
-    num: 10,
-    nome: 70,
-    cpf: 35,
-    cargo: 35,
-    codigo: 20,
+    num: 8,
+    nome: 62,
+    cpf: 30,
+    cargo: 42,
+    codigo: 18,
   };
-  const tableWidth = colWidths.num + colWidths.nome + colWidths.cpf + colWidths.cargo + colWidths.codigo;
+  const tableWidth = contentWidth;
   const tableX = CONFIG.marginLeft;
-  const rowHeight = 7;
+  const headerRowHeight = 7;
+  const minRowHeight = 8;
 
-  // Cabeçalho da tabela
+  // Função para desenhar cabeçalho da tabela
   const drawTableHeader = () => {
-    doc.setFillColor(240, 240, 240);
-    doc.rect(tableX, y, tableWidth, rowHeight, 'F');
-    doc.setDrawColor(100);
-    doc.rect(tableX, y, tableWidth, rowHeight);
+    doc.setFillColor(230, 230, 230);
+    doc.rect(tableX, y, tableWidth, headerRowHeight, 'F');
+    doc.setDrawColor(80);
+    doc.setLineWidth(0.3);
+    doc.rect(tableX, y, tableWidth, headerRowHeight);
     
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
     
     let colX = tableX;
     doc.text('Nº', colX + colWidths.num / 2, y + 5, { align: 'center' });
-    doc.line(colX + colWidths.num, y, colX + colWidths.num, y + rowHeight);
+    doc.line(colX + colWidths.num, y, colX + colWidths.num, y + headerRowHeight);
     colX += colWidths.num;
     
-    doc.text('Nome Completo', colX + 2, y + 5);
-    doc.line(colX + colWidths.nome, y, colX + colWidths.nome, y + rowHeight);
+    doc.text('NOME COMPLETO', colX + 2, y + 5);
+    doc.line(colX + colWidths.nome, y, colX + colWidths.nome, y + headerRowHeight);
     colX += colWidths.nome;
     
     doc.text('CPF', colX + colWidths.cpf / 2, y + 5, { align: 'center' });
-    doc.line(colX + colWidths.cpf, y, colX + colWidths.cpf, y + rowHeight);
+    doc.line(colX + colWidths.cpf, y, colX + colWidths.cpf, y + headerRowHeight);
     colX += colWidths.cpf;
     
-    doc.text('Cargo', colX + 2, y + 5);
-    doc.line(colX + colWidths.cargo, y, colX + colWidths.cargo, y + rowHeight);
+    doc.text('CARGO', colX + 2, y + 5);
+    doc.line(colX + colWidths.cargo, y, colX + colWidths.cargo, y + headerRowHeight);
     colX += colWidths.cargo;
     
-    doc.text('Código', colX + colWidths.codigo / 2, y + 5, { align: 'center' });
+    doc.text('CÓD.', colX + colWidths.codigo / 2, y + 5, { align: 'center' });
     
-    y += rowHeight;
+    y += headerRowHeight;
   };
 
+  // Verificar espaço para iniciar tabela (mínimo: cabeçalho + 2 linhas)
+  y = checkPageSpace(doc, y, headerRowHeight + minRowHeight * 2);
   drawTableHeader();
 
   // Linhas da tabela
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
+  doc.setFontSize(7);
 
   servidores.forEach((s, index) => {
-    // Verificar se precisa de nova página
-    if (y > CONFIG.pageHeight - 50) {
+    // Calcular altura da linha baseado no conteúdo
+    const nomeLines = doc.splitTextToSize(s.nome_completo.toUpperCase(), colWidths.nome - 3);
+    const cargoLines = doc.splitTextToSize(s.cargo, colWidths.cargo - 3);
+    const maxLines = Math.max(nomeLines.length, cargoLines.length);
+    const lineHeight = Math.max(minRowHeight, maxLines * 3.5 + 2);
+
+    // Verificar se precisa de nova página (espaço para linha atual)
+    if (y + lineHeight > CONFIG.pageHeight - CONFIG.marginBottom - 20) {
       doc.addPage();
       addHeader(doc);
-      y = CONFIG.marginTop + 25;
+      y = CONFIG.marginTop + 20;
       drawTableHeader();
     }
 
-    // Calcular altura da linha baseado no nome
-    const nomeLines = doc.splitTextToSize(s.nome_completo.toUpperCase(), colWidths.nome - 4);
-    const cargoLines = doc.splitTextToSize(s.cargo, colWidths.cargo - 4);
-    const lineHeight = Math.max(nomeLines.length, cargoLines.length) * 4 + 3;
+    // Alternar cor de fundo para melhor leitura
+    if (index % 2 === 1) {
+      doc.setFillColor(248, 248, 248);
+      doc.rect(tableX, y, tableWidth, lineHeight, 'F');
+    }
 
     // Borda da linha
     doc.setDrawColor(150);
+    doc.setLineWidth(0.2);
     doc.rect(tableX, y, tableWidth, lineHeight);
 
     let colX = tableX;
 
     // Nº
-    doc.text(String(index + 1), colX + colWidths.num / 2, y + 4, { align: 'center' });
+    doc.text(String(index + 1), colX + colWidths.num / 2, y + lineHeight / 2 + 1, { align: 'center' });
     doc.line(colX + colWidths.num, y, colX + colWidths.num, y + lineHeight);
     colX += colWidths.num;
 
     // Nome
-    doc.text(nomeLines, colX + 2, y + 4);
+    doc.text(nomeLines, colX + 1.5, y + 3.5);
     doc.line(colX + colWidths.nome, y, colX + colWidths.nome, y + lineHeight);
     colX += colWidths.nome;
 
     // CPF
-    doc.text(formatarCPF(s.cpf), colX + colWidths.cpf / 2, y + 4, { align: 'center' });
+    doc.text(formatarCPF(s.cpf), colX + colWidths.cpf / 2, y + lineHeight / 2 + 1, { align: 'center' });
     doc.line(colX + colWidths.cpf, y, colX + colWidths.cpf, y + lineHeight);
     colX += colWidths.cpf;
 
     // Cargo
-    doc.text(cargoLines, colX + 2, y + 4);
+    doc.text(cargoLines, colX + 1.5, y + 3.5);
     doc.line(colX + colWidths.cargo, y, colX + colWidths.cargo, y + lineHeight);
     colX += colWidths.cargo;
 
     // Código
-    doc.text(s.codigo || '-', colX + colWidths.codigo / 2, y + 4, { align: 'center' });
+    doc.text(s.codigo || '-', colX + colWidths.codigo / 2, y + lineHeight / 2 + 1, { align: 'center' });
 
     y += lineHeight;
   });
 
-  y += 10;
+  y += 8;
 
   // Art. 2º - Remuneração
-  if (y > CONFIG.pageHeight - 60) {
-    doc.addPage();
-    addHeader(doc);
-    y = CONFIG.marginTop + 25;
-  }
-  
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   const artigo2 = 'Art. 2º Os nomeados farão jus à remuneração correspondente aos respectivos cargos, conforme disposto no Anexo I da Lei nº 2.301, de 29 de dezembro de 2025.';
   const artigo2Lines = doc.splitTextToSize(artigo2, contentWidth);
+  y = checkPageSpace(doc, y, artigo2Lines.length * 5 + 30);
   doc.text(artigo2Lines, CONFIG.marginLeft, y, { align: 'justify' });
-  y += artigo2Lines.length * 5 + 8;
+  y += artigo2Lines.length * 5 + 6;
 
   // Art. 3º - Vigência
   const artigo3 = 'Art. 3º Esta Portaria entra em vigor na data de sua publicação.';
   doc.text(artigo3, CONFIG.marginLeft, y);
-  y += 20;
+  y += 15;
+
+  // Verificar espaço para assinatura
+  y = checkPageSpace(doc, y, 40);
 
   // Local e data
   const dataDocumentoTexto = formatarDataExtenso(portaria.data_documento);
   doc.text(`Boa Vista – RR, ${dataDocumentoTexto}.`, CONFIG.marginLeft, y);
-  y += 25;
+  y += 20;
 
   // Assinatura
   doc.setFont('helvetica', 'bold');

@@ -53,8 +53,13 @@ const PRESIDENTE = {
   orgao: 'do Estado de Roraima',
 };
 
-// Tamanho de fonte 9pt em half-points (Word usa half-points)
-const FONT_SIZE_9 = 18; // 9 * 2 = 18 half-points
+// Tamanhos de fonte em half-points (Word usa half-points)
+const FONT_SIZE_10 = 20; // 10pt
+const FONT_SIZE_11 = 22; // 11pt
+const FONT_SIZE_9 = 18;  // 9pt
+
+// Conversão de cm para twips (1 cm = 567 twips)
+const CM_TO_TWIPS = 567;
 
 interface ServidorParaWord {
   nome_completo: string;
@@ -78,86 +83,103 @@ export async function generatePortariaColetivaWord(
         new TextRun({
           text: linha,
           font: 'Times New Roman',
-          size: FONT_SIZE_9,
+          size: FONT_SIZE_10,
         }),
       ],
       alignment: AlignmentType.JUSTIFIED,
-      spacing: { after: 120 },
+      spacing: { after: 100, line: 276 }, // 1.15 line spacing
     })
   );
 
-  // Criar linhas da tabela
+  // Criar linhas da tabela com cabeçalho que repete em cada página
   const tableRows: TableRow[] = [
-    // Cabeçalho da tabela
+    // Cabeçalho da tabela - configurado para repetir em novas páginas
     new TableRow({
+      tableHeader: true, // Repete em cada página
       children: [
         new TableCell({
           children: [new Paragraph({
             children: [new TextRun({ text: 'Nº', bold: true, font: 'Times New Roman', size: FONT_SIZE_9 })],
             alignment: AlignmentType.CENTER,
+            spacing: { before: 40, after: 40 },
           })],
           width: { size: 5, type: WidthType.PERCENTAGE },
+          shading: { fill: 'E6E6E6' },
         }),
         new TableCell({
           children: [new Paragraph({
             children: [new TextRun({ text: 'NOME COMPLETO', bold: true, font: 'Times New Roman', size: FONT_SIZE_9 })],
             alignment: AlignmentType.CENTER,
+            spacing: { before: 40, after: 40 },
           })],
-          width: { size: 40, type: WidthType.PERCENTAGE },
+          width: { size: 38, type: WidthType.PERCENTAGE },
+          shading: { fill: 'E6E6E6' },
         }),
         new TableCell({
           children: [new Paragraph({
             children: [new TextRun({ text: 'CPF', bold: true, font: 'Times New Roman', size: FONT_SIZE_9 })],
             alignment: AlignmentType.CENTER,
+            spacing: { before: 40, after: 40 },
           })],
-          width: { size: 15, type: WidthType.PERCENTAGE },
+          width: { size: 18, type: WidthType.PERCENTAGE },
+          shading: { fill: 'E6E6E6' },
         }),
         new TableCell({
           children: [new Paragraph({
             children: [new TextRun({ text: 'CARGO', bold: true, font: 'Times New Roman', size: FONT_SIZE_9 })],
             alignment: AlignmentType.CENTER,
+            spacing: { before: 40, after: 40 },
           })],
-          width: { size: 30, type: WidthType.PERCENTAGE },
+          width: { size: 28, type: WidthType.PERCENTAGE },
+          shading: { fill: 'E6E6E6' },
         }),
         new TableCell({
           children: [new Paragraph({
-            children: [new TextRun({ text: 'CÓDIGO', bold: true, font: 'Times New Roman', size: FONT_SIZE_9 })],
+            children: [new TextRun({ text: 'CÓD.', bold: true, font: 'Times New Roman', size: FONT_SIZE_9 })],
             alignment: AlignmentType.CENTER,
+            spacing: { before: 40, after: 40 },
           })],
-          width: { size: 10, type: WidthType.PERCENTAGE },
+          width: { size: 11, type: WidthType.PERCENTAGE },
+          shading: { fill: 'E6E6E6' },
         }),
       ],
     }),
-    // Linhas de dados
+    // Linhas de dados - configuradas para não quebrar no meio
     ...servidores.map((s, index) =>
       new TableRow({
+        cantSplit: true, // Não permite quebrar linha no meio da página
         children: [
           new TableCell({
             children: [new Paragraph({
               children: [new TextRun({ text: String(index + 1), font: 'Times New Roman', size: FONT_SIZE_9 })],
               alignment: AlignmentType.CENTER,
+              spacing: { before: 30, after: 30 },
             })],
           }),
           new TableCell({
             children: [new Paragraph({
               children: [new TextRun({ text: s.nome_completo.toUpperCase(), font: 'Times New Roman', size: FONT_SIZE_9 })],
+              spacing: { before: 30, after: 30 },
             })],
           }),
           new TableCell({
             children: [new Paragraph({
               children: [new TextRun({ text: formatarCPF(s.cpf), font: 'Times New Roman', size: FONT_SIZE_9 })],
               alignment: AlignmentType.CENTER,
+              spacing: { before: 30, after: 30 },
             })],
           }),
           new TableCell({
             children: [new Paragraph({
               children: [new TextRun({ text: s.cargo, font: 'Times New Roman', size: FONT_SIZE_9 })],
+              spacing: { before: 30, after: 30 },
             })],
           }),
           new TableCell({
             children: [new Paragraph({
               children: [new TextRun({ text: s.codigo || '-', font: 'Times New Roman', size: FONT_SIZE_9 })],
               alignment: AlignmentType.CENTER,
+              spacing: { before: 30, after: 30 },
             })],
           }),
         ],
@@ -171,10 +193,10 @@ export async function generatePortariaColetivaWord(
         properties: {
           page: {
             margin: {
-              top: 1134, // ~2cm
-              right: 1134,
-              bottom: 1134,
-              left: 1134,
+              top: Math.round(2.5 * CM_TO_TWIPS),   // 2.5cm
+              right: Math.round(2 * CM_TO_TWIPS),   // 2cm
+              bottom: Math.round(2 * CM_TO_TWIPS),  // 2cm
+              left: Math.round(3 * CM_TO_TWIPS),    // 3cm (padrão ABNT)
             },
           },
         },
@@ -186,11 +208,11 @@ export async function generatePortariaColetivaWord(
                 text: 'GOVERNO DO ESTADO DE RORAIMA',
                 bold: true,
                 font: 'Times New Roman',
-                size: FONT_SIZE_9,
+                size: FONT_SIZE_10,
               }),
             ],
             alignment: AlignmentType.CENTER,
-            spacing: { after: 60 },
+            spacing: { after: 40 },
           }),
           new Paragraph({
             children: [
@@ -201,7 +223,7 @@ export async function generatePortariaColetivaWord(
               }),
             ],
             alignment: AlignmentType.CENTER,
-            spacing: { after: 60 },
+            spacing: { after: 40 },
           }),
           new Paragraph({
             children: [
@@ -212,7 +234,7 @@ export async function generatePortariaColetivaWord(
               }),
             ],
             alignment: AlignmentType.CENTER,
-            spacing: { after: 240 },
+            spacing: { after: 200 },
           }),
 
           // Título da portaria
@@ -222,11 +244,11 @@ export async function generatePortariaColetivaWord(
                 text: formatarCabecalhoPortaria(portaria.numero, portaria.data_documento),
                 bold: true,
                 font: 'Times New Roman',
-                size: FONT_SIZE_9,
+                size: FONT_SIZE_11,
               }),
             ],
             alignment: AlignmentType.CENTER,
-            spacing: { after: 360 },
+            spacing: { after: 280 },
           }),
 
           // Parágrafos do cabeçalho/preâmbulo
@@ -238,11 +260,11 @@ export async function generatePortariaColetivaWord(
               new TextRun({
                 text: `Art. 1º ${verbo} os servidores abaixo relacionados para os respectivos cargos em comissão do Instituto de Desporto, Juventude e Lazer do Estado de Roraima – IDJuv:`,
                 font: 'Times New Roman',
-                size: FONT_SIZE_9,
+                size: FONT_SIZE_10,
               }),
             ],
             alignment: AlignmentType.JUSTIFIED,
-            spacing: { before: 240, after: 240 },
+            spacing: { before: 200, after: 200, line: 276 },
           }),
 
           // Tabela de servidores
@@ -257,11 +279,11 @@ export async function generatePortariaColetivaWord(
               new TextRun({
                 text: 'Art. 2º Os servidores nomeados farão jus à remuneração correspondente aos seus respectivos cargos, conforme disposto no Anexo I da Lei nº 2.301, de 29 de dezembro de 2025.',
                 font: 'Times New Roman',
-                size: FONT_SIZE_9,
+                size: FONT_SIZE_10,
               }),
             ],
             alignment: AlignmentType.JUSTIFIED,
-            spacing: { before: 240, after: 120 },
+            spacing: { before: 200, after: 100, line: 276 },
           }),
 
           // Art. 3º
@@ -270,11 +292,11 @@ export async function generatePortariaColetivaWord(
               new TextRun({
                 text: 'Art. 3º Esta Portaria entra em vigor na data de sua publicação.',
                 font: 'Times New Roman',
-                size: FONT_SIZE_9,
+                size: FONT_SIZE_10,
               }),
             ],
             alignment: AlignmentType.JUSTIFIED,
-            spacing: { after: 240 },
+            spacing: { after: 200, line: 276 },
           }),
 
           // Local e data
@@ -283,11 +305,11 @@ export async function generatePortariaColetivaWord(
               new TextRun({
                 text: `Boa Vista – RR, ${formatarDataExtenso(portaria.data_documento)}.`,
                 font: 'Times New Roman',
-                size: FONT_SIZE_9,
+                size: FONT_SIZE_10,
               }),
             ],
             alignment: AlignmentType.LEFT,
-            spacing: { before: 360, after: 480 },
+            spacing: { before: 300, after: 400 },
           }),
 
           // Assinatura
@@ -297,29 +319,29 @@ export async function generatePortariaColetivaWord(
                 text: PRESIDENTE.nome,
                 bold: true,
                 font: 'Times New Roman',
-                size: FONT_SIZE_9,
+                size: FONT_SIZE_10,
               }),
             ],
             alignment: AlignmentType.CENTER,
-            spacing: { after: 60 },
+            spacing: { after: 40 },
           }),
           new Paragraph({
             children: [
               new TextRun({
                 text: PRESIDENTE.cargo,
                 font: 'Times New Roman',
-                size: FONT_SIZE_9,
+                size: FONT_SIZE_10,
               }),
             ],
             alignment: AlignmentType.CENTER,
-            spacing: { after: 60 },
+            spacing: { after: 40 },
           }),
           new Paragraph({
             children: [
               new TextRun({
                 text: PRESIDENTE.orgao,
                 font: 'Times New Roman',
-                size: FONT_SIZE_9,
+                size: FONT_SIZE_10,
               }),
             ],
             alignment: AlignmentType.CENTER,
