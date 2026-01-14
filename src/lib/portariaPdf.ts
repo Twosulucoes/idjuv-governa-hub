@@ -141,7 +141,7 @@ export function buildPortariaPdfDoc(params: {
 export function savePortariaPdf(doc: jsPDF, params: { numero: string; servidorNome?: string }) {
   const parts = [
     "Portaria",
-    params.numero?.replaceAll("/", "-") || "sem-numero",
+    params.numero?.split("/").join("-") || "sem-numero",
     params.servidorNome ? sanitizeFilename(params.servidorNome) : null,
   ].filter(Boolean);
 
