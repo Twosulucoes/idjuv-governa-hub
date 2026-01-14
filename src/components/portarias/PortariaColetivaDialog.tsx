@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { FileText, Download, Users, CalendarDays } from 'lucide-react';
+import { useState } from 'react';
+import { FileText, Download, Users, CalendarDays, FileType } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -24,8 +24,9 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useGerarNumeroPortaria, useCreatePortaria } from '@/hooks/usePortarias';
-import { SelecionarServidoresTable, ServidorSelecionado } from './SelecionarServidoresTable';
+import { SelecionarServidoresTable } from './SelecionarServidoresTable';
 import { generatePortariaColetivaComTabela } from '@/lib/pdfPortarias';
+import { generatePortariaColetivaWord } from '@/lib/wordPortarias';
 
 type CategoriaColetiva = 'nomeacao_coletiva' | 'exoneracao_coletiva' | 'designacao_coletiva';
 
@@ -87,6 +88,22 @@ export function PortariaColetivaDialog({
     setActiveTab('config');
   };
 
+  const fetchServidoresData = async () => {
+    const { data: servidoresData, error } = await supabase
+      .from('v_servidores_situacao')
+      .select('id, nome_completo, cpf, cargo_nome, cargo_sigla')
+      .in('id', selectedIds);
+
+    if (error) throw error;
+
+    return (servidoresData || []).map((s) => ({
+      nome_completo: s.nome_completo || '',
+      cpf: s.cpf || '',
+      cargo: s.cargo_nome || '',
+      codigo: s.cargo_sigla || '',
+    }));
+  };
+
   const handleGeneratePdf = async () => {
     if (!numero) {
       toast.error('Informe o número da portaria');
@@ -99,41 +116,19 @@ export function PortariaColetivaDialog({
 
     setIsGenerating(true);
     try {
-      // Buscar dados completos dos servidores selecionados
-      const { data: servidoresData, error } = await supabase
-        .from('v_servidores_situacao')
-        .select('id, nome_completo, cpf, cargo_nome, cargo_sigla')
-        .in('id', selectedIds);
-
-      if (error) throw error;
-
-      // Mapear para o formato esperado pelo PDF
-      const servidoresParaPdf = (servidoresData || []).map((s) => ({
-        nome_completo: s.nome_completo || '',
-        cpf: s.cpf || '',
-        cargo: s.cargo_nome || '',
-        codigo: s.cargo_sigla || '',
-      }));
-
-      // Determinar tipo de ação baseado na categoria
+      const servidoresParaPdf = await fetchServidoresData();
       const tipoAcao = categoria === 'exoneracao_coletiva' ? 'exoneracao' : 'nomeacao';
 
-      // Gerar PDF
       const doc = generatePortariaColetivaComTabela(
-        {
-          numero,
-          data_documento: dataDocumento,
-        },
+        { numero, data_documento: dataDocumento },
         cabecalho,
         servidoresParaPdf,
         tipoAcao
       );
 
-      // Salvar PDF
       const nomeArquivo = `Portaria_Coletiva_${numero.replace(/\//g, '-')}.pdf`;
       doc.save(nomeArquivo);
 
-      // Criar registro no banco (opcional)
       await createPortaria.mutateAsync({
         titulo: `Portaria Coletiva - ${CATEGORIAS_COLETIVAS[categoria]}`,
         numero,
@@ -153,6 +148,37 @@ export function PortariaColetivaDialog({
     } catch (err) {
       console.error(err);
       toast.error('Erro ao gerar PDF da portaria coletiva');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateWord = async () => {
+    if (!numero) {
+      toast.error('Informe o número da portaria');
+      return;
+    }
+    if (selectedIds.length === 0) {
+      toast.error('Selecione pelo menos um servidor');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const servidoresParaWord = await fetchServidoresData();
+      const tipoAcao = categoria === 'exoneracao_coletiva' ? 'exoneracao' : 'nomeacao';
+
+      await generatePortariaColetivaWord(
+        { numero, data_documento: dataDocumento },
+        cabecalho,
+        servidoresParaWord,
+        tipoAcao
+      );
+
+      toast.success('Documento Word gerado com sucesso!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro ao gerar documento Word');
     } finally {
       setIsGenerating(false);
     }
@@ -268,6 +294,14 @@ export function PortariaColetivaDialog({
         <DialogFooter className="mt-4 pt-4 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleGenerateWord}
+            disabled={!canGenerate || isGenerating}
+          >
+            <FileType className="h-4 w-4 mr-2" />
+            {isGenerating ? 'Gerando...' : 'Gerar Word'}
           </Button>
           <Button
             onClick={handleGeneratePdf}
