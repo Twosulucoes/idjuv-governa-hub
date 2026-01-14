@@ -27,6 +27,7 @@ import {
   Eye,
   GraduationCap,
   Filter,
+  Printer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { formatCPF } from "@/lib/formatters";
 import type { PreCadastro } from "@/types/preCadastro";
+import { gerarPdfRelatorioPendencias } from "@/lib/pdfRelatorioPendencias";
 
 interface PendenciaItem {
   tipo: "esocial" | "bancaria" | "pessoal" | "opcional";
@@ -261,10 +263,29 @@ export function PendenciasPreCadastroDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Diagnóstico de Pendências
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Diagnóstico de Pendências
+            </DialogTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const filtroTexto = {
+                  todos: "Todos os pré-cadastros",
+                  incompletos: "Qualquer pendência",
+                  com_obrigatorios: "Pendências obrigatórias",
+                  completos: "Dados obrigatórios completos",
+                }[filtroIncompleto];
+                gerarPdfRelatorioPendencias(analiseFiltrada, stats, filtroTexto);
+              }}
+              className="gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir Relatório
+            </Button>
+          </div>
           <DialogDescription>
             Verificação de dados obrigatórios e opcionais para eSocial, remessa bancária e cadastro completo
           </DialogDescription>
