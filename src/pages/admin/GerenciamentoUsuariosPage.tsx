@@ -20,6 +20,7 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { CriarUsuarioDialog } from '@/components/admin/CriarUsuarioDialog';
 import { 
   Users, 
   Search, 
@@ -32,6 +33,7 @@ import {
   Loader2,
   RefreshCw,
   UserCog,
+  UserPlus,
   CheckCircle,
   AlertTriangle
 } from 'lucide-react';
@@ -71,6 +73,9 @@ const GerenciamentoUsuariosContent: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<AppRole | 'all'>('all');
   const [filterTipo, setFilterTipo] = useState<'all' | 'servidor' | 'tecnico'>('servidor');
+  
+  // Modal de criação de usuário
+  const [showCriarUsuario, setShowCriarUsuario] = useState(false);
   
   // Modal de edição
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
@@ -330,11 +335,17 @@ const GerenciamentoUsuariosContent: React.FC = () => {
               Gerencie roles e permissões dos usuários do sistema
             </p>
           </div>
-          
-          <Button variant="outline" onClick={loadUsers} disabled={isLoading}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Atualizar
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setShowCriarUsuario(true)}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Criar Usuário
+            </Button>
+            
+            <Button variant="outline" onClick={loadUsers} disabled={isLoading}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+          </div>
         </div>
 
         {/* Filtros */}
@@ -565,6 +576,13 @@ const GerenciamentoUsuariosContent: React.FC = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Modal de criação de usuário */}
+        <CriarUsuarioDialog 
+          open={showCriarUsuario} 
+          onOpenChange={setShowCriarUsuario}
+          onSuccess={loadUsers}
+        />
       </div>
     </AdminLayout>
   );
