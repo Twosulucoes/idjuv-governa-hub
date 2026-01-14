@@ -25,15 +25,25 @@ import {
   FileText,
   User,
   Eye,
+  GraduationCap,
+  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatCPF } from "@/lib/formatters";
 import type { PreCadastro } from "@/types/preCadastro";
 
 interface PendenciaItem {
-  tipo: "esocial" | "bancaria" | "pessoal";
+  tipo: "esocial" | "bancaria" | "pessoal" | "opcional";
   campo: string;
   descricao: string;
+  obrigatorio: boolean;
 }
 
 interface PreCadastroComPendencias {
@@ -41,6 +51,8 @@ interface PreCadastroComPendencias {
   pendencias: PendenciaItem[];
   temPendenciaEsocial: boolean;
   temPendenciaBancaria: boolean;
+  temPendenciaPessoal: boolean;
+  temPendenciaOpcional: boolean;
 }
 
 interface Props {
@@ -52,61 +64,95 @@ interface Props {
 
 // Campos obrigatórios para eSocial
 const CAMPOS_ESOCIAL = [
-  { campo: "data_nascimento", descricao: "Data de Nascimento" },
-  { campo: "pis_pasep", descricao: "PIS/PASEP" },
-  { campo: "sexo", descricao: "Sexo" },
-  { campo: "estado_civil", descricao: "Estado Civil" },
-  { campo: "naturalidade_cidade", descricao: "Naturalidade (Cidade)" },
-  { campo: "naturalidade_uf", descricao: "Naturalidade (UF)" },
-  { campo: "rg", descricao: "RG" },
-  { campo: "rg_orgao_expedidor", descricao: "Órgão Expedidor RG" },
-  { campo: "rg_uf", descricao: "UF do RG" },
+  { campo: "data_nascimento", descricao: "Data de Nascimento", obrigatorio: true },
+  { campo: "pis_pasep", descricao: "PIS/PASEP", obrigatorio: true },
+  { campo: "sexo", descricao: "Sexo", obrigatorio: true },
+  { campo: "estado_civil", descricao: "Estado Civil", obrigatorio: true },
+  { campo: "naturalidade_cidade", descricao: "Naturalidade (Cidade)", obrigatorio: true },
+  { campo: "naturalidade_uf", descricao: "Naturalidade (UF)", obrigatorio: true },
+  { campo: "rg", descricao: "RG", obrigatorio: true },
+  { campo: "rg_orgao_expedidor", descricao: "Órgão Expedidor RG", obrigatorio: true },
+  { campo: "rg_uf", descricao: "UF do RG", obrigatorio: true },
 ];
 
 // Campos obrigatórios para remessa bancária
 const CAMPOS_BANCARIOS = [
-  { campo: "banco_codigo", descricao: "Código do Banco" },
-  { campo: "banco_nome", descricao: "Nome do Banco" },
-  { campo: "banco_agencia", descricao: "Agência" },
-  { campo: "banco_conta", descricao: "Conta" },
-  { campo: "banco_tipo_conta", descricao: "Tipo de Conta" },
+  { campo: "banco_codigo", descricao: "Código do Banco", obrigatorio: true },
+  { campo: "banco_nome", descricao: "Nome do Banco", obrigatorio: true },
+  { campo: "banco_agencia", descricao: "Agência", obrigatorio: true },
+  { campo: "banco_conta", descricao: "Conta", obrigatorio: true },
+  { campo: "banco_tipo_conta", descricao: "Tipo de Conta", obrigatorio: true },
 ];
 
-// Campos de dados pessoais complementares
+// Campos de dados pessoais complementares (obrigatórios)
 const CAMPOS_PESSOAIS = [
-  { campo: "telefone_celular", descricao: "Telefone Celular" },
-  { campo: "endereco_cep", descricao: "CEP" },
-  { campo: "endereco_logradouro", descricao: "Logradouro" },
-  { campo: "endereco_numero", descricao: "Número" },
-  { campo: "endereco_bairro", descricao: "Bairro" },
-  { campo: "endereco_cidade", descricao: "Cidade" },
-  { campo: "endereco_uf", descricao: "UF" },
+  { campo: "telefone_celular", descricao: "Telefone Celular", obrigatorio: true },
+  { campo: "endereco_cep", descricao: "CEP", obrigatorio: true },
+  { campo: "endereco_logradouro", descricao: "Logradouro", obrigatorio: true },
+  { campo: "endereco_numero", descricao: "Número", obrigatorio: true },
+  { campo: "endereco_bairro", descricao: "Bairro", obrigatorio: true },
+  { campo: "endereco_cidade", descricao: "Cidade", obrigatorio: true },
+  { campo: "endereco_uf", descricao: "UF", obrigatorio: true },
 ];
+
+// Campos opcionais (para histórico completo)
+const CAMPOS_OPCIONAIS = [
+  { campo: "nome_social", descricao: "Nome Social", obrigatorio: false },
+  { campo: "nacionalidade", descricao: "Nacionalidade", obrigatorio: false },
+  { campo: "telefone_fixo", descricao: "Telefone Fixo", obrigatorio: false },
+  { campo: "endereco_complemento", descricao: "Complemento Endereço", obrigatorio: false },
+  { campo: "rg_data_emissao", descricao: "Data Emissão RG", obrigatorio: false },
+  { campo: "titulo_eleitor", descricao: "Título de Eleitor", obrigatorio: false },
+  { campo: "titulo_zona", descricao: "Zona Eleitoral", obrigatorio: false },
+  { campo: "titulo_secao", descricao: "Seção Eleitoral", obrigatorio: false },
+  { campo: "certificado_reservista", descricao: "Certificado Reservista", obrigatorio: false },
+  { campo: "escolaridade", descricao: "Escolaridade", obrigatorio: false },
+  { campo: "formacao_academica", descricao: "Formação Acadêmica", obrigatorio: false },
+  { campo: "instituicao_ensino", descricao: "Instituição de Ensino", obrigatorio: false },
+  { campo: "ano_conclusao", descricao: "Ano de Conclusão", obrigatorio: false },
+  { campo: "cnh_numero", descricao: "Número CNH", obrigatorio: false },
+  { campo: "cnh_categoria", descricao: "Categoria CNH", obrigatorio: false },
+  { campo: "cnh_validade", descricao: "Validade CNH", obrigatorio: false },
+  { campo: "registro_conselho", descricao: "Registro Conselho", obrigatorio: false },
+  { campo: "conselho_numero", descricao: "Número Conselho", obrigatorio: false },
+  { campo: "experiencia_resumo", descricao: "Experiência Profissional", obrigatorio: false },
+  { campo: "foto_url", descricao: "Foto", obrigatorio: false },
+];
+
+type FiltroIncompleto = "todos" | "incompletos" | "com_obrigatorios" | "completos";
 
 function verificarPendencias(pc: PreCadastro): PendenciaItem[] {
   const pendencias: PendenciaItem[] = [];
 
   // Verificar campos eSocial
-  CAMPOS_ESOCIAL.forEach(({ campo, descricao }) => {
+  CAMPOS_ESOCIAL.forEach(({ campo, descricao, obrigatorio }) => {
     const valor = pc[campo as keyof PreCadastro];
     if (!valor || (typeof valor === "string" && valor.trim() === "")) {
-      pendencias.push({ tipo: "esocial", campo, descricao });
+      pendencias.push({ tipo: "esocial", campo, descricao, obrigatorio });
     }
   });
 
   // Verificar campos bancários
-  CAMPOS_BANCARIOS.forEach(({ campo, descricao }) => {
+  CAMPOS_BANCARIOS.forEach(({ campo, descricao, obrigatorio }) => {
     const valor = pc[campo as keyof PreCadastro];
     if (!valor || (typeof valor === "string" && valor.trim() === "")) {
-      pendencias.push({ tipo: "bancaria", campo, descricao });
+      pendencias.push({ tipo: "bancaria", campo, descricao, obrigatorio });
     }
   });
 
   // Verificar campos pessoais
-  CAMPOS_PESSOAIS.forEach(({ campo, descricao }) => {
+  CAMPOS_PESSOAIS.forEach(({ campo, descricao, obrigatorio }) => {
     const valor = pc[campo as keyof PreCadastro];
     if (!valor || (typeof valor === "string" && valor.trim() === "")) {
-      pendencias.push({ tipo: "pessoal", campo, descricao });
+      pendencias.push({ tipo: "pessoal", campo, descricao, obrigatorio });
+    }
+  });
+
+  // Verificar campos opcionais
+  CAMPOS_OPCIONAIS.forEach(({ campo, descricao, obrigatorio }) => {
+    const valor = pc[campo as keyof PreCadastro];
+    if (!valor || (typeof valor === "string" && valor.trim() === "")) {
+      pendencias.push({ tipo: "opcional", campo, descricao, obrigatorio });
     }
   });
 
@@ -120,6 +166,7 @@ export function PendenciasPreCadastroDialog({
   onVerDetalhes,
 }: Props) {
   const [selectedTab, setSelectedTab] = useState("esocial");
+  const [filtroIncompleto, setFiltroIncompleto] = useState<FiltroIncompleto>("todos");
 
   // Filtrar apenas pré-cadastros enviados ou aprovados
   const preCadastrosRelevantes = useMemo(() => {
@@ -137,22 +184,48 @@ export function PendenciasPreCadastroDialog({
         pendencias,
         temPendenciaEsocial: pendencias.some((p) => p.tipo === "esocial"),
         temPendenciaBancaria: pendencias.some((p) => p.tipo === "bancaria"),
+        temPendenciaPessoal: pendencias.some((p) => p.tipo === "pessoal"),
+        temPendenciaOpcional: pendencias.some((p) => p.tipo === "opcional"),
       };
     });
   }, [preCadastrosRelevantes]);
+
+  // Aplicar filtro de incompletos
+  const analiseFiltrada = useMemo(() => {
+    switch (filtroIncompleto) {
+      case "incompletos":
+        return analise.filter(
+          (a) => a.temPendenciaEsocial || a.temPendenciaBancaria || a.temPendenciaPessoal || a.temPendenciaOpcional
+        );
+      case "com_obrigatorios":
+        return analise.filter(
+          (a) => a.temPendenciaEsocial || a.temPendenciaBancaria || a.temPendenciaPessoal
+        );
+      case "completos":
+        return analise.filter(
+          (a) => !a.temPendenciaEsocial && !a.temPendenciaBancaria && !a.temPendenciaPessoal
+        );
+      default:
+        return analise;
+    }
+  }, [analise, filtroIncompleto]);
 
   // Estatísticas
   const stats = useMemo(() => {
     const comPendenciaEsocial = analise.filter((a) => a.temPendenciaEsocial).length;
     const comPendenciaBancaria = analise.filter((a) => a.temPendenciaBancaria).length;
+    const comPendenciaPessoal = analise.filter((a) => a.temPendenciaPessoal).length;
+    const comPendenciaOpcional = analise.filter((a) => a.temPendenciaOpcional).length;
     const completos = analise.filter(
-      (a) => !a.temPendenciaEsocial && !a.temPendenciaBancaria
+      (a) => !a.temPendenciaEsocial && !a.temPendenciaBancaria && !a.temPendenciaPessoal
     ).length;
 
     return {
       total: analise.length,
       comPendenciaEsocial,
       comPendenciaBancaria,
+      comPendenciaPessoal,
+      comPendenciaOpcional,
       completos,
     };
   }, [analise]);
@@ -161,40 +234,64 @@ export function PendenciasPreCadastroDialog({
   const dadosFiltrados = useMemo(() => {
     switch (selectedTab) {
       case "esocial":
-        return analise.filter((a) => a.temPendenciaEsocial);
+        return analiseFiltrada.filter((a) => a.temPendenciaEsocial);
       case "bancaria":
-        return analise.filter((a) => a.temPendenciaBancaria);
+        return analiseFiltrada.filter((a) => a.temPendenciaBancaria);
+      case "pessoal":
+        return analiseFiltrada.filter((a) => a.temPendenciaPessoal);
+      case "opcional":
+        return analiseFiltrada.filter((a) => a.temPendenciaOpcional);
       case "completos":
-        return analise.filter(
-          (a) => !a.temPendenciaEsocial && !a.temPendenciaBancaria
+        return analiseFiltrada.filter(
+          (a) => !a.temPendenciaEsocial && !a.temPendenciaBancaria && !a.temPendenciaPessoal
         );
       default:
-        return analise;
+        return analiseFiltrada;
     }
-  }, [analise, selectedTab]);
+  }, [analiseFiltrada, selectedTab]);
 
   const getPendenciasPorTipo = (
     pendencias: PendenciaItem[],
-    tipo: "esocial" | "bancaria" | "pessoal"
+    tipo: "esocial" | "bancaria" | "pessoal" | "opcional"
   ) => {
     return pendencias.filter((p) => p.tipo === tipo);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[85vh]">
+      <DialogContent className="max-w-5xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Diagnóstico de Pendências
           </DialogTitle>
           <DialogDescription>
-            Verificação de dados obrigatórios para eSocial e remessa bancária
+            Verificação de dados obrigatórios e opcionais para eSocial, remessa bancária e cadastro completo
           </DialogDescription>
         </DialogHeader>
 
+        {/* Filtro de incompletos */}
+        <div className="flex items-center gap-3 bg-muted/50 p-3 rounded-lg">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Filtrar:</span>
+          <Select value={filtroIncompleto} onValueChange={(v) => setFiltroIncompleto(v as FiltroIncompleto)}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os pré-cadastros</SelectItem>
+              <SelectItem value="incompletos">Qualquer pendência</SelectItem>
+              <SelectItem value="com_obrigatorios">Pendências obrigatórias</SelectItem>
+              <SelectItem value="completos">Dados obrigatórios completos</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-sm text-muted-foreground ml-2">
+            ({analiseFiltrada.length} de {analise.length} registros)
+          </span>
+        </div>
+
         {/* Cards de resumo */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <Card className="border-border">
             <CardContent className="p-3">
               <div className="flex items-center gap-2">
@@ -215,7 +312,7 @@ export function PendenciasPreCadastroDialog({
                   <p className="text-xl font-bold text-destructive">
                     {stats.comPendenciaEsocial}
                   </p>
-                  <p className="text-xs text-muted-foreground">Pend. eSocial</p>
+                  <p className="text-xs text-muted-foreground">eSocial</p>
                 </div>
               </div>
             </CardContent>
@@ -229,7 +326,21 @@ export function PendenciasPreCadastroDialog({
                   <p className="text-xl font-bold text-orange-600">
                     {stats.comPendenciaBancaria}
                   </p>
-                  <p className="text-xs text-muted-foreground">Pend. Bancária</p>
+                  <p className="text-xs text-muted-foreground">Bancária</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-blue-500/30 bg-blue-500/5">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 text-blue-500" />
+                <div>
+                  <p className="text-xl font-bold text-blue-600">
+                    {stats.comPendenciaOpcional}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Opcionais</p>
                 </div>
               </div>
             </CardContent>
@@ -252,22 +363,30 @@ export function PendenciasPreCadastroDialog({
 
         {/* Tabs de categorias */}
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="esocial" className="text-xs sm:text-sm">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="esocial" className="text-xs">
               <AlertTriangle className="h-3 w-3 mr-1 text-destructive" />
               eSocial ({stats.comPendenciaEsocial})
             </TabsTrigger>
-            <TabsTrigger value="bancaria" className="text-xs sm:text-sm">
+            <TabsTrigger value="bancaria" className="text-xs">
               <Building2 className="h-3 w-3 mr-1 text-orange-500" />
               Bancária ({stats.comPendenciaBancaria})
             </TabsTrigger>
-            <TabsTrigger value="completos" className="text-xs sm:text-sm">
+            <TabsTrigger value="pessoal" className="text-xs">
+              <User className="h-3 w-3 mr-1 text-purple-500" />
+              Pessoal ({stats.comPendenciaPessoal})
+            </TabsTrigger>
+            <TabsTrigger value="opcional" className="text-xs">
+              <GraduationCap className="h-3 w-3 mr-1 text-blue-500" />
+              Opcionais ({stats.comPendenciaOpcional})
+            </TabsTrigger>
+            <TabsTrigger value="completos" className="text-xs">
               <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
               Completos ({stats.completos})
             </TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="h-[350px] mt-4">
+          <ScrollArea className="h-[320px] mt-4">
             <TabsContent value="esocial" className="mt-0">
               <TabelaPendencias
                 dados={dadosFiltrados}
@@ -281,6 +400,24 @@ export function PendenciasPreCadastroDialog({
               <TabelaPendencias
                 dados={dadosFiltrados}
                 tipo="bancaria"
+                onVerDetalhes={onVerDetalhes}
+                getPendenciasPorTipo={getPendenciasPorTipo}
+              />
+            </TabsContent>
+
+            <TabsContent value="pessoal" className="mt-0">
+              <TabelaPendencias
+                dados={dadosFiltrados}
+                tipo="pessoal"
+                onVerDetalhes={onVerDetalhes}
+                getPendenciasPorTipo={getPendenciasPorTipo}
+              />
+            </TabsContent>
+
+            <TabsContent value="opcional" className="mt-0">
+              <TabelaPendencias
+                dados={dadosFiltrados}
+                tipo="opcional"
                 onVerDetalhes={onVerDetalhes}
                 getPendenciasPorTipo={getPendenciasPorTipo}
               />
@@ -303,11 +440,11 @@ export function PendenciasPreCadastroDialog({
 
 interface TabelaPendenciasProps {
   dados: PreCadastroComPendencias[];
-  tipo: "esocial" | "bancaria" | "completos";
+  tipo: "esocial" | "bancaria" | "pessoal" | "opcional" | "completos";
   onVerDetalhes: (pc: PreCadastro) => void;
   getPendenciasPorTipo: (
     pendencias: PendenciaItem[],
-    tipo: "esocial" | "bancaria" | "pessoal"
+    tipo: "esocial" | "bancaria" | "pessoal" | "opcional"
   ) => PendenciaItem[];
 }
 
@@ -323,7 +460,7 @@ function TabelaPendencias({
         {tipo === "completos" ? (
           <>
             <CheckCircle2 className="h-12 w-12 mb-3 text-green-500" />
-            <p>Nenhum pré-cadastro com dados completos</p>
+            <p>Nenhum pré-cadastro com dados obrigatórios completos</p>
           </>
         ) : (
           <>
@@ -334,6 +471,21 @@ function TabelaPendencias({
       </div>
     );
   }
+
+  const getBadgeColor = (tipoP: string) => {
+    switch (tipoP) {
+      case "esocial":
+        return "bg-destructive/10 text-destructive border-destructive/30";
+      case "bancaria":
+        return "bg-orange-500/10 text-orange-600 border-orange-500/30";
+      case "pessoal":
+        return "bg-purple-500/10 text-purple-600 border-purple-500/30";
+      case "opcional":
+        return "bg-blue-500/10 text-blue-600 border-blue-500/30";
+      default:
+        return "";
+    }
+  };
 
   return (
     <Table>
@@ -353,9 +505,7 @@ function TabelaPendencias({
           const pendenciasTipo =
             tipo === "completos"
               ? []
-              : tipo === "esocial"
-              ? getPendenciasPorTipo(pendencias, "esocial")
-              : getPendenciasPorTipo(pendencias, "bancaria");
+              : getPendenciasPorTipo(pendencias, tipo as "esocial" | "bancaria" | "pessoal" | "opcional");
 
           return (
             <TableRow key={preCadastro.id}>
@@ -382,7 +532,7 @@ function TabelaPendencias({
                     className="bg-green-500/10 text-green-600 border-green-500/30"
                   >
                     <CheckCircle2 className="h-3 w-3 mr-1" />
-                    Dados completos
+                    Dados obrigatórios completos
                   </Badge>
                 ) : (
                   <div className="flex flex-wrap gap-1">
@@ -390,7 +540,7 @@ function TabelaPendencias({
                       <Badge
                         key={p.campo}
                         variant="outline"
-                        className="text-xs bg-destructive/10 text-destructive border-destructive/30"
+                        className={`text-xs ${getBadgeColor(tipo)}`}
                       >
                         {p.descricao}
                       </Badge>
