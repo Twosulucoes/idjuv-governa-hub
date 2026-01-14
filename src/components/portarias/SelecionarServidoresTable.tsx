@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
-import { Search, CheckSquare, Square, User } from 'lucide-react';
+import { Search, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -23,12 +24,15 @@ interface SelecionarServidoresTableProps {
   maxHeight?: string;
 }
 
+const ITEMS_PER_PAGE = 15;
+
 export function SelecionarServidoresTable({
   selectedIds,
   onSelectionChange,
   maxHeight = '400px',
 }: SelecionarServidoresTableProps) {
   const [busca, setBusca] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { data: servidores = [], isLoading } = useQuery({
     queryKey: ['servidores-selecao'],
@@ -56,16 +60,24 @@ export function SelecionarServidoresTable({
     );
   }, [servidores, busca]);
 
+  // Reset page when search changes
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [busca]);
+
+  const totalPages = Math.ceil(servidoresFiltrados.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const servidoresPaginados = servidoresFiltrados.slice(startIndex, endIndex);
+
   const allSelected = servidoresFiltrados.length > 0 && 
     servidoresFiltrados.every((s) => selectedIds.includes(s.id));
 
   const handleToggleAll = () => {
     if (allSelected) {
-      // Deseleciona todos os filtrados
       const filtradosIds = new Set(servidoresFiltrados.map((s) => s.id));
       onSelectionChange(selectedIds.filter((id) => !filtradosIds.has(id)));
     } else {
-      // Seleciona todos os filtrados
       const novosIds = new Set([...selectedIds, ...servidoresFiltrados.map((s) => s.id)]);
       onSelectionChange(Array.from(novosIds));
     }
@@ -83,6 +95,14 @@ export function SelecionarServidoresTable({
     if (!cpf) return '';
     const numeros = cpf.replace(/\D/g, '');
     return numeros.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  };
+
+  const handlePrevPage = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
   };
 
   return (
@@ -119,19 +139,19 @@ export function SelecionarServidoresTable({
           <span className="w-[100px]">Código</span>
         </div>
 
-        {/* Lista */}
-        <ScrollArea style={{ maxHeight }}>
+        {/* Lista com ScrollArea */}
+        <ScrollArea className="overflow-auto" style={{ maxHeight }}>
           {isLoading ? (
             <div className="p-8 text-center text-muted-foreground">
               Carregando servidores...
             </div>
-          ) : servidoresFiltrados.length === 0 ? (
+          ) : servidoresPaginados.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
               Nenhum servidor encontrado
             </div>
           ) : (
             <div className="divide-y">
-              {servidoresFiltrados.map((servidor) => {
+              {servidoresPaginados.map((servidor) => {
                 const isSelected = selectedIds.includes(servidor.id);
                 return (
                   <div
@@ -172,6 +192,38 @@ export function SelecionarServidoresTable({
             </div>
           )}
         </ScrollArea>
+
+        {/* Paginação */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/30">
+            <span className="text-sm text-muted-foreground">
+              Mostrando {startIndex + 1}-{Math.min(endIndex, servidoresFiltrados.length)} de {servidoresFiltrados.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Anterior
+              </Button>
+              <span className="text-sm font-medium px-2">
+                {currentPage} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+              >
+                Próximo
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
