@@ -43,6 +43,25 @@ function formatarDataExtenso(dataString: string): string {
   return format(data, "d 'de' MMMM 'de' yyyy", { locale: ptBR });
 }
 
+// Função auxiliar para formatar data para cabeçalho da portaria (DD DE MES DE AAAA)
+function formatarDataCabecalhoPortaria(dataString: string): string {
+  const data = new Date(dataString + 'T00:00:00');
+  const dia = format(data, 'dd', { locale: ptBR });
+  const mes = format(data, 'MMMM', { locale: ptBR }).toUpperCase();
+  const ano = format(data, 'yyyy', { locale: ptBR });
+  return `${dia} DE ${mes} DE ${ano}`;
+}
+
+// Função auxiliar para formatar número da portaria no padrão oficial
+// Formato: PORTARIA Nº XXX/IDJuv/PRESI/GAB/AAAA DE DD DE MES DE AAAA
+function formatarCabecalhoPortaria(numero: string, dataDocumento: string): string {
+  const dataFormatada = formatarDataCabecalhoPortaria(dataDocumento);
+  const ano = new Date(dataDocumento + 'T00:00:00').getFullYear();
+  // Extrai apenas o número (remove /ano se já existir)
+  const numeroLimpo = numero.split('/')[0];
+  return `PORTARIA Nº ${numeroLimpo}/IDJuv/PRESI/GAB/${ano} DE ${dataFormatada}`;
+}
+
 // Função auxiliar para formatar CPF
 function formatarCPF(cpf: string): string {
   const numeros = cpf.replace(/\D/g, '');
@@ -107,11 +126,16 @@ export function generatePortariaNomeacao(
   let y = CONFIG.marginTop + 25;
   const contentWidth = CONFIG.pageWidth - CONFIG.marginLeft - CONFIG.marginRight;
 
-  // Título - PORTARIA Nº ___/2026/IDJUV
-  doc.setFontSize(12);
+  // Título - PORTARIA Nº ___/IDJuv/PRESI/GAB/AAAA DE DD DE MES DE AAAA
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text(`PORTARIA Nº ${portaria.numero}/IDJUV`, CONFIG.pageWidth / 2, y, { align: 'center' });
-  y += 15;
+  const tituloPortaria = formatarCabecalhoPortaria(portaria.numero, portaria.data_documento);
+  const tituloLines = doc.splitTextToSize(tituloPortaria, contentWidth);
+  tituloLines.forEach((line: string) => {
+    doc.text(line, CONFIG.pageWidth / 2, y, { align: 'center' });
+    y += 5;
+  });
+  y += 10;
 
   // Preâmbulo
   doc.setFontSize(11);
@@ -196,10 +220,15 @@ export function generatePortariaExoneracao(
   const contentWidth = CONFIG.pageWidth - CONFIG.marginLeft - CONFIG.marginRight;
 
   // Título
-  doc.setFontSize(14);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text(`PORTARIA Nº ${portaria.numero}`, CONFIG.pageWidth / 2, y, { align: 'center' });
-  y += 10;
+  const tituloPortaria = formatarCabecalhoPortaria(portaria.numero, portaria.data_documento);
+  const tituloLines = doc.splitTextToSize(tituloPortaria, contentWidth);
+  tituloLines.forEach((line: string) => {
+    doc.text(line, CONFIG.pageWidth / 2, y, { align: 'center' });
+    y += 5;
+  });
+  y += 5;
 
   // Data
   doc.setFontSize(10);
@@ -276,10 +305,15 @@ export function generatePortariaDesignacao(
   const contentWidth = CONFIG.pageWidth - CONFIG.marginLeft - CONFIG.marginRight;
 
   // Título
-  doc.setFontSize(14);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text(`PORTARIA Nº ${portaria.numero}`, CONFIG.pageWidth / 2, y, { align: 'center' });
-  y += 10;
+  const tituloPortaria = formatarCabecalhoPortaria(portaria.numero, portaria.data_documento);
+  const tituloLines = doc.splitTextToSize(tituloPortaria, contentWidth);
+  tituloLines.forEach((line: string) => {
+    doc.text(line, CONFIG.pageWidth / 2, y, { align: 'center' });
+    y += 5;
+  });
+  y += 5;
 
   // Data
   doc.setFontSize(10);
@@ -365,10 +399,15 @@ export function generatePortariaColetiva(
   const contentWidth = CONFIG.pageWidth - CONFIG.marginLeft - CONFIG.marginRight;
 
   // Título
-  doc.setFontSize(14);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text(`PORTARIA Nº ${portaria.numero}`, CONFIG.pageWidth / 2, y, { align: 'center' });
-  y += 10;
+  const tituloPortaria = formatarCabecalhoPortaria(portaria.numero, portaria.data_documento);
+  const tituloLines = doc.splitTextToSize(tituloPortaria, contentWidth);
+  tituloLines.forEach((line: string) => {
+    doc.text(line, CONFIG.pageWidth / 2, y, { align: 'center' });
+    y += 5;
+  });
+  y += 5;
 
   // Data
   doc.setFontSize(10);
@@ -465,11 +504,16 @@ export function generatePortariaColetivaComTabela(
   let y = CONFIG.marginTop + 25;
   const contentWidth = CONFIG.pageWidth - CONFIG.marginLeft - CONFIG.marginRight;
 
-  // Título - PORTARIA Nº ___/2026/IDJUV
-  doc.setFontSize(12);
+  // Título - PORTARIA Nº ___/IDJuv/PRESI/GAB/AAAA DE DD DE MES DE AAAA
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text(`PORTARIA Nº ${portaria.numero}/IDJUV`, CONFIG.pageWidth / 2, y, { align: 'center' });
-  y += 15;
+  const tituloPortaria = formatarCabecalhoPortaria(portaria.numero, portaria.data_documento);
+  const tituloLines = doc.splitTextToSize(tituloPortaria, contentWidth);
+  tituloLines.forEach((line: string) => {
+    doc.text(line, CONFIG.pageWidth / 2, y, { align: 'center' });
+    y += 5;
+  });
+  y += 10;
 
   // Cabeçalho personalizado (preâmbulo)
   doc.setFontSize(11);
