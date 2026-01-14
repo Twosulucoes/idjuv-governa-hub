@@ -441,3 +441,194 @@ export function generatePortariaColetiva(
 
   return doc;
 }
+
+// Gera PDF de Portaria Coletiva COM TABELA (Nome, CPF, Cargo, Código)
+export function generatePortariaColetivaComTabela(
+  portaria: { numero: string; data_documento: string },
+  cabecalho: string,
+  servidores: Array<{
+    nome_completo: string;
+    cpf: string;
+    cargo: string;
+    codigo: string;
+  }>,
+  tipoAcao: 'nomeacao' | 'exoneracao' = 'nomeacao'
+): jsPDF {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  addHeader(doc);
+
+  let y = CONFIG.marginTop + 25;
+  const contentWidth = CONFIG.pageWidth - CONFIG.marginLeft - CONFIG.marginRight;
+
+  // Título - PORTARIA Nº ___/2026/IDJUV
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`PORTARIA Nº ${portaria.numero}/IDJUV`, CONFIG.pageWidth / 2, y, { align: 'center' });
+  y += 15;
+
+  // Cabeçalho personalizado (preâmbulo)
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  const cabecalhoLines = doc.splitTextToSize(cabecalho, contentWidth);
+  cabecalhoLines.forEach((line: string) => {
+    if (y > CONFIG.pageHeight - 50) {
+      doc.addPage();
+      addHeader(doc);
+      y = CONFIG.marginTop + 25;
+    }
+    doc.text(line, CONFIG.marginLeft, y);
+    y += 5;
+  });
+  y += 8;
+
+  // Art. 1º - Introdução
+  const verbo = tipoAcao === 'nomeacao' ? 'NOMEAR' : 'EXONERAR';
+  const artigo1 = `Art. 1º ${verbo} os servidores abaixo relacionados para os respectivos cargos em comissão do Instituto de Desporto, Juventude e Lazer do Estado de Roraima – IDJuv:`;
+  const artigo1Lines = doc.splitTextToSize(artigo1, contentWidth);
+  doc.text(artigo1Lines, CONFIG.marginLeft, y, { align: 'justify' });
+  y += artigo1Lines.length * 5 + 8;
+
+  // Tabela
+  const colWidths = {
+    num: 10,
+    nome: 70,
+    cpf: 35,
+    cargo: 35,
+    codigo: 20,
+  };
+  const tableWidth = colWidths.num + colWidths.nome + colWidths.cpf + colWidths.cargo + colWidths.codigo;
+  const tableX = CONFIG.marginLeft;
+  const rowHeight = 7;
+
+  // Cabeçalho da tabela
+  const drawTableHeader = () => {
+    doc.setFillColor(240, 240, 240);
+    doc.rect(tableX, y, tableWidth, rowHeight, 'F');
+    doc.setDrawColor(100);
+    doc.rect(tableX, y, tableWidth, rowHeight);
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    
+    let colX = tableX;
+    doc.text('Nº', colX + colWidths.num / 2, y + 5, { align: 'center' });
+    doc.line(colX + colWidths.num, y, colX + colWidths.num, y + rowHeight);
+    colX += colWidths.num;
+    
+    doc.text('Nome Completo', colX + 2, y + 5);
+    doc.line(colX + colWidths.nome, y, colX + colWidths.nome, y + rowHeight);
+    colX += colWidths.nome;
+    
+    doc.text('CPF', colX + colWidths.cpf / 2, y + 5, { align: 'center' });
+    doc.line(colX + colWidths.cpf, y, colX + colWidths.cpf, y + rowHeight);
+    colX += colWidths.cpf;
+    
+    doc.text('Cargo', colX + 2, y + 5);
+    doc.line(colX + colWidths.cargo, y, colX + colWidths.cargo, y + rowHeight);
+    colX += colWidths.cargo;
+    
+    doc.text('Código', colX + colWidths.codigo / 2, y + 5, { align: 'center' });
+    
+    y += rowHeight;
+  };
+
+  drawTableHeader();
+
+  // Linhas da tabela
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+
+  servidores.forEach((s, index) => {
+    // Verificar se precisa de nova página
+    if (y > CONFIG.pageHeight - 50) {
+      doc.addPage();
+      addHeader(doc);
+      y = CONFIG.marginTop + 25;
+      drawTableHeader();
+    }
+
+    // Calcular altura da linha baseado no nome
+    const nomeLines = doc.splitTextToSize(s.nome_completo.toUpperCase(), colWidths.nome - 4);
+    const cargoLines = doc.splitTextToSize(s.cargo, colWidths.cargo - 4);
+    const lineHeight = Math.max(nomeLines.length, cargoLines.length) * 4 + 3;
+
+    // Borda da linha
+    doc.setDrawColor(150);
+    doc.rect(tableX, y, tableWidth, lineHeight);
+
+    let colX = tableX;
+
+    // Nº
+    doc.text(String(index + 1), colX + colWidths.num / 2, y + 4, { align: 'center' });
+    doc.line(colX + colWidths.num, y, colX + colWidths.num, y + lineHeight);
+    colX += colWidths.num;
+
+    // Nome
+    doc.text(nomeLines, colX + 2, y + 4);
+    doc.line(colX + colWidths.nome, y, colX + colWidths.nome, y + lineHeight);
+    colX += colWidths.nome;
+
+    // CPF
+    doc.text(formatarCPF(s.cpf), colX + colWidths.cpf / 2, y + 4, { align: 'center' });
+    doc.line(colX + colWidths.cpf, y, colX + colWidths.cpf, y + lineHeight);
+    colX += colWidths.cpf;
+
+    // Cargo
+    doc.text(cargoLines, colX + 2, y + 4);
+    doc.line(colX + colWidths.cargo, y, colX + colWidths.cargo, y + lineHeight);
+    colX += colWidths.cargo;
+
+    // Código
+    doc.text(s.codigo || '-', colX + colWidths.codigo / 2, y + 4, { align: 'center' });
+
+    y += lineHeight;
+  });
+
+  y += 10;
+
+  // Art. 2º - Remuneração
+  if (y > CONFIG.pageHeight - 60) {
+    doc.addPage();
+    addHeader(doc);
+    y = CONFIG.marginTop + 25;
+  }
+  
+  doc.setFontSize(11);
+  const artigo2 = 'Art. 2º Os nomeados farão jus à remuneração correspondente aos respectivos cargos, conforme disposto no Anexo I da Lei nº 2.301, de 29 de dezembro de 2025.';
+  const artigo2Lines = doc.splitTextToSize(artigo2, contentWidth);
+  doc.text(artigo2Lines, CONFIG.marginLeft, y, { align: 'justify' });
+  y += artigo2Lines.length * 5 + 8;
+
+  // Art. 3º - Vigência
+  const artigo3 = 'Art. 3º Esta Portaria entra em vigor na data de sua publicação.';
+  doc.text(artigo3, CONFIG.marginLeft, y);
+  y += 20;
+
+  // Local e data
+  const dataDocumentoTexto = formatarDataExtenso(portaria.data_documento);
+  doc.text(`Boa Vista – RR, ${dataDocumentoTexto}.`, CONFIG.marginLeft, y);
+  y += 25;
+
+  // Assinatura
+  doc.setFont('helvetica', 'bold');
+  doc.text(PRESIDENTE.nome, CONFIG.pageWidth / 2, y, { align: 'center' });
+  y += 5;
+  doc.setFont('helvetica', 'normal');
+  doc.text(PRESIDENTE.cargo, CONFIG.pageWidth / 2, y, { align: 'center' });
+  y += 5;
+  doc.text(PRESIDENTE.orgao, CONFIG.pageWidth / 2, y, { align: 'center' });
+
+  // Adicionar rodapé em todas as páginas
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    addFooter(doc, i, pageCount);
+  }
+
+  return doc;
+}
