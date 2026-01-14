@@ -27,6 +27,25 @@ function formatarDataExtenso(dataString: string): string {
   return format(data, "d 'de' MMMM 'de' yyyy", { locale: ptBR });
 }
 
+// Função auxiliar para formatar data para cabeçalho da portaria (DD DE MES DE AAAA)
+function formatarDataCabecalhoPortaria(dataString: string): string {
+  const data = new Date(dataString + 'T00:00:00');
+  const dia = format(data, 'dd', { locale: ptBR });
+  const mes = format(data, 'MMMM', { locale: ptBR }).toUpperCase();
+  const ano = format(data, 'yyyy', { locale: ptBR });
+  return `${dia} DE ${mes} DE ${ano}`;
+}
+
+// Função auxiliar para formatar número da portaria no padrão oficial
+// Formato: PORTARIA Nº XXX/IDJuv/PRESI/GAB/AAAA DE DD DE MES DE AAAA
+function formatarCabecalhoPortaria(numero: string, dataDocumento: string): string {
+  const dataFormatada = formatarDataCabecalhoPortaria(dataDocumento);
+  const ano = new Date(dataDocumento + 'T00:00:00').getFullYear();
+  // Extrai apenas o número (remove /ano se já existir)
+  const numeroLimpo = numero.split('/')[0];
+  return `PORTARIA Nº ${numeroLimpo}/IDJuv/PRESI/GAB/${ano} DE ${dataFormatada}`;
+}
+
 // Configurações do Presidente
 const PRESIDENTE = {
   nome: 'MARCELO DE MAGALHÃES NUNES',
@@ -200,7 +219,7 @@ export async function generatePortariaColetivaWord(
           new Paragraph({
             children: [
               new TextRun({
-                text: `PORTARIA Nº ${portaria.numero}/IDJUV`,
+                text: formatarCabecalhoPortaria(portaria.numero, portaria.data_documento),
                 bold: true,
                 font: 'Times New Roman',
                 size: FONT_SIZE_9,
