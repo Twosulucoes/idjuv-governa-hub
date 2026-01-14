@@ -35,7 +35,11 @@ import {
   UserCog,
   UserPlus,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Key,
+  Eye,
+  EyeOff,
+  Copy
 } from 'lucide-react';
 import { AppRole, AppPermission, ROLE_LABELS, ROLE_DESCRIPTIONS, PERMISSION_LABELS, PERMISSION_GROUPS } from '@/types/auth';
 
@@ -82,6 +86,11 @@ const GerenciamentoUsuariosContent: React.FC = () => {
   const [editRole, setEditRole] = useState<AppRole>('user');
   const [editPermissions, setEditPermissions] = useState<AppPermission[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Senha temporária (reset via admin)
+  const [senhaTemporaria, setSenhaTemporaria] = useState<string | null>(null);
+  const [showSenhaTemporaria, setShowSenhaTemporaria] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   // ============================================
   // CARREGAR USUÁRIOS
@@ -174,12 +183,16 @@ const GerenciamentoUsuariosContent: React.FC = () => {
     setEditingUser(user);
     setEditRole(user.role);
     setEditPermissions([...user.permissions]);
+    setSenhaTemporaria(null);
+    setShowSenhaTemporaria(false);
   };
 
   const closeEditModal = () => {
     setEditingUser(null);
     setEditRole('user');
     setEditPermissions([]);
+    setSenhaTemporaria(null);
+    setShowSenhaTemporaria(false);
   };
 
   // ============================================
@@ -315,6 +328,41 @@ const GerenciamentoUsuariosContent: React.FC = () => {
       case 'manager': return <ShieldCheck className="h-4 w-4" />;
       default: return <Shield className="h-4 w-4" />;
     }
+  };
+
+  const handleGerarSenhaTemporaria = async () => {
+    if (!editingUser) return;
+
+    setIsResettingPassword(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-reset-password', {
+        body: { userId: editingUser.id },
+      });
+
+      if (error) throw error;
+
+      setSenhaTemporaria((data as any)?.senhaTemporaria ?? null);
+      setShowSenhaTemporaria(true);
+
+      toast({
+        title: 'Senha temporária gerada',
+        description: 'Copie a senha e envie ao usuário.',
+      });
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao gerar senha temporária',
+        description: err?.message || 'Não foi possível gerar a senha.',
+      });
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
+  const handleCopiarSenhaTemporaria = async () => {
+    if (!senhaTemporaria) return;
+    await navigator.clipboard.writeText(senhaTemporaria);
+    toast({ title: 'Senha copiada', description: 'Copiada para a área de transferência.' });
   };
 
   // ============================================
@@ -476,6 +524,75 @@ const GerenciamentoUsuariosContent: React.FC = () => {
 
             {editingUser && (
               <div className="space-y-6 py-4">
+                {/* Senha */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <Label className="text-base font-semibold">Senha</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Gere uma senha temporária para o usuário (será exigida troca no primeiro acesso)
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleGerarSenhaTemporaria}
+                      disabled={isResettingPassword}
+                    >
+                      {isResettingPassword ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Gerando...
+                        </>
+                      ) : (
+                        <>
+                          <Key className="mr-2 h-4 w-4" />
+                          Gerar senha temporária
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {senhaTemporaria && (
+                    <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+                      <Label className="text-sm text-muted-foreground">Senha temporária</Label>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 rounded-md border bg-background p-3 font-mono text-base">
+                          {showSenhaTemporaria ? senhaTemporaria : '••••••••••••'}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setShowSenhaTemporaria((v) => !v)}
+                          title={showSenhaTemporaria ? 'Ocultar senha' : 'Mostrar senha'}
+                        >
+                          {showSenhaTemporaria ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={handleCopiarSenhaTemporaria}
+                          title="Copiar senha"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <Alert>
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>
+                          Importante: por segurança, copie agora. A aplicação não armazena essa senha.
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  )}
+                </div>
+
                 {/* Aviso se for o próprio usuário */}
                 {editingUser.id === currentUser?.id && (
                   <Alert>
