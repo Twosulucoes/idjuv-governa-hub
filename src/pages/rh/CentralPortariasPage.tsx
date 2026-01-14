@@ -6,6 +6,7 @@ import {
   Filter,
   Search,
   Download,
+  Users,
 } from 'lucide-react';
 
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -35,6 +36,7 @@ import {
   PortariaKanban,
   PortariaTable,
   RegistrarPublicacaoDialog,
+  PortariaColetivaDialog,
 } from '@/components/portarias';
 import { supabase } from '@/integrations/supabase/client';
 import { usePortarias, useRegistrarAssinatura } from '@/hooks/usePortarias';
@@ -55,6 +57,7 @@ function htmlToText(html?: string | null) {
 export default function CentralPortariasPage() {
   const [view, setView] = useState<'kanban' | 'table'>('kanban');
   const [formOpen, setFormOpen] = useState(false);
+  const [coletivaDialogOpen, setColetivaDialogOpen] = useState(false);
   const [publicacaoDialogOpen, setPublicacaoDialogOpen] = useState(false);
   const [assinaturaDialogOpen, setAssinaturaDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -206,10 +209,16 @@ export default function CentralPortariasPage() {
               Gerencie todas as portarias de pessoal em um só lugar
             </p>
           </div>
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Portaria
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setColetivaDialogOpen(true)}>
+              <Users className="h-4 w-4 mr-2" />
+              Portaria Coletiva
+            </Button>
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Portaria
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -307,6 +316,12 @@ export default function CentralPortariasPage() {
 
       {/* Dialogs */}
       <PortariaForm open={formOpen} onOpenChange={setFormOpen} onSuccess={() => refetch()} />
+
+      <PortariaColetivaDialog
+        open={coletivaDialogOpen}
+        onOpenChange={setColetivaDialogOpen}
+        onSuccess={() => refetch()}
+      />
 
       <RegistrarPublicacaoDialog
         open={publicacaoDialogOpen}

@@ -5,3 +5,5 @@ export { RegistrarPublicacaoDialog } from './RegistrarPublicacaoDialog';
 export { EditarPortariaDialog } from './EditarPortariaDialog';
 export { RetificarPortariaDialog } from './RetificarPortariaDialog';
 export { GerarPortariaManualDialog } from './GerarPortariaManualDialog';
+export { PortariaColetivaDialog } from './PortariaColetivaDialog';
+export { SelecionarServidoresTable } from './SelecionarServidoresTable';
