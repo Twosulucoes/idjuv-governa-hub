@@ -80,13 +80,21 @@ function addFooter(doc: jsPDF, pageNumber: number, totalPages: number) {
   doc.text('Av. Brigadeiro Eduardo Gomes, 4124 - Aeroporto - CEP: 69.310-005 - Boa Vista/RR', CONFIG.pageWidth / 2, footerY + 4, { align: 'center' });
 }
 
+// Configurações do Presidente (pode ser personalizado)
+const PRESIDENTE = {
+  nome: 'MARCELO DE MAGALHÃES NUNES',
+  cargo: 'Presidente do Instituto de Desporto, Juventude e Lazer',
+  orgao: 'do Estado de Roraima',
+};
+
 // Gera PDF de Portaria de Nomeação
 export function generatePortariaNomeacao(
   portaria: DadosPortaria,
   servidor: DadosServidor,
   cargo: DadosCargo,
   unidade: DadosUnidade,
-  tipoNomeacao: 'comissionado' | 'efetivo' = 'comissionado'
+  tipoNomeacao: 'comissionado' | 'efetivo' = 'comissionado',
+  dataEfeitos?: string // Data para "efeitos a contar de"
 ): jsPDF {
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -99,71 +107,69 @@ export function generatePortariaNomeacao(
   let y = CONFIG.marginTop + 25;
   const contentWidth = CONFIG.pageWidth - CONFIG.marginLeft - CONFIG.marginRight;
 
-  // Título
-  doc.setFontSize(14);
+  // Título - PORTARIA Nº ___/2026/IDJUV
+  doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text(`PORTARIA Nº ${portaria.numero}`, CONFIG.pageWidth / 2, y, { align: 'center' });
-  y += 10;
-
-  // Data
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'italic');
-  doc.text(`Boa Vista-RR, ${formatarDataExtenso(portaria.data_documento)}`, CONFIG.pageWidth / 2, y, { align: 'center' });
+  doc.text(`PORTARIA Nº ${portaria.numero}/IDJUV`, CONFIG.pageWidth / 2, y, { align: 'center' });
   y += 15;
 
-  // Ementa
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'italic');
-  const ementa = portaria.ementa || `Nomeia servidor para cargo ${tipoNomeacao === 'comissionado' ? 'em comissão' : 'efetivo'}.`;
-  const ementaLines = doc.splitTextToSize(ementa, contentWidth - 40);
-  doc.text(ementaLines, CONFIG.marginLeft + 40, y);
-  y += ementaLines.length * 5 + 10;
-
-  // Corpo
-  doc.setFont('helvetica', 'normal');
+  // Preâmbulo
   doc.setFontSize(11);
-
-  const preambulo = 'O PRESIDENTE DO INSTITUTO DE DESENVOLVIMENTO DA JUVENTUDE DO ESTADO DE RORAIMA – IDJUV, no uso de suas atribuições legais conferidas pela Lei nº 2.301, de 10 de janeiro de 2025,';
+  doc.setFont('helvetica', 'normal');
+  const preambulo = 'O PRESIDENTE DO INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA – IDJuv, no uso das atribuições legais que lhe são conferidas pela Lei nº 2.301, de 29 de dezembro de 2025, e demais normas aplicáveis,';
   const preambuloLines = doc.splitTextToSize(preambulo, contentWidth);
   doc.text(preambuloLines, CONFIG.marginLeft, y, { align: 'justify' });
-  y += preambuloLines.length * 5 + 10;
+  y += preambuloLines.length * 5 + 8;
 
+  // CONSIDERANDO
+  const considerando = 'CONSIDERANDO o disposto no art. 7º, §3º, da Lei nº 2.301/2025, que estabelece que a investidura nos cargos em comissão do IDJuv dar-se-á por ato do Diretor Presidente;';
+  const considerandoLines = doc.splitTextToSize(considerando, contentWidth);
+  doc.text(considerandoLines, CONFIG.marginLeft, y, { align: 'justify' });
+  y += considerandoLines.length * 5 + 10;
+
+  // RESOLVE
   doc.setFont('helvetica', 'bold');
-  doc.text('RESOLVE:', CONFIG.pageWidth / 2, y, { align: 'center' });
+  doc.text('RESOLVE:', CONFIG.marginLeft, y);
   y += 10;
 
   doc.setFont('helvetica', 'normal');
   
-  let artigo1: string;
-  if (tipoNomeacao === 'comissionado') {
-    artigo1 = `Art. 1º NOMEAR ${servidor.nome_completo.toUpperCase()}, inscrito(a) no CPF nº ${formatarCPF(servidor.cpf)}, para exercer o cargo em comissão de ${cargo.nome}${cargo.simbolo ? `, símbolo ${cargo.simbolo}` : ''}, no(a) ${unidade.nome}, do Instituto de Desenvolvimento da Juventude do Estado de Roraima – IDJUV.`;
-  } else {
-    artigo1 = `Art. 1º NOMEAR ${servidor.nome_completo.toUpperCase()}, inscrito(a) no CPF nº ${formatarCPF(servidor.cpf)}, aprovado(a) em concurso público, para exercer o cargo efetivo de ${cargo.nome}, no(a) ${unidade.nome}, do Instituto de Desenvolvimento da Juventude do Estado de Roraima – IDJUV.`;
-  }
+  // Art. 1º - NOMEAR
+  const simboloTexto = cargo.simbolo ? `, código ${cargo.simbolo}` : '';
+  const artigo1 = `Art. 1º NOMEAR ${servidor.nome_completo.toUpperCase()}, para exercer o cargo em comissão de ${cargo.nome.toUpperCase()}${simboloTexto}, integrante da estrutura organizacional do Instituto de Desporto, Juventude e Lazer do Estado de Roraima – IDJuv.`;
   
   const artigo1Lines = doc.splitTextToSize(artigo1, contentWidth);
   doc.text(artigo1Lines, CONFIG.marginLeft, y, { align: 'justify' });
   y += artigo1Lines.length * 5 + 8;
 
-  if (tipoNomeacao === 'efetivo') {
-    const artigo2 = 'Art. 2º O(A) servidor(a) terá o prazo de 30 (trinta) dias para tomar posse, nos termos da legislação vigente.';
-    const artigo2Lines = doc.splitTextToSize(artigo2, contentWidth);
-    doc.text(artigo2Lines, CONFIG.marginLeft, y, { align: 'justify' });
-    y += artigo2Lines.length * 5 + 8;
-  }
+  // Art. 2º - Remuneração
+  const artigo2 = 'Art. 2º A nomeada fará jus à remuneração correspondente ao cargo, conforme disposto no Anexo I da Lei nº 2.301, de 29 de dezembro de 2025.';
+  const artigo2Lines = doc.splitTextToSize(artigo2, contentWidth);
+  doc.text(artigo2Lines, CONFIG.marginLeft, y, { align: 'justify' });
+  y += artigo2Lines.length * 5 + 8;
 
-  const artigoFinal = tipoNomeacao === 'efetivo' ? 'Art. 3º' : 'Art. 2º';
-  doc.text(`${artigoFinal} Esta Portaria entra em vigor na data de sua publicação.`, CONFIG.marginLeft, y);
-  y += 25;
+  // Art. 3º - Vigência
+  const dataEfeitosTexto = dataEfeitos 
+    ? formatarDataExtenso(dataEfeitos)
+    : `___ de __________ de ${new Date().getFullYear()}`;
+  const artigo3 = `Art. 3º Esta Portaria entra em vigor na data de sua publicação, com efeitos a contar de ${dataEfeitosTexto}.`;
+  const artigo3Lines = doc.splitTextToSize(artigo3, contentWidth);
+  doc.text(artigo3Lines, CONFIG.marginLeft, y, { align: 'justify' });
+  y += artigo3Lines.length * 5 + 20;
+
+  // Local e data
+  const dataDocumentoTexto = formatarDataExtenso(portaria.data_documento);
+  doc.text(`Boa Vista – RR, ${dataDocumentoTexto}.`, CONFIG.marginLeft, y);
+  y += 20;
 
   // Assinatura
   doc.setFont('helvetica', 'bold');
-  doc.text('_'.repeat(40), CONFIG.pageWidth / 2, y, { align: 'center' });
-  y += 5;
-  doc.text('[NOME DO PRESIDENTE]', CONFIG.pageWidth / 2, y, { align: 'center' });
+  doc.text(PRESIDENTE.nome, CONFIG.pageWidth / 2, y, { align: 'center' });
   y += 5;
   doc.setFont('helvetica', 'normal');
-  doc.text('Presidente do IDJUV', CONFIG.pageWidth / 2, y, { align: 'center' });
+  doc.text(PRESIDENTE.cargo, CONFIG.pageWidth / 2, y, { align: 'center' });
+  y += 5;
+  doc.text(PRESIDENTE.orgao, CONFIG.pageWidth / 2, y, { align: 'center' });
 
   addFooter(doc, 1, 1);
 
