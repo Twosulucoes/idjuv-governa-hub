@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import { NomeacoesProvimentosSection } from "./NomeacoesProvimentosSection";
 import { CessoesSection } from "./CessoesSection";
 import { DesignacoesSection } from "./DesignacoesSection";
+import { PortariasServidorSection } from "./PortariasServidorSection";
 import { type TipoServidor } from "@/types/servidor";
 
 interface HistoricoFuncionalTabProps {
@@ -138,6 +139,12 @@ export function HistoricoFuncionalTab({ servidorId, servidorNome, tipoServidor }
 
   return (
     <div className="space-y-6">
+      {/* Portarias do Servidor */}
+      <PortariasServidorSection 
+        servidorId={servidorId} 
+        servidorNome={servidorNome}
+      />
+
       {/* Nomeações / Provimentos */}
       <NomeacoesProvimentosSection 
         servidorId={servidorId} 

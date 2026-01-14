@@ -411,6 +411,7 @@ export function usePreCadastros() {
       let portariaId: string | null = null;
       let nomeCargo = 'cargo não especificado';
       let nomeUnidade = 'unidade não especificada';
+      let numeroPortaria = '';
       
       try {
         const ano = new Date().getFullYear();
@@ -434,7 +435,7 @@ export function usePreCadastros() {
           }
         }
         
-        const numeroPortaria = `${String(proximoNumero).padStart(3, '0')}/${ano}`;
+        numeroPortaria = `${String(proximoNumero).padStart(3, '0')}/${ano}`;
         
         // Buscar nome do cargo
         if (cargoId) {
@@ -493,21 +494,48 @@ export function usePreCadastros() {
         console.error('Erro ao gerar portaria automaticamente:', err);
       }
       
-      // 7. Registrar no histórico funcional
+      // 8. Criar provimento vinculado à portaria
+      try {
+        const { error: provError } = await supabase
+          .from('provimentos')
+          .insert({
+            servidor_id: novoServidor.id,
+            cargo_id: cargoId || null,
+            unidade_id: unidadeId,
+            status: 'ativo',
+            data_nomeacao: dataAdmissao,
+            data_posse: dataAdmissao,
+            data_exercicio: dataAdmissao,
+            ato_nomeacao_tipo: 'portaria',
+            ato_nomeacao_numero: numeroPortaria,
+            ato_nomeacao_data: dataAdmissao,
+          });
+        
+        if (provError) {
+          console.error('Erro ao criar provimento:', provError);
+        }
+      } catch (err) {
+        console.error('Erro ao criar provimento:', err);
+      }
+      
+      // 9. Registrar no histórico funcional
       try {
         await supabase.from('historico_funcional').insert({
+          servidor_id: novoServidor.id,
           tipo: tipoServidor === 'cedido_entrada' ? 'cessao_entrada' : 'nomeacao',
           data_evento: dataAdmissao,
           data_vigencia_inicio: dataAdmissao,
           cargo_novo_id: cargoId || null,
           unidade_nova_id: unidadeId,
+          portaria_numero: numeroPortaria,
+          portaria_data: dataAdmissao,
           descricao: `Nomeação para ${nomeCargo} - Matrícula ${matricula}`,
         } as any);
       } catch (err) {
         console.error('Erro ao registrar histórico:', err);
       }
       
-      // 8. Atualizar pré-cadastro com referência ao servidor
+      // 10. Atualizar pré-cadastro com referência ao servidor
       const { error: updateError } = await supabase
         .from('pre_cadastros')
         .update({
