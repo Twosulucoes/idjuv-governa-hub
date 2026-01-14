@@ -273,7 +273,7 @@ export function PortariaColetivaDialog({
                 <Label htmlFor="cabecalho">Cabeçalho / Preâmbulo</Label>
                 <Textarea
                   id="cabecalho"
-                  className="min-h-[200px] font-mono text-sm"
+                  className="min-h-[350px] font-mono text-sm"
                   value={cabecalho}
                   onChange={(e) => setCabecalho(e.target.value)}
                   placeholder="Digite o texto de abertura da portaria..."
