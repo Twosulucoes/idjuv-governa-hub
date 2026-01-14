@@ -250,7 +250,6 @@ export function LotacaoForm({ servidorId, servidorNome, tipoServidor, open, onOp
                     <SelectItem value="lotacao_inicial">Lotação Inicial</SelectItem>
                     <SelectItem value="transferencia">Transferência</SelectItem>
                     <SelectItem value="remocao">Remoção</SelectItem>
-                    <SelectItem value="designacao">Designação</SelectItem>
                     <SelectItem value="redistribuicao">Redistribuição</SelectItem>
                   </SelectContent>
                 </Select>
