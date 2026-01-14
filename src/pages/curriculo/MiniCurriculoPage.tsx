@@ -136,12 +136,23 @@ export default function MiniCurriculoPage() {
     doc.save(`pre-cadastro-${formData.codigo_acesso || "rascunho"}.pdf`);
   };
 
+  const handleRecuperarPreCadastro = (codigoRecuperar: string) => {
+    navigate(`/curriculo/${codigoRecuperar}`, { replace: true });
+  };
+
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
         return <DadosPessoaisForm dados={formData} onChange={setFormData} />;
       case 2:
-        return <DocumentosForm dados={formData} onChange={setFormData} />;
+        return (
+          <DocumentosForm
+            dados={formData}
+            onChange={setFormData}
+            codigoAtual={codigo}
+            onRecuperarPreCadastro={handleRecuperarPreCadastro}
+          />
+        );
       case 3:
         return <EnderecoForm dados={formData} onChange={setFormData} />;
       case 4:
