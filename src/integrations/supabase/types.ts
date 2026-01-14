@@ -1603,60 +1603,129 @@ export type Database = {
       }
       documentos: {
         Row: {
+          arquivo_assinado_url: string | null
           arquivo_url: string | null
+          assinado_por: string | null
+          cargo_id: string | null
           categoria: Database["public"]["Enums"]["categoria_portaria"] | null
+          conteudo_html: string | null
           created_at: string
           created_by: string | null
+          data_assinatura: string | null
           data_documento: string
           data_publicacao: string | null
           data_vigencia_fim: string | null
           data_vigencia_inicio: string | null
+          designacao_id: string | null
+          doe_data: string | null
+          doe_numero: string | null
           ementa: string | null
           id: string
           numero: string
           observacoes: string | null
+          provimento_id: string | null
+          servidores_ids: string[] | null
           status: Database["public"]["Enums"]["status_documento"]
           tipo: Database["public"]["Enums"]["tipo_documento"]
           titulo: string
+          unidade_id: string | null
           updated_at: string
         }
         Insert: {
+          arquivo_assinado_url?: string | null
           arquivo_url?: string | null
+          assinado_por?: string | null
+          cargo_id?: string | null
           categoria?: Database["public"]["Enums"]["categoria_portaria"] | null
+          conteudo_html?: string | null
           created_at?: string
           created_by?: string | null
+          data_assinatura?: string | null
           data_documento?: string
           data_publicacao?: string | null
           data_vigencia_fim?: string | null
           data_vigencia_inicio?: string | null
+          designacao_id?: string | null
+          doe_data?: string | null
+          doe_numero?: string | null
           ementa?: string | null
           id?: string
           numero: string
           observacoes?: string | null
+          provimento_id?: string | null
+          servidores_ids?: string[] | null
           status?: Database["public"]["Enums"]["status_documento"]
           tipo?: Database["public"]["Enums"]["tipo_documento"]
           titulo: string
+          unidade_id?: string | null
           updated_at?: string
         }
         Update: {
+          arquivo_assinado_url?: string | null
           arquivo_url?: string | null
+          assinado_por?: string | null
+          cargo_id?: string | null
           categoria?: Database["public"]["Enums"]["categoria_portaria"] | null
+          conteudo_html?: string | null
           created_at?: string
           created_by?: string | null
+          data_assinatura?: string | null
           data_documento?: string
           data_publicacao?: string | null
           data_vigencia_fim?: string | null
           data_vigencia_inicio?: string | null
+          designacao_id?: string | null
+          doe_data?: string | null
+          doe_numero?: string | null
           ementa?: string | null
           id?: string
           numero?: string
           observacoes?: string | null
+          provimento_id?: string | null
+          servidores_ids?: string[] | null
           status?: Database["public"]["Enums"]["status_documento"]
           tipo?: Database["public"]["Enums"]["tipo_documento"]
           titulo?: string
+          unidade_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "documentos_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_designacao_id_fkey"
+            columns: ["designacao_id"]
+            isOneToOne: false
+            referencedRelation: "designacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_provimento_id_fkey"
+            columns: ["provimento_id"]
+            isOneToOne: false
+            referencedRelation: "provimentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_provimento_id_fkey"
+            columns: ["provimento_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["provimento_id"]
+          },
+          {
+            foreignKeyName: "documentos_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       documentos_cedencia: {
         Row: {
@@ -6200,6 +6269,7 @@ export type Database = {
         Returns: undefined
       }
       gerar_codigo_pre_cadastro: { Args: never; Returns: string }
+      gerar_numero_portaria: { Args: { p_ano?: number }; Returns: string }
       gerar_protocolo_cedencia: {
         Args: { p_unidade_id: string }
         Returns: string
@@ -6380,7 +6450,18 @@ export type Database = {
         | "funcao_gratificada"
         | "temporario"
         | "estagiario"
-      categoria_portaria: "estruturante" | "normativa" | "pessoal" | "delegacao"
+      categoria_portaria:
+        | "estruturante"
+        | "normativa"
+        | "pessoal"
+        | "delegacao"
+        | "nomeacao"
+        | "exoneracao"
+        | "designacao"
+        | "dispensa"
+        | "cessao"
+        | "ferias"
+        | "licenca"
       estado_conservacao: "otimo" | "bom" | "regular" | "ruim" | "inservivel"
       formula_tipo:
         | "valor_fixo"
@@ -6419,6 +6500,9 @@ export type Database = {
         | "publicado"
         | "vigente"
         | "revogado"
+        | "minuta"
+        | "aguardando_assinatura"
+        | "assinado"
       status_evento_esocial:
         | "pendente"
         | "gerado"
@@ -6776,7 +6860,19 @@ export const Constants = {
         "temporario",
         "estagiario",
       ],
-      categoria_portaria: ["estruturante", "normativa", "pessoal", "delegacao"],
+      categoria_portaria: [
+        "estruturante",
+        "normativa",
+        "pessoal",
+        "delegacao",
+        "nomeacao",
+        "exoneracao",
+        "designacao",
+        "dispensa",
+        "cessao",
+        "ferias",
+        "licenca",
+      ],
       estado_conservacao: ["otimo", "bom", "regular", "ruim", "inservivel"],
       formula_tipo: [
         "valor_fixo",
@@ -6819,6 +6915,9 @@ export const Constants = {
         "publicado",
         "vigente",
         "revogado",
+        "minuta",
+        "aguardando_assinatura",
+        "assinado",
       ],
       status_evento_esocial: [
         "pendente",
