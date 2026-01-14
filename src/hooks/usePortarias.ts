@@ -6,7 +6,6 @@ import type {
   CreatePortariaData, 
   UpdatePortariaData, 
   StatusPortaria,
-  TipoPortaria,
   CategoriaPortaria 
 } from '@/types/portaria';
 
@@ -463,21 +462,19 @@ export function useGerarMinutaNomeacao() {
     mutationFn: async ({
       servidor_id,
       servidor_nome,
-      servidor_cpf,
       cargo_id,
       cargo_nome,
       unidade_id,
-      unidade_nome,
       provimento_id,
       tipo_nomeacao = 'comissionado',
     }: {
       servidor_id: string;
       servidor_nome: string;
-      servidor_cpf: string;
+      servidor_cpf?: string;
       cargo_id: string;
       cargo_nome: string;
       unidade_id: string;
-      unidade_nome: string;
+      unidade_nome?: string;
       provimento_id: string;
       tipo_nomeacao?: 'comissionado' | 'efetivo';
     }) => {
@@ -512,20 +509,18 @@ export function useGerarMinutaExoneracao() {
     mutationFn: async ({
       servidor_id,
       servidor_nome,
-      servidor_cpf,
       cargo_id,
       cargo_nome,
       unidade_id,
-      unidade_nome,
       motivo = 'pedido',
     }: {
       servidor_id: string;
       servidor_nome: string;
-      servidor_cpf: string;
+      servidor_cpf?: string;
       cargo_id: string;
       cargo_nome: string;
       unidade_id: string;
-      unidade_nome: string;
+      unidade_nome?: string;
       motivo?: 'pedido' | 'oficio';
     }) => {
       const dataAtual = new Date().toISOString().split('T')[0];
@@ -558,22 +553,18 @@ export function useGerarMinutaDesignacao() {
     mutationFn: async ({
       servidor_id,
       servidor_nome,
-      cargo_nome,
-      unidade_origem_nome,
       unidade_destino_nome,
       unidade_destino_id,
       designacao_id,
-      data_inicio,
-      data_fim,
     }: {
       servidor_id: string;
       servidor_nome: string;
-      cargo_nome: string;
-      unidade_origem_nome: string;
+      cargo_nome?: string;
+      unidade_origem_nome?: string;
       unidade_destino_nome: string;
       unidade_destino_id: string;
       designacao_id: string;
-      data_inicio: string;
+      data_inicio?: string;
       data_fim?: string;
     }) => {
       const dataAtual = new Date().toISOString().split('T')[0];

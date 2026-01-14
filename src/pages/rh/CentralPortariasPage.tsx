@@ -4,7 +4,7 @@ import { Plus, LayoutGrid, Table as TableIcon, Filter, Search } from 'lucide-rea
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 import {
   Select,
   SelectContent,
@@ -13,19 +13,34 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
   PortariaForm,
   PortariaKanban,
   PortariaTable,
   RegistrarPublicacaoDialog,
 } from '@/components/portarias';
-import { usePortarias } from '@/hooks/usePortarias';
+import { usePortarias, useRegistrarAssinatura } from '@/hooks/usePortarias';
 import { StatusPortaria, STATUS_PORTARIA_LABELS, Portaria } from '@/types/portaria';
+import { toast } from 'sonner';
 
 export default function CentralPortariasPage() {
   const [view, setView] = useState<'kanban' | 'table'>('kanban');
   const [formOpen, setFormOpen] = useState(false);
   const [publicacaoDialogOpen, setPublicacaoDialogOpen] = useState(false);
+  const [assinaturaDialogOpen, setAssinaturaDialogOpen] = useState(false);
   const [selectedPortaria, setSelectedPortaria] = useState<Portaria | null>(null);
+  const [assinaturaData, setAssinaturaData] = useState({
+    assinado_por: '',
+    data_assinatura: new Date().toISOString().split('T')[0],
+  });
   const [filters, setFilters] = useState<{
     status?: StatusPortaria;
     busca?: string;
@@ -35,6 +50,7 @@ export default function CentralPortariasPage() {
   });
 
   const { data: portarias = [], isLoading, refetch } = usePortarias(filters);
+  const registrarAssinatura = useRegistrarAssinatura();
 
   const handleView = (portaria: Portaria) => {
     setSelectedPortaria(portaria);
@@ -44,6 +60,33 @@ export default function CentralPortariasPage() {
   const handleRegistrarPublicacao = (portaria: Portaria) => {
     setSelectedPortaria(portaria);
     setPublicacaoDialogOpen(true);
+  };
+
+  const handleRegistrarAssinatura = (portaria: Portaria) => {
+    setSelectedPortaria(portaria);
+    setAssinaturaData({
+      assinado_por: '',
+      data_assinatura: new Date().toISOString().split('T')[0],
+    });
+    setAssinaturaDialogOpen(true);
+  };
+
+  const handleConfirmarAssinatura = async () => {
+    if (!selectedPortaria || !assinaturaData.assinado_por) return;
+    
+    try {
+      await registrarAssinatura.mutateAsync({
+        id: selectedPortaria.id,
+        assinado_por: assinaturaData.assinado_por,
+        data_assinatura: assinaturaData.data_assinatura,
+      });
+      setAssinaturaDialogOpen(false);
+      setSelectedPortaria(null);
+      toast.success('Assinatura registrada com sucesso!');
+      refetch();
+    } catch (err) {
+      toast.error('Erro ao registrar assinatura');
+    }
   };
 
   const currentYear = new Date().getFullYear();
@@ -152,6 +195,7 @@ export default function CentralPortariasPage() {
             isLoading={isLoading}
             onView={handleView}
             onRegistrarPublicacao={handleRegistrarPublicacao}
+            onRegistrarAssinatura={handleRegistrarAssinatura}
           />
         )}
       </div>
@@ -169,6 +213,49 @@ export default function CentralPortariasPage() {
         portaria={selectedPortaria}
         onSuccess={() => refetch()}
       />
+
+      {/* Dialog Registrar Assinatura */}
+      <Dialog open={assinaturaDialogOpen} onOpenChange={setAssinaturaDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar Assinatura</DialogTitle>
+            <DialogDescription>
+              Portaria nº {selectedPortaria?.numero}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="assinado_por">Assinado por</Label>
+              <Input
+                id="assinado_por"
+                placeholder="Nome do signatário"
+                value={assinaturaData.assinado_por}
+                onChange={(e) => setAssinaturaData(prev => ({ ...prev, assinado_por: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="data_assinatura">Data da Assinatura</Label>
+              <Input
+                id="data_assinatura"
+                type="date"
+                value={assinaturaData.data_assinatura}
+                onChange={(e) => setAssinaturaData(prev => ({ ...prev, data_assinatura: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssinaturaDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleConfirmarAssinatura}
+              disabled={!assinaturaData.assinado_por || registrarAssinatura.isPending}
+            >
+              Registrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
