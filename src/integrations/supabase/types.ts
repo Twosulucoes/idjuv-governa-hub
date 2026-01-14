@@ -5006,6 +5006,7 @@ export type Database = {
           funcao_exercida: string | null
           gratificacoes: number | null
           id: string
+          indicacao: string | null
           instituicao_ensino: string | null
           matricula: string | null
           nacionalidade: string | null
@@ -5090,6 +5091,7 @@ export type Database = {
           funcao_exercida?: string | null
           gratificacoes?: number | null
           id?: string
+          indicacao?: string | null
           instituicao_ensino?: string | null
           matricula?: string | null
           nacionalidade?: string | null
@@ -5174,6 +5176,7 @@ export type Database = {
           funcao_exercida?: string | null
           gratificacoes?: number | null
           id?: string
+          indicacao?: string | null
           instituicao_ensino?: string | null
           matricula?: string | null
           nacionalidade?: string | null
@@ -6252,6 +6255,7 @@ export type Database = {
         Returns: boolean
       }
       can_view_audit: { Args: { _user_id: string }; Returns: boolean }
+      can_view_indicacao: { Args: { _user_id: string }; Returns: boolean }
       count_dependentes_irrf: {
         Args: { p_data?: string; p_servidor_id: string }
         Returns: number

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +25,8 @@ import {
   Plane,
   FileDown,
   History,
-  ScrollText
+  ScrollText,
+  Star
 } from "lucide-react";
 import { generateFichaCadastral } from "@/lib/pdfGenerator";
 import { format } from "date-fns";
@@ -43,6 +45,8 @@ import { HistoricoFuncionalTab } from "@/components/rh/HistoricoFuncionalTab";
 export default function ServidorDetalheePage() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'ti_admin' || user?.role === 'presidencia';
 
   // Fetch servidor
   const { data: servidor, isLoading } = useQuery({
@@ -483,6 +487,23 @@ export default function ServidorDetalheePage() {
                     <InfoRow label="PIS/PASEP" value={servidor.pis_pasep || '-'} />
                   </CardContent>
                 </Card>
+
+                {/* Indicação - Apenas para Admins */}
+                {isAdmin && (servidor as any).indicacao && (
+                  <Card className="border-dashed border-amber-500/50 bg-amber-500/5">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2 text-sm">
+                        <Star className="h-4 w-4 text-amber-500" />
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
+                          Informação Estratégica
+                        </span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-foreground">{(servidor as any).indicacao}</p>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </TabsContent>
 
