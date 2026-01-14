@@ -13,12 +13,19 @@ import {
   PenLine,
   Newspaper,
   Send,
-  ExternalLink
+  ExternalLink,
+  Edit,
+  FilePlus2,
+  AlertTriangle,
+  RotateCcw
 } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { RegistrarPublicacaoDialog } from "@/components/portarias/RegistrarPublicacaoDialog";
+import { EditarPortariaDialog } from "@/components/portarias/EditarPortariaDialog";
+import { RetificarPortariaDialog } from "@/components/portarias/RetificarPortariaDialog";
+import { GerarPortariaManualDialog } from "@/components/portarias/GerarPortariaManualDialog";
 import { 
   STATUS_PORTARIA_LABELS, 
   STATUS_PORTARIA_COLORS,
@@ -36,17 +43,39 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreVertical } from "lucide-react";
 
 interface PortariasServidorSectionProps {
   servidorId: string;
   servidorNome: string;
+  servidorCpf?: string;
+  cargoAtualId?: string;
+  unidadeAtualId?: string;
+  dataAdmissao?: string;
 }
 
-export function PortariasServidorSection({ servidorId, servidorNome }: PortariasServidorSectionProps) {
+export function PortariasServidorSection({ 
+  servidorId, 
+  servidorNome,
+  servidorCpf,
+  cargoAtualId,
+  unidadeAtualId,
+  dataAdmissao,
+}: PortariasServidorSectionProps) {
   const queryClient = useQueryClient();
   const [selectedPortaria, setSelectedPortaria] = useState<any>(null);
   const [showPublicacaoDialog, setShowPublicacaoDialog] = useState(false);
   const [showAssinaturaDialog, setShowAssinaturaDialog] = useState(false);
+  const [showEditarDialog, setShowEditarDialog] = useState(false);
+  const [showRetificarDialog, setShowRetificarDialog] = useState(false);
+  const [showGerarManualDialog, setShowGerarManualDialog] = useState(false);
   const [assinaturaData, setAssinaturaData] = useState({
     assinado_por: '',
     data_assinatura: new Date().toISOString().split('T')[0],
@@ -119,6 +148,9 @@ export function PortariasServidorSection({ servidorId, servidorNome }: Portarias
     }
   };
 
+  const canEdit = (status: string) => status === 'minuta' || status === 'aguardando_assinatura';
+  const canRetify = (status: string) => status === 'publicado' || status === 'vigente';
+
   const handleEnviarAssinatura = async (portaria: any) => {
     try {
       await enviarAssinatura.mutateAsync(portaria.id);
@@ -153,9 +185,15 @@ export function PortariasServidorSection({ servidorId, servidorNome }: Portarias
     setSelectedPortaria(null);
   };
 
+  const handleDialogSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ["portarias-servidor", servidorId] });
+  };
+
   if (isLoading) {
     return <Skeleton className="h-40 w-full" />;
   }
+
+  const hasNomeacaoPortaria = portarias.some(p => p.categoria === 'nomeacao');
 
   return (
     <>
@@ -166,15 +204,41 @@ export function PortariasServidorSection({ servidorId, servidorNome }: Portarias
               <FileText className="h-5 w-5 text-primary" />
               Portarias do Servidor
             </CardTitle>
-            <Link to="/rh/portarias">
-              <Button variant="ghost" size="sm" className="gap-1">
-                Central de Portarias
-                <ExternalLink className="h-3 w-3" />
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              {!hasNomeacaoPortaria && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="gap-1"
+                  onClick={() => setShowGerarManualDialog(true)}
+                >
+                  <FilePlus2 className="h-4 w-4" />
+                  Gerar Portaria
+                </Button>
+              )}
+              <Link to="/rh/portarias">
+                <Button variant="ghost" size="sm" className="gap-1">
+                  Central de Portarias
+                  <ExternalLink className="h-3 w-3" />
+                </Button>
+              </Link>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
+          {!hasNomeacaoPortaria && (
+            <div className="mb-4 p-3 rounded-lg border border-warning/50 bg-warning/5 flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-warning">Servidor sem portaria de nomeação</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Este servidor foi cadastrado antes do sistema de portarias automáticas. 
+                  Clique em "Gerar Portaria" para criar a portaria de nomeação retroativa.
+                </p>
+              </div>
+            </div>
+          )}
+
           {portarias.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma portaria vinculada a este servidor.</p>
           ) : (
@@ -247,7 +311,7 @@ export function PortariasServidorSection({ servidorId, servidorNome }: Portarias
                         </div>
                       </div>
                       
-                      <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
                         {nextAction && (
                           <Button 
                             variant={nextAction.variant} 
@@ -258,6 +322,45 @@ export function PortariasServidorSection({ servidorId, servidorNome }: Portarias
                             {nextAction.label}
                           </Button>
                         )}
+                        
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {canEdit(portaria.status) && (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedPortaria(portaria);
+                                  setShowEditarDialog(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Editar
+                              </DropdownMenuItem>
+                            )}
+                            {canRetify(portaria.status) && (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedPortaria(portaria);
+                                  setShowRetificarDialog(true);
+                                }}
+                              >
+                                <RotateCcw className="h-4 w-4 mr-2" />
+                                Retificar
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem asChild>
+                              <Link to="/rh/portarias">
+                                <ExternalLink className="h-4 w-4 mr-2" />
+                                Ver na Central
+                              </Link>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   </div>
@@ -320,6 +423,41 @@ export function PortariasServidorSection({ servidorId, servidorNome }: Portarias
           onSuccess={handlePublicacaoSuccess}
         />
       )}
+
+      {/* Dialog Editar Portaria */}
+      {selectedPortaria && (
+        <EditarPortariaDialog
+          open={showEditarDialog}
+          onOpenChange={setShowEditarDialog}
+          portaria={selectedPortaria}
+          onSuccess={handleDialogSuccess}
+        />
+      )}
+
+      {/* Dialog Retificar Portaria */}
+      {selectedPortaria && (
+        <RetificarPortariaDialog
+          open={showRetificarDialog}
+          onOpenChange={setShowRetificarDialog}
+          portariaOriginal={selectedPortaria}
+          onSuccess={handleDialogSuccess}
+        />
+      )}
+
+      {/* Dialog Gerar Portaria Manual */}
+      <GerarPortariaManualDialog
+        open={showGerarManualDialog}
+        onOpenChange={setShowGerarManualDialog}
+        servidor={{
+          id: servidorId,
+          nome_completo: servidorNome,
+          cpf: servidorCpf || "",
+          cargo_atual_id: cargoAtualId,
+          unidade_atual_id: unidadeAtualId,
+          data_admissao: dataAdmissao,
+        }}
+        onSuccess={handleDialogSuccess}
+      />
     </>
   );
 }
