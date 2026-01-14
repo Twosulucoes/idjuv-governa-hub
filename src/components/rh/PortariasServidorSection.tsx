@@ -425,14 +425,15 @@ export function PortariasServidorSection({
       )}
 
       {/* Dialog Editar Portaria */}
-      {selectedPortaria && (
-        <EditarPortariaDialog
-          open={showEditarDialog}
-          onOpenChange={setShowEditarDialog}
-          portaria={selectedPortaria}
-          onSuccess={handleDialogSuccess}
-        />
-      )}
+      <EditarPortariaDialog
+        open={showEditarDialog}
+        onOpenChange={(open) => {
+          setShowEditarDialog(open);
+          if (!open) setSelectedPortaria(null);
+        }}
+        portaria={selectedPortaria}
+        onSuccess={handleDialogSuccess}
+      />
 
       {/* Dialog Retificar Portaria */}
       {selectedPortaria && (

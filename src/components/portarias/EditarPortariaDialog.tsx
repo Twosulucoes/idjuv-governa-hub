@@ -26,7 +26,7 @@ import { toast } from "sonner";
 interface EditarPortariaDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  portaria: any;
+  portaria: any | null;
   onSuccess?: () => void;
 }
 
@@ -108,7 +108,12 @@ export function EditarPortariaDialog({
     }
   };
 
-  const canEdit = portaria?.status === "minuta" || portaria?.status === "aguardando_assinatura";
+  // Se não tiver portaria, não renderiza nada
+  if (!portaria) {
+    return null;
+  }
+
+  const canEdit = portaria.status === "minuta" || portaria.status === "aguardando_assinatura";
 
   if (!canEdit) {
     return (
