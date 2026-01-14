@@ -1,60 +1,18 @@
-import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MaskedInput } from "@/components/ui/masked-input";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import type { PreCadastro } from "@/types/preCadastro";
 import { UFS } from "@/types/preCadastro";
-import { useVerificarCpf } from "@/hooks/useVerificarCpf";
-import { Loader2, AlertTriangle, XCircle, CheckCircle2 } from "lucide-react";
 
 interface Props {
   dados: Partial<PreCadastro>;
   onChange: (dados: Partial<PreCadastro>) => void;
-  codigoAtual?: string;
-  onRecuperarPreCadastro?: (codigo: string) => void;
 }
 
-interface StatusCpf {
-  verificado: boolean;
-  existeServidor: boolean;
-  existePreCadastro: boolean;
-  servidor?: { nome: string; matricula: string; situacao: string };
-  preCadastro?: { nome: string; status: string; codigo: string };
-}
-
-export function DocumentosForm({ dados, onChange, codigoAtual, onRecuperarPreCadastro }: Props) {
-  const [statusCpf, setStatusCpf] = useState<StatusCpf | null>(null);
-  const { verificar, isVerificando } = useVerificarCpf();
-
+export function DocumentosForm({ dados, onChange }: Props) {
   const handleChange = (field: keyof PreCadastro, value: string) => {
     onChange({ ...dados, [field]: value });
-    // Limpar status quando CPF muda
-    if (field === "cpf") {
-      setStatusCpf(null);
-    }
   };
-
-  const handleVerificarCpf = useCallback(async () => {
-    const cpf = dados.cpf;
-    if (!cpf || cpf.replace(/\D/g, "").length !== 11) return;
-
-    const resultado = await verificar(cpf, codigoAtual);
-    setStatusCpf({
-      verificado: true,
-      ...resultado,
-    });
-  }, [dados.cpf, codigoAtual, verificar]);
-
-  const handleRecuperar = () => {
-    if (statusCpf?.preCadastro?.codigo && onRecuperarPreCadastro) {
-      onRecuperarPreCadastro(statusCpf.preCadastro.codigo);
-    }
-  };
-
-  const cpfCompleto = (dados.cpf || "").replace(/\D/g, "").length === 11;
 
   return (
     <div className="space-y-6">
@@ -66,91 +24,6 @@ export function DocumentosForm({ dados, onChange, codigoAtual, onRecuperarPreCad
       </div>
 
       <div className="grid gap-4">
-        {/* CPF com verificação */}
-        <div className="space-y-2">
-          <Label htmlFor="cpf">CPF *</Label>
-          <div className="flex gap-2">
-            <MaskedInput
-              id="cpf"
-              mask="cpf"
-              value={dados.cpf || ""}
-              onChange={(value) => handleChange("cpf", value)}
-              placeholder="000.000.000-00"
-              className="flex-1"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleVerificarCpf}
-              disabled={!cpfCompleto || isVerificando}
-              className="shrink-0"
-            >
-              {isVerificando ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Verificar"
-              )}
-            </Button>
-          </div>
-
-          {/* Status do CPF */}
-          {statusCpf?.verificado && (
-            <div className="mt-2">
-              {statusCpf.existeServidor && (
-                <Alert variant="destructive">
-                  <XCircle className="h-4 w-4" />
-                  <AlertTitle>CPF já cadastrado como servidor</AlertTitle>
-                  <AlertDescription className="space-y-2">
-                    <p>Este CPF está vinculado ao servidor:</p>
-                    <div className="bg-destructive/10 p-2 rounded text-sm">
-                      <p><strong>Nome:</strong> {statusCpf.servidor?.nome}</p>
-                      <p><strong>Matrícula:</strong> {statusCpf.servidor?.matricula}</p>
-                      <p><strong>Situação:</strong> {statusCpf.servidor?.situacao}</p>
-                    </div>
-                    <p className="text-xs">Entre em contato com o RH.</p>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {!statusCpf.existeServidor && statusCpf.existePreCadastro && (
-                <Alert className="border-warning bg-warning/10">
-                  <AlertTriangle className="h-4 w-4 text-warning" />
-                  <AlertTitle className="text-warning">Pré-cadastro existente</AlertTitle>
-                  <AlertDescription className="space-y-2">
-                    <p>Este CPF já possui um pré-cadastro:</p>
-                    <div className="bg-warning/10 p-2 rounded text-sm">
-                      <p><strong>Nome:</strong> {statusCpf.preCadastro?.nome}</p>
-                      <p><strong>Status:</strong> {statusCpf.preCadastro?.status}</p>
-                      <p><strong>Código:</strong> {statusCpf.preCadastro?.codigo}</p>
-                    </div>
-                    {onRecuperarPreCadastro && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleRecuperar}
-                        className="mt-2"
-                      >
-                        Recuperar pré-cadastro existente
-                      </Button>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {!statusCpf.existeServidor && !statusCpf.existePreCadastro && (
-                <Alert className="border-success bg-success/10">
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                  <AlertTitle className="text-success">CPF disponível</AlertTitle>
-                  <AlertDescription>
-                    CPF liberado para pré-cadastro.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-          )}
-        </div>
-
         {/* RG */}
         <div className="p-4 border rounded-lg space-y-4">
           <h4 className="font-medium text-sm text-muted-foreground">Documento de Identidade (RG)</h4>

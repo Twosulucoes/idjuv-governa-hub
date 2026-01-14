@@ -143,16 +143,16 @@ export default function MiniCurriculoPage() {
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
-        return <DadosPessoaisForm dados={formData} onChange={setFormData} />;
-      case 2:
         return (
-          <DocumentosForm
+          <DadosPessoaisForm
             dados={formData}
             onChange={setFormData}
             codigoAtual={codigo}
             onRecuperarPreCadastro={handleRecuperarPreCadastro}
           />
         );
+      case 2:
+        return <DocumentosForm dados={formData} onChange={setFormData} />;
       case 3:
         return <EnderecoForm dados={formData} onChange={setFormData} />;
       case 4:
