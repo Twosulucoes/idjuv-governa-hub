@@ -118,7 +118,7 @@ export function useUsuarios() {
       servidorId: string; 
       email: string; 
       role?: string;
-    }) => {
+    }): Promise<{ authData: any; senhaTemporaria: string }> => {
       // Buscar dados do servidor
       const { data: servidor, error: servidorError } = await supabase
         .from('servidores')
@@ -128,10 +128,13 @@ export function useUsuarios() {
 
       if (servidorError) throw new Error('Servidor não encontrado');
 
+      // Gerar senha temporária
+      const senhaTemporaria = generateTempPassword();
+
       // Criar usuário no Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
-        password: generateTempPassword(),
+        password: senhaTemporaria,
         options: {
           emailRedirectTo: `${window.location.origin}/auth`,
           data: {
@@ -146,11 +149,10 @@ export function useUsuarios() {
 
       if (authError) throw authError;
 
-      return authData;
+      return { authData, senhaTemporaria };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['usuarios-sistema'] });
-      toast.success('Usuário criado! Email de confirmação enviado.');
     },
     onError: (error: any) => {
       toast.error(`Erro ao criar usuário: ${error.message}`);
