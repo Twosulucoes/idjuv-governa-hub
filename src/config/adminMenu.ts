@@ -103,13 +103,20 @@ export const adminMenuConfig: AdminMenuSection[] = [
             icon: MapPin,
             keywords: ["lotação", "alocação"],
           },
-          {
-            id: "designacoes",
-            label: "Designações",
-            href: "/rh/designacoes",
-            icon: MapPin,
-            keywords: ["designação", "temporária", "outro setor"],
-          },
+      {
+        id: "designacoes",
+        label: "Designações",
+        href: "/rh/designacoes",
+        icon: MapPin,
+        keywords: ["designação", "temporária", "outro setor"],
+      },
+      {
+        id: "portarias-rh",
+        label: "Central de Portarias",
+        href: "/rh/portarias",
+        icon: FileSpreadsheet,
+        keywords: ["portarias", "nomeação", "exoneração", "designação", "atos", "publicação"],
+      },
         ],
       },
       {

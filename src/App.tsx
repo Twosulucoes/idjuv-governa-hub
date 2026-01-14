@@ -59,6 +59,7 @@ import GestaoFrequenciaPage from "./pages/rh/GestaoFrequenciaPage";
 import RelatoriosRHPage from "./pages/rh/RelatoriosRHPage";
 import ModelosDocumentosPage from "./pages/rh/ModelosDocumentosPage";
 import GestaoDesignacoesPage from "./pages/rh/GestaoDesignacoesPage";
+import CentralPortariasPage from "./pages/rh/CentralPortariasPage";
 
 // Folha de Pagamento
 import ConfiguracaoFolhaPage from "./pages/folha/ConfiguracaoFolhaPage";
@@ -180,6 +181,7 @@ const App = () => (
                 <Route path="/rh/licencas" element={<GestaoLicencasPage />} />
                 <Route path="/rh/frequencia" element={<GestaoFrequenciaPage />} />
                 <Route path="/rh/designacoes" element={<GestaoDesignacoesPage />} />
+                <Route path="/rh/portarias" element={<CentralPortariasPage />} />
                 <Route path="/rh/relatorios" element={<RelatoriosRHPage />} />
                 <Route path="/rh/modelos" element={<ModelosDocumentosPage />} />
                 
