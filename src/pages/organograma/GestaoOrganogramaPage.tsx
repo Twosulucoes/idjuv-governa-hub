@@ -347,14 +347,14 @@ export default function GestaoOrganogramaPage() {
                 <div className="space-y-2">
                   <Label htmlFor="superior">Unidade Superior</Label>
                   <Select
-                    value={formData.superior_id}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, superior_id: value }))}
+                    value={formData.superior_id || "__none__"}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, superior_id: value === "__none__" ? "" : value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nenhuma (raiz)</SelectItem>
+                      <SelectItem value="__none__">Nenhuma (raiz)</SelectItem>
                       {unidades
                         .filter(u => u.id !== editingUnidade?.id)
                         .map(u => (
