@@ -28,6 +28,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 
@@ -37,9 +47,10 @@ import {
   PortariaTable,
   RegistrarPublicacaoDialog,
   PortariaColetivaDialog,
+  EditarPortariaDialog,
 } from '@/components/portarias';
 import { supabase } from '@/integrations/supabase/client';
-import { usePortarias, useRegistrarAssinatura } from '@/hooks/usePortarias';
+import { usePortarias, useRegistrarAssinatura, useDeletePortaria } from '@/hooks/usePortarias';
 import { StatusPortaria, STATUS_PORTARIA_LABELS, Portaria } from '@/types/portaria';
 import { toast } from 'sonner';
 import { buildPortariaPdfDoc, savePortariaPdf } from '@/lib/portariaPdf';
@@ -61,6 +72,8 @@ export default function CentralPortariasPage() {
   const [publicacaoDialogOpen, setPublicacaoDialogOpen] = useState(false);
   const [assinaturaDialogOpen, setAssinaturaDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const [selectedPortaria, setSelectedPortaria] = useState<Portaria | null>(null);
@@ -78,6 +91,7 @@ export default function CentralPortariasPage() {
 
   const { data: portarias = [], isLoading, refetch } = usePortarias(filters);
   const registrarAssinatura = useRegistrarAssinatura();
+  const deletePortaria = useDeletePortaria();
 
   const selectedPortariaText = useMemo(() => {
     return htmlToText(selectedPortaria?.conteudo_html);
@@ -91,6 +105,29 @@ export default function CentralPortariasPage() {
   const handleRegistrarPublicacao = (portaria: Portaria) => {
     setSelectedPortaria(portaria);
     setPublicacaoDialogOpen(true);
+  };
+
+  const handleEdit = (portaria: Portaria) => {
+    setSelectedPortaria(portaria);
+    setEditDialogOpen(true);
+  };
+
+  const handleDeleteRequest = (portaria: Portaria) => {
+    setSelectedPortaria(portaria);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedPortaria) return;
+    
+    try {
+      await deletePortaria.mutateAsync(selectedPortaria.id);
+      setDeleteDialogOpen(false);
+      setSelectedPortaria(null);
+      refetch();
+    } catch {
+      // Error already handled by hook
+    }
   };
 
   const handleRegistrarAssinatura = (portaria: Portaria) => {
@@ -300,6 +337,8 @@ export default function CentralPortariasPage() {
             portarias={portarias}
             isLoading={isLoading}
             onView={handleView}
+            onEdit={handleEdit}
+            onDelete={handleDeleteRequest}
             onGeneratePdf={handleGeneratePdf}
           />
         ) : (
@@ -307,6 +346,8 @@ export default function CentralPortariasPage() {
             portarias={portarias}
             isLoading={isLoading}
             onView={handleView}
+            onEdit={handleEdit}
+            onDelete={handleDeleteRequest}
             onGeneratePdf={handleGeneratePdf}
             onRegistrarPublicacao={handleRegistrarPublicacao}
             onRegistrarAssinatura={handleRegistrarAssinatura}
@@ -329,6 +370,38 @@ export default function CentralPortariasPage() {
         portaria={selectedPortaria}
         onSuccess={() => refetch()}
       />
+
+      {/* Dialog Editar Portaria */}
+      <EditarPortariaDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        portaria={selectedPortaria}
+        onSuccess={() => refetch()}
+      />
+
+      {/* Dialog Confirmar Exclusão */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a portaria{' '}
+              <strong>nº {selectedPortaria?.numero}</strong>?
+              <br />
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Dialog Visualizar */}
       <Dialog
