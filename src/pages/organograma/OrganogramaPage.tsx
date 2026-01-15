@@ -30,7 +30,7 @@ import { gerarOrganogramaPDF, gerarOrganogramaListaPDF, OrganogramaConfig } from
 import { ExportOrganogramaDialog } from '@/components/organograma/ExportOrganogramaDialog';
 
 export default function OrganogramaPage() {
-  const { unidades, lotacoes, loading, error, contarServidores, getLotacoesByUnidade, atualizarHierarquia, verificarCiclo } = useOrganograma();
+  const { unidades, lotacoes, loading, error, contarServidores, getLotacoesByUnidade, getServidoresByUnidadeCargo, atualizarHierarquia, verificarCiclo } = useOrganograma();
   const [selectedUnidade, setSelectedUnidade] = useState<UnidadeOrganizacional | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
@@ -53,6 +53,7 @@ export default function OrganogramaPage() {
           unidades,
           contarServidores,
           getLotacoesByUnidade,
+          getServidoresByUnidadeCargo,
           titulo: 'ORGANOGRAMA INSTITUCIONAL',
           config,
         });
@@ -61,6 +62,7 @@ export default function OrganogramaPage() {
           unidades,
           contarServidores,
           getLotacoesByUnidade,
+          getServidoresByUnidadeCargo,
           titulo: 'ESTRUTURA ORGANIZACIONAL',
           config,
         });

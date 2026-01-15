@@ -3,9 +3,31 @@ import { supabase } from '@/integrations/supabase/client';
 import { UnidadeOrganizacional, Lotacao } from '@/types/organograma';
 import { useToast } from '@/hooks/use-toast';
 
+interface ComposicaoCargo {
+  unidade_id: string;
+  cargo_id: string;
+  quantidade_vagas: number;
+  cargo: {
+    id: string;
+    nome: string;
+    sigla: string;
+  };
+}
+
+interface ServidorPorCargo {
+  servidor_id: string;
+  servidor_nome: string;
+  cargo_id: string;
+  cargo_nome: string;
+  cargo_sigla: string;
+  unidade_id: string;
+}
+
 export function useOrganograma() {
   const [unidades, setUnidades] = useState<UnidadeOrganizacional[]>([]);
   const [lotacoes, setLotacoes] = useState<Lotacao[]>([]);
+  const [composicaoCargos, setComposicaoCargos] = useState<ComposicaoCargo[]>([]);
+  const [servidoresPorCargo, setServidoresPorCargo] = useState<ServidorPorCargo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -94,10 +116,82 @@ export function useOrganograma() {
     }
   }, []);
 
+  // Buscar composição de cargos por unidade
+  const fetchComposicaoCargos = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('composicao_cargos')
+        .select(`
+          unidade_id,
+          cargo_id,
+          quantidade_vagas,
+          cargo:cargos(
+            id,
+            nome,
+            sigla
+          )
+        `);
+
+      if (error) throw error;
+      
+      const typedData = (data || []).map(item => ({
+        ...item,
+        cargo: item.cargo as ComposicaoCargo['cargo']
+      }));
+      
+      setComposicaoCargos(typedData);
+    } catch (err: any) {
+      console.error('Erro ao carregar composição de cargos:', err);
+    }
+  }, []);
+
+  // Buscar servidores vinculados por cargo (para o organograma)
+  const fetchServidoresPorCargo = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('lotacoes')
+        .select(`
+          servidor_id,
+          cargo_id,
+          servidor:servidores!lotacoes_servidor_id_fkey(
+            nome_completo
+          ),
+          cargo:cargos(
+            id,
+            nome,
+            sigla
+          )
+        `)
+        .eq('ativo', true);
+
+      if (error) throw error;
+      
+      // Mapear para estrutura simplificada
+      const typedData = (data || []).map(item => {
+        const servidorData = item.servidor as { nome_completo: string } | null;
+        const cargoData = item.cargo as { id: string; nome: string; sigla: string } | null;
+        return {
+          servidor_id: item.servidor_id,
+          servidor_nome: servidorData?.nome_completo || '',
+          cargo_id: item.cargo_id || '',
+          cargo_nome: cargoData?.nome || '',
+          cargo_sigla: cargoData?.sigla || '',
+          unidade_id: ''
+        };
+      });
+      
+      setServidoresPorCargo(typedData);
+    } catch (err: any) {
+      console.error('Erro ao carregar servidores por cargo:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchUnidades();
     fetchLotacoes();
-  }, [fetchUnidades, fetchLotacoes]);
+    fetchComposicaoCargos();
+    fetchServidoresPorCargo();
+  }, [fetchUnidades, fetchLotacoes, fetchComposicaoCargos, fetchServidoresPorCargo]);
 
   // Construir árvore hierárquica
   const buildTree = useCallback((items: UnidadeOrganizacional[], parentId: string | null = null): UnidadeOrganizacional[] => {
@@ -116,6 +210,46 @@ export function useOrganograma() {
     return lotacoes.filter(l => l.unidade_id === unidadeId);
   }, [lotacoes]);
 
+  // NOVO: Obter servidores por cargo vinculado à unidade (via composicao_cargos)
+  const getServidoresByUnidadeCargo = useCallback((unidadeId: string): { nome: string; cargo: string }[] => {
+    // Primeiro, buscar os cargos que pertencem a esta unidade
+    const cargosUnidade = composicaoCargos.filter(cc => cc.unidade_id === unidadeId);
+    
+    if (cargosUnidade.length === 0) {
+      // Se não tem composição cadastrada, volta para a lotação direta
+      const lotacoesUnidade = lotacoes.filter(l => l.unidade_id === unidadeId);
+      return lotacoesUnidade.map(l => ({
+        nome: l.servidor?.full_name || '',
+        cargo: l.cargo?.nome || l.cargo?.sigla || '-'
+      })).filter(s => s.nome);
+    }
+    
+    // Buscar servidores que ocupam esses cargos (independente de onde estão "lotados")
+    const servidores: { nome: string; cargo: string }[] = [];
+    
+    for (const composicao of cargosUnidade) {
+      // Buscar todas as lotações com este cargo
+      const lotacoesComCargo = lotacoes.filter(l => l.cargo_id === composicao.cargo_id);
+      
+      for (const lotacao of lotacoesComCargo) {
+        if (lotacao.servidor?.full_name) {
+          // Evitar duplicatas
+          const jaExiste = servidores.some(s => 
+            s.nome.toUpperCase() === lotacao.servidor!.full_name.toUpperCase()
+          );
+          if (!jaExiste) {
+            servidores.push({
+              nome: lotacao.servidor.full_name,
+              cargo: composicao.cargo?.nome || lotacao.cargo?.nome || '-'
+            });
+          }
+        }
+      }
+    }
+    
+    return servidores;
+  }, [composicaoCargos, lotacoes]);
+
   // Contar servidores em uma unidade (incluindo subordinados)
   const contarServidores = useCallback((unidadeId: string, incluirSubordinados = false): number => {
     let count = lotacoes.filter(l => l.unidade_id === unidadeId).length;
@@ -129,6 +263,12 @@ export function useOrganograma() {
     
     return count;
   }, [lotacoes, unidades]);
+
+  // NOVO: Contar servidores por cargo vinculado
+  const contarServidoresPorCargo = useCallback((unidadeId: string): number => {
+    const servidores = getServidoresByUnidadeCargo(unidadeId);
+    return servidores.length;
+  }, [getServidoresByUnidadeCargo]);
 
   // Atualizar hierarquia (superior_id)
   const atualizarHierarquia = useCallback(async (
@@ -200,11 +340,14 @@ export function useOrganograma() {
   return {
     unidades,
     lotacoes,
+    composicaoCargos,
     loading,
     error,
     arvoreHierarquica,
     getLotacoesByUnidade,
+    getServidoresByUnidadeCargo,
     contarServidores,
+    contarServidoresPorCargo,
     refetch: fetchUnidades,
     atualizarHierarquia,
     verificarCiclo,
