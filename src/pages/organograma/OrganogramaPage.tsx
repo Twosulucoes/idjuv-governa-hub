@@ -17,7 +17,8 @@ import {
   Network,
   Link2,
   Link2Off,
-  Loader2
+  Loader2,
+  FileSpreadsheet
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -27,7 +28,9 @@ import UnidadeDetailPanel from '@/components/organograma/UnidadeDetailPanel';
 import { UnidadeOrganizacional, LABELS_UNIDADE } from '@/types/organograma';
 import { AdminOnly } from '@/components/auth';
 import { gerarOrganogramaPDF, gerarOrganogramaListaPDF, OrganogramaConfig } from '@/lib/pdfOrganograma';
+import { gerarRelatorioCargos98PDF } from '@/lib/pdfRelatorioCargos';
 import { ExportOrganogramaDialog } from '@/components/organograma/ExportOrganogramaDialog';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function OrganogramaPage() {
   const { unidades, lotacoes, loading, error, contarServidores, getLotacoesByUnidade, getServidoresByUnidadeCargo, atualizarHierarquia, verificarCiclo } = useOrganograma();
@@ -35,6 +38,7 @@ export default function OrganogramaPage() {
   const [editMode, setEditMode] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingCargos, setIsExportingCargos] = useState(false);
 
   // Estatísticas
   const totalUnidades = unidades.length;
@@ -79,6 +83,88 @@ export default function OrganogramaPage() {
   // Imprimir
   const handleImprimir = () => {
     window.print();
+  };
+
+  // Exportar relatório dos 98 cargos
+  const handleExportarCargos98 = async () => {
+    setIsExportingCargos(true);
+    try {
+      // Buscar dados completos dos cargos com servidores
+      const { data, error } = await supabase
+        .from('composicao_cargos')
+        .select(`
+          id,
+          quantidade_vagas,
+          cargo:cargos(
+            id,
+            nome,
+            sigla
+          ),
+          unidade:estrutura_organizacional(
+            id,
+            nome,
+            sigla
+          )
+        `);
+
+      if (error) throw error;
+
+      // Expandir por quantidade de vagas e vincular servidores
+      const { data: lotacoesData } = await supabase
+        .from('lotacoes')
+        .select(`
+          cargo_id,
+          servidor:servidores(
+            id,
+            nome_completo
+          )
+        `)
+        .eq('ativo', true);
+
+      const lotacoesMap = new Map<string, { id: string; nome: string }[]>();
+      (lotacoesData || []).forEach((l: any) => {
+        if (l.cargo_id && l.servidor) {
+          const existing = lotacoesMap.get(l.cargo_id) || [];
+          existing.push({ id: l.servidor.id, nome: l.servidor.nome_completo });
+          lotacoesMap.set(l.cargo_id, existing);
+        }
+      });
+
+      // Construir lista expandida de cargos
+      const dadosCargos: any[] = [];
+      
+      (data || []).forEach((composicao: any) => {
+        const cargoId = composicao.cargo?.id;
+        const servidoresCargo = lotacoesMap.get(cargoId) || [];
+        const qtdVagas = composicao.quantidade_vagas || 1;
+
+        for (let i = 0; i < qtdVagas; i++) {
+          const servidor = servidoresCargo[i];
+          dadosCargos.push({
+            cargo_id: cargoId,
+            cargo_nome: composicao.cargo?.nome || '-',
+            cargo_sigla: composicao.cargo?.sigla || '-',
+            quantidade_vagas: qtdVagas,
+            unidade_nome: composicao.unidade?.nome || '-',
+            unidade_sigla: composicao.unidade?.sigla || '-',
+            servidor_nome: servidor?.nome || null,
+            servidor_id: servidor?.id || null
+          });
+        }
+      });
+
+      await gerarRelatorioCargos98PDF(dadosCargos, {
+        titulo: 'QUADRO DE CARGOS COMISSIONADOS',
+        subtitulo: 'Lei nº 2.301/2025 - 98 Cargos do IDJUV'
+      });
+
+      toast.success('Relatório de 98 cargos exportado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar cargos:', error);
+      toast.error('Erro ao exportar relatório de cargos');
+    } finally {
+      setIsExportingCargos(false);
+    }
   };
 
   if (loading) {
@@ -147,6 +233,19 @@ export default function OrganogramaPage() {
             <Button variant="outline" size="sm" onClick={handleImprimir}>
               <Printer className="h-4 w-4 mr-2" />
               Imprimir
+            </Button>
+            <Button 
+              variant="secondary" 
+              size="sm" 
+              onClick={handleExportarCargos98}
+              disabled={isExportingCargos}
+            >
+              {isExportingCargos ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+              )}
+              98 Cargos
             </Button>
             <AdminOnly>
               <Button 
