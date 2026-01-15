@@ -47,7 +47,6 @@ import {
 } from '@/components/portarias';
 import { NovaPortariaUnificada } from '@/components/portarias/NovaPortariaUnificada';
 import { supabase } from '@/integrations/supabase/client';
-import { supabase } from '@/integrations/supabase/client';
 import { usePortarias, useRegistrarAssinatura, useDeletePortaria } from '@/hooks/usePortarias';
 import { StatusPortaria, STATUS_PORTARIA_LABELS, Portaria } from '@/types/portaria';
 import { toast } from 'sonner';
