@@ -106,7 +106,7 @@ export default function GestaoOrganogramaPage() {
       const dataToSave = {
         nome: formData.nome,
         sigla: formData.sigla || null,
-        tipo: formData.tipo as "presidencia" | "diretoria" | "departamento" | "setor" | "divisao" | "secao" | "coordenacao",
+        tipo: formData.tipo as "presidencia" | "diretoria" | "departamento" | "setor" | "divisao" | "secao" | "coordenacao" | "assessoria" | "nucleo",
         nivel,
         superior_id: formData.superior_id || null,
         descricao: formData.descricao || null,
