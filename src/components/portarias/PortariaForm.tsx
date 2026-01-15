@@ -41,7 +41,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { useCreatePortaria, useGerarNumeroPortaria } from '@/hooks/usePortarias';
+import { useCreatePortaria, useGerarNumeroPortaria, useRegistrarPortariaNoHistorico } from '@/hooks/usePortarias';
 import { CategoriaPortaria } from '@/types/portaria';
 import { SelecionarServidoresTable } from './SelecionarServidoresTable';
 import { supabase } from '@/integrations/supabase/client';
@@ -87,6 +87,7 @@ export function PortariaForm({
   
   const createPortaria = useCreatePortaria();
   const gerarNumero = useGerarNumeroPortaria();
+  const registrarHistoricoMutation = useRegistrarPortariaNoHistorico();
 
   // Buscar cargos
   const { data: cargos = [] } = useQuery({
@@ -169,15 +170,18 @@ export function PortariaForm({
         ? selectedServidorIds 
         : (servidorId ? [servidorId] : undefined);
 
-      const portariaData = {
+      const portariaNumero = generatedNumber || undefined;
+      const portariaData = format(data.data_documento, 'yyyy-MM-dd');
+
+      const portariaDataObj = {
         titulo: data.titulo,
         tipo: 'portaria' as const,
         categoria: data.categoria as CategoriaPortaria,
-        data_documento: format(data.data_documento, 'yyyy-MM-dd'),
+        data_documento: portariaData,
         ementa: data.ementa,
         conteudo_html: data.conteudo_html,
         observacoes: data.observacoes,
-        numero: generatedNumber || undefined,
+        numero: portariaNumero,
         servidores_ids: todosServidores,
         cargo_id: data.cargo_id || undefined,
         unidade_id: data.unidade_id || undefined,
@@ -185,7 +189,24 @@ export function PortariaForm({
         designacao_id: designacaoId,
       };
 
-      await createPortaria.mutateAsync(portariaData);
+      const portariaCriada = await createPortaria.mutateAsync(portariaDataObj);
+      
+      // Registrar no histórico funcional se a opção estiver marcada
+      if (registrarHistorico && todosServidores && todosServidores.length > 0 && portariaCriada?.numero) {
+        try {
+          await registrarHistoricoMutation.mutateAsync({
+            servidores_ids: todosServidores,
+            portaria_numero: portariaCriada.numero,
+            portaria_data: portariaData,
+            categoria: data.categoria || 'pessoal',
+            cargo_id: data.cargo_id,
+            unidade_id: data.unidade_id,
+          });
+        } catch (histError) {
+          console.error('Erro ao registrar histórico funcional:', histError);
+          // Não bloquear a criação da portaria se o histórico falhar
+        }
+      }
       
       if (todosServidores && todosServidores.length > 0) {
         toast.success(`Portaria criada e vinculada a ${todosServidores.length} servidor(es)`);

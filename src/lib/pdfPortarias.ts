@@ -258,7 +258,7 @@ export function generatePortariaExoneracao(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
 
-  const preambulo = 'O PRESIDENTE DO INSTITUTO DE DESENVOLVIMENTO DA JUVENTUDE DO ESTADO DE RORAIMA – IDJUV, no uso de suas atribuições legais conferidas pela Lei nº 2.301, de 10 de janeiro de 2025,';
+  const preambulo = 'O PRESIDENTE DO INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA – IDJuv, no uso das atribuições legais que lhe são conferidas pela Lei nº 2.301, de 29 de dezembro de 2025, e demais normas aplicáveis,';
   const preambuloLines = doc.splitTextToSize(preambulo, contentWidth);
   doc.text(preambuloLines, CONFIG.marginLeft, y, { align: 'justify' });
   y += preambuloLines.length * 5 + 10;
@@ -270,7 +270,7 @@ export function generatePortariaExoneracao(
   doc.setFont('helvetica', 'normal');
   
   const motivoTexto = motivo === 'pedido' ? 'a pedido' : 'de ofício';
-  const artigo1 = `Art. 1º EXONERAR, ${motivoTexto}, ${servidor.nome_completo.toUpperCase()}, inscrito(a) no CPF nº ${formatarCPF(servidor.cpf)}, do cargo de ${cargo.nome}, no(a) ${unidade.nome}, do Instituto de Desenvolvimento da Juventude do Estado de Roraima – IDJUV.`;
+  const artigo1 = `Art. 1º EXONERAR, ${motivoTexto}, ${servidor.nome_completo.toUpperCase()}, inscrito(a) no CPF nº ${formatarCPF(servidor.cpf)}, do cargo de ${cargo.nome}, no(a) ${unidade.nome}, do Instituto de Desporto, Juventude e Lazer do Estado de Roraima – IDJuv.`;
   
   const artigo1Lines = doc.splitTextToSize(artigo1, contentWidth);
   doc.text(artigo1Lines, CONFIG.marginLeft, y, { align: 'justify' });
@@ -281,12 +281,12 @@ export function generatePortariaExoneracao(
 
   // Assinatura
   doc.setFont('helvetica', 'bold');
-  doc.text('_'.repeat(40), CONFIG.pageWidth / 2, y, { align: 'center' });
-  y += 5;
-  doc.text('[NOME DO PRESIDENTE]', CONFIG.pageWidth / 2, y, { align: 'center' });
+  doc.text(PRESIDENTE.nome, CONFIG.pageWidth / 2, y, { align: 'center' });
   y += 5;
   doc.setFont('helvetica', 'normal');
-  doc.text('Presidente do IDJUV', CONFIG.pageWidth / 2, y, { align: 'center' });
+  doc.text(PRESIDENTE.cargo, CONFIG.pageWidth / 2, y, { align: 'center' });
+  y += 5;
+  doc.text(PRESIDENTE.orgao, CONFIG.pageWidth / 2, y, { align: 'center' });
 
   addFooter(doc, 1, 1);
 
@@ -343,7 +343,7 @@ export function generatePortariaDesignacao(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
 
-  const preambulo = 'O PRESIDENTE DO INSTITUTO DE DESENVOLVIMENTO DA JUVENTUDE DO ESTADO DE RORAIMA – IDJUV, no uso de suas atribuições legais conferidas pela Lei nº 2.301, de 10 de janeiro de 2025,';
+  const preambulo = 'O PRESIDENTE DO INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA – IDJuv, no uso das atribuições legais que lhe são conferidas pela Lei nº 2.301, de 29 de dezembro de 2025, e demais normas aplicáveis,';
   const preambuloLines = doc.splitTextToSize(preambulo, contentWidth);
   doc.text(preambuloLines, CONFIG.marginLeft, y, { align: 'justify' });
   y += preambuloLines.length * 5 + 10;
@@ -374,12 +374,12 @@ export function generatePortariaDesignacao(
 
   // Assinatura
   doc.setFont('helvetica', 'bold');
-  doc.text('_'.repeat(40), CONFIG.pageWidth / 2, y, { align: 'center' });
-  y += 5;
-  doc.text('[NOME DO PRESIDENTE]', CONFIG.pageWidth / 2, y, { align: 'center' });
+  doc.text(PRESIDENTE.nome, CONFIG.pageWidth / 2, y, { align: 'center' });
   y += 5;
   doc.setFont('helvetica', 'normal');
-  doc.text('Presidente do IDJUV', CONFIG.pageWidth / 2, y, { align: 'center' });
+  doc.text(PRESIDENTE.cargo, CONFIG.pageWidth / 2, y, { align: 'center' });
+  y += 5;
+  doc.text(PRESIDENTE.orgao, CONFIG.pageWidth / 2, y, { align: 'center' });
 
   addFooter(doc, 1, 1);
 
@@ -438,7 +438,7 @@ export function generatePortariaColetiva(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
 
-  const preambulo = 'O PRESIDENTE DO INSTITUTO DE DESENVOLVIMENTO DA JUVENTUDE DO ESTADO DE RORAIMA – IDJUV, no uso de suas atribuições legais conferidas pela Lei nº 2.301, de 10 de janeiro de 2025,';
+  const preambulo = 'O PRESIDENTE DO INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA – IDJuv, no uso das atribuições legais que lhe são conferidas pela Lei nº 2.301, de 29 de dezembro de 2025, e demais normas aplicáveis,';
   const preambuloLines = doc.splitTextToSize(preambulo, contentWidth);
   doc.text(preambuloLines, CONFIG.marginLeft, y, { align: 'justify' });
   y += preambuloLines.length * 5 + 10;
@@ -450,7 +450,7 @@ export function generatePortariaColetiva(
   doc.setFont('helvetica', 'normal');
   
   const verbo = tipoAcao === 'nomeacao' ? 'NOMEAR' : 'EXONERAR';
-  const artigo1Intro = `Art. 1º ${verbo} os servidores abaixo relacionados para os respectivos cargos no Instituto de Desenvolvimento da Juventude do Estado de Roraima – IDJUV:`;
+  const artigo1Intro = `Art. 1º ${verbo} os servidores abaixo relacionados para os respectivos cargos no Instituto de Desporto, Juventude e Lazer do Estado de Roraima – IDJuv:`;
   const artigo1IntroLines = doc.splitTextToSize(artigo1Intro, contentWidth);
   doc.text(artigo1IntroLines, CONFIG.marginLeft, y, { align: 'justify' });
   y += artigo1IntroLines.length * 5 + 8;
@@ -475,12 +475,12 @@ export function generatePortariaColetiva(
 
   // Assinatura
   doc.setFont('helvetica', 'bold');
-  doc.text('_'.repeat(40), CONFIG.pageWidth / 2, y, { align: 'center' });
-  y += 5;
-  doc.text('[NOME DO PRESIDENTE]', CONFIG.pageWidth / 2, y, { align: 'center' });
+  doc.text(PRESIDENTE.nome, CONFIG.pageWidth / 2, y, { align: 'center' });
   y += 5;
   doc.setFont('helvetica', 'normal');
-  doc.text('Presidente do IDJUV', CONFIG.pageWidth / 2, y, { align: 'center' });
+  doc.text(PRESIDENTE.cargo, CONFIG.pageWidth / 2, y, { align: 'center' });
+  y += 5;
+  doc.text(PRESIDENTE.orgao, CONFIG.pageWidth / 2, y, { align: 'center' });
 
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
@@ -491,7 +491,7 @@ export function generatePortariaColetiva(
   return doc;
 }
 
-// Gera PDF de Portaria Coletiva COM TABELA (Nome, CPF, Cargo, Código)
+// Gera PDF de Portaria Coletiva COM TABELA (Nome, CPF, Cargo, Unidade/Setor, Código)
 export function generatePortariaColetivaComTabela(
   portaria: { numero: string; data_documento: string },
   cabecalho: string,
@@ -500,6 +500,7 @@ export function generatePortariaColetivaComTabela(
     cpf: string;
     cargo: string;
     codigo: string;
+    unidade_nome?: string;
   }>,
   tipoAcao: 'nomeacao' | 'exoneracao' = 'nomeacao'
 ): jsPDF {
@@ -544,13 +545,14 @@ export function generatePortariaColetivaComTabela(
   doc.text(artigo1Lines, CONFIG.marginLeft, y, { align: 'justify' });
   y += artigo1Lines.length * 5 + 6;
 
-  // Configuração da tabela com larguras proporcionais ao conteúdo
+  // Configuração da tabela com 6 colunas: Nº, Nome, CPF, Cargo, Unidade/Setor, Código
   const colWidths = {
     num: 8,
-    nome: 62,
-    cpf: 30,
-    cargo: 42,
-    codigo: 18,
+    nome: 48,
+    cpf: 28,
+    cargo: 36,
+    unidade: 32,
+    codigo: 8,
   };
   const tableWidth = contentWidth;
   const tableX = CONFIG.marginLeft;
@@ -565,7 +567,7 @@ export function generatePortariaColetivaComTabela(
     doc.setLineWidth(0.3);
     doc.rect(tableX, y, tableWidth, headerRowHeight);
     
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setFont('helvetica', 'bold');
     
     let colX = tableX;
@@ -584,6 +586,10 @@ export function generatePortariaColetivaComTabela(
     doc.text('CARGO', colX + 2, y + 5);
     doc.line(colX + colWidths.cargo, y, colX + colWidths.cargo, y + headerRowHeight);
     colX += colWidths.cargo;
+
+    doc.text('UNIDADE/SETOR', colX + 2, y + 5);
+    doc.line(colX + colWidths.unidade, y, colX + colWidths.unidade, y + headerRowHeight);
+    colX += colWidths.unidade;
     
     doc.text('CÓD.', colX + colWidths.codigo / 2, y + 5, { align: 'center' });
     
@@ -596,14 +602,15 @@ export function generatePortariaColetivaComTabela(
 
   // Linhas da tabela
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
+  doc.setFontSize(6.5);
 
   servidores.forEach((s, index) => {
     // Calcular altura da linha baseado no conteúdo
     const nomeLines = doc.splitTextToSize(s.nome_completo.toUpperCase(), colWidths.nome - 3);
     const cargoLines = doc.splitTextToSize(s.cargo, colWidths.cargo - 3);
-    const maxLines = Math.max(nomeLines.length, cargoLines.length);
-    const lineHeight = Math.max(minRowHeight, maxLines * 3.5 + 2);
+    const unidadeLines = doc.splitTextToSize(s.unidade_nome || '-', colWidths.unidade - 3);
+    const maxLines = Math.max(nomeLines.length, cargoLines.length, unidadeLines.length);
+    const lineHeight = Math.max(minRowHeight, maxLines * 3.2 + 2);
 
     // Verificar se precisa de nova página (espaço para linha atual)
     if (y + lineHeight > CONFIG.pageHeight - CONFIG.marginBottom - 20) {
@@ -645,6 +652,11 @@ export function generatePortariaColetivaComTabela(
     doc.text(cargoLines, colX + 1.5, y + 3.5);
     doc.line(colX + colWidths.cargo, y, colX + colWidths.cargo, y + lineHeight);
     colX += colWidths.cargo;
+
+    // Unidade/Setor
+    doc.text(unidadeLines, colX + 1.5, y + 3.5);
+    doc.line(colX + colWidths.unidade, y, colX + colWidths.unidade, y + lineHeight);
+    colX += colWidths.unidade;
 
     // Código
     doc.text(s.codigo || '-', colX + colWidths.codigo / 2, y + lineHeight / 2 + 1, { align: 'center' });

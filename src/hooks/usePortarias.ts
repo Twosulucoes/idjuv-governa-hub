@@ -581,8 +581,106 @@ export function useGerarMinutaDesignacao() {
         ementa,
         servidores_ids: [servidor_id],
         unidade_id: unidade_destino_id,
-        designacao_id,
-      });
-    },
-  });
+      designacao_id,
+    });
+  },
+});
+}
+
+// Hook para registrar portaria no histórico funcional dos servidores
+export function useRegistrarPortariaNoHistorico() {
+const queryClient = useQueryClient();
+const { toast } = useToast();
+
+return useMutation({
+  mutationFn: async ({
+    servidores_ids,
+    portaria_numero,
+    portaria_data,
+    categoria,
+    cargo_id,
+    unidade_id,
+    descricao_adicional,
+  }: {
+    servidores_ids: string[];
+    portaria_numero: string;
+    portaria_data: string;
+    categoria: string;
+    cargo_id?: string;
+    unidade_id?: string;
+    descricao_adicional?: string;
+  }) => {
+    if (!servidores_ids || servidores_ids.length === 0) {
+      throw new Error('Nenhum servidor selecionado');
+    }
+
+    // Mapear categoria para tipo de movimentação válido
+    type TipoHistorico = 'nomeacao' | 'exoneracao' | 'designacao' | 'dispensa' | 'cessao' | 'afastamento' | 'retorno' | 'transferencia' | 'remocao' | 'vacancia' | 'promocao' | 'redistribuicao' | 'requisicao' | 'aposentadoria';
+    
+    const tipoMap: Record<string, TipoHistorico> = {
+      nomeacao: 'nomeacao',
+      exoneracao: 'exoneracao',
+      designacao: 'designacao',
+      dispensa: 'dispensa',
+      cessao: 'cessao',
+      ferias: 'afastamento',
+      licenca: 'afastamento',
+      pessoal: 'nomeacao',
+      estruturante: 'nomeacao',
+      normativa: 'nomeacao',
+      delegacao: 'designacao',
+    };
+
+    const tipo: TipoHistorico = tipoMap[categoria] || 'nomeacao';
+    
+    // Buscar dados dos servidores para enriquecer a descrição
+    const { data: servidoresData } = await supabase
+      .from('v_servidores_situacao')
+      .select('id, nome_completo, cargo_nome, unidade_nome')
+      .in('id', servidores_ids);
+
+    const registros = (servidoresData || []).map((servidor) => {
+      const descricao = descricao_adicional 
+        ? `${descricao_adicional} - Portaria nº ${portaria_numero}`
+        : `Portaria nº ${portaria_numero}. Cargo: ${servidor.cargo_nome || 'N/A'}. Unidade: ${servidor.unidade_nome || 'N/A'}.`;
+
+      return {
+        servidor_id: servidor.id,
+        tipo,
+        data_evento: portaria_data,
+        data_vigencia_inicio: portaria_data,
+        portaria_numero: portaria_numero,
+        portaria_data: portaria_data,
+        cargo_novo_id: ['nomeacao', 'designacao'].includes(categoria) ? cargo_id : null,
+        cargo_anterior_id: ['exoneracao', 'dispensa'].includes(categoria) ? cargo_id : null,
+        unidade_nova_id: ['nomeacao', 'designacao'].includes(categoria) ? unidade_id : null,
+        unidade_anterior_id: ['exoneracao', 'dispensa'].includes(categoria) ? unidade_id : null,
+        descricao,
+        ato_tipo: 'portaria',
+        ato_numero: portaria_numero,
+        ato_data: portaria_data,
+      };
+    });
+
+    const { error } = await supabase
+      .from('historico_funcional')
+      .insert(registros);
+
+    if (error) throw error;
+    
+    return registros.length;
+  },
+  onSuccess: (count) => {
+    queryClient.invalidateQueries({ queryKey: ['historico-funcional'] });
+    toast({ title: `${count} registro(s) adicionado(s) ao histórico funcional` });
+  },
+  onError: (error) => {
+    console.error('Erro ao registrar histórico funcional:', error);
+    toast({
+      title: 'Erro ao registrar histórico funcional',
+      description: error.message,
+      variant: 'destructive',
+    });
+  },
+});
 }
