@@ -294,7 +294,7 @@ export async function gerarOrganogramaPDF(data: OrganogramaData): Promise<void> 
   pdf.save(nomeArquivo);
 }
 
-// Versão simplificada em lista hierárquica
+// Versão em tabela estruturada
 export async function gerarOrganogramaListaPDF(data: OrganogramaData): Promise<void> {
   const {
     unidades,
@@ -318,9 +318,13 @@ export async function gerarOrganogramaListaPDF(data: OrganogramaData): Promise<v
 
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 20;
+  const margin = 15;
+  const contentWidth = pageWidth - margin * 2;
 
   const textColor: [number, number, number] = [30, 41, 59];
+  const headerBg: [number, number, number] = [0, 68, 68]; // Verde institucional
+  const headerText: [number, number, number] = [255, 255, 255];
+  const altRowBg: [number, number, number] = [248, 250, 252]; // slate-50
 
   // Carregar logos
   const logos = await loadLogos();
@@ -332,100 +336,220 @@ export async function gerarOrganogramaListaPDF(data: OrganogramaData): Promise<v
     fundoEscuro: true
   }, logos);
 
-  currentY += 5;
+  currentY += 8;
 
-  // Construir árvore hierárquica
-  function renderUnidade(unidade: UnidadeOrganizacional, indent: number) {
-    if (currentY > pageHeight - 30) {
-      pdf.addPage();
-      currentY = 20;
-    }
+  // Definir colunas da tabela
+  const colWidths = {
+    orgao: contentWidth * 0.12,   // Sigla
+    tipo: contentWidth * 0.40,    // Nome completo
+    servidores: contentWidth * 0.12,
+    responsavel: contentWidth * 0.36
+  };
 
-    const indentX = margin + indent * 8;
-    const cor = CORES_RGB[unidade.tipo] || textColor;
-    const qtdServidores = contarServidores(unidade.id, false);
+  const colX = {
+    orgao: margin,
+    tipo: margin + colWidths.orgao,
+    servidores: margin + colWidths.orgao + colWidths.tipo,
+    responsavel: margin + colWidths.orgao + colWidths.tipo + colWidths.servidores
+  };
 
-    // Marcador
-    pdf.setFillColor(...cor);
-    pdf.circle(indentX + 2, currentY - 1.5, 1.5, 'F');
+  const rowHeight = 8;
+  const headerHeight = 10;
 
-    // Nome/Sigla
+  // Função para desenhar cabeçalho da tabela
+  function desenharCabecalhoTabela() {
+    // Fundo do cabeçalho
+    pdf.setFillColor(...headerBg);
+    pdf.rect(margin, currentY, contentWidth, headerHeight, 'F');
+
+    // Textos do cabeçalho
     pdf.setFontSize(9);
     pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(...textColor);
-    const nome = unidade.sigla ? `${unidade.sigla} - ${unidade.nome}` : unidade.nome;
-    const nomeExibido = nome.length > 60 ? nome.substring(0, 57) + '...' : nome;
-    pdf.text(nomeExibido, indentX + 6, currentY);
-
-    // Tipo e servidores
-    pdf.setFontSize(7);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(100, 116, 139);
+    pdf.setTextColor(...headerText);
     
-    let infoLine = LABELS_UNIDADE[unidade.tipo];
-    if (exibirQuantidadeServidores) {
-      infoLine += ` | ${qtdServidores} serv.`;
-    }
-    pdf.text(infoLine, indentX + 6, currentY + 4);
+    pdf.text('Órgão', colX.orgao + 2, currentY + 6.5);
+    pdf.text('Tipo', colX.tipo + 2, currentY + 6.5);
+    pdf.text('Servidores', colX.servidores + 2, currentY + 6.5);
+    pdf.text('Responsável', colX.responsavel + 2, currentY + 6.5);
 
-    // Responsável ou primeiro lotado (se configurado)
-    if (exibirNomesServidores) {
-      let nomeExibir = '';
-      
-      if (unidade.servidor_responsavel?.full_name) {
-        nomeExibir = `Resp: ${unidade.servidor_responsavel.full_name}`;
-      } else if (getLotacoesByUnidade) {
-        const lotacoesUnidade = getLotacoesByUnidade(unidade.id);
-        if (lotacoesUnidade.length > 0 && lotacoesUnidade[0].servidor?.full_name) {
-          const primeiroNome = lotacoesUnidade[0].servidor.full_name;
-          if (lotacoesUnidade.length > 1) {
-            nomeExibir = `${primeiroNome} +${lotacoesUnidade.length - 1} servidores`;
-          } else {
-            nomeExibir = primeiroNome;
-          }
-        }
-      }
-      
-      if (nomeExibir) {
-        pdf.setFont('helvetica', 'italic');
-        pdf.text(nomeExibir, indentX + 6, currentY + 8);
-        currentY += 4;
-      }
-    }
+    // Linhas verticais do cabeçalho
+    pdf.setDrawColor(...headerText);
+    pdf.setLineWidth(0.1);
+    pdf.line(colX.tipo, currentY, colX.tipo, currentY + headerHeight);
+    pdf.line(colX.servidores, currentY, colX.servidores, currentY + headerHeight);
+    pdf.line(colX.responsavel, currentY, colX.responsavel, currentY + headerHeight);
 
-    currentY += 10;
-
-    // Filhos
-    const filhos = unidades.filter(u => u.superior_id === unidade.id);
-    filhos
-      .sort((a, b) => a.nome.localeCompare(b.nome))
-      .forEach(filho => renderUnidade(filho, indent + 1));
+    currentY += headerHeight;
   }
 
-  // Começar pelas raízes
-  const raizes = unidades.filter(u => !u.superior_id);
-  raizes
-    .sort((a, b) => a.nome.localeCompare(b.nome))
-    .forEach(raiz => renderUnidade(raiz, 0));
+  // Função para obter nome do responsável
+  function obterResponsavel(unidade: UnidadeOrganizacional): string {
+    if (unidade.servidor_responsavel?.full_name) {
+      return unidade.servidor_responsavel.full_name;
+    }
+    
+    if (getLotacoesByUnidade) {
+      const lotacoesUnidade = getLotacoesByUnidade(unidade.id);
+      if (lotacoesUnidade.length > 0 && lotacoesUnidade[0].servidor?.full_name) {
+        const primeiroNome = lotacoesUnidade[0].servidor.full_name;
+        if (lotacoesUnidade.length > 1) {
+          return `${primeiroNome} +${lotacoesUnidade.length - 1} servidores`;
+        }
+        return primeiroNome;
+      }
+    }
+    
+    return '';
+  }
 
-  // Totais
-  currentY += 5;
-  if (currentY > pageHeight - 30) {
+  // Construir lista ordenada hierarquicamente
+  function construirListaHierarquica(
+    parentId: string | null, 
+    nivelHierarquico: number = 0
+  ): { unidade: UnidadeOrganizacional; nivel: number }[] {
+    const filhos = unidades
+      .filter(u => u.superior_id === parentId)
+      .sort((a, b) => a.nivel - b.nivel || a.nome.localeCompare(b.nome));
+    
+    let resultado: { unidade: UnidadeOrganizacional; nivel: number }[] = [];
+    
+    for (const filho of filhos) {
+      resultado.push({ unidade: filho, nivel: nivelHierarquico });
+      resultado = resultado.concat(construirListaHierarquica(filho.id, nivelHierarquico + 1));
+    }
+    
+    return resultado;
+  }
+
+  // Desenhar cabeçalho inicial
+  desenharCabecalhoTabela();
+
+  // Obter lista hierárquica
+  const listaHierarquica = construirListaHierarquica(null);
+
+  // Desenhar linhas da tabela
+  let rowIndex = 0;
+  let pageNumber = 1;
+
+  for (const { unidade, nivel } of listaHierarquica) {
+    // Verificar quebra de página
+    if (currentY > pageHeight - 25) {
+      // Rodapé da página atual
+      pdf.setFontSize(7);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 116, 139);
+      pdf.text(`Página ${pageNumber} de ...`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+      
+      pdf.addPage();
+      pageNumber++;
+      currentY = 20;
+      desenharCabecalhoTabela();
+    }
+
+    const qtdServidores = contarServidores(unidade.id, false);
+    const responsavel = exibirNomesServidores ? obterResponsavel(unidade) : '';
+
+    // Fundo alternado
+    if (rowIndex % 2 === 1) {
+      pdf.setFillColor(...altRowBg);
+      pdf.rect(margin, currentY, contentWidth, rowHeight, 'F');
+    }
+
+    // Borda inferior
+    pdf.setDrawColor(226, 232, 240); // slate-200
+    pdf.setLineWidth(0.2);
+    pdf.line(margin, currentY + rowHeight, margin + contentWidth, currentY + rowHeight);
+
+    // Indicador visual de hierarquia (barra colorida)
+    const corUnidade = CORES_RGB[unidade.tipo] || textColor;
+    pdf.setFillColor(...corUnidade);
+    pdf.rect(margin, currentY, 2, rowHeight, 'F');
+
+    // Indentação visual no nome
+    const indentPx = nivel * 2;
+
+    // Sigla/Órgão
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(...corUnidade);
+    const sigla = unidade.sigla || unidade.nome.substring(0, 6);
+    pdf.text(sigla, colX.orgao + 4 + indentPx, currentY + 5.5);
+
+    // Nome/Tipo
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(...textColor);
+    const tipoLabel = LABELS_UNIDADE[unidade.tipo];
+    const nomeCompleto = `${unidade.nome}`;
+    const maxNomeWidth = colWidths.tipo - 4;
+    
+    // Truncar nome se necessário
+    let nomeExibido = nomeCompleto;
+    pdf.setFontSize(8);
+    while (pdf.getTextWidth(nomeExibido) > maxNomeWidth && nomeExibido.length > 10) {
+      nomeExibido = nomeExibido.substring(0, nomeExibido.length - 4) + '...';
+    }
+    pdf.text(nomeExibido, colX.tipo + 2, currentY + 5.5);
+
+    // Quantidade de servidores
+    if (exibirQuantidadeServidores) {
+      pdf.setFontSize(8);
+      pdf.setTextColor(100, 116, 139);
+      pdf.text(`${qtdServidores} serv.`, colX.servidores + 2, currentY + 5.5);
+    }
+
+    // Responsável
+    if (exibirNomesServidores && responsavel) {
+      pdf.setFontSize(7);
+      pdf.setTextColor(...textColor);
+      
+      // Truncar responsável se necessário
+      let respExibido = responsavel;
+      const maxRespWidth = colWidths.responsavel - 4;
+      while (pdf.getTextWidth(respExibido) > maxRespWidth && respExibido.length > 10) {
+        respExibido = respExibido.substring(0, respExibido.length - 4) + '...';
+      }
+      pdf.text(respExibido, colX.responsavel + 2, currentY + 5.5);
+    }
+
+    currentY += rowHeight;
+    rowIndex++;
+  }
+
+  // Linha final da tabela
+  pdf.setDrawColor(0, 68, 68);
+  pdf.setLineWidth(0.5);
+  pdf.line(margin, currentY, margin + contentWidth, currentY);
+
+  // Resumo final
+  currentY += 8;
+  if (currentY > pageHeight - 25) {
     pdf.addPage();
+    pageNumber++;
     currentY = 20;
   }
 
-  pdf.setDrawColor(200, 200, 200);
-  pdf.line(margin, currentY, pageWidth - margin, currentY);
-  currentY += 8;
-
   const totalServidores = unidades.reduce((acc, u) => acc + contarServidores(u.id, false), 0);
   
-  pdf.setFontSize(10);
+  // Caixa de resumo
+  pdf.setFillColor(248, 250, 252);
+  pdf.setDrawColor(0, 68, 68);
+  pdf.setLineWidth(0.3);
+  pdf.roundedRect(margin, currentY, contentWidth, 15, 2, 2, 'FD');
+
+  pdf.setFontSize(9);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(...textColor);
-  pdf.text(`Total de Unidades: ${unidades.length}`, margin, currentY);
-  pdf.text(`Total de Servidores: ${totalServidores}`, pageWidth - margin, currentY, { align: 'right' });
+  pdf.text(`Total de Unidades: ${unidades.length}`, margin + 10, currentY + 7);
+  pdf.text(`Total de Servidores: ${totalServidores}`, margin + contentWidth / 2, currentY + 7);
+  
+  const dataGeracao = new Date().toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  });
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8);
+  pdf.text(`Gerado em: ${dataGeracao}`, margin + contentWidth - 10, currentY + 11, { align: 'right' });
 
   // Rodapé institucional padrão
   generateInstitutionalFooter(pdf, {
@@ -434,7 +558,14 @@ export async function gerarOrganogramaListaPDF(data: OrganogramaData): Promise<v
   });
 
   // Adicionar números de página
-  addPageNumbers(pdf);
+  const totalPages = pdf.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    pdf.setPage(i);
+    pdf.setFontSize(7);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(`Página ${i} de ${totalPages}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
+  }
 
   // Salvar
   const nomeArquivo = `estrutura-organizacional-idjuv-${new Date().toISOString().split('T')[0]}.pdf`;
