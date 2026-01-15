@@ -10,6 +10,8 @@ import {
   Newspaper,
   XCircle,
   ArrowUpDown,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -47,6 +49,8 @@ interface PortariaTableProps {
   portarias: Portaria[];
   isLoading?: boolean;
   onView?: (portaria: Portaria) => void;
+  onEdit?: (portaria: Portaria) => void;
+  onDelete?: (portaria: Portaria) => void;
   onGeneratePdf?: (portaria: Portaria) => void;
   onRegistrarPublicacao?: (portaria: Portaria) => void;
   onRegistrarAssinatura?: (portaria: Portaria) => void;
@@ -56,6 +60,8 @@ export function PortariaTable({
   portarias,
   isLoading,
   onView,
+  onEdit,
+  onDelete,
   onGeneratePdf,
   onRegistrarPublicacao,
   onRegistrarAssinatura,
@@ -254,6 +260,12 @@ export function PortariaTable({
                       <Eye className="h-4 w-4 mr-2" />
                       Visualizar
                     </DropdownMenuItem>
+                    {(portaria.status === 'minuta' || portaria.status === 'aguardando_assinatura') && (
+                      <DropdownMenuItem onClick={() => onEdit?.(portaria)}>
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Editar
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={() => onGeneratePdf?.(portaria)}>
                       <Download className="h-4 w-4 mr-2" />
                       Gerar PDF
@@ -293,6 +305,16 @@ export function PortariaTable({
                       >
                         <Newspaper className="h-4 w-4 mr-2" />
                         Registrar Publicação
+                      </DropdownMenuItem>
+                    )}
+                    
+                    {portaria.status === 'minuta' && (
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={() => onDelete?.(portaria)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Excluir
                       </DropdownMenuItem>
                     )}
                     

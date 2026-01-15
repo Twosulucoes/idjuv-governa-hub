@@ -13,6 +13,8 @@ import {
   Download,
   Send,
   FileSignature,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +45,8 @@ interface PortariaKanbanProps {
   portarias: Portaria[];
   isLoading?: boolean;
   onView?: (portaria: Portaria) => void;
+  onEdit?: (portaria: Portaria) => void;
+  onDelete?: (portaria: Portaria) => void;
   onGeneratePdf?: (portaria: Portaria) => void;
 }
 
@@ -69,6 +73,8 @@ export function PortariaKanban({
   portarias,
   isLoading,
   onView,
+  onEdit,
+  onDelete,
   onGeneratePdf,
 }: PortariaKanbanProps) {
   const enviarParaAssinatura = useEnviarParaAssinatura();
@@ -150,28 +156,52 @@ export function PortariaKanban({
                               <Download className="h-4 w-4 mr-2" />
                               Gerar PDF
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
+                            {(status === 'minuta' || status === 'aguardando_assinatura') && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => onEdit?.(portaria)}>
+                                  <Pencil className="h-4 w-4 mr-2" />
+                                  Editar
+                                </DropdownMenuItem>
+                              </>
+                            )}
                             {status === 'minuta' && (
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEnviarAssinatura(portaria);
-                                }}
-                              >
-                                <Send className="h-4 w-4 mr-2" />
-                                Enviar para Assinatura
-                              </DropdownMenuItem>
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEnviarAssinatura(portaria);
+                                  }}
+                                >
+                                  <Send className="h-4 w-4 mr-2" />
+                                  Enviar para Assinatura
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDelete?.(portaria);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Excluir
+                                </DropdownMenuItem>
+                              </>
                             )}
                             {status === 'assinado' && (
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEnviarPublicacao(portaria);
-                                }}
-                              >
-                                <FileSignature className="h-4 w-4 mr-2" />
-                                Enviar para Publicação
-                              </DropdownMenuItem>
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEnviarPublicacao(portaria);
+                                  }}
+                                >
+                                  <FileSignature className="h-4 w-4 mr-2" />
+                                  Enviar para Publicação
+                                </DropdownMenuItem>
+                              </>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
