@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, Wand2, Download, FileType, ClipboardList, Users, Eye, PenTool } from 'lucide-react';
+import { FileText, Wand2, Download, FileType, ClipboardList, Users, PenTool } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -43,7 +43,7 @@ import { SelecionarServidoresTable } from './SelecionarServidoresTable';
 import { CamposDinamicos } from './CamposDinamicos';
 import { EditorArtigos } from './EditorArtigos';
 import { ConfiguracaoTabela } from './ConfiguracaoTabela';
-import { generatePortariaColetivaComTabela } from '@/lib/pdfPortarias';
+import { generatePortariaUnificadaPdf } from '@/lib/pdfPortarias';
 import { generatePortariaColetivaWord } from '@/lib/wordPortarias';
 
 interface NovaPortariaUnificadaProps {
@@ -81,7 +81,7 @@ export function NovaPortariaUnificada({
   const [titulo, setTitulo] = useState('');
   const [ementa, setEmenta] = useState('');
 
-  // Campos específicos por categoria
+  // Campos específicos por categoria (gerenciados pelo CamposDinamicos)
   const [camposEspecificos, setCamposEspecificos] = useState<Record<string, any>>({});
 
   // Conteúdo
@@ -178,10 +178,8 @@ export function NovaPortariaUnificada({
   };
 
   const buildCabecalhoCompleto = () => {
-    // Montar preâmbulo + artigos como texto
     let cabecalho = preambulo + '\n\n';
     
-    // Adicionar artigos (exceto se vai ter tabela - nesse caso o PDF já adiciona)
     if (!configTabela.habilitada) {
       artigos.forEach((artigo) => {
         cabecalho += `Art. ${artigo.numero} ${artigo.conteudo}\n\n`;
@@ -262,13 +260,14 @@ export function NovaPortariaUnificada({
     setIsGenerating(true);
     try {
       const servidoresParaPdf = await fetchServidoresData();
-      const tipoAcao = categoria === 'exoneracao' ? 'exoneracao' : 'nomeacao';
 
-      const doc = generatePortariaColetivaComTabela(
+      const doc = await generatePortariaUnificadaPdf(
         { numero, data_documento: dataDocumento },
         preambulo,
+        artigos,
         servidoresParaPdf,
-        tipoAcao
+        configTabela,
+        assinatura
       );
 
       const nomeArquivo = `Portaria_${numero.replace(/\//g, '-')}.pdf`;
@@ -430,7 +429,7 @@ export function NovaPortariaUnificada({
                 />
               </div>
 
-              {/* Campos específicos por categoria */}
+              {/* Campos específicos por categoria (renderiza dinamicamente) */}
               <CamposDinamicos
                 categoria={categoria}
                 valores={camposEspecificos}
