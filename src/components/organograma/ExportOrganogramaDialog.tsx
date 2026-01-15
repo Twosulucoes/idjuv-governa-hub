@@ -31,6 +31,7 @@ export function ExportOrganogramaDialog({
     exibirNomesServidores: true,
     exibirQuantidadeServidores: true,
     exibirLegenda: true,
+    exibirTodosServidores: true, // Por padrão exibe todos
   });
 
   const handleExport = async () => {
@@ -90,9 +91,27 @@ export function ExportOrganogramaDialog({
                   htmlFor="exibirNomesServidores"
                   className="text-sm font-normal cursor-pointer"
                 >
-                  Exibir nomes dos servidores responsáveis
+                  Exibir nomes dos servidores lotados
                 </Label>
               </div>
+
+              {config.exibirNomesServidores && (
+                <div className="flex items-center space-x-2 ml-6">
+                  <Checkbox
+                    id="exibirTodosServidores"
+                    checked={config.exibirTodosServidores}
+                    onCheckedChange={(checked) =>
+                      setConfig(prev => ({ ...prev, exibirTodosServidores: !!checked }))
+                    }
+                  />
+                  <Label
+                    htmlFor="exibirTodosServidores"
+                    className="text-sm font-normal cursor-pointer"
+                  >
+                    Exibir todos os servidores com cargos (não apenas o primeiro)
+                  </Label>
+                </div>
+              )}
 
               <div className="flex items-center space-x-2">
                 <Checkbox
