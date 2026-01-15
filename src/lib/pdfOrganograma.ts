@@ -1,5 +1,20 @@
 import jsPDF from 'jspdf';
-import { UnidadeOrganizacional, LABELS_UNIDADE, CORES_UNIDADE } from '@/types/organograma';
+import { UnidadeOrganizacional, LABELS_UNIDADE } from '@/types/organograma';
+import { 
+  generateInstitutionalHeader, 
+  generateInstitutionalFooter, 
+  addPageNumbers,
+  loadLogos,
+  CORES,
+  setColor,
+  getPageDimensions
+} from '@/lib/pdfTemplate';
+
+export interface OrganogramaConfig {
+  exibirNomesServidores?: boolean;
+  exibirQuantidadeServidores?: boolean;
+  exibirLegenda?: boolean;
+}
 
 interface OrganogramaData {
   unidades: UnidadeOrganizacional[];
@@ -7,11 +22,12 @@ interface OrganogramaData {
   titulo?: string;
   subtitulo?: string;
   incluirLogos?: boolean;
+  config?: OrganogramaConfig;
 }
 
 // Cores por tipo de unidade (valores RGB)
 const CORES_RGB: Record<string, [number, number, number]> = {
-  presidencia: [22, 163, 74], // green-600
+  presidencia: [0, 68, 68], // verde institucional
   gabinete: [59, 130, 246], // blue-500
   diretoria: [147, 51, 234], // purple-600
   coordenacao: [249, 115, 22], // orange-500
@@ -36,24 +52,20 @@ const CORES_FUNDO_RGB: Record<string, [number, number, number]> = {
   unidade_local: [207, 250, 254], // cyan-100
 };
 
-function loadImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = url;
-  });
-}
-
 export async function gerarOrganogramaPDF(data: OrganogramaData): Promise<void> {
   const {
     unidades,
     contarServidores,
     titulo = 'ORGANOGRAMA INSTITUCIONAL',
-    subtitulo = 'Instituto de Desporto, Juventude e Lazer - IDJUV',
-    incluirLogos = true,
+    subtitulo,
+    config = {}
   } = data;
+
+  const {
+    exibirNomesServidores = true,
+    exibirQuantidadeServidores = true,
+    exibirLegenda = true
+  } = config;
 
   // Criar PDF em paisagem A3 para mais espaço
   const pdf = new jsPDF({
@@ -67,50 +79,20 @@ export async function gerarOrganogramaPDF(data: OrganogramaData): Promise<void> 
   const margin = 15;
   const contentWidth = pageWidth - margin * 2;
 
-  // Cores institucionais
-  const primaryColor: [number, number, number] = [22, 163, 74]; // Verde
+  // Cor de texto padrão
   const textColor: [number, number, number] = [30, 41, 59]; // slate-800
 
-  // Header com logos
-  let headerHeight = 30;
-  
-  if (incluirLogos) {
-    try {
-      const logoGov = await loadImage('/src/assets/logo-governo-roraima.jpg');
-      const logoIdjuv = await loadImage('/src/assets/logo-idjuv-oficial.png');
-      
-      // Logo esquerda
-      pdf.addImage(logoGov, 'JPEG', margin, 10, 35, 20);
-      
-      // Logo direita
-      pdf.addImage(logoIdjuv, 'PNG', pageWidth - margin - 35, 10, 35, 20);
-    } catch (error) {
-      console.error('Erro ao carregar logos:', error);
-    }
-    headerHeight = 35;
-  }
+  // Carregar logos
+  const logos = await loadLogos();
 
-  // Título
-  pdf.setFontSize(18);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(...primaryColor);
-  pdf.text(titulo, pageWidth / 2, headerHeight, { align: 'center' });
-
-  // Subtítulo
-  if (subtitulo) {
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(...textColor);
-    pdf.text(subtitulo, pageWidth / 2, headerHeight + 6, { align: 'center' });
-  }
-
-  // Linha divisória
-  pdf.setDrawColor(...primaryColor);
-  pdf.setLineWidth(0.5);
-  pdf.line(margin, headerHeight + 10, pageWidth - margin, headerHeight + 10);
+  // Header institucional padrão
+  const startY = await generateInstitutionalHeader(pdf, {
+    titulo,
+    subtitulo,
+    fundoEscuro: true
+  }, logos);
 
   // Área de conteúdo
-  const startY = headerHeight + 20;
   const contentHeight = pageHeight - startY - 25;
 
   // Organizar unidades por níveis
@@ -125,7 +107,7 @@ export async function gerarOrganogramaPDF(data: OrganogramaData): Promise<void> 
   
   // Calcular altura por nível
   const nivelHeight = Math.min(35, contentHeight / numNiveis);
-  const boxHeight = 22;
+  const boxHeight = exibirNomesServidores ? 24 : 20;
   const boxMinWidth = 60;
   const boxMaxWidth = 120;
   const boxSpacing = 8;
@@ -177,22 +159,24 @@ export async function gerarOrganogramaPDF(data: OrganogramaData): Promise<void> 
       pdf.setTextColor(100, 116, 139);
       pdf.text(LABELS_UNIDADE[unidade.tipo], x + boxWidth / 2, y + 13, { align: 'center' });
 
-      // Servidores
-      const qtdServidores = contarServidores(unidade.id, false);
-      pdf.setFontSize(6);
-      pdf.setTextColor(...corBorda);
-      pdf.text(`${qtdServidores} serv.`, x + boxWidth / 2, y + 17, { align: 'center' });
+      // Servidores (se configurado)
+      if (exibirQuantidadeServidores) {
+        const qtdServidores = contarServidores(unidade.id, false);
+        pdf.setFontSize(6);
+        pdf.setTextColor(...corBorda);
+        pdf.text(`${qtdServidores} serv.`, x + boxWidth / 2, y + 17, { align: 'center' });
+      }
 
-      // Responsável (se houver e couber)
-      if (unidade.servidor_responsavel?.full_name && boxWidth >= 80) {
+      // Responsável (se configurado e houver)
+      if (exibirNomesServidores && unidade.servidor_responsavel?.full_name && boxWidth >= 70) {
         const responsavelNome = unidade.servidor_responsavel.full_name;
-        const responsavelExibido = responsavelNome.length > 20 
-          ? responsavelNome.substring(0, 18) + '...' 
+        const responsavelExibido = responsavelNome.length > 22 
+          ? responsavelNome.substring(0, 20) + '...' 
           : responsavelNome;
         pdf.setFontSize(5);
         pdf.setFont('helvetica', 'italic');
         pdf.setTextColor(100, 116, 139);
-        pdf.text(responsavelExibido, x + boxWidth / 2, y + 20, { align: 'center' });
+        pdf.text(responsavelExibido, x + boxWidth / 2, y + 21, { align: 'center' });
       }
 
       // Desenhar linha para o superior (se houver e estiver visível)
@@ -227,56 +211,53 @@ export async function gerarOrganogramaPDF(data: OrganogramaData): Promise<void> 
     });
   });
 
-  // Legenda
-  const legendaY = pageHeight - 18;
-  const legendaStartX = margin;
-  let legendaX = legendaStartX;
+  // Legenda (se configurado)
+  if (exibirLegenda) {
+    const legendaY = pageHeight - 18;
+    const legendaStartX = margin;
+    let legendaX = legendaStartX;
 
-  pdf.setFontSize(7);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(...textColor);
-  pdf.text('Legenda:', legendaX, legendaY);
-  legendaX += 18;
-
-  const tiposUsados = [...new Set(unidades.map(u => u.tipo))];
-  tiposUsados.forEach(tipo => {
-    const cor = CORES_RGB[tipo] || textColor;
-    
-    // Quadrado colorido
-    pdf.setFillColor(...cor);
-    pdf.rect(legendaX, legendaY - 3, 4, 4, 'F');
-    
-    // Label
-    pdf.setFontSize(6);
-    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(7);
+    pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(...textColor);
-    pdf.text(LABELS_UNIDADE[tipo], legendaX + 6, legendaY);
-    
-    legendaX += 30;
-  });
+    pdf.text('Legenda:', legendaX, legendaY);
+    legendaX += 18;
 
-  // Rodapé
-  const dataGeracao = new Date().toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
-  pdf.setFontSize(7);
-  pdf.setFont('helvetica', 'italic');
-  pdf.setTextColor(100, 116, 139);
-  pdf.text(`Gerado em ${dataGeracao}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
+    const tiposUsados = [...new Set(unidades.map(u => u.tipo))];
+    tiposUsados.forEach(tipo => {
+      const cor = CORES_RGB[tipo] || textColor;
+      
+      // Quadrado colorido
+      pdf.setFillColor(...cor);
+      pdf.rect(legendaX, legendaY - 3, 4, 4, 'F');
+      
+      // Label
+      pdf.setFontSize(6);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(...textColor);
+      pdf.text(LABELS_UNIDADE[tipo], legendaX + 6, legendaY);
+      
+      legendaX += 30;
+    });
+  }
 
   // Total de unidades e servidores
   const totalServidores = unidades.reduce((acc, u) => acc + contarServidores(u.id, false), 0);
+  pdf.setFontSize(7);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(100, 116, 139);
   pdf.text(
     `Total: ${unidades.length} unidades | ${totalServidores} servidores`,
     pageWidth - margin,
-    pageHeight - 8,
+    pageHeight - 18,
     { align: 'right' }
   );
+
+  // Rodapé institucional padrão
+  generateInstitutionalFooter(pdf, {
+    sistema: 'Sistema de Governança Digital IDJUV',
+    mostrarData: true
+  });
 
   // Salvar PDF
   const nomeArquivo = `organograma-idjuv-${new Date().toISOString().split('T')[0]}.pdf`;
@@ -289,9 +270,14 @@ export async function gerarOrganogramaListaPDF(data: OrganogramaData): Promise<v
     unidades,
     contarServidores,
     titulo = 'ESTRUTURA ORGANIZACIONAL',
-    subtitulo = 'Instituto de Desporto, Juventude e Lazer - IDJUV',
-    incluirLogos = true,
+    subtitulo,
+    config = {}
   } = data;
+
+  const {
+    exibirNomesServidores = true,
+    exibirQuantidadeServidores = true
+  } = config;
 
   const pdf = new jsPDF({
     orientation: 'portrait',
@@ -302,48 +288,20 @@ export async function gerarOrganogramaListaPDF(data: OrganogramaData): Promise<v
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const margin = 20;
-  const contentWidth = pageWidth - margin * 2;
 
-  const primaryColor: [number, number, number] = [22, 163, 74];
   const textColor: [number, number, number] = [30, 41, 59];
 
-  let currentY = 15;
+  // Carregar logos
+  const logos = await loadLogos();
 
-  // Header com logos
-  if (incluirLogos) {
-    try {
-      const logoGov = await loadImage('/src/assets/logo-governo-roraima.jpg');
-      const logoIdjuv = await loadImage('/src/assets/logo-idjuv-oficial.png');
-      
-      pdf.addImage(logoGov, 'JPEG', margin, 10, 30, 18);
-      pdf.addImage(logoIdjuv, 'PNG', pageWidth - margin - 30, 10, 30, 18);
-    } catch (error) {
-      console.error('Erro ao carregar logos:', error);
-    }
-    currentY = 35;
-  }
+  // Header institucional padrão
+  let currentY = await generateInstitutionalHeader(pdf, {
+    titulo,
+    subtitulo,
+    fundoEscuro: true
+  }, logos);
 
-  // Título
-  pdf.setFontSize(16);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(...primaryColor);
-  pdf.text(titulo, pageWidth / 2, currentY, { align: 'center' });
-  currentY += 6;
-
-  // Subtítulo
-  if (subtitulo) {
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(...textColor);
-    pdf.text(subtitulo, pageWidth / 2, currentY, { align: 'center' });
-    currentY += 5;
-  }
-
-  // Linha
-  pdf.setDrawColor(...primaryColor);
-  pdf.setLineWidth(0.5);
-  pdf.line(margin, currentY, pageWidth - margin, currentY);
-  currentY += 10;
+  currentY += 5;
 
   // Construir árvore hierárquica
   function renderUnidade(unidade: UnidadeOrganizacional, indent: number) {
@@ -372,10 +330,15 @@ export async function gerarOrganogramaListaPDF(data: OrganogramaData): Promise<v
     pdf.setFontSize(7);
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(100, 116, 139);
-    pdf.text(`${LABELS_UNIDADE[unidade.tipo]} | ${qtdServidores} serv.`, indentX + 6, currentY + 4);
+    
+    let infoLine = LABELS_UNIDADE[unidade.tipo];
+    if (exibirQuantidadeServidores) {
+      infoLine += ` | ${qtdServidores} serv.`;
+    }
+    pdf.text(infoLine, indentX + 6, currentY + 4);
 
-    // Responsável
-    if (unidade.servidor_responsavel?.full_name) {
+    // Responsável (se configurado)
+    if (exibirNomesServidores && unidade.servidor_responsavel?.full_name) {
       pdf.setFont('helvetica', 'italic');
       pdf.text(`Resp: ${unidade.servidor_responsavel.full_name}`, indentX + 6, currentY + 8);
       currentY += 4;
@@ -415,17 +378,14 @@ export async function gerarOrganogramaListaPDF(data: OrganogramaData): Promise<v
   pdf.text(`Total de Unidades: ${unidades.length}`, margin, currentY);
   pdf.text(`Total de Servidores: ${totalServidores}`, pageWidth - margin, currentY, { align: 'right' });
 
-  // Rodapé
-  const dataGeracao = new Date().toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
+  // Rodapé institucional padrão
+  generateInstitutionalFooter(pdf, {
+    sistema: 'Sistema de Governança Digital IDJUV',
+    mostrarData: true
   });
 
-  pdf.setFontSize(7);
-  pdf.setFont('helvetica', 'italic');
-  pdf.setTextColor(100, 116, 139);
-  pdf.text(`Documento gerado em ${dataGeracao}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+  // Adicionar números de página
+  addPageNumbers(pdf);
 
   // Salvar
   const nomeArquivo = `estrutura-organizacional-idjuv-${new Date().toISOString().split('T')[0]}.pdf`;
