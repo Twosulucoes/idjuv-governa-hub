@@ -32,6 +32,7 @@ interface OrganogramaData {
   unidades: UnidadeOrganizacional[];
   contarServidores: (unidadeId: string, incluirSub?: boolean) => number;
   getLotacoesByUnidade?: (unidadeId: string) => LotacaoSimples[];
+  getServidoresByUnidadeCargo?: (unidadeId: string) => { nome: string; cargo: string }[];
   titulo?: string;
   subtitulo?: string;
   incluirLogos?: boolean;
@@ -70,6 +71,7 @@ export async function gerarOrganogramaPDF(data: OrganogramaData): Promise<void> 
     unidades,
     contarServidores,
     getLotacoesByUnidade,
+    getServidoresByUnidadeCargo,
     titulo = 'ORGANOGRAMA INSTITUCIONAL',
     subtitulo,
     config = {}
@@ -188,8 +190,17 @@ export async function gerarOrganogramaPDF(data: OrganogramaData): Promise<void> 
         // Primeiro tenta o servidor responsável
         if (unidade.servidor_responsavel?.full_name) {
           nomeExibir = unidade.servidor_responsavel.full_name;
+        } else if (getServidoresByUnidadeCargo) {
+          // NOVO: Buscar por cargo vinculado à unidade
+          const servidores = getServidoresByUnidadeCargo(unidade.id);
+          if (servidores.length > 0) {
+            nomeExibir = servidores[0].nome;
+            if (servidores.length > 1) {
+              nomeExibir += ` +${servidores.length - 1}`;
+            }
+          }
         } else if (getLotacoesByUnidade) {
-          // Se não tem responsável, pega o primeiro lotado
+          // Fallback: lotação direta
           const lotacoesUnidade = getLotacoesByUnidade(unidade.id);
           if (lotacoesUnidade.length > 0 && lotacoesUnidade[0].servidor?.full_name) {
             nomeExibir = lotacoesUnidade[0].servidor.full_name;
@@ -301,6 +312,7 @@ export async function gerarOrganogramaListaPDF(data: OrganogramaData): Promise<v
     unidades,
     contarServidores,
     getLotacoesByUnidade,
+    getServidoresByUnidadeCargo,
     titulo = 'ESTRUTURA ORGANIZACIONAL',
     subtitulo,
     config = {}
@@ -386,7 +398,7 @@ export async function gerarOrganogramaListaPDF(data: OrganogramaData): Promise<v
   // Extrai a config
   const exibirTodosServidores = config.exibirTodosServidores ?? false;
 
-  // Função para obter servidores lotados com detalhes
+  // Função para obter servidores lotados com detalhes (PRIORIZA busca por cargo vinculado)
   function obterServidoresLotados(unidade: UnidadeOrganizacional): { nome: string; cargo: string }[] {
     const servidores: { nome: string; cargo: string }[] = [];
     
@@ -398,8 +410,23 @@ export async function gerarOrganogramaListaPDF(data: OrganogramaData): Promise<v
       });
     }
     
-    // Busca os lotados na unidade
-    if (getLotacoesByUnidade) {
+    // PRIORIZA: Buscar servidores por cargo vinculado à unidade
+    if (getServidoresByUnidadeCargo) {
+      const servidoresPorCargo = getServidoresByUnidadeCargo(unidade.id);
+      for (const servidor of servidoresPorCargo) {
+        // Evita duplicar se já está como responsável
+        const jaAdicionado = servidores.some(s => 
+          s.nome.toUpperCase() === servidor.nome.toUpperCase()
+        );
+        if (!jaAdicionado) {
+          servidores.push({
+            nome: servidor.nome,
+            cargo: servidor.cargo
+          });
+        }
+      }
+    } else if (getLotacoesByUnidade) {
+      // Fallback: Busca pela lotação direta na unidade
       const lotacoesUnidade = getLotacoesByUnidade(unidade.id);
       for (const lotacao of lotacoesUnidade) {
         if (lotacao.servidor?.full_name) {
