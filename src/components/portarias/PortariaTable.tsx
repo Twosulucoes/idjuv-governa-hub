@@ -308,15 +308,13 @@ export function PortariaTable({
                       </DropdownMenuItem>
                     )}
                     
-                    {portaria.status === 'minuta' && (
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => onDelete?.(portaria)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Excluir
-                      </DropdownMenuItem>
-                    )}
+                    <DropdownMenuItem
+                      className="text-destructive"
+                      onClick={() => onDelete?.(portaria)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir
+                    </DropdownMenuItem>
                     
                     {!['revogado', 'minuta'].includes(portaria.status) && (
                       <>
