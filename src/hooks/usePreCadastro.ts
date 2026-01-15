@@ -407,94 +407,10 @@ export function usePreCadastros() {
         console.error('Erro ao criar lotação:', lotError);
       }
       
-      // 6. Gerar minuta de portaria de nomeação automaticamente
-      let portariaId: string | null = null;
-      let nomeCargo = 'cargo não especificado';
-      let nomeUnidade = 'unidade não especificada';
-      let numeroPortaria = '';
+      // Nota: Portarias devem ser criadas manualmente pela Central de Portarias
+      // após a conversão do servidor
       
-      try {
-        const ano = new Date().getFullYear();
-        
-        // Gerar número da portaria
-        const { data: ultimaPortaria } = await supabase
-          .from('documentos')
-          .select('numero')
-          .eq('tipo', 'portaria')
-          .gte('data_documento', `${ano}-01-01`)
-          .lte('data_documento', `${ano}-12-31`)
-          .order('numero', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        
-        let proximoNumero = 1;
-        if (ultimaPortaria?.numero) {
-          const match = ultimaPortaria.numero.match(/^(\d+)/);
-          if (match) {
-            proximoNumero = parseInt(match[1]) + 1;
-          }
-        }
-        
-        numeroPortaria = `${String(proximoNumero).padStart(3, '0')}/${ano}`;
-        
-        // Buscar nome do cargo
-        if (cargoId) {
-          const { data: cargoData } = await supabase
-            .from('cargos')
-            .select('nome, sigla')
-            .eq('id', cargoId)
-            .single();
-          if (cargoData) {
-            nomeCargo = cargoData.sigla ? `${cargoData.sigla} - ${cargoData.nome}` : cargoData.nome;
-          }
-        }
-        
-        // Buscar nome da unidade
-        const { data: unidadeData } = await supabase
-          .from('estrutura_organizacional')
-          .select('nome, sigla')
-          .eq('id', unidadeId)
-          .single();
-        if (unidadeData) {
-          nomeUnidade = unidadeData.sigla ? `${unidadeData.sigla} - ${unidadeData.nome}` : unidadeData.nome;
-        }
-
-        // Determinar categoria da portaria
-        const categoriaPortaria = tipoServidor === 'comissionado_idjuv' || tipoServidor === 'efetivo_idjuv' 
-          ? 'nomeacao' 
-          : tipoServidor === 'cedido_entrada' 
-            ? 'cessao' 
-            : 'nomeacao';
-
-        // Criar portaria de nomeação como minuta
-        const { data: novaPortaria, error: portariaError } = await supabase
-          .from('documentos')
-          .insert({
-            tipo: 'portaria',
-            categoria: categoriaPortaria as any,
-            status: 'minuta' as any,
-            numero: numeroPortaria,
-            titulo: `Portaria de Nomeação - ${preCadastro.nome_completo}`,
-            ementa: `Nomeia ${preCadastro.nome_completo} para o cargo de ${nomeCargo}, lotado(a) na ${nomeUnidade}.`,
-            data_documento: dataAdmissao,
-            data_vigencia_inicio: dataAdmissao,
-            servidores_ids: [novoServidor.id],
-            cargo_id: cargoId || null,
-            unidade_id: unidadeId,
-          })
-          .select('id')
-          .single();
-        
-        if (portariaError) {
-          console.error('Erro ao criar portaria:', portariaError);
-        } else {
-          portariaId = novaPortaria.id;
-        }
-      } catch (err) {
-        console.error('Erro ao gerar portaria automaticamente:', err);
-      }
-      
-      // 8. Criar provimento vinculado à portaria
+      // 8. Criar provimento sem portaria vinculada
       try {
         const { error: provError } = await supabase
           .from('provimentos')
@@ -506,9 +422,6 @@ export function usePreCadastros() {
             data_nomeacao: dataAdmissao,
             data_posse: dataAdmissao,
             data_exercicio: dataAdmissao,
-            ato_nomeacao_tipo: 'portaria',
-            ato_nomeacao_numero: numeroPortaria,
-            ato_nomeacao_data: dataAdmissao,
           });
         
         if (provError) {
@@ -518,8 +431,21 @@ export function usePreCadastros() {
         console.error('Erro ao criar provimento:', err);
       }
       
-      // 9. Registrar no histórico funcional
+      // 9. Registrar no histórico funcional (sem portaria - será adicionada manualmente)
       try {
+        // Buscar nome do cargo para descrição
+        let nomeCargo = 'cargo não especificado';
+        if (cargoId) {
+          const { data: cargoData } = await supabase
+            .from('cargos')
+            .select('nome, sigla')
+            .eq('id', cargoId)
+            .single();
+          if (cargoData) {
+            nomeCargo = cargoData.sigla ? `${cargoData.sigla} - ${cargoData.nome}` : cargoData.nome;
+          }
+        }
+
         await supabase.from('historico_funcional').insert({
           servidor_id: novoServidor.id,
           tipo: tipoServidor === 'cedido_entrada' ? 'cessao_entrada' : 'nomeacao',
@@ -527,8 +453,6 @@ export function usePreCadastros() {
           data_vigencia_inicio: dataAdmissao,
           cargo_novo_id: cargoId || null,
           unidade_nova_id: unidadeId,
-          portaria_numero: numeroPortaria,
-          portaria_data: dataAdmissao,
           descricao: `Nomeação para ${nomeCargo} - Matrícula ${matricula}`,
         } as any);
       } catch (err) {
@@ -551,8 +475,7 @@ export function usePreCadastros() {
       
       return { 
         servidorId: novoServidor.id, 
-        matricula, 
-        portariaId
+        matricula
       };
     },
     onSuccess: (data) => {
