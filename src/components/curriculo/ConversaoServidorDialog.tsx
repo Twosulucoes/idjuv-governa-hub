@@ -170,8 +170,8 @@ export function ConversaoServidorDialog({
       })) || [];
     }
 
-    // Se tem cargo, filtrar pelas unidades da composição
-    return (composicaoCargo || [])
+    // Se tem cargo, buscar unidades da composição
+    const unidadesDoComposicao = (composicaoCargo || [])
       .filter((c) => c.unidade !== null)
       .map((c) => {
         const vagasTotal = c.quantidade_vagas || 0;
@@ -185,8 +185,22 @@ export function ConversaoServidorDialog({
           vagasTotal,
           vagasOcupadas,
           vagasDisponiveis,
+          fromComposicao: true,
         };
       });
+
+    // Se não tem unidades na composição, mostrar todas as unidades como fallback
+    if (unidadesDoComposicao.length === 0) {
+      return todasUnidades?.map((u) => ({
+        ...u,
+        vagasTotal: null as number | null,
+        vagasOcupadas: 0,
+        vagasDisponiveis: null as number | null,
+        fromComposicao: false,
+      })) || [];
+    }
+
+    return unidadesDoComposicao;
   }, [tipoServidor, cargoId, composicaoCargo, lotacoesAtivas, todasUnidades]);
 
   // Calcular vagas disponíveis para unidade selecionada
@@ -371,13 +385,6 @@ export function ConversaoServidorDialog({
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {unidadesDisponiveis.length === 0 && cargoId && (
-                      <div className="p-2 text-sm text-muted-foreground text-center">
-                        Nenhuma unidade vinculada a este cargo.
-                        <br />
-                        Configure na aba "Distribuição por Unidade".
-                      </div>
-                    )}
                     {unidadesDisponiveis.map((unidade) => {
                       const semVagas = unidade.vagasDisponiveis !== null && unidade.vagasDisponiveis <= 0;
                       
@@ -407,9 +414,9 @@ export function ConversaoServidorDialog({
                     })}
                   </SelectContent>
                 </Select>
-                {regras?.permiteCargo && cargoId && unidadesDisponiveis.length === 0 && (
+                {regras?.permiteCargo && cargoId && composicaoCargo?.length === 0 && (
                   <p className="text-xs text-amber-600">
-                    Este cargo não possui unidades vinculadas. Configure a distribuição na gestão de cargos.
+                    Este cargo não possui unidades vinculadas na composição. Mostrando todas as unidades disponíveis.
                   </p>
                 )}
               </div>
