@@ -177,18 +177,19 @@ export function PortariaKanban({
                                   <Send className="h-4 w-4 mr-2" />
                                   Enviar para Assinatura
                                 </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onDelete?.(portaria);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Excluir
-                                </DropdownMenuItem>
                               </>
                             )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete?.(portaria);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Excluir
+                            </DropdownMenuItem>
                             {status === 'assinado' && (
                               <>
                                 <DropdownMenuSeparator />
