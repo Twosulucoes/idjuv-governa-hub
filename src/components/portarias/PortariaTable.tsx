@@ -12,6 +12,7 @@ import {
   ArrowUpDown,
   Pencil,
   Trash2,
+  Users,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +33,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
@@ -116,6 +123,10 @@ export function PortariaTable({
     return sortConfig.direction === 'asc' ? comparison : -comparison;
   });
 
+  const getServidoresCount = (portaria: Portaria) => {
+    return portaria.servidores_ids?.length || 0;
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -127,224 +138,248 @@ export function PortariaTable({
   }
 
   return (
-    <div className="border rounded-lg">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">
-              <Checkbox
-                checked={selectedIds.length === portarias.length && portarias.length > 0}
-                onCheckedChange={handleSelectAll}
-              />
-            </TableHead>
-            <TableHead className="w-28">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="-ml-3 h-8"
-                onClick={() => handleSort('numero')}
-              >
-                Número
-                <ArrowUpDown className="ml-2 h-4 w-4" />
-              </Button>
-            </TableHead>
-            <TableHead>Título</TableHead>
-            <TableHead className="w-28">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="-ml-3 h-8"
-                onClick={() => handleSort('categoria')}
-              >
-                Categoria
-                <ArrowUpDown className="ml-2 h-4 w-4" />
-              </Button>
-            </TableHead>
-            <TableHead className="w-28">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="-ml-3 h-8"
-                onClick={() => handleSort('data_documento')}
-              >
-                Data
-                <ArrowUpDown className="ml-2 h-4 w-4" />
-              </Button>
-            </TableHead>
-            <TableHead className="w-40">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="-ml-3 h-8"
-                onClick={() => handleSort('status')}
-              >
-                Status
-                <ArrowUpDown className="ml-2 h-4 w-4" />
-              </Button>
-            </TableHead>
-            <TableHead className="w-24">DOE</TableHead>
-            <TableHead className="w-12"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedPortarias.map((portaria) => (
-            <TableRow
-              key={portaria.id}
-              className="cursor-pointer"
-              onClick={() => onView?.(portaria)}
-            >
-              <TableCell onClick={(e) => e.stopPropagation()}>
+    <TooltipProvider>
+      <div className="border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12">
                 <Checkbox
-                  checked={selectedIds.includes(portaria.id)}
-                  onCheckedChange={(checked) =>
-                    handleSelectOne(portaria.id, checked as boolean)
-                  }
+                  checked={selectedIds.length === portarias.length && portarias.length > 0}
+                  onCheckedChange={handleSelectAll}
                 />
-              </TableCell>
-              <TableCell className="font-mono text-sm font-medium">
-                {portaria.numero}
-              </TableCell>
-              <TableCell>
-                <div>
-                  <p className="font-medium text-sm">{portaria.titulo}</p>
-                  {portaria.ementa && (
-                    <p className="text-xs text-muted-foreground line-clamp-1">
-                      {portaria.ementa}
-                    </p>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>
-                {portaria.categoria && (
-                  <Badge variant="outline" className="capitalize text-xs">
-                    {portaria.categoria}
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell className="text-sm">
-                {format(new Date(portaria.data_documento), 'dd/MM/yyyy', {
-                  locale: ptBR,
-                })}
-              </TableCell>
-              <TableCell>
-                <Badge
-                  variant="secondary"
-                  className={cn('text-xs', STATUS_PORTARIA_COLORS[portaria.status])}
+              </TableHead>
+              <TableHead className="w-28">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="-ml-3 h-8"
+                  onClick={() => handleSort('numero')}
                 >
-                  {STATUS_PORTARIA_LABELS[portaria.status]}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-sm text-muted-foreground">
-                {portaria.doe_numero ? (
-                  <span>
-                    {portaria.doe_numero}
-                    {portaria.doe_data && (
-                      <span className="block text-xs">
-                        {format(new Date(portaria.doe_data), 'dd/MM/yy')}
-                      </span>
+                  Número
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </TableHead>
+              <TableHead>Título</TableHead>
+              <TableHead className="w-28">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="-ml-3 h-8"
+                  onClick={() => handleSort('categoria')}
+                >
+                  Categoria
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </TableHead>
+              <TableHead className="w-20 text-center">Servidores</TableHead>
+              <TableHead className="w-28">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="-ml-3 h-8"
+                  onClick={() => handleSort('data_documento')}
+                >
+                  Data
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </TableHead>
+              <TableHead className="w-40">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="-ml-3 h-8"
+                  onClick={() => handleSort('status')}
+                >
+                  Status
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </TableHead>
+              <TableHead className="w-24">DOE</TableHead>
+              <TableHead className="w-12"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sortedPortarias.map((portaria) => {
+              const servidoresCount = getServidoresCount(portaria);
+              
+              return (
+                <TableRow
+                  key={portaria.id}
+                  className="cursor-pointer"
+                  onClick={() => onView?.(portaria)}
+                >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.includes(portaria.id)}
+                      onCheckedChange={(checked) =>
+                        handleSelectOne(portaria.id, checked as boolean)
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="font-mono text-sm font-medium">
+                    {portaria.numero}
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium text-sm">{portaria.titulo}</p>
+                      {portaria.ementa && (
+                        <p className="text-xs text-muted-foreground line-clamp-1">
+                          {portaria.ementa}
+                        </p>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {portaria.categoria && (
+                      <Badge variant="outline" className="capitalize text-xs">
+                        {portaria.categoria}
+                      </Badge>
                     )}
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground/50">-</span>
-                )}
-              </TableCell>
-              <TableCell onClick={(e) => e.stopPropagation()}>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onView?.(portaria)}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      Visualizar
-                    </DropdownMenuItem>
-                    {(portaria.status === 'minuta' || portaria.status === 'aguardando_assinatura') && (
-                      <DropdownMenuItem onClick={() => onEdit?.(portaria)}>
-                        <Pencil className="h-4 w-4 mr-2" />
-                        Editar
-                      </DropdownMenuItem>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {servidoresCount > 0 ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="secondary" className="gap-1">
+                            <Users className="h-3 w-3" />
+                            {servidoresCount}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {servidoresCount} servidor(es) vinculado(s)
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <span className="text-muted-foreground/50">-</span>
                     )}
-                    <DropdownMenuItem onClick={() => onGeneratePdf?.(portaria)}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Gerar PDF
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    
-                    {portaria.status === 'minuta' && (
-                      <DropdownMenuItem
-                        onClick={() => enviarParaAssinatura.mutate(portaria.id)}
-                      >
-                        <Send className="h-4 w-4 mr-2" />
-                        Enviar para Assinatura
-                      </DropdownMenuItem>
-                    )}
-                    
-                    {portaria.status === 'aguardando_assinatura' && (
-                      <DropdownMenuItem
-                        onClick={() => onRegistrarAssinatura?.(portaria)}
-                      >
-                        <FileSignature className="h-4 w-4 mr-2" />
-                        Registrar Assinatura
-                      </DropdownMenuItem>
-                    )}
-                    
-                    {portaria.status === 'assinado' && (
-                      <DropdownMenuItem
-                        onClick={() => enviarParaPublicacao.mutate(portaria.id)}
-                      >
-                        <Send className="h-4 w-4 mr-2" />
-                        Enviar para Publicação
-                      </DropdownMenuItem>
-                    )}
-                    
-                    {portaria.status === 'aguardando_publicacao' && (
-                      <DropdownMenuItem
-                        onClick={() => onRegistrarPublicacao?.(portaria)}
-                      >
-                        <Newspaper className="h-4 w-4 mr-2" />
-                        Registrar Publicação
-                      </DropdownMenuItem>
-                    )}
-                    
-                    <DropdownMenuItem
-                      className="text-destructive"
-                      onClick={() => onDelete?.(portaria)}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {format(new Date(portaria.data_documento), 'dd/MM/yyyy', {
+                      locale: ptBR,
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="secondary"
+                      className={cn('text-xs', STATUS_PORTARIA_COLORS[portaria.status])}
                     >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Excluir
-                    </DropdownMenuItem>
-                    
-                    {!['revogado', 'minuta'].includes(portaria.status) && (
-                      <>
+                      {STATUS_PORTARIA_LABELS[portaria.status]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {portaria.doe_numero ? (
+                      <span>
+                        {portaria.doe_numero}
+                        {portaria.doe_data && (
+                          <span className="block text-xs">
+                            {format(new Date(portaria.doe_data), 'dd/MM/yy')}
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground/50">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onView?.(portaria)}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          Visualizar
+                        </DropdownMenuItem>
+                        {(portaria.status === 'minuta' || portaria.status === 'aguardando_assinatura') && (
+                          <DropdownMenuItem onClick={() => onEdit?.(portaria)}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Editar
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onClick={() => onGeneratePdf?.(portaria)}>
+                          <Download className="h-4 w-4 mr-2" />
+                          Gerar PDF
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
+                        
+                        {portaria.status === 'minuta' && (
+                          <DropdownMenuItem
+                            onClick={() => enviarParaAssinatura.mutate(portaria.id)}
+                          >
+                            <Send className="h-4 w-4 mr-2" />
+                            Enviar para Assinatura
+                          </DropdownMenuItem>
+                        )}
+                        
+                        {portaria.status === 'aguardando_assinatura' && (
+                          <DropdownMenuItem
+                            onClick={() => onRegistrarAssinatura?.(portaria)}
+                          >
+                            <FileSignature className="h-4 w-4 mr-2" />
+                            Registrar Assinatura
+                          </DropdownMenuItem>
+                        )}
+                        
+                        {portaria.status === 'assinado' && (
+                          <DropdownMenuItem
+                            onClick={() => enviarParaPublicacao.mutate(portaria.id)}
+                          >
+                            <Send className="h-4 w-4 mr-2" />
+                            Enviar para Publicação
+                          </DropdownMenuItem>
+                        )}
+                        
+                        {portaria.status === 'aguardando_publicacao' && (
+                          <DropdownMenuItem
+                            onClick={() => onRegistrarPublicacao?.(portaria)}
+                          >
+                            <Newspaper className="h-4 w-4 mr-2" />
+                            Registrar Publicação
+                          </DropdownMenuItem>
+                        )}
+                        
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={() =>
-                            revogarPortaria.mutate({ id: portaria.id })
-                          }
+                          onClick={() => onDelete?.(portaria)}
                         >
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Revogar
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Excluir
                         </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-          ))}
-          
-          {sortedPortarias.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={8} className="h-32 text-center">
-                <p className="text-muted-foreground">Nenhuma portaria encontrada</p>
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </div>
+                        
+                        {!['revogado', 'minuta'].includes(portaria.status) && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() =>
+                                revogarPortaria.mutate({ id: portaria.id })
+                              }
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Revogar
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            
+            {sortedPortarias.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={9} className="h-32 text-center">
+                  <p className="text-muted-foreground">Nenhuma portaria encontrada</p>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </TooltipProvider>
   );
 }
