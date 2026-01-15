@@ -44,9 +44,9 @@ import {
   PortariaKanban,
   PortariaTable,
   RegistrarPublicacaoDialog,
-  EditarPortariaDialog,
 } from '@/components/portarias';
 import { NovaPortariaUnificada } from '@/components/portarias/NovaPortariaUnificada';
+import { supabase } from '@/integrations/supabase/client';
 import { supabase } from '@/integrations/supabase/client';
 import { usePortarias, useRegistrarAssinatura, useDeletePortaria } from '@/hooks/usePortarias';
 import { StatusPortaria, STATUS_PORTARIA_LABELS, Portaria } from '@/types/portaria';
@@ -66,10 +66,10 @@ function htmlToText(html?: string | null) {
 export default function CentralPortariasPage() {
   const [view, setView] = useState<'kanban' | 'table'>('kanban');
   const [novaPortariaOpen, setNovaPortariaOpen] = useState(false);
+  const [editPortariaOpen, setEditPortariaOpen] = useState(false);
   const [publicacaoDialogOpen, setPublicacaoDialogOpen] = useState(false);
   const [assinaturaDialogOpen, setAssinaturaDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
@@ -106,7 +106,7 @@ export default function CentralPortariasPage() {
 
   const handleEdit = (portaria: Portaria) => {
     setSelectedPortaria(portaria);
-    setEditDialogOpen(true);
+    setEditPortariaOpen(true);
   };
 
   const handleDeleteRequest = (portaria: Portaria) => {
@@ -355,17 +355,19 @@ export default function CentralPortariasPage() {
         onSuccess={() => refetch()}
       />
 
+      {/* Dialog Editar Portaria (usa o mesmo formulário unificado) */}
+      <NovaPortariaUnificada
+        open={editPortariaOpen}
+        onOpenChange={setEditPortariaOpen}
+        onSuccess={() => refetch()}
+        mode="edit"
+        portariaId={selectedPortaria?.id}
+        initialPortaria={selectedPortaria}
+      />
+
       <RegistrarPublicacaoDialog
         open={publicacaoDialogOpen}
         onOpenChange={setPublicacaoDialogOpen}
-        portaria={selectedPortaria}
-        onSuccess={() => refetch()}
-      />
-
-      {/* Dialog Editar Portaria */}
-      <EditarPortariaDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
         portaria={selectedPortaria}
         onSuccess={() => refetch()}
       />

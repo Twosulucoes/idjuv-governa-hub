@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, Wand2, Download, FileType, ClipboardList, Users, PenTool } from 'lucide-react';
+import { FileText, Wand2, Download, FileType, ClipboardList, Users, PenTool, Save, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -28,12 +28,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { useGerarNumeroPortaria, useCreatePortaria, useRegistrarPortariaNoHistorico } from '@/hooks/usePortarias';
-import { CategoriaPortaria } from '@/types/portaria';
+import { useGerarNumeroPortaria, useCreatePortaria, useUpdatePortaria, useRegistrarPortariaNoHistorico, usePortaria } from '@/hooks/usePortarias';
+import { CategoriaPortaria, Portaria } from '@/types/portaria';
 import {
   Artigo,
   ConfiguracaoTabela as ConfigTabela,
   ConfiguracaoAssinatura,
+  ConteudoUnificado,
   PREAMBULO_TEMPLATES,
   ARTIGOS_TEMPLATES,
   ASSINATURA_PADRAO,
@@ -50,9 +51,14 @@ interface NovaPortariaUnificadaProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  // Props para modo edição
+  mode?: 'create' | 'edit';
+  portariaId?: string;
+  initialPortaria?: Portaria | null;
 }
 
 const CATEGORIAS: { value: CategoriaPortaria; label: string }[] = [
+  { value: 'pessoal', label: 'Pessoal (Genérica)' },
   { value: 'nomeacao', label: 'Nomeação' },
   { value: 'exoneracao', label: 'Exoneração' },
   { value: 'designacao', label: 'Designação' },
@@ -61,7 +67,6 @@ const CATEGORIAS: { value: CategoriaPortaria; label: string }[] = [
   { value: 'licenca', label: 'Licença' },
   { value: 'cessao', label: 'Cessão' },
   { value: 'delegacao', label: 'Delegação' },
-  { value: 'pessoal', label: 'Pessoal (Genérica)' },
   { value: 'estruturante', label: 'Estruturante' },
   { value: 'normativa', label: 'Normativa' },
 ];
@@ -70,14 +75,18 @@ export function NovaPortariaUnificada({
   open,
   onOpenChange,
   onSuccess,
+  mode = 'create',
+  portariaId,
+  initialPortaria,
 }: NovaPortariaUnificadaProps) {
   const [activeTab, setActiveTab] = useState<'dados' | 'conteudo' | 'servidores' | 'assinatura'>('dados');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Dados básicos
   const [numero, setNumero] = useState('');
   const [dataDocumento, setDataDocumento] = useState(new Date().toISOString().split('T')[0]);
-  const [categoria, setCategoria] = useState<CategoriaPortaria>('nomeacao');
+  const [categoria, setCategoria] = useState<CategoriaPortaria>('pessoal');
   const [titulo, setTitulo] = useState('');
   const [ementa, setEmenta] = useState('');
 
@@ -85,10 +94,10 @@ export function NovaPortariaUnificada({
   const [camposEspecificos, setCamposEspecificos] = useState<Record<string, any>>({});
 
   // Conteúdo
-  const [preambulo, setPreambulo] = useState(PREAMBULO_TEMPLATES.nomeacao);
-  const [artigos, setArtigos] = useState<Artigo[]>(ARTIGOS_TEMPLATES.nomeacao);
+  const [preambulo, setPreambulo] = useState(PREAMBULO_TEMPLATES.pessoal);
+  const [artigos, setArtigos] = useState<Artigo[]>(ARTIGOS_TEMPLATES.pessoal);
   const [configTabela, setConfigTabela] = useState<ConfigTabela>({
-    habilitada: true,
+    habilitada: false,
     colunas: COLUNAS_PADRAO,
     colunasPersonalizadas: [],
   });
@@ -102,17 +111,71 @@ export function NovaPortariaUnificada({
 
   const gerarNumero = useGerarNumeroPortaria();
   const createPortaria = useCreatePortaria();
+  const updatePortaria = useUpdatePortaria();
   const registrarHistoricoMutation = useRegistrarPortariaNoHistorico();
 
-  // Atualizar templates quando categoria muda
+  // Carregar portaria para edição
+  const { data: portariaData } = usePortaria(mode === 'edit' ? portariaId : undefined);
+
+  // Carregar dados da portaria em modo edição
   useEffect(() => {
-    const novoPreambulo = PREAMBULO_TEMPLATES[categoria] || PREAMBULO_TEMPLATES.pessoal;
-    const novosArtigos = ARTIGOS_TEMPLATES[categoria] || ARTIGOS_TEMPLATES.pessoal;
-    
-    setPreambulo(novoPreambulo);
-    setArtigos(novosArtigos.map((a) => ({ ...a, id: crypto.randomUUID() })));
-    setCamposEspecificos({});
-  }, [categoria]);
+    if (mode === 'edit' && open && !isLoaded) {
+      const portaria = initialPortaria || portariaData;
+      if (portaria) {
+        setNumero(portaria.numero || '');
+        setDataDocumento(portaria.data_documento || new Date().toISOString().split('T')[0]);
+        setCategoria((portaria.categoria as CategoriaPortaria) || 'pessoal');
+        setTitulo(portaria.titulo || '');
+        setEmenta(portaria.ementa || '');
+        setSelectedIds(portaria.servidores_ids || []);
+
+        // Tentar carregar conteúdo unificado do banco
+        const conteudoUnificado = (portaria as any).conteudo_unificado as ConteudoUnificado | null;
+        
+        if (conteudoUnificado) {
+          setPreambulo(conteudoUnificado.preambulo);
+          setArtigos(conteudoUnificado.artigos.map((a) => ({ ...a, id: a.id || crypto.randomUUID() })));
+          setConfigTabela(conteudoUnificado.configTabela);
+          setAssinatura(conteudoUnificado.assinatura);
+          setCamposEspecificos(conteudoUnificado.camposEspecificos || {});
+        } else {
+          // Fallback: usar templates da categoria
+          const cat = (portaria.categoria as CategoriaPortaria) || 'pessoal';
+          setPreambulo(PREAMBULO_TEMPLATES[cat] || PREAMBULO_TEMPLATES.pessoal);
+          setArtigos((ARTIGOS_TEMPLATES[cat] || ARTIGOS_TEMPLATES.pessoal).map((a) => ({ ...a, id: crypto.randomUUID() })));
+          
+          // Se tem mais de 1 servidor, provavelmente é coletiva
+          if ((portaria.servidores_ids?.length || 0) > 1) {
+            setConfigTabela({
+              habilitada: true,
+              colunas: COLUNAS_PADRAO,
+              colunasPersonalizadas: [],
+            });
+          }
+          
+          // Carregar campos específicos
+          setCamposEspecificos({
+            cargo_id: portaria.cargo_id,
+            unidade_id: portaria.unidade_id,
+          });
+        }
+
+        setIsLoaded(true);
+      }
+    }
+  }, [mode, open, portariaData, initialPortaria, isLoaded]);
+
+  // Atualizar templates quando categoria muda (apenas em modo create e se não carregou dados)
+  useEffect(() => {
+    if (mode === 'create' && !isLoaded) {
+      const novoPreambulo = PREAMBULO_TEMPLATES[categoria] || PREAMBULO_TEMPLATES.pessoal;
+      const novosArtigos = ARTIGOS_TEMPLATES[categoria] || ARTIGOS_TEMPLATES.pessoal;
+      
+      setPreambulo(novoPreambulo);
+      setArtigos(novosArtigos.map((a) => ({ ...a, id: crypto.randomUUID() })));
+      setCamposEspecificos({});
+    }
+  }, [categoria, mode, isLoaded]);
 
   // Reset ao fechar
   useEffect(() => {
@@ -125,20 +188,21 @@ export function NovaPortariaUnificada({
     setActiveTab('dados');
     setNumero('');
     setDataDocumento(new Date().toISOString().split('T')[0]);
-    setCategoria('nomeacao');
+    setCategoria('pessoal');
     setTitulo('');
     setEmenta('');
     setCamposEspecificos({});
-    setPreambulo(PREAMBULO_TEMPLATES.nomeacao);
-    setArtigos(ARTIGOS_TEMPLATES.nomeacao.map((a) => ({ ...a, id: crypto.randomUUID() })));
+    setPreambulo(PREAMBULO_TEMPLATES.pessoal);
+    setArtigos(ARTIGOS_TEMPLATES.pessoal.map((a) => ({ ...a, id: crypto.randomUUID() })));
     setConfigTabela({
-      habilitada: true,
+      habilitada: false,
       colunas: COLUNAS_PADRAO,
       colunasPersonalizadas: [],
     });
     setSelectedIds([]);
     setRegistrarHistorico(true);
     setAssinatura(ASSINATURA_PADRAO);
+    setIsLoaded(false);
   };
 
   const handleGerarNumero = async () => {
@@ -180,13 +244,22 @@ export function NovaPortariaUnificada({
   const buildCabecalhoCompleto = () => {
     let cabecalho = preambulo + '\n\n';
     
-    if (!configTabela.habilitada) {
-      artigos.forEach((artigo) => {
-        cabecalho += `Art. ${artigo.numero} ${artigo.conteudo}\n\n`;
-      });
-    }
+    artigos.forEach((artigo) => {
+      cabecalho += `Art. ${artigo.numero} ${artigo.conteudo}\n\n`;
+    });
     
     return cabecalho.trim();
+  };
+
+  const buildConteudoUnificado = (): ConteudoUnificado => {
+    return {
+      version: 1,
+      preambulo,
+      artigos,
+      configTabela,
+      assinatura,
+      camposEspecificos,
+    };
   };
 
   const handleSalvar = async () => {
@@ -201,7 +274,7 @@ export function NovaPortariaUnificada({
 
     setIsGenerating(true);
     try {
-      const portariaData = {
+      const portariaPayload = {
         titulo,
         numero,
         tipo: 'portaria' as const,
@@ -211,30 +284,36 @@ export function NovaPortariaUnificada({
         ementa: ementa || `${CATEGORIAS.find((c) => c.value === categoria)?.label || 'Portaria'} - ${selectedIds.length} servidor(es)`,
         servidores_ids: selectedIds.length > 0 ? selectedIds : undefined,
         conteudo_html: buildCabecalhoCompleto(),
-        cargo_id: camposEspecificos.cargo_id,
-        unidade_id: camposEspecificos.unidade_id,
+        conteudo_unificado: buildConteudoUnificado(),
+        cargo_id: configTabela.habilitada ? undefined : camposEspecificos.cargo_id,
+        unidade_id: configTabela.habilitada ? undefined : camposEspecificos.unidade_id,
       };
 
-      const portariaCriada = await createPortaria.mutateAsync(portariaData);
-
-      // Registrar no histórico funcional se marcado
-      if (registrarHistorico && selectedIds.length > 0 && portariaCriada?.numero) {
-        try {
-          await registrarHistoricoMutation.mutateAsync({
-            servidores_ids: selectedIds,
-            portaria_numero: portariaCriada.numero,
-            portaria_data: dataDocumento,
-            categoria,
-            cargo_id: camposEspecificos.cargo_id,
-            unidade_id: camposEspecificos.unidade_id,
-          });
-          toast.success(`Portaria salva e ${selectedIds.length} registro(s) adicionado(s) ao histórico funcional!`);
-        } catch (histError) {
-          console.error('Erro ao registrar histórico:', histError);
-          toast.success('Portaria salva! (erro ao registrar histórico)');
-        }
+      if (mode === 'edit' && portariaId) {
+        await updatePortaria.mutateAsync({ id: portariaId, dados: portariaPayload });
+        toast.success('Portaria atualizada com sucesso!');
       } else {
-        toast.success('Portaria salva com sucesso!');
+        const portariaCriada = await createPortaria.mutateAsync(portariaPayload);
+
+        // Registrar no histórico funcional se marcado
+        if (registrarHistorico && selectedIds.length > 0 && portariaCriada?.numero) {
+          try {
+            await registrarHistoricoMutation.mutateAsync({
+              servidores_ids: selectedIds,
+              portaria_numero: portariaCriada.numero,
+              portaria_data: dataDocumento,
+              categoria,
+              cargo_id: camposEspecificos.cargo_id,
+              unidade_id: camposEspecificos.unidade_id,
+            });
+            toast.success(`Portaria salva e ${selectedIds.length} registro(s) adicionado(s) ao histórico funcional!`);
+          } catch (histError) {
+            console.error('Erro ao registrar histórico:', histError);
+            toast.success('Portaria salva! (erro ao registrar histórico)');
+          }
+        } else {
+          toast.success('Portaria salva com sucesso!');
+        }
       }
 
       onSuccess?.();
@@ -314,17 +393,21 @@ export function NovaPortariaUnificada({
   };
 
   const canGenerate = numero && (configTabela.habilitada ? selectedIds.length > 0 : true);
+  const isEditMode = mode === 'edit';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl w-[95vw] max-h-[95vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Nova Portaria
+            {isEditMode ? <Edit className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+            {isEditMode ? 'Editar Portaria' : 'Nova Portaria'}
           </DialogTitle>
           <DialogDescription>
-            Crie portarias de qualquer tipo com modelo padronizado do IDJuv
+            {isEditMode 
+              ? `Editando portaria nº ${numero}`
+              : 'Crie portarias de qualquer tipo com modelo padronizado do IDJuv'
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -429,11 +512,12 @@ export function NovaPortariaUnificada({
                 />
               </div>
 
-              {/* Campos específicos por categoria (renderiza dinamicamente) */}
+              {/* Campos específicos por categoria - oculta cargo/unidade se tabela habilitada */}
               <CamposDinamicos
                 categoria={categoria}
                 valores={camposEspecificos}
                 onChange={handleCampoEspecificoChange}
+                modoColetivo={configTabela.habilitada}
               />
             </TabsContent>
 
@@ -465,18 +549,23 @@ export function NovaPortariaUnificada({
             <TabsContent value="servidores" className="m-0 space-y-4">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-muted-foreground">
-                  Selecione os servidores que serão incluídos na portaria
+                  {configTabela.habilitada 
+                    ? 'Selecione os servidores que serão incluídos na tabela da portaria'
+                    : 'Selecione os servidores relacionados a esta portaria (opcional)'
+                  }
                 </p>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="registrar-historico"
-                    checked={registrarHistorico}
-                    onCheckedChange={(checked) => setRegistrarHistorico(checked === true)}
-                  />
-                  <Label htmlFor="registrar-historico" className="text-sm font-normal cursor-pointer">
-                    Registrar no histórico funcional
-                  </Label>
-                </div>
+                {!isEditMode && (
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="registrar-historico"
+                      checked={registrarHistorico}
+                      onCheckedChange={(checked) => setRegistrarHistorico(checked === true)}
+                    />
+                    <Label htmlFor="registrar-historico" className="text-sm font-normal cursor-pointer">
+                      Registrar no histórico funcional
+                    </Label>
+                  </div>
+                )}
               </div>
 
               <SelecionarServidoresTable
@@ -491,72 +580,71 @@ export function NovaPortariaUnificada({
               <Card>
                 <CardContent className="pt-6 space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="assinatura-nome">Nome do Signatário</Label>
+                    <Label htmlFor="assinante-nome">Nome do Signatário</Label>
                     <Input
-                      id="assinatura-nome"
+                      id="assinante-nome"
                       value={assinatura.nome}
-                      onChange={(e) => setAssinatura((prev) => ({ ...prev, nome: e.target.value }))}
+                      onChange={(e) => setAssinatura((a) => ({ ...a, nome: e.target.value }))}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="assinatura-cargo">Cargo</Label>
+                    <Label htmlFor="assinante-cargo">Cargo</Label>
                     <Textarea
-                      id="assinatura-cargo"
-                      value={assinatura.cargo}
-                      onChange={(e) => setAssinatura((prev) => ({ ...prev, cargo: e.target.value }))}
+                      id="assinante-cargo"
                       rows={2}
+                      value={assinatura.cargo}
+                      onChange={(e) => setAssinatura((a) => ({ ...a, cargo: e.target.value }))}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="assinatura-local">Local</Label>
+                    <Label htmlFor="assinante-local">Local</Label>
                     <Input
-                      id="assinatura-local"
+                      id="assinante-local"
                       value={assinatura.local}
-                      onChange={(e) => setAssinatura((prev) => ({ ...prev, local: e.target.value }))}
+                      onChange={(e) => setAssinatura((a) => ({ ...a, local: e.target.value }))}
                     />
                   </div>
+                </CardContent>
+              </Card>
 
-                  {/* Preview da assinatura */}
-                  <div className="border-t pt-4 mt-4">
-                    <Label className="text-sm font-medium mb-3 block">Prévia da Assinatura</Label>
-                    <div className="text-center py-6 bg-muted/30 rounded-lg">
-                      <p className="text-sm text-muted-foreground mb-4">
-                        {assinatura.local}, {format(new Date(dataDocumento), "d 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                      </p>
-                      <p className="font-bold">{assinatura.nome}</p>
-                      <p className="text-sm whitespace-pre-line">{assinatura.cargo}</p>
-                    </div>
-                  </div>
+              {/* Preview */}
+              <Card className="bg-muted/40">
+                <CardContent className="pt-6 text-center space-y-1">
+                  <p className="font-semibold">{assinatura.nome}</p>
+                  {assinatura.cargo.split('\n').map((linha, i) => (
+                    <p key={i} className="text-sm text-muted-foreground">{linha}</p>
+                  ))}
                 </CardContent>
               </Card>
             </TabsContent>
           </div>
         </Tabs>
 
-        <DialogFooter className="mt-4 pt-4 border-t flex-wrap gap-2">
+        <DialogFooter className="flex-wrap gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={handleSalvar}
-            disabled={!numero || !titulo || isGenerating}
+            disabled={isGenerating || !numero || !titulo}
           >
-            Salvar Minuta
+            <Save className="h-4 w-4 mr-2" />
+            {isEditMode ? 'Salvar Alterações' : 'Salvar Minuta'}
           </Button>
           <Button
             variant="outline"
             onClick={handleGerarWord}
-            disabled={!canGenerate || isGenerating}
+            disabled={isGenerating || !canGenerate}
           >
             <FileType className="h-4 w-4 mr-2" />
-            {isGenerating ? 'Gerando...' : 'Gerar Word'}
+            Word
           </Button>
           <Button
             onClick={handleGerarPdf}
-            disabled={!canGenerate || isGenerating}
+            disabled={isGenerating || !canGenerate}
           >
             <Download className="h-4 w-4 mr-2" />
             {isGenerating ? 'Gerando...' : 'Gerar PDF'}

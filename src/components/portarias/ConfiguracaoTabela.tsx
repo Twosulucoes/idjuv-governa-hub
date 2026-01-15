@@ -1,16 +1,18 @@
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   ConfiguracaoTabela as ConfigTabela,
   ColunaTabela,
   ColunaPersonalizada,
   COLUNA_LABELS,
   COLUNAS_PADRAO,
+  COLUNAS_MINIMAS,
 } from '@/types/portariaUnificada';
 
 interface ConfiguracaoTabelaProps {
@@ -45,7 +47,19 @@ export function ConfiguracaoTabela({ config, onChange }: ConfiguracaoTabelaProps
       );
       onChange({ ...config, colunas: novasColunas });
     } else {
-      onChange({ ...config, colunas: config.colunas.filter((c) => c !== coluna) });
+      // Não permitir desmarcar colunas mínimas
+      if (COLUNAS_MINIMAS.includes(coluna)) {
+        return;
+      }
+      
+      const novasColunas = config.colunas.filter((c) => c !== coluna);
+      
+      // Garantir que pelo menos as colunas mínimas permaneçam
+      if (novasColunas.length < COLUNAS_MINIMAS.length) {
+        return;
+      }
+      
+      onChange({ ...config, colunas: novasColunas });
     }
   };
 
@@ -81,6 +95,8 @@ export function ConfiguracaoTabela({ config, onChange }: ConfiguracaoTabelaProps
     });
   };
 
+  const totalColunas = config.colunas.length + config.colunasPersonalizadas.length;
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -88,7 +104,7 @@ export function ConfiguracaoTabela({ config, onChange }: ConfiguracaoTabelaProps
           <CardTitle className="text-base">Tabela de Servidores</CardTitle>
           <div className="flex items-center gap-2">
             <Label htmlFor="tabela-habilitada" className="text-sm">
-              Incluir tabela no documento
+              Portaria Coletiva (com tabela)
             </Label>
             <Switch
               id="tabela-habilitada"
@@ -101,27 +117,41 @@ export function ConfiguracaoTabela({ config, onChange }: ConfiguracaoTabelaProps
 
       {config.habilitada && (
         <CardContent className="space-y-4">
+          <Alert variant="default" className="bg-muted/50">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              No modo coletivo, os dados de cargo e unidade são obtidos de cada servidor selecionado.
+            </AlertDescription>
+          </Alert>
+
           {/* Colunas padrão */}
           <div>
             <Label className="text-sm font-medium mb-2 block">Colunas da Tabela</Label>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {colunasDisponiveis.map((coluna) => (
-                <div key={coluna} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`coluna-${coluna}`}
-                    checked={config.colunas.includes(coluna)}
-                    onCheckedChange={(checked) =>
-                      handleToggleColuna(coluna, checked === true)
-                    }
-                  />
-                  <Label
-                    htmlFor={`coluna-${coluna}`}
-                    className="text-sm font-normal cursor-pointer"
-                  >
-                    {COLUNA_LABELS[coluna]}
-                  </Label>
-                </div>
-              ))}
+              {colunasDisponiveis.map((coluna) => {
+                const isMinima = COLUNAS_MINIMAS.includes(coluna);
+                const isChecked = config.colunas.includes(coluna);
+                
+                return (
+                  <div key={coluna} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`coluna-${coluna}`}
+                      checked={isChecked}
+                      disabled={isMinima && isChecked}
+                      onCheckedChange={(checked) =>
+                        handleToggleColuna(coluna, checked === true)
+                      }
+                    />
+                    <Label
+                      htmlFor={`coluna-${coluna}`}
+                      className={`text-sm font-normal cursor-pointer ${isMinima ? 'font-medium' : ''}`}
+                    >
+                      {COLUNA_LABELS[coluna]}
+                      {isMinima && <span className="text-xs text-muted-foreground ml-1">(obrigatório)</span>}
+                    </Label>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -173,7 +203,9 @@ export function ConfiguracaoTabela({ config, onChange }: ConfiguracaoTabelaProps
 
           {/* Preview da ordem das colunas */}
           <div className="border-t pt-4">
-            <Label className="text-sm font-medium mb-2 block">Prévia das Colunas</Label>
+            <Label className="text-sm font-medium mb-2 block">
+              Prévia das Colunas ({totalColunas} colunas)
+            </Label>
             <div className="flex flex-wrap gap-1">
               {config.colunas.map((coluna, index) => (
                 <span

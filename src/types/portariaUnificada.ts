@@ -35,6 +35,16 @@ export interface ConfiguracaoAssinatura {
   local: string;
 }
 
+// Interface para conteúdo unificado salvo no banco
+export interface ConteudoUnificado {
+  version: number;
+  preambulo: string;
+  artigos: Artigo[];
+  configTabela: ConfiguracaoTabela;
+  assinatura: ConfiguracaoAssinatura;
+  camposEspecificos: Record<string, any>;
+}
+
 export interface DadosPortariaUnificada {
   // Dados básicos
   numero: string;
@@ -67,6 +77,8 @@ export interface DadosPortariaUnificada {
 }
 
 // Campos que aparecem para cada categoria
+// NOTA: Para portarias coletivas (tabela habilitada), cargo_id e unidade_id são ocultados
+// pois os dados vêm diretamente de cada servidor na tabela
 export const CAMPOS_POR_CATEGORIA: Record<string, string[]> = {
   nomeacao: ['cargo_id', 'unidade_id'],
   exoneracao: ['cargo_id', 'unidade_id'],
@@ -80,6 +92,9 @@ export const CAMPOS_POR_CATEGORIA: Record<string, string[]> = {
   delegacao: [],
   dispensa: ['unidade_origem_id', 'unidade_destino_id'],
 };
+
+// Campos que devem ser ocultados quando tabela está habilitada (modo coletivo)
+export const CAMPOS_OCULTOS_MODO_COLETIVO = ['cargo_id', 'unidade_id'];
 
 // Labels para os campos
 export const CAMPO_LABELS: Record<string, string> = {
@@ -215,6 +230,9 @@ export const COLUNAS_PADRAO: ColunaTabela[] = [
   'unidade_setor',
   'codigo',
 ];
+
+// Colunas mínimas obrigatórias
+export const COLUNAS_MINIMAS: ColunaTabela[] = ['numero', 'nome_completo'];
 
 // Tipos de licença disponíveis
 export const TIPOS_LICENCA = [

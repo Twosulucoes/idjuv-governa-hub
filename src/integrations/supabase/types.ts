@@ -1609,6 +1609,7 @@ export type Database = {
           cargo_id: string | null
           categoria: Database["public"]["Enums"]["categoria_portaria"] | null
           conteudo_html: string | null
+          conteudo_unificado: Json | null
           created_at: string
           created_by: string | null
           data_assinatura: string | null
@@ -1638,6 +1639,7 @@ export type Database = {
           cargo_id?: string | null
           categoria?: Database["public"]["Enums"]["categoria_portaria"] | null
           conteudo_html?: string | null
+          conteudo_unificado?: Json | null
           created_at?: string
           created_by?: string | null
           data_assinatura?: string | null
@@ -1667,6 +1669,7 @@ export type Database = {
           cargo_id?: string | null
           categoria?: Database["public"]["Enums"]["categoria_portaria"] | null
           conteudo_html?: string | null
+          conteudo_unificado?: Json | null
           created_at?: string
           created_by?: string | null
           data_assinatura?: string | null

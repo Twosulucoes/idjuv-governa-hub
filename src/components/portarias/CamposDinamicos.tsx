@@ -14,16 +14,29 @@ import {
   CAMPO_LABELS,
   TIPOS_LICENCA,
   OPCOES_ONUS,
+  CAMPOS_OCULTOS_MODO_COLETIVO,
 } from '@/types/portariaUnificada';
 
 interface CamposDinamicosProps {
   categoria: string;
   valores: Record<string, any>;
   onChange: (campo: string, valor: any) => void;
+  modoColetivo?: boolean; // Se true, oculta cargo_id e unidade_id
 }
 
-export function CamposDinamicos({ categoria, valores, onChange }: CamposDinamicosProps) {
-  const campos = CAMPOS_POR_CATEGORIA[categoria] || [];
+export function CamposDinamicos({ 
+  categoria, 
+  valores, 
+  onChange, 
+  modoColetivo = false 
+}: CamposDinamicosProps) {
+  // Obter campos da categoria
+  let campos = CAMPOS_POR_CATEGORIA[categoria] || [];
+  
+  // Filtrar campos ocultos no modo coletivo
+  if (modoColetivo) {
+    campos = campos.filter((campo) => !CAMPOS_OCULTOS_MODO_COLETIVO.includes(campo));
+  }
 
   // Buscar cargos
   const { data: cargos = [] } = useQuery({
