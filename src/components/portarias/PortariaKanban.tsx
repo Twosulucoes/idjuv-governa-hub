@@ -55,6 +55,8 @@ interface PortariaKanbanProps {
   onEdit?: (portaria: Portaria) => void;
   onDelete?: (portaria: Portaria) => void;
   onGeneratePdf?: (portaria: Portaria) => void;
+  onRegistrarAssinatura?: (portaria: Portaria) => void;
+  onRegistrarPublicacao?: (portaria: Portaria) => void;
 }
 
 const KANBAN_COLUMNS: StatusPortaria[] = [
@@ -83,6 +85,8 @@ export function PortariaKanban({
   onEdit,
   onDelete,
   onGeneratePdf,
+  onRegistrarAssinatura,
+  onRegistrarPublicacao,
 }: PortariaKanbanProps) {
   const enviarParaAssinatura = useEnviarParaAssinatura();
   const enviarParaPublicacao = useEnviarParaPublicacao();
@@ -194,6 +198,20 @@ export function PortariaKanban({
                                     </DropdownMenuItem>
                                   </>
                                 )}
+                                {status === 'aguardando_assinatura' && onRegistrarAssinatura && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onRegistrarAssinatura(portaria);
+                                      }}
+                                    >
+                                      <FileSignature className="h-4 w-4 mr-2" />
+                                      Registrar Assinatura
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   className="text-destructive"
@@ -214,8 +232,22 @@ export function PortariaKanban({
                                         handleEnviarPublicacao(portaria);
                                       }}
                                     >
-                                      <FileSignature className="h-4 w-4 mr-2" />
+                                      <Send className="h-4 w-4 mr-2" />
                                       Enviar para Publicação
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                {status === 'aguardando_publicacao' && onRegistrarPublicacao && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onRegistrarPublicacao(portaria);
+                                      }}
+                                    >
+                                      <Newspaper className="h-4 w-4 mr-2" />
+                                      Registrar Publicação
                                     </DropdownMenuItem>
                                   </>
                                 )}

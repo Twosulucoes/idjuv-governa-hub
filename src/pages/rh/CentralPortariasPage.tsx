@@ -6,6 +6,7 @@ import {
   Filter,
   Search,
   Download,
+  BarChart3,
 } from 'lucide-react';
 
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -46,6 +47,7 @@ import {
   RegistrarPublicacaoDialog,
 } from '@/components/portarias';
 import { NovaPortariaUnificada } from '@/components/portarias/NovaPortariaUnificada';
+import { RelatorioPortariasDialog } from '@/components/portarias/RelatorioPortariasDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { usePortarias, useRegistrarAssinatura, useDeletePortaria } from '@/hooks/usePortarias';
 import { StatusPortaria, STATUS_PORTARIA_LABELS, Portaria } from '@/types/portaria';
@@ -66,6 +68,7 @@ export default function CentralPortariasPage() {
   const [view, setView] = useState<'kanban' | 'table'>('kanban');
   const [novaPortariaOpen, setNovaPortariaOpen] = useState(false);
   const [editPortariaOpen, setEditPortariaOpen] = useState(false);
+  const [relatorioOpen, setRelatorioOpen] = useState(false);
   const [publicacaoDialogOpen, setPublicacaoDialogOpen] = useState(false);
   const [assinaturaDialogOpen, setAssinaturaDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -243,6 +246,10 @@ export default function CentralPortariasPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setRelatorioOpen(true)}>
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Relatórios
+            </Button>
             <Button onClick={() => setNovaPortariaOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Nova Portaria
@@ -332,6 +339,8 @@ export default function CentralPortariasPage() {
             onEdit={handleEdit}
             onDelete={handleDeleteRequest}
             onGeneratePdf={handleGeneratePdf}
+            onRegistrarAssinatura={handleRegistrarAssinatura}
+            onRegistrarPublicacao={handleRegistrarPublicacao}
           />
         ) : (
           <PortariaTable
@@ -362,6 +371,12 @@ export default function CentralPortariasPage() {
         mode="edit"
         portariaId={selectedPortaria?.id}
         initialPortaria={selectedPortaria}
+      />
+
+      <RelatorioPortariasDialog
+        open={relatorioOpen}
+        onOpenChange={setRelatorioOpen}
+        portarias={portarias}
       />
 
       <RegistrarPublicacaoDialog
