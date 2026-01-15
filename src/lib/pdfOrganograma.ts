@@ -16,9 +16,21 @@ export interface OrganogramaConfig {
   exibirLegenda?: boolean;
 }
 
+interface LotacaoSimples {
+  servidor?: {
+    id: string;
+    full_name: string;
+  };
+  cargo?: {
+    nome: string;
+    sigla?: string;
+  };
+}
+
 interface OrganogramaData {
   unidades: UnidadeOrganizacional[];
   contarServidores: (unidadeId: string, incluirSub?: boolean) => number;
+  getLotacoesByUnidade?: (unidadeId: string) => LotacaoSimples[];
   titulo?: string;
   subtitulo?: string;
   incluirLogos?: boolean;
@@ -56,6 +68,7 @@ export async function gerarOrganogramaPDF(data: OrganogramaData): Promise<void> 
   const {
     unidades,
     contarServidores,
+    getLotacoesByUnidade,
     titulo = 'ORGANOGRAMA INSTITUCIONAL',
     subtitulo,
     config = {}
@@ -167,16 +180,33 @@ export async function gerarOrganogramaPDF(data: OrganogramaData): Promise<void> 
         pdf.text(`${qtdServidores} serv.`, x + boxWidth / 2, y + 17, { align: 'center' });
       }
 
-      // Responsável (se configurado e houver)
-      if (exibirNomesServidores && unidade.servidor_responsavel?.full_name && boxWidth >= 70) {
-        const responsavelNome = unidade.servidor_responsavel.full_name;
-        const responsavelExibido = responsavelNome.length > 22 
-          ? responsavelNome.substring(0, 20) + '...' 
-          : responsavelNome;
-        pdf.setFontSize(5);
-        pdf.setFont('helvetica', 'italic');
-        pdf.setTextColor(100, 116, 139);
-        pdf.text(responsavelExibido, x + boxWidth / 2, y + 21, { align: 'center' });
+      // Responsável ou primeiro lotado (se configurado)
+      if (exibirNomesServidores && boxWidth >= 70) {
+        let nomeExibir = '';
+        
+        // Primeiro tenta o servidor responsável
+        if (unidade.servidor_responsavel?.full_name) {
+          nomeExibir = unidade.servidor_responsavel.full_name;
+        } else if (getLotacoesByUnidade) {
+          // Se não tem responsável, pega o primeiro lotado
+          const lotacoesUnidade = getLotacoesByUnidade(unidade.id);
+          if (lotacoesUnidade.length > 0 && lotacoesUnidade[0].servidor?.full_name) {
+            nomeExibir = lotacoesUnidade[0].servidor.full_name;
+            if (lotacoesUnidade.length > 1) {
+              nomeExibir += ` +${lotacoesUnidade.length - 1}`;
+            }
+          }
+        }
+        
+        if (nomeExibir) {
+          const responsavelExibido = nomeExibir.length > 22 
+            ? nomeExibir.substring(0, 20) + '...' 
+            : nomeExibir;
+          pdf.setFontSize(5);
+          pdf.setFont('helvetica', 'italic');
+          pdf.setTextColor(100, 116, 139);
+          pdf.text(responsavelExibido, x + boxWidth / 2, y + 21, { align: 'center' });
+        }
       }
 
       // Desenhar linha para o superior (se houver e estiver visível)
@@ -269,6 +299,7 @@ export async function gerarOrganogramaListaPDF(data: OrganogramaData): Promise<v
   const {
     unidades,
     contarServidores,
+    getLotacoesByUnidade,
     titulo = 'ESTRUTURA ORGANIZACIONAL',
     subtitulo,
     config = {}
@@ -337,11 +368,29 @@ export async function gerarOrganogramaListaPDF(data: OrganogramaData): Promise<v
     }
     pdf.text(infoLine, indentX + 6, currentY + 4);
 
-    // Responsável (se configurado)
-    if (exibirNomesServidores && unidade.servidor_responsavel?.full_name) {
-      pdf.setFont('helvetica', 'italic');
-      pdf.text(`Resp: ${unidade.servidor_responsavel.full_name}`, indentX + 6, currentY + 8);
-      currentY += 4;
+    // Responsável ou primeiro lotado (se configurado)
+    if (exibirNomesServidores) {
+      let nomeExibir = '';
+      
+      if (unidade.servidor_responsavel?.full_name) {
+        nomeExibir = `Resp: ${unidade.servidor_responsavel.full_name}`;
+      } else if (getLotacoesByUnidade) {
+        const lotacoesUnidade = getLotacoesByUnidade(unidade.id);
+        if (lotacoesUnidade.length > 0 && lotacoesUnidade[0].servidor?.full_name) {
+          const primeiroNome = lotacoesUnidade[0].servidor.full_name;
+          if (lotacoesUnidade.length > 1) {
+            nomeExibir = `${primeiroNome} +${lotacoesUnidade.length - 1} servidores`;
+          } else {
+            nomeExibir = primeiroNome;
+          }
+        }
+      }
+      
+      if (nomeExibir) {
+        pdf.setFont('helvetica', 'italic');
+        pdf.text(nomeExibir, indentX + 6, currentY + 8);
+        currentY += 4;
+      }
     }
 
     currentY += 10;

@@ -52,6 +52,7 @@ export default function OrganogramaPage() {
         await gerarOrganogramaPDF({
           unidades,
           contarServidores,
+          getLotacoesByUnidade,
           titulo: 'ORGANOGRAMA INSTITUCIONAL',
           config,
         });
@@ -59,6 +60,7 @@ export default function OrganogramaPage() {
         await gerarOrganogramaListaPDF({
           unidades,
           contarServidores,
+          getLotacoesByUnidade,
           titulo: 'ESTRUTURA ORGANIZACIONAL',
           config,
         });
