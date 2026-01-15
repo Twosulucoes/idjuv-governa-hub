@@ -17,15 +17,8 @@ import {
   Network,
   Link2,
   Link2Off,
-  FileText,
   Loader2
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 
 import { useOrganograma } from '@/hooks/useOrganograma';
@@ -33,12 +26,15 @@ import OrganogramaCanvas from '@/components/organograma/OrganogramaCanvas';
 import UnidadeDetailPanel from '@/components/organograma/UnidadeDetailPanel';
 import { UnidadeOrganizacional, LABELS_UNIDADE } from '@/types/organograma';
 import { AdminOnly } from '@/components/auth';
-import { gerarOrganogramaPDF, gerarOrganogramaListaPDF } from '@/lib/pdfOrganograma';
+import { gerarOrganogramaPDF, gerarOrganogramaListaPDF, OrganogramaConfig } from '@/lib/pdfOrganograma';
+import { ExportOrganogramaDialog } from '@/components/organograma/ExportOrganogramaDialog';
 
 export default function OrganogramaPage() {
   const { unidades, lotacoes, loading, error, contarServidores, getLotacoesByUnidade, atualizarHierarquia, verificarCiclo } = useOrganograma();
   const [selectedUnidade, setSelectedUnidade] = useState<UnidadeOrganizacional | null>(null);
   const [editMode, setEditMode] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Estatísticas
   const totalUnidades = unidades.length;
@@ -48,43 +44,29 @@ export default function OrganogramaPage() {
     return acc;
   }, {} as Record<string, number>);
 
-  const [isExporting, setIsExporting] = useState(false);
-
-  // Exportar PDF gráfico
-  const handleExportarGrafico = async () => {
+  // Exportar com configuração
+  const handleExport = async (tipo: 'grafico' | 'lista', config: OrganogramaConfig) => {
     setIsExporting(true);
     try {
-      await gerarOrganogramaPDF({
-        unidades,
-        contarServidores,
-        titulo: 'ORGANOGRAMA INSTITUCIONAL',
-        subtitulo: 'Instituto de Desporto, Juventude e Lazer - IDJUV',
-        incluirLogos: true,
-      });
-      toast.success('Organograma exportado com sucesso!');
+      if (tipo === 'grafico') {
+        await gerarOrganogramaPDF({
+          unidades,
+          contarServidores,
+          titulo: 'ORGANOGRAMA INSTITUCIONAL',
+          config,
+        });
+      } else {
+        await gerarOrganogramaListaPDF({
+          unidades,
+          contarServidores,
+          titulo: 'ESTRUTURA ORGANIZACIONAL',
+          config,
+        });
+      }
+      toast.success('Relatório exportado com sucesso!');
     } catch (error) {
       console.error('Erro ao exportar:', error);
-      toast.error('Erro ao exportar organograma');
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  // Exportar PDF em lista
-  const handleExportarLista = async () => {
-    setIsExporting(true);
-    try {
-      await gerarOrganogramaListaPDF({
-        unidades,
-        contarServidores,
-        titulo: 'ESTRUTURA ORGANIZACIONAL',
-        subtitulo: 'Instituto de Desporto, Juventude e Lazer - IDJUV',
-        incluirLogos: true,
-      });
-      toast.success('Estrutura organizacional exportada com sucesso!');
-    } catch (error) {
-      console.error('Erro ao exportar:', error);
-      toast.error('Erro ao exportar estrutura');
+      toast.error('Erro ao exportar relatório');
     } finally {
       setIsExporting(false);
     }
@@ -145,28 +127,19 @@ export default function OrganogramaPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" disabled={isExporting}>
-                  {isExporting ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Download className="h-4 w-4 mr-2" />
-                  )}
-                  Exportar PDF
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={handleExportarGrafico}>
-                  <Network className="h-4 w-4 mr-2" />
-                  Organograma Visual (A3)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportarLista}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Lista Hierárquica (A4)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setExportDialogOpen(true)}
+              disabled={isExporting}
+            >
+              {isExporting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              Exportar PDF
+            </Button>
             <Button variant="outline" size="sm" onClick={handleImprimir}>
               <Printer className="h-4 w-4 mr-2" />
               Imprimir
@@ -385,6 +358,14 @@ export default function OrganogramaPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Dialog de Exportação */}
+        <ExportOrganogramaDialog
+          open={exportDialogOpen}
+          onOpenChange={setExportDialogOpen}
+          onExport={handleExport}
+          isExporting={isExporting}
+        />
       </div>
     </MainLayout>
   );
