@@ -6,7 +6,6 @@ import {
   Filter,
   Search,
   Download,
-  Users,
 } from 'lucide-react';
 
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -42,13 +41,12 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 
 import {
-  PortariaForm,
   PortariaKanban,
   PortariaTable,
   RegistrarPublicacaoDialog,
-  PortariaColetivaDialog,
   EditarPortariaDialog,
 } from '@/components/portarias';
+import { NovaPortariaUnificada } from '@/components/portarias/NovaPortariaUnificada';
 import { supabase } from '@/integrations/supabase/client';
 import { usePortarias, useRegistrarAssinatura, useDeletePortaria } from '@/hooks/usePortarias';
 import { StatusPortaria, STATUS_PORTARIA_LABELS, Portaria } from '@/types/portaria';
@@ -67,8 +65,7 @@ function htmlToText(html?: string | null) {
 
 export default function CentralPortariasPage() {
   const [view, setView] = useState<'kanban' | 'table'>('kanban');
-  const [formOpen, setFormOpen] = useState(false);
-  const [coletivaDialogOpen, setColetivaDialogOpen] = useState(false);
+  const [novaPortariaOpen, setNovaPortariaOpen] = useState(false);
   const [publicacaoDialogOpen, setPublicacaoDialogOpen] = useState(false);
   const [assinaturaDialogOpen, setAssinaturaDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -247,11 +244,7 @@ export default function CentralPortariasPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setColetivaDialogOpen(true)}>
-              <Users className="h-4 w-4 mr-2" />
-              Portaria Coletiva
-            </Button>
-            <Button onClick={() => setFormOpen(true)}>
+            <Button onClick={() => setNovaPortariaOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Nova Portaria
             </Button>
@@ -356,11 +349,9 @@ export default function CentralPortariasPage() {
       </div>
 
       {/* Dialogs */}
-      <PortariaForm open={formOpen} onOpenChange={setFormOpen} onSuccess={() => refetch()} />
-
-      <PortariaColetivaDialog
-        open={coletivaDialogOpen}
-        onOpenChange={setColetivaDialogOpen}
+      <NovaPortariaUnificada
+        open={novaPortariaOpen}
+        onOpenChange={setNovaPortariaOpen}
         onSuccess={() => refetch()}
       />
 
