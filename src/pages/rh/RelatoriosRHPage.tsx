@@ -20,14 +20,16 @@ import {
   History,
   Download,
   Loader2,
-  Briefcase
+  Briefcase,
+  FileCheck
 } from "lucide-react";
 import { toast } from "sonner";
 import { 
   generateRelatorioServidoresDiretoria,
   generateRelatorioServidoresVinculo,
   generateRelatorioHistoricoFuncional,
-  generateRelatorioVagasCargo
+  generateRelatorioVagasCargo,
+  generateRelatorioServidoresPortarias
 } from "@/lib/pdfRelatoriosRH";
 import { VINCULO_LABELS, SITUACAO_LABELS, MOVIMENTACAO_LABELS } from "@/types/rh";
 import { ExportacaoServidoresCard } from "@/components/rh/ExportacaoServidoresCard";
@@ -45,6 +47,8 @@ export default function RelatoriosRHPage() {
   const [selectedVinculo, setSelectedVinculo] = useState<string>("all");
   const [selectedServidor, setSelectedServidor] = useState<string>("");
   const [selectedNatureza, setSelectedNatureza] = useState<string>("all");
+  const [selectedTipoPortaria, setSelectedTipoPortaria] = useState<string>("all");
+  const [selectedStatusPortaria, setSelectedStatusPortaria] = useState<string>("all");
   const [loadingReport, setLoadingReport] = useState<string | null>(null);
 
   // Fetch unidades
@@ -421,6 +425,151 @@ export default function RelatoriosRHPage() {
     }
   };
 
+  const handleGerarRelatorioServidoresPortarias = async () => {
+    setLoadingReport("portarias");
+    try {
+      // Buscar portarias com servidores vinculados
+      const { data: portarias, error: pErr } = await supabase
+        .from("documentos")
+        .select(`
+          id,
+          numero,
+          titulo,
+          tipo,
+          categoria,
+          status,
+          data_documento,
+          data_publicacao,
+          servidores_ids
+        `)
+        .eq("tipo", "portaria")
+        .not("servidores_ids", "is", null);
+
+      if (pErr) throw pErr;
+
+      // Filtrar por tipo e status se selecionados
+      let filteredPortarias = portarias || [];
+      if (selectedTipoPortaria !== "all") {
+        filteredPortarias = filteredPortarias.filter(p => p.categoria === selectedTipoPortaria);
+      }
+      if (selectedStatusPortaria !== "all") {
+        filteredPortarias = filteredPortarias.filter(p => p.status === selectedStatusPortaria);
+      }
+
+      // Coletar todos os IDs de servidores únicos
+      const allServidorIds = new Set<string>();
+      filteredPortarias.forEach(p => {
+        if (Array.isArray(p.servidores_ids)) {
+          p.servidores_ids.forEach((id: string) => allServidorIds.add(id));
+        }
+      });
+
+      if (allServidorIds.size === 0) {
+        toast.error("Nenhum servidor com portaria encontrado");
+        return;
+      }
+
+      // Buscar dados dos servidores
+      const { data: servidoresData, error: sErr } = await supabase
+        .from("servidores")
+        .select(`
+          id,
+          nome_completo,
+          cpf,
+          matricula,
+          vinculo,
+          cargo:cargos!servidores_cargo_atual_id_fkey(nome),
+          unidade:estrutura_organizacional!servidores_unidade_atual_id_fkey(nome, sigla)
+        `)
+        .in("id", Array.from(allServidorIds));
+
+      if (sErr) throw sErr;
+
+      // Montar estrutura do relatório
+      const servidoresMap = new Map(
+        (servidoresData || []).map(s => [s.id, s])
+      );
+
+      const servidoresComPortarias: Array<{
+        id: string;
+        nome: string;
+        cpf: string;
+        matricula: string | null;
+        cargo: string;
+        unidade: string;
+        vinculo: string;
+        portarias: Array<{
+          numero: string;
+          titulo: string;
+          tipo: string;
+          categoria: string | null;
+          status: string;
+          data_documento: string;
+          data_publicacao: string | null;
+        }>;
+      }> = [];
+
+      // Agrupar portarias por servidor
+      const portariasPorServidor = new Map<string, typeof filteredPortarias>();
+      filteredPortarias.forEach(p => {
+        if (Array.isArray(p.servidores_ids)) {
+          p.servidores_ids.forEach((servidorId: string) => {
+            if (!portariasPorServidor.has(servidorId)) {
+              portariasPorServidor.set(servidorId, []);
+            }
+            portariasPorServidor.get(servidorId)!.push(p);
+          });
+        }
+      });
+
+      // Montar lista final
+      portariasPorServidor.forEach((portariasServidor, servidorId) => {
+        const servidor = servidoresMap.get(servidorId);
+        if (servidor) {
+          servidoresComPortarias.push({
+            id: servidor.id,
+            nome: servidor.nome_completo,
+            cpf: servidor.cpf,
+            matricula: servidor.matricula,
+            cargo: servidor.cargo?.nome || "-",
+            unidade: servidor.unidade?.sigla || servidor.unidade?.nome || "-",
+            vinculo: servidor.vinculo,
+            portarias: portariasServidor.map(p => ({
+              numero: p.numero,
+              titulo: p.titulo,
+              tipo: p.tipo || "portaria",
+              categoria: p.categoria,
+              status: p.status,
+              data_documento: p.data_documento,
+              data_publicacao: p.data_publicacao
+            }))
+          });
+        }
+      });
+
+      // Ordenar por nome
+      servidoresComPortarias.sort((a, b) => a.nome.localeCompare(b.nome));
+
+      const totalPortarias = servidoresComPortarias.reduce((acc, s) => acc + s.portarias.length, 0);
+
+      await generateRelatorioServidoresPortarias({
+        servidores: servidoresComPortarias,
+        totalServidores: servidoresComPortarias.length,
+        totalPortarias,
+        dataGeracao: new Date().toLocaleDateString('pt-BR'),
+        filtroTipo: selectedTipoPortaria === "all" ? null : selectedTipoPortaria,
+        filtroStatus: selectedStatusPortaria === "all" ? null : selectedStatusPortaria
+      });
+
+      toast.success("Relatório gerado com sucesso!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao gerar relatório");
+    } finally {
+      setLoadingReport(null);
+    }
+  };
+
   return (
     <ProtectedRoute allowedRoles={["admin", "manager"]}>
       <AdminLayout>
@@ -605,6 +754,71 @@ export default function RelatoriosRHPage() {
                   disabled={loadingReport === "vagas"}
                 >
                   {loadingReport === "vagas" ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  Gerar Relatório PDF
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Relatório de Servidores com Portarias */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-destructive/10 rounded-lg">
+                    <FileCheck className="h-5 w-5 text-destructive" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Servidores com Portarias</CardTitle>
+                    <CardDescription>Lista de servidores e suas portarias vinculadas</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Filtrar por categoria (opcional)</Label>
+                  <Select value={selectedTipoPortaria} onValueChange={setSelectedTipoPortaria}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas as categorias" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as categorias</SelectItem>
+                      <SelectItem value="nomeacao">Nomeação</SelectItem>
+                      <SelectItem value="exoneracao">Exoneração</SelectItem>
+                      <SelectItem value="designacao">Designação</SelectItem>
+                      <SelectItem value="cessao">Cessão</SelectItem>
+                      <SelectItem value="ferias">Férias</SelectItem>
+                      <SelectItem value="licenca">Licença</SelectItem>
+                      <SelectItem value="outros">Outros</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Filtrar por status (opcional)</Label>
+                  <Select value={selectedStatusPortaria} onValueChange={setSelectedStatusPortaria}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos os status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os status</SelectItem>
+                      <SelectItem value="minuta">Minuta</SelectItem>
+                      <SelectItem value="aguardando_assinatura">Aguardando Assinatura</SelectItem>
+                      <SelectItem value="assinado">Assinado</SelectItem>
+                      <SelectItem value="aguardando_publicacao">Aguardando Publicação</SelectItem>
+                      <SelectItem value="publicado">Publicado</SelectItem>
+                      <SelectItem value="vigente">Vigente</SelectItem>
+                      <SelectItem value="revogado">Revogado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button 
+                  className="w-full" 
+                  onClick={handleGerarRelatorioServidoresPortarias}
+                  disabled={loadingReport === "portarias"}
+                >
+                  {loadingReport === "portarias" ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
                     <Download className="h-4 w-4 mr-2" />

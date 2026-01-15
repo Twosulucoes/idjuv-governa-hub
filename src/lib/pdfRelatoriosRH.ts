@@ -637,3 +637,155 @@ export const generateRelatorioVagasCargo = async (data: RelatorioVagasCargoData)
   
   doc.save(`Relatorio_Vagas_Cargo_${data.dataGeracao.replace(/\//g, '-')}.pdf`);
 };
+
+// ===== Interfaces para Relatório de Servidores com Portarias =====
+
+interface PortariaServidorItem {
+  numero: string;
+  titulo: string;
+  tipo: string;
+  categoria: string | null;
+  status: string;
+  data_documento: string;
+  data_publicacao: string | null;
+}
+
+interface ServidorComPortariasItem {
+  id: string;
+  nome: string;
+  cpf: string;
+  matricula: string | null;
+  cargo: string;
+  unidade: string;
+  vinculo: string;
+  portarias: PortariaServidorItem[];
+}
+
+interface RelatorioServidoresPortariasData {
+  servidores: ServidorComPortariasItem[];
+  totalServidores: number;
+  totalPortarias: number;
+  dataGeracao: string;
+  filtroTipo: string | null;
+  filtroStatus: string | null;
+}
+
+// ===== Relatório de Servidores com Portarias =====
+
+export const generateRelatorioServidoresPortarias = async (data: RelatorioServidoresPortariasData): Promise<void> => {
+  const logos = await loadLogos();
+  const doc = new jsPDF();
+  const { width, contentWidth } = getPageDimensions(doc);
+  
+  let subtitulo = 'Todas as Portarias';
+  if (data.filtroTipo && data.filtroStatus) {
+    subtitulo = `Filtro: ${data.filtroTipo} - ${data.filtroStatus}`;
+  } else if (data.filtroTipo) {
+    subtitulo = `Filtro: ${data.filtroTipo}`;
+  } else if (data.filtroStatus) {
+    subtitulo = `Filtro: ${data.filtroStatus}`;
+  }
+  
+  let y = await generateInstitutionalHeader(doc, {
+    titulo: 'RELATÓRIO DE SERVIDORES COM PORTARIAS',
+    subtitulo,
+    fundoEscuro: true,
+  }, logos);
+  
+  // Info geral
+  setColor(doc, CORES.cinzaMedio);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Data de geração: ${data.dataGeracao}`, PAGINA.margemEsquerda, y);
+  doc.text(`Servidores: ${data.totalServidores} | Portarias: ${data.totalPortarias}`, width - PAGINA.margemDireita - 60, y);
+  y += 10;
+  
+  // Iterar servidores
+  data.servidores.forEach((servidor) => {
+    if (servidor.portarias.length === 0) return;
+    
+    y = checkPageBreak(doc, y, 60);
+    
+    // Header do servidor
+    setColor(doc, CORES.cinzaMuitoClaro, 'fill');
+    doc.rect(PAGINA.margemEsquerda, y - 5, contentWidth, 12, 'F');
+    setColor(doc, CORES.textoEscuro);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${servidor.nome}`, PAGINA.margemEsquerda + 2, y);
+    y += 5;
+    setColor(doc, CORES.cinzaMedio);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    const infoServidor = [
+      `CPF: ${formatCPF(servidor.cpf)}`,
+      servidor.matricula ? `Mat: ${servidor.matricula}` : null,
+      `Cargo: ${servidor.cargo}`,
+      `Unidade: ${servidor.unidade}`,
+    ].filter(Boolean).join(' | ');
+    doc.text(infoServidor.substring(0, 100), PAGINA.margemEsquerda + 2, y);
+    y += 8;
+    
+    // Table header de portarias
+    setColor(doc, CORES.cinzaMedio);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Número', PAGINA.margemEsquerda + 2, y);
+    doc.text('Tipo', 45, y);
+    doc.text('Categoria', 75, y);
+    doc.text('Título', 105, y);
+    doc.text('Data Doc.', 160, y);
+    doc.text('Status', 182, y);
+    y += 2;
+    setColor(doc, CORES.cinzaMuitoClaro, 'draw');
+    doc.setLineWidth(0.2);
+    doc.line(PAGINA.margemEsquerda, y, width - PAGINA.margemDireita, y);
+    y += 4;
+    
+    // Rows de portarias
+    setColor(doc, CORES.textoEscuro);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    servidor.portarias.forEach((p) => {
+      y = checkPageBreak(doc, y, 25);
+      
+      doc.text((p.numero || '-').substring(0, 15), PAGINA.margemEsquerda + 2, y);
+      doc.text((p.tipo || '-').substring(0, 12), 45, y);
+      doc.text((p.categoria || '-').substring(0, 12), 75, y);
+      doc.text((p.titulo || '-').substring(0, 28), 105, y);
+      doc.text(formatDate(p.data_documento), 160, y);
+      
+      // Colorir status
+      const status = p.status || 'minuta';
+      if (status === 'publicado' || status === 'vigente') {
+        setColor(doc, { r: 34, g: 197, b: 94 }); // verde
+      } else if (status === 'assinado' || status === 'aguardando_publicacao') {
+        setColor(doc, { r: 59, g: 130, b: 246 }); // azul
+      } else if (status === 'revogado') {
+        setColor(doc, { r: 220, g: 38, b: 38 }); // vermelho
+      } else {
+        setColor(doc, CORES.cinzaMedio);
+      }
+      doc.text((status || '-').substring(0, 12), 182, y);
+      setColor(doc, CORES.textoEscuro);
+      y += 5;
+    });
+    
+    y += 6;
+  });
+  
+  // Resumo
+  y = checkPageBreak(doc, y, 40);
+  y += 5;
+  setColor(doc, CORES.cinzaClaro, 'fill');
+  doc.rect(PAGINA.margemEsquerda, y - 5, contentWidth, 12, 'F');
+  setColor(doc, CORES.textoEscuro);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text(`RESUMO: ${data.totalServidores} servidores com ${data.totalPortarias} portarias vinculadas`, PAGINA.margemEsquerda + 5, y + 2);
+  
+  generateInstitutionalFooter(doc, { sistema: 'Sistema de Gestão de RH - IDJUV' });
+  addPageNumbers(doc);
+  
+  doc.save(`Relatorio_Servidores_Portarias_${data.dataGeracao.replace(/\//g, '-')}.pdf`);
+};
