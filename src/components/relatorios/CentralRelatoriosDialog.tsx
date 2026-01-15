@@ -83,11 +83,13 @@ const TIPO_ICONS: Record<TipoRelatorio, React.ReactNode> = {
 interface CentralRelatoriosDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  tipoInicial?: TipoRelatorio;
 }
 
 export function CentralRelatoriosDialog({
   open,
   onOpenChange,
+  tipoInicial,
 }: CentralRelatoriosDialogProps) {
   const [tipoSelecionado, setTipoSelecionado] = useState<TipoRelatorio>('portarias');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -139,10 +141,13 @@ export function CentralRelatoriosDialog({
     [tipoSelecionado]
   );
 
-  // Carregar templates
+  // Carregar templates e aplicar tipo inicial
   useEffect(() => {
     setTemplates(getTemplates());
-  }, [open]);
+    if (tipoInicial && open) {
+      setTipoSelecionado(tipoInicial);
+    }
+  }, [open, tipoInicial]);
 
   // Quando muda tipo, resetar para config padrão
   useEffect(() => {
