@@ -35,7 +35,9 @@ import {
   Briefcase,
   CreditCard,
   AlertTriangle,
+  BarChart3,
 } from "lucide-react";
+import { CentralRelatoriosDialog } from "@/components/relatorios/CentralRelatoriosDialog";
 import { EdicaoLoteBancarioDialog } from "@/components/rh/EdicaoLoteBancarioDialog";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -78,6 +80,7 @@ export default function GestaoServidoresPage() {
   const [filterSituacao, setFilterSituacao] = useState<string>("all");
   const [filterUnidade, setFilterUnidade] = useState<string>("all");
   const [showEdicaoBancaria, setShowEdicaoBancaria] = useState(false);
+  const [centralRelatoriosOpen, setCentralRelatoriosOpen] = useState(false);
 
   // Fetch servidores
   const { data: servidores = [], isLoading } = useQuery({
@@ -203,9 +206,9 @@ export default function GestaoServidoresPage() {
                 <CreditCard className="h-4 w-4 mr-2" />
                 Dados Bancários
               </Button>
-              <Button variant="outline">
-                <FileDown className="h-4 w-4 mr-2" />
-                Exportar
+              <Button variant="outline" onClick={() => setCentralRelatoriosOpen(true)}>
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Relatórios
               </Button>
               <Button onClick={() => navigate('/rh/servidores/novo')}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -433,6 +436,13 @@ export default function GestaoServidoresPage() {
         <EdicaoLoteBancarioDialog
           open={showEdicaoBancaria}
           onOpenChange={setShowEdicaoBancaria}
+        />
+
+        {/* Central de Relatórios */}
+        <CentralRelatoriosDialog
+          open={centralRelatoriosOpen}
+          onOpenChange={setCentralRelatoriosOpen}
+          tipoInicial="servidores"
         />
       </AdminLayout>
     </ProtectedRoute>

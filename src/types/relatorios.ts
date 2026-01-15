@@ -88,20 +88,77 @@ export const CAMPOS_PORTARIAS: CampoRelatorio[] = [
 ];
 
 export const CAMPOS_SERVIDORES: CampoRelatorio[] = [
+  // Identificação
   { id: 'matricula', label: 'Matrícula', tipo: 'texto', largura: 'pequena' },
-  { id: 'nome_completo', label: 'Nome', tipo: 'texto', obrigatorio: true, largura: 'grande' },
+  { id: 'nome_completo', label: 'Nome Completo', tipo: 'texto', obrigatorio: true, largura: 'grande' },
+  { id: 'nome_social', label: 'Nome Social', tipo: 'texto', largura: 'media' },
   { id: 'cpf', label: 'CPF', tipo: 'texto', largura: 'media' },
+  { id: 'rg', label: 'RG', tipo: 'texto', largura: 'media' },
+  { id: 'pis_pasep', label: 'PIS/PASEP', tipo: 'texto', largura: 'media' },
+  
+  // Dados Pessoais
+  { id: 'data_nascimento', label: 'Data Nascimento', tipo: 'data', largura: 'pequena' },
+  { id: 'idade', label: 'Idade', tipo: 'numero', largura: 'pequena' },
+  { id: 'sexo', label: 'Sexo', tipo: 'badge', agrupavel: true, largura: 'pequena' },
+  { id: 'estado_civil', label: 'Estado Civil', tipo: 'badge', agrupavel: true, largura: 'pequena' },
+  { id: 'nacionalidade', label: 'Nacionalidade', tipo: 'texto', agrupavel: true, largura: 'media' },
+  { id: 'naturalidade', label: 'Naturalidade', tipo: 'texto', largura: 'media' },
+  { id: 'raca_cor', label: 'Raça/Cor', tipo: 'badge', agrupavel: true, largura: 'pequena' },
+  { id: 'deficiencia', label: 'PCD', tipo: 'badge', agrupavel: true, largura: 'pequena' },
+  
+  // Vínculo e Cargo
   { id: 'tipo_servidor', label: 'Tipo Servidor', tipo: 'badge', agrupavel: true, largura: 'media' },
-  { id: 'situacao', label: 'Situação', tipo: 'badge', agrupavel: true, largura: 'pequena' },
+  { id: 'situacao', label: 'Situação Funcional', tipo: 'badge', agrupavel: true, largura: 'pequena' },
   { id: 'cargo_nome', label: 'Cargo', tipo: 'texto', agrupavel: true, largura: 'media' },
   { id: 'cargo_sigla', label: 'Sigla Cargo', tipo: 'texto', largura: 'pequena' },
+  { id: 'cargo_categoria', label: 'Categoria Cargo', tipo: 'badge', agrupavel: true, largura: 'pequena' },
+  { id: 'funcao_exercida', label: 'Função Exercida', tipo: 'texto', largura: 'media' },
+  
+  // Lotação
   { id: 'unidade_nome', label: 'Unidade', tipo: 'texto', agrupavel: true, largura: 'media' },
   { id: 'unidade_sigla', label: 'Sigla Unidade', tipo: 'texto', largura: 'pequena' },
+  { id: 'unidade_tipo', label: 'Tipo Unidade', tipo: 'badge', agrupavel: true, largura: 'pequena' },
+  { id: 'lotacao_inicio', label: 'Lotação Desde', tipo: 'data', largura: 'pequena' },
+  
+  // Datas Funcionais
   { id: 'data_nomeacao', label: 'Data Nomeação', tipo: 'data', largura: 'pequena' },
   { id: 'data_posse', label: 'Data Posse', tipo: 'data', largura: 'pequena' },
-  { id: 'email_institucional', label: 'E-mail', tipo: 'texto', largura: 'media' },
-  { id: 'telefone_celular', label: 'Telefone', tipo: 'texto', largura: 'pequena' },
-  { id: 'lotacao_inicio', label: 'Lotação Desde', tipo: 'data', largura: 'pequena' },
+  { id: 'data_exercicio', label: 'Data Exercício', tipo: 'data', largura: 'pequena' },
+  { id: 'tempo_servico', label: 'Tempo Serviço', tipo: 'texto', largura: 'pequena' },
+  
+  // Cessão
+  { id: 'orgao_origem', label: 'Órgão Origem', tipo: 'texto', agrupavel: true, largura: 'media' },
+  { id: 'orgao_destino', label: 'Órgão Destino', tipo: 'texto', agrupavel: true, largura: 'media' },
+  { id: 'onus_cessao', label: 'Ônus Cessão', tipo: 'badge', agrupavel: true, largura: 'pequena' },
+  
+  // Contato
+  { id: 'email_institucional', label: 'E-mail Institucional', tipo: 'texto', largura: 'media' },
+  { id: 'email_pessoal', label: 'E-mail Pessoal', tipo: 'texto', largura: 'media' },
+  { id: 'telefone_celular', label: 'Celular', tipo: 'texto', largura: 'pequena' },
+  { id: 'telefone_fixo', label: 'Telefone Fixo', tipo: 'texto', largura: 'pequena' },
+  
+  // Endereço
+  { id: 'endereco_completo', label: 'Endereço', tipo: 'texto', largura: 'grande' },
+  { id: 'cidade', label: 'Cidade', tipo: 'texto', agrupavel: true, largura: 'media' },
+  { id: 'uf', label: 'UF', tipo: 'texto', agrupavel: true, largura: 'pequena' },
+  { id: 'cep', label: 'CEP', tipo: 'texto', largura: 'pequena' },
+  
+  // Formação
+  { id: 'escolaridade', label: 'Escolaridade', tipo: 'badge', agrupavel: true, largura: 'media' },
+  { id: 'formacao', label: 'Formação', tipo: 'texto', largura: 'media' },
+  { id: 'especializacao', label: 'Especialização', tipo: 'texto', largura: 'media' },
+  
+  // Dados Bancários
+  { id: 'banco_nome', label: 'Banco', tipo: 'texto', agrupavel: true, largura: 'media' },
+  { id: 'banco_agencia', label: 'Agência', tipo: 'texto', largura: 'pequena' },
+  { id: 'banco_conta', label: 'Conta', tipo: 'texto', largura: 'pequena' },
+  { id: 'tipo_conta', label: 'Tipo Conta', tipo: 'badge', largura: 'pequena' },
+  
+  // Previdência
+  { id: 'regime_previdenciario', label: 'Regime Previdenciário', tipo: 'badge', agrupavel: true, largura: 'media' },
+  
+  // Status
+  { id: 'ativo', label: 'Ativo', tipo: 'badge', agrupavel: true, largura: 'pequena' },
   { id: 'provimento_status', label: 'Status Provimento', tipo: 'badge', agrupavel: true, largura: 'pequena' },
 ];
 
@@ -220,7 +277,7 @@ export const FILTROS_SERVIDORES: FiltroRelatorio[] = [
   },
   {
     id: 'situacao',
-    label: 'Situação',
+    label: 'Situação Funcional',
     tipo: 'multiselect',
     opcoes: [
       { value: 'ativo', label: 'Ativo' },
@@ -228,9 +285,56 @@ export const FILTROS_SERVIDORES: FiltroRelatorio[] = [
       { value: 'afastado', label: 'Afastado' },
       { value: 'licenca', label: 'Em Licença' },
       { value: 'ferias', label: 'Em Férias' },
+      { value: 'cedido', label: 'Cedido' },
     ],
   },
   { id: 'unidade', label: 'Unidade', tipo: 'select' },
+  {
+    id: 'cargo_categoria',
+    label: 'Categoria do Cargo',
+    tipo: 'multiselect',
+    opcoes: [
+      { value: 'CC', label: 'Cargo Comissionado' },
+      { value: 'CE', label: 'Cargo Efetivo' },
+      { value: 'FG', label: 'Função Gratificada' },
+    ],
+  },
+  {
+    id: 'escolaridade',
+    label: 'Escolaridade',
+    tipo: 'multiselect',
+    opcoes: [
+      { value: 'fundamental_incompleto', label: 'Fundamental Incompleto' },
+      { value: 'fundamental_completo', label: 'Fundamental Completo' },
+      { value: 'medio_incompleto', label: 'Médio Incompleto' },
+      { value: 'medio_completo', label: 'Médio Completo' },
+      { value: 'superior_incompleto', label: 'Superior Incompleto' },
+      { value: 'superior_completo', label: 'Superior Completo' },
+      { value: 'pos_graduacao', label: 'Pós-Graduação' },
+      { value: 'mestrado', label: 'Mestrado' },
+      { value: 'doutorado', label: 'Doutorado' },
+    ],
+  },
+  {
+    id: 'sexo',
+    label: 'Sexo',
+    tipo: 'multiselect',
+    opcoes: [
+      { value: 'M', label: 'Masculino' },
+      { value: 'F', label: 'Feminino' },
+    ],
+  },
+  {
+    id: 'ativo',
+    label: 'Status',
+    tipo: 'select',
+    opcoes: [
+      { value: 'true', label: 'Ativos' },
+      { value: 'false', label: 'Inativos' },
+      { value: 'all', label: 'Todos' },
+    ],
+  },
+  { id: 'periodo_nomeacao', label: 'Período de Nomeação', tipo: 'periodo' },
 ];
 
 export const FILTROS_CARGOS: FiltroRelatorio[] = [
