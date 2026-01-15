@@ -16,14 +16,24 @@ import {
   ArrowLeft,
   Network,
   Link2,
-  Link2Off
+  Link2Off,
+  FileText,
+  Loader2
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { toast } from 'sonner';
 
 import { useOrganograma } from '@/hooks/useOrganograma';
 import OrganogramaCanvas from '@/components/organograma/OrganogramaCanvas';
 import UnidadeDetailPanel from '@/components/organograma/UnidadeDetailPanel';
 import { UnidadeOrganizacional, LABELS_UNIDADE } from '@/types/organograma';
 import { AdminOnly } from '@/components/auth';
+import { gerarOrganogramaPDF, gerarOrganogramaListaPDF } from '@/lib/pdfOrganograma';
 
 export default function OrganogramaPage() {
   const { unidades, lotacoes, loading, error, contarServidores, getLotacoesByUnidade, atualizarHierarquia, verificarCiclo } = useOrganograma();
@@ -37,6 +47,53 @@ export default function OrganogramaPage() {
     acc[u.tipo] = (acc[u.tipo] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
+
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Exportar PDF gráfico
+  const handleExportarGrafico = async () => {
+    setIsExporting(true);
+    try {
+      await gerarOrganogramaPDF({
+        unidades,
+        contarServidores,
+        titulo: 'ORGANOGRAMA INSTITUCIONAL',
+        subtitulo: 'Instituto de Desporto, Juventude e Lazer - IDJUV',
+        incluirLogos: true,
+      });
+      toast.success('Organograma exportado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar:', error);
+      toast.error('Erro ao exportar organograma');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Exportar PDF em lista
+  const handleExportarLista = async () => {
+    setIsExporting(true);
+    try {
+      await gerarOrganogramaListaPDF({
+        unidades,
+        contarServidores,
+        titulo: 'ESTRUTURA ORGANIZACIONAL',
+        subtitulo: 'Instituto de Desporto, Juventude e Lazer - IDJUV',
+        incluirLogos: true,
+      });
+      toast.success('Estrutura organizacional exportada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar:', error);
+      toast.error('Erro ao exportar estrutura');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Imprimir
+  const handleImprimir = () => {
+    window.print();
+  };
 
   if (loading) {
     return (
@@ -88,11 +145,29 @@ export default function OrganogramaPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Exportar
-            </Button>
-            <Button variant="outline" size="sm">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" disabled={isExporting}>
+                  {isExporting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  Exportar PDF
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={handleExportarGrafico}>
+                  <Network className="h-4 w-4 mr-2" />
+                  Organograma Visual (A3)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportarLista}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Lista Hierárquica (A4)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button variant="outline" size="sm" onClick={handleImprimir}>
               <Printer className="h-4 w-4 mr-2" />
               Imprimir
             </Button>
