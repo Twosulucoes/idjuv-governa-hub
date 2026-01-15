@@ -14,6 +14,7 @@ export interface OrganogramaConfig {
   exibirNomesServidores?: boolean;
   exibirQuantidadeServidores?: boolean;
   exibirLegenda?: boolean;
+  exibirTodosServidores?: boolean; // Exibir todos os lotados, não apenas o primeiro
 }
 
 interface LotacaoSimples {
@@ -382,24 +383,61 @@ export async function gerarOrganogramaListaPDF(data: OrganogramaData): Promise<v
     currentY += headerHeight;
   }
 
-  // Função para obter nome do responsável
-  function obterResponsavel(unidade: UnidadeOrganizacional): string {
+  // Extrai a config
+  const exibirTodosServidores = config.exibirTodosServidores ?? false;
+
+  // Função para obter servidores lotados com detalhes
+  function obterServidoresLotados(unidade: UnidadeOrganizacional): { nome: string; cargo: string }[] {
+    const servidores: { nome: string; cargo: string }[] = [];
+    
+    // Primeiro verifica o servidor responsável oficial
     if (unidade.servidor_responsavel?.full_name) {
-      return unidade.servidor_responsavel.full_name;
+      servidores.push({
+        nome: unidade.servidor_responsavel.full_name,
+        cargo: 'Responsável'
+      });
     }
     
+    // Busca os lotados na unidade
     if (getLotacoesByUnidade) {
       const lotacoesUnidade = getLotacoesByUnidade(unidade.id);
-      if (lotacoesUnidade.length > 0 && lotacoesUnidade[0].servidor?.full_name) {
-        const primeiroNome = lotacoesUnidade[0].servidor.full_name;
-        if (lotacoesUnidade.length > 1) {
-          return `${primeiroNome} +${lotacoesUnidade.length - 1} servidores`;
+      for (const lotacao of lotacoesUnidade) {
+        if (lotacao.servidor?.full_name) {
+          // Evita duplicar se já está como responsável
+          const jaAdicionado = servidores.some(s => 
+            s.nome.toUpperCase() === lotacao.servidor!.full_name.toUpperCase()
+          );
+          if (!jaAdicionado) {
+            servidores.push({
+              nome: lotacao.servidor.full_name,
+              cargo: lotacao.cargo?.nome || lotacao.cargo?.sigla || '-'
+            });
+          }
         }
-        return primeiroNome;
       }
     }
     
-    return '';
+    return servidores;
+  }
+
+  // Função para formatar texto de servidores
+  function formatarServidores(servidores: { nome: string; cargo: string }[], exibirTodos: boolean): string {
+    if (servidores.length === 0) return '(Sem lotação)';
+    
+    if (exibirTodos) {
+      // Exibe todos os servidores com cargo
+      return servidores
+        .slice(0, 5) // Limita a 5 para não ficar muito grande
+        .map(s => `${s.nome} (${s.cargo})`)
+        .join('; ') + (servidores.length > 5 ? ` +${servidores.length - 5} servidores` : '');
+    } else {
+      // Exibe apenas o primeiro com indicação de quantos mais
+      const primeiro = servidores[0];
+      if (servidores.length > 1) {
+        return `${primeiro.nome} (${primeiro.cargo}) +${servidores.length - 1}`;
+      }
+      return `${primeiro.nome} (${primeiro.cargo})`;
+    }
   }
 
   // Construir lista ordenada hierarquicamente
@@ -447,7 +485,8 @@ export async function gerarOrganogramaListaPDF(data: OrganogramaData): Promise<v
     }
 
     const qtdServidores = contarServidores(unidade.id, false);
-    const responsavel = exibirNomesServidores ? obterResponsavel(unidade) : '';
+    const servidoresLotados = obterServidoresLotados(unidade);
+    const textoServidores = exibirNomesServidores ? formatarServidores(servidoresLotados, exibirTodosServidores) : '';
 
     // Fundo alternado
     if (rowIndex % 2 === 1) {
@@ -497,18 +536,27 @@ export async function gerarOrganogramaListaPDF(data: OrganogramaData): Promise<v
       pdf.text(`${qtdServidores} serv.`, colX.servidores + 2, currentY + 5.5);
     }
 
-    // Responsável
-    if (exibirNomesServidores && responsavel) {
-      pdf.setFontSize(7);
-      pdf.setTextColor(...textColor);
+    // Servidores lotados
+    if (exibirNomesServidores) {
+      pdf.setFontSize(6.5);
       
-      // Truncar responsável se necessário
-      let respExibido = responsavel;
-      const maxRespWidth = colWidths.responsavel - 4;
-      while (pdf.getTextWidth(respExibido) > maxRespWidth && respExibido.length > 10) {
-        respExibido = respExibido.substring(0, respExibido.length - 4) + '...';
+      if (servidoresLotados.length === 0) {
+        // Sem lotação - exibe em itálico cinza
+        pdf.setFont('helvetica', 'italic');
+        pdf.setTextColor(156, 163, 175); // gray-400
+        pdf.text('(Sem lotação)', colX.responsavel + 2, currentY + 5.5);
+      } else {
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(...textColor);
+        
+        // Truncar texto se necessário
+        let textoExibido = textoServidores;
+        const maxRespWidth = colWidths.responsavel - 4;
+        while (pdf.getTextWidth(textoExibido) > maxRespWidth && textoExibido.length > 10) {
+          textoExibido = textoExibido.substring(0, textoExibido.length - 4) + '...';
+        }
+        pdf.text(textoExibido, colX.responsavel + 2, currentY + 5.5);
       }
-      pdf.text(respExibido, colX.responsavel + 2, currentY + 5.5);
     }
 
     currentY += rowHeight;
