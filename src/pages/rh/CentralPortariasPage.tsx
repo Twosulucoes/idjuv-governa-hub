@@ -48,6 +48,7 @@ import {
 } from '@/components/portarias';
 import { NovaPortariaUnificada } from '@/components/portarias/NovaPortariaUnificada';
 import { RelatorioPortariasDialog } from '@/components/portarias/RelatorioPortariasDialog';
+import { CentralRelatoriosDialog } from '@/components/relatorios/CentralRelatoriosDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { usePortarias, useRegistrarAssinatura, useDeletePortaria } from '@/hooks/usePortarias';
 import { StatusPortaria, STATUS_PORTARIA_LABELS, Portaria } from '@/types/portaria';
@@ -69,6 +70,7 @@ export default function CentralPortariasPage() {
   const [novaPortariaOpen, setNovaPortariaOpen] = useState(false);
   const [editPortariaOpen, setEditPortariaOpen] = useState(false);
   const [relatorioOpen, setRelatorioOpen] = useState(false);
+  const [centralRelatoriosOpen, setCentralRelatoriosOpen] = useState(false);
   const [publicacaoDialogOpen, setPublicacaoDialogOpen] = useState(false);
   const [assinaturaDialogOpen, setAssinaturaDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -246,9 +248,9 @@ export default function CentralPortariasPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setRelatorioOpen(true)}>
+            <Button variant="outline" onClick={() => setCentralRelatoriosOpen(true)}>
               <BarChart3 className="h-4 w-4 mr-2" />
-              Relatórios
+              Central Relatórios
             </Button>
             <Button onClick={() => setNovaPortariaOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -373,10 +375,9 @@ export default function CentralPortariasPage() {
         initialPortaria={selectedPortaria}
       />
 
-      <RelatorioPortariasDialog
-        open={relatorioOpen}
-        onOpenChange={setRelatorioOpen}
-        portarias={portarias}
+      <CentralRelatoriosDialog
+        open={centralRelatoriosOpen}
+        onOpenChange={setCentralRelatoriosOpen}
       />
 
       <RegistrarPublicacaoDialog
