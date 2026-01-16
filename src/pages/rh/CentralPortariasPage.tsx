@@ -38,19 +38,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 
 import {
   PortariaKanban,
   PortariaTable,
   RegistrarPublicacaoDialog,
+  RegistrarAssinaturaDialog,
 } from '@/components/portarias';
 import { NovaPortariaUnificada } from '@/components/portarias/NovaPortariaUnificada';
 import { RelatorioPortariasDialog } from '@/components/portarias/RelatorioPortariasDialog';
 import { CentralRelatoriosDialog } from '@/components/relatorios/CentralRelatoriosDialog';
 import { supabase } from '@/integrations/supabase/client';
-import { usePortarias, useRegistrarAssinatura, useDeletePortaria } from '@/hooks/usePortarias';
+import { usePortarias, useDeletePortaria } from '@/hooks/usePortarias';
 import { StatusPortaria, STATUS_PORTARIA_LABELS, Portaria } from '@/types/portaria';
 import { toast } from 'sonner';
 import { buildPortariaPdfDoc, savePortariaPdf } from '@/lib/portariaPdf';
@@ -78,10 +78,6 @@ export default function CentralPortariasPage() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const [selectedPortaria, setSelectedPortaria] = useState<Portaria | null>(null);
-  const [assinaturaData, setAssinaturaData] = useState({
-    assinado_por: '',
-    data_assinatura: new Date().toISOString().split('T')[0],
-  });
   const [filters, setFilters] = useState<{
     status?: StatusPortaria;
     busca?: string;
@@ -91,7 +87,6 @@ export default function CentralPortariasPage() {
   });
 
   const { data: portarias = [], isLoading, refetch } = usePortarias(filters);
-  const registrarAssinatura = useRegistrarAssinatura();
   const deletePortaria = useDeletePortaria();
 
   const selectedPortariaText = useMemo(() => {
@@ -133,29 +128,7 @@ export default function CentralPortariasPage() {
 
   const handleRegistrarAssinatura = (portaria: Portaria) => {
     setSelectedPortaria(portaria);
-    setAssinaturaData({
-      assinado_por: '',
-      data_assinatura: new Date().toISOString().split('T')[0],
-    });
     setAssinaturaDialogOpen(true);
-  };
-
-  const handleConfirmarAssinatura = async () => {
-    if (!selectedPortaria || !assinaturaData.assinado_por) return;
-
-    try {
-      await registrarAssinatura.mutateAsync({
-        id: selectedPortaria.id,
-        assinado_por: assinaturaData.assinado_por,
-        data_assinatura: assinaturaData.data_assinatura,
-      });
-      setAssinaturaDialogOpen(false);
-      setSelectedPortaria(null);
-      toast.success('Assinatura registrada com sucesso!');
-      refetch();
-    } catch {
-      toast.error('Erro ao registrar assinatura');
-    }
   };
 
   const handleGeneratePdf = async (portaria: Portaria) => {
@@ -469,49 +442,12 @@ export default function CentralPortariasPage() {
       </Dialog>
 
       {/* Dialog Registrar Assinatura */}
-      <Dialog open={assinaturaDialogOpen} onOpenChange={setAssinaturaDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Registrar Assinatura</DialogTitle>
-            <DialogDescription>Portaria nº {selectedPortaria?.numero}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="assinado_por">Assinado por</Label>
-              <Input
-                id="assinado_por"
-                placeholder="Nome do signatário"
-                value={assinaturaData.assinado_por}
-                onChange={(e) =>
-                  setAssinaturaData((prev) => ({ ...prev, assinado_por: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="data_assinatura">Data da Assinatura</Label>
-              <Input
-                id="data_assinatura"
-                type="date"
-                value={assinaturaData.data_assinatura}
-                onChange={(e) =>
-                  setAssinaturaData((prev) => ({ ...prev, data_assinatura: e.target.value }))
-                }
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAssinaturaDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleConfirmarAssinatura}
-              disabled={!assinaturaData.assinado_por || registrarAssinatura.isPending}
-            >
-              Registrar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RegistrarAssinaturaDialog
+        open={assinaturaDialogOpen}
+        onOpenChange={setAssinaturaDialogOpen}
+        portaria={selectedPortaria}
+        onSuccess={() => refetch()}
+      />
     </AdminLayout>
   );
 }

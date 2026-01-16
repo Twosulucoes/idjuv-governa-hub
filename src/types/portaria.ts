@@ -65,6 +65,7 @@ export interface Portaria {
   // DOE
   doe_numero?: string;
   doe_data?: string;
+  doe_link?: string;
   
   // Conteúdo
   ementa?: string;

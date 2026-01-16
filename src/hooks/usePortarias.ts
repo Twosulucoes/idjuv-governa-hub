@@ -350,21 +350,34 @@ export function useRegistrarPublicacao() {
       id, 
       doe_numero, 
       doe_data,
-      data_publicacao 
+      data_publicacao,
+      doe_link,
+      arquivo_url,
     }: { 
       id: string; 
       doe_numero: string;
       doe_data: string;
       data_publicacao?: string;
+      doe_link?: string;
+      arquivo_url?: string;
     }) => {
+      const updateData: Record<string, unknown> = { 
+        status: 'publicado',
+        doe_numero,
+        doe_data,
+        data_publicacao: data_publicacao || doe_data,
+      };
+      
+      if (doe_link) {
+        updateData.doe_link = doe_link;
+      }
+      if (arquivo_url) {
+        updateData.arquivo_url = arquivo_url;
+      }
+
       const { data, error } = await supabase
         .from('documentos')
-        .update({ 
-          status: 'publicado',
-          doe_numero,
-          doe_data,
-          data_publicacao: data_publicacao || doe_data,
-        })
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();

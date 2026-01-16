@@ -1619,6 +1619,7 @@ export type Database = {
           data_vigencia_inicio: string | null
           designacao_id: string | null
           doe_data: string | null
+          doe_link: string | null
           doe_numero: string | null
           ementa: string | null
           id: string
@@ -1649,6 +1650,7 @@ export type Database = {
           data_vigencia_inicio?: string | null
           designacao_id?: string | null
           doe_data?: string | null
+          doe_link?: string | null
           doe_numero?: string | null
           ementa?: string | null
           id?: string
@@ -1679,6 +1681,7 @@ export type Database = {
           data_vigencia_inicio?: string | null
           designacao_id?: string | null
           doe_data?: string | null
+          doe_link?: string | null
           doe_numero?: string | null
           ementa?: string | null
           id?: string
