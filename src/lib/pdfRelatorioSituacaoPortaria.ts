@@ -25,7 +25,8 @@ export interface ServidorPortariaItem {
   cpf: string;
   cargo: string;
   unidade: string;
-  codigo: string; // Sigla do cargo
+  codigo: string;
+  portaria?: string;
 }
 
 export interface RelatorioSituacaoPortariaData {
@@ -34,29 +35,34 @@ export interface RelatorioSituacaoPortariaData {
   dataGeracao: string;
 }
 
+// ===== Constantes de largura (total = 170mm para respeitar margens) =====
+
+const colWidths = {
+  ord: 10,
+  nome: 40,
+  cpf: 26,
+  cargo: 30,
+  unidade: 18,
+  codigo: 14,
+  portaria: 32
+};
+
 // ===== Função auxiliar para desenhar tabela =====
 
-const drawTableHeader = (doc: jsPDF, y: number, width: number): number => {
-  const colWidths = {
-    ord: 12,
-    nome: 55,
-    cpf: 32,
-    cargo: 45,
-    unidade: 30,
-    codigo: 18
-  };
-  
+const drawTableHeader = (doc: jsPDF, y: number): number => {
   const startX = PAGINA.margemEsquerda;
+  const { width } = getPageDimensions(doc);
+  const tableWidth = width - PAGINA.margemEsquerda - PAGINA.margemDireita;
   
   // Fundo do header
   setColor(doc, CORES.primaria, 'fill');
-  doc.rect(startX, y - 4, width - PAGINA.margemEsquerda - PAGINA.margemDireita, 7, 'F');
+  doc.rect(startX, y - 4, tableWidth, 7, 'F');
   
   setColor(doc, CORES.textoBranco);
-  doc.setFontSize(7);
+  doc.setFontSize(6.5);
   doc.setFont('helvetica', 'bold');
   
-  let x = startX + 2;
+  let x = startX + 1;
   doc.text('Ord.', x, y);
   x += colWidths.ord;
   doc.text('Nome', x, y);
@@ -65,48 +71,44 @@ const drawTableHeader = (doc: jsPDF, y: number, width: number): number => {
   x += colWidths.cpf;
   doc.text('Cargo', x, y);
   x += colWidths.cargo;
-  doc.text('Unidade/Setor', x, y);
+  doc.text('Unidade', x, y);
   x += colWidths.unidade;
-  doc.text('Código', x, y);
+  doc.text('Cód.', x, y);
+  x += colWidths.codigo;
+  doc.text('Portaria', x, y);
   
   return y + 6;
 };
 
 const drawTableRow = (doc: jsPDF, servidor: ServidorPortariaItem, y: number, isAlternate: boolean): number => {
-  const colWidths = {
-    ord: 12,
-    nome: 55,
-    cpf: 32,
-    cargo: 45,
-    unidade: 30,
-    codigo: 18
-  };
-  
   const startX = PAGINA.margemEsquerda;
   const { width } = getPageDimensions(doc);
+  const tableWidth = width - PAGINA.margemEsquerda - PAGINA.margemDireita;
   
   // Fundo alternado
   if (isAlternate) {
     setColor(doc, CORES.fundoClaro, 'fill');
-    doc.rect(startX, y - 3, width - PAGINA.margemEsquerda - PAGINA.margemDireita, 5, 'F');
+    doc.rect(startX, y - 3, tableWidth, 5, 'F');
   }
   
   setColor(doc, CORES.textoEscuro);
-  doc.setFontSize(7);
+  doc.setFontSize(6.5);
   doc.setFont('helvetica', 'normal');
   
-  let x = startX + 2;
+  let x = startX + 1;
   doc.text(String(servidor.ord), x, y);
   x += colWidths.ord;
-  doc.text(servidor.nome.substring(0, 30), x, y);
+  doc.text(servidor.nome.substring(0, 22), x, y);
   x += colWidths.nome;
   doc.text(formatCPF(servidor.cpf), x, y);
   x += colWidths.cpf;
-  doc.text((servidor.cargo || '-').substring(0, 25), x, y);
+  doc.text((servidor.cargo || '-').substring(0, 16), x, y);
   x += colWidths.cargo;
-  doc.text((servidor.unidade || '-').substring(0, 16), x, y);
+  doc.text((servidor.unidade || '-').substring(0, 10), x, y);
   x += colWidths.unidade;
-  doc.text((servidor.codigo || '-').substring(0, 12), x, y);
+  doc.text((servidor.codigo || '-').substring(0, 8), x, y);
+  x += colWidths.codigo;
+  doc.text((servidor.portaria || '-').substring(0, 18), x, y);
   
   return y + 5;
 };
@@ -140,14 +142,14 @@ export const generateRelatorioSituacaoPortaria = async (data: RelatorioSituacaoP
   y = addSectionHeader(doc, `SERVIDORES COM PORTARIA DE NOMEAÇÃO (${totalCom})`, y);
   
   if (totalCom > 0) {
-    y = drawTableHeader(doc, y, width);
+    y = drawTableHeader(doc, y);
     
     data.servidoresComPortaria.forEach((servidor, index) => {
       y = checkPageBreak(doc, y, 20);
       
       // Se mudou de página, redesenha o header
       if (y < 50) {
-        y = drawTableHeader(doc, y, width);
+        y = drawTableHeader(doc, y);
       }
       
       y = drawTableRow(doc, servidor, y, index % 2 === 1);
@@ -178,14 +180,14 @@ export const generateRelatorioSituacaoPortaria = async (data: RelatorioSituacaoP
   y = addSectionHeader(doc, `SERVIDORES SEM PORTARIA DE NOMEAÇÃO (${totalSem})`, y);
   
   if (totalSem > 0) {
-    y = drawTableHeader(doc, y, width);
+    y = drawTableHeader(doc, y);
     
     data.servidoresSemPortaria.forEach((servidor, index) => {
       y = checkPageBreak(doc, y, 20);
       
       // Se mudou de página, redesenha o header
       if (y < 50) {
-        y = drawTableHeader(doc, y, width);
+        y = drawTableHeader(doc, y);
       }
       
       y = drawTableRow(doc, servidor, y, index % 2 === 1);
