@@ -93,7 +93,7 @@ interface ServidorCompleto {
   banco_tipo_conta: string | null;
   // Contato
   telefone_celular: string | null;
-  email: string | null;
+  email_pessoal: string | null;
   // Endereço
   endereco_cep: string | null;
   endereco_logradouro: string | null;
@@ -133,7 +133,7 @@ const CAMPOS_BANCARIOS = [
 // Campos de dados pessoais complementares
 const CAMPOS_PESSOAIS = [
   { campo: "telefone_celular", descricao: "Telefone Celular", obrigatorio: true },
-  { campo: "email", descricao: "E-mail", obrigatorio: true },
+  { campo: "email_pessoal", descricao: "E-mail", obrigatorio: true },
   { campo: "endereco_cep", descricao: "CEP", obrigatorio: true },
   { campo: "endereco_logradouro", descricao: "Logradouro", obrigatorio: true },
   { campo: "endereco_numero", descricao: "Número", obrigatorio: true },
@@ -227,17 +227,16 @@ export default function DiagnosticoPendenciasServidoresPage() {
           banco_conta,
           banco_tipo_conta,
           telefone_celular,
-          email,
+          email_pessoal,
           endereco_cep,
           endereco_logradouro,
           endereco_numero,
           endereco_bairro,
           endereco_cidade,
           endereco_uf,
-          cargo_atual:cargos!servidores_cargo_atual_id_fkey(nome, vencimento_base),
-          lotacao_atual:estrutura_organizacional!servidores_lotacao_atual_id_fkey(nome)
+          cargo_atual_id,
+          unidade_atual_id
         `)
-        .eq("situacao", "ativo")
         .eq("ativo", true)
         .order("nome_completo");
 
@@ -283,17 +282,17 @@ export default function DiagnosticoPendenciasServidoresPage() {
           banco_conta: s.banco_conta,
           banco_tipo_conta: s.banco_tipo_conta,
           telefone_celular: s.telefone_celular,
-          email: s.email,
+          email_pessoal: s.email_pessoal,
           endereco_cep: s.endereco_cep,
           endereco_logradouro: s.endereco_logradouro,
           endereco_numero: s.endereco_numero,
           endereco_bairro: s.endereco_bairro,
           endereco_cidade: s.endereco_cidade,
           endereco_uf: s.endereco_uf,
-          cargo_nome: s.cargo_atual?.nome || null,
-          unidade_nome: s.lotacao_atual?.nome || null,
+          cargo_nome: null,
+          unidade_nome: null,
           tem_provimento_ativo: !!provimento,
-          vencimento_base: provimento?.vencimento || s.cargo_atual?.vencimento_base || null,
+          vencimento_base: provimento?.vencimento || null,
         };
       }) as ServidorCompleto[];
     },
