@@ -14,8 +14,8 @@ export const CAMPOS_EXPORTACAO: CampoExportacao[] = [
   { id: 'nome_completo', label: 'Nome Completo', categoria: 'Dados Pessoais', getValue: (s) => s.nome_completo?.toUpperCase() },
   { id: 'nome_social', label: 'Nome Social', categoria: 'Dados Pessoais', getValue: (s) => s.nome_social?.toUpperCase() },
   { id: 'cpf', label: 'CPF', categoria: 'Dados Pessoais', getValue: (s) => formatCPF(s.cpf || '') },
-  { id: 'rg_numero', label: 'RG - Número', categoria: 'Dados Pessoais', getValue: (s) => s.rg_numero },
-  { id: 'rg_orgao', label: 'RG - Órgão Emissor', categoria: 'Dados Pessoais', getValue: (s) => s.rg_orgao },
+  { id: 'rg', label: 'RG - Número', categoria: 'Dados Pessoais', getValue: (s) => s.rg },
+  { id: 'rg_orgao_expedidor', label: 'RG - Órgão Emissor', categoria: 'Dados Pessoais', getValue: (s) => s.rg_orgao_expedidor },
   { id: 'rg_uf', label: 'RG - UF', categoria: 'Dados Pessoais', getValue: (s) => s.rg_uf },
   { id: 'rg_data_emissao', label: 'RG - Data Emissão', categoria: 'Dados Pessoais', getValue: (s) => formatDate(s.rg_data_emissao) },
   { id: 'data_nascimento', label: 'Data de Nascimento', categoria: 'Dados Pessoais', getValue: (s) => formatDate(s.data_nascimento) },
@@ -39,13 +39,13 @@ export const CAMPOS_EXPORTACAO: CampoExportacao[] = [
   { id: 'certificado_reservista', label: 'Certificado Reservista', categoria: 'Documentos', getValue: (s) => s.certificado_reservista },
   
   // Contato
-  { id: 'email', label: 'E-mail Pessoal', categoria: 'Contato', getValue: (s) => s.email },
+  { id: 'email_pessoal', label: 'E-mail Pessoal', categoria: 'Contato', getValue: (s) => s.email_pessoal },
   { id: 'email_institucional', label: 'E-mail Institucional', categoria: 'Contato', getValue: (s) => s.email_institucional },
   { id: 'telefone_fixo', label: 'Telefone Fixo', categoria: 'Contato', getValue: (s) => formatTelefone(s.telefone_fixo || '') },
   { id: 'telefone_celular', label: 'Telefone Celular', categoria: 'Contato', getValue: (s) => formatTelefone(s.telefone_celular || '') },
   { id: 'contato_emergencia_nome', label: 'Contato Emergência - Nome', categoria: 'Contato', getValue: (s) => s.contato_emergencia_nome?.toUpperCase() },
   { id: 'contato_emergencia_parentesco', label: 'Contato Emergência - Parentesco', categoria: 'Contato', getValue: (s) => s.contato_emergencia_parentesco },
-  { id: 'contato_emergencia_telefone', label: 'Contato Emergência - Telefone', categoria: 'Contato', getValue: (s) => formatTelefone(s.contato_emergencia_telefone || '') },
+  { id: 'telefone_emergencia', label: 'Contato Emergência - Telefone', categoria: 'Contato', getValue: (s) => formatTelefone(s.telefone_emergencia || '') },
   
   // Endereço
   { id: 'endereco_logradouro', label: 'Logradouro', categoria: 'Endereço', getValue: (s) => s.endereco_logradouro?.toUpperCase() },
