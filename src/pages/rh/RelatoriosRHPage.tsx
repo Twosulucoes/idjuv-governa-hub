@@ -22,7 +22,8 @@ import {
   Loader2,
   Briefcase,
   FileCheck,
-  ClipboardCheck
+  ClipboardCheck,
+  Layers
 } from "lucide-react";
 import { toast } from "sonner";
 import { 
@@ -33,6 +34,7 @@ import {
   generateRelatorioServidoresPortarias
 } from "@/lib/pdfRelatoriosRH";
 import { generateRelatorioSituacaoPortaria, ServidorPortariaItem } from "@/lib/pdfRelatorioSituacaoPortaria";
+import { generateRelatorioAgrupadoPortaria, GrupoPortaria, ServidorParaPortaria } from "@/lib/pdfRelatorioAgrupadoPortaria";
 import { VINCULO_LABELS, SITUACAO_LABELS, MOVIMENTACAO_LABELS } from "@/types/rh";
 import { ExportacaoServidoresCard } from "@/components/rh/ExportacaoServidoresCard";
 
@@ -599,11 +601,12 @@ export default function RelatoriosRHPage() {
       }
 
       // Buscar portarias de nomeação da Central de Portarias (tabela documentos)
+      // Incluir categoria 'nomeacao' e 'pessoal' pois algumas portarias de nomeação estão categorizadas como pessoal
       const { data: portariasNomeacao, error: portErr } = await supabase
         .from("documentos")
         .select("id, numero, servidores_ids")
         .eq("tipo", "portaria")
-        .eq("categoria", "nomeacao");
+        .in("categoria", ["nomeacao", "pessoal"]);
 
       if (portErr) throw portErr;
 
@@ -653,6 +656,114 @@ export default function RelatoriosRHPage() {
 
       await generateRelatorioSituacaoPortaria({
         servidoresComPortaria,
+        servidoresSemPortaria,
+        dataGeracao: new Date().toLocaleDateString('pt-BR')
+      });
+
+      toast.success("Relatório gerado com sucesso!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao gerar relatório");
+    } finally {
+      setLoadingReport(null);
+    }
+  };
+
+  // Relatório de Servidores Agrupado por Portaria
+  const handleGerarRelatorioAgrupadoPortaria = async () => {
+    setLoadingReport("agrupado-portaria");
+    try {
+      // Buscar servidores ativos
+      const { data: servidoresData, error } = await supabase
+        .from("v_servidores_situacao")
+        .select(`
+          id,
+          nome_completo,
+          cpf,
+          cargo_nome,
+          cargo_sigla,
+          unidade_sigla,
+          unidade_nome
+        `)
+        .eq("situacao", "ativo")
+        .order("nome_completo");
+
+      if (error) throw error;
+
+      if (!servidoresData || servidoresData.length === 0) {
+        toast.error("Nenhum servidor ativo encontrado");
+        return;
+      }
+
+      // Buscar portarias de nomeação (incluindo categoria pessoal)
+      const { data: portariasNomeacao, error: portErr } = await supabase
+        .from("documentos")
+        .select("id, numero, servidores_ids")
+        .eq("tipo", "portaria")
+        .in("categoria", ["nomeacao", "pessoal"])
+        .order("numero");
+
+      if (portErr) throw portErr;
+
+      // Criar mapa de servidor por ID para acesso rápido
+      const servidoresMap = new Map(servidoresData.map(s => [s.id, s]));
+
+      // Agrupar servidores por portaria
+      const grupos: GrupoPortaria[] = [];
+      const servidoresComPortaria = new Set<string>();
+
+      (portariasNomeacao || []).forEach(portaria => {
+        if (portaria.servidores_ids && Array.isArray(portaria.servidores_ids) && portaria.numero) {
+          const servidoresDoGrupo: ServidorParaPortaria[] = [];
+          
+          portaria.servidores_ids.forEach((servidorId: string) => {
+            const servidor = servidoresMap.get(servidorId);
+            if (servidor) {
+              servidoresComPortaria.add(servidorId);
+              servidoresDoGrupo.push({
+                ord: 0,
+                nome: servidor.nome_completo || '',
+                cpf: servidor.cpf || '',
+                cargo: servidor.cargo_nome || '-',
+                unidade: servidor.unidade_sigla || servidor.unidade_nome || '-',
+                codigo: servidor.cargo_sigla || '-'
+              });
+            }
+          });
+
+          // Ordenar e numerar servidores do grupo
+          servidoresDoGrupo.sort((a, b) => a.nome.localeCompare(b.nome));
+          servidoresDoGrupo.forEach((s, i) => s.ord = i + 1);
+
+          if (servidoresDoGrupo.length > 0) {
+            grupos.push({
+              numero: portaria.numero,
+              servidores: servidoresDoGrupo
+            });
+          }
+        }
+      });
+
+      // Ordenar grupos por número da portaria
+      grupos.sort((a, b) => a.numero.localeCompare(b.numero));
+
+      // Servidores sem portaria
+      const servidoresSemPortaria: ServidorParaPortaria[] = servidoresData
+        .filter(s => !servidoresComPortaria.has(s.id))
+        .map(s => ({
+          ord: 0,
+          nome: s.nome_completo || '',
+          cpf: s.cpf || '',
+          cargo: s.cargo_nome || '-',
+          unidade: s.unidade_sigla || s.unidade_nome || '-',
+          codigo: s.cargo_sigla || '-'
+        }));
+
+      servidoresSemPortaria.sort((a, b) => a.nome.localeCompare(b.nome));
+      servidoresSemPortaria.forEach((s, i) => s.ord = i + 1);
+
+      await generateRelatorioAgrupadoPortaria({
+        grupos,
         servidoresSemPortaria,
         dataGeracao: new Date().toLocaleDateString('pt-BR')
       });
@@ -948,6 +1059,39 @@ export default function RelatoriosRHPage() {
                   disabled={loadingReport === "situacao-portaria"}
                 >
                   {loadingReport === "situacao-portaria" ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  Gerar Relatório PDF
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Relatório Agrupado por Portaria */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-accent/10 rounded-lg">
+                    <Layers className="h-5 w-5 text-accent-foreground" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Servidores por Portaria</CardTitle>
+                    <CardDescription>Agrupa servidores por número de portaria</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Gera relatório agrupando os servidores por número de portaria de nomeação 
+                  (001/2026, 002/2026, 003/2026, etc).
+                </p>
+                <Button 
+                  className="w-full" 
+                  onClick={handleGerarRelatorioAgrupadoPortaria}
+                  disabled={loadingReport === "agrupado-portaria"}
+                >
+                  {loadingReport === "agrupado-portaria" ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
                     <Download className="h-4 w-4 mr-2" />
