@@ -25,7 +25,6 @@ import {
   Plane,
   FileDown,
   History,
-  ScrollText,
   Star
 } from "lucide-react";
 import { generateFichaCadastral } from "@/lib/pdfGenerator";
@@ -131,20 +130,7 @@ export default function ServidorDetalheePage() {
     enabled: !!id,
   });
 
-  // Fetch portarias
-  const { data: portarias = [] } = useQuery({
-    queryKey: ["portarias-servidor", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("portarias_servidor")
-        .select("*")
-        .eq("servidor_id", id)
-        .order("data_publicacao", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!id,
-  });
+  // Portarias agora são gerenciadas exclusivamente pela aba Histórico via PortariasServidorSection
 
   // Fetch férias
   const { data: ferias = [] } = useQuery({
@@ -341,7 +327,7 @@ export default function ServidorDetalheePage() {
           </div>
 
           <Tabs defaultValue="dados" className="space-y-6">
-            <TabsList className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+            <TabsList className="grid grid-cols-2 lg:grid-cols-4 gap-2">
               <TabsTrigger value="dados" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
                 <span className="hidden sm:inline">Dados</span>
@@ -349,10 +335,6 @@ export default function ServidorDetalheePage() {
               <TabsTrigger value="historico" className="flex items-center gap-2">
                 <History className="h-4 w-4" />
                 <span className="hidden sm:inline">Histórico</span>
-              </TabsTrigger>
-              <TabsTrigger value="portarias" className="flex items-center gap-2">
-                <ScrollText className="h-4 w-4" />
-                <span className="hidden sm:inline">Portarias</span>
               </TabsTrigger>
               <TabsTrigger value="ferias" className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
@@ -516,39 +498,6 @@ export default function ServidorDetalheePage() {
               />
             </TabsContent>
 
-            {/* Portarias */}
-            <TabsContent value="portarias">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <ScrollText className="h-5 w-5 text-primary" />
-                    Portarias do Servidor
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {portarias.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8">
-                      Nenhuma portaria vinculada a este servidor.
-                    </p>
-                  ) : (
-                    <div className="space-y-4">
-                      {portarias.map((p) => (
-                        <div key={p.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                          <div>
-                            <p className="font-medium">Portaria nº {p.numero}/{p.ano}</p>
-                            <p className="text-sm text-muted-foreground">{p.assunto}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Publicada em {formatDate(p.data_publicacao)}
-                            </p>
-                          </div>
-                          <Badge>{p.status}</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
 
             {/* Férias */}
             <TabsContent value="ferias">
