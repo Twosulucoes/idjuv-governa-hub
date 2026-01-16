@@ -210,45 +210,16 @@ export function useOrganograma() {
     return lotacoes.filter(l => l.unidade_id === unidadeId);
   }, [lotacoes]);
 
-  // NOVO: Obter servidores por cargo vinculado à unidade (via composicao_cargos)
+  // Obter servidores LOTADOS diretamente na unidade (não pelo cargo)
   const getServidoresByUnidadeCargo = useCallback((unidadeId: string): { nome: string; cargo: string }[] => {
-    // Primeiro, buscar os cargos que pertencem a esta unidade
-    const cargosUnidade = composicaoCargos.filter(cc => cc.unidade_id === unidadeId);
+    // CORRETO: Buscar servidores que estão LOTADOS nesta unidade
+    const lotacoesUnidade = lotacoes.filter(l => l.unidade_id === unidadeId);
     
-    if (cargosUnidade.length === 0) {
-      // Se não tem composição cadastrada, volta para a lotação direta
-      const lotacoesUnidade = lotacoes.filter(l => l.unidade_id === unidadeId);
-      return lotacoesUnidade.map(l => ({
-        nome: l.servidor?.full_name || '',
-        cargo: l.cargo?.nome || l.cargo?.sigla || '-'
-      })).filter(s => s.nome);
-    }
-    
-    // Buscar servidores que ocupam esses cargos (independente de onde estão "lotados")
-    const servidores: { nome: string; cargo: string }[] = [];
-    
-    for (const composicao of cargosUnidade) {
-      // Buscar todas as lotações com este cargo
-      const lotacoesComCargo = lotacoes.filter(l => l.cargo_id === composicao.cargo_id);
-      
-      for (const lotacao of lotacoesComCargo) {
-        if (lotacao.servidor?.full_name) {
-          // Evitar duplicatas
-          const jaExiste = servidores.some(s => 
-            s.nome.toUpperCase() === lotacao.servidor!.full_name.toUpperCase()
-          );
-          if (!jaExiste) {
-            servidores.push({
-              nome: lotacao.servidor.full_name,
-              cargo: composicao.cargo?.nome || lotacao.cargo?.nome || '-'
-            });
-          }
-        }
-      }
-    }
-    
-    return servidores;
-  }, [composicaoCargos, lotacoes]);
+    return lotacoesUnidade.map(l => ({
+      nome: l.servidor?.full_name || '',
+      cargo: l.cargo?.nome || l.cargo?.sigla || '-'
+    })).filter(s => s.nome);
+  }, [lotacoes]);
 
   // Contar servidores em uma unidade (incluindo subordinados)
   const contarServidores = useCallback((unidadeId: string, incluirSubordinados = false): number => {
