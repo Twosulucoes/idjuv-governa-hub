@@ -630,13 +630,14 @@ export default function RelatoriosRHPage() {
           cpf: s.cpf || '',
           cargo: s.cargo_nome || '-',
           unidade: s.unidade_sigla || s.unidade_nome || '-',
-          codigo: s.cargo_sigla || '-'
+          codigo: s.cargo_sigla || '-',
+          portaria: atoNomeacao || '-'
         };
 
         if (atoNomeacao && atoNomeacao.trim() !== '') {
           servidoresComPortaria.push({ ...item, ord: 0 });
         } else {
-          servidoresSemPortaria.push({ ...item, ord: 0 });
+          servidoresSemPortaria.push({ ...item, ord: 0, portaria: '-' });
         }
       });
 
