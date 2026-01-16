@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { CalendarIcon, Newspaper, Upload, Loader2, ExternalLink } from 'lucide-react';
+import { CalendarIcon, FileSignature, Upload, Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,6 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription,
 } from '@/components/ui/form';
 import {
   Popover,
@@ -30,52 +29,47 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { useRegistrarPublicacao } from '@/hooks/usePortarias';
+import { useRegistrarAssinatura } from '@/hooks/usePortarias';
 import { Portaria } from '@/types/portaria';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const formSchema = z.object({
-  doe_numero: z.string().min(1, 'Número do DOE é obrigatório'),
-  doe_data: z.date({ required_error: 'Data do DOE é obrigatória' }),
-  data_publicacao: z.date().optional(),
-  doe_link: z.string().url('URL inválida').optional().or(z.literal('')),
+  assinado_por: z.string().min(1, 'Nome do signatário é obrigatório'),
+  data_assinatura: z.date({ required_error: 'Data da assinatura é obrigatória' }),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
-interface RegistrarPublicacaoDialogProps {
+interface RegistrarAssinaturaDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   portaria: Portaria | null;
   onSuccess?: () => void;
 }
 
-export function RegistrarPublicacaoDialog({
+export function RegistrarAssinaturaDialog({
   open,
   onOpenChange,
   portaria,
   onSuccess,
-}: RegistrarPublicacaoDialogProps) {
-  const registrarPublicacao = useRegistrarPublicacao();
+}: RegistrarAssinaturaDialogProps) {
+  const registrarAssinatura = useRegistrarAssinatura();
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      doe_numero: '',
-      doe_link: '',
+      assinado_por: '',
     },
   });
 
   useEffect(() => {
     if (open) {
       form.reset({
-        doe_numero: '',
-        doe_link: '',
-        doe_data: undefined,
-        data_publicacao: undefined,
+        assinado_por: '',
+        data_assinatura: new Date(),
       });
       setArquivo(null);
     }
@@ -99,7 +93,7 @@ export function RegistrarPublicacaoDialog({
   const uploadArquivo = async (): Promise<string | null> => {
     if (!arquivo || !portaria) return null;
 
-    const fileName = `portarias/${portaria.numero.replace(/\//g, '-')}_publicada_${Date.now()}.pdf`;
+    const fileName = `portarias/${portaria.numero.replace(/\//g, '-')}_assinada_${Date.now()}.pdf`;
     
     const { error } = await supabase.storage
       .from('documentos')
@@ -122,45 +116,41 @@ export function RegistrarPublicacaoDialog({
 
     try {
       setUploading(true);
-
-      let arquivo_url: string | undefined;
+      
+      let arquivo_assinado_url: string | undefined;
       if (arquivo) {
-        arquivo_url = (await uploadArquivo()) || undefined;
+        arquivo_assinado_url = (await uploadArquivo()) || undefined;
       }
 
-      await registrarPublicacao.mutateAsync({
+      await registrarAssinatura.mutateAsync({
         id: portaria.id,
-        doe_numero: data.doe_numero,
-        doe_data: format(data.doe_data, 'yyyy-MM-dd'),
-        data_publicacao: data.data_publicacao
-          ? format(data.data_publicacao, 'yyyy-MM-dd')
-          : undefined,
-        doe_link: data.doe_link || undefined,
-        arquivo_url,
+        assinado_por: data.assinado_por,
+        data_assinatura: format(data.data_assinatura, 'yyyy-MM-dd'),
+        arquivo_assinado_url,
       });
 
       form.reset();
       setArquivo(null);
       onOpenChange(false);
       onSuccess?.();
-      toast.success('Publicação registrada com sucesso!');
+      toast.success('Assinatura registrada com sucesso!');
     } catch (error) {
-      console.error('Erro ao registrar publicação:', error);
-      toast.error('Erro ao registrar publicação');
+      console.error('Erro ao registrar assinatura:', error);
+      toast.error('Erro ao registrar assinatura');
     } finally {
       setUploading(false);
     }
   };
 
-  const isPending = registrarPublicacao.isPending || uploading;
+  const isPending = registrarAssinatura.isPending || uploading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Newspaper className="h-5 w-5" />
-            Registrar Publicação no DOE
+            <FileSignature className="h-5 w-5" />
+            Registrar Assinatura
           </DialogTitle>
           <DialogDescription>
             {portaria && (
@@ -174,67 +164,26 @@ export function RegistrarPublicacaoDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="doe_numero"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Número do DOE *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: 1234" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="doe_data"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Data do DOE *</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              'w-full pl-3 text-left font-normal',
-                              !field.value && 'text-muted-foreground'
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, 'dd/MM/yyyy')
-                            ) : (
-                              <span>Selecione</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="assinado_por"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Assinado por *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Nome do signatário" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
-              name="data_publicacao"
+              name="data_assinatura"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Data da Publicação</FormLabel>
+                  <FormLabel>Data da Assinatura *</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -248,7 +197,7 @@ export function RegistrarPublicacaoDialog({
                           {field.value ? (
                             format(field.value, 'dd/MM/yyyy')
                           ) : (
-                            <span>Igual à data do DOE</span>
+                            <span>Selecione a data</span>
                           )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
@@ -263,40 +212,13 @@ export function RegistrarPublicacaoDialog({
                       />
                     </PopoverContent>
                   </Popover>
-                  <FormDescription>
-                    Se diferente da data do DOE
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="doe_link"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-1">
-                    Link do DOE
-                    <ExternalLink className="h-3 w-3" />
-                  </FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="url" 
-                      placeholder="https://diario.rr.gov.br/..." 
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    URL para acesso ao Diário Oficial
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
             <div className="space-y-2">
-              <FormLabel>Anexo da Portaria Publicada (PDF)</FormLabel>
+              <FormLabel>Portaria Assinada (PDF)</FormLabel>
               <div className="flex items-center gap-2">
                 <Input
                   type="file"
@@ -328,7 +250,7 @@ export function RegistrarPublicacaoDialog({
                     Registrando...
                   </>
                 ) : (
-                  'Registrar Publicação'
+                  'Registrar Assinatura'
                 )}
               </Button>
             </div>
