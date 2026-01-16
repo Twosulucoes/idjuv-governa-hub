@@ -598,38 +598,35 @@ export default function RelatoriosRHPage() {
         return;
       }
 
-      // Buscar provimentos para verificar ato_nomeacao_numero
-      const provimentoIds = servidoresData
-        .filter(s => s.provimento_id)
-        .map(s => s.provimento_id);
+      // Buscar portarias de nomeação da Central de Portarias (tabela documentos)
+      const { data: portariasNomeacao, error: portErr } = await supabase
+        .from("documentos")
+        .select("id, numero, servidores_ids")
+        .eq("tipo", "portaria")
+        .eq("categoria", "nomeacao");
 
-      let provimentosMap = new Map<string, string | null>();
+      if (portErr) throw portErr;
+
+      // Criar mapa: servidor_id -> lista de números de portaria
+      const portariasPorServidor = new Map<string, string[]>();
       
-      if (provimentoIds.length > 0) {
-        const { data: provimentos, error: pErr } = await supabase
-          .from("provimentos")
-          .select("id, ato_nomeacao_numero")
-          .in("id", provimentoIds);
+      (portariasNomeacao || []).forEach(portaria => {
+        if (portaria.servidores_ids && Array.isArray(portaria.servidores_ids) && portaria.numero) {
+          portaria.servidores_ids.forEach((servidorId: string) => {
+            const existing = portariasPorServidor.get(servidorId) || [];
+            existing.push(portaria.numero);
+            portariasPorServidor.set(servidorId, existing);
+          });
+        }
+      });
 
-        if (pErr) throw pErr;
-
-        (provimentos || []).forEach(p => {
-          provimentosMap.set(p.id, p.ato_nomeacao_numero);
-        });
-      }
-
-      // Portarias oficiais publicadas (somente estas devem ser consideradas)
-      const PORTARIAS_OFICIAIS = ['001/2026', '002/2026', '003/2026'];
-      
-      // Separar servidores com e sem portaria oficial
+      // Separar servidores com e sem portaria oficial da Central
       const servidoresComPortaria: ServidorPortariaItem[] = [];
       const servidoresSemPortaria: ServidorPortariaItem[] = [];
 
       servidoresData.forEach(s => {
-        const atoNomeacao = s.provimento_id ? provimentosMap.get(s.provimento_id) : null;
-        
-        // Verificar se é uma portaria oficial publicada
-        const temPortariaOficial = atoNomeacao && PORTARIAS_OFICIAIS.includes(atoNomeacao);
+        const numerosPortaria = portariasPorServidor.get(s.id);
+        const temPortariaOficial = numerosPortaria && numerosPortaria.length > 0;
         
         const item: Omit<ServidorPortariaItem, 'ord'> = {
           nome: s.nome_completo || '',
@@ -637,7 +634,7 @@ export default function RelatoriosRHPage() {
           cargo: s.cargo_nome || '-',
           unidade: s.unidade_sigla || s.unidade_nome || '-',
           codigo: s.cargo_sigla || '-',
-          portaria: temPortariaOficial ? atoNomeacao : '-'
+          portaria: temPortariaOficial ? numerosPortaria.join(', ') : '-'
         };
 
         if (temPortariaOficial) {
