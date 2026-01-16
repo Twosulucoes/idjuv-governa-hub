@@ -4361,12 +4361,6 @@ export type Database = {
           ato_encerramento_data: string | null
           ato_encerramento_numero: string | null
           ato_encerramento_tipo: string | null
-          ato_nomeacao_data: string | null
-          ato_nomeacao_doe_data: string | null
-          ato_nomeacao_doe_numero: string | null
-          ato_nomeacao_numero: string | null
-          ato_nomeacao_tipo: string | null
-          ato_nomeacao_url: string | null
           cargo_id: string
           created_at: string | null
           created_by: string | null
@@ -4387,12 +4381,6 @@ export type Database = {
           ato_encerramento_data?: string | null
           ato_encerramento_numero?: string | null
           ato_encerramento_tipo?: string | null
-          ato_nomeacao_data?: string | null
-          ato_nomeacao_doe_data?: string | null
-          ato_nomeacao_doe_numero?: string | null
-          ato_nomeacao_numero?: string | null
-          ato_nomeacao_tipo?: string | null
-          ato_nomeacao_url?: string | null
           cargo_id: string
           created_at?: string | null
           created_by?: string | null
@@ -4413,12 +4401,6 @@ export type Database = {
           ato_encerramento_data?: string | null
           ato_encerramento_numero?: string | null
           ato_encerramento_tipo?: string | null
-          ato_nomeacao_data?: string | null
-          ato_nomeacao_doe_data?: string | null
-          ato_nomeacao_doe_numero?: string | null
-          ato_nomeacao_numero?: string | null
-          ato_nomeacao_tipo?: string | null
-          ato_nomeacao_url?: string | null
           cargo_id?: string
           created_at?: string | null
           created_by?: string | null
