@@ -177,10 +177,11 @@ export const generateRelatorioSituacaoPortaria = async (data: RelatorioSituacaoP
     y = drawTableHeader(doc, y);
     
     data.servidoresComPortaria.forEach((servidor, index) => {
-      y = checkPageBreak(doc, y, 20);
+      const yAntes = y;
+      y = checkPageBreak(doc, y, 15);
       
-      // Se mudou de página, redesenha o header
-      if (y < 50) {
+      // Se mudou de página (y diminuiu), redesenha o header
+      if (y < yAntes) {
         y = drawTableHeader(doc, y);
       }
       
@@ -215,10 +216,11 @@ export const generateRelatorioSituacaoPortaria = async (data: RelatorioSituacaoP
     y = drawTableHeader(doc, y);
     
     data.servidoresSemPortaria.forEach((servidor, index) => {
-      y = checkPageBreak(doc, y, 20);
+      const yAntes = y;
+      y = checkPageBreak(doc, y, 15);
       
-      // Se mudou de página, redesenha o header
-      if (y < 50) {
+      // Se mudou de página (y diminuiu), redesenha o header
+      if (y < yAntes) {
         y = drawTableHeader(doc, y);
       }
       
