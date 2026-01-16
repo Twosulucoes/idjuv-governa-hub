@@ -618,12 +618,18 @@ export default function RelatoriosRHPage() {
         });
       }
 
-      // Separar servidores com e sem portaria
+      // Portarias oficiais publicadas (somente estas devem ser consideradas)
+      const PORTARIAS_OFICIAIS = ['001/2026', '002/2026', '003/2026'];
+      
+      // Separar servidores com e sem portaria oficial
       const servidoresComPortaria: ServidorPortariaItem[] = [];
       const servidoresSemPortaria: ServidorPortariaItem[] = [];
 
       servidoresData.forEach(s => {
         const atoNomeacao = s.provimento_id ? provimentosMap.get(s.provimento_id) : null;
+        
+        // Verificar se é uma portaria oficial publicada
+        const temPortariaOficial = atoNomeacao && PORTARIAS_OFICIAIS.includes(atoNomeacao);
         
         const item: Omit<ServidorPortariaItem, 'ord'> = {
           nome: s.nome_completo || '',
@@ -631,13 +637,13 @@ export default function RelatoriosRHPage() {
           cargo: s.cargo_nome || '-',
           unidade: s.unidade_sigla || s.unidade_nome || '-',
           codigo: s.cargo_sigla || '-',
-          portaria: atoNomeacao || '-'
+          portaria: temPortariaOficial ? atoNomeacao : '-'
         };
 
-        if (atoNomeacao && atoNomeacao.trim() !== '') {
+        if (temPortariaOficial) {
           servidoresComPortaria.push({ ...item, ord: 0 });
         } else {
-          servidoresSemPortaria.push({ ...item, ord: 0, portaria: '-' });
+          servidoresSemPortaria.push({ ...item, ord: 0 });
         }
       });
 
