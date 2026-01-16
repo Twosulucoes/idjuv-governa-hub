@@ -84,33 +84,65 @@ const drawTableRow = (doc: jsPDF, servidor: ServidorPortariaItem, y: number, isA
   const startX = PAGINA.margemEsquerda;
   const { width } = getPageDimensions(doc);
   const tableWidth = width - PAGINA.margemEsquerda - PAGINA.margemDireita;
+  const lineHeight = 3;
+  const fontSize = 6.5;
+  
+  doc.setFontSize(fontSize);
+  doc.setFont('helvetica', 'normal');
+  
+  // Quebrar textos longos em múltiplas linhas
+  const nomeLines = doc.splitTextToSize(servidor.nome || '', colWidths.nome - 2);
+  const cargoLines = doc.splitTextToSize(servidor.cargo || '-', colWidths.cargo - 2);
+  const portariaLines = doc.splitTextToSize(servidor.portaria || '-', colWidths.portaria - 2);
+  
+  // Calcular altura máxima da linha baseado no maior número de linhas
+  const maxLines = Math.max(nomeLines.length, cargoLines.length, portariaLines.length, 1);
+  const rowHeight = maxLines * lineHeight + 2;
   
   // Fundo alternado
   if (isAlternate) {
     setColor(doc, CORES.fundoClaro, 'fill');
-    doc.rect(startX, y - 3, tableWidth, 5, 'F');
+    doc.rect(startX, y - 3, tableWidth, rowHeight, 'F');
   }
   
   setColor(doc, CORES.textoEscuro);
-  doc.setFontSize(6.5);
-  doc.setFont('helvetica', 'normal');
   
   let x = startX + 1;
+  
+  // Ord
   doc.text(String(servidor.ord), x, y);
   x += colWidths.ord;
-  doc.text(servidor.nome.substring(0, 22), x, y);
+  
+  // Nome (multilinha)
+  nomeLines.forEach((line: string, i: number) => {
+    doc.text(line, x, y + (i * lineHeight));
+  });
   x += colWidths.nome;
+  
+  // CPF
   doc.text(formatCPF(servidor.cpf), x, y);
   x += colWidths.cpf;
-  doc.text((servidor.cargo || '-').substring(0, 16), x, y);
+  
+  // Cargo (multilinha)
+  cargoLines.forEach((line: string, i: number) => {
+    doc.text(line, x, y + (i * lineHeight));
+  });
   x += colWidths.cargo;
+  
+  // Unidade
   doc.text((servidor.unidade || '-').substring(0, 10), x, y);
   x += colWidths.unidade;
+  
+  // Código
   doc.text((servidor.codigo || '-').substring(0, 8), x, y);
   x += colWidths.codigo;
-  doc.text((servidor.portaria || '-').substring(0, 18), x, y);
   
-  return y + 5;
+  // Portaria (multilinha)
+  portariaLines.forEach((line: string, i: number) => {
+    doc.text(line, x, y + (i * lineHeight));
+  });
+  
+  return y + rowHeight;
 };
 
 // ===== Geração do Relatório =====
