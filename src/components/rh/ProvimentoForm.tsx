@@ -29,7 +29,6 @@ import {
   type TipoServidor,
   REGRAS_TIPO_SERVIDOR,
   NATUREZA_CARGO_LABELS,
-  TIPOS_ATO,
 } from "@/types/servidor";
 import { LABELS_UNIDADE, type TipoUnidade } from "@/types/organograma";
 
@@ -81,13 +80,6 @@ export function ProvimentoForm({
   const [dataNomeacao, setDataNomeacao] = useState('');
   const [dataPosse, setDataPosse] = useState('');
   const [dataExercicio, setDataExercicio] = useState('');
-  
-  // Ato
-  const [atoTipo, setAtoTipo] = useState('');
-  const [atoNumero, setAtoNumero] = useState('');
-  const [atoData, setAtoData] = useState('');
-  const [atoDoeNumero, setAtoDoeNumero] = useState('');
-  const [atoDoeData, setAtoDoeData] = useState('');
   
   const [observacoes, setObservacoes] = useState('');
 
@@ -313,11 +305,6 @@ export function ProvimentoForm({
     setDataNomeacao('');
     setDataPosse('');
     setDataExercicio('');
-    setAtoTipo('');
-    setAtoNumero('');
-    setAtoData('');
-    setAtoDoeNumero('');
-    setAtoDoeData('');
     setObservacoes('');
   };
 
@@ -334,11 +321,6 @@ export function ProvimentoForm({
       data_nomeacao: dataNomeacao,
       data_posse: dataPosse || undefined,
       data_exercicio: dataExercicio || undefined,
-      ato_nomeacao_tipo: atoTipo || undefined,
-      ato_nomeacao_numero: atoNumero || undefined,
-      ato_nomeacao_data: atoData || undefined,
-      ato_nomeacao_doe_numero: atoDoeNumero || undefined,
-      ato_nomeacao_doe_data: atoDoeData || undefined,
       observacoes: observacoes || undefined,
     });
 
@@ -765,56 +747,14 @@ export function ProvimentoForm({
 
                   <Separator />
 
-                  {/* Ato */}
-                  <div className="space-y-4">
-                    <h5 className="text-sm font-medium text-muted-foreground">Ato de Nomeação</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <Label>Tipo do Ato</Label>
-                        <Select value={atoTipo} onValueChange={setAtoTipo}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {TIPOS_ATO.map((t) => (
-                              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Número</Label>
-                        <Input
-                          value={atoNumero}
-                          onChange={(e) => setAtoNumero(e.target.value)}
-                          placeholder="Ex: 001/2024"
-                        />
-                      </div>
-                      <div>
-                        <Label>Data</Label>
-                        <Input
-                          type="date"
-                          value={atoData}
-                          onChange={(e) => setAtoData(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label>Nº DOE</Label>
-                        <Input
-                          value={atoDoeNumero}
-                          onChange={(e) => setAtoDoeNumero(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label>Data DOE</Label>
-                        <Input
-                          type="date"
-                          value={atoDoeData}
-                          onChange={(e) => setAtoDoeData(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  {/* Aviso: Portaria via Central */}
+                  <Alert className="bg-primary/5 border-primary/20">
+                    <AlertTriangle className="h-4 w-4 text-primary" />
+                    <AlertDescription>
+                      A <strong>Portaria de Nomeação</strong> deve ser gerada pela{" "}
+                      <strong>Central de Portarias</strong> após registrar este provimento.
+                    </AlertDescription>
+                  </Alert>
 
                   {/* Observações */}
                   <div>
