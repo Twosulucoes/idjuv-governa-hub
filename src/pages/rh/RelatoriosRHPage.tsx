@@ -21,7 +21,8 @@ import {
   Download,
   Loader2,
   Briefcase,
-  FileCheck
+  FileCheck,
+  ClipboardCheck
 } from "lucide-react";
 import { toast } from "sonner";
 import { 
@@ -31,6 +32,7 @@ import {
   generateRelatorioVagasCargo,
   generateRelatorioServidoresPortarias
 } from "@/lib/pdfRelatoriosRH";
+import { generateRelatorioSituacaoPortaria, ServidorPortariaItem } from "@/lib/pdfRelatorioSituacaoPortaria";
 import { VINCULO_LABELS, SITUACAO_LABELS, MOVIMENTACAO_LABELS } from "@/types/rh";
 import { ExportacaoServidoresCard } from "@/components/rh/ExportacaoServidoresCard";
 
@@ -570,6 +572,96 @@ export default function RelatoriosRHPage() {
     }
   };
 
+  const handleGerarRelatorioSituacaoPortaria = async () => {
+    setLoadingReport("situacao-portaria");
+    try {
+      // Buscar servidores ativos da view v_servidores_situacao com provimentos
+      const { data: servidoresData, error } = await supabase
+        .from("v_servidores_situacao")
+        .select(`
+          id,
+          nome_completo,
+          cpf,
+          cargo_nome,
+          cargo_sigla,
+          unidade_sigla,
+          unidade_nome,
+          provimento_id
+        `)
+        .eq("situacao", "ativo")
+        .order("nome_completo");
+
+      if (error) throw error;
+
+      if (!servidoresData || servidoresData.length === 0) {
+        toast.error("Nenhum servidor ativo encontrado");
+        return;
+      }
+
+      // Buscar provimentos para verificar ato_nomeacao_numero
+      const provimentoIds = servidoresData
+        .filter(s => s.provimento_id)
+        .map(s => s.provimento_id);
+
+      let provimentosMap = new Map<string, string | null>();
+      
+      if (provimentoIds.length > 0) {
+        const { data: provimentos, error: pErr } = await supabase
+          .from("provimentos")
+          .select("id, ato_nomeacao_numero")
+          .in("id", provimentoIds);
+
+        if (pErr) throw pErr;
+
+        (provimentos || []).forEach(p => {
+          provimentosMap.set(p.id, p.ato_nomeacao_numero);
+        });
+      }
+
+      // Separar servidores com e sem portaria
+      const servidoresComPortaria: ServidorPortariaItem[] = [];
+      const servidoresSemPortaria: ServidorPortariaItem[] = [];
+
+      servidoresData.forEach(s => {
+        const atoNomeacao = s.provimento_id ? provimentosMap.get(s.provimento_id) : null;
+        
+        const item: Omit<ServidorPortariaItem, 'ord'> = {
+          nome: s.nome_completo || '',
+          cpf: s.cpf || '',
+          cargo: s.cargo_nome || '-',
+          unidade: s.unidade_sigla || s.unidade_nome || '-',
+          codigo: s.cargo_sigla || '-'
+        };
+
+        if (atoNomeacao && atoNomeacao.trim() !== '') {
+          servidoresComPortaria.push({ ...item, ord: 0 });
+        } else {
+          servidoresSemPortaria.push({ ...item, ord: 0 });
+        }
+      });
+
+      // Ordenar e numerar
+      servidoresComPortaria.sort((a, b) => a.nome.localeCompare(b.nome));
+      servidoresComPortaria.forEach((s, i) => s.ord = i + 1);
+
+      servidoresSemPortaria.sort((a, b) => a.nome.localeCompare(b.nome));
+      servidoresSemPortaria.forEach((s, i) => s.ord = i + 1);
+
+      await generateRelatorioSituacaoPortaria({
+        servidoresComPortaria,
+        servidoresSemPortaria,
+        dataGeracao: new Date().toLocaleDateString('pt-BR')
+      });
+
+      toast.success("Relatório gerado com sucesso!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao gerar relatório");
+    } finally {
+      setLoadingReport(null);
+    }
+  };
+
   return (
     <ProtectedRoute allowedRoles={["admin", "manager"]}>
       <AdminLayout>
@@ -819,6 +911,39 @@ export default function RelatoriosRHPage() {
                   disabled={loadingReport === "portarias"}
                 >
                   {loadingReport === "portarias" ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  Gerar Relatório PDF
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Relatório de Situação de Portaria - COM/SEM */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-secondary/10 rounded-lg">
+                    <ClipboardCheck className="h-5 w-5 text-secondary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Situação de Portaria</CardTitle>
+                    <CardDescription>Lista servidores com e sem portaria de nomeação</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Gera relatório comparativo mostrando servidores que possuem ou não 
+                  portaria de nomeação registrada no sistema.
+                </p>
+                <Button 
+                  className="w-full" 
+                  onClick={handleGerarRelatorioSituacaoPortaria}
+                  disabled={loadingReport === "situacao-portaria"}
+                >
+                  {loadingReport === "situacao-portaria" ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
                     <Download className="h-4 w-4 mr-2" />
