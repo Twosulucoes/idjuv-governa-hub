@@ -142,16 +142,13 @@ export function GerarPortariaManualDialog({
           .maybeSingle();
 
         if (!provimentoExistente) {
-          // Criar provimento
+          // Criar provimento (sem campos de ato_nomeacao - usar Central de Portarias)
           await supabase.from("provimentos").insert([{
             servidor_id: servidor.id,
             cargo_id: formData.cargo_id,
             unidade_id: formData.unidade_id,
             data_nomeacao: formData.data_documento,
             status: "ativo",
-            ato_nomeacao_numero: portariaResult.numero,
-            ato_nomeacao_data: formData.data_documento,
-            ato_nomeacao_tipo: "portaria",
           }]);
         }
 

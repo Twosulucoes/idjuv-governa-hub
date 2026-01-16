@@ -101,13 +101,8 @@ export interface Provimento {
   data_exercicio?: string;
   data_encerramento?: string;
   
-  // Ato de nomeação
-  ato_nomeacao_tipo?: string;
-  ato_nomeacao_numero?: string;
-  ato_nomeacao_data?: string;
-  ato_nomeacao_doe_numero?: string;
-  ato_nomeacao_doe_data?: string;
-  ato_nomeacao_url?: string;
+  // NOTA: Campos de ato_nomeacao_* foram removidos.
+  // A portaria de nomeação deve ser gerenciada pela Central de Portarias (tabela documentos).
   
   // Ato de encerramento
   ato_encerramento_tipo?: string;
