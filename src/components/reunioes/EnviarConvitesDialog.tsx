@@ -137,11 +137,11 @@ export function EnviarConvitesDialog({
     enabled: open,
   });
 
-  // Selecionar modelo padrão quando carregar
+  // Selecionar modelo padrão quando carregar (sem preencher mensagem)
   useEffect(() => {
     if (modelos && modelos.length > 0 && !modeloId) {
       setModeloId(modelos[0].id);
-      setMensagemPersonalizada(modelos[0].conteudo_html);
+      // Deixa a mensagem em branco para o usuário personalizar
     }
   }, [modelos, modeloId]);
 
@@ -152,13 +152,10 @@ export function EnviarConvitesDialog({
     }
   }, [assinaturas, assinaturaId]);
 
-  // Atualizar mensagem quando mudar o modelo
+  // Atualizar modelo selecionado (não preenche mensagem automaticamente)
   const handleModeloChange = (novoModeloId: string) => {
     setModeloId(novoModeloId);
-    const modelo = modelos?.find((m) => m.id === novoModeloId);
-    if (modelo) {
-      setMensagemPersonalizada(modelo.conteudo_html);
-    }
+    // Não preenche a mensagem automaticamente - usuário personaliza
   };
 
   // Filtrar participantes com contato (considerando dados do servidor também)
