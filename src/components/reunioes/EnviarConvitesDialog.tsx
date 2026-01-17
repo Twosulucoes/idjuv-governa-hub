@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -15,6 +15,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -22,25 +24,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { Send, Loader2, MessageSquare, Mail, ChevronDown, Settings, ExternalLink } from "lucide-react";
+import { 
+  Send, 
+  Loader2, 
+  MessageSquare, 
+  Mail, 
+  Settings, 
+  ChevronRight,
+  Users,
+  AlertCircle,
+  Check,
+  Eye
+} from "lucide-react";
 import { PreviewMensagem } from "./PreviewMensagem";
 import { Link } from "react-router-dom";
 
 interface Participante {
   id: string;
-  nome_externo?: string;
-  email_externo?: string;
-  telefone_externo?: string;
+  nome_externo?: string | null;
+  email_externo?: string | null;
+  telefone_externo?: string | null;
   servidor?: {
     id: string;
     nome_completo: string;
-  };
+  } | null;
 }
 
 interface ModeloMensagem {
@@ -54,9 +62,9 @@ interface ModeloMensagem {
 interface AssinaturaConfig {
   id: string;
   nome_configuracao: string;
-  nome_assinante_1: string;
-  cargo_assinante_1: string;
-  texto_rodape?: string;
+  nome_assinante_1: string | null;
+  cargo_assinante_1: string | null;
+  texto_rodape?: string | null;
 }
 
 interface EnviarConvitesDialogProps {
@@ -74,16 +82,25 @@ export function EnviarConvitesDialog({
   reuniaoTitulo,
   participantes,
 }: EnviarConvitesDialogProps) {
+  const [step, setStep] = useState<"canal" | "config" | "selecao" | "preview">("canal");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [canal, setCanal] = useState<"email" | "whatsapp">("email");
   const [modeloId, setModeloId] = useState<string>("");
   const [assinaturaId, setAssinaturaId] = useState<string>("");
   const [mensagemPersonalizada, setMensagemPersonalizada] = useState("");
-  const [showPersonalizacao, setShowPersonalizacao] = useState(false);
+
+  // Reset on open
+  useEffect(() => {
+    if (open) {
+      setStep("canal");
+      setSelectedIds([]);
+      setCanal("email");
+    }
+  }, [open]);
 
   // Buscar modelos de mensagem
-  const { data: modelos } = useQuery({
+  const { data: modelos, isLoading: loadingModelos } = useQuery({
     queryKey: ["modelos-mensagem-convite"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -99,7 +116,7 @@ export function EnviarConvitesDialog({
   });
 
   // Buscar configurações de assinatura
-  const { data: assinaturas } = useQuery({
+  const { data: assinaturas, isLoading: loadingAssinaturas } = useQuery({
     queryKey: ["config-assinatura"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -137,6 +154,19 @@ export function EnviarConvitesDialog({
     }
   };
 
+  // Filtrar participantes com contato
+  const participantesComContato = useMemo(() => {
+    return participantes.filter((p) =>
+      canal === "email" ? p.email_externo : p.telefone_externo
+    );
+  }, [participantes, canal]);
+
+  const participantesSemContato = useMemo(() => {
+    return participantes.filter((p) =>
+      canal === "email" ? !p.email_externo : !p.telefone_externo
+    );
+  }, [participantes, canal]);
+
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
@@ -144,9 +174,6 @@ export function EnviarConvitesDialog({
   };
 
   const selectAll = () => {
-    const participantesComContato = participantes.filter((p) =>
-      canal === "email" ? p.email_externo : p.telefone_externo
-    );
     if (selectedIds.length === participantesComContato.length) {
       setSelectedIds([]);
     } else {
@@ -167,7 +194,6 @@ export function EnviarConvitesDialog({
 
     setLoading(true);
     try {
-      const modelo = modelos?.find((m) => m.id === modeloId);
       const assinatura = assinaturas?.find((a) => a.id === assinaturaId);
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -181,7 +207,7 @@ export function EnviarConvitesDialog({
           reuniao_id: reuniaoId,
           participante_ids: selectedIds,
           modelo_id: modeloId || undefined,
-          mensagem_personalizada: showPersonalizacao ? mensagemPersonalizada : undefined,
+          mensagem_personalizada: mensagemPersonalizada || undefined,
           canal,
           assinatura: assinatura ? {
             nome: assinatura.nome_assinante_1,
@@ -198,18 +224,16 @@ export function EnviarConvitesDialog({
       const result = response.data;
 
       if (canal === "whatsapp" && result.resultados) {
-        // Para WhatsApp, abrir os links em novas abas
         const linksWhatsApp = result.resultados
           .filter((r: any) => r.sucesso && r.link_whatsapp)
           .map((r: any) => r.link_whatsapp);
 
         if (linksWhatsApp.length > 0) {
-          // Abrir primeiro link diretamente
           window.open(linksWhatsApp[0], "_blank");
           
           if (linksWhatsApp.length > 1) {
             toast.info(
-              `${linksWhatsApp.length} links do WhatsApp gerados. O primeiro foi aberto. Os outros links estão disponíveis no console.`,
+              `${linksWhatsApp.length} links do WhatsApp gerados. O primeiro foi aberto.`,
               { duration: 5000 }
             );
             console.log("Links WhatsApp gerados:", linksWhatsApp);
@@ -223,7 +247,6 @@ export function EnviarConvitesDialog({
         toast.warning(`${result.falhas} convite(s) falharam`);
       }
 
-      setSelectedIds([]);
       onOpenChange(false);
     } catch (error: any) {
       console.error("Erro ao enviar convites:", error);
@@ -236,200 +259,320 @@ export function EnviarConvitesDialog({
   const modeloAtual = modelos?.find((m) => m.id === modeloId);
   const assinaturaAtual = assinaturas?.find((a) => a.id === assinaturaId);
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Send className="h-5 w-5" />
-            Enviar Convites
-          </DialogTitle>
-          <DialogDescription>
-            Envie convites para os participantes da reunião{reuniaoTitulo && `: ${reuniaoTitulo}`}
-          </DialogDescription>
-        </DialogHeader>
+  const getInitials = (name?: string | null) => {
+    if (!name) return "?";
+    return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+  };
 
-        <div className="space-y-4">
-          {/* Canal de envio */}
-          <div className="flex gap-2">
-            <Button
-              variant={canal === "email" ? "default" : "outline"}
-              size="sm"
-              className="flex-1"
-              onClick={() => setCanal("email")}
-            >
-              <Mail className="h-4 w-4 mr-2" />
-              Email
-            </Button>
-            <Button
-              variant={canal === "whatsapp" ? "default" : "outline"}
-              size="sm"
-              className="flex-1"
-              onClick={() => setCanal("whatsapp")}
-            >
-              <MessageSquare className="h-4 w-4 mr-2" />
-              WhatsApp
-            </Button>
-          </div>
+  const getNome = (p: Participante) => p.nome_externo || p.servidor?.nome_completo || "Sem nome";
 
-          {/* Seleção de modelo e assinatura */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Modelo de Mensagem</Label>
-              <Select value={modeloId} onValueChange={handleModeloChange}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {modelos?.map((modelo) => (
-                    <SelectItem key={modelo.id} value={modelo.id}>
-                      {modelo.nome}
-                    </SelectItem>
-                  ))}
-                  {(!modelos || modelos.length === 0) && (
-                    <div className="p-2 text-sm text-muted-foreground">
-                      Nenhum modelo configurado
-                    </div>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+  const temModelos = modelos && modelos.length > 0;
 
-            <div className="space-y-1.5">
-              <Label className="text-xs">Assinatura</Label>
-              <Select value={assinaturaId} onValueChange={setAssinaturaId}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Sem assinatura</SelectItem>
-                  {assinaturas?.map((assinatura) => (
-                    <SelectItem key={assinatura.id} value={assinatura.id}>
-                      {assinatura.nome_configuracao}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+  // Step content renderer
+  const renderStepContent = () => {
+    switch (step) {
+      case "canal":
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground text-center">
+              Como deseja enviar os convites?
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <Card 
+                className={`cursor-pointer transition-all hover:shadow-md ${
+                  canal === "email" ? "ring-2 ring-primary" : ""
+                }`}
+                onClick={() => setCanal("email")}
+              >
+                <CardContent className="p-6 text-center">
+                  <Mail className="h-10 w-10 mx-auto mb-3 text-primary" />
+                  <h3 className="font-semibold">E-mail</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Envio automático
+                  </p>
+                </CardContent>
+              </Card>
+              <Card 
+                className={`cursor-pointer transition-all hover:shadow-md ${
+                  canal === "whatsapp" ? "ring-2 ring-primary" : ""
+                }`}
+                onClick={() => setCanal("whatsapp")}
+              >
+                <CardContent className="p-6 text-center">
+                  <MessageSquare className="h-10 w-10 mx-auto mb-3 text-green-600" />
+                  <h3 className="font-semibold">WhatsApp</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Abre links para envio
+                  </p>
+                </CardContent>
+              </Card>
             </div>
           </div>
+        );
 
-          {/* Link para configuração */}
-          {(!modelos || modelos.length === 0) && (
-            <div className="p-3 bg-muted/50 rounded-lg border border-dashed flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                Nenhum modelo de mensagem configurado
-              </span>
-              <Link to="/admin/reunioes/configuracao">
-                <Button variant="outline" size="sm">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Configurar
-                </Button>
-              </Link>
-            </div>
-          )}
+      case "config":
+        return (
+          <div className="space-y-4">
+            {!temModelos ? (
+              <div className="text-center py-6 bg-muted/50 rounded-lg border-2 border-dashed">
+                <AlertCircle className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+                <p className="font-medium">Nenhum modelo configurado</p>
+                <p className="text-sm text-muted-foreground mt-1 mb-4">
+                  Configure um modelo de mensagem para continuar
+                </p>
+                <Link to="/admin/reunioes/configuracao">
+                  <Button variant="outline" size="sm">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Configurar Modelos
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-sm font-medium">Modelo de Mensagem</Label>
+                    <Select value={modeloId} onValueChange={handleModeloChange}>
+                      <SelectTrigger className="mt-1.5">
+                        <SelectValue placeholder="Selecione um modelo..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {modelos?.map((modelo) => (
+                          <SelectItem key={modelo.id} value={modelo.id}>
+                            {modelo.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-          {/* Personalização da mensagem */}
-          <Collapsible open={showPersonalizacao} onOpenChange={setShowPersonalizacao}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="w-full justify-between">
-                Personalizar mensagem
-                <ChevronDown className={`h-4 w-4 transition-transform ${showPersonalizacao ? "rotate-180" : ""}`} />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-2">
-              <Textarea
-                value={mensagemPersonalizada}
-                onChange={(e) => setMensagemPersonalizada(e.target.value)}
-                placeholder="Personalize a mensagem..."
-                rows={6}
-              />
-            </CollapsibleContent>
-          </Collapsible>
+                  <div>
+                    <Label className="text-sm font-medium">Assinatura</Label>
+                    <Select value={assinaturaId || "none"} onValueChange={(v) => setAssinaturaId(v === "none" ? "" : v)}>
+                      <SelectTrigger className="mt-1.5">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sem assinatura</SelectItem>
+                        {assinaturas?.map((assinatura) => (
+                          <SelectItem key={assinatura.id} value={assinatura.id}>
+                            {assinatura.nome_configuracao}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-          {/* Preview da mensagem */}
-          <PreviewMensagem
-            assunto={modeloAtual?.assunto || "Convite para Reunião"}
-            corpo={showPersonalizacao ? mensagemPersonalizada : (modeloAtual?.conteudo_html || "")}
-            canal={canal}
-            assinatura={assinaturaAtual ? {
-              nome: assinaturaAtual.nome_assinante_1,
-              cargo: assinaturaAtual.cargo_assinante_1,
-              setor: assinaturaAtual.texto_rodape,
-            } : undefined}
-          />
+                  <div>
+                    <Label className="text-sm font-medium">Mensagem</Label>
+                    <Textarea
+                      value={mensagemPersonalizada}
+                      onChange={(e) => setMensagemPersonalizada(e.target.value)}
+                      placeholder="Personalize a mensagem..."
+                      rows={5}
+                      className="mt-1.5"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Variáveis: {"{nome}"}, {"{data}"}, {"{hora}"}, {"{local}"}
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        );
 
-          {/* Lista de participantes */}
-          <div className="border rounded-lg">
-            <div className="flex items-center justify-between p-3 border-b bg-muted/50">
+      case "selecao":
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
                 <Checkbox
                   checked={
                     selectedIds.length > 0 &&
-                    selectedIds.length === participantes.filter((p) =>
-                      canal === "email" ? p.email_externo : p.telefone_externo
-                    ).length
+                    selectedIds.length === participantesComContato.length
                   }
                   onCheckedChange={selectAll}
                 />
                 Selecionar todos
               </label>
-              <span className="text-xs text-muted-foreground">
-                {selectedIds.length} selecionado(s)
-              </span>
+              <Badge variant="secondary">
+                {selectedIds.length} de {participantesComContato.length}
+              </Badge>
             </div>
 
-            <ScrollArea className="h-[200px]">
-              {participantes.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  Nenhum participante adicionado
+            <ScrollArea className="h-[280px] border rounded-lg">
+              {participantesComContato.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground">
+                  <Users className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p>Nenhum participante com {canal === "email" ? "e-mail" : "telefone"}</p>
                 </div>
               ) : (
                 <div className="divide-y">
-                  {participantes.map((p) => {
-                    const nome = p.nome_externo || p.servidor?.nome_completo || "Sem nome";
+                  {participantesComContato.map((p) => {
+                    const nome = getNome(p);
                     const contato = canal === "email" ? p.email_externo : p.telefone_externo;
-                    const temContato = !!contato;
+                    const isSelected = selectedIds.includes(p.id);
 
                     return (
                       <label
                         key={p.id}
                         className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50 transition-colors ${
-                          !temContato ? "opacity-50" : ""
+                          isSelected ? "bg-primary/5" : ""
                         }`}
                       >
                         <Checkbox
-                          checked={selectedIds.includes(p.id)}
+                          checked={isSelected}
                           onCheckedChange={() => toggleSelect(p.id)}
-                          disabled={!temContato}
                         />
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="text-xs">
-                            {nome[0]}
+                        <Avatar className="h-9 w-9">
+                          <AvatarFallback className="text-xs bg-primary/10">
+                            {getInitials(nome)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{nome}</p>
                           <p className="text-xs text-muted-foreground truncate">
-                            {contato || `Sem ${canal === "email" ? "email" : "telefone"}`}
+                            {contato}
                           </p>
                         </div>
+                        {isSelected && (
+                          <Check className="h-4 w-4 text-primary shrink-0" />
+                        )}
                       </label>
                     );
                   })}
                 </div>
               )}
             </ScrollArea>
+
+            {participantesSemContato.length > 0 && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {participantesSemContato.length} participante(s) sem {canal === "email" ? "e-mail" : "telefone"}
+              </p>
+            )}
           </div>
+        );
+
+      case "preview":
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Destinatários:</span>
+              <Badge variant="secondary">{selectedIds.length} selecionado(s)</Badge>
+            </div>
+            
+            <PreviewMensagem
+              assunto={modeloAtual?.assunto || "Convite para Reunião"}
+              corpo={mensagemPersonalizada || modeloAtual?.conteudo_html || ""}
+              canal={canal}
+              assinatura={assinaturaAtual ? {
+                nome: assinaturaAtual.nome_assinante_1 || "",
+                cargo: assinaturaAtual.cargo_assinante_1 || "",
+                setor: assinaturaAtual.texto_rodape || "",
+              } : undefined}
+            />
+          </div>
+        );
+    }
+  };
+
+  const getStepTitle = () => {
+    switch (step) {
+      case "canal": return "Escolha o Canal";
+      case "config": return "Configure a Mensagem";
+      case "selecao": return "Selecione os Participantes";
+      case "preview": return "Confirme o Envio";
+    }
+  };
+
+  const canProceed = () => {
+    switch (step) {
+      case "canal": return true;
+      case "config": return temModelos && mensagemPersonalizada.trim().length > 0;
+      case "selecao": return selectedIds.length > 0;
+      case "preview": return true;
+    }
+  };
+
+  const handleNext = () => {
+    switch (step) {
+      case "canal": setStep("config"); break;
+      case "config": setStep("selecao"); break;
+      case "selecao": setStep("preview"); break;
+      case "preview": handleEnviar(); break;
+    }
+  };
+
+  const handleBack = () => {
+    switch (step) {
+      case "config": setStep("canal"); break;
+      case "selecao": setStep("config"); break;
+      case "preview": setStep("selecao"); break;
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Send className="h-5 w-5" />
+            {getStepTitle()}
+          </DialogTitle>
+          {reuniaoTitulo && (
+            <DialogDescription className="truncate">
+              {reuniaoTitulo}
+            </DialogDescription>
+          )}
+        </DialogHeader>
+
+        {/* Step indicators */}
+        <div className="flex items-center justify-center gap-1.5 py-2">
+          {["canal", "config", "selecao", "preview"].map((s, i) => (
+            <div
+              key={s}
+              className={`h-1.5 rounded-full transition-all ${
+                s === step ? "w-6 bg-primary" : "w-1.5 bg-muted"
+              }`}
+            />
+          ))}
+        </div>
+
+        <div className="min-h-[300px]">
+          {(loadingModelos || loadingAssinaturas) ? (
+            <div className="flex items-center justify-center h-[300px]">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            renderStepContent()
+          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button onClick={handleEnviar} disabled={loading || selectedIds.length === 0}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {canal === "whatsapp" && <ExternalLink className="mr-2 h-4 w-4" />}
-            Enviar {selectedIds.length > 0 && `(${selectedIds.length})`}
+          {step !== "canal" && (
+            <Button variant="outline" onClick={handleBack} disabled={loading}>
+              Voltar
+            </Button>
+          )}
+          <Button 
+            onClick={handleNext} 
+            disabled={!canProceed() || loading}
+            className="gap-2"
+          >
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            {step === "preview" ? (
+              <>
+                <Send className="h-4 w-4" />
+                Enviar
+              </>
+            ) : (
+              <>
+                Continuar
+                <ChevronRight className="h-4 w-4" />
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Sheet,
   SheetContent,
@@ -25,7 +26,8 @@ import {
   ExternalLink,
   Copy,
   ClipboardList,
-  Printer
+  Printer,
+  UserCheck
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -57,6 +59,7 @@ const statusConfig: Record<StatusReuniao, { label: string; variant: "default" | 
 };
 
 export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: ReuniaoDetailSheetProps) {
+  const navigate = useNavigate();
   const [addParticipanteOpen, setAddParticipanteOpen] = useState(false);
   const [enviarConvitesOpen, setEnviarConvitesOpen] = useState(false);
   const [relatoriosOpen, setRelatoriosOpen] = useState(false);
@@ -294,14 +297,26 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
                     </>
                   )}
                   {reuniao.status === "em_andamento" && (
-                    <Button 
-                      className="flex-1"
-                      onClick={() => updateStatusMutation.mutate("realizada")}
-                      disabled={updateStatusMutation.isPending}
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Finalizar Reunião
-                    </Button>
+                    <>
+                      <Button 
+                        variant="outline"
+                        onClick={() => {
+                          onOpenChange(false);
+                          navigate(`/admin/reunioes/${reuniaoId}/checkin`);
+                        }}
+                      >
+                        <UserCheck className="h-4 w-4 mr-2" />
+                        Check-in
+                      </Button>
+                      <Button 
+                        className="flex-1"
+                        onClick={() => updateStatusMutation.mutate("realizada")}
+                        disabled={updateStatusMutation.isPending}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Finalizar Reunião
+                      </Button>
+                    </>
                   )}
                   {(reuniao.status === "realizada" || reuniao.status === "cancelada") && (
                     <>
