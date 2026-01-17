@@ -91,6 +91,7 @@ import DisasterRecoveryPage from "./pages/admin/DisasterRecoveryPage";
 import UsuariosTecnicosPage from "./pages/admin/UsuariosTecnicosPage";
 import ReunioesPage from "./pages/admin/ReunioesPage";
 import ConfiguracaoReunioesPage from "./pages/admin/ConfiguracaoReunioesPage";
+import CheckinReuniaoPage from "./pages/admin/CheckinReuniaoPage";
 
 // Mini-Currículo / Pré-Cadastro
 import MiniCurriculoPage from "./pages/curriculo/MiniCurriculoPage";
@@ -150,6 +151,7 @@ const App = () => (
                 <Route path="/admin/pre-cadastros/pendencias" element={<DiagnosticoPendenciasPage />} />
                 <Route path="/admin/reunioes" element={<ReunioesPage />} />
                 <Route path="/admin/reunioes/configuracao" element={<ConfiguracaoReunioesPage />} />
+                <Route path="/admin/reunioes/:reuniaoId/checkin" element={<CheckinReuniaoPage />} />
                 <Route path="/acesso" element={<ControleAcessoAdminPage />} />
                 
                 {/* Governança */}
