@@ -30,6 +30,7 @@ import {
   HelpCircle,
   Wallet,
   UserPlus,
+  Video,
   type LucideIcon,
 } from "lucide-react";
 
@@ -167,6 +168,13 @@ export const adminMenuConfig: AdminMenuSection[] = [
         href: "/admin/pre-cadastros",
         icon: UserPlus,
         keywords: ["pré-cadastro", "curriculo", "candidatos", "admissão", "mini-currículo"],
+      },
+      {
+        id: "reunioes",
+        label: "Reuniões",
+        href: "/admin/reunioes",
+        icon: Video,
+        keywords: ["reunião", "reuniões", "convocação", "ata", "pauta", "participantes"],
       },
       {
         id: "servidores",
