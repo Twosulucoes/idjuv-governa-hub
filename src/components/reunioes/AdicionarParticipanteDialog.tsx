@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -20,21 +20,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, UserPlus, Building2 } from "lucide-react";
+import { Loader2, UserPlus, Building2, Search, User, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-
-const servidorSchema = z.object({
-  servidor_id: z.string().min(1, "Selecione um servidor"),
-});
 
 const externoSchema = z.object({
   nome_externo: z.string().min(2, "Nome é obrigatório"),
@@ -59,11 +52,8 @@ export function AdicionarParticipanteDialog({
 }: AdicionarParticipanteDialogProps) {
   const [loading, setLoading] = useState(false);
   const [tipoParticipante, setTipoParticipante] = useState<"servidor" | "externo">("servidor");
-
-  const servidorForm = useForm({
-    resolver: zodResolver(servidorSchema),
-    defaultValues: { servidor_id: "" },
-  });
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [busca, setBusca] = useState("");
 
   const externoForm = useForm({
     resolver: zodResolver(externoSchema),
@@ -76,12 +66,12 @@ export function AdicionarParticipanteDialog({
     },
   });
 
-  const { data: servidores } = useQuery({
-    queryKey: ["servidores-ativos"],
+  const { data: servidores = [], isLoading: loadingServidores } = useQuery({
+    queryKey: ["servidores-reuniao"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("servidores")
-        .select("id, nome_completo")
+        .select("id, nome_completo, foto_url")
         .eq("ativo", true)
         .order("nome_completo");
       if (error) throw error;
@@ -90,18 +80,73 @@ export function AdicionarParticipanteDialog({
     enabled: open,
   });
 
-  const onSubmitServidor = async (values: z.infer<typeof servidorSchema>) => {
-    if (!reuniaoId) return;
+  // Buscar participantes já adicionados
+  const { data: participantesExistentes = [] } = useQuery({
+    queryKey: ["participantes-existentes", reuniaoId],
+    queryFn: async () => {
+      if (!reuniaoId) return [];
+      const { data, error } = await supabase
+        .from("participantes_reuniao")
+        .select("servidor_id")
+        .eq("reuniao_id", reuniaoId)
+        .not("servidor_id", "is", null);
+      if (error) throw error;
+      return data.map((p) => p.servidor_id) as string[];
+    },
+    enabled: open && !!reuniaoId,
+  });
+
+  const servidoresFiltrados = useMemo(() => {
+    let filtered = servidores.filter((s) => !participantesExistentes.includes(s.id));
+    if (busca.trim()) {
+      const termo = busca.toLowerCase();
+      filtered = filtered.filter((s) =>
+        s.nome_completo?.toLowerCase().includes(termo)
+      );
+    }
+    return filtered;
+  }, [servidores, busca, participantesExistentes]);
+
+  const allSelected = servidoresFiltrados.length > 0 && 
+    servidoresFiltrados.every((s) => selectedIds.includes(s.id));
+
+  const handleToggleAll = () => {
+    if (allSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(servidoresFiltrados.map((s) => s.id));
+    }
+  };
+
+  const handleToggle = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleClose = () => {
+    setSelectedIds([]);
+    setBusca("");
+    externoForm.reset();
+    onOpenChange(false);
+  };
+
+  const onSubmitServidores = async () => {
+    if (!reuniaoId || selectedIds.length === 0) return;
     setLoading(true);
     try {
-      const { error } = await supabase.from("participantes_reuniao").insert({
+      const inserts = selectedIds.map((servidor_id) => ({
         reuniao_id: reuniaoId,
-        servidor_id: values.servidor_id,
-        status: "pendente",
-      });
+        servidor_id,
+        status: "pendente" as const,
+      }));
+
+      const { error } = await supabase.from("participantes_reuniao").insert(inserts);
       if (error) throw error;
-      toast.success("Participante adicionado!");
-      servidorForm.reset();
+      
+      toast.success(`${selectedIds.length} participante(s) adicionado(s)!`);
+      setSelectedIds([]);
+      setBusca("");
       onSuccess();
     } catch (error: any) {
       toast.error("Erro: " + error.message);
@@ -134,21 +179,34 @@ export function AdicionarParticipanteDialog({
     }
   };
 
+  const getInitials = (name: string) => {
+    return name
+      ?.split(" ")
+      .map((n) => n[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Adicionar Participante</DialogTitle>
+          <DialogTitle>Adicionar Participantes</DialogTitle>
           <DialogDescription>
-            Adicione um servidor do IDJUV ou participante externo
+            Selecione servidores do IDJUV ou adicione participante externo
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={tipoParticipante} onValueChange={(v) => setTipoParticipante(v as any)}>
+        <Tabs 
+          value={tipoParticipante} 
+          onValueChange={(v) => setTipoParticipante(v as any)}
+          className="flex-1 flex flex-col min-h-0"
+        >
           <TabsList className="grid grid-cols-2 w-full">
             <TabsTrigger value="servidor">
               <UserPlus className="h-4 w-4 mr-2" />
-              Servidor
+              Servidores
             </TabsTrigger>
             <TabsTrigger value="externo">
               <Building2 className="h-4 w-4 mr-2" />
@@ -156,50 +214,105 @@ export function AdicionarParticipanteDialog({
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="servidor" className="mt-4">
-            <Form {...servidorForm}>
-              <form onSubmit={servidorForm.handleSubmit(onSubmitServidor)} className="space-y-4">
-                <FormField
-                  control={servidorForm.control}
-                  name="servidor_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Servidor</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione um servidor" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {servidores?.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              {s.nome_completo}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+          <TabsContent value="servidor" className="flex-1 flex flex-col min-h-0 mt-4 space-y-3">
+            {/* Busca e ações */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar servidor..."
+                  className="pl-9"
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
                 />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleToggleAll}
+                className="whitespace-nowrap"
+              >
+                <Users className="h-4 w-4 mr-1" />
+                {allSelected ? "Desmarcar" : "Todos"}
+              </Button>
+            </div>
 
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => onOpenChange(false)}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button type="submit" className="flex-1" disabled={loading}>
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Adicionar
-                  </Button>
+            {/* Contador */}
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                {servidoresFiltrados.length} servidor(es) disponível(is)
+              </span>
+              {selectedIds.length > 0 && (
+                <Badge variant="default">
+                  {selectedIds.length} selecionado(s)
+                </Badge>
+              )}
+            </div>
+
+            {/* Lista de servidores */}
+            <ScrollArea className="flex-1 border rounded-lg" style={{ maxHeight: "280px" }}>
+              {loadingServidores ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                  Carregando...
                 </div>
-              </form>
-            </Form>
+              ) : servidoresFiltrados.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  {busca ? "Nenhum servidor encontrado" : "Todos os servidores já foram adicionados"}
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {servidoresFiltrados.map((servidor) => {
+                    const isSelected = selectedIds.includes(servidor.id);
+                    return (
+                      <div
+                        key={servidor.id}
+                        className={`flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer transition-colors ${
+                          isSelected ? "bg-primary/10" : ""
+                        }`}
+                        onClick={() => handleToggle(servidor.id)}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => handleToggle(servidor.id)}
+                          aria-label={`Selecionar ${servidor.nome_completo}`}
+                        />
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={servidor.foto_url || undefined} />
+                          <AvatarFallback className="text-xs">
+                            {getInitials(servidor.nome_completo)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="flex-1 text-sm font-medium truncate">
+                          {servidor.nome_completo}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </ScrollArea>
+
+            {/* Botões */}
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={handleClose}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                className="flex-1" 
+                disabled={loading || selectedIds.length === 0}
+                onClick={onSubmitServidores}
+              >
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Adicionar ({selectedIds.length})
+              </Button>
+            </div>
           </TabsContent>
 
           <TabsContent value="externo" className="mt-4">
@@ -282,7 +395,7 @@ export function AdicionarParticipanteDialog({
                     type="button"
                     variant="outline"
                     className="flex-1"
-                    onClick={() => onOpenChange(false)}
+                    onClick={handleClose}
                   >
                     Cancelar
                   </Button>
