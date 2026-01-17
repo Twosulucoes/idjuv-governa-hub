@@ -244,7 +244,8 @@ interface ReuniaoCardProps {
 
 function ReuniaoCard({ reuniao, onClick, muted }: ReuniaoCardProps) {
   const TipoIcon = tipoConfig[reuniao.tipo]?.icon || Calendar;
-  const dataReuniao = new Date(reuniao.data_reuniao + "T00:00:00");
+  // Adiciona T12:00:00 para evitar problemas de fuso horário
+  const dataReuniao = new Date(reuniao.data_reuniao + "T12:00:00");
   
   return (
     <Card 
