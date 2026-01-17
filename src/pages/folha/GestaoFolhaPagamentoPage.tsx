@@ -208,10 +208,10 @@ export default function GestaoFolhaPagamentoPage() {
                           <TableCell className="text-right font-mono">
                             {formatCurrency(folha.total_bruto)}
                           </TableCell>
-                          <TableCell className="text-right font-mono text-orange-600">
+                          <TableCell className="text-right font-mono text-warning">
                             {formatCurrency(folha.total_descontos)}
                           </TableCell>
-                          <TableCell className="text-right font-mono font-medium text-green-600">
+                          <TableCell className="text-right font-mono font-medium text-success">
                             {formatCurrency(folha.total_liquido)}
                           </TableCell>
                           <TableCell className="text-center">

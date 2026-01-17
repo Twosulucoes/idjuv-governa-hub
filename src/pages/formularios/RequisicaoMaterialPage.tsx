@@ -112,8 +112,8 @@ const RequisicaoMaterialPage = () => {
               </div>
             </CardHeader>
             <CardContent className="pt-6">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <p className="text-blue-800 text-sm">
+              <div className="bg-info/10 border border-info/30 rounded-lg p-4 mb-6">
+                <p className="text-info text-sm">
                   <strong>Base Legal:</strong> A saída de material dependerá de requisição formal, devidamente autorizada pela chefia da unidade solicitante (Art. 7º da IN de Almoxarifado).
                 </p>
               </div>
