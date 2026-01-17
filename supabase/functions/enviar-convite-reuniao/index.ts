@@ -246,16 +246,18 @@ const handler = async (req: Request): Promise<Response> => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    // Verificar autenticação com getUser (mais confiável que getClaims)
+    const { data: userData, error: userError } = await supabase.auth.getUser();
     
-    if (claimsError || !claimsData?.claims) {
-      console.error("Erro ao verificar claims:", claimsError);
+    if (userError || !userData?.user) {
+      console.error("Erro ao verificar usuário:", userError);
       return new Response(
-        JSON.stringify({ error: "Token inválido" }),
+        JSON.stringify({ error: "Token inválido ou expirado" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    
+    console.log("Usuário autenticado:", userData.user.email);
 
     const body: EnviarConviteRequest = await req.json();
     console.log("Request body:", JSON.stringify(body, null, 2));
