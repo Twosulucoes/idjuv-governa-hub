@@ -29,6 +29,7 @@ import {
   MoreVertical,
   Send,
   CheckCircle,
+  CheckCircle2,
   XCircle,
   Clock,
   UserCheck,
@@ -142,8 +143,8 @@ export function GestaoParticipantesTab({
 
   const isReuniaoAtiva = statusReuniao === "agendada" || statusReuniao === "em_andamento";
 
-  // Função para abrir WhatsApp diretamente
-  const handleWhatsAppDireto = async (p: Participante) => {
+  // Função para abrir WhatsApp (apenas abre, não marca como enviado)
+  const handleAbrirWhatsApp = (p: Participante) => {
     const telefone = p.telefone_externo || (p.servidor as any)?.telefone_celular;
     if (!telefone) {
       toast.error("Participante sem telefone cadastrado");
@@ -167,20 +168,51 @@ export function GestaoParticipantesTab({
 
     const linkWhatsApp = `https://wa.me/${telefoneFormatado}?text=${encodeURIComponent(mensagem)}`;
     
-    // Marcar convite como enviado
-    await supabase
+    // Abre IMEDIATAMENTE (sem await antes) para evitar bloqueio de popup
+    const win = window.open(linkWhatsApp, "_blank", "noopener,noreferrer");
+    if (!win) {
+      toast.error("Popup bloqueado! Permita popups para este site.");
+    }
+  };
+
+  // Função para marcar convite como enviado manualmente
+  const handleMarcarConviteEnviado = async (p: Participante, canal: "whatsapp" | "email" = "whatsapp") => {
+    const { error } = await supabase
       .from("participantes_reuniao")
       .update({
         convite_enviado: true,
         convite_enviado_em: new Date().toISOString(),
-        convite_canal: "whatsapp",
+        convite_canal: canal,
       })
       .eq("id", p.id);
 
+    if (error) {
+      toast.error("Erro ao marcar convite: " + error.message);
+      return;
+    }
+
     queryClient.invalidateQueries({ queryKey: ["participantes", reuniaoId] });
-    
-    window.open(linkWhatsApp, "_blank");
-    toast.success("WhatsApp aberto!");
+    toast.success("Convite marcado como enviado!");
+  };
+
+  // Função para desmarcar convite
+  const handleDesmarcarConvite = async (p: Participante) => {
+    const { error } = await supabase
+      .from("participantes_reuniao")
+      .update({
+        convite_enviado: false,
+        convite_enviado_em: null,
+        convite_canal: null,
+      })
+      .eq("id", p.id);
+
+    if (error) {
+      toast.error("Erro ao desmarcar convite: " + error.message);
+      return;
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["participantes", reuniaoId] });
+    toast.success("Convite desmarcado!");
   };
 
   // Stats
@@ -533,13 +565,26 @@ export function GestaoParticipantesTab({
                               </DropdownMenuItem>
                             </>
                           )}
-                          {statusReuniao === "agendada" && (p.telefone_externo || (p.servidor as any)?.telefone_celular) && (
+                          {statusReuniao === "agendada" && (
                             <>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleWhatsAppDireto(p)}>
-                                <MessageSquare className="h-4 w-4 mr-2 text-green-600" />
-                                Enviar WhatsApp
-                              </DropdownMenuItem>
+                              {(p.telefone_externo || (p.servidor as any)?.telefone_celular) && (
+                                <DropdownMenuItem onClick={() => handleAbrirWhatsApp(p)}>
+                                  <MessageSquare className="h-4 w-4 mr-2 text-green-600" />
+                                  Abrir WhatsApp
+                                </DropdownMenuItem>
+                              )}
+                              {!p.convite_enviado ? (
+                                <DropdownMenuItem onClick={() => handleMarcarConviteEnviado(p, "whatsapp")}>
+                                  <CheckCircle2 className="h-4 w-4 mr-2 text-blue-600" />
+                                  Marcar convite como enviado
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => handleDesmarcarConvite(p)}>
+                                  <XCircle className="h-4 w-4 mr-2 text-orange-600" />
+                                  Desmarcar convite
+                                </DropdownMenuItem>
+                              )}
                             </>
                           )}
                           <DropdownMenuSeparator />
