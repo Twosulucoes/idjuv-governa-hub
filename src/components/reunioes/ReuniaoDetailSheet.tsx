@@ -27,7 +27,11 @@ import {
   Copy,
   ClipboardList,
   Printer,
-  UserCheck
+  UserCheck,
+  Pencil,
+  Trash2,
+  RotateCcw,
+  MoreVertical
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -39,6 +43,15 @@ import { EnviarConvitesDialog } from "./EnviarConvitesDialog";
 import { GestaoParticipantesTab } from "./GestaoParticipantesTab";
 import { AtaReuniaoTab } from "./AtaReuniaoTab";
 import { RelatoriosReuniaoDialog } from "./RelatoriosReuniaoDialog";
+import { EditarReuniaoDialog } from "./EditarReuniaoDialog";
+import { ExcluirReuniaoDialog } from "./ExcluirReuniaoDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type StatusReuniao = "agendada" | "em_andamento" | "realizada" | "cancelada" | "adiada" | "confirmada";
 
@@ -63,6 +76,8 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
   const [addParticipanteOpen, setAddParticipanteOpen] = useState(false);
   const [enviarConvitesOpen, setEnviarConvitesOpen] = useState(false);
   const [relatoriosOpen, setRelatoriosOpen] = useState(false);
+  const [editarOpen, setEditarOpen] = useState(false);
+  const [excluirOpen, setExcluirOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: reuniao, isLoading } = useQuery({
@@ -142,10 +157,39 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
               {/* Header */}
               <SheetHeader className="p-4 pb-0 space-y-3">
                 <div className="flex items-start justify-between gap-2">
-                  <SheetTitle className="text-left">{reuniao.titulo}</SheetTitle>
-                  <Badge variant={statusConfig[reuniao.status as StatusReuniao]?.variant || "secondary"}>
-                    {statusConfig[reuniao.status as StatusReuniao]?.label || reuniao.status}
-                  </Badge>
+                  <SheetTitle className="text-left flex-1">{reuniao.titulo}</SheetTitle>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={statusConfig[reuniao.status as StatusReuniao]?.variant || "secondary"}>
+                      {statusConfig[reuniao.status as StatusReuniao]?.label || reuniao.status}
+                    </Badge>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setEditarOpen(true)}>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Editar Reunião
+                        </DropdownMenuItem>
+                        {(reuniao.status === "cancelada" || reuniao.status === "adiada") && (
+                          <DropdownMenuItem onClick={() => updateStatusMutation.mutate("agendada")}>
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            Reativar Reunião
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => setExcluirOpen(true)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Excluir Reunião
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
                 {reuniao.observacoes && (
                   <SheetDescription className="text-left">
@@ -358,6 +402,28 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
         open={relatoriosOpen}
         onOpenChange={setRelatoriosOpen}
         reuniaoId={reuniaoId}
+      />
+
+      <EditarReuniaoDialog
+        open={editarOpen}
+        onOpenChange={setEditarOpen}
+        reuniao={reuniao}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["reuniao", reuniaoId] });
+          queryClient.invalidateQueries({ queryKey: ["reunioes"] });
+          onUpdate();
+        }}
+      />
+
+      <ExcluirReuniaoDialog
+        open={excluirOpen}
+        onOpenChange={setExcluirOpen}
+        reuniaoId={reuniaoId}
+        reuniaoTitulo={reuniao?.titulo || ""}
+        onSuccess={() => {
+          onOpenChange(false);
+          onUpdate();
+        }}
       />
     </>
   );
