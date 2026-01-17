@@ -31,6 +31,7 @@ import {
   Wallet,
   UserPlus,
   Video,
+  Database,
   type LucideIcon,
 } from "lucide-react";
 
@@ -532,6 +533,13 @@ export const adminMenuConfig: AdminMenuSection[] = [
         href: "/admin/acesso",
         icon: Shield,
         keywords: ["controle", "acesso", "permissões"],
+      },
+      {
+        id: "database-schema",
+        label: "Visualização do Banco",
+        href: "/admin/database",
+        icon: Database,
+        keywords: ["banco", "dados", "tabelas", "schema", "relacionamentos", "diagrama", "erd"],
       },
     ],
   },
