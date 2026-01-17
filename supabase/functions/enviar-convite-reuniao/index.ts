@@ -34,6 +34,7 @@ interface Reuniao {
   link_virtual?: string | null;
   tipo: string;
   pauta?: string | null;
+  created_by?: string | null;
 }
 
 interface Participante {
@@ -55,12 +56,13 @@ interface ModeloMensagem {
 }
 
 function formatarData(dataStr: string): string {
-  const data = new Date(dataStr + "T00:00:00");
-  return data.toLocaleDateString("pt-BR", { 
-    weekday: "long", 
-    day: "2-digit", 
-    month: "long", 
-    year: "numeric" 
+  // Evita o “dia anterior” por efeito de fuso ao parsear uma coluna DATE
+  const data = new Date(dataStr + "T12:00:00");
+  return data.toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
   });
 }
 
@@ -234,62 +236,104 @@ const handler = async (req: Request): Promise<Response> => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       console.error("Sem header de autorização");
-      return new Response(
-        JSON.stringify({ error: "Não autorizado" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Não autorizado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-    // Verificar autenticação com getUser (mais confiável que getClaims)
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    
+    if (!supabaseUrl || !anonKey) {
+      console.error("Configuração do backend ausente (SUPABASE_URL / SUPABASE_ANON_KEY)");
+      return new Response(JSON.stringify({ error: "Configuração do backend ausente" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+
+    // Cliente do usuário (respeita RLS)
+    const supabase = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    // Cliente admin (bypass RLS) — necessário para ler contato de servidores quando o usuário
+    // não tem permissão direta de SELECT na tabela de servidores.
+    const admin = serviceRoleKey ? createClient(supabaseUrl, serviceRoleKey) : supabase;
+
+    // Autenticar usuário (token recebido do frontend)
+    const { data: userData, error: userError } = await admin.auth.getUser(token);
     if (userError || !userData?.user) {
       console.error("Erro ao verificar usuário:", userError);
-      return new Response(
-        JSON.stringify({ error: "Token inválido ou expirado" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Token inválido ou expirado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
-    
+
     console.log("Usuário autenticado:", userData.user.email);
 
     const body: EnviarConviteRequest = await req.json();
     console.log("Request body:", JSON.stringify(body, null, 2));
 
-    const { reuniao_id, participante_ids, modelo_id, mensagem_personalizada, canal, assinatura } = body;
+    const {
+      reuniao_id,
+      participante_ids,
+      modelo_id,
+      mensagem_personalizada,
+      canal,
+      assinatura,
+    } = body;
 
     if (!reuniao_id || !participante_ids || participante_ids.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "Dados incompletos" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Dados incompletos" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Buscar dados da reunião
-    const { data: reuniao, error: reuniaoError } = await supabase
+    const { data: isAdmin, error: isAdminError } = await admin.rpc("is_admin_user", {
+      _user_id: userData.user.id,
+    });
+
+    if (isAdminError) {
+      console.warn("Não foi possível verificar se usuário é admin:", isAdminError);
+    }
+
+    // Buscar dados da reunião (inclui created_by para checar permissão)
+    const { data: reuniao, error: reuniaoError } = await admin
       .from("reunioes")
-      .select("id, titulo, data_reuniao, hora_inicio, hora_fim, local, link_virtual, tipo, pauta")
+      .select(
+        "id, titulo, data_reuniao, hora_inicio, hora_fim, local, link_virtual, tipo, pauta, created_by"
+      )
       .eq("id", reuniao_id)
       .single();
 
     if (reuniaoError || !reuniao) {
       console.error("Erro ao buscar reunião:", reuniaoError);
-      return new Response(
-        JSON.stringify({ error: "Reunião não encontrada" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Reunião não encontrada" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Buscar participantes
-    const { data: participantes, error: participantesError } = await supabase
+    const podeEnviar = Boolean(isAdmin) || (reuniao.created_by && reuniao.created_by === userData.user.id);
+    if (!podeEnviar) {
+      return new Response(JSON.stringify({ error: "Sem permissão para enviar convites desta reunião" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Buscar participantes (restrito à reunião informada)
+    const { data: participantes, error: participantesError } = await admin
       .from("participantes_reuniao")
-      .select(`
+      .select(
+        `
         id,
         nome_externo,
         email_externo,
@@ -299,21 +343,23 @@ const handler = async (req: Request): Promise<Response> => {
           email_pessoal,
           telefone_celular
         )
-      `)
+      `
+      )
+      .eq("reuniao_id", reuniao_id)
       .in("id", participante_ids);
 
     if (participantesError) {
       console.error("Erro ao buscar participantes:", participantesError);
-      return new Response(
-        JSON.stringify({ error: "Erro ao buscar participantes" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Erro ao buscar participantes" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Buscar modelo de mensagem
     let modelo: ModeloMensagem | null = null;
     if (modelo_id) {
-      const { data: modeloData } = await supabase
+      const { data: modeloData } = await admin
         .from("modelos_mensagem_reuniao")
         .select("id, assunto, conteudo_html")
         .eq("id", modelo_id)

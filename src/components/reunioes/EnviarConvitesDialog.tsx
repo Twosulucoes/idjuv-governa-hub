@@ -42,6 +42,7 @@ import { Link } from "react-router-dom";
 
 interface Participante {
   id: string;
+  servidor_id?: string | null;
   nome_externo?: string | null;
   email_externo?: string | null;
   telefone_externo?: string | null;
@@ -157,12 +158,14 @@ export function EnviarConvitesDialog({
   };
 
   // Filtrar participantes com contato (considerando dados do servidor também)
+  // Para WhatsApp: mesmo que o usuário não tenha permissão para ver o telefone do servidor (RLS),
+  // ainda permitimos selecionar quando há servidor_id — o backend resolve o contato.
   const participantesComContato = useMemo(() => {
     return participantes.filter((p) => {
       if (canal === "email") {
         return p.email_externo || p.servidor?.email_pessoal;
       }
-      return p.telefone_externo || p.servidor?.telefone_celular;
+      return p.telefone_externo || p.servidor?.telefone_celular || p.servidor_id;
     });
   }, [participantes, canal]);
 
@@ -171,7 +174,7 @@ export function EnviarConvitesDialog({
       if (canal === "email") {
         return !p.email_externo && !p.servidor?.email_pessoal;
       }
-      return !p.telefone_externo && !p.servidor?.telefone_celular;
+      return !p.telefone_externo && !p.servidor?.telefone_celular && !p.servidor_id;
     });
   }, [participantes, canal]);
 
@@ -432,9 +435,9 @@ export function EnviarConvitesDialog({
                 <div className="divide-y">
                   {participantesComContato.map((p) => {
                     const nome = getNome(p);
-                    const contato = canal === "email" 
-                      ? (p.email_externo || p.servidor?.email_pessoal) 
-                      : (p.telefone_externo || p.servidor?.telefone_celular);
+                    const contato = canal === "email"
+                      ? (p.email_externo || p.servidor?.email_pessoal)
+                      : (p.telefone_externo || p.servidor?.telefone_celular || (p.servidor_id ? "Telefone interno" : undefined));
                     const isSelected = selectedIds.includes(p.id);
 
                     return (
