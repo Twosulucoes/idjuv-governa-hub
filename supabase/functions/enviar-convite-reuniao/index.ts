@@ -26,12 +26,12 @@ interface Reuniao {
   id: string;
   titulo: string;
   data_reuniao: string;
-  horario_inicio: string;
-  horario_fim?: string;
-  local?: string;
-  link_virtual?: string;
+  hora_inicio: string;
+  hora_fim?: string | null;
+  local?: string | null;
+  link_virtual?: string | null;
   tipo: string;
-  pauta?: string;
+  pauta?: string | null;
 }
 
 interface Participante {
@@ -82,17 +82,61 @@ function substituirVariaveis(
     }
   }
   const nome = participante.nome_externo || nomeServidor;
-  
+
+  const horaInicio = formatarHorario(reuniao.hora_inicio);
+  const horaFim = reuniao.hora_fim ? formatarHorario(reuniao.hora_fim) : "";
+  const organizador = assinatura?.nome || "IDJUV";
+  const unidadeResponsavel = assinatura?.setor || "";
+
   let resultado = texto
+    // Nome
     .replace(/\{nome\}/g, nome)
+    .replace(/\{\{nome_participante\}\}/g, nome)
+
+    // Título
     .replace(/\{titulo\}/g, reuniao.titulo)
+    .replace(/\{\{titulo_reuniao\}\}/g, reuniao.titulo)
+
+    // Data
     .replace(/\{data\}/g, formatarData(reuniao.data_reuniao))
-    .replace(/\{horario\}/g, formatarHorario(reuniao.horario_inicio))
-    .replace(/\{horario_fim\}/g, reuniao.horario_fim ? formatarHorario(reuniao.horario_fim) : "")
+    .replace(/\{\{data_reuniao\}\}/g, formatarData(reuniao.data_reuniao))
+
+    // Horário
+    .replace(/\{hora\}/g, horaInicio)
+    .replace(/\{horario\}/g, horaInicio)
+    .replace(/\{hora_inicio\}/g, horaInicio)
+    .replace(/\{\{hora_inicio\}\}/g, horaInicio)
+    .replace(/\{hora_fim\}/g, horaFim)
+    .replace(/\{\{hora_fim\}\}/g, horaFim)
+    .replace(/\{horario_fim\}/g, horaFim)
+
+    // Local / Link / Tipo / Pauta
     .replace(/\{local\}/g, reuniao.local || "A definir")
+    .replace(/\{\{local\}\}/g, reuniao.local || "A definir")
     .replace(/\{link\}/g, reuniao.link_virtual || "")
-    .replace(/\{tipo\}/g, reuniao.tipo === "virtual" ? "Virtual" : reuniao.tipo === "presencial" ? "Presencial" : "Híbrida")
-    .replace(/\{pauta\}/g, reuniao.pauta || "");
+    .replace(/\{\{link\}\}/g, reuniao.link_virtual || "")
+    .replace(
+      /\{tipo\}/g,
+      reuniao.tipo === "virtual"
+        ? "Virtual"
+        : reuniao.tipo === "presencial"
+          ? "Presencial"
+          : "Híbrida"
+    )
+    .replace(
+      /\{\{tipo\}\}/g,
+      reuniao.tipo === "virtual"
+        ? "Virtual"
+        : reuniao.tipo === "presencial"
+          ? "Presencial"
+          : "Híbrida"
+    )
+    .replace(/\{pauta\}/g, reuniao.pauta || "")
+    .replace(/\{\{pauta\}\}/g, reuniao.pauta || "")
+
+    // Assinatura (variáveis do template)
+    .replace(/\{\{organizador\}\}/g, organizador)
+    .replace(/\{\{unidade_responsavel\}\}/g, unidadeResponsavel);
   
   if (assinatura) {
     resultado += `\n\n---\n${assinatura.nome}\n${assinatura.cargo}`;
@@ -137,7 +181,7 @@ function gerarHtmlEmail(corpo: string, reuniao: Reuniao): string {
             <strong style="color: #64748b;">🕐 Horário:</strong>
           </td>
           <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
-            ${formatarHorario(reuniao.horario_inicio)}${reuniao.horario_fim ? ` às ${formatarHorario(reuniao.horario_fim)}` : ""}
+            ${formatarHorario(reuniao.hora_inicio)}${reuniao.hora_fim ? ` às ${formatarHorario(reuniao.hora_fim)}` : ""}
           </td>
         </tr>
         <tr>
@@ -225,7 +269,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Buscar dados da reunião
     const { data: reuniao, error: reuniaoError } = await supabase
       .from("reunioes")
-      .select("id, titulo, data_reuniao, horario_inicio, horario_fim, local, link_virtual, tipo, pauta")
+      .select("id, titulo, data_reuniao, hora_inicio, hora_fim, local, link_virtual, tipo, pauta")
       .eq("id", reuniao_id)
       .single();
 
