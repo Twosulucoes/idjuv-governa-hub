@@ -38,6 +38,7 @@ import {
   SITUACAO_COLORS,
   MOVIMENTACAO_LABELS
 } from "@/types/rh";
+import { formatDateBR } from "@/lib/formatters";
 import { type TipoServidor } from "@/types/servidor";
 import { HistoricoFuncionalTab } from "@/components/rh/HistoricoFuncionalTab";
 
@@ -171,8 +172,7 @@ export default function ServidorDetalheePage() {
   };
 
   const formatDate = (date: string | undefined) => {
-    if (!date) return '-';
-    return format(new Date(date), "dd/MM/yyyy", { locale: ptBR });
+    return formatDateBR(date);
   };
 
   const formatCurrency = (value: number | undefined) => {
