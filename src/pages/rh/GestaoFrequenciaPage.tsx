@@ -156,7 +156,7 @@ export default function GestaoFrequenciaPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className={`text-2xl font-bold ${mediaPresenca >= 95 ? "text-green-600" : mediaPresenca >= 80 ? "text-yellow-600" : "text-red-600"}`}>
+              <p className={`text-2xl font-bold ${mediaPresenca >= 95 ? "text-success" : mediaPresenca >= 80 ? "text-warning" : "text-destructive"}`}>
                 {mediaPresenca.toFixed(1)}%
               </p>
             </CardContent>
@@ -239,10 +239,10 @@ export default function GestaoFrequenciaPage() {
                           <Badge
                             className={
                               s.percentual_presenca >= 95
-                                ? "bg-green-100 text-green-800"
+                                ? "bg-success/15 text-success border-success/30"
                                 : s.percentual_presenca >= 80
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-red-100 text-red-800"
+                                ? "bg-warning/15 text-warning border-warning/30"
+                                : "bg-destructive/15 text-destructive border-destructive/30"
                             }
                           >
                             {s.percentual_presenca.toFixed(1)}%

@@ -202,20 +202,42 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Transição suave entre temas */
-  html,
-  html *,
-  html *::before,
-  html *::after {
-    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  /* Transição suave entre temas - apenas em elementos interativos */
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [role="button"],
+  [role="menuitem"],
+  .transition-colors,
+  .transition-all {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow, opacity, transform;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 200ms;
+    transition-duration: 150ms;
   }
 
   /* Desabilitar transição em elementos que não devem animar */
-  html [data-no-transition],
-  html [data-no-transition] * {
+  [data-no-transition],
+  [data-no-transition] * {
     transition: none !important;
+  }
+  
+  /* Garantir que body e containers principais tenham fundo sólido */
+  body,
+  main,
+  .bg-background,
+  .bg-card,
+  .bg-popover {
+    background-color: hsl(var(--background));
+  }
+  
+  .bg-card {
+    background-color: hsl(var(--card));
+  }
+  
+  .bg-popover {
+    background-color: hsl(var(--popover));
   }
 
   body {

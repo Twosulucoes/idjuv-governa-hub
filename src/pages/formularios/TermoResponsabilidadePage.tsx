@@ -253,8 +253,8 @@ const TermoResponsabilidadePage = () => {
                     />
                   </div>
 
-                  <div className="bg-gray-50 border rounded-lg p-4">
-                    <h4 className="font-semibold text-sm mb-2">Declaração de Responsabilidade</h4>
+                  <div className="bg-muted border border-border rounded-lg p-4">
+                    <h4 className="font-semibold text-sm mb-2 text-foreground">Declaração de Responsabilidade</h4>
                     <p className="text-sm text-muted-foreground">
                       Ao gerar este termo, declaro ter recebido os bens acima descritos, comprometendo-me a zelar pela sua guarda, conservação e uso adequado, nos termos da IN de Patrimônio do IDJUV. Estou ciente de que responderei administrativa, civil e penalmente por dano, extravio ou uso indevido.
                     </p>
