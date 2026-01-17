@@ -445,12 +445,14 @@ Atenciosamente,`;
 
           console.log("Email enviado para:", email, emailResponse);
 
-          // Atualizar status do participante
-          await supabase
+          // Atualizar status do participante (usar admin para bypass RLS)
+          await admin
             .from("participantes_reuniao")
             .update({
+              convite_enviado: true,
               convite_enviado_em: new Date().toISOString(),
-              canal_envio: "email",
+              convite_enviado_por: userData.user.id,
+              convite_canal: "email",
             })
             .eq("id", participante.id);
 
@@ -481,12 +483,14 @@ Atenciosamente,`;
         const mensagemWhatsApp = encodeURIComponent(corpoSubstituido);
         const linkWhatsApp = `https://wa.me/${telefoneFormatado}?text=${mensagemWhatsApp}`;
 
-        // Atualizar status do participante
-        await supabase
+        // Atualizar status do participante (usar admin para bypass RLS)
+        await admin
           .from("participantes_reuniao")
           .update({ 
+            convite_enviado: true,
             convite_enviado_em: new Date().toISOString(),
-            canal_envio: "whatsapp"
+            convite_enviado_por: userData.user.id,
+            convite_canal: "whatsapp"
           })
           .eq("id", participante.id);
 

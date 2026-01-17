@@ -37,7 +37,9 @@ import {
   Mail,
   Phone,
   Building2,
+  MessageSquare,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -56,6 +58,9 @@ interface Participante {
   data_assinatura?: string | null;
   assinatura_presenca?: boolean | null;
   justificativa_ausencia?: string | null;
+  convite_enviado?: boolean | null;
+  convite_enviado_em?: string | null;
+  convite_canal?: string | null;
   servidor?: {
     id: string;
     nome_completo: string;
@@ -395,6 +400,33 @@ export function GestaoParticipantesTab({
                           <Badge variant="outline" className="text-xs">
                             Externo
                           </Badge>
+                        )}
+                        {p.convite_enviado && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className={`flex items-center justify-center h-5 w-5 rounded-full ${
+                                  p.convite_canal === "whatsapp" 
+                                    ? "bg-green-100 text-green-600" 
+                                    : "bg-blue-100 text-blue-600"
+                                }`}>
+                                  {p.convite_canal === "whatsapp" ? (
+                                    <MessageSquare className="h-3 w-3" />
+                                  ) : (
+                                    <Mail className="h-3 w-3" />
+                                  )}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Convite enviado via {p.convite_canal === "whatsapp" ? "WhatsApp" : "E-mail"}</p>
+                                {p.convite_enviado_em && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(p.convite_enviado_em).toLocaleString("pt-BR")}
+                                  </p>
+                                )}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         )}
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">

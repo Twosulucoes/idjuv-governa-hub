@@ -3871,6 +3871,10 @@ export type Database = {
         Row: {
           assinatura_presenca: boolean | null
           cargo_funcao: string | null
+          convite_canal: string | null
+          convite_enviado: boolean | null
+          convite_enviado_em: string | null
+          convite_enviado_por: string | null
           created_at: string | null
           data_assinatura: string | null
           data_confirmacao: string | null
@@ -3891,6 +3895,10 @@ export type Database = {
         Insert: {
           assinatura_presenca?: boolean | null
           cargo_funcao?: string | null
+          convite_canal?: string | null
+          convite_enviado?: boolean | null
+          convite_enviado_em?: string | null
+          convite_enviado_por?: string | null
           created_at?: string | null
           data_assinatura?: string | null
           data_confirmacao?: string | null
@@ -3911,6 +3919,10 @@ export type Database = {
         Update: {
           assinatura_presenca?: boolean | null
           cargo_funcao?: string | null
+          convite_canal?: string | null
+          convite_enviado?: boolean | null
+          convite_enviado_em?: string | null
+          convite_enviado_por?: string | null
           created_at?: string | null
           data_assinatura?: string | null
           data_confirmacao?: string | null
