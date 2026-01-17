@@ -50,6 +50,7 @@ interface ModeloMensagem {
 const tiposModelo = [
   { value: "convite", label: "Convite" },
   { value: "lembrete", label: "Lembrete" },
+  { value: "checkin", label: "Check-in (Dia da Reunião)" },
   { value: "cancelamento", label: "Cancelamento" },
   { value: "alteracao", label: "Alteração" },
 ];
@@ -182,6 +183,7 @@ export function ModelosMensagemTab() {
     switch (tipo) {
       case "convite": return "default";
       case "lembrete": return "secondary";
+      case "checkin": return "default";
       case "cancelamento": return "destructive";
       case "alteracao": return "outline";
       default: return "default";
