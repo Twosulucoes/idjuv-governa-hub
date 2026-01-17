@@ -2,7 +2,9 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const resendApiKey = Deno.env.get("RESEND_API_KEY") ?? "";
+const resendFrom = Deno.env.get("RESEND_FROM") ?? "IDJUV <onboarding@resend.dev>";
+const resend = new Resend(resendApiKey);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -62,8 +64,9 @@ function formatarData(dataStr: string): string {
   });
 }
 
-function formatarHorario(horario: string): string {
-  return horario.substring(0, 5);
+function formatarHorario(horario: string | null | undefined): string {
+  if (!horario) return "";
+  return String(horario).substring(0, 5);
 }
 
 function substituirVariaveis(
@@ -354,36 +357,63 @@ Atenciosamente,`;
         // Prioriza email_externo, se não tiver usa email_pessoal do servidor
         const email = participante.email_externo || servidorData?.email_pessoal;
         if (!email) {
-          console.log(`Participante ${participante.id} sem email. externo: ${participante.email_externo}, servidor: ${servidorData?.email_pessoal}`);
+          console.log(
+            `Participante ${participante.id} sem email. externo: ${participante.email_externo}, servidor: ${servidorData?.email_pessoal}`
+          );
           resultados.push({ participante_id: participante.id, sucesso: false, erro: "Sem email" });
+          continue;
+        }
+
+        if (!resendApiKey) {
+          resultados.push({
+            participante_id: participante.id,
+            sucesso: false,
+            erro: "Envio de e-mail não configurado (RESEND_API_KEY ausente)",
+          });
           continue;
         }
 
         try {
           const htmlEmail = gerarHtmlEmail(corpoSubstituido, reuniao as Reuniao);
-          
+
           const emailResponse = await resend.emails.send({
-            from: "IDJUV <onboarding@resend.dev>",
+            from: resendFrom,
             to: [email],
             subject: assuntoSubstituido,
             html: htmlEmail,
           });
+
+          if (emailResponse?.error) {
+            console.error("Resend retornou erro:", emailResponse.error);
+            resultados.push({
+              participante_id: participante.id,
+              sucesso: false,
+              erro:
+                emailResponse.error.message ||
+                "Falha ao enviar e-mail (Resend)",
+            });
+            continue;
+          }
 
           console.log("Email enviado para:", email, emailResponse);
 
           // Atualizar status do participante
           await supabase
             .from("participantes_reuniao")
-            .update({ 
+            .update({
               convite_enviado_em: new Date().toISOString(),
-              canal_envio: "email"
+              canal_envio: "email",
             })
             .eq("id", participante.id);
 
           resultados.push({ participante_id: participante.id, sucesso: true });
         } catch (emailError: any) {
           console.error("Erro ao enviar email:", emailError);
-          resultados.push({ participante_id: participante.id, sucesso: false, erro: emailError.message });
+          resultados.push({
+            participante_id: participante.id,
+            sucesso: false,
+            erro: emailError?.message || "Erro desconhecido no envio de e-mail",
+          });
         }
       } else if (canal === "whatsapp") {
         // Prioriza telefone_externo, se não tiver usa telefone_celular do servidor
