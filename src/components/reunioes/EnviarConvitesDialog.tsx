@@ -48,6 +48,8 @@ interface Participante {
   servidor?: {
     id: string;
     nome_completo: string;
+    email_pessoal?: string | null;
+    telefone_celular?: string | null;
   } | null;
 }
 
@@ -154,17 +156,23 @@ export function EnviarConvitesDialog({
     }
   };
 
-  // Filtrar participantes com contato
+  // Filtrar participantes com contato (considerando dados do servidor também)
   const participantesComContato = useMemo(() => {
-    return participantes.filter((p) =>
-      canal === "email" ? p.email_externo : p.telefone_externo
-    );
+    return participantes.filter((p) => {
+      if (canal === "email") {
+        return p.email_externo || p.servidor?.email_pessoal;
+      }
+      return p.telefone_externo || p.servidor?.telefone_celular;
+    });
   }, [participantes, canal]);
 
   const participantesSemContato = useMemo(() => {
-    return participantes.filter((p) =>
-      canal === "email" ? !p.email_externo : !p.telefone_externo
-    );
+    return participantes.filter((p) => {
+      if (canal === "email") {
+        return !p.email_externo && !p.servidor?.email_pessoal;
+      }
+      return !p.telefone_externo && !p.servidor?.telefone_celular;
+    });
   }, [participantes, canal]);
 
   const toggleSelect = (id: string) => {
@@ -411,7 +419,9 @@ export function EnviarConvitesDialog({
                 <div className="divide-y">
                   {participantesComContato.map((p) => {
                     const nome = getNome(p);
-                    const contato = canal === "email" ? p.email_externo : p.telefone_externo;
+                    const contato = canal === "email" 
+                      ? (p.email_externo || p.servidor?.email_pessoal) 
+                      : (p.telefone_externo || p.servidor?.telefone_celular);
                     const isSelected = selectedIds.includes(p.id);
 
                     return (

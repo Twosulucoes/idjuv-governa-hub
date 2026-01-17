@@ -88,7 +88,7 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
         .from("participantes_reuniao")
         .select(`
           *,
-          servidor:servidor_id(id, nome_completo, foto_url)
+          servidor:servidor_id(id, nome_completo, foto_url, email_pessoal, telefone_celular)
         `)
         .eq("reuniao_id", reuniaoId)
         .order("created_at", { ascending: true });

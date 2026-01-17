@@ -41,7 +41,9 @@ interface Participante {
   telefone_externo?: string;
   servidor?: {
     nome_completo: string;
-  }[] | { nome_completo: string } | null;
+    email_pessoal?: string;
+    telefone_celular?: string;
+  }[] | { nome_completo: string; email_pessoal?: string; telefone_celular?: string } | null;
 }
 
 interface ModeloMensagem {
@@ -244,7 +246,9 @@ const handler = async (req: Request): Promise<Response> => {
         email_externo,
         telefone_externo,
         servidor:servidor_id (
-          nome_completo
+          nome_completo,
+          email_pessoal,
+          telefone_celular
         )
       `)
       .in("id", participante_ids);
@@ -292,9 +296,21 @@ Atenciosamente,`;
       const corpoSubstituido = substituirVariaveis(corpoFinal, reuniao as Reuniao, participante as Participante, assinatura);
       const assuntoSubstituido = substituirVariaveis(assuntoFinal, reuniao as Reuniao, participante as Participante);
 
+      // Obter dados do servidor (pode ser array ou objeto)
+      let servidorData: { nome_completo: string; email_pessoal?: string; telefone_celular?: string } | null = null;
+      if (participante.servidor) {
+        if (Array.isArray(participante.servidor) && participante.servidor.length > 0) {
+          servidorData = participante.servidor[0];
+        } else if (!Array.isArray(participante.servidor)) {
+          servidorData = participante.servidor;
+        }
+      }
+
       if (canal === "email") {
-        const email = participante.email_externo;
+        // Prioriza email_externo, se não tiver usa email_pessoal do servidor
+        const email = participante.email_externo || servidorData?.email_pessoal;
         if (!email) {
+          console.log(`Participante ${participante.id} sem email. externo: ${participante.email_externo}, servidor: ${servidorData?.email_pessoal}`);
           resultados.push({ participante_id: participante.id, sucesso: false, erro: "Sem email" });
           continue;
         }
@@ -309,7 +325,7 @@ Atenciosamente,`;
             html: htmlEmail,
           });
 
-          console.log("Email enviado:", emailResponse);
+          console.log("Email enviado para:", email, emailResponse);
 
           // Atualizar status do participante
           await supabase
@@ -326,8 +342,10 @@ Atenciosamente,`;
           resultados.push({ participante_id: participante.id, sucesso: false, erro: emailError.message });
         }
       } else if (canal === "whatsapp") {
-        const telefone = participante.telefone_externo;
+        // Prioriza telefone_externo, se não tiver usa telefone_celular do servidor
+        const telefone = participante.telefone_externo || servidorData?.telefone_celular;
         if (!telefone) {
+          console.log(`Participante ${participante.id} sem telefone. externo: ${participante.telefone_externo}, servidor: ${servidorData?.telefone_celular}`);
           resultados.push({ participante_id: participante.id, sucesso: false, erro: "Sem telefone" });
           continue;
         }
