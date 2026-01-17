@@ -229,7 +229,12 @@ export function EnviarConvitesDialog({
         throw new Error(response.error.message || "Erro ao enviar convites");
       }
 
-      const result = response.data;
+      const result: any = response.data;
+      console.log("Resultado envio convites:", result);
+
+      if (!result || typeof result !== "object") {
+        throw new Error("Resposta inválida do servidor");
+      }
 
       if (canal === "whatsapp" && result.resultados) {
         const linksWhatsApp = result.resultados
@@ -237,8 +242,9 @@ export function EnviarConvitesDialog({
           .map((r: any) => r.link_whatsapp);
 
         if (linksWhatsApp.length > 0) {
+          // Pode ser bloqueado por popup blocker; nesse caso o link fica no console.
           window.open(linksWhatsApp[0], "_blank");
-          
+
           if (linksWhatsApp.length > 1) {
             toast.info(
               `${linksWhatsApp.length} links do WhatsApp gerados. O primeiro foi aberto.`,
@@ -249,10 +255,17 @@ export function EnviarConvitesDialog({
         }
       }
 
-      toast.success(`${result.sucessos} convite(s) enviado(s) com sucesso!`);
-      
+      toast.success(`${result.sucessos} convite(s) processado(s)`);
+
       if (result.falhas > 0) {
-        toast.warning(`${result.falhas} convite(s) falharam`);
+        const detalhes = (result.resultados || [])
+          .filter((r: any) => !r.sucesso)
+          .slice(0, 3)
+          .map((r: any) => `${r.participante_id}: ${r.erro || "falha"}`)
+          .join(" | ");
+
+        toast.warning(`Falhas: ${result.falhas}${detalhes ? ` — ${detalhes}` : ""}`);
+        console.warn("Falhas no envio de convites:", result.resultados);
       }
 
       onOpenChange(false);
