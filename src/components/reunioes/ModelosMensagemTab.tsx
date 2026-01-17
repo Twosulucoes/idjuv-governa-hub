@@ -329,8 +329,8 @@ export function ModelosMensagemTab() {
             <div className="space-y-2">
               <Label>Corpo da Mensagem *</Label>
               <Textarea
-                value={formData.corpo}
-                onChange={(e) => setFormData({ ...formData, corpo: e.target.value })}
+                value={formData.conteudo_html}
+                onChange={(e) => setFormData({ ...formData, conteudo_html: e.target.value })}
                 placeholder="Digite a mensagem..."
                 rows={8}
               />
@@ -338,7 +338,7 @@ export function ModelosMensagemTab() {
 
             <PreviewMensagem
               assunto={formData.assunto}
-              corpo={formData.corpo}
+              corpo={formData.conteudo_html}
               canal="email"
             />
 
