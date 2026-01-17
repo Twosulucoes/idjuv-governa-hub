@@ -146,9 +146,9 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
                     {statusConfig[reuniao.status as StatusReuniao]?.label || reuniao.status}
                   </Badge>
                 </div>
-                {reuniao.objetivo && (
+                {reuniao.observacoes && (
                   <SheetDescription className="text-left">
-                    {reuniao.objetivo}
+                    {reuniao.observacoes}
                   </SheetDescription>
                 )}
               </SheetHeader>

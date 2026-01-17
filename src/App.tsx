@@ -89,6 +89,7 @@ import GestaoPerfilPage from "./pages/admin/GestaoPerfilPage";
 import BackupOffsitePage from "./pages/admin/BackupOffsitePage";
 import DisasterRecoveryPage from "./pages/admin/DisasterRecoveryPage";
 import UsuariosTecnicosPage from "./pages/admin/UsuariosTecnicosPage";
+import ReunioesPage from "./pages/admin/ReunioesPage";
 
 // Mini-Currículo / Pré-Cadastro
 import MiniCurriculoPage from "./pages/curriculo/MiniCurriculoPage";
@@ -146,6 +147,7 @@ const App = () => (
                 <Route path="/admin/usuarios-tecnicos" element={<UsuariosTecnicosPage />} />
                 <Route path="/admin/pre-cadastros" element={<GestaoPreCadastrosPage />} />
                 <Route path="/admin/pre-cadastros/pendencias" element={<DiagnosticoPendenciasPage />} />
+                <Route path="/admin/reunioes" element={<ReunioesPage />} />
                 <Route path="/acesso" element={<ControleAcessoAdminPage />} />
                 
                 {/* Governança */}
