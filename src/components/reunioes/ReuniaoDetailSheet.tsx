@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   Calendar, 
   Clock, 
@@ -20,13 +19,13 @@ import {
   Users, 
   FileText,
   Send,
-  UserPlus,
   Play,
   CheckCircle,
   XCircle,
   Loader2,
   ExternalLink,
-  Copy
+  Copy,
+  ClipboardList
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -35,9 +34,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AdicionarParticipanteDialog } from "./AdicionarParticipanteDialog";
 import { EnviarConvitesDialog } from "./EnviarConvitesDialog";
+import { GestaoParticipantesTab } from "./GestaoParticipantesTab";
 
 type StatusReuniao = "agendada" | "em_andamento" | "realizada" | "cancelada" | "adiada" | "confirmada";
-type StatusParticipante = "pendente" | "confirmado" | "recusado" | "ausente" | "presente";
 
 interface ReuniaoDetailSheetProps {
   open: boolean;
@@ -53,14 +52,6 @@ const statusConfig: Record<StatusReuniao, { label: string; variant: "default" | 
   realizada: { label: "Realizada", variant: "outline" },
   cancelada: { label: "Cancelada", variant: "destructive" },
   adiada: { label: "Adiada", variant: "outline" },
-};
-
-const statusParticipanteConfig: Record<StatusParticipante, { label: string; color: string }> = {
-  pendente: { label: "Pendente", color: "text-muted-foreground" },
-  confirmado: { label: "Confirmado", color: "text-green-600" },
-  recusado: { label: "Recusado", color: "text-red-600" },
-  ausente: { label: "Ausente", color: "text-orange-600" },
-  presente: { label: "Presente", color: "text-blue-600" },
 };
 
 export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: ReuniaoDetailSheetProps) {
@@ -83,7 +74,7 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
     enabled: !!reuniaoId && open,
   });
 
-  const { data: participantes } = useQuery({
+  const { data: participantes = [] } = useQuery({
     queryKey: ["participantes", reuniaoId],
     queryFn: async () => {
       if (!reuniaoId) return [];
@@ -91,7 +82,7 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
         .from("participantes_reuniao")
         .select(`
           *,
-          servidor:servidor_id(id, nome_completo)
+          servidor:servidor_id(id, nome_completo, foto_url)
         `)
         .eq("reuniao_id", reuniaoId)
         .order("created_at", { ascending: true });
@@ -127,6 +118,10 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
   };
 
   if (!reuniaoId) return null;
+
+  // Stats para badge
+  const presentes = participantes.filter(p => p.status === "presente").length;
+  const confirmados = participantes.filter(p => p.status === "confirmado").length;
 
   return (
     <>
@@ -220,6 +215,14 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
                   <TabsTrigger value="participantes" className="text-sm">
                     <Users className="h-4 w-4 mr-2" />
                     Participantes
+                    {participantes.length > 0 && (
+                      <Badge variant="secondary" className="ml-2 h-5 px-1.5">
+                        {reuniao.status === "em_andamento" || reuniao.status === "realizada" 
+                          ? `${presentes}/${participantes.length}` 
+                          : `${confirmados}/${participantes.length}`
+                        }
+                      </Badge>
+                    )}
                   </TabsTrigger>
                   <TabsTrigger value="pauta" className="text-sm">
                     <FileText className="h-4 w-4 mr-2" />
@@ -228,51 +231,13 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
                 </TabsList>
 
                 <TabsContent value="participantes" className="flex-1 overflow-auto px-4 pb-4 mt-3">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm text-muted-foreground">
-                      {participantes?.length || 0} participante(s)
-                    </span>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => setAddParticipanteOpen(true)}
-                    >
-                      <UserPlus className="h-4 w-4 mr-1" />
-                      Adicionar
-                    </Button>
-                  </div>
-
-                  {participantes?.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p>Nenhum participante adicionado</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {participantes?.map((p: any) => (
-                        <Card key={p.id}>
-                          <CardContent className="p-3 flex items-center gap-3">
-                            <Avatar className="h-9 w-9">
-                              <AvatarFallback className="text-xs">
-                                {p.nome_externo?.[0] || p.servidor?.nome_completo?.[0] || "?"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm truncate">
-                                {p.nome_externo || p.servidor?.nome_completo || "Sem nome"}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {p.email_externo || p.cargo_externo || ""}
-                              </p>
-                            </div>
-                            <span className={`text-xs font-medium ${statusParticipanteConfig[p.status as StatusParticipante]?.color}`}>
-                              {statusParticipanteConfig[p.status as StatusParticipante]?.label}
-                            </span>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
+                  <GestaoParticipantesTab
+                    participantes={participantes}
+                    reuniaoId={reuniaoId}
+                    statusReuniao={reuniao.status}
+                    onAddParticipante={() => setAddParticipanteOpen(true)}
+                    onEnviarConvites={() => setEnviarConvitesOpen(true)}
+                  />
                 </TabsContent>
 
                 <TabsContent value="pauta" className="flex-1 overflow-auto px-4 pb-4 mt-3">
@@ -290,18 +255,7 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
               </Tabs>
 
               {/* Footer Actions */}
-              <div className="p-4 border-t bg-muted/30 space-y-3">
-                {participantes && participantes.length > 0 && reuniao.status === "agendada" && (
-                  <Button 
-                    className="w-full" 
-                    variant="outline"
-                    onClick={() => setEnviarConvitesOpen(true)}
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    Enviar Convites
-                  </Button>
-                )}
-                
+              <div className="p-4 border-t bg-muted/30">
                 <div className="flex gap-2">
                   {reuniao.status === "agendada" && (
                     <>
@@ -311,7 +265,7 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
                         disabled={updateStatusMutation.isPending}
                       >
                         <Play className="h-4 w-4 mr-2" />
-                        Iniciar
+                        Iniciar Reunião
                       </Button>
                       <Button 
                         variant="destructive"
@@ -331,6 +285,12 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
                       <CheckCircle className="h-4 w-4 mr-2" />
                       Finalizar Reunião
                     </Button>
+                  )}
+                  {(reuniao.status === "realizada" || reuniao.status === "cancelada") && (
+                    <div className="w-full text-center py-2 text-sm text-muted-foreground">
+                      <ClipboardList className="h-4 w-4 inline mr-2" />
+                      Reunião {reuniao.status === "realizada" ? "finalizada" : "cancelada"}
+                    </div>
                   )}
                 </div>
               </div>
@@ -353,7 +313,7 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
         open={enviarConvitesOpen}
         onOpenChange={setEnviarConvitesOpen}
         reuniaoId={reuniaoId}
-        participantes={participantes || []}
+        participantes={participantes}
       />
     </>
   );
