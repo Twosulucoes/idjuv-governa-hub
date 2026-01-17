@@ -124,87 +124,100 @@ const KNOWN_TABLES = [
   'cessoes', 'composicao_cargos', 'config_assinatura_reuniao', 'config_autarquia',
   'configuracao_jornada', 'consignacoes', 'contas_autarquia', 'dependentes_irrf',
   'designacoes', 'documentos', 'documentos_cedencia', 'estrutura_organizacional',
-  'ferias_servidor', 'fichas_financeiras', 'folhas_pagamento', 'frequencia_mensal',
-  'historico_cargo_servidor', 'historico_lotacao', 'indicacoes', 'licencas_afastamentos',
-  'lotacoes', 'memorandos_lotacao', 'modelos_mensagem_reuniao', 'nomeacoes_chefe_unidade',
-  'parametros_folha', 'participantes_reuniao', 'patrimonio_unidade', 'pautas_reuniao',
-  'portarias_servidor', 'pre_cadastros', 'profiles', 'provimentos',
-  'registro_ponto', 'remessas_bancarias', 'reunioes', 'role_permissions',
-  'rubricas', 'servidores', 'tabela_inss', 'tabela_irrf',
+  'eventos_esocial', 'exportacoes_folha', 'ferias_servidor', 'fichas_financeiras', 
+  'folhas_pagamento', 'frequencia_mensal', 'historico_cargo_servidor', 'historico_lotacao', 
+  'indicacoes', 'licencas_afastamentos', 'lotacoes', 'memorandos_lotacao', 
+  'modelos_mensagem_reuniao', 'nomeacoes_chefe_unidade', 'parametros_folha', 
+  'participantes_reuniao', 'patrimonio_unidade', 'pautas_reuniao', 'portarias_servidor', 
+  'pre_cadastros', 'profiles', 'provimentos', 'registro_ponto', 'remessas_bancarias', 
+  'reunioes', 'role_permissions', 'rubricas', 'servidores', 'tabela_inss', 'tabela_irrf',
   'unidades_locais', 'user_org_units', 'user_permissions', 'user_roles',
   'user_security_settings', 'viagens_diarias', 'vinculos_funcionais'
 ];
 
-async function fetchDatabaseSchema(): Promise<DatabaseSchemaData> {
-  const tables: TableInfo[] = [];
-  const relationships: RelationshipInfo[] = [];
+// Processar uma única tabela
+async function processTable(tableName: string): Promise<{ table: TableInfo; rels: RelationshipInfo[] } | null> {
+  try {
+    // Buscar contagem e amostra em paralelo
+    const [countResult, sampleResult] = await Promise.all([
+      supabase.from(tableName as any).select('*', { count: 'exact', head: true }),
+      supabase.from(tableName as any).select('*').limit(1)
+    ]);
 
-  // Buscar contagem de cada tabela
-  for (const tableName of KNOWN_TABLES) {
-    try {
-      const { count, error } = await supabase
-        .from(tableName as any)
-        .select('*', { count: 'exact', head: true });
+    if (countResult.error) {
+      console.warn(`Erro ao contar ${tableName}:`, countResult.error.message);
+      return null;
+    }
 
-      if (error) {
-        console.warn(`Erro ao contar ${tableName}:`, error.message);
-        continue;
-      }
+    const rowCount = countResult.count ?? 0;
+    const category = categorizeTable(tableName);
+    const columns: ColumnInfo[] = [];
+    const rels: RelationshipInfo[] = [];
+    
+    if (sampleResult.data && sampleResult.data.length > 0) {
+      const sample = sampleResult.data[0];
+      for (const [colName, value] of Object.entries(sample)) {
+        const isFK = colName.endsWith('_id') && colName !== 'id';
+        const targetTable = inferTargetTable(colName);
+        
+        const valueType = typeof value === 'number' ? 'number' : 
+              typeof value === 'boolean' ? 'boolean' :
+              Array.isArray(value) ? 'array' :
+              typeof value === 'object' && value !== null ? 'jsonb' : 'text';
+        
+        columns.push({
+          name: colName,
+          type: valueType,
+          nullable: value === null,
+          defaultValue: null,
+          isFK,
+          referencedTable: targetTable,
+        });
 
-      const rowCount = count ?? 0;
-      const category = categorizeTable(tableName);
-
-      // Tentar buscar uma amostra para inferir colunas
-      const { data: sampleData } = await supabase
-        .from(tableName as any)
-        .select('*')
-        .limit(1);
-
-      const columns: ColumnInfo[] = [];
-      
-      if (sampleData && sampleData.length > 0) {
-        const sample = sampleData[0];
-        for (const [colName, value] of Object.entries(sample)) {
-          const isFK = colName.endsWith('_id') && colName !== 'id';
-          const targetTable = inferTargetTable(colName);
-          
-          const valueType = typeof value === 'number' ? 'number' : 
-                typeof value === 'boolean' ? 'boolean' :
-                Array.isArray(value) ? 'array' :
-                typeof value === 'object' && value !== null ? 'jsonb' : 'text';
-          
-          columns.push({
-            name: colName,
-            type: valueType,
-            nullable: value === null,
-            defaultValue: null,
-            isFK,
-            referencedTable: targetTable,
+        if (isFK && targetTable) {
+          rels.push({
+            sourceTable: tableName,
+            sourceColumn: colName,
+            targetTable,
+            type: 'implicit',
+            exists: KNOWN_TABLES.includes(targetTable),
           });
-
-          // Registrar relacionamento implícito
-          if (isFK && targetTable) {
-            relationships.push({
-              sourceTable: tableName,
-              sourceColumn: colName,
-              targetTable,
-              type: 'implicit',
-              exists: KNOWN_TABLES.includes(targetTable),
-            });
-          }
         }
       }
+    }
 
-      tables.push({
+    return {
+      table: {
         name: tableName,
         schema: 'public',
         columns,
         rowCount,
         category,
         hasRLS: true,
-      });
-    } catch (e) {
-      console.error(`Erro ao processar tabela ${tableName}:`, e);
+      },
+      rels
+    };
+  } catch (e) {
+    console.error(`Erro ao processar tabela ${tableName}:`, e);
+    return null;
+  }
+}
+
+async function fetchDatabaseSchema(): Promise<DatabaseSchemaData> {
+  // Processar todas as tabelas em paralelo (em lotes para não sobrecarregar)
+  const BATCH_SIZE = 15;
+  const tables: TableInfo[] = [];
+  const relationships: RelationshipInfo[] = [];
+
+  for (let i = 0; i < KNOWN_TABLES.length; i += BATCH_SIZE) {
+    const batch = KNOWN_TABLES.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(batch.map(processTable));
+    
+    for (const result of results) {
+      if (result) {
+        tables.push(result.table);
+        relationships.push(...result.rels);
+      }
     }
   }
 
@@ -264,8 +277,9 @@ export function useDatabaseSchema() {
   return useQuery({
     queryKey: ['database-schema'],
     queryFn: fetchDatabaseSchema,
-    staleTime: 5 * 60 * 1000, // 5 minutos
-    gcTime: 30 * 60 * 1000, // 30 minutos
+    staleTime: 10 * 60 * 1000, // 10 minutos de cache
+    gcTime: 60 * 60 * 1000, // 1 hora no garbage collector
+    refetchOnWindowFocus: false, // Não recarregar ao focar a janela
   });
 }
 
