@@ -92,6 +92,9 @@ export function EnviarConvitesDialog({
   const [modeloId, setModeloId] = useState<string>("");
   const [assinaturaId, setAssinaturaId] = useState<string>("");
   const [mensagemPersonalizada, setMensagemPersonalizada] = useState("");
+  const [whatsAppLinks, setWhatsAppLinks] = useState<
+    { participanteId: string; nome: string; url: string }[]
+  >([]);
 
   // Reset on open
   useEffect(() => {
@@ -99,6 +102,7 @@ export function EnviarConvitesDialog({
       setStep("canal");
       setSelectedIds([]);
       setCanal("email");
+      setWhatsAppLinks([]);
     }
   }, [open]);
 
@@ -179,12 +183,20 @@ export function EnviarConvitesDialog({
   }, [participantes, canal]);
 
   const toggleSelect = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
+    setSelectedIds((prev) => {
+      // WhatsApp: simplificado para envio individual (gera link por destinatário)
+      if (canal === "whatsapp") {
+        return prev.includes(id) ? [] : [id];
+      }
+
+      return prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id];
+    });
   };
 
   const selectAll = () => {
+    // WhatsApp: envio individual
+    if (canal === "whatsapp") return;
+
     if (selectedIds.length === participantesComContato.length) {
       setSelectedIds([]);
     } else {
@@ -239,26 +251,32 @@ export function EnviarConvitesDialog({
         throw new Error("Resposta inválida do servidor");
       }
 
-      if (canal === "whatsapp" && result.resultados) {
-        const linksWhatsApp = result.resultados
+      if (canal === "whatsapp" && Array.isArray(result.resultados)) {
+        const nomePorId = (participanteId: string) => {
+          const p = participantes.find((x) => x.id === participanteId);
+          return p?.nome_externo || p?.servidor?.nome_completo || "Participante";
+        };
+
+        const links = result.resultados
           .filter((r: any) => r.sucesso && r.link_whatsapp)
-          .map((r: any) => r.link_whatsapp);
+          .map((r: any) => ({
+            participanteId: r.participante_id,
+            nome: nomePorId(r.participante_id),
+            url: r.link_whatsapp as string,
+          }));
 
-        if (linksWhatsApp.length > 0) {
-          // Pode ser bloqueado por popup blocker; nesse caso o link fica no console.
-          window.open(linksWhatsApp[0], "_blank");
+        setWhatsAppLinks(links);
 
-          if (linksWhatsApp.length > 1) {
-            toast.info(
-              `${linksWhatsApp.length} links do WhatsApp gerados. O primeiro foi aberto.`,
-              { duration: 5000 }
-            );
-            console.log("Links WhatsApp gerados:", linksWhatsApp);
-          }
+        if (links.length === 0 && result.sucessos > 0) {
+          toast.warning("Processado, mas nenhum link do WhatsApp foi gerado.");
         }
       }
 
-      toast.success(`${result.sucessos} convite(s) processado(s)`);
+      toast.success(
+        canal === "whatsapp"
+          ? "Link do WhatsApp gerado (envio manual)"
+          : `${result.sucessos} convite(s) processado(s)`
+      );
 
       if (result.falhas > 0) {
         const detalhes = (result.resultados || [])
@@ -271,7 +289,10 @@ export function EnviarConvitesDialog({
         console.warn("Falhas no envio de convites:", result.resultados);
       }
 
-      onOpenChange(false);
+      // WhatsApp: mantém o diálogo aberto para o usuário abrir/copiar o link.
+      if (canal !== "whatsapp") {
+        onOpenChange(false);
+      }
     } catch (error: any) {
       console.error("Erro ao enviar convites:", error);
       toast.error("Erro ao enviar convites: " + error.message);
@@ -410,19 +431,30 @@ export function EnviarConvitesDialog({
         return (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
-                <Checkbox
-                  checked={
-                    selectedIds.length > 0 &&
-                    selectedIds.length === participantesComContato.length
-                  }
-                  onCheckedChange={selectAll}
-                />
-                Selecionar todos
-              </label>
-              <Badge variant="secondary">
-                {selectedIds.length} de {participantesComContato.length}
-              </Badge>
+              {canal === "whatsapp" ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Selecione 1 participante para gerar o link do WhatsApp
+                  </p>
+                  <Badge variant="secondary">{selectedIds.length} selecionado(s)</Badge>
+                </>
+              ) : (
+                <>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
+                    <Checkbox
+                      checked={
+                        selectedIds.length > 0 &&
+                        selectedIds.length === participantesComContato.length
+                      }
+                      onCheckedChange={selectAll}
+                    />
+                    Selecionar todos
+                  </label>
+                  <Badge variant="secondary">
+                    {selectedIds.length} de {participantesComContato.length}
+                  </Badge>
+                </>
+              )}
             </div>
 
             <ScrollArea className="h-[280px] border rounded-lg">
@@ -488,17 +520,84 @@ export function EnviarConvitesDialog({
               <span className="text-muted-foreground">Destinatários:</span>
               <Badge variant="secondary">{selectedIds.length} selecionado(s)</Badge>
             </div>
-            
+
             <PreviewMensagem
               assunto={modeloAtual?.assunto || "Convite para Reunião"}
               corpo={mensagemPersonalizada || modeloAtual?.conteudo_html || ""}
               canal={canal}
-              assinatura={assinaturaAtual ? {
-                nome: assinaturaAtual.nome_assinante_1 || "",
-                cargo: assinaturaAtual.cargo_assinante_1 || "",
-                setor: assinaturaAtual.texto_rodape || "",
-              } : undefined}
+              assinatura={
+                assinaturaAtual
+                  ? {
+                      nome: assinaturaAtual.nome_assinante_1 || "",
+                      cargo: assinaturaAtual.cargo_assinante_1 || "",
+                      setor: assinaturaAtual.texto_rodape || "",
+                    }
+                  : undefined
+              }
             />
+
+            {canal === "whatsapp" && (
+              <div className="space-y-2">
+                {whatsAppLinks.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Clique em “Gerar link do WhatsApp” para obter o link do destinatário.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Link do WhatsApp</Label>
+
+                    {whatsAppLinks.map((l) => (
+                      <div
+                        key={l.participanteId}
+                        className="flex items-start gap-2 rounded-lg border p-2"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{l.nome}</p>
+                          <a
+                            href={l.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs underline break-all"
+                          >
+                            {l.url}
+                          </a>
+                        </div>
+
+                        <div className="flex flex-col gap-2 shrink-0">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(l.url, "_blank")}
+                          >
+                            Abrir
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(l.url);
+                                toast.success("Link copiado");
+                              } catch {
+                                toast.error("Não foi possível copiar o link");
+                              }
+                            }}
+                          >
+                            Copiar
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+
+                    <p className="text-xs text-muted-foreground">
+                      O WhatsApp abrirá com a mensagem pronta para você confirmar o envio.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
     }
@@ -515,10 +614,14 @@ export function EnviarConvitesDialog({
 
   const canProceed = () => {
     switch (step) {
-      case "canal": return true;
-      case "config": return temModelos && mensagemPersonalizada.trim().length > 0;
-      case "selecao": return selectedIds.length > 0;
-      case "preview": return true;
+      case "canal":
+        return true;
+      case "config":
+        return temModelos && mensagemPersonalizada.trim().length > 0;
+      case "selecao":
+        return canal === "whatsapp" ? selectedIds.length === 1 : selectedIds.length > 0;
+      case "preview":
+        return true;
     }
   };
 
