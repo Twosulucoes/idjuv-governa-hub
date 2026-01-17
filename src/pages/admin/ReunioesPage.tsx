@@ -33,8 +33,9 @@ interface Reuniao {
   hora_inicio: string;
   hora_fim: string | null;
   local: string | null;
-  tipo_reuniao: "ordinaria" | "extraordinaria" | "emergencial" | "informativa";
+  tipo: "ordinaria" | "extraordinaria" | "audiencia" | "sessao_solene" | "reuniao_trabalho";
   status: StatusReuniao;
+  observacoes: string | null;
   participantes_count?: number;
 }
 
@@ -50,8 +51,9 @@ const statusConfig: Record<StatusReuniao, { label: string; variant: "default" | 
 const tipoConfig = {
   ordinaria: { label: "Ordinária", icon: Calendar },
   extraordinaria: { label: "Extraordinária", icon: Clock },
-  emergencial: { label: "Emergencial", icon: Users },
-  informativa: { label: "Informativa", icon: FileText },
+  audiencia: { label: "Audiência", icon: Users },
+  sessao_solene: { label: "Sessão Solene", icon: FileText },
+  reuniao_trabalho: { label: "Reunião de Trabalho", icon: FileText },
 };
 
 export default function ReunioesPage() {
@@ -215,7 +217,7 @@ interface ReuniaoCardProps {
 }
 
 function ReuniaoCard({ reuniao, onClick, muted }: ReuniaoCardProps) {
-  const TipoIcon = tipoConfig[reuniao.tipo_reuniao]?.icon || Calendar;
+  const TipoIcon = tipoConfig[reuniao.tipo]?.icon || Calendar;
   const dataReuniao = new Date(reuniao.data_reuniao + "T00:00:00");
   
   return (
@@ -253,7 +255,7 @@ function ReuniaoCard({ reuniao, onClick, muted }: ReuniaoCardProps) {
               </span>
               <span className="flex items-center gap-1">
                 <TipoIcon className="h-3.5 w-3.5" />
-                {tipoConfig[reuniao.tipo_reuniao]?.label || reuniao.tipo_reuniao}
+                {tipoConfig[reuniao.tipo]?.label || reuniao.tipo}
               </span>
               {reuniao.participantes_count && reuniao.participantes_count > 0 && (
                 <span className="flex items-center gap-1">

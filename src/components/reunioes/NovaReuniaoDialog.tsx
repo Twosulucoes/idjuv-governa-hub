@@ -37,7 +37,7 @@ const formSchema = z.object({
   data: z.string().min(1, "Data é obrigatória"),
   hora: z.string().min(1, "Hora é obrigatória"),
   duracao_minutos: z.coerce.number().min(15, "Mínimo 15 minutos"),
-  tipo: z.enum(["presencial", "virtual", "hibrida"]),
+  tipo: z.enum(["ordinaria", "extraordinaria", "audiencia", "sessao_solene", "reuniao_trabalho"]),
   local: z.string().optional(),
   link_virtual: z.string().url().optional().or(z.literal("")),
   pauta: z.string().optional(),
@@ -62,28 +62,26 @@ export function NovaReuniaoDialog({ open, onOpenChange, onSuccess }: NovaReuniao
       data: "",
       hora: "",
       duracao_minutos: 60,
-      tipo: "presencial",
+      tipo: "ordinaria",
       local: "",
       link_virtual: "",
       pauta: "",
     },
   });
 
-  const tipoSelecionado = form.watch("tipo");
-
   const onSubmit = async (values: FormValues) => {
     setLoading(true);
     try {
       const { error } = await supabase.from("reunioes").insert({
         titulo: values.titulo,
-        objetivo: values.descricao || null,
+        observacoes: values.descricao || null,
         data_reuniao: values.data,
         hora_inicio: values.hora,
-        tipo_reuniao: values.tipo,
+        tipo: values.tipo as "ordinaria" | "extraordinaria" | "audiencia" | "sessao_solene" | "reuniao_trabalho",
         local: values.local || null,
         link_virtual: values.link_virtual || null,
         pauta: values.pauta || null,
-        status: "agendada",
+        status: "agendada" as const,
       });
 
       if (error) throw error;
@@ -208,24 +206,11 @@ export function NovaReuniaoDialog({ open, onOpenChange, onSuccess }: NovaReuniao
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="presencial">
-                          <span className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4" />
-                            Presencial
-                          </span>
-                        </SelectItem>
-                        <SelectItem value="virtual">
-                          <span className="flex items-center gap-2">
-                            <Video className="h-4 w-4" />
-                            Virtual
-                          </span>
-                        </SelectItem>
-                        <SelectItem value="hibrida">
-                          <span className="flex items-center gap-2">
-                            <Users className="h-4 w-4" />
-                            Híbrida
-                          </span>
-                        </SelectItem>
+                        <SelectItem value="ordinaria">Ordinária</SelectItem>
+                        <SelectItem value="extraordinaria">Extraordinária</SelectItem>
+                        <SelectItem value="reuniao_trabalho">Reunião de Trabalho</SelectItem>
+                        <SelectItem value="audiencia">Audiência</SelectItem>
+                        <SelectItem value="sessao_solene">Sessão Solene</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -234,47 +219,43 @@ export function NovaReuniaoDialog({ open, onOpenChange, onSuccess }: NovaReuniao
               />
             </div>
 
-            {(tipoSelecionado === "presencial" || tipoSelecionado === "hibrida") && (
-              <FormField
-                control={form.control}
-                name="local"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5" />
-                      Local
-                    </FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: Sala de Reuniões 01" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+            <FormField
+              control={form.control}
+              name="local"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-1">
+                    <MapPin className="h-3.5 w-3.5" />
+                    Local
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: Sala de Reuniões 01" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-            {(tipoSelecionado === "virtual" || tipoSelecionado === "hibrida") && (
-              <FormField
-                control={form.control}
-                name="link_virtual"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-1">
-                      <Video className="h-3.5 w-3.5" />
-                      Link da Reunião
-                    </FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="url" 
-                        placeholder="https://meet.google.com/..." 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+            <FormField
+              control={form.control}
+              name="link_virtual"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-1">
+                    <Video className="h-3.5 w-3.5" />
+                    Link da Reunião (opcional)
+                  </FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="url" 
+                      placeholder="https://meet.google.com/..." 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
