@@ -18,14 +18,14 @@ import {
   Video, 
   Users, 
   FileText,
-  Send,
   Play,
   CheckCircle,
   XCircle,
   Loader2,
   ExternalLink,
   Copy,
-  ClipboardList
+  ClipboardList,
+  Printer
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -35,6 +35,8 @@ import { toast } from "sonner";
 import { AdicionarParticipanteDialog } from "./AdicionarParticipanteDialog";
 import { EnviarConvitesDialog } from "./EnviarConvitesDialog";
 import { GestaoParticipantesTab } from "./GestaoParticipantesTab";
+import { AtaReuniaoTab } from "./AtaReuniaoTab";
+import { RelatoriosReuniaoDialog } from "./RelatoriosReuniaoDialog";
 
 type StatusReuniao = "agendada" | "em_andamento" | "realizada" | "cancelada" | "adiada" | "confirmada";
 
@@ -57,6 +59,7 @@ const statusConfig: Record<StatusReuniao, { label: string; variant: "default" | 
 export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: ReuniaoDetailSheetProps) {
   const [addParticipanteOpen, setAddParticipanteOpen] = useState(false);
   const [enviarConvitesOpen, setEnviarConvitesOpen] = useState(false);
+  const [relatoriosOpen, setRelatoriosOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: reuniao, isLoading } = useQuery({
@@ -211,12 +214,12 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
 
               {/* Tabs */}
               <Tabs defaultValue="participantes" className="flex-1 flex flex-col overflow-hidden">
-                <TabsList className="mx-4 mt-3 grid grid-cols-2">
+                <TabsList className="mx-4 mt-3 grid grid-cols-3">
                   <TabsTrigger value="participantes" className="text-sm">
-                    <Users className="h-4 w-4 mr-2" />
-                    Participantes
+                    <Users className="h-4 w-4 mr-1" />
+                    <span className="hidden sm:inline">Participantes</span>
                     {participantes.length > 0 && (
-                      <Badge variant="secondary" className="ml-2 h-5 px-1.5">
+                      <Badge variant="secondary" className="ml-1 h-5 px-1.5">
                         {reuniao.status === "em_andamento" || reuniao.status === "realizada" 
                           ? `${presentes}/${participantes.length}` 
                           : `${confirmados}/${participantes.length}`
@@ -225,8 +228,12 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
                     )}
                   </TabsTrigger>
                   <TabsTrigger value="pauta" className="text-sm">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Pauta
+                    <FileText className="h-4 w-4 mr-1" />
+                    <span className="hidden sm:inline">Pauta</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="ata" className="text-sm">
+                    <ClipboardList className="h-4 w-4 mr-1" />
+                    <span className="hidden sm:inline">Ata</span>
                   </TabsTrigger>
                 </TabsList>
 
@@ -251,6 +258,16 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
                       <p>Nenhuma pauta definida</p>
                     </div>
                   )}
+                </TabsContent>
+
+                <TabsContent value="ata" className="flex-1 overflow-auto px-4 pb-4 mt-3">
+                  <AtaReuniaoTab
+                    reuniaoId={reuniaoId}
+                    ataConteudo={reuniao.ata_conteudo}
+                    ataAprovada={reuniao.ata_aprovada}
+                    statusReuniao={reuniao.status}
+                    pauta={reuniao.pauta}
+                  />
                 </TabsContent>
               </Tabs>
 
@@ -287,10 +304,16 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
                     </Button>
                   )}
                   {(reuniao.status === "realizada" || reuniao.status === "cancelada") && (
-                    <div className="w-full text-center py-2 text-sm text-muted-foreground">
-                      <ClipboardList className="h-4 w-4 inline mr-2" />
-                      Reunião {reuniao.status === "realizada" ? "finalizada" : "cancelada"}
-                    </div>
+                    <>
+                      <Button 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => setRelatoriosOpen(true)}
+                      >
+                        <Printer className="h-4 w-4 mr-2" />
+                        Relatórios
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
@@ -314,6 +337,12 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
         onOpenChange={setEnviarConvitesOpen}
         reuniaoId={reuniaoId}
         participantes={participantes}
+      />
+
+      <RelatoriosReuniaoDialog
+        open={relatoriosOpen}
+        onOpenChange={setRelatoriosOpen}
+        reuniaoId={reuniaoId}
       />
     </>
   );

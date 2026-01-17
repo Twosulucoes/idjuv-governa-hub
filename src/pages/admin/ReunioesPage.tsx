@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { 
@@ -11,7 +11,6 @@ import {
   Clock, 
   MapPin, 
   Users, 
-  Video,
   ChevronRight,
   FileText,
   Filter
@@ -20,6 +19,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { NovaReuniaoDialog } from "@/components/reunioes/NovaReuniaoDialog";
 import { ReuniaoDetailSheet } from "@/components/reunioes/ReuniaoDetailSheet";
+import { FiltrosReuniaoDialog, filtrosIniciais, type FiltrosReuniao } from "@/components/reunioes/FiltrosReuniaoDialog";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -59,6 +59,8 @@ const tipoConfig = {
 export default function ReunioesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [filtrosOpen, setFiltrosOpen] = useState(false);
+  const [filtros, setFiltros] = useState<FiltrosReuniao>(filtrosIniciais);
   const [selectedReuniao, setSelectedReuniao] = useState<Reuniao | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -82,9 +84,20 @@ export default function ReunioesPage() {
     },
   });
 
-  const filteredReunioes = reunioes?.filter((r) =>
-    r.titulo.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredReunioes = reunioes?.filter((r) => {
+    // Filtro de busca
+    const matchSearch = r.titulo.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Filtros avançados
+    const matchDataInicio = !filtros.dataInicio || r.data_reuniao >= filtros.dataInicio;
+    const matchDataFim = !filtros.dataFim || r.data_reuniao <= filtros.dataFim;
+    const matchStatus = !filtros.status || r.status === filtros.status;
+    const matchTipo = !filtros.tipo || r.tipo === filtros.tipo;
+    
+    return matchSearch && matchDataInicio && matchDataFim && matchStatus && matchTipo;
+  });
+
+  const temFiltrosAtivos = filtros.dataInicio || filtros.dataFim || filtros.status || filtros.tipo;
 
   const handleReuniaoClick = (reuniao: Reuniao) => {
     setSelectedReuniao(reuniao);
@@ -116,7 +129,12 @@ export default function ReunioesPage() {
             />
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="icon" className="shrink-0">
+            <Button 
+              variant={temFiltrosAtivos ? "default" : "outline"} 
+              size="icon" 
+              className="shrink-0"
+              onClick={() => setFiltrosOpen(true)}
+            >
               <Filter className="h-4 w-4" />
             </Button>
             <Button onClick={() => setDialogOpen(true)} className="flex-1 sm:flex-none">
@@ -205,6 +223,14 @@ export default function ReunioesPage() {
         onOpenChange={setDetailOpen}
         reuniaoId={selectedReuniao?.id}
         onUpdate={refetch}
+      />
+
+      <FiltrosReuniaoDialog
+        open={filtrosOpen}
+        onOpenChange={setFiltrosOpen}
+        filtros={filtros}
+        onAplicar={setFiltros}
+        onLimpar={() => setFiltros(filtrosIniciais)}
       />
     </AdminLayout>
   );
