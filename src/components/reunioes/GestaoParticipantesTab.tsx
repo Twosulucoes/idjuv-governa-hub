@@ -75,6 +75,7 @@ interface Reuniao {
   data_reuniao: string;
   hora_inicio: string;
   local?: string | null;
+  mensagem_convite?: string | null;
 }
 
 interface GestaoParticipantesTabProps {
@@ -138,10 +139,29 @@ export function GestaoParticipantesTab({
   const [justificativaDialogOpen, setJustificativaDialogOpen] = useState(false);
   const [justificativa, setJustificativa] = useState("");
   const [participanteJustificativa, setParticipanteJustificativa] = useState<string | null>(null);
+  const [mensagemConvite, setMensagemConvite] = useState(reuniao?.mensagem_convite || "");
+  const [salvandoMensagem, setSalvandoMensagem] = useState(false);
   
   const queryClient = useQueryClient();
 
   const isReuniaoAtiva = statusReuniao === "agendada" || statusReuniao === "em_andamento";
+
+  // Salvar mensagem de convite
+  const handleSalvarMensagem = async () => {
+    setSalvandoMensagem(true);
+    const { error } = await supabase
+      .from("reunioes")
+      .update({ mensagem_convite: mensagemConvite || null })
+      .eq("id", reuniaoId);
+
+    setSalvandoMensagem(false);
+    if (error) {
+      toast.error("Erro ao salvar mensagem: " + error.message);
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["reuniao", reuniaoId] });
+    toast.success("Mensagem salva!");
+  };
 
   // Função para abrir WhatsApp (apenas abre, não marca como enviado)
   const handleAbrirWhatsApp = (p: Participante) => {
@@ -157,14 +177,27 @@ export function GestaoParticipantesTab({
       telefoneFormatado = "55" + telefoneFormatado;
     }
 
-    // Montar mensagem simples
+    // Montar mensagem - usa personalizada se houver, senão usa padrão
     const nome = getName(p);
     const dataFormatada = reuniao?.data_reuniao 
       ? new Date(reuniao.data_reuniao + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })
       : "";
     const hora = reuniao?.hora_inicio?.substring(0, 5) || "";
     
-    const mensagem = `Olá ${nome}! Você está convidado(a) para a reunião "${reuniao?.titulo || ""}"${dataFormatada ? ` no dia ${dataFormatada}` : ""}${hora ? ` às ${hora}` : ""}${reuniao?.local ? ` - Local: ${reuniao.local}` : ""}.`;
+    let mensagem: string;
+    
+    // Se tem mensagem personalizada salva, usa ela com substituição de variáveis
+    if (mensagemConvite && mensagemConvite.trim()) {
+      mensagem = mensagemConvite
+        .replace(/{nome}/gi, nome)
+        .replace(/{data}/gi, dataFormatada)
+        .replace(/{hora}/gi, hora)
+        .replace(/{local}/gi, reuniao?.local || "")
+        .replace(/{titulo}/gi, reuniao?.titulo || "");
+    } else {
+      // Mensagem padrão
+      mensagem = `Olá ${nome}! Você está convidado(a) para a reunião "${reuniao?.titulo || ""}"${dataFormatada ? ` no dia ${dataFormatada}` : ""}${hora ? ` às ${hora}` : ""}${reuniao?.local ? ` - Local: ${reuniao.local}` : ""}.`;
+    }
 
     const linkWhatsApp = `https://wa.me/${telefoneFormatado}?text=${encodeURIComponent(mensagem)}`;
     
@@ -376,6 +409,37 @@ export function GestaoParticipantesTab({
             <p className="text-xs text-orange-700">Ausentes</p>
           </div>
         </div>
+      )}
+
+      {/* Campo de Mensagem Personalizada */}
+      {statusReuniao === "agendada" && (
+        <Card className="border-dashed">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <Label className="font-medium">Mensagem de Convite (WhatsApp)</Label>
+            </div>
+            <Textarea
+              value={mensagemConvite}
+              onChange={(e) => setMensagemConvite(e.target.value)}
+              placeholder="Olá {nome}! Você está convidado para a reunião do dia {data} às {hora}. Local: {local}. Confirme sua presença!"
+              rows={3}
+              className="resize-none"
+            />
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                Variáveis: {"{nome}"}, {"{data}"}, {"{hora}"}, {"{local}"}, {"{titulo}"}
+              </p>
+              <Button 
+                size="sm" 
+                onClick={handleSalvarMensagem}
+                disabled={salvandoMensagem}
+              >
+                {salvandoMensagem ? "Salvando..." : "Salvar"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Actions Bar */}

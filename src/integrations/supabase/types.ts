@@ -5004,6 +5004,7 @@ export type Database = {
           id: string
           link_virtual: string | null
           local: string | null
+          mensagem_convite: string | null
           numero_protocolo: string | null
           observacoes: string | null
           organizador_id: string | null
@@ -5027,6 +5028,7 @@ export type Database = {
           id?: string
           link_virtual?: string | null
           local?: string | null
+          mensagem_convite?: string | null
           numero_protocolo?: string | null
           observacoes?: string | null
           organizador_id?: string | null
@@ -5050,6 +5052,7 @@ export type Database = {
           id?: string
           link_virtual?: string | null
           local?: string | null
+          mensagem_convite?: string | null
           numero_protocolo?: string | null
           observacoes?: string | null
           organizador_id?: string | null
