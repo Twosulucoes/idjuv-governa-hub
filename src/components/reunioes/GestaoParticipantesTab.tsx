@@ -68,10 +68,19 @@ interface Participante {
   } | null;
 }
 
+interface Reuniao {
+  id: string;
+  titulo: string;
+  data_reuniao: string;
+  hora_inicio: string;
+  local?: string | null;
+}
+
 interface GestaoParticipantesTabProps {
   participantes: Participante[];
   reuniaoId: string;
   statusReuniao: string;
+  reuniao?: Reuniao;
   onAddParticipante: () => void;
   onEnviarConvites: () => void;
 }
@@ -118,6 +127,7 @@ export function GestaoParticipantesTab({
   participantes,
   reuniaoId,
   statusReuniao,
+  reuniao,
   onAddParticipante,
   onEnviarConvites,
 }: GestaoParticipantesTabProps) {
@@ -131,6 +141,47 @@ export function GestaoParticipantesTab({
   const queryClient = useQueryClient();
 
   const isReuniaoAtiva = statusReuniao === "agendada" || statusReuniao === "em_andamento";
+
+  // Função para abrir WhatsApp diretamente
+  const handleWhatsAppDireto = async (p: Participante) => {
+    const telefone = p.telefone_externo || (p.servidor as any)?.telefone_celular;
+    if (!telefone) {
+      toast.error("Participante sem telefone cadastrado");
+      return;
+    }
+
+    // Formatar telefone
+    let telefoneFormatado = telefone.replace(/\D/g, "");
+    if (!telefoneFormatado.startsWith("55")) {
+      telefoneFormatado = "55" + telefoneFormatado;
+    }
+
+    // Montar mensagem simples
+    const nome = getName(p);
+    const dataFormatada = reuniao?.data_reuniao 
+      ? new Date(reuniao.data_reuniao + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })
+      : "";
+    const hora = reuniao?.hora_inicio?.substring(0, 5) || "";
+    
+    const mensagem = `Olá ${nome}! Você está convidado(a) para a reunião "${reuniao?.titulo || ""}"${dataFormatada ? ` no dia ${dataFormatada}` : ""}${hora ? ` às ${hora}` : ""}${reuniao?.local ? ` - Local: ${reuniao.local}` : ""}.`;
+
+    const linkWhatsApp = `https://wa.me/${telefoneFormatado}?text=${encodeURIComponent(mensagem)}`;
+    
+    // Marcar convite como enviado
+    await supabase
+      .from("participantes_reuniao")
+      .update({
+        convite_enviado: true,
+        convite_enviado_em: new Date().toISOString(),
+        convite_canal: "whatsapp",
+      })
+      .eq("id", p.id);
+
+    queryClient.invalidateQueries({ queryKey: ["participantes", reuniaoId] });
+    
+    window.open(linkWhatsApp, "_blank");
+    toast.success("WhatsApp aberto!");
+  };
 
   // Stats
   const stats = {
@@ -479,6 +530,15 @@ export function GestaoParticipantesTab({
                               <DropdownMenuItem onClick={() => handleSingleStatus(p.id, "ausente")}>
                                 <UserX className="h-4 w-4 mr-2 text-orange-600" />
                                 Registrar Ausência
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          {statusReuniao === "agendada" && (p.telefone_externo || (p.servidor as any)?.telefone_celular) && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleWhatsAppDireto(p)}>
+                                <MessageSquare className="h-4 w-4 mr-2 text-green-600" />
+                                Enviar WhatsApp
                               </DropdownMenuItem>
                             </>
                           )}

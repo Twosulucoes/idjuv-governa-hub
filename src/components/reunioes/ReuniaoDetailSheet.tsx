@@ -289,6 +289,7 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
                     participantes={participantes}
                     reuniaoId={reuniaoId}
                     statusReuniao={reuniao.status}
+                    reuniao={reuniao}
                     onAddParticipante={() => setAddParticipanteOpen(true)}
                     onEnviarConvites={() => setEnviarConvitesOpen(true)}
                   />
