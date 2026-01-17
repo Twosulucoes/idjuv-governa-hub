@@ -173,6 +173,37 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
                           <Pencil className="h-4 w-4 mr-2" />
                           Editar Reunião
                         </DropdownMenuItem>
+                        {reuniao.status === "agendada" && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => updateStatusMutation.mutate("em_andamento")}
+                              className="text-green-600 focus:text-green-600"
+                            >
+                              <Play className="h-4 w-4 mr-2" />
+                              Iniciar Reunião
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => updateStatusMutation.mutate("cancelada")}
+                              className="text-orange-600 focus:text-orange-600"
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Cancelar Reunião
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        {reuniao.status === "em_andamento" && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => updateStatusMutation.mutate("realizada")}
+                              className="text-green-600 focus:text-green-600"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Finalizar Reunião
+                            </DropdownMenuItem>
+                          </>
+                        )}
                         {(reuniao.status === "cancelada" || reuniao.status === "adiada") && (
                           <DropdownMenuItem onClick={() => updateStatusMutation.mutate("agendada")}>
                             <RotateCcw className="h-4 w-4 mr-2" />
@@ -319,64 +350,38 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
                 </TabsContent>
               </Tabs>
 
-              {/* Footer Actions */}
-              <div className="p-4 border-t bg-muted/30">
-                <div className="flex gap-2">
-                  {reuniao.status === "agendada" && (
-                    <>
-                      <Button 
-                        className="flex-1"
-                        onClick={() => updateStatusMutation.mutate("em_andamento")}
-                        disabled={updateStatusMutation.isPending}
-                      >
-                        <Play className="h-4 w-4 mr-2" />
-                        Iniciar Reunião
-                      </Button>
-                      <Button 
-                        variant="destructive"
-                        onClick={() => updateStatusMutation.mutate("cancelada")}
-                        disabled={updateStatusMutation.isPending}
-                      >
-                        <XCircle className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                  {reuniao.status === "em_andamento" && (
-                    <>
-                      <Button 
-                        variant="outline"
-                        onClick={() => {
-                          onOpenChange(false);
-                          navigate(`/admin/reunioes/${reuniaoId}/checkin`);
-                        }}
-                      >
-                        <UserCheck className="h-4 w-4 mr-2" />
-                        Check-in
-                      </Button>
-                      <Button 
-                        className="flex-1"
-                        onClick={() => updateStatusMutation.mutate("realizada")}
-                        disabled={updateStatusMutation.isPending}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Finalizar Reunião
-                      </Button>
-                    </>
-                  )}
-                  {(reuniao.status === "realizada" || reuniao.status === "cancelada") && (
-                    <>
-                      <Button 
-                        variant="outline" 
-                        className="flex-1"
-                        onClick={() => setRelatoriosOpen(true)}
-                      >
-                        <Printer className="h-4 w-4 mr-2" />
-                        Relatórios
-                      </Button>
-                    </>
-                  )}
+              {/* Footer Actions - apenas para ações secundárias */}
+              {reuniao.status === "em_andamento" && (
+                <div className="p-4 border-t bg-muted/30">
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        onOpenChange(false);
+                        navigate(`/admin/reunioes/${reuniaoId}/checkin`);
+                      }}
+                    >
+                      <UserCheck className="h-4 w-4 mr-2" />
+                      Check-in de Participantes
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
+              {(reuniao.status === "realizada" || reuniao.status === "cancelada") && (
+                <div className="p-4 border-t bg-muted/30">
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1"
+                      onClick={() => setRelatoriosOpen(true)}
+                    >
+                      <Printer className="h-4 w-4 mr-2" />
+                      Relatórios
+                    </Button>
+                  </div>
+                </div>
+              )}
             </>
           ) : null}
         </SheetContent>
