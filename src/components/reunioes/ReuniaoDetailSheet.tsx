@@ -208,7 +208,7 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
                     <div>
                       <p className="text-xs text-muted-foreground">Data</p>
                       <p className="font-medium text-sm">
-                        {format(new Date(reuniao.data_reuniao), "dd/MM/yyyy", { locale: ptBR })}
+                        {format(new Date(reuniao.data_reuniao + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
                       </p>
                     </div>
                   </CardContent>
