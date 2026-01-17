@@ -41,7 +41,7 @@ interface Participante {
   telefone_externo?: string;
   servidor?: {
     nome_completo: string;
-  };
+  }[] | { nome_completo: string } | null;
 }
 
 interface ModeloMensagem {
@@ -70,7 +70,16 @@ function substituirVariaveis(
   participante: Participante,
   assinatura?: { nome: string; cargo: string; setor?: string }
 ): string {
-  const nome = participante.nome_externo || participante.servidor?.nome_completo || "Participante";
+  // Handle servidor which can be array or object from Supabase
+  let nomeServidor = "Participante";
+  if (participante.servidor) {
+    if (Array.isArray(participante.servidor) && participante.servidor.length > 0) {
+      nomeServidor = participante.servidor[0].nome_completo;
+    } else if (!Array.isArray(participante.servidor)) {
+      nomeServidor = participante.servidor.nome_completo;
+    }
+  }
+  const nome = participante.nome_externo || nomeServidor;
   
   let resultado = texto
     .replace(/\{nome\}/g, nome)
