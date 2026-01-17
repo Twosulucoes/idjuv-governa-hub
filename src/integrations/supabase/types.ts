@@ -967,6 +967,51 @@ export type Database = {
           },
         ]
       }
+      config_assinatura_reuniao: {
+        Row: {
+          ativo: boolean | null
+          cargo_assinante_1: string | null
+          cargo_assinante_2: string | null
+          created_at: string | null
+          id: string
+          nome_assinante_1: string | null
+          nome_assinante_2: string | null
+          nome_configuracao: string
+          padrao: boolean | null
+          texto_cabecalho: string | null
+          texto_rodape: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          cargo_assinante_1?: string | null
+          cargo_assinante_2?: string | null
+          created_at?: string | null
+          id?: string
+          nome_assinante_1?: string | null
+          nome_assinante_2?: string | null
+          nome_configuracao: string
+          padrao?: boolean | null
+          texto_cabecalho?: string | null
+          texto_rodape?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          cargo_assinante_1?: string | null
+          cargo_assinante_2?: string | null
+          created_at?: string | null
+          id?: string
+          nome_assinante_1?: string | null
+          nome_assinante_2?: string | null
+          nome_configuracao?: string
+          padrao?: boolean | null
+          texto_cabecalho?: string | null
+          texto_rodape?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       config_autarquia: {
         Row: {
           ativo: boolean | null
@@ -2651,6 +2696,76 @@ export type Database = {
           },
         ]
       }
+      historico_convites_reuniao: {
+        Row: {
+          assunto: string | null
+          conteudo: string | null
+          created_at: string | null
+          created_by: string | null
+          data_envio: string | null
+          destinatario: string
+          erro_envio: string | null
+          id: string
+          modelo_id: string | null
+          participante_id: string
+          reuniao_id: string
+          status_envio: string | null
+          tipo_envio: string
+        }
+        Insert: {
+          assunto?: string | null
+          conteudo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_envio?: string | null
+          destinatario: string
+          erro_envio?: string | null
+          id?: string
+          modelo_id?: string | null
+          participante_id: string
+          reuniao_id: string
+          status_envio?: string | null
+          tipo_envio?: string
+        }
+        Update: {
+          assunto?: string | null
+          conteudo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_envio?: string | null
+          destinatario?: string
+          erro_envio?: string | null
+          id?: string
+          modelo_id?: string | null
+          participante_id?: string
+          reuniao_id?: string
+          status_envio?: string | null
+          tipo_envio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historico_convites_reuniao_modelo_id_fkey"
+            columns: ["modelo_id"]
+            isOneToOne: false
+            referencedRelation: "modelos_mensagem_reuniao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historico_convites_reuniao_participante_id_fkey"
+            columns: ["participante_id"]
+            isOneToOne: false
+            referencedRelation: "participantes_reuniao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historico_convites_reuniao_reuniao_id_fkey"
+            columns: ["reuniao_id"]
+            isOneToOne: false
+            referencedRelation: "reunioes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       historico_funcional: {
         Row: {
           cargo_anterior_id: string | null
@@ -3439,6 +3554,48 @@ export type Database = {
           },
         ]
       }
+      modelos_mensagem_reuniao: {
+        Row: {
+          assunto: string
+          ativo: boolean | null
+          conteudo_html: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          nome: string
+          padrao: boolean | null
+          tipo: string
+          updated_at: string | null
+          variaveis_disponiveis: string[] | null
+        }
+        Insert: {
+          assunto: string
+          ativo?: boolean | null
+          conteudo_html: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          nome: string
+          padrao?: boolean | null
+          tipo?: string
+          updated_at?: string | null
+          variaveis_disponiveis?: string[] | null
+        }
+        Update: {
+          assunto?: string
+          ativo?: boolean | null
+          conteudo_html?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          nome?: string
+          padrao?: boolean | null
+          tipo?: string
+          updated_at?: string | null
+          variaveis_disponiveis?: string[] | null
+        }
+        Relationships: []
+      }
       module_access_scopes: {
         Row: {
           access_scope: Database["public"]["Enums"]["access_scope"]
@@ -3706,6 +3863,91 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      participantes_reuniao: {
+        Row: {
+          assinatura_presenca: boolean | null
+          cargo_funcao: string | null
+          created_at: string | null
+          data_assinatura: string | null
+          data_confirmacao: string | null
+          email_externo: string | null
+          id: string
+          instituicao_externa: string | null
+          justificativa_ausencia: string | null
+          nome_externo: string | null
+          obrigatorio: boolean | null
+          observacoes: string | null
+          reuniao_id: string
+          servidor_id: string | null
+          status: Database["public"]["Enums"]["status_participante"] | null
+          telefone_externo: string | null
+          tipo_participante: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          assinatura_presenca?: boolean | null
+          cargo_funcao?: string | null
+          created_at?: string | null
+          data_assinatura?: string | null
+          data_confirmacao?: string | null
+          email_externo?: string | null
+          id?: string
+          instituicao_externa?: string | null
+          justificativa_ausencia?: string | null
+          nome_externo?: string | null
+          obrigatorio?: boolean | null
+          observacoes?: string | null
+          reuniao_id: string
+          servidor_id?: string | null
+          status?: Database["public"]["Enums"]["status_participante"] | null
+          telefone_externo?: string | null
+          tipo_participante?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          assinatura_presenca?: boolean | null
+          cargo_funcao?: string | null
+          created_at?: string | null
+          data_assinatura?: string | null
+          data_confirmacao?: string | null
+          email_externo?: string | null
+          id?: string
+          instituicao_externa?: string | null
+          justificativa_ausencia?: string | null
+          nome_externo?: string | null
+          obrigatorio?: boolean | null
+          observacoes?: string | null
+          reuniao_id?: string
+          servidor_id?: string | null
+          status?: Database["public"]["Enums"]["status_participante"] | null
+          telefone_externo?: string | null
+          tipo_participante?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participantes_reuniao_reuniao_id_fkey"
+            columns: ["reuniao_id"]
+            isOneToOne: false
+            referencedRelation: "reunioes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participantes_reuniao_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participantes_reuniao_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
         ]
@@ -4733,6 +4975,100 @@ export type Database = {
             columns: ["remessa_id"]
             isOneToOne: false
             referencedRelation: "remessas_bancarias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reunioes: {
+        Row: {
+          ata_aprovada: boolean | null
+          ata_conteudo: string | null
+          created_at: string | null
+          created_by: string | null
+          data_reuniao: string
+          endereco_completo: string | null
+          hora_fim: string | null
+          hora_inicio: string
+          id: string
+          link_virtual: string | null
+          local: string | null
+          numero_protocolo: string | null
+          observacoes: string | null
+          organizador_id: string | null
+          pauta: string | null
+          status: Database["public"]["Enums"]["status_reuniao"]
+          tipo: Database["public"]["Enums"]["tipo_reuniao"]
+          titulo: string
+          unidade_responsavel_id: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          ata_aprovada?: boolean | null
+          ata_conteudo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_reuniao: string
+          endereco_completo?: string | null
+          hora_fim?: string | null
+          hora_inicio: string
+          id?: string
+          link_virtual?: string | null
+          local?: string | null
+          numero_protocolo?: string | null
+          observacoes?: string | null
+          organizador_id?: string | null
+          pauta?: string | null
+          status?: Database["public"]["Enums"]["status_reuniao"]
+          tipo?: Database["public"]["Enums"]["tipo_reuniao"]
+          titulo: string
+          unidade_responsavel_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          ata_aprovada?: boolean | null
+          ata_conteudo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_reuniao?: string
+          endereco_completo?: string | null
+          hora_fim?: string | null
+          hora_inicio?: string
+          id?: string
+          link_virtual?: string | null
+          local?: string | null
+          numero_protocolo?: string | null
+          observacoes?: string | null
+          organizador_id?: string | null
+          pauta?: string | null
+          status?: Database["public"]["Enums"]["status_reuniao"]
+          tipo?: Database["public"]["Enums"]["tipo_reuniao"]
+          titulo?: string
+          unidade_responsavel_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reunioes_organizador_id_fkey"
+            columns: ["organizador_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reunioes_organizador_id_fkey"
+            columns: ["organizador_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reunioes_unidade_responsavel_id_fkey"
+            columns: ["unidade_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
             referencedColumns: ["id"]
           },
         ]
@@ -6505,6 +6841,12 @@ export type Database = {
         | "erro"
       status_folha: "aberta" | "previa" | "processando" | "fechada" | "reaberta"
       status_nomeacao: "ativo" | "encerrado" | "revogado"
+      status_participante:
+        | "pendente"
+        | "confirmado"
+        | "recusado"
+        | "ausente"
+        | "presente"
       status_ponto:
         | "completo"
         | "incompleto"
@@ -6512,6 +6854,13 @@ export type Database = {
         | "justificado"
         | "aprovado"
       status_provimento: "ativo" | "suspenso" | "encerrado" | "vacante"
+      status_reuniao:
+        | "agendada"
+        | "confirmada"
+        | "em_andamento"
+        | "realizada"
+        | "cancelada"
+        | "adiada"
       status_solicitacao: "pendente" | "aprovada" | "rejeitada" | "cancelada"
       status_termo_cessao: "pendente" | "emitido" | "assinado" | "cancelado"
       status_unidade_local: "ativa" | "inativa" | "manutencao" | "interditada"
@@ -6601,6 +6950,12 @@ export type Database = {
         | "falta"
         | "ferias"
         | "licenca"
+      tipo_reuniao:
+        | "ordinaria"
+        | "extraordinaria"
+        | "audiencia"
+        | "sessao_solene"
+        | "reuniao_trabalho"
       tipo_rubrica: "provento" | "desconto" | "informativo" | "encargo"
       tipo_servidor:
         | "efetivo_idjuv"
@@ -6922,6 +7277,13 @@ export const Constants = {
       ],
       status_folha: ["aberta", "previa", "processando", "fechada", "reaberta"],
       status_nomeacao: ["ativo", "encerrado", "revogado"],
+      status_participante: [
+        "pendente",
+        "confirmado",
+        "recusado",
+        "ausente",
+        "presente",
+      ],
       status_ponto: [
         "completo",
         "incompleto",
@@ -6930,6 +7292,14 @@ export const Constants = {
         "aprovado",
       ],
       status_provimento: ["ativo", "suspenso", "encerrado", "vacante"],
+      status_reuniao: [
+        "agendada",
+        "confirmada",
+        "em_andamento",
+        "realizada",
+        "cancelada",
+        "adiada",
+      ],
       status_solicitacao: ["pendente", "aprovada", "rejeitada", "cancelada"],
       status_termo_cessao: ["pendente", "emitido", "assinado", "cancelado"],
       status_unidade_local: ["ativa", "inativa", "manutencao", "interditada"],
@@ -7027,6 +7397,13 @@ export const Constants = {
         "falta",
         "ferias",
         "licenca",
+      ],
+      tipo_reuniao: [
+        "ordinaria",
+        "extraordinaria",
+        "audiencia",
+        "sessao_solene",
+        "reuniao_trabalho",
       ],
       tipo_rubrica: ["provento", "desconto", "informativo", "encargo"],
       tipo_servidor: [
