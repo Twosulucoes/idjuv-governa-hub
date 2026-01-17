@@ -35,7 +35,6 @@ import {
   Users,
   AlertCircle,
   Check,
-  Eye
 } from "lucide-react";
 import { PreviewMensagem } from "./PreviewMensagem";
 import { Link } from "react-router-dom";
@@ -159,8 +158,6 @@ export function EnviarConvitesDialog({
   };
 
   // Filtrar participantes com contato (considerando dados do servidor também)
-  // Para WhatsApp: mesmo que o usuário não tenha permissão para ver o telefone do servidor (RLS),
-  // ainda permitimos selecionar quando há servidor_id — o backend resolve o contato.
   const participantesComContato = useMemo(() => {
     return participantes.filter((p) => {
       if (canal === "email") {
@@ -181,19 +178,16 @@ export function EnviarConvitesDialog({
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
-      // WhatsApp: simplificado para envio individual (gera link por destinatário)
+      // WhatsApp: simplificado para envio individual
       if (canal === "whatsapp") {
         return prev.includes(id) ? [] : [id];
       }
-
       return prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id];
     });
   };
 
   const selectAll = () => {
-    // WhatsApp: envio individual
     if (canal === "whatsapp") return;
-
     if (selectedIds.length === participantesComContato.length) {
       setSelectedIds([]);
     } else {
@@ -264,16 +258,16 @@ export function EnviarConvitesDialog({
 
         setWhatsAppLinks(links);
 
-        if (links.length === 0 && result.sucessos > 0) {
+        // Abrir automaticamente o WhatsApp se houver link
+        if (links.length > 0) {
+          window.open(links[0].url, "_blank");
+          toast.success("WhatsApp aberto!");
+        } else if (result.sucessos > 0) {
           toast.warning("Processado, mas nenhum link do WhatsApp foi gerado.");
         }
+      } else {
+        toast.success(`${result.sucessos} convite(s) processado(s)`);
       }
-
-      toast.success(
-        canal === "whatsapp"
-          ? "Link do WhatsApp gerado (envio manual)"
-          : `${result.sucessos} convite(s) processado(s)`
-      );
 
       if (result.falhas > 0) {
         const detalhes = (result.resultados || [])
@@ -286,10 +280,8 @@ export function EnviarConvitesDialog({
         console.warn("Falhas no envio de convites:", result.resultados);
       }
 
-      // WhatsApp: mantém o diálogo aberto para o usuário abrir/copiar o link.
-      if (canal !== "whatsapp") {
-        onOpenChange(false);
-      }
+      // Fecha o diálogo após enviar (WhatsApp já abre automaticamente)
+      onOpenChange(false);
     } catch (error: any) {
       console.error("Erro ao enviar convites:", error);
       toast.error("Erro ao enviar convites: " + error.message);
@@ -310,7 +302,6 @@ export function EnviarConvitesDialog({
 
   const temModelos = modelos && modelos.length > 0;
 
-  // Step content renderer
   const renderStepContent = () => {
     switch (step) {
       case "canal":
@@ -344,7 +335,7 @@ export function EnviarConvitesDialog({
                   <MessageSquare className="h-10 w-10 mx-auto mb-3 text-green-600" />
                   <h3 className="font-semibold">WhatsApp</h3>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Abre links para envio
+                    Abre o app para envio
                   </p>
                 </CardContent>
               </Card>
@@ -410,7 +401,7 @@ export function EnviarConvitesDialog({
                     <Textarea
                       value={mensagemPersonalizada}
                       onChange={(e) => setMensagemPersonalizada(e.target.value)}
-                      placeholder="Personalize a mensagem..."
+                      placeholder="Digite sua mensagem personalizada..."
                       rows={5}
                       className="mt-1.5"
                     />
@@ -431,9 +422,9 @@ export function EnviarConvitesDialog({
               {canal === "whatsapp" ? (
                 <>
                   <p className="text-sm text-muted-foreground">
-                    Selecione 1 participante para gerar o link do WhatsApp
+                    Selecione 1 participante
                   </p>
-                  <Badge variant="secondary">{selectedIds.length} selecionado(s)</Badge>
+                  <Badge variant="secondary">{selectedIds.length} selecionado</Badge>
                 </>
               ) : (
                 <>
@@ -514,85 +505,36 @@ export function EnviarConvitesDialog({
         return (
           <div className="space-y-4">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Destinatários:</span>
+              <span className="text-muted-foreground">Destinatário:</span>
               <Badge variant="secondary">{selectedIds.length} selecionado(s)</Badge>
             </div>
 
-            <PreviewMensagem
-              assunto={modeloAtual?.assunto || "Convite para Reunião"}
-              corpo={mensagemPersonalizada || modeloAtual?.conteudo_html || ""}
-              canal={canal}
-              assinatura={
-                assinaturaAtual
-                  ? {
-                      nome: assinaturaAtual.nome_assinante_1 || "",
-                      cargo: assinaturaAtual.cargo_assinante_1 || "",
-                      setor: assinaturaAtual.texto_rodape || "",
-                    }
-                  : undefined
-              }
-            />
+            {/* Preview apenas para email */}
+            {canal === "email" && (
+              <PreviewMensagem
+                assunto={modeloAtual?.assunto || "Convite para Reunião"}
+                corpo={mensagemPersonalizada || modeloAtual?.conteudo_html || ""}
+                canal={canal}
+                assinatura={
+                  assinaturaAtual
+                    ? {
+                        nome: assinaturaAtual.nome_assinante_1 || "",
+                        cargo: assinaturaAtual.cargo_assinante_1 || "",
+                        setor: assinaturaAtual.texto_rodape || "",
+                      }
+                    : undefined
+                }
+              />
+            )}
 
+            {/* WhatsApp: interface simplificada - só ícone e texto */}
             {canal === "whatsapp" && (
-              <div className="space-y-2">
-                {whatsAppLinks.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    Clique em “Gerar link do WhatsApp” para obter o link do destinatário.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Link do WhatsApp</Label>
-
-                    {whatsAppLinks.map((l) => (
-                      <div
-                        key={l.participanteId}
-                        className="flex items-start gap-2 rounded-lg border p-2"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium truncate">{l.nome}</p>
-                          <a
-                            href={l.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs underline break-all"
-                          >
-                            {l.url}
-                          </a>
-                        </div>
-
-                        <div className="flex flex-col gap-2 shrink-0">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => window.open(l.url, "_blank")}
-                          >
-                            Abrir
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={async () => {
-                              try {
-                                await navigator.clipboard.writeText(l.url);
-                                toast.success("Link copiado");
-                              } catch {
-                                toast.error("Não foi possível copiar o link");
-                              }
-                            }}
-                          >
-                            Copiar
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-
-                    <p className="text-xs text-muted-foreground">
-                      O WhatsApp abrirá com a mensagem pronta para você confirmar o envio.
-                    </p>
-                  </div>
-                )}
+              <div className="text-center py-8">
+                <MessageSquare className="h-16 w-16 mx-auto text-green-600 mb-4" />
+                <p className="font-medium text-lg">Pronto para enviar!</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Clique em "Enviar" para abrir o WhatsApp
+                </p>
               </div>
             )}
           </div>
@@ -656,7 +598,7 @@ export function EnviarConvitesDialog({
 
         {/* Step indicators */}
         <div className="flex items-center justify-center gap-1.5 py-2">
-          {["canal", "config", "selecao", "preview"].map((s, i) => (
+          {["canal", "config", "selecao", "preview"].map((s) => (
             <div
               key={s}
               className={`h-1.5 rounded-full transition-all ${
@@ -685,12 +627,12 @@ export function EnviarConvitesDialog({
           <Button 
             onClick={handleNext} 
             disabled={!canProceed() || loading}
-            className="gap-2"
+            className={`gap-2 ${canal === "whatsapp" && step === "preview" ? "bg-green-600 hover:bg-green-700" : ""}`}
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             {step === "preview" ? (
               <>
-                <Send className="h-4 w-4" />
+                {canal === "whatsapp" ? <MessageSquare className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                 Enviar
               </>
             ) : (
