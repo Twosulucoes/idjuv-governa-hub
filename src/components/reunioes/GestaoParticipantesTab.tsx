@@ -218,7 +218,8 @@ export function GestaoParticipantesTab({
   // Stats
   const stats = {
     total: participantes.length,
-    pendentes: participantes.filter(p => p.status === "pendente").length,
+    pendentes: participantes.filter(p => p.convite_enviado !== true).length,
+    convidados: participantes.filter(p => p.convite_enviado === true).length,
     confirmados: participantes.filter(p => p.status === "confirmado").length,
     recusados: participantes.filter(p => p.status === "recusado").length,
     presentes: participantes.filter(p => p.status === "presente").length,
@@ -343,21 +344,39 @@ export function GestaoParticipantesTab({
 
   return (
     <div className="space-y-4">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* Stats Cards - Convites */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <div className="text-center p-2 rounded-lg bg-muted/50">
           <p className="text-lg font-bold">{stats.total}</p>
-          <p className="text-xs text-muted-foreground">Total</p>
+          <p className="text-xs text-muted-foreground">Participantes</p>
+        </div>
+        <div className="text-center p-2 rounded-lg bg-purple-100">
+          <p className="text-lg font-bold text-purple-700">{stats.convidados}</p>
+          <p className="text-xs text-purple-700">Convidados</p>
         </div>
         <div className="text-center p-2 rounded-lg bg-green-100">
           <p className="text-lg font-bold text-green-700">{stats.confirmados}</p>
           <p className="text-xs text-green-700">Confirmados</p>
         </div>
-        <div className="text-center p-2 rounded-lg bg-blue-100">
-          <p className="text-lg font-bold text-blue-700">{stats.presentes}</p>
-          <p className="text-xs text-blue-700">Presentes</p>
+        <div className="text-center p-2 rounded-lg bg-red-100">
+          <p className="text-lg font-bold text-red-700">{stats.recusados}</p>
+          <p className="text-xs text-red-700">Recusados</p>
         </div>
       </div>
+
+      {/* Stats Cards - Check-in (apenas se reunião em andamento ou finalizada) */}
+      {(statusReuniao === "em_andamento" || statusReuniao === "realizada") && (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="text-center p-2 rounded-lg bg-blue-100">
+            <p className="text-lg font-bold text-blue-700">{stats.presentes}</p>
+            <p className="text-xs text-blue-700">Presentes</p>
+          </div>
+          <div className="text-center p-2 rounded-lg bg-orange-100">
+            <p className="text-lg font-bold text-orange-700">{stats.ausentes}</p>
+            <p className="text-xs text-orange-700">Ausentes</p>
+          </div>
+        </div>
+      )}
 
       {/* Actions Bar */}
       <div className="flex items-center justify-between gap-2">
