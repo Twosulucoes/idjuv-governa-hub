@@ -47,7 +47,7 @@ interface Participante {
 interface ModeloMensagem {
   id: string;
   assunto: string;
-  corpo: string;
+  conteudo_html: string;
 }
 
 function formatarData(dataStr: string): string {
@@ -262,7 +262,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (modelo_id) {
       const { data: modeloData } = await supabase
         .from("modelos_mensagem_reuniao")
-        .select("id, assunto, corpo")
+        .select("id, assunto, conteudo_html")
         .eq("id", modelo_id)
         .single();
       modelo = modeloData;
@@ -284,7 +284,7 @@ Contamos com sua presença.
 Atenciosamente,`;
 
     const assuntoFinal = modelo?.assunto || assuntoPadrao;
-    let corpoFinal = mensagem_personalizada || modelo?.corpo || corpoPadrao;
+    let corpoFinal = mensagem_personalizada || modelo?.conteudo_html || corpoPadrao;
 
     const resultados: { participante_id: string; sucesso: boolean; erro?: string; link_whatsapp?: string }[] = [];
 
