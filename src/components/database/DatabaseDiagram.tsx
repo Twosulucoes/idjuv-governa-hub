@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useEffect } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -9,6 +9,7 @@ import ReactFlow, {
   useEdgesState,
   MarkerType,
   Position,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { TableInfo, RelationshipInfo, CATEGORY_COLORS } from '@/hooks/useDatabaseSchema';
@@ -121,7 +122,7 @@ export function DatabaseDiagram({
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   // Atualizar quando mudar as props
-  useMemo(() => {
+  useEffect(() => {
     setNodes(initialNodes);
     setEdges(initialEdges);
   }, [initialNodes, initialEdges, setNodes, setEdges]);
@@ -131,30 +132,32 @@ export function DatabaseDiagram({
   }, [onTableClick]);
 
   return (
-    <div className="h-[600px] w-full border rounded-lg bg-muted/20">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onNodeClick={onNodeClick}
-        nodeTypes={nodeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.1}
-        maxZoom={2}
-        defaultEdgeOptions={{
-          type: 'smoothstep',
-        }}
-      >
-        <Background color="#94a3b8" gap={20} size={1} />
-        <Controls className="bg-background border" />
-        <MiniMap 
-          nodeColor={(node) => node.data?.color || '#6b7280'}
-          className="bg-background border"
-          maskColor="hsl(var(--background) / 0.8)"
-        />
-      </ReactFlow>
+    <div style={{ width: '100%', height: '600px' }} className="border rounded-lg bg-muted/20">
+      <ReactFlowProvider>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onNodeClick={onNodeClick}
+          nodeTypes={nodeTypes}
+          fitView
+          fitViewOptions={{ padding: 0.2 }}
+          minZoom={0.1}
+          maxZoom={2}
+          defaultEdgeOptions={{
+            type: 'smoothstep',
+          }}
+        >
+          <Background color="#94a3b8" gap={20} size={1} />
+          <Controls className="bg-background border" />
+          <MiniMap 
+            nodeColor={(node) => node.data?.color || '#6b7280'}
+            className="bg-background border"
+            maskColor="hsl(var(--background) / 0.8)"
+          />
+        </ReactFlow>
+      </ReactFlowProvider>
     </div>
   );
 }
