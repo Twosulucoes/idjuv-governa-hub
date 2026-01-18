@@ -59,7 +59,6 @@ function inferTargetTable(columnName: string): string | null {
   
   const baseName = columnName.replace(/_id$/, '');
   
-  // Mapeamentos especiais
   const specialMappings: Record<string, string> = {
     'servidor': 'servidores',
     'cargo': 'cargos',
@@ -98,6 +97,92 @@ function inferTargetTable(columnName: string): string | null {
   return specialMappings[baseName] || `${baseName}s`;
 }
 
+const KNOWN_TABLES = [
+  'agenda_unidade', 'approval_delegations', 'approval_requests', 'audit_logs',
+  'backup_config', 'backup_history', 'backup_integrity_checks', 'banco_horas',
+  'bancos_cnab', 'cargo_unidade_compatibilidade', 'cargos', 'centros_custo',
+  'cessoes', 'composicao_cargos', 'config_assinatura_reuniao', 'config_autarquia',
+  'configuracao_jornada', 'consignacoes', 'contas_autarquia', 'dependentes_irrf',
+  'designacoes', 'documentos', 'documentos_cedencia', 'estrutura_organizacional',
+  'ferias_servidor', 'fichas_financeiras', 'folhas_pagamento', 'frequencia_mensal',
+  'historico_cargo_servidor', 'historico_lotacao', 'indicacoes', 'licencas_afastamentos',
+  'lotacoes', 'memorandos_lotacao', 'modelos_mensagem_reuniao', 'nomeacoes_chefe_unidade',
+  'parametros_folha', 'participantes_reuniao', 'patrimonio_unidade', 'pautas_reuniao',
+  'portarias_servidor', 'pre_cadastros', 'profiles', 'provimentos',
+  'registro_ponto', 'remessas_bancarias', 'reunioes', 'role_permissions',
+  'rubricas', 'servidores', 'tabela_inss', 'tabela_irrf',
+  'unidades_locais', 'user_org_units', 'user_permissions', 'user_roles',
+  'user_security_settings', 'viagens_diarias', 'vinculos_funcionais'
+];
+
+async function processTable(
+  supabase: any,
+  tableName: string
+): Promise<{ table: TableInfo; rels: RelationshipInfo[] } | null> {
+  try {
+    // Buscar contagem e amostra em paralelo
+    const [countResult, sampleResult] = await Promise.all([
+      supabase.from(tableName).select('*', { count: 'exact', head: true }),
+      supabase.from(tableName).select('*').limit(1)
+    ]);
+
+    if (countResult.error) {
+      console.warn(`Erro ao contar ${tableName}:`, countResult.error.message);
+      return null;
+    }
+
+    const rowCount = countResult.count ?? 0;
+    const category = categorizeTable(tableName);
+    const columns: ColumnInfo[] = [];
+    const rels: RelationshipInfo[] = [];
+
+    if (sampleResult.data && sampleResult.data.length > 0) {
+      const sample = sampleResult.data[0];
+      for (const [colName, value] of Object.entries(sample)) {
+        const isFK = colName.endsWith('_id') && colName !== 'id';
+        const targetTable = inferTargetTable(colName);
+
+        columns.push({
+          name: colName,
+          type: typeof value === 'number' ? 'number' :
+                typeof value === 'boolean' ? 'boolean' :
+                Array.isArray(value) ? 'array' :
+                typeof value === 'object' && value !== null ? 'jsonb' : 'text',
+          nullable: value === null,
+          defaultValue: null,
+          isFK,
+          referencedTable: targetTable,
+        });
+
+        if (isFK && targetTable) {
+          rels.push({
+            sourceTable: tableName,
+            sourceColumn: colName,
+            targetTable,
+            type: 'implicit',
+            exists: KNOWN_TABLES.includes(targetTable),
+          });
+        }
+      }
+    }
+
+    return {
+      table: {
+        name: tableName,
+        schema: 'public',
+        columns,
+        rowCount,
+        category,
+        hasRLS: true,
+      },
+      rels
+    };
+  } catch (e) {
+    console.error(`Erro ao processar tabela ${tableName}:`, e);
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -109,114 +194,18 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Buscar todas as tabelas do schema public
-    const { data: tablesData, error: tablesError } = await supabase.rpc('pg_catalog', {}).maybeSingle();
-    
-    // Query direta para obter informações das tabelas
-    const { data: tablesList, error: listError } = await supabase
-      .from('information_schema.tables' as any)
-      .select('table_name')
-      .eq('table_schema', 'public')
-      .eq('table_type', 'BASE TABLE');
+    // Processar TODAS as tabelas em paralelo para máxima velocidade
+    const results = await Promise.all(
+      KNOWN_TABLES.map(tableName => processTable(supabase, tableName))
+    );
 
-    // Usar query SQL direta via função
-    const tablesQuery = `
-      SELECT 
-        t.table_name,
-        t.table_schema
-      FROM information_schema.tables t
-      WHERE t.table_schema = 'public'
-        AND t.table_type = 'BASE TABLE'
-      ORDER BY t.table_name
-    `;
-
-    // Buscar tabelas via query direta
     const tables: TableInfo[] = [];
     const relationships: RelationshipInfo[] = [];
-    const tableNames: string[] = [];
 
-    // Lista de tabelas conhecidas no sistema
-    const knownTables = [
-      'agenda_unidade', 'approval_delegations', 'approval_requests', 'audit_logs',
-      'backup_config', 'backup_history', 'backup_integrity_checks', 'banco_horas',
-      'bancos_cnab', 'cargo_unidade_compatibilidade', 'cargos', 'centros_custo',
-      'cessoes', 'composicao_cargos', 'config_assinatura_reuniao', 'config_autarquia',
-      'configuracao_jornada', 'consignacoes', 'contas_autarquia', 'dependentes_irrf',
-      'designacoes', 'documentos', 'documentos_cedencia', 'estrutura_organizacional',
-      'ferias_servidor', 'fichas_financeiras', 'folhas_pagamento', 'frequencia_mensal',
-      'historico_cargo_servidor', 'historico_lotacao', 'indicacoes', 'licencas_afastamentos',
-      'lotacoes', 'memorandos_lotacao', 'modelos_mensagem_reuniao', 'nomeacoes_chefe_unidade',
-      'parametros_folha', 'participantes_reuniao', 'patrimonio_unidade', 'pautas_reuniao',
-      'portarias_servidor', 'pre_cadastros', 'profiles', 'provimentos',
-      'registro_ponto', 'remessas_bancarias', 'reunioes', 'role_permissions',
-      'rubricas', 'servidores', 'tabela_inss', 'tabela_irrf',
-      'unidades_locais', 'user_org_units', 'user_permissions', 'user_roles',
-      'user_security_settings', 'viagens_diarias', 'vinculos_funcionais'
-    ];
-
-    // Para cada tabela, buscar informações
-    for (const tableName of knownTables) {
-      try {
-        // Buscar contagem de registros
-        const { count, error: countError } = await supabase
-          .from(tableName)
-          .select('*', { count: 'exact', head: true });
-
-        const rowCount = count ?? 0;
-        const category = categorizeTable(tableName);
-
-        // Tentar buscar um registro para inferir colunas
-        const { data: sampleData } = await supabase
-          .from(tableName)
-          .select('*')
-          .limit(1);
-
-        const columns: ColumnInfo[] = [];
-        
-        if (sampleData && sampleData.length > 0) {
-          const sample = sampleData[0];
-          for (const [colName, value] of Object.entries(sample)) {
-            const isFK = colName.endsWith('_id') && colName !== 'id';
-            const targetTable = inferTargetTable(colName);
-            
-            columns.push({
-              name: colName,
-              type: typeof value === 'number' ? 'number' : 
-                    typeof value === 'boolean' ? 'boolean' :
-                    value instanceof Date ? 'timestamp' :
-                    Array.isArray(value) ? 'array' :
-                    typeof value === 'object' && value !== null ? 'jsonb' : 'text',
-              nullable: value === null,
-              defaultValue: null,
-              isFK,
-              referencedTable: targetTable,
-            });
-
-            // Registrar relacionamento implícito
-            if (isFK && targetTable) {
-              relationships.push({
-                sourceTable: tableName,
-                sourceColumn: colName,
-                targetTable,
-                type: 'implicit',
-                exists: knownTables.includes(targetTable),
-              });
-            }
-          }
-        }
-
-        tables.push({
-          name: tableName,
-          schema: 'public',
-          columns,
-          rowCount,
-          category,
-          hasRLS: true, // Assumir que tem RLS
-        });
-
-        tableNames.push(tableName);
-      } catch (e) {
-        console.error(`Erro ao processar tabela ${tableName}:`, e);
+    for (const result of results) {
+      if (result) {
+        tables.push(result.table);
+        relationships.push(...result.rels);
       }
     }
 
@@ -231,7 +220,6 @@ Deno.serve(async (req) => {
       categoryCounts: {} as Record<string, number>,
     };
 
-    // Contar por categoria
     for (const table of tables) {
       stats.categoryCounts[table.category] = (stats.categoryCounts[table.category] || 0) + 1;
     }
@@ -239,7 +227,6 @@ Deno.serve(async (req) => {
     // Diagnósticos
     const diagnostics: Array<{ type: 'warning' | 'error' | 'info'; message: string; table?: string }> = [];
 
-    // Tabelas críticas vazias
     const criticalTables = ['fichas_financeiras', 'designacoes', 'portarias_servidor', 'historico_cargo_servidor'];
     for (const table of tables) {
       if (criticalTables.includes(table.name) && table.rowCount === 0) {
@@ -251,7 +238,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Relacionamentos quebrados
     for (const rel of relationships) {
       if (!rel.exists) {
         diagnostics.push({
@@ -262,7 +248,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Tabelas com muitas colunas
     for (const table of tables) {
       if (table.columns.length > 50) {
         diagnostics.push({
@@ -274,12 +259,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({
-        tables,
-        relationships,
-        stats,
-        diagnostics,
-      }),
+      JSON.stringify({ tables, relationships, stats, diagnostics }),
       { 
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
