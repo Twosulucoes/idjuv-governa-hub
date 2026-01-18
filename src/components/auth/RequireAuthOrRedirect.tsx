@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 
 /**
  * Componente que protege rotas internas.
- * Se o usuário não estiver autenticado, redireciona para /curriculo.
+ * Se o usuário não estiver autenticado, redireciona para /auth.
  * Se estiver autenticado, renderiza a rota normalmente.
  */
 const RequireAuthOrRedirect = () => {
@@ -20,8 +20,8 @@ const RequireAuthOrRedirect = () => {
   }
 
   if (!user) {
-    // Redireciona para /curriculo se não autenticado
-    return <Navigate to="/curriculo" state={{ from: location }} replace />;
+    // Redireciona para /auth se não autenticado (e mantém a rota de origem para voltar após login)
+    return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
   return <Outlet />;
