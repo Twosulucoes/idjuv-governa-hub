@@ -38,33 +38,40 @@ export function ChecklistForm({ dados, onChange }: Props) {
   const marcados = contarMarcados();
   const progresso = Math.round((marcados / total) * 100);
 
-  const renderSecao = (titulo: string, itens: { key: string; label: string }[]) => (
-    <div className="space-y-3">
-      <h4 className="font-medium text-sm text-primary border-b pb-2">{titulo}</h4>
-      <div className="space-y-2">
-        {itens.map((item) => (
-          <div key={item.key} className="flex items-center space-x-3">
-            <Checkbox
-              id={item.key}
-              checked={!!dados[item.key as keyof PreCadastro]}
-              onCheckedChange={(checked) => handleChange(item.key, !!checked)}
-            />
-            <Label
-              htmlFor={item.key}
-              className="text-sm font-normal cursor-pointer flex-1"
-            >
-              {item.label}
-            </Label>
-            {dados[item.key as keyof PreCadastro] ? (
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-            ) : (
-              <Circle className="h-4 w-4 text-muted-foreground/30" />
-            )}
-          </div>
-        ))}
+  const renderSecao = (titulo: string, itens: { key: string; label: string }[]) => {
+    // Ordenar itens alfabeticamente pelo label
+    const itensOrdenados = [...itens].sort((a, b) => 
+      a.label.localeCompare(b.label, 'pt-BR', { sensitivity: 'base' })
+    );
+
+    return (
+      <div className="space-y-3">
+        <h4 className="font-medium text-sm text-primary border-b pb-2">{titulo}</h4>
+        <div className="space-y-2">
+          {itensOrdenados.map((item) => (
+            <div key={item.key} className="flex items-center space-x-3">
+              <Checkbox
+                id={item.key}
+                checked={!!dados[item.key as keyof PreCadastro]}
+                onCheckedChange={(checked) => handleChange(item.key, !!checked)}
+              />
+              <Label
+                htmlFor={item.key}
+                className="text-sm font-normal cursor-pointer flex-1"
+              >
+                {item.label}
+              </Label>
+              {dados[item.key as keyof PreCadastro] ? (
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+              ) : (
+                <Circle className="h-4 w-4 text-muted-foreground/30" />
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-6">
