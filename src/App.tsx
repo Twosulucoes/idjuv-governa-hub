@@ -94,6 +94,7 @@ import ReunioesPage from "./pages/admin/ReunioesPage";
 import ConfiguracaoReunioesPage from "./pages/admin/ConfiguracaoReunioesPage";
 import CheckinReuniaoPage from "./pages/admin/CheckinReuniaoPage";
 import DatabaseSchemaPage from "./pages/admin/DatabaseSchemaPage";
+import RelatorioAdminPage from "./pages/admin/RelatorioAdminPage";
 
 // Mini-Currículo / Pré-Cadastro
 import MiniCurriculoPage from "./pages/curriculo/MiniCurriculoPage";
@@ -155,6 +156,7 @@ const App = () => (
                 <Route path="/admin/reunioes/configuracao" element={<ConfiguracaoReunioesPage />} />
                 <Route path="/admin/reunioes/:reuniaoId/checkin" element={<CheckinReuniaoPage />} />
                 <Route path="/admin/database" element={<DatabaseSchemaPage />} />
+                <Route path="/admin/relatorio" element={<RelatorioAdminPage />} />
                 <Route path="/acesso" element={<ControleAcessoAdminPage />} />
                 
                 {/* Governança */}

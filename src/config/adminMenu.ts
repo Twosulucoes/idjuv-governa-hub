@@ -485,6 +485,13 @@ export const adminMenuConfig: AdminMenuSection[] = [
         icon: Building2,
         keywords: ["relatórios", "unidades", "acervo", "patrimônio", "esportivas"],
       },
+      {
+        id: "relatorio-admin",
+        label: "Relatório Admin (Indicação)",
+        href: "/admin/relatorio",
+        icon: Shield,
+        keywords: ["admin", "indicação", "portarias", "telefone", "restrito"],
+      },
     ],
   },
   {
