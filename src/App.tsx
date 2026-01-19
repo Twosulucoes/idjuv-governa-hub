@@ -61,6 +61,7 @@ import ModelosDocumentosPage from "./pages/rh/ModelosDocumentosPage";
 import GestaoDesignacoesPage from "./pages/rh/GestaoDesignacoesPage";
 import CentralPortariasPage from "./pages/rh/CentralPortariasPage";
 import DiagnosticoPendenciasServidoresPage from "./pages/rh/DiagnosticoPendenciasServidoresPage";
+import ExportacaoPlanilhaPage from "./pages/rh/ExportacaoPlanilhaPage";
 
 // Folha de Pagamento
 import ConfiguracaoFolhaPage from "./pages/folha/ConfiguracaoFolhaPage";
@@ -196,6 +197,7 @@ const App = () => (
                 <Route path="/rh/relatorios" element={<RelatoriosRHPage />} />
                 <Route path="/rh/pendencias" element={<DiagnosticoPendenciasServidoresPage />} />
                 <Route path="/rh/modelos" element={<ModelosDocumentosPage />} />
+                <Route path="/rh/exportar" element={<ExportacaoPlanilhaPage />} />
                 
                 {/* Folha de Pagamento */}
                 <Route path="/folha/configuracao" element={<ConfiguracaoFolhaPage />} />

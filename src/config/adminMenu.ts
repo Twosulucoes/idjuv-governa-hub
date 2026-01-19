@@ -472,6 +472,13 @@ export const adminMenuConfig: AdminMenuSection[] = [
         keywords: ["relatórios", "rh", "pessoal"],
       },
       {
+        id: "exportar-planilha",
+        label: "Exportar Planilha",
+        href: "/rh/exportar",
+        icon: FileSpreadsheet,
+        keywords: ["exportar", "planilha", "excel", "csv", "servidores", "dados"],
+      },
+      {
         id: "relatorios-unidades",
         label: "Relatórios de Unidades",
         href: "/unidades/relatorios",
