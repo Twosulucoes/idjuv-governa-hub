@@ -139,15 +139,24 @@ export default function CheckinReuniaoPage() {
     },
   });
 
-  // Filtrar participantes
+  // Filtrar e ordenar participantes alfabeticamente
   const filteredParticipantes = useMemo(() => {
-    if (!searchTerm.trim()) return participantes;
+    let lista = participantes;
     
-    const term = searchTerm.toLowerCase();
-    return participantes.filter((p) => {
-      const nome = p.nome_externo || p.servidor?.nome_completo || "";
-      const instituicao = p.instituicao_externa || "";
-      return nome.toLowerCase().includes(term) || instituicao.toLowerCase().includes(term);
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      lista = participantes.filter((p) => {
+        const nome = p.nome_externo || p.servidor?.nome_completo || "";
+        const instituicao = p.instituicao_externa || "";
+        return nome.toLowerCase().includes(term) || instituicao.toLowerCase().includes(term);
+      });
+    }
+    
+    // Ordenar alfabeticamente pelo nome
+    return [...lista].sort((a, b) => {
+      const nomeA = (a.nome_externo || a.servidor?.nome_completo || "").toLowerCase();
+      const nomeB = (b.nome_externo || b.servidor?.nome_completo || "").toLowerCase();
+      return nomeA.localeCompare(nomeB, 'pt-BR', { sensitivity: 'base' });
     });
   }, [participantes, searchTerm]);
 
