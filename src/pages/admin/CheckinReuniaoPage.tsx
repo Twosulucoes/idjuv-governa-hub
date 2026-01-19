@@ -37,6 +37,7 @@ import {
   MapPin,
   RefreshCw,
   AlertCircle,
+  Undo2,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -131,7 +132,9 @@ export default function CheckinReuniaoPage() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["participantes-checkin", reuniaoId] });
-      const action = variables.status === "presente" ? "Check-in realizado" : "Marcado como ausente";
+      let action = "Check-in realizado";
+      if (variables.status === "ausente") action = "Marcado como ausente";
+      else if (variables.status === "confirmado") action = "Check-in desfeito";
       toast.success(action);
     },
     onError: (error: any) => {
@@ -182,6 +185,10 @@ export default function CheckinReuniaoPage() {
   const handleAusencia = (participanteId: string) => {
     setParticipanteAusente(participanteId);
     setJustificativaDialogOpen(true);
+  };
+
+  const handleDesfazerCheckin = (participanteId: string) => {
+    updateStatusMutation.mutate({ id: participanteId, status: "confirmado" });
   };
 
   const confirmarAusencia = () => {
@@ -439,7 +446,7 @@ export default function CheckinReuniaoPage() {
                       <div className="flex items-center gap-2">
                         {getStatusBadge(p.status)}
                         
-                        {isPendente && (
+                        {isPendente ? (
                           <div className="flex gap-1">
                             <Button
                               size="sm"
@@ -459,6 +466,18 @@ export default function CheckinReuniaoPage() {
                               <UserX className="h-4 w-4" />
                             </Button>
                           </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDesfazerCheckin(p.id)}
+                            disabled={updateStatusMutation.isPending}
+                            className="text-muted-foreground hover:text-foreground"
+                            title="Desfazer check-in"
+                          >
+                            <Undo2 className="h-4 w-4 mr-1" />
+                            Desfazer
+                          </Button>
                         )}
                       </div>
                     </div>
