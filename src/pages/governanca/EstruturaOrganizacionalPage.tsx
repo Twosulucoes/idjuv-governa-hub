@@ -16,9 +16,11 @@ import {
   Target,
   Layers,
   FileText,
-  ArrowLeft
+  ArrowLeft,
+  FileDown
 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { RelatorioEstruturaDialog } from '@/components/relatorios/RelatorioEstruturaDialog';
 
 interface Nucleo {
   sigla: string;
@@ -111,6 +113,7 @@ const NUCLEOS_COMPLETOS: Record<string, string> = {
 export default function EstruturaOrganizacionalPage() {
   const [resumo, setResumo] = useState<ResumoData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [relatorioOpen, setRelatorioOpen] = useState(false);
 
   useEffect(() => {
     fetch('/data/resumo.json')
@@ -164,8 +167,21 @@ export default function EstruturaOrganizacionalPage() {
                 Ver Organograma Interativo
               </Badge>
             </Link>
+            <Badge 
+              variant="outline" 
+              className="gap-1 cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+              onClick={() => setRelatorioOpen(true)}
+            >
+              <FileDown className="h-3 w-3" />
+              Gerar Relatório PDF
+            </Badge>
           </div>
         </div>
+
+        <RelatorioEstruturaDialog 
+          open={relatorioOpen} 
+          onOpenChange={setRelatorioOpen} 
+        />
 
         {/* Introdução */}
         <Card className="mb-8 border-primary/20 bg-primary/5">
