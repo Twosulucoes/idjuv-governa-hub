@@ -6,7 +6,8 @@
 export type TipoRelatorio = 
   | 'portarias'
   | 'servidores'
-  | 'cargos_vagas';
+  | 'cargos_vagas'
+  | 'folha_simplificada';
 
 // Campos disponíveis por tipo de relatório
 export interface CampoRelatorio {
@@ -179,11 +180,22 @@ export const CAMPOS_CARGOS: CampoRelatorio[] = [
   { id: 'ativo', label: 'Ativo', tipo: 'badge', agrupavel: true, largura: 'pequena' },
 ];
 
+// Campos do relatório simplificado de folha (fixo)
+export const CAMPOS_FOLHA_SIMPLIFICADA: CampoRelatorio[] = [
+  { id: 'numero', label: 'Nº', tipo: 'numero', obrigatorio: true, largura: 'pequena' },
+  { id: 'nome_completo', label: 'Nome Completo', tipo: 'texto', obrigatorio: true, largura: 'grande' },
+  { id: 'cpf', label: 'CPF', tipo: 'texto', obrigatorio: true, largura: 'media' },
+  { id: 'cargo_nome', label: 'Cargo', tipo: 'texto', obrigatorio: true, largura: 'media' },
+  { id: 'matricula', label: 'Código', tipo: 'texto', obrigatorio: true, largura: 'pequena' },
+  { id: 'vencimento_base', label: 'Valores', tipo: 'numero', obrigatorio: true, largura: 'media' },
+];
+
 // Mapeamento de campos por tipo
 export const CAMPOS_POR_TIPO: Record<TipoRelatorio, CampoRelatorio[]> = {
   portarias: CAMPOS_PORTARIAS,
   servidores: CAMPOS_SERVIDORES,
   cargos_vagas: CAMPOS_CARGOS,
+  folha_simplificada: CAMPOS_FOLHA_SIMPLIFICADA,
 };
 
 // Labels dos tipos de relatório
@@ -191,6 +203,7 @@ export const TIPO_RELATORIO_LABELS: Record<TipoRelatorio, string> = {
   portarias: 'Portarias',
   servidores: 'Servidores',
   cargos_vagas: 'Cargos e Vagas',
+  folha_simplificada: 'Folha Simplificada',
 };
 
 // Ícones dos tipos (nomes dos ícones lucide)
@@ -198,6 +211,7 @@ export const TIPO_RELATORIO_ICONS: Record<TipoRelatorio, string> = {
   portarias: 'FileText',
   servidores: 'Users',
   cargos_vagas: 'Briefcase',
+  folha_simplificada: 'DollarSign',
 };
 
 // Configuração padrão por tipo
@@ -219,6 +233,12 @@ export const CONFIG_PADRAO: Record<TipoRelatorio, Partial<ConfiguracaoRelatorio>
     camposSelecionados: ['nome', 'sigla', 'categoria', 'quantidade_vagas', 'vagas_ocupadas', 'vagas_disponiveis'],
     agrupamentos: [{ campo: 'categoria', ordem: 'asc', mostrarContagem: true }],
     ordenacao: { campo: 'nome', direcao: 'asc' },
+  },
+  folha_simplificada: {
+    titulo: 'RELATÓRIO SIMPLIFICADO DE FOLHA',
+    camposSelecionados: ['numero', 'nome_completo', 'cpf', 'cargo_nome', 'matricula', 'vencimento_base'],
+    agrupamentos: [],
+    ordenacao: { campo: 'nome_completo', direcao: 'asc' },
   },
 };
 
@@ -373,4 +393,5 @@ export const FILTROS_POR_TIPO: Record<TipoRelatorio, FiltroRelatorio[]> = {
   portarias: FILTROS_PORTARIAS,
   servidores: FILTROS_SERVIDORES,
   cargos_vagas: FILTROS_CARGOS,
+  folha_simplificada: [], // Sem filtros - relatório fixo
 };

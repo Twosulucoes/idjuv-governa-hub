@@ -18,6 +18,7 @@ import {
   Minus,
   GripVertical,
   RotateCcw,
+  DollarSign,
 } from 'lucide-react';
 
 import {
@@ -71,6 +72,7 @@ import {
 } from '@/types/relatorios';
 import { useDadosRelatorio, useUnidadesParaFiltro, useTemplatesRelatorio } from '@/hooks/useRelatorios';
 import { gerarRelatorioPDF } from '@/lib/pdfRelatorioAvancado';
+import { gerarRelatorioFolhaSimplificado } from '@/lib/pdfRelatorioFolhaSimplificado';
 import { toast } from 'sonner';
 
 // Ícones por tipo
@@ -78,6 +80,7 @@ const TIPO_ICONS: Record<TipoRelatorio, React.ReactNode> = {
   portarias: <FileText className="h-5 w-5" />,
   servidores: <Users className="h-5 w-5" />,
   cargos_vagas: <Briefcase className="h-5 w-5" />,
+  folha_simplificada: <DollarSign className="h-5 w-5" />,
 };
 
 interface CentralRelatoriosDialogProps {
@@ -258,7 +261,16 @@ export function CentralRelatoriosDialog({
 
     setIsGenerating(true);
     try {
-      await gerarRelatorioPDF(config, dadosRelatorio.dados);
+      // Usar gerador específico para folha simplificada
+      if (tipoSelecionado === 'folha_simplificada') {
+        await gerarRelatorioFolhaSimplificado(dadosRelatorio.dados, {
+          titulo: config.titulo,
+          subtitulo: config.subtitulo,
+          incluirLogos: config.incluirLogos,
+        });
+      } else {
+        await gerarRelatorioPDF(config, dadosRelatorio.dados);
+      }
       toast.success('Relatório gerado com sucesso!');
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
