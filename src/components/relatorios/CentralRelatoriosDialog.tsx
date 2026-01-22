@@ -327,7 +327,7 @@ export function CentralRelatoriosDialog({
                 {/* Tipo de Relatório */}
                 <div className="space-y-3">
                   <Label className="text-base font-semibold">Tipo de Relatório</Label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     {(Object.keys(TIPO_RELATORIO_LABELS) as TipoRelatorio[]).map((tipo) => (
                       <Card
                         key={tipo}

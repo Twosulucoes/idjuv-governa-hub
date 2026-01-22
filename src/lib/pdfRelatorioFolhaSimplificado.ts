@@ -118,8 +118,8 @@ export async function gerarRelatorioFolhaSimplificado(
   
   if (config.incluirLogos !== false) {
     [logoGov, logoIdjuv] = await Promise.all([
-      carregarImagem('/assets/logo-governo-roraima.jpg'),
-      carregarImagem('/assets/logo-idjuv-oficial.png'),
+      carregarImagem('/logo-governo-roraima.jpg'),
+      carregarImagem('/logo-idjuv-oficial.png'),
     ]);
   }
 
