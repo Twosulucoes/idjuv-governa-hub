@@ -2,6 +2,9 @@ import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+import logoGovernoSrc from '@/assets/logo-governo-roraima.jpg';
+import logoIDJUVOficialSrc from '@/assets/logo-idjuv-oficial.png';
+
 // ================================================================
 // GERADOR DE PDF - RELATÓRIO SIMPLIFICADO DE FOLHA
 // Campos: Nº, NOME COMPLETO, CPF, CARGO, CÓDIGO, VALORES
@@ -118,8 +121,8 @@ export async function gerarRelatorioFolhaSimplificado(
   
   if (config.incluirLogos !== false) {
     [logoGov, logoIdjuv] = await Promise.all([
-      carregarImagem('/logo-governo-roraima.jpg'),
-      carregarImagem('/logo-idjuv-oficial.png'),
+      carregarImagem(logoGovernoSrc),
+      carregarImagem(logoIDJUVOficialSrc),
     ]);
   }
 
@@ -241,8 +244,8 @@ export async function gerarRelatorioFolhaSimplificado(
     doc.text(cargo, x + 2, y + 4);
     x += COLUNAS[3].largura;
     
-    // CÓDIGO (matrícula ou sigla do cargo)
-    const codigo = servidor.matricula || servidor.cargo_sigla || '-';
+    // CÓDIGO (sigla do cargo ou matrícula)
+    const codigo = servidor.cargo_sigla || servidor.matricula || '-';
     doc.text(truncarTexto(codigo, COLUNAS[4].largura, doc), x + COLUNAS[4].largura / 2, y + 4, { align: 'center' });
     x += COLUNAS[4].largura;
     

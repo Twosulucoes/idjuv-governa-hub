@@ -5,7 +5,7 @@
 import jsPDF from 'jspdf';
 import logoGovernoSrc from '@/assets/logo-governo-roraima.jpg';
 import logoIDJUVOficialSrc from '@/assets/logo-idjuv-oficial.png';
-import logoIDJUVDarkSrc from '@/assets/logo-idjuv-dark.png';
+import logoIDJUVDarkSrc from '@/assets/logo-idjuv-dark4.png';
 
 // ============ CORES INSTITUCIONAIS ============
 export const CORES = {
