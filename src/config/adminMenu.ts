@@ -32,6 +32,8 @@ import {
   UserPlus,
   Video,
   Database,
+  Megaphone,
+  Image,
   type LucideIcon,
 } from "lucide-react";
 
@@ -456,6 +458,27 @@ export const adminMenuConfig: AdminMenuSection[] = [
         href: "/programas/jogos-escolares",
         icon: Award,
         keywords: ["jogos", "escolares", "competição"],
+      },
+    ],
+  },
+  {
+    id: "ascom",
+    label: "ASCOM",
+    icon: Megaphone,
+    items: [
+      {
+        id: "demandas-ascom",
+        label: "Gestão de Demandas",
+        href: "/admin/ascom/demandas",
+        icon: ClipboardList,
+        keywords: ["ascom", "demandas", "comunicação", "cobertura", "arte", "mídia"],
+      },
+      {
+        id: "nova-demanda-ascom",
+        label: "Nova Demanda",
+        href: "/admin/ascom/demandas/nova",
+        icon: FileText,
+        keywords: ["nova", "demanda", "solicitação", "ascom"],
       },
     ],
   },
