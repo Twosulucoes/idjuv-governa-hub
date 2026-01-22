@@ -22,6 +22,7 @@ export function useDadosRelatorio(tipo: TipoRelatorio, filtros: Record<string, u
         case 'portarias':
           return buscarDadosPortarias(filtros);
         case 'servidores':
+        case 'folha_simplificada': // Usa mesmos dados de servidores
           return buscarDadosServidores(filtros);
         case 'cargos_vagas':
           return buscarDadosCargos(filtros);
