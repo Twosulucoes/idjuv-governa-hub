@@ -1411,6 +1411,322 @@ export type Database = {
           },
         ]
       }
+      demandas_ascom: {
+        Row: {
+          ano: number
+          aprovado_por_id: string | null
+          autorizado_presidencia_por_id: string | null
+          cargo_funcao: string | null
+          categoria: Database["public"]["Enums"]["categoria_demanda_ascom"]
+          contato_email: string | null
+          contato_telefone: string | null
+          created_at: string | null
+          created_by: string | null
+          data_aprovacao: string | null
+          data_autorizacao_presidencia: string | null
+          data_conclusao: string | null
+          data_evento: string | null
+          data_inicio_execucao: string | null
+          descricao_detalhada: string
+          historico_status: Json | null
+          hora_evento: string | null
+          id: string
+          justificativa_indeferimento: string | null
+          local_evento: string | null
+          nome_responsavel: string
+          numero_demanda: string | null
+          objetivo_institucional: string | null
+          observacoes_internas_ascom: string | null
+          prazo_entrega: string
+          prioridade: Database["public"]["Enums"]["prioridade_demanda_ascom"]
+          publico_alvo: string | null
+          requer_autorizacao_presidencia: boolean | null
+          responsavel_ascom_id: string | null
+          servidor_solicitante_id: string | null
+          status: Database["public"]["Enums"]["status_demanda_ascom"]
+          tipo: Database["public"]["Enums"]["tipo_demanda_ascom"]
+          titulo: string
+          unidade_solicitante_id: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          ano?: number
+          aprovado_por_id?: string | null
+          autorizado_presidencia_por_id?: string | null
+          cargo_funcao?: string | null
+          categoria: Database["public"]["Enums"]["categoria_demanda_ascom"]
+          contato_email?: string | null
+          contato_telefone?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_aprovacao?: string | null
+          data_autorizacao_presidencia?: string | null
+          data_conclusao?: string | null
+          data_evento?: string | null
+          data_inicio_execucao?: string | null
+          descricao_detalhada: string
+          historico_status?: Json | null
+          hora_evento?: string | null
+          id?: string
+          justificativa_indeferimento?: string | null
+          local_evento?: string | null
+          nome_responsavel: string
+          numero_demanda?: string | null
+          objetivo_institucional?: string | null
+          observacoes_internas_ascom?: string | null
+          prazo_entrega: string
+          prioridade?: Database["public"]["Enums"]["prioridade_demanda_ascom"]
+          publico_alvo?: string | null
+          requer_autorizacao_presidencia?: boolean | null
+          responsavel_ascom_id?: string | null
+          servidor_solicitante_id?: string | null
+          status?: Database["public"]["Enums"]["status_demanda_ascom"]
+          tipo: Database["public"]["Enums"]["tipo_demanda_ascom"]
+          titulo: string
+          unidade_solicitante_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          ano?: number
+          aprovado_por_id?: string | null
+          autorizado_presidencia_por_id?: string | null
+          cargo_funcao?: string | null
+          categoria?: Database["public"]["Enums"]["categoria_demanda_ascom"]
+          contato_email?: string | null
+          contato_telefone?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_aprovacao?: string | null
+          data_autorizacao_presidencia?: string | null
+          data_conclusao?: string | null
+          data_evento?: string | null
+          data_inicio_execucao?: string | null
+          descricao_detalhada?: string
+          historico_status?: Json | null
+          hora_evento?: string | null
+          id?: string
+          justificativa_indeferimento?: string | null
+          local_evento?: string | null
+          nome_responsavel?: string
+          numero_demanda?: string | null
+          objetivo_institucional?: string | null
+          observacoes_internas_ascom?: string | null
+          prazo_entrega?: string
+          prioridade?: Database["public"]["Enums"]["prioridade_demanda_ascom"]
+          publico_alvo?: string | null
+          requer_autorizacao_presidencia?: boolean | null
+          responsavel_ascom_id?: string | null
+          servidor_solicitante_id?: string | null
+          status?: Database["public"]["Enums"]["status_demanda_ascom"]
+          tipo?: Database["public"]["Enums"]["tipo_demanda_ascom"]
+          titulo?: string
+          unidade_solicitante_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demandas_ascom_aprovado_por_id_fkey"
+            columns: ["aprovado_por_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demandas_ascom_aprovado_por_id_fkey"
+            columns: ["aprovado_por_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demandas_ascom_autorizado_presidencia_por_id_fkey"
+            columns: ["autorizado_presidencia_por_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demandas_ascom_autorizado_presidencia_por_id_fkey"
+            columns: ["autorizado_presidencia_por_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demandas_ascom_responsavel_ascom_id_fkey"
+            columns: ["responsavel_ascom_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demandas_ascom_responsavel_ascom_id_fkey"
+            columns: ["responsavel_ascom_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demandas_ascom_servidor_solicitante_id_fkey"
+            columns: ["servidor_solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demandas_ascom_servidor_solicitante_id_fkey"
+            columns: ["servidor_solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demandas_ascom_unidade_solicitante_id_fkey"
+            columns: ["unidade_solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      demandas_ascom_anexos: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          demanda_id: string
+          descricao: string | null
+          id: string
+          nome_arquivo: string
+          tamanho_bytes: number | null
+          tipo_anexo: string
+          tipo_mime: string | null
+          url_arquivo: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          demanda_id: string
+          descricao?: string | null
+          id?: string
+          nome_arquivo: string
+          tamanho_bytes?: number | null
+          tipo_anexo: string
+          tipo_mime?: string | null
+          url_arquivo: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          demanda_id?: string
+          descricao?: string | null
+          id?: string
+          nome_arquivo?: string
+          tamanho_bytes?: number | null
+          tipo_anexo?: string
+          tipo_mime?: string | null
+          url_arquivo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demandas_ascom_anexos_demanda_id_fkey"
+            columns: ["demanda_id"]
+            isOneToOne: false
+            referencedRelation: "demandas_ascom"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      demandas_ascom_comentarios: {
+        Row: {
+          conteudo: string
+          created_at: string | null
+          created_by: string | null
+          demanda_id: string
+          id: string
+          tipo: string
+          visivel_solicitante: boolean | null
+        }
+        Insert: {
+          conteudo: string
+          created_at?: string | null
+          created_by?: string | null
+          demanda_id: string
+          id?: string
+          tipo?: string
+          visivel_solicitante?: boolean | null
+        }
+        Update: {
+          conteudo?: string
+          created_at?: string | null
+          created_by?: string | null
+          demanda_id?: string
+          id?: string
+          tipo?: string
+          visivel_solicitante?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demandas_ascom_comentarios_demanda_id_fkey"
+            columns: ["demanda_id"]
+            isOneToOne: false
+            referencedRelation: "demandas_ascom"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      demandas_ascom_entregaveis: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          data_entrega: string | null
+          demanda_id: string
+          descricao: string
+          id: string
+          link_publicacao: string | null
+          metricas: Json | null
+          relatorio_cobertura: string | null
+          tipo_entregavel: string
+          url_arquivo: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          data_entrega?: string | null
+          demanda_id: string
+          descricao: string
+          id?: string
+          link_publicacao?: string | null
+          metricas?: Json | null
+          relatorio_cobertura?: string | null
+          tipo_entregavel: string
+          url_arquivo?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          data_entrega?: string | null
+          demanda_id?: string
+          descricao?: string
+          id?: string
+          link_publicacao?: string | null
+          metricas?: Json | null
+          relatorio_cobertura?: string | null
+          tipo_entregavel?: string
+          url_arquivo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demandas_ascom_entregaveis_demanda_id_fkey"
+            columns: ["demanda_id"]
+            isOneToOne: false
+            referencedRelation: "demandas_ascom"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dependentes_irrf: {
         Row: {
           ativo: boolean | null
@@ -6793,6 +7109,13 @@ export type Database = {
         | "funcao_gratificada"
         | "temporario"
         | "estagiario"
+      categoria_demanda_ascom:
+        | "cobertura_institucional"
+        | "criacao_artes"
+        | "conteudo_institucional"
+        | "gestao_redes_sociais"
+        | "imprensa_relacoes"
+        | "demandas_emergenciais"
       categoria_portaria:
         | "estruturante"
         | "normativa"
@@ -6815,6 +7138,7 @@ export type Database = {
       natureza_cargo: "efetivo" | "comissionado"
       natureza_rubrica: "remuneratorio" | "indenizatorio" | "informativo"
       origem_lancamento: "automatico" | "manual" | "importado" | "retroativo"
+      prioridade_demanda_ascom: "baixa" | "normal" | "alta" | "urgente"
       situacao_funcional:
         | "ativo"
         | "afastado"
@@ -6837,6 +7161,16 @@ export type Database = {
         | "rejeitado"
         | "cancelado"
         | "concluido"
+      status_demanda_ascom:
+        | "rascunho"
+        | "enviada"
+        | "em_analise"
+        | "aguardando_autorizacao"
+        | "aprovada"
+        | "em_execucao"
+        | "concluida"
+        | "indeferida"
+        | "cancelada"
       status_documento:
         | "rascunho"
         | "aguardando_publicacao"
@@ -6888,6 +7222,34 @@ export type Database = {
         | "missao"
         | "outro"
       tipo_ato_nomeacao: "portaria" | "decreto" | "ato" | "outro"
+      tipo_demanda_ascom:
+        | "cobertura_fotografica"
+        | "cobertura_audiovisual"
+        | "cobertura_jornalistica"
+        | "cobertura_redes_sociais"
+        | "cobertura_transmissao_ao_vivo"
+        | "arte_redes_sociais"
+        | "arte_banner"
+        | "arte_cartaz"
+        | "arte_folder"
+        | "arte_convite"
+        | "arte_certificado"
+        | "arte_identidade_visual"
+        | "conteudo_noticia_site"
+        | "conteudo_texto_redes"
+        | "conteudo_nota_oficial"
+        | "conteudo_release"
+        | "conteudo_discurso"
+        | "redes_publicacao_programada"
+        | "redes_campanha"
+        | "redes_cobertura_tempo_real"
+        | "imprensa_atendimento"
+        | "imprensa_agendamento_entrevista"
+        | "imprensa_resposta_oficial"
+        | "imprensa_nota_esclarecimento"
+        | "emergencial_crise"
+        | "emergencial_nota_urgente"
+        | "emergencial_posicionamento"
       tipo_documento:
         | "portaria"
         | "resolucao"
@@ -7222,6 +7584,14 @@ export const Constants = {
         "temporario",
         "estagiario",
       ],
+      categoria_demanda_ascom: [
+        "cobertura_institucional",
+        "criacao_artes",
+        "conteudo_institucional",
+        "gestao_redes_sociais",
+        "imprensa_relacoes",
+        "demandas_emergenciais",
+      ],
       categoria_portaria: [
         "estruturante",
         "normativa",
@@ -7246,6 +7616,7 @@ export const Constants = {
       natureza_cargo: ["efetivo", "comissionado"],
       natureza_rubrica: ["remuneratorio", "indenizatorio", "informativo"],
       origem_lancamento: ["automatico", "manual", "importado", "retroativo"],
+      prioridade_demanda_ascom: ["baixa", "normal", "alta", "urgente"],
       situacao_funcional: [
         "ativo",
         "afastado",
@@ -7270,6 +7641,17 @@ export const Constants = {
         "rejeitado",
         "cancelado",
         "concluido",
+      ],
+      status_demanda_ascom: [
+        "rascunho",
+        "enviada",
+        "em_analise",
+        "aguardando_autorizacao",
+        "aprovada",
+        "em_execucao",
+        "concluida",
+        "indeferida",
+        "cancelada",
       ],
       status_documento: [
         "rascunho",
@@ -7328,6 +7710,35 @@ export const Constants = {
         "outro",
       ],
       tipo_ato_nomeacao: ["portaria", "decreto", "ato", "outro"],
+      tipo_demanda_ascom: [
+        "cobertura_fotografica",
+        "cobertura_audiovisual",
+        "cobertura_jornalistica",
+        "cobertura_redes_sociais",
+        "cobertura_transmissao_ao_vivo",
+        "arte_redes_sociais",
+        "arte_banner",
+        "arte_cartaz",
+        "arte_folder",
+        "arte_convite",
+        "arte_certificado",
+        "arte_identidade_visual",
+        "conteudo_noticia_site",
+        "conteudo_texto_redes",
+        "conteudo_nota_oficial",
+        "conteudo_release",
+        "conteudo_discurso",
+        "redes_publicacao_programada",
+        "redes_campanha",
+        "redes_cobertura_tempo_real",
+        "imprensa_atendimento",
+        "imprensa_agendamento_entrevista",
+        "imprensa_resposta_oficial",
+        "imprensa_nota_esclarecimento",
+        "emergencial_crise",
+        "emergencial_nota_urgente",
+        "emergencial_posicionamento",
+      ],
       tipo_documento: [
         "portaria",
         "resolucao",
