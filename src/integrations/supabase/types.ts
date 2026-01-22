@@ -1428,6 +1428,7 @@ export type Database = {
           data_evento: string | null
           data_inicio_execucao: string | null
           descricao_detalhada: string
+          email_solicitante: string | null
           historico_status: Json | null
           hora_evento: string | null
           id: string
@@ -1444,6 +1445,7 @@ export type Database = {
           responsavel_ascom_id: string | null
           servidor_solicitante_id: string | null
           status: Database["public"]["Enums"]["status_demanda_ascom"]
+          telefone_solicitante: string | null
           tipo: Database["public"]["Enums"]["tipo_demanda_ascom"]
           titulo: string
           unidade_solicitante_id: string | null
@@ -1466,6 +1468,7 @@ export type Database = {
           data_evento?: string | null
           data_inicio_execucao?: string | null
           descricao_detalhada: string
+          email_solicitante?: string | null
           historico_status?: Json | null
           hora_evento?: string | null
           id?: string
@@ -1482,6 +1485,7 @@ export type Database = {
           responsavel_ascom_id?: string | null
           servidor_solicitante_id?: string | null
           status?: Database["public"]["Enums"]["status_demanda_ascom"]
+          telefone_solicitante?: string | null
           tipo: Database["public"]["Enums"]["tipo_demanda_ascom"]
           titulo: string
           unidade_solicitante_id?: string | null
@@ -1504,6 +1508,7 @@ export type Database = {
           data_evento?: string | null
           data_inicio_execucao?: string | null
           descricao_detalhada?: string
+          email_solicitante?: string | null
           historico_status?: Json | null
           hora_evento?: string | null
           id?: string
@@ -1520,6 +1525,7 @@ export type Database = {
           responsavel_ascom_id?: string | null
           servidor_solicitante_id?: string | null
           status?: Database["public"]["Enums"]["status_demanda_ascom"]
+          telefone_solicitante?: string | null
           tipo?: Database["public"]["Enums"]["tipo_demanda_ascom"]
           titulo?: string
           unidade_solicitante_id?: string | null
@@ -1685,6 +1691,7 @@ export type Database = {
           demanda_id: string
           descricao: string
           id: string
+          link_drive: string | null
           link_publicacao: string | null
           metricas: Json | null
           relatorio_cobertura: string | null
@@ -1698,6 +1705,7 @@ export type Database = {
           demanda_id: string
           descricao: string
           id?: string
+          link_drive?: string | null
           link_publicacao?: string | null
           metricas?: Json | null
           relatorio_cobertura?: string | null
@@ -1711,6 +1719,7 @@ export type Database = {
           demanda_id?: string
           descricao?: string
           id?: string
+          link_drive?: string | null
           link_publicacao?: string | null
           metricas?: Json | null
           relatorio_cobertura?: string | null
