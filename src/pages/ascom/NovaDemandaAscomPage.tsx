@@ -92,6 +92,14 @@ export default function NovaDemandaAscomPage() {
   const [arquivosParaUpload, setArquivosParaUpload] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [requerAutorizacao, setRequerAutorizacao] = useState(false);
+  const [servidorLogado, setServidorLogado] = useState<{
+    id: string;
+    nome: string;
+    cargo_nome: string;
+    telefone: string;
+    email: string;
+    unidade_id: string;
+  } | null>(null);
 
   const form = useForm<DemandaFormData>({
     resolver: zodResolver(demandaSchema),
@@ -105,6 +113,49 @@ export default function NovaDemandaAscomPage() {
 
   const categoriaWatch = form.watch('categoria');
   const tipoWatch = form.watch('tipo');
+
+  // Carregar dados do servidor logado
+  useEffect(() => {
+    const fetchServidorLogado = async () => {
+      if (!user?.id) return;
+      
+      const { data: servidor } = await supabase
+        .from('servidores')
+        .select(`
+          id,
+          nome_completo,
+          telefone_celular,
+          email_institucional,
+          unidade_atual_id,
+          cargo_atual_id,
+          cargos:cargo_atual_id (nome)
+        `)
+        .eq('user_id', user.id)
+        .single();
+      
+      if (servidor) {
+        const cargoNome = (servidor.cargos as { nome: string } | null)?.nome || '';
+        setServidorLogado({
+          id: servidor.id,
+          nome: servidor.nome_completo,
+          cargo_nome: cargoNome,
+          telefone: servidor.telefone_celular || '',
+          email: servidor.email_institucional || '',
+          unidade_id: servidor.unidade_atual_id || ''
+        });
+        
+        // Preencher formulário com dados do servidor
+        form.setValue('nome_responsavel', servidor.nome_completo);
+        form.setValue('cargo_funcao', cargoNome);
+        form.setValue('contato_telefone', servidor.telefone_celular || '');
+        form.setValue('contato_email', servidor.email_institucional || '');
+        if (servidor.unidade_atual_id) {
+          form.setValue('unidade_solicitante_id', servidor.unidade_atual_id);
+        }
+      }
+    };
+    fetchServidorLogado();
+  }, [user?.id, form]);
 
   // Carregar unidades
   useEffect(() => {
