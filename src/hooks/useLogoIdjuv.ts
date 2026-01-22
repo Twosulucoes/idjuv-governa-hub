@@ -3,14 +3,14 @@ import { useEffect, useState } from "react";
 
 // Importar ambas as versões das logos
 import logoOficial from "@/assets/logo-idjuv-oficial.png";
-import logoDark from "@/assets/logo-idjuv-dark.png";
+import logoDark from "@/assets/logo-idjuv-dark4.png";
 
 /**
  * Hook para retornar a logo correta do IDJUV baseada no tema atual.
  * 
  * Regras:
  * - Fundo claro (light theme) → logo-idjuv-oficial.png
- * - Fundo escuro (dark theme) → logo-idjuv-dark.png
+ * - Fundo escuro (dark theme) → logo-idjuv-dark4.png
  * 
  * @param forceVariant - Força uma variante específica ('light' | 'dark')
  * @returns O caminho da logo apropriada
