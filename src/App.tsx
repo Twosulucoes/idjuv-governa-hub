@@ -96,6 +96,11 @@ import CheckinReuniaoPage from "./pages/admin/CheckinReuniaoPage";
 import DatabaseSchemaPage from "./pages/admin/DatabaseSchemaPage";
 import RelatorioAdminPage from "./pages/admin/RelatorioAdminPage";
 
+// ASCOM
+import GestaoDemandasAscomPage from "./pages/ascom/GestaoDemandasAscomPage";
+import NovaDemandaAscomPage from "./pages/ascom/NovaDemandaAscomPage";
+import DetalheDemandaAscomPage from "./pages/ascom/DetalheDemandaAscomPage";
+
 // Mini-Currículo / Pré-Cadastro
 import MiniCurriculoPage from "./pages/curriculo/MiniCurriculoPage";
 import MiniCurriculoSucessoPage from "./pages/curriculo/MiniCurriculoSucessoPage";
@@ -158,6 +163,11 @@ const App = () => (
                 <Route path="/admin/database" element={<DatabaseSchemaPage />} />
                 <Route path="/admin/relatorio" element={<RelatorioAdminPage />} />
                 <Route path="/acesso" element={<ControleAcessoAdminPage />} />
+                
+                {/* ASCOM */}
+                <Route path="/admin/ascom/demandas" element={<GestaoDemandasAscomPage />} />
+                <Route path="/admin/ascom/demandas/nova" element={<NovaDemandaAscomPage />} />
+                <Route path="/admin/ascom/demandas/:id" element={<DetalheDemandaAscomPage />} />
                 
                 {/* Governança */}
                 <Route path="/governanca" element={<GovernancaPage />} />
