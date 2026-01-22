@@ -146,6 +146,7 @@ export interface EntregavelDemandaAscom {
   descricao: string;
   url_arquivo?: string;
   link_publicacao?: string;
+  link_drive?: string;
   data_entrega: string;
   relatorio_cobertura?: string;
   metricas?: Record<string, any>;

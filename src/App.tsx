@@ -100,6 +100,8 @@ import RelatorioAdminPage from "./pages/admin/RelatorioAdminPage";
 import GestaoDemandasAscomPage from "./pages/ascom/GestaoDemandasAscomPage";
 import NovaDemandaAscomPage from "./pages/ascom/NovaDemandaAscomPage";
 import DetalheDemandaAscomPage from "./pages/ascom/DetalheDemandaAscomPage";
+import SolicitacaoPublicaAscomPage from "./pages/ascom/SolicitacaoPublicaAscomPage";
+import ConsultaProtocoloAscomPage from "./pages/ascom/ConsultaProtocoloAscomPage";
 
 // Mini-Currículo / Pré-Cadastro
 import MiniCurriculoPage from "./pages/curriculo/MiniCurriculoPage";
@@ -127,6 +129,12 @@ const App = () => (
               <Route path="/curriculo" element={<MiniCurriculoPage />} />
               <Route path="/curriculo/sucesso" element={<MiniCurriculoSucessoPage />} />
               <Route path="/curriculo/:codigo" element={<MiniCurriculoPage />} />
+              
+              {/* ============================================ */}
+              {/* ROTAS PÚBLICAS - ASCOM */}
+              {/* ============================================ */}
+              <Route path="/ascom/solicitar" element={<SolicitacaoPublicaAscomPage />} />
+              <Route path="/ascom/consultar" element={<ConsultaProtocoloAscomPage />} />
               
               {/* Página "Em Breve" na raiz */}
               <Route path="/" element={<EmBrevePage />} />
