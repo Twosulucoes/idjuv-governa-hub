@@ -20,9 +20,12 @@ import {
   MapPin,
   ExternalLink,
   FileText,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 
 import { CentralRelatoriosFederacoesDialog } from '@/components/federacoes/CentralRelatoriosFederacoesDialog';
+import { EditarFederacaoDialog } from '@/components/federacoes/EditarFederacaoDialog';
 
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Input } from '@/components/ui/input';
@@ -68,11 +71,16 @@ interface Federacao {
   id: string;
   nome: string;
   sigla: string;
+  cnpj?: string | null;
   data_criacao: string;
   endereco: string;
+  endereco_logradouro?: string | null;
+  endereco_numero?: string | null;
+  endereco_bairro?: string | null;
   telefone: string;
   email: string;
   instagram: string | null;
+  facebook?: string | null;
   mandato_inicio: string;
   mandato_fim: string;
   presidente_nome: string;
@@ -80,11 +88,21 @@ interface Federacao {
   presidente_telefone: string;
   presidente_email: string;
   presidente_endereco: string | null;
+  presidente_endereco_logradouro?: string | null;
+  presidente_endereco_numero?: string | null;
+  presidente_endereco_bairro?: string | null;
   presidente_instagram: string | null;
+  presidente_facebook?: string | null;
   vice_presidente_nome: string;
   vice_presidente_telefone: string;
+  vice_presidente_data_nascimento?: string | null;
+  vice_presidente_instagram?: string | null;
+  vice_presidente_facebook?: string | null;
   diretor_tecnico_nome: string;
   diretor_tecnico_telefone: string;
+  diretor_tecnico_data_nascimento?: string | null;
+  diretor_tecnico_instagram?: string | null;
+  diretor_tecnico_facebook?: string | null;
   status: 'em_analise' | 'ativo' | 'inativo' | 'rejeitado';
   observacoes_internas: string | null;
   data_analise: string | null;
@@ -111,6 +129,10 @@ export default function GestaoFederacoesPage() {
   });
   const [observacoes, setObservacoes] = useState('');
   const [relatoriosOpen, setRelatoriosOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingFederacao, setEditingFederacao] = useState<Federacao | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingFederacao, setDeletingFederacao] = useState<Federacao | null>(null);
 
   const { data: federacoes = [], isLoading } = useQuery({
     queryKey: ['federacoes'],
@@ -149,6 +171,27 @@ export default function GestaoFederacoesPage() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('federacoes_esportivas')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['federacoes'] });
+      toast.success('Federação excluída com sucesso!');
+      setDeleteDialogOpen(false);
+      setDeletingFederacao(null);
+      setSheetOpen(false);
+    },
+    onError: () => {
+      toast.error('Erro ao excluir federação');
+    },
+  });
+
   const filteredFederacoes = federacoes.filter((fed) => {
     const matchesSearch = 
       fed.nome.toLowerCase().includes(search.toLowerCase()) ||
@@ -184,6 +227,29 @@ export default function GestaoFederacoesPage() {
       status: confirmDialog.action,
       observacoes,
     });
+  };
+
+  const handleEdit = (federacao: Federacao) => {
+    setEditingFederacao(federacao);
+    setEditDialogOpen(true);
+    setSheetOpen(false);
+  };
+
+  const handleDelete = (federacao: Federacao) => {
+    setDeletingFederacao(federacao);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!deletingFederacao) return;
+    deleteMutation.mutate(deletingFederacao.id);
+  };
+
+  const formatCNPJ = (cnpj: string | null | undefined) => {
+    if (!cnpj) return '-';
+    const numbers = cnpj.replace(/\D/g, '');
+    if (numbers.length !== 14) return cnpj;
+    return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5, 8)}/${numbers.slice(8, 12)}-${numbers.slice(12, 14)}`;
   };
 
   const formatDate = (date: string) => {
@@ -405,6 +471,24 @@ export default function GestaoFederacoesPage() {
                     </Button>
                   )}
 
+                  {/* Botões de Edição e Exclusão */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => handleEdit(selectedFederacao)}
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Editar Dados
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => handleDelete(selectedFederacao)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+
                   <Separator />
 
                   {/* Dados da Federação */}
@@ -414,6 +498,12 @@ export default function GestaoFederacoesPage() {
                       Dados da Federação
                     </h4>
                     <div className="space-y-2 text-sm">
+                      {selectedFederacao.cnpj && (
+                        <div className="flex items-start gap-2">
+                          <Building2 className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                          <span>CNPJ: {formatCNPJ(selectedFederacao.cnpj)}</span>
+                        </div>
+                      )}
                       <div className="flex items-start gap-2">
                         <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
                         <span>Criada em {formatDate(selectedFederacao.data_criacao)}</span>
@@ -593,6 +683,35 @@ export default function GestaoFederacoesPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Delete Confirm Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Federação</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir a federação <strong>{deletingFederacao?.sigla}</strong>? 
+                Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDelete}
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Edit Dialog */}
+        <EditarFederacaoDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          federacao={editingFederacao}
+        />
       </div>
     </AdminLayout>
   );

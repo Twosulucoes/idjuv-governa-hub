@@ -26,6 +26,7 @@ const federacaoSchema = z.object({
   // Dados da Federação
   nome: z.string().min(5, 'Nome deve ter pelo menos 5 caracteres'),
   sigla: z.string().min(2, 'Sigla deve ter pelo menos 2 caracteres').max(10, 'Sigla deve ter no máximo 10 caracteres'),
+  cnpj: z.string().min(14, 'CNPJ deve ter 14 dígitos').max(18, 'CNPJ inválido'),
   data_criacao: z.string().min(1, 'Informe a data de criação'),
   endereco_logradouro: z.string().min(3, 'Logradouro deve ter pelo menos 3 caracteres'),
   endereco_numero: z.string().min(1, 'Informe o número'),
@@ -76,6 +77,7 @@ export default function CadastroFederacaoPage() {
     defaultValues: {
       nome: '',
       sigla: '',
+      cnpj: '',
       data_criacao: '',
       endereco_logradouro: '',
       endereco_numero: '',
@@ -116,8 +118,21 @@ export default function CadastroFederacaoPage() {
     return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
   };
 
+  const formatCNPJ = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    if (numbers.length <= 2) return numbers;
+    if (numbers.length <= 5) return `${numbers.slice(0, 2)}.${numbers.slice(2)}`;
+    if (numbers.length <= 8) return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5)}`;
+    if (numbers.length <= 12) return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5, 8)}/${numbers.slice(8)}`;
+    return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5, 8)}/${numbers.slice(8, 12)}-${numbers.slice(12, 14)}`;
+  };
+
   const handlePhoneChange = (field: any) => (e: React.ChangeEvent<HTMLInputElement>) => {
     field.onChange(formatPhone(e.target.value));
+  };
+
+  const handleCNPJChange = (field: any) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    field.onChange(formatCNPJ(e.target.value));
   };
 
   const onSubmit = async (data: FederacaoFormData) => {
@@ -134,6 +149,7 @@ export default function CadastroFederacaoPage() {
         .insert({
           nome: data.nome.toUpperCase(),
           sigla: data.sigla.toUpperCase(),
+          cnpj: data.cnpj.replace(/\D/g, ''),
           data_criacao: data.data_criacao,
           // Campos de endereço separados
           endereco_logradouro: data.endereco_logradouro.toUpperCase(),
@@ -288,18 +304,37 @@ export default function CadastroFederacaoPage() {
 
                   <FormField
                     control={form.control}
-                    name="data_criacao"
+                    name="cnpj"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Data de Criação *</FormLabel>
+                        <FormLabel>CNPJ *</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <Input 
+                            placeholder="00.000.000/0000-00" 
+                            {...field} 
+                            onChange={handleCNPJChange(field)}
+                            maxLength={18}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
+
+                <FormField
+                  control={form.control}
+                  name="data_criacao"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data de Criação *</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 {/* Endereço separado */}
                 <FormField
