@@ -554,18 +554,18 @@ export function CentralRelatoriosFederacoesDialog({
                             <Select
                               value={
                                 Array.isArray(config.filtros[filtro.id])
-                                  ? (config.filtros[filtro.id] as string[])[0] || ''
-                                  : ''
+                                  ? (config.filtros[filtro.id] as string[])[0] || '__all__'
+                                  : '__all__'
                               }
                               onValueChange={(value) =>
-                                handleFiltroChange(filtro.id, value ? [value] : [])
+                                handleFiltroChange(filtro.id, value && value !== '__all__' ? [value] : [])
                               }
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecione..." />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="">Todos</SelectItem>
+                                <SelectItem value="__all__">Todos</SelectItem>
                                 {filtro.opcoes.map((opt) => (
                                   <SelectItem key={opt.value} value={opt.value}>
                                     {opt.label}
@@ -581,7 +581,7 @@ export function CentralRelatoriosFederacoesDialog({
                                   ? 'sim'
                                   : config.filtros[filtro.id] === false
                                   ? 'nao'
-                                  : ''
+                                  : '__indiferente__'
                               }
                               onValueChange={(value) =>
                                 handleFiltroChange(
@@ -594,7 +594,7 @@ export function CentralRelatoriosFederacoesDialog({
                                 <SelectValue placeholder="Indiferente" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="">Indiferente</SelectItem>
+                                <SelectItem value="__indiferente__">Indiferente</SelectItem>
                                 <SelectItem value="sim">Sim</SelectItem>
                                 <SelectItem value="nao">Não</SelectItem>
                               </SelectContent>
