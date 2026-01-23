@@ -2496,6 +2496,7 @@ export type Database = {
       federacoes_esportivas: {
         Row: {
           analisado_por: string | null
+          cnpj: string | null
           created_at: string
           data_analise: string | null
           data_criacao: string
@@ -2538,6 +2539,7 @@ export type Database = {
         }
         Insert: {
           analisado_por?: string | null
+          cnpj?: string | null
           created_at?: string
           data_analise?: string | null
           data_criacao: string
@@ -2580,6 +2582,7 @@ export type Database = {
         }
         Update: {
           analisado_por?: string | null
+          cnpj?: string | null
           created_at?: string
           data_analise?: string | null
           data_criacao?: string
