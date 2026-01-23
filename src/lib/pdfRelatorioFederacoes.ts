@@ -4,39 +4,16 @@ import { ptBR } from 'date-fns/locale';
 import type { 
   ConfiguracaoRelatorioFederacao, 
   CampoRelatorioFederacao,
-  CAMPOS_POR_TIPO_FEDERACAO,
-  STATUS_FEDERACAO_LABELS,
 } from '@/types/federacoesRelatorio';
+import { loadLogos, calculateLogoDimensions, type LogoCache } from './pdfTemplate';
 
 // ================================================================
 // TIPOS
 // ================================================================
 
 interface LogosCarregados {
-  logoGov: HTMLImageElement | null;
-  logoIdjuv: HTMLImageElement | null;
-}
-
-// ================================================================
-// HELPERS
-// ================================================================
-
-async function carregarImagem(src: string): Promise<HTMLImageElement | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = src;
-  });
-}
-
-async function carregarLogos(): Promise<LogosCarregados> {
-  const [logoGov, logoIdjuv] = await Promise.all([
-    carregarImagem('/src/assets/logo-gov-vaza.png'),
-    carregarImagem('/src/assets/logo-idjuv-dark4.png'),
-  ]);
-  return { logoGov, logoIdjuv };
+  governo: LogoCache | null;
+  idjuv: LogoCache | null;
 }
 
 function formatarValor(valor: unknown, campo: CampoRelatorioFederacao): string {
@@ -73,6 +50,9 @@ function obterValor(item: Record<string, unknown>, campoId: string): unknown {
 // GERADOR PDF
 // ================================================================
 
+// Altura máxima das logos (mantém proporção)
+const LOGO_MAX_HEIGHT = 14;
+
 export async function gerarRelatorioFederacoesPDF(
   config: ConfiguracaoRelatorioFederacao,
   dados: Record<string, unknown>[],
@@ -95,10 +75,14 @@ export async function gerarRelatorioFederacoesPDF(
   let currentY = marginTop;
   let currentPage = 1;
 
-  // Carregar logos
-  let logos: LogosCarregados = { logoGov: null, logoIdjuv: null };
+  // Carregar logos usando o sistema centralizado
+  let logos: LogosCarregados = { governo: null, idjuv: null };
   if (config.incluirLogos) {
-    logos = await carregarLogos();
+    const loadedLogos = await loadLogos();
+    logos = { 
+      governo: loadedLogos.governo, 
+      idjuv: loadedLogos.idjuvDark 
+    };
   }
 
   // Obter campos selecionados
@@ -128,17 +112,40 @@ export async function gerarRelatorioFederacoesPDF(
   function addHeader(): void {
     const headerHeight = 25;
     
-    // Logos
+    // Logos com proporção mantida
     if (config.incluirLogos) {
-      if (logos.logoGov) {
+      // Logo Governo - lado esquerdo
+      if (logos.governo?.data) {
         try {
-          doc.addImage(logos.logoGov, 'PNG', marginLeft, currentY, 30, 15);
-        } catch {}
+          const dims = calculateLogoDimensions(
+            logos.governo.width,
+            logos.governo.height,
+            LOGO_MAX_HEIGHT
+          );
+          doc.addImage(logos.governo.data, 'PNG', marginLeft, currentY, dims.width, dims.height);
+        } catch (e) {
+          console.warn('Erro ao adicionar logo governo:', e);
+        }
       }
-      if (logos.logoIdjuv) {
+      // Logo IDJUV - lado direito
+      if (logos.idjuv?.data) {
         try {
-          doc.addImage(logos.logoIdjuv, 'PNG', pageWidth - marginRight - 30, currentY, 30, 15);
-        } catch {}
+          const dims = calculateLogoDimensions(
+            logos.idjuv.width,
+            logos.idjuv.height,
+            LOGO_MAX_HEIGHT
+          );
+          doc.addImage(
+            logos.idjuv.data, 
+            'PNG', 
+            pageWidth - marginRight - dims.width, 
+            currentY, 
+            dims.width, 
+            dims.height
+          );
+        } catch (e) {
+          console.warn('Erro ao adicionar logo IDJUV:', e);
+        }
       }
     }
 
