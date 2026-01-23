@@ -2501,6 +2501,7 @@ export type Database = {
           data_criacao: string
           diretor_tecnico_data_nascimento: string | null
           diretor_tecnico_facebook: string | null
+          diretor_tecnico_instagram: string | null
           diretor_tecnico_nome: string | null
           diretor_tecnico_telefone: string | null
           email: string
@@ -2531,6 +2532,7 @@ export type Database = {
           updated_at: string
           vice_presidente_data_nascimento: string | null
           vice_presidente_facebook: string | null
+          vice_presidente_instagram: string | null
           vice_presidente_nome: string
           vice_presidente_telefone: string
         }
@@ -2541,6 +2543,7 @@ export type Database = {
           data_criacao: string
           diretor_tecnico_data_nascimento?: string | null
           diretor_tecnico_facebook?: string | null
+          diretor_tecnico_instagram?: string | null
           diretor_tecnico_nome?: string | null
           diretor_tecnico_telefone?: string | null
           email: string
@@ -2571,6 +2574,7 @@ export type Database = {
           updated_at?: string
           vice_presidente_data_nascimento?: string | null
           vice_presidente_facebook?: string | null
+          vice_presidente_instagram?: string | null
           vice_presidente_nome: string
           vice_presidente_telefone: string
         }
@@ -2581,6 +2585,7 @@ export type Database = {
           data_criacao?: string
           diretor_tecnico_data_nascimento?: string | null
           diretor_tecnico_facebook?: string | null
+          diretor_tecnico_instagram?: string | null
           diretor_tecnico_nome?: string | null
           diretor_tecnico_telefone?: string | null
           email?: string
@@ -2611,6 +2616,7 @@ export type Database = {
           updated_at?: string
           vice_presidente_data_nascimento?: string | null
           vice_presidente_facebook?: string | null
+          vice_presidente_instagram?: string | null
           vice_presidente_nome?: string
           vice_presidente_telefone?: string
         }

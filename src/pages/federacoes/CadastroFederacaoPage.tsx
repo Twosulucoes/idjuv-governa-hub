@@ -54,12 +54,14 @@ const federacaoSchema = z.object({
   vice_presidente_nome: z.string().min(5, 'Nome deve ter pelo menos 5 caracteres'),
   vice_presidente_telefone: z.string().min(10, 'Telefone deve ter pelo menos 10 dígitos'),
   vice_presidente_data_nascimento: z.string().min(1, 'Informe a data de nascimento'),
+  vice_presidente_instagram: z.string().optional(),
   vice_presidente_facebook: z.string().optional(),
   
   // Diretor Técnico (opcional)
   diretor_tecnico_nome: z.string().optional(),
   diretor_tecnico_telefone: z.string().optional(),
   diretor_tecnico_data_nascimento: z.string().optional(),
+  diretor_tecnico_instagram: z.string().optional(),
   diretor_tecnico_facebook: z.string().optional(),
 });
 
@@ -96,10 +98,12 @@ export default function CadastroFederacaoPage() {
       vice_presidente_nome: '',
       vice_presidente_telefone: '',
       vice_presidente_data_nascimento: '',
+      vice_presidente_instagram: '',
       vice_presidente_facebook: '',
       diretor_tecnico_nome: '',
       diretor_tecnico_telefone: '',
       diretor_tecnico_data_nascimento: '',
+      diretor_tecnico_instagram: '',
       diretor_tecnico_facebook: '',
     },
   });
@@ -157,10 +161,12 @@ export default function CadastroFederacaoPage() {
           vice_presidente_nome: data.vice_presidente_nome.toUpperCase(),
           vice_presidente_telefone: data.vice_presidente_telefone,
           vice_presidente_data_nascimento: data.vice_presidente_data_nascimento,
+          vice_presidente_instagram: data.vice_presidente_instagram || null,
           vice_presidente_facebook: data.vice_presidente_facebook || null,
           diretor_tecnico_nome: data.diretor_tecnico_nome?.toUpperCase() || null,
           diretor_tecnico_telefone: data.diretor_tecnico_telefone || null,
           diretor_tecnico_data_nascimento: data.diretor_tecnico_data_nascimento || null,
+          diretor_tecnico_instagram: data.diretor_tecnico_instagram || null,
           diretor_tecnico_facebook: data.diretor_tecnico_facebook || null,
           status: 'em_analise',
         });
@@ -193,11 +199,16 @@ export default function CadastroFederacaoPage() {
                 Cadastro enviado com sucesso!
               </h2>
               <p className="text-muted-foreground mb-6">
-                Obrigado pelo envio das informações!
+                Acompanhe as ações e comunicados do IDJuv pelo Instagram:
               </p>
-              <p className="text-sm text-muted-foreground">
-                Sua federação será analisada pela equipe do IDJuv e você receberá uma resposta em breve.
-              </p>
+              <a 
+                href="https://www.instagram.com/idjuvroraima?igsh=Z3d3dmU0MTA3NHpi" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-semibold text-lg transition-colors"
+              >
+                @idjuvroraima
+              </a>
             </CardContent>
           </Card>
         </div>
@@ -697,19 +708,35 @@ export default function CadastroFederacaoPage() {
                     />
                   </div>
 
-                  <FormField
-                    control={form.control}
-                    name="vice_presidente_facebook"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Facebook</FormLabel>
-                        <FormControl>
-                          <Input placeholder="facebook.com/usuario" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="vice_presidente_instagram"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Instagram</FormLabel>
+                          <FormControl>
+                            <Input placeholder="@usuario" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="vice_presidente_facebook"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Facebook</FormLabel>
+                          <FormControl>
+                            <Input placeholder="facebook.com/usuario" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
 
                 {/* Diretor Técnico */}
@@ -769,19 +796,35 @@ export default function CadastroFederacaoPage() {
                     />
                   </div>
 
-                  <FormField
-                    control={form.control}
-                    name="diretor_tecnico_facebook"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Facebook</FormLabel>
-                        <FormControl>
-                          <Input placeholder="facebook.com/usuario" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="diretor_tecnico_instagram"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Instagram</FormLabel>
+                          <FormControl>
+                            <Input placeholder="@usuario" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="diretor_tecnico_facebook"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Facebook</FormLabel>
+                          <FormControl>
+                            <Input placeholder="facebook.com/usuario" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
