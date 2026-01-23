@@ -107,7 +107,33 @@ async function buscarDadosServidores(filtros: Record<string, unknown>): Promise<
   const { data, error } = await query;
   if (error) throw error;
 
-  return { dados: data || [], total: data?.length || 0 };
+  // Buscar vencimento_base dos cargos para enriquecer os dados
+  const cargoIds = [...new Set((data || []).map((s) => s.cargo_id).filter(Boolean))];
+  
+  let cargosMap: Record<string, { vencimento_base: number | null; sigla: string | null }> = {};
+  
+  if (cargoIds.length > 0) {
+    const { data: cargos } = await supabase
+      .from('cargos')
+      .select('id, vencimento_base, sigla')
+      .in('id', cargoIds);
+    
+    if (cargos) {
+      cargosMap = cargos.reduce((acc, c) => {
+        acc[c.id] = { vencimento_base: c.vencimento_base, sigla: c.sigla };
+        return acc;
+      }, {} as Record<string, { vencimento_base: number | null; sigla: string | null }>);
+    }
+  }
+
+  // Enriquecer dados com vencimento_base
+  const dadosEnriquecidos = (data || []).map((servidor) => ({
+    ...servidor,
+    vencimento_base: servidor.cargo_id ? cargosMap[servidor.cargo_id]?.vencimento_base || 0 : 0,
+    cargo_sigla: servidor.cargo_sigla || (servidor.cargo_id ? cargosMap[servidor.cargo_id]?.sigla : null),
+  }));
+
+  return { dados: dadosEnriquecidos, total: dadosEnriquecidos.length };
 }
 
 async function buscarDadosCargos(filtros: Record<string, unknown>): Promise<DadosRelatorio> {
