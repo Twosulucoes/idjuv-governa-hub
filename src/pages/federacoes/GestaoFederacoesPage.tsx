@@ -19,7 +19,10 @@ import {
   Instagram,
   MapPin,
   ExternalLink,
+  FileText,
 } from 'lucide-react';
+
+import { CentralRelatoriosFederacoesDialog } from '@/components/federacoes/CentralRelatoriosFederacoesDialog';
 
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Input } from '@/components/ui/input';
@@ -107,6 +110,7 @@ export default function GestaoFederacoesPage() {
     federacao: null,
   });
   const [observacoes, setObservacoes] = useState('');
+  const [relatoriosOpen, setRelatoriosOpen] = useState(false);
 
   const { data: federacoes = [], isLoading } = useQuery({
     queryKey: ['federacoes'],
@@ -195,10 +199,22 @@ export default function GestaoFederacoesPage() {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Federações Esportivas</h1>
-          <p className="text-muted-foreground">Gerencie as federações vinculadas ao IDJuv</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Federações Esportivas</h1>
+            <p className="text-muted-foreground">Gerencie as federações vinculadas ao IDJuv</p>
+          </div>
+          <Button onClick={() => setRelatoriosOpen(true)}>
+            <FileText className="h-4 w-4 mr-2" />
+            Central de Relatórios
+          </Button>
         </div>
+
+        {/* Central de Relatórios Dialog */}
+        <CentralRelatoriosFederacoesDialog
+          open={relatoriosOpen}
+          onOpenChange={setRelatoriosOpen}
+        />
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
