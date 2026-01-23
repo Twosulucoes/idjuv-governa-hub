@@ -27,10 +27,13 @@ const federacaoSchema = z.object({
   nome: z.string().min(5, 'Nome deve ter pelo menos 5 caracteres'),
   sigla: z.string().min(2, 'Sigla deve ter pelo menos 2 caracteres').max(10, 'Sigla deve ter no máximo 10 caracteres'),
   data_criacao: z.string().min(1, 'Informe a data de criação'),
-  endereco: z.string().min(10, 'Endereço deve ter pelo menos 10 caracteres'),
+  endereco_logradouro: z.string().min(3, 'Logradouro deve ter pelo menos 3 caracteres'),
+  endereco_numero: z.string().min(1, 'Informe o número'),
+  endereco_bairro: z.string().min(2, 'Bairro deve ter pelo menos 2 caracteres'),
   telefone: z.string().min(10, 'Telefone deve ter pelo menos 10 dígitos'),
   email: z.string().email('E-mail inválido'),
   instagram: z.string().optional(),
+  facebook: z.string().optional(),
   
   // Mandato
   mandato_inicio: z.string().min(1, 'Informe a data de início do mandato'),
@@ -41,14 +44,23 @@ const federacaoSchema = z.object({
   presidente_nascimento: z.string().min(1, 'Informe a data de nascimento'),
   presidente_telefone: z.string().min(10, 'Telefone deve ter pelo menos 10 dígitos'),
   presidente_email: z.string().email('E-mail inválido'),
-  presidente_endereco: z.string().optional(),
+  presidente_endereco_logradouro: z.string().optional(),
+  presidente_endereco_numero: z.string().optional(),
+  presidente_endereco_bairro: z.string().optional(),
   presidente_instagram: z.string().optional(),
+  presidente_facebook: z.string().optional(),
   
-  // Outros Dirigentes
+  // Vice-Presidente
   vice_presidente_nome: z.string().min(5, 'Nome deve ter pelo menos 5 caracteres'),
   vice_presidente_telefone: z.string().min(10, 'Telefone deve ter pelo menos 10 dígitos'),
-  diretor_tecnico_nome: z.string().min(5, 'Nome deve ter pelo menos 5 caracteres'),
-  diretor_tecnico_telefone: z.string().min(10, 'Telefone deve ter pelo menos 10 dígitos'),
+  vice_presidente_data_nascimento: z.string().min(1, 'Informe a data de nascimento'),
+  vice_presidente_facebook: z.string().optional(),
+  
+  // Diretor Técnico (opcional)
+  diretor_tecnico_nome: z.string().optional(),
+  diretor_tecnico_telefone: z.string().optional(),
+  diretor_tecnico_data_nascimento: z.string().optional(),
+  diretor_tecnico_facebook: z.string().optional(),
 });
 
 type FederacaoFormData = z.infer<typeof federacaoSchema>;
@@ -63,22 +75,32 @@ export default function CadastroFederacaoPage() {
       nome: '',
       sigla: '',
       data_criacao: '',
-      endereco: '',
+      endereco_logradouro: '',
+      endereco_numero: '',
+      endereco_bairro: '',
       telefone: '',
       email: '',
       instagram: '',
+      facebook: '',
       mandato_inicio: '',
       mandato_fim: '',
       presidente_nome: '',
       presidente_nascimento: '',
       presidente_telefone: '',
       presidente_email: '',
-      presidente_endereco: '',
+      presidente_endereco_logradouro: '',
+      presidente_endereco_numero: '',
+      presidente_endereco_bairro: '',
       presidente_instagram: '',
+      presidente_facebook: '',
       vice_presidente_nome: '',
       vice_presidente_telefone: '',
+      vice_presidente_data_nascimento: '',
+      vice_presidente_facebook: '',
       diretor_tecnico_nome: '',
       diretor_tecnico_telefone: '',
+      diretor_tecnico_data_nascimento: '',
+      diretor_tecnico_facebook: '',
     },
   });
 
@@ -97,28 +119,49 @@ export default function CadastroFederacaoPage() {
   const onSubmit = async (data: FederacaoFormData) => {
     setIsSubmitting(true);
     try {
+      // Monta o endereço completo para campos legados
+      const enderecoCompleto = `${data.endereco_logradouro}, ${data.endereco_numero} - ${data.endereco_bairro}`.toUpperCase();
+      const presidenteEnderecoCompleto = data.presidente_endereco_logradouro 
+        ? `${data.presidente_endereco_logradouro}, ${data.presidente_endereco_numero || 'S/N'} - ${data.presidente_endereco_bairro || ''}`.toUpperCase()
+        : null;
+
       const { error } = await supabase
         .from('federacoes_esportivas')
         .insert({
           nome: data.nome.toUpperCase(),
           sigla: data.sigla.toUpperCase(),
           data_criacao: data.data_criacao,
-          endereco: data.endereco.toUpperCase(),
+          // Campos de endereço separados
+          endereco_logradouro: data.endereco_logradouro.toUpperCase(),
+          endereco_numero: data.endereco_numero.toUpperCase(),
+          endereco_bairro: data.endereco_bairro.toUpperCase(),
+          // Campo legado para compatibilidade
+          endereco: enderecoCompleto,
           telefone: data.telefone,
           email: data.email.toLowerCase(),
           instagram: data.instagram || null,
+          facebook: data.facebook || null,
           mandato_inicio: data.mandato_inicio,
           mandato_fim: data.mandato_fim,
           presidente_nome: data.presidente_nome.toUpperCase(),
           presidente_nascimento: data.presidente_nascimento,
           presidente_telefone: data.presidente_telefone,
           presidente_email: data.presidente_email.toLowerCase(),
-          presidente_endereco: data.presidente_endereco?.toUpperCase() || null,
+          presidente_endereco_logradouro: data.presidente_endereco_logradouro?.toUpperCase() || null,
+          presidente_endereco_numero: data.presidente_endereco_numero?.toUpperCase() || null,
+          presidente_endereco_bairro: data.presidente_endereco_bairro?.toUpperCase() || null,
+          // Campo legado para compatibilidade
+          presidente_endereco: presidenteEnderecoCompleto,
           presidente_instagram: data.presidente_instagram || null,
+          presidente_facebook: data.presidente_facebook || null,
           vice_presidente_nome: data.vice_presidente_nome.toUpperCase(),
           vice_presidente_telefone: data.vice_presidente_telefone,
-          diretor_tecnico_nome: data.diretor_tecnico_nome.toUpperCase(),
-          diretor_tecnico_telefone: data.diretor_tecnico_telefone,
+          vice_presidente_data_nascimento: data.vice_presidente_data_nascimento,
+          vice_presidente_facebook: data.vice_presidente_facebook || null,
+          diretor_tecnico_nome: data.diretor_tecnico_nome?.toUpperCase() || null,
+          diretor_tecnico_telefone: data.diretor_tecnico_telefone || null,
+          diretor_tecnico_data_nascimento: data.diretor_tecnico_data_nascimento || null,
+          diretor_tecnico_facebook: data.diretor_tecnico_facebook || null,
           status: 'em_analise',
         });
 
@@ -247,15 +290,16 @@ export default function CadastroFederacaoPage() {
                   />
                 </div>
 
+                {/* Endereço separado */}
                 <FormField
                   control={form.control}
-                  name="endereco"
+                  name="endereco_logradouro"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Endereço *</FormLabel>
+                      <FormLabel>Endereço (Logradouro) *</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="Rua, número e bairro" 
+                          placeholder="Rua, Avenida, etc." 
                           {...field}
                           onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                         />
@@ -264,6 +308,44 @@ export default function CadastroFederacaoPage() {
                     </FormItem>
                   )}
                 />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="endereco_numero"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Número *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Nº" 
+                            {...field}
+                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="endereco_bairro"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bairro *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Bairro" 
+                            {...field}
+                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
@@ -304,19 +386,35 @@ export default function CadastroFederacaoPage() {
                   />
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="instagram"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Instagram</FormLabel>
-                      <FormControl>
-                        <Input placeholder="@federacao" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="instagram"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Instagram</FormLabel>
+                        <FormControl>
+                          <Input placeholder="@federacao" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="facebook"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Facebook</FormLabel>
+                        <FormControl>
+                          <Input placeholder="facebook.com/federacao" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </CardContent>
             </Card>
 
@@ -443,15 +541,16 @@ export default function CadastroFederacaoPage() {
                   )}
                 />
 
+                {/* Endereço do Presidente separado */}
                 <FormField
                   control={form.control}
-                  name="presidente_endereco"
+                  name="presidente_endereco_logradouro"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Endereço Residencial</FormLabel>
+                      <FormLabel>Endereço Residencial (Logradouro)</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="Rua, número e bairro" 
+                          placeholder="Rua, Avenida, etc." 
                           {...field}
                           onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                         />
@@ -461,19 +560,73 @@ export default function CadastroFederacaoPage() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="presidente_instagram"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Instagram</FormLabel>
-                      <FormControl>
-                        <Input placeholder="@usuario" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="presidente_endereco_numero"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Número</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Nº" 
+                            {...field}
+                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="presidente_endereco_bairro"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bairro</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Bairro" 
+                            {...field}
+                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="presidente_instagram"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Instagram</FormLabel>
+                        <FormControl>
+                          <Input placeholder="@usuario" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="presidente_facebook"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Facebook</FormLabel>
+                        <FormControl>
+                          <Input placeholder="facebook.com/usuario" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </CardContent>
             </Card>
 
@@ -486,14 +639,17 @@ export default function CadastroFederacaoPage() {
                 </CardTitle>
                 <CardDescription>Vice-presidente e diretor técnico</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <CardContent className="space-y-6">
+                {/* Vice-Presidente */}
+                <div className="space-y-4">
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Vice-Presidente</h4>
+                  
                   <FormField
                     control={form.control}
                     name="vice_presidente_nome"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Vice-Presidente *</FormLabel>
+                        <FormLabel>Nome Completo *</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder="Nome completo" 
@@ -506,19 +662,49 @@ export default function CadastroFederacaoPage() {
                     )}
                   />
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="vice_presidente_data_nascimento"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Data de Nascimento *</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="vice_presidente_telefone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>WhatsApp *</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="(00) 00000-0000" 
+                              {...field}
+                              onChange={handlePhoneChange(field)}
+                              maxLength={15}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
                   <FormField
                     control={form.control}
-                    name="vice_presidente_telefone"
+                    name="vice_presidente_facebook"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>WhatsApp *</FormLabel>
+                        <FormLabel>Facebook</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="(00) 00000-0000" 
-                            {...field}
-                            onChange={handlePhoneChange(field)}
-                            maxLength={15}
-                          />
+                          <Input placeholder="facebook.com/usuario" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -526,13 +712,16 @@ export default function CadastroFederacaoPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Diretor Técnico */}
+                <div className="space-y-4 pt-4 border-t">
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Diretor Técnico (opcional)</h4>
+                  
                   <FormField
                     control={form.control}
                     name="diretor_tecnico_nome"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Diretor Técnico *</FormLabel>
+                        <FormLabel>Nome Completo</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder="Nome completo" 
@@ -545,19 +734,49 @@ export default function CadastroFederacaoPage() {
                     )}
                   />
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="diretor_tecnico_data_nascimento"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Data de Nascimento</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="diretor_tecnico_telefone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>WhatsApp</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="(00) 00000-0000" 
+                              {...field}
+                              onChange={handlePhoneChange(field)}
+                              maxLength={15}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
                   <FormField
                     control={form.control}
-                    name="diretor_tecnico_telefone"
+                    name="diretor_tecnico_facebook"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>WhatsApp *</FormLabel>
+                        <FormLabel>Facebook</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="(00) 00000-0000" 
-                            {...field}
-                            onChange={handlePhoneChange(field)}
-                            maxLength={15}
-                          />
+                          <Input placeholder="facebook.com/usuario" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
