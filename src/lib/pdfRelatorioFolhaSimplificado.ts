@@ -133,12 +133,18 @@ export async function gerarRelatorioFolhaSimplificado(
   const renderHeader = (): void => {
     y = marginY;
     
-    // Logos
+    // Logos - mantendo proporção original
+    // Logo Governo: proporção original ~2.5:1 (largura:altura)
     if (logoGov) {
-      doc.addImage(logoGov, 'JPEG', marginX, y, 30, 15);
+      const govWidth = 35;
+      const govHeight = govWidth / 2.5; // ~14mm
+      doc.addImage(logoGov, 'JPEG', marginX, y, govWidth, govHeight);
     }
+    // Logo IDJUV: proporção original ~1.2:1 (mais quadrada)
     if (logoIdjuv) {
-      doc.addImage(logoIdjuv, 'PNG', pageWidth - marginX - 30, y, 30, 15);
+      const idjuvHeight = 16;
+      const idjuvWidth = idjuvHeight * 1.2; // ~19mm
+      doc.addImage(logoIdjuv, 'PNG', pageWidth - marginX - idjuvWidth, y, idjuvWidth, idjuvHeight);
     }
     
     // Título centralizado
