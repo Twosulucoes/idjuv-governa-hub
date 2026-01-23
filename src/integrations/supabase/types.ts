@@ -2499,10 +2499,16 @@ export type Database = {
           created_at: string
           data_analise: string | null
           data_criacao: string
-          diretor_tecnico_nome: string
-          diretor_tecnico_telefone: string
+          diretor_tecnico_data_nascimento: string | null
+          diretor_tecnico_facebook: string | null
+          diretor_tecnico_nome: string | null
+          diretor_tecnico_telefone: string | null
           email: string
           endereco: string
+          endereco_bairro: string | null
+          endereco_logradouro: string | null
+          endereco_numero: string | null
+          facebook: string | null
           id: string
           instagram: string | null
           mandato_fim: string
@@ -2511,6 +2517,10 @@ export type Database = {
           observacoes_internas: string | null
           presidente_email: string
           presidente_endereco: string | null
+          presidente_endereco_bairro: string | null
+          presidente_endereco_logradouro: string | null
+          presidente_endereco_numero: string | null
+          presidente_facebook: string | null
           presidente_instagram: string | null
           presidente_nascimento: string
           presidente_nome: string
@@ -2519,6 +2529,8 @@ export type Database = {
           status: string
           telefone: string
           updated_at: string
+          vice_presidente_data_nascimento: string | null
+          vice_presidente_facebook: string | null
           vice_presidente_nome: string
           vice_presidente_telefone: string
         }
@@ -2527,10 +2539,16 @@ export type Database = {
           created_at?: string
           data_analise?: string | null
           data_criacao: string
-          diretor_tecnico_nome: string
-          diretor_tecnico_telefone: string
+          diretor_tecnico_data_nascimento?: string | null
+          diretor_tecnico_facebook?: string | null
+          diretor_tecnico_nome?: string | null
+          diretor_tecnico_telefone?: string | null
           email: string
           endereco: string
+          endereco_bairro?: string | null
+          endereco_logradouro?: string | null
+          endereco_numero?: string | null
+          facebook?: string | null
           id?: string
           instagram?: string | null
           mandato_fim: string
@@ -2539,6 +2557,10 @@ export type Database = {
           observacoes_internas?: string | null
           presidente_email: string
           presidente_endereco?: string | null
+          presidente_endereco_bairro?: string | null
+          presidente_endereco_logradouro?: string | null
+          presidente_endereco_numero?: string | null
+          presidente_facebook?: string | null
           presidente_instagram?: string | null
           presidente_nascimento: string
           presidente_nome: string
@@ -2547,6 +2569,8 @@ export type Database = {
           status?: string
           telefone: string
           updated_at?: string
+          vice_presidente_data_nascimento?: string | null
+          vice_presidente_facebook?: string | null
           vice_presidente_nome: string
           vice_presidente_telefone: string
         }
@@ -2555,10 +2579,16 @@ export type Database = {
           created_at?: string
           data_analise?: string | null
           data_criacao?: string
-          diretor_tecnico_nome?: string
-          diretor_tecnico_telefone?: string
+          diretor_tecnico_data_nascimento?: string | null
+          diretor_tecnico_facebook?: string | null
+          diretor_tecnico_nome?: string | null
+          diretor_tecnico_telefone?: string | null
           email?: string
           endereco?: string
+          endereco_bairro?: string | null
+          endereco_logradouro?: string | null
+          endereco_numero?: string | null
+          facebook?: string | null
           id?: string
           instagram?: string | null
           mandato_fim?: string
@@ -2567,6 +2597,10 @@ export type Database = {
           observacoes_internas?: string | null
           presidente_email?: string
           presidente_endereco?: string | null
+          presidente_endereco_bairro?: string | null
+          presidente_endereco_logradouro?: string | null
+          presidente_endereco_numero?: string | null
+          presidente_facebook?: string | null
           presidente_instagram?: string | null
           presidente_nascimento?: string
           presidente_nome?: string
@@ -2575,6 +2609,8 @@ export type Database = {
           status?: string
           telefone?: string
           updated_at?: string
+          vice_presidente_data_nascimento?: string | null
+          vice_presidente_facebook?: string | null
           vice_presidente_nome?: string
           vice_presidente_telefone?: string
         }
