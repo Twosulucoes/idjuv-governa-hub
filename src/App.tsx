@@ -104,6 +104,10 @@ import DetalheDemandaAscomPage from "./pages/ascom/DetalheDemandaAscomPage";
 import SolicitacaoPublicaAscomPage from "./pages/ascom/SolicitacaoPublicaAscomPage";
 import ConsultaProtocoloAscomPage from "./pages/ascom/ConsultaProtocoloAscomPage";
 
+// Federações
+import CadastroFederacaoPage from "./pages/federacoes/CadastroFederacaoPage";
+import GestaoFederacoesPage from "./pages/federacoes/GestaoFederacoesPage";
+
 // Mini-Currículo / Pré-Cadastro
 import MiniCurriculoPage from "./pages/curriculo/MiniCurriculoPage";
 import MiniCurriculoSucessoPage from "./pages/curriculo/MiniCurriculoSucessoPage";
@@ -136,6 +140,11 @@ const App = () => (
               {/* ============================================ */}
               <Route path="/ascom/solicitar" element={<SolicitacaoPublicaAscomPage />} />
               <Route path="/ascom/consultar" element={<ConsultaProtocoloAscomPage />} />
+              
+              {/* ============================================ */}
+              {/* ROTAS PÚBLICAS - Federações */}
+              {/* ============================================ */}
+              <Route path="/federacoes/cadastro" element={<CadastroFederacaoPage />} />
               
               {/* Página "Em Breve" na raiz */}
               <Route path="/" element={<EmBrevePage />} />
@@ -177,6 +186,9 @@ const App = () => (
                 <Route path="/admin/ascom/demandas" element={<GestaoDemandasAscomPage />} />
                 <Route path="/admin/ascom/demandas/nova" element={<NovaDemandaAscomPage />} />
                 <Route path="/admin/ascom/demandas/:id" element={<DetalheDemandaAscomPage />} />
+                
+                {/* Federações */}
+                <Route path="/admin/federacoes" element={<GestaoFederacoesPage />} />
                 
                 {/* Governança */}
                 <Route path="/governanca" element={<GovernancaPage />} />
