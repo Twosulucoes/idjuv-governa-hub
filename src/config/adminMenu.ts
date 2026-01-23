@@ -201,6 +201,13 @@ export const adminMenuConfig: AdminMenuSection[] = [
         ],
       },
       {
+        id: "aniversariantes",
+        label: "Aniversariantes",
+        href: "/rh/aniversariantes",
+        icon: Calendar,
+        keywords: ["aniversário", "aniversariantes", "parabéns", "nascimento", "comunicação"],
+      },
+      {
         id: "ferias",
         label: "Férias",
         href: "/rh/ferias",
