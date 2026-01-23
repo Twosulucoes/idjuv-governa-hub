@@ -40,13 +40,18 @@ export function useDadosFederacoes(
   return useQuery({
     queryKey: ['relatorio-federacoes', tipo, filtros],
     queryFn: async (): Promise<DadosRelatorioFederacao> => {
-      switch (tipo) {
-        case 'federacoes':
-          return buscarDadosFederacoes(filtros);
-        case 'dirigentes':
-          return buscarDadosDirigentes(filtros);
-        default:
-          return { dados: [], total: 0 };
+      try {
+        switch (tipo) {
+          case 'federacoes':
+            return await buscarDadosFederacoes(filtros);
+          case 'dirigentes':
+            return await buscarDadosDirigentes(filtros);
+          default:
+            return { dados: [], total: 0 };
+        }
+      } catch (error) {
+        console.error('Erro ao buscar dados de federações:', error);
+        return { dados: [], total: 0 };
       }
     },
   });
