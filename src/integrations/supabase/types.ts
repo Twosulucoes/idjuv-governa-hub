@@ -2493,6 +2493,93 @@ export type Database = {
           },
         ]
       }
+      federacoes_esportivas: {
+        Row: {
+          analisado_por: string | null
+          created_at: string
+          data_analise: string | null
+          data_criacao: string
+          diretor_tecnico_nome: string
+          diretor_tecnico_telefone: string
+          email: string
+          endereco: string
+          id: string
+          instagram: string | null
+          mandato_fim: string
+          mandato_inicio: string
+          nome: string
+          observacoes_internas: string | null
+          presidente_email: string
+          presidente_endereco: string | null
+          presidente_instagram: string | null
+          presidente_nascimento: string
+          presidente_nome: string
+          presidente_telefone: string
+          sigla: string
+          status: string
+          telefone: string
+          updated_at: string
+          vice_presidente_nome: string
+          vice_presidente_telefone: string
+        }
+        Insert: {
+          analisado_por?: string | null
+          created_at?: string
+          data_analise?: string | null
+          data_criacao: string
+          diretor_tecnico_nome: string
+          diretor_tecnico_telefone: string
+          email: string
+          endereco: string
+          id?: string
+          instagram?: string | null
+          mandato_fim: string
+          mandato_inicio: string
+          nome: string
+          observacoes_internas?: string | null
+          presidente_email: string
+          presidente_endereco?: string | null
+          presidente_instagram?: string | null
+          presidente_nascimento: string
+          presidente_nome: string
+          presidente_telefone: string
+          sigla: string
+          status?: string
+          telefone: string
+          updated_at?: string
+          vice_presidente_nome: string
+          vice_presidente_telefone: string
+        }
+        Update: {
+          analisado_por?: string | null
+          created_at?: string
+          data_analise?: string | null
+          data_criacao?: string
+          diretor_tecnico_nome?: string
+          diretor_tecnico_telefone?: string
+          email?: string
+          endereco?: string
+          id?: string
+          instagram?: string | null
+          mandato_fim?: string
+          mandato_inicio?: string
+          nome?: string
+          observacoes_internas?: string | null
+          presidente_email?: string
+          presidente_endereco?: string | null
+          presidente_instagram?: string | null
+          presidente_nascimento?: string
+          presidente_nome?: string
+          presidente_telefone?: string
+          sigla?: string
+          status?: string
+          telefone?: string
+          updated_at?: string
+          vice_presidente_nome?: string
+          vice_presidente_telefone?: string
+        }
+        Relationships: []
+      }
       feriados: {
         Row: {
           ativo: boolean | null

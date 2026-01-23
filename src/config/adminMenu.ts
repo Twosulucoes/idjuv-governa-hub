@@ -432,6 +432,13 @@ export const adminMenuConfig: AdminMenuSection[] = [
     icon: Award,
     items: [
       {
+        id: "federacoes",
+        label: "Federações Esportivas",
+        href: "/admin/federacoes",
+        icon: Award,
+        keywords: ["federação", "federações", "esportivas", "esporte", "modalidade"],
+      },
+      {
         id: "bolsa-atleta",
         label: "Bolsa Atleta",
         href: "/programas/bolsa-atleta",
