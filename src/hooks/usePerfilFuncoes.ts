@@ -3,7 +3,7 @@
 // ============================================
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getActiveSupabaseClient } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import type { PerfilFuncao } from '@/types/perfis';
 
@@ -15,6 +15,7 @@ export function usePerfilFuncoes(perfilId?: string) {
 
   // Buscar permissões de um perfil
   const fetchPermissoes = useCallback(async (id?: string) => {
+    const supabase = getActiveSupabaseClient();
     const targetId = id || perfilId;
     if (!targetId) return;
 
@@ -47,6 +48,7 @@ export function usePerfilFuncoes(perfilId?: string) {
 
   // Conceder permissão
   const concederPermissao = async (perfilIdParam: string, funcaoId: string) => {
+    const supabase = getActiveSupabaseClient();
     setSaving(true);
     try {
       // Verificar se já existe
@@ -86,6 +88,7 @@ export function usePerfilFuncoes(perfilId?: string) {
 
   // Revogar permissão
   const revogarPermissao = async (perfilIdParam: string, funcaoId: string) => {
+    const supabase = getActiveSupabaseClient();
     setSaving(true);
     try {
       const existente = permissoes.find(p => p.perfil_id === perfilIdParam && p.funcao_id === funcaoId);
@@ -123,6 +126,7 @@ export function usePerfilFuncoes(perfilId?: string) {
 
   // Buscar todas as permissões (para matriz)
   const fetchTodasPermissoes = async () => {
+    const supabase = getActiveSupabaseClient();
     setLoading(true);
     try {
       const { data, error } = await supabase

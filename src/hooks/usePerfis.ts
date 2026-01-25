@@ -3,7 +3,7 @@
 // ============================================
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getActiveSupabaseClient } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import type { Perfil, PerfilArvore } from '@/types/perfis';
 
@@ -15,6 +15,7 @@ export function usePerfis() {
 
   // Buscar todos os perfis
   const fetchPerfis = useCallback(async () => {
+    const supabase = getActiveSupabaseClient();
     setLoading(true);
     setError(null);
     try {
@@ -39,6 +40,7 @@ export function usePerfis() {
 
   // Criar perfil
   const criarPerfil = async (perfil: Omit<Perfil, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'updated_by'>) => {
+    const supabase = getActiveSupabaseClient();
     try {
       const { data, error } = await supabase
         .from('perfis')
@@ -59,6 +61,7 @@ export function usePerfis() {
 
   // Atualizar perfil
   const atualizarPerfil = async (id: string, updates: Partial<Perfil>) => {
+    const supabase = getActiveSupabaseClient();
     try {
       const { data, error } = await supabase
         .from('perfis')
@@ -80,6 +83,7 @@ export function usePerfis() {
 
   // Excluir perfil
   const excluirPerfil = async (id: string) => {
+    const supabase = getActiveSupabaseClient();
     try {
       const perfil = perfis.find(p => p.id === id);
       if (perfil?.is_sistema) {

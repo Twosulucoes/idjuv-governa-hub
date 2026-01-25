@@ -3,7 +3,7 @@
 // ============================================
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getActiveSupabaseClient } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import type { UsuarioPerfil } from '@/types/perfis';
 
@@ -23,6 +23,7 @@ export function useUsuarioPerfis(userId?: string) {
 
   // Buscar perfis de um usuário
   const fetchPerfisDoUsuario = useCallback(async (id?: string) => {
+    const supabase = getActiveSupabaseClient();
     const targetId = id || userId;
     if (!targetId) return;
 
@@ -51,6 +52,7 @@ export function useUsuarioPerfis(userId?: string) {
 
   // Buscar todos os usuários com seus perfis
   const fetchUsuariosComPerfis = async () => {
+    const supabase = getActiveSupabaseClient();
     setLoading(true);
     try {
       // Buscar usuários
@@ -93,6 +95,7 @@ export function useUsuarioPerfis(userId?: string) {
 
   // Associar perfil a usuário
   const associarPerfil = async (userIdParam: string, perfilId: string) => {
+    const supabase = getActiveSupabaseClient();
     setSaving(true);
     try {
       // Verificar se já existe
@@ -136,6 +139,7 @@ export function useUsuarioPerfis(userId?: string) {
 
   // Desassociar perfil de usuário
   const desassociarPerfil = async (userIdParam: string, perfilId: string) => {
+    const supabase = getActiveSupabaseClient();
     setSaving(true);
     try {
       const { error } = await supabase

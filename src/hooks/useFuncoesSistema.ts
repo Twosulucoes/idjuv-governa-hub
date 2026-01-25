@@ -3,7 +3,7 @@
 // ============================================
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getActiveSupabaseClient } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import type { FuncaoSistema, FuncaoArvore } from '@/types/perfis';
 
@@ -15,6 +15,7 @@ export function useFuncoesSistema() {
 
   // Buscar todas as funções
   const fetchFuncoes = useCallback(async () => {
+    const supabase = getActiveSupabaseClient();
     setLoading(true);
     setError(null);
     try {
@@ -40,6 +41,7 @@ export function useFuncoesSistema() {
 
   // Criar função
   const criarFuncao = async (funcao: Omit<FuncaoSistema, 'id' | 'created_at' | 'updated_at'>) => {
+    const supabase = getActiveSupabaseClient();
     try {
       const { data, error } = await supabase
         .from('funcoes_sistema')
@@ -60,6 +62,7 @@ export function useFuncoesSistema() {
 
   // Atualizar função
   const atualizarFuncao = async (id: string, updates: Partial<FuncaoSistema>) => {
+    const supabase = getActiveSupabaseClient();
     try {
       const { data, error } = await supabase
         .from('funcoes_sistema')
@@ -81,6 +84,7 @@ export function useFuncoesSistema() {
 
   // Excluir função
   const excluirFuncao = async (id: string) => {
+    const supabase = getActiveSupabaseClient();
     try {
       const { error } = await supabase
         .from('funcoes_sistema')
