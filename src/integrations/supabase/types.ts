@@ -3153,6 +3153,65 @@ export type Database = {
           },
         ]
       }
+      funcoes_sistema: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          descricao: string | null
+          funcao_pai_id: string | null
+          icone: string | null
+          id: string
+          modulo: string
+          nome: string
+          ordem: number
+          rota: string | null
+          submodulo: string | null
+          tipo_acao: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          descricao?: string | null
+          funcao_pai_id?: string | null
+          icone?: string | null
+          id?: string
+          modulo: string
+          nome: string
+          ordem?: number
+          rota?: string | null
+          submodulo?: string | null
+          tipo_acao?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          descricao?: string | null
+          funcao_pai_id?: string | null
+          icone?: string | null
+          id?: string
+          modulo?: string
+          nome?: string
+          ordem?: number
+          rota?: string | null
+          submodulo?: string | null
+          tipo_acao?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funcoes_sistema_funcao_pai_id_fkey"
+            columns: ["funcao_pai_id"]
+            isOneToOne: false
+            referencedRelation: "funcoes_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       historico_convites_reuniao: {
         Row: {
           assunto: string | null
@@ -4647,6 +4706,107 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      perfil_funcoes: {
+        Row: {
+          concedido: boolean
+          created_at: string
+          created_by: string | null
+          funcao_id: string
+          id: string
+          perfil_id: string
+        }
+        Insert: {
+          concedido?: boolean
+          created_at?: string
+          created_by?: string | null
+          funcao_id: string
+          id?: string
+          perfil_id: string
+        }
+        Update: {
+          concedido?: boolean
+          created_at?: string
+          created_by?: string | null
+          funcao_id?: string
+          id?: string
+          perfil_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "perfil_funcoes_funcao_id_fkey"
+            columns: ["funcao_id"]
+            isOneToOne: false
+            referencedRelation: "funcoes_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "perfil_funcoes_perfil_id_fkey"
+            columns: ["perfil_id"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      perfis: {
+        Row: {
+          ativo: boolean
+          cor: string | null
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          icone: string | null
+          id: string
+          is_sistema: boolean
+          nivel: Database["public"]["Enums"]["nivel_perfil"]
+          nivel_hierarquia: number
+          nome: string
+          perfil_pai_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          cor?: string | null
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          icone?: string | null
+          id?: string
+          is_sistema?: boolean
+          nivel?: Database["public"]["Enums"]["nivel_perfil"]
+          nivel_hierarquia?: number
+          nome: string
+          perfil_pai_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          cor?: string | null
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          icone?: string | null
+          id?: string
+          is_sistema?: boolean
+          nivel?: Database["public"]["Enums"]["nivel_perfil"]
+          nivel_hierarquia?: number
+          nome?: string
+          perfil_pai_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "perfis_perfil_pai_id_fkey"
+            columns: ["perfil_pai_id"]
+            isOneToOne: false
+            referencedRelation: "perfis"
             referencedColumns: ["id"]
           },
         ]
@@ -6621,6 +6781,50 @@ export type Database = {
         }
         Relationships: []
       }
+      usuario_perfis: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string
+          id: string
+          observacao: string | null
+          perfil_id: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          id?: string
+          observacao?: string | null
+          perfil_id: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          id?: string
+          observacao?: string | null
+          perfil_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usuario_perfis_perfil_id_fkey"
+            columns: ["perfil_id"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       viagens_diarias: {
         Row: {
           created_at: string | null
@@ -7136,6 +7340,14 @@ export type Database = {
       }
       is_admin_user: { Args: { _user_id: string }; Returns: boolean }
       is_usuario_tecnico: { Args: { _user_id: string }; Returns: boolean }
+      listar_permissoes_usuario: {
+        Args: { _user_id: string }
+        Returns: {
+          codigo: string
+          modulo: string
+          nome: string
+        }[]
+      }
       log_audit: {
         Args: {
           _action: Database["public"]["Enums"]["audit_action"]
@@ -7152,6 +7364,10 @@ export type Database = {
       processar_folha_pagamento: { Args: { p_folha_id: string }; Returns: Json }
       user_has_unit_access: {
         Args: { _unidade_id: string; _user_id: string }
+        Returns: boolean
+      }
+      usuario_tem_permissao: {
+        Args: { _codigo_funcao: string; _user_id: string }
         Returns: boolean
       }
       verificar_conflito_agenda: {
@@ -7278,6 +7494,7 @@ export type Database = {
         | "referencia_cargo"
       natureza_cargo: "efetivo" | "comissionado"
       natureza_rubrica: "remuneratorio" | "indenizatorio" | "informativo"
+      nivel_perfil: "sistema" | "organizacional" | "operacional"
       origem_lancamento: "automatico" | "manual" | "importado" | "retroativo"
       prioridade_demanda_ascom: "baixa" | "normal" | "alta" | "urgente"
       situacao_funcional:
@@ -7756,6 +7973,7 @@ export const Constants = {
       ],
       natureza_cargo: ["efetivo", "comissionado"],
       natureza_rubrica: ["remuneratorio", "indenizatorio", "informativo"],
+      nivel_perfil: ["sistema", "organizacional", "operacional"],
       origem_lancamento: ["automatico", "manual", "importado", "retroativo"],
       prioridade_demanda_ascom: ["baixa", "normal", "alta", "urgente"],
       situacao_funcional: [
