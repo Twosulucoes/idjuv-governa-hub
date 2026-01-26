@@ -2,7 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { PreCadastro } from "@/types/preCadastro";
-import { UFS } from "@/types/preCadastro";
+import { UFS, CATEGORIAS_RESERVA } from "@/types/preCadastro";
 
 interface Props {
   dados: Partial<PreCadastro>;
@@ -214,6 +214,40 @@ export function DocumentosForm({ dados, onChange }: Props) {
                 type="date"
                 value={dados.reservista_data_emissao || ""}
                 onChange={(e) => handleChange("reservista_data_emissao", e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="reservista_categoria">Categoria da Reserva</Label>
+              <Select
+                value={dados.reservista_categoria || ""}
+                onValueChange={(value) => handleChange("reservista_categoria", value)}
+              >
+                <SelectTrigger id="reservista_categoria">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIAS_RESERVA.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="reservista_ano">Ano de Reserva</Label>
+              <Input
+                id="reservista_ano"
+                type="number"
+                min="1950"
+                max={new Date().getFullYear()}
+                value={dados.reservista_ano || ""}
+                onChange={(e) => handleChange("reservista_ano", e.target.value)}
+                placeholder="Ano"
               />
             </div>
           </div>

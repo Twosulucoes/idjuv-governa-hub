@@ -6,7 +6,7 @@ import { MaskedInput } from "@/components/ui/masked-input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import type { PreCadastro } from "@/types/preCadastro";
-import { ESTADOS_CIVIS, UFS } from "@/types/preCadastro";
+import { ESTADOS_CIVIS, UFS, TIPOS_SANGUINEOS } from "@/types/preCadastro";
 import { useVerificarCpf } from "@/hooks/useVerificarCpf";
 import { Loader2, AlertTriangle, XCircle, CheckCircle2 } from "lucide-react";
 
@@ -282,7 +282,27 @@ export function DadosPessoaisForm({ dados, onChange, codigoAtual, onRecuperarPre
           )}
         </div>
 
+        {/* Tipo Sanguíneo */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="tipo_sanguineo">Tipo Sanguíneo/RH</Label>
+            <Select
+              value={dados.tipo_sanguineo || ""}
+              onValueChange={(value) => handleChange("tipo_sanguineo", value)}
+            >
+              <SelectTrigger id="tipo_sanguineo">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                {TIPOS_SANGUINEOS.map((tipo) => (
+                  <SelectItem key={tipo} value={tipo}>
+                    {tipo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid gap-2">
             <Label htmlFor="nacionalidade">Nacionalidade</Label>
             <Input
@@ -292,7 +312,9 @@ export function DadosPessoaisForm({ dados, onChange, codigoAtual, onRecuperarPre
               placeholder="Nacionalidade"
             />
           </div>
+        </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="grid gap-2">
             <Label htmlFor="naturalidade_cidade">Cidade de Nascimento</Label>
             <Input

@@ -59,7 +59,9 @@ import {
   ESCOLARIDADES,
   BANCOS,
   RACAS_CORES,
-  TIPOS_PCD
+  TIPOS_PCD,
+  TIPOS_SANGUINEOS,
+  CATEGORIAS_RESERVA
 } from "@/types/rh";
 
 type FormData = {
@@ -80,6 +82,7 @@ type FormData = {
   pcd_tipo: string;
   nome_mae: string;
   nome_pai: string;
+  tipo_sanguineo: string;
   email_pessoal: string;
   email_institucional: string;
   telefone_fixo: string;
@@ -111,6 +114,8 @@ type FormData = {
   certificado_reservista: string;
   reservista_orgao: string;
   reservista_data_emissao: string;
+  reservista_categoria: string;
+  reservista_ano: string;
   ctps_numero: string;
   ctps_serie: string;
   ctps_uf: string;
@@ -118,6 +123,9 @@ type FormData = {
   cnh_numero: string;
   cnh_categoria: string;
   cnh_validade: string;
+  cnh_data_expedicao: string;
+  cnh_primeira_habilitacao: string;
+  cnh_uf: string;
   acumula_cargo: boolean;
   acumulo_descricao: string;
   observacoes: string;
@@ -142,6 +150,7 @@ const initialFormData: FormData = {
   pcd_tipo: '',
   nome_mae: '',
   nome_pai: '',
+  tipo_sanguineo: '',
   email_pessoal: '',
   email_institucional: '',
   telefone_fixo: '',
@@ -173,6 +182,8 @@ const initialFormData: FormData = {
   certificado_reservista: '',
   reservista_orgao: '',
   reservista_data_emissao: '',
+  reservista_categoria: '',
+  reservista_ano: '',
   ctps_numero: '',
   ctps_serie: '',
   ctps_uf: '',
@@ -180,6 +191,9 @@ const initialFormData: FormData = {
   cnh_numero: '',
   cnh_categoria: '',
   cnh_validade: '',
+  cnh_data_expedicao: '',
+  cnh_primeira_habilitacao: '',
+  cnh_uf: '',
   acumula_cargo: false,
   acumulo_descricao: '',
   observacoes: '',
@@ -261,6 +275,7 @@ export default function ServidorFormPage() {
         pcd_tipo: servidor.pcd_tipo || '',
         nome_mae: servidor.nome_mae || '',
         nome_pai: servidor.nome_pai || '',
+        tipo_sanguineo: servidor.tipo_sanguineo || '',
         email_pessoal: servidor.email_pessoal || '',
         email_institucional: servidor.email_institucional || '',
         telefone_fixo: servidor.telefone_fixo || '',
@@ -292,6 +307,8 @@ export default function ServidorFormPage() {
         certificado_reservista: servidor.certificado_reservista || '',
         reservista_orgao: servidor.reservista_orgao || '',
         reservista_data_emissao: servidor.reservista_data_emissao || '',
+        reservista_categoria: servidor.reservista_categoria || '',
+        reservista_ano: servidor.reservista_ano?.toString() || '',
         ctps_numero: servidor.ctps_numero || '',
         ctps_serie: servidor.ctps_serie || '',
         ctps_uf: servidor.ctps_uf || '',
@@ -299,6 +316,9 @@ export default function ServidorFormPage() {
         cnh_numero: servidor.cnh_numero || '',
         cnh_categoria: servidor.cnh_categoria || '',
         cnh_validade: servidor.cnh_validade || '',
+        cnh_data_expedicao: servidor.cnh_data_expedicao || '',
+        cnh_primeira_habilitacao: servidor.cnh_primeira_habilitacao || '',
+        cnh_uf: servidor.cnh_uf || '',
         acumula_cargo: servidor.acumula_cargo || false,
         acumulo_descricao: servidor.acumulo_descricao || '',
         observacoes: servidor.observacoes || '',
@@ -334,6 +354,7 @@ export default function ServidorFormPage() {
         pcd_tipo: data.pcd_tipo || null,
         nome_mae: data.nome_mae || null,
         nome_pai: data.nome_pai || null,
+        tipo_sanguineo: data.tipo_sanguineo || null,
         email_pessoal: data.email_pessoal || null,
         email_institucional: data.email_institucional || null,
         telefone_fixo: data.telefone_fixo || null,
@@ -366,6 +387,8 @@ export default function ServidorFormPage() {
         certificado_reservista: data.certificado_reservista || null,
         reservista_orgao: data.reservista_orgao || null,
         reservista_data_emissao: data.reservista_data_emissao || null,
+        reservista_categoria: data.reservista_categoria || null,
+        reservista_ano: parseInt(data.reservista_ano) || null,
         ctps_numero: data.ctps_numero || null,
         ctps_serie: data.ctps_serie || null,
         ctps_uf: data.ctps_uf || null,
@@ -373,6 +396,9 @@ export default function ServidorFormPage() {
         cnh_numero: data.cnh_numero || null,
         cnh_categoria: data.cnh_categoria || null,
         cnh_validade: data.cnh_validade || null,
+        cnh_data_expedicao: data.cnh_data_expedicao || null,
+        cnh_primeira_habilitacao: data.cnh_primeira_habilitacao || null,
+        cnh_uf: data.cnh_uf || null,
         acumula_cargo: data.acumula_cargo,
         acumulo_descricao: data.acumulo_descricao || null,
         observacoes: data.observacoes || null,

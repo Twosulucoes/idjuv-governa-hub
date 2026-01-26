@@ -183,6 +183,16 @@ export const TIPOS_PCD = [
   'Outra',
 ];
 
+export const TIPOS_SANGUINEOS = [
+  'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Não sei'
+];
+
+export const CATEGORIAS_RESERVA = [
+  '1ª Categoria',
+  '2ª Categoria', 
+  '3ª Categoria',
+];
+
 // Interfaces
 export interface Dependente {
   nome: string;
@@ -209,6 +219,7 @@ export interface Servidor {
   pcd_tipo?: string;
   nome_mae?: string;
   nome_pai?: string;
+  tipo_sanguineo?: string;
   
   // Documentos
   cpf: string;
@@ -230,9 +241,14 @@ export interface Servidor {
   cnh_numero?: string;
   cnh_categoria?: string;
   cnh_validade?: string;
+  cnh_data_expedicao?: string;
+  cnh_primeira_habilitacao?: string;
+  cnh_uf?: string;
   certificado_reservista?: string;
   reservista_orgao?: string;
   reservista_data_emissao?: string;
+  reservista_categoria?: string;
+  reservista_ano?: number;
   
   // Contato
   email_pessoal?: string;
