@@ -1,7 +1,7 @@
 /**
  * Hook para buscar permissões do usuário autenticado
  * 
- * Consome a função `listar_permissoes_usuario` do Supabase
+ * Consome a função `listar_permissoes_usuario` do Supabase EXTERNO
  * que retorna todas as funções permitidas para o usuário.
  * 
  * O frontend NÃO decide acesso - apenas renderiza com base
@@ -9,8 +9,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { supabaseExternal, isExternalSupabaseConfigured } from '@/lib/supabaseExternal';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface PermissaoUsuario {
@@ -42,11 +41,8 @@ export function usePermissoesUsuario(): UsePermissoesUsuarioReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Seleciona o cliente correto (externo se configurado, senão o padrão)
-  const client = isExternalSupabaseConfigured() ? supabaseExternal : supabase;
-
   const fetchPermissoes = useCallback(async () => {
-    if (!isAuthenticated || !user?.id) {
+    if (!isAuthenticated || !user?.id || !isSupabaseConfigured()) {
       setPermissoes([]);
       setLoading(false);
       return;
@@ -57,7 +53,7 @@ export function usePermissoesUsuario(): UsePermissoesUsuarioReturn {
 
     try {
       // Chama a função RPC que lista permissões do usuário
-      const { data, error: rpcError } = await client.rpc('listar_permissoes_usuario', {
+      const { data, error: rpcError } = await supabase.rpc('listar_permissoes_usuario', {
         check_user_id: user.id
       });
 
@@ -80,7 +76,7 @@ export function usePermissoesUsuario(): UsePermissoesUsuarioReturn {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, isAuthenticated, client]);
+  }, [user?.id, isAuthenticated]);
 
   // Fallback: busca permissões via joins se RPC não existir
   const fetchPermissoesFallback = async () => {
@@ -88,7 +84,7 @@ export function usePermissoesUsuario(): UsePermissoesUsuarioReturn {
 
     try {
       // Busca os perfis do usuário
-      const { data: usuarioPerfis, error: upError } = await client
+      const { data: usuarioPerfis, error: upError } = await supabase
         .from('usuario_perfis')
         .select('perfil_id, perfil:perfis(nome)')
         .eq('user_id', user.id)
@@ -104,7 +100,7 @@ export function usePermissoesUsuario(): UsePermissoesUsuarioReturn {
       const perfilIds = usuarioPerfis.map(up => up.perfil_id);
 
       // Busca as funções associadas aos perfis
-      const { data: perfilFuncoes, error: pfError } = await client
+      const { data: perfilFuncoes, error: pfError } = await supabase
         .from('perfil_funcoes')
         .select(`
           funcao:funcoes_sistema(
@@ -137,7 +133,7 @@ export function usePermissoesUsuario(): UsePermissoesUsuarioReturn {
               modulo: f.modulo,
               submodulo: f.submodulo,
               tipo_acao: f.tipo_acao,
-              perfil_nome: '', // Simplificado no fallback
+              perfil_nome: '',
               rota: f.rota,
               icone: f.icone,
             });
