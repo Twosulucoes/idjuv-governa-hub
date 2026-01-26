@@ -7341,11 +7341,17 @@ export type Database = {
       is_admin_user: { Args: { _user_id: string }; Returns: boolean }
       is_usuario_tecnico: { Args: { _user_id: string }; Returns: boolean }
       listar_permissoes_usuario: {
-        Args: { _user_id: string }
+        Args: { check_user_id: string }
         Returns: {
-          codigo: string
+          funcao_codigo: string
+          funcao_id: string
+          funcao_nome: string
+          icone: string
           modulo: string
-          nome: string
+          perfil_nome: string
+          rota: string
+          submodulo: string
+          tipo_acao: string
         }[]
       }
       log_audit: {
