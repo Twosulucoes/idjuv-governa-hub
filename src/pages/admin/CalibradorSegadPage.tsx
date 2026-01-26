@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Download, Upload, RotateCcw, Eye, Save, MousePointer2, FileText } from "lucide-react";
+import { Download, Upload, RotateCcw, Eye, EyeOff, Save, MousePointer2, FileText } from "lucide-react";
 import {
   CampoSegad,
   carregarConfiguracao,
@@ -47,6 +47,7 @@ export default function CalibradorSegadPage() {
   const [campos, setCampos] = useState<CampoSegad[]>(carregarConfiguracao());
   const [campoSelecionado, setCampoSelecionado] = useState<string | null>(null);
   const [modoClique, setModoClique] = useState(false);
+  const [mostrarMarcadores, setMostrarMarcadores] = useState(false);
   const imageRef = useRef<HTMLImageElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -181,6 +182,14 @@ export default function CalibradorSegadPage() {
                     </SelectContent>
                   </Select>
                   <Button
+                    variant={mostrarMarcadores ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setMostrarMarcadores(!mostrarMarcadores)}
+                  >
+                    {mostrarMarcadores ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
+                    {mostrarMarcadores ? "Marcadores ON" : "Marcadores OFF"}
+                  </Button>
+                  <Button
                     variant={modoClique ? "default" : "outline"}
                     size="sm"
                     onClick={() => setModoClique(!modoClique)}
@@ -206,24 +215,27 @@ export default function CalibradorSegadPage() {
                   onClick={handleImageClick}
                   draggable={false}
                 />
-                {/* Marcadores dos campos */}
-                {camposPagina.map((campo) => {
+                {/* Marcadores dos campos - só mostra se ativado ou campo selecionado */}
+                {(mostrarMarcadores || campoSelecionado) && camposPagina.map((campo) => {
                   const imageWidth = imageRef.current?.clientWidth || 600;
                   const imageHeight = imageRef.current?.clientHeight || 850;
                   const scaleX = imageWidth / A4_WIDTH;
                   const scaleY = imageHeight / A4_HEIGHT;
 
+                  // Se não está mostrando marcadores, só mostra o selecionado
+                  if (!mostrarMarcadores && campoSelecionado !== campo.id) return null;
+
                   return (
                     <div
                       key={campo.id}
-                      className={`absolute w-2 h-2 rounded-full border-2 transition-all cursor-pointer ${
+                      className={`absolute transition-all cursor-pointer ${
                         campoSelecionado === campo.id
-                          ? "bg-primary border-primary scale-150 z-10"
-                          : "bg-red-500 border-red-700 opacity-70 hover:opacity-100"
+                          ? "w-3 h-3 bg-primary border-2 border-primary-foreground rounded-full z-10 shadow-lg"
+                          : "w-2 h-2 bg-red-500/80 border border-white rounded-full opacity-60 hover:opacity-100"
                       }`}
                       style={{
-                        left: campo.x * scaleX - 4,
-                        top: campo.y * scaleY - 4,
+                        left: campo.x * scaleX - (campoSelecionado === campo.id ? 6 : 4),
+                        top: campo.y * scaleY - (campoSelecionado === campo.id ? 6 : 4),
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
