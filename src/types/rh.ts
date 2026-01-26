@@ -164,6 +164,25 @@ export const AFASTAMENTO_LABELS: Record<TipoAfastamento, string> = {
   outro: 'Outro',
 };
 
+// Constantes para Ficha SEGAD
+export const RACAS_CORES = [
+  'Branca',
+  'Preta',
+  'Parda',
+  'Amarela',
+  'Indígena',
+  'Não declarada',
+];
+
+export const TIPOS_PCD = [
+  'Física',
+  'Auditiva',
+  'Visual',
+  'Intelectual',
+  'Múltipla',
+  'Outra',
+];
+
 // Interfaces
 export interface Dependente {
   nome: string;
@@ -185,6 +204,11 @@ export interface Servidor {
   nacionalidade?: string;
   naturalidade_cidade?: string;
   naturalidade_uf?: string;
+  raca_cor?: string;
+  pcd?: boolean;
+  pcd_tipo?: string;
+  nome_mae?: string;
+  nome_pai?: string;
   
   // Documentos
   cpf: string;
@@ -195,14 +219,20 @@ export interface Servidor {
   titulo_eleitor?: string;
   titulo_zona?: string;
   titulo_secao?: string;
+  titulo_cidade_votacao?: string;
+  titulo_uf_votacao?: string;
+  titulo_data_emissao?: string;
   pis_pasep?: string;
   ctps_numero?: string;
   ctps_serie?: string;
   ctps_uf?: string;
+  ctps_data_emissao?: string;
   cnh_numero?: string;
   cnh_categoria?: string;
   cnh_validade?: string;
   certificado_reservista?: string;
+  reservista_orgao?: string;
+  reservista_data_emissao?: string;
   
   // Contato
   email_pessoal?: string;

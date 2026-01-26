@@ -134,22 +134,145 @@ export function DocumentosForm({ dados, onChange }: Props) {
               />
             </div>
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="titulo_cidade_votacao">Cidade de Votação</Label>
+              <Input
+                id="titulo_cidade_votacao"
+                value={dados.titulo_cidade_votacao || ""}
+                onChange={(e) => handleChange("titulo_cidade_votacao", e.target.value.toUpperCase())}
+                placeholder="Cidade"
+                className="uppercase"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="titulo_uf_votacao">UF de Votação</Label>
+              <Select
+                value={dados.titulo_uf_votacao || ""}
+                onValueChange={(value) => handleChange("titulo_uf_votacao", value)}
+              >
+                <SelectTrigger id="titulo_uf_votacao">
+                  <SelectValue placeholder="UF" />
+                </SelectTrigger>
+                <SelectContent>
+                  {UFS.map((uf) => (
+                    <SelectItem key={uf} value={uf}>
+                      {uf}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="titulo_data_emissao">Data de Emissão</Label>
+              <Input
+                id="titulo_data_emissao"
+                type="date"
+                value={dados.titulo_data_emissao || ""}
+                onChange={(e) => handleChange("titulo_data_emissao", e.target.value)}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Certificado de Reservista */}
-        <div className="grid gap-2">
-          <Label htmlFor="certificado_reservista">
-            Certificado de Reservista (quando aplicável)
-          </Label>
-          <Input
-            id="certificado_reservista"
-            value={dados.certificado_reservista || ""}
-            onChange={(e) => handleChange("certificado_reservista", e.target.value)}
-            placeholder="Número do certificado"
-          />
+        <div className="p-4 border rounded-lg space-y-4">
+          <h4 className="font-medium text-sm text-muted-foreground">Certificado de Reservista</h4>
           <p className="text-xs text-muted-foreground">
             Obrigatório para homens entre 18 e 45 anos
           </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="certificado_reservista">Número</Label>
+              <Input
+                id="certificado_reservista"
+                value={dados.certificado_reservista || ""}
+                onChange={(e) => handleChange("certificado_reservista", e.target.value)}
+                placeholder="Número do certificado"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="reservista_orgao">Órgão/UF</Label>
+              <Input
+                id="reservista_orgao"
+                value={dados.reservista_orgao || ""}
+                onChange={(e) => handleChange("reservista_orgao", e.target.value.toUpperCase())}
+                placeholder="Órgão expedidor"
+                className="uppercase"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="reservista_data_emissao">Data de Expedição</Label>
+              <Input
+                id="reservista_data_emissao"
+                type="date"
+                value={dados.reservista_data_emissao || ""}
+                onChange={(e) => handleChange("reservista_data_emissao", e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* CTPS */}
+        <div className="p-4 border rounded-lg space-y-4">
+          <h4 className="font-medium text-sm text-muted-foreground">Carteira de Trabalho (CTPS)</h4>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="ctps_numero">Número</Label>
+              <Input
+                id="ctps_numero"
+                value={dados.ctps_numero || ""}
+                onChange={(e) => handleChange("ctps_numero", e.target.value)}
+                placeholder="Número da CTPS"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="ctps_serie">Série</Label>
+              <Input
+                id="ctps_serie"
+                value={dados.ctps_serie || ""}
+                onChange={(e) => handleChange("ctps_serie", e.target.value)}
+                placeholder="Série"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="ctps_uf">UF</Label>
+              <Select
+                value={dados.ctps_uf || ""}
+                onValueChange={(value) => handleChange("ctps_uf", value)}
+              >
+                <SelectTrigger id="ctps_uf">
+                  <SelectValue placeholder="UF" />
+                </SelectTrigger>
+                <SelectContent>
+                  {UFS.map((uf) => (
+                    <SelectItem key={uf} value={uf}>
+                      {uf}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="ctps_data_emissao">Data de Expedição</Label>
+              <Input
+                id="ctps_data_emissao"
+                type="date"
+                value={dados.ctps_data_emissao || ""}
+                onChange={(e) => handleChange("ctps_data_emissao", e.target.value)}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

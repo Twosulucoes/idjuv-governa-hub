@@ -4999,6 +4999,10 @@ export type Database = {
           convertido_por: string | null
           cpf: string
           created_at: string | null
+          ctps_data_emissao: string | null
+          ctps_numero: string | null
+          ctps_serie: string | null
+          ctps_uf: string | null
           cursos_complementares: Json | null
           data_envio: string | null
           data_nascimento: string | null
@@ -5043,10 +5047,17 @@ export type Database = {
           naturalidade_cidade: string | null
           naturalidade_uf: string | null
           nome_completo: string
+          nome_mae: string | null
+          nome_pai: string | null
           nome_social: string | null
           observacoes: string | null
+          pcd: boolean | null
+          pcd_tipo: string | null
           pis_pasep: string | null
+          raca_cor: string | null
           registro_conselho: string | null
+          reservista_data_emissao: string | null
+          reservista_orgao: string | null
           rg: string | null
           rg_data_emissao: string | null
           rg_orgao_expedidor: string | null
@@ -5056,8 +5067,11 @@ export type Database = {
           status: string | null
           telefone_celular: string | null
           telefone_fixo: string | null
+          titulo_cidade_votacao: string | null
+          titulo_data_emissao: string | null
           titulo_eleitor: string | null
           titulo_secao: string | null
+          titulo_uf_votacao: string | null
           titulo_zona: string | null
           updated_at: string | null
         }
@@ -5079,6 +5093,10 @@ export type Database = {
           convertido_por?: string | null
           cpf: string
           created_at?: string | null
+          ctps_data_emissao?: string | null
+          ctps_numero?: string | null
+          ctps_serie?: string | null
+          ctps_uf?: string | null
           cursos_complementares?: Json | null
           data_envio?: string | null
           data_nascimento?: string | null
@@ -5123,10 +5141,17 @@ export type Database = {
           naturalidade_cidade?: string | null
           naturalidade_uf?: string | null
           nome_completo: string
+          nome_mae?: string | null
+          nome_pai?: string | null
           nome_social?: string | null
           observacoes?: string | null
+          pcd?: boolean | null
+          pcd_tipo?: string | null
           pis_pasep?: string | null
+          raca_cor?: string | null
           registro_conselho?: string | null
+          reservista_data_emissao?: string | null
+          reservista_orgao?: string | null
           rg?: string | null
           rg_data_emissao?: string | null
           rg_orgao_expedidor?: string | null
@@ -5136,8 +5161,11 @@ export type Database = {
           status?: string | null
           telefone_celular?: string | null
           telefone_fixo?: string | null
+          titulo_cidade_votacao?: string | null
+          titulo_data_emissao?: string | null
           titulo_eleitor?: string | null
           titulo_secao?: string | null
+          titulo_uf_votacao?: string | null
           titulo_zona?: string | null
           updated_at?: string | null
         }
@@ -5159,6 +5187,10 @@ export type Database = {
           convertido_por?: string | null
           cpf?: string
           created_at?: string | null
+          ctps_data_emissao?: string | null
+          ctps_numero?: string | null
+          ctps_serie?: string | null
+          ctps_uf?: string | null
           cursos_complementares?: Json | null
           data_envio?: string | null
           data_nascimento?: string | null
@@ -5203,10 +5235,17 @@ export type Database = {
           naturalidade_cidade?: string | null
           naturalidade_uf?: string | null
           nome_completo?: string
+          nome_mae?: string | null
+          nome_pai?: string | null
           nome_social?: string | null
           observacoes?: string | null
+          pcd?: boolean | null
+          pcd_tipo?: string | null
           pis_pasep?: string | null
+          raca_cor?: string | null
           registro_conselho?: string | null
+          reservista_data_emissao?: string | null
+          reservista_orgao?: string | null
           rg?: string | null
           rg_data_emissao?: string | null
           rg_orgao_expedidor?: string | null
@@ -5216,8 +5255,11 @@ export type Database = {
           status?: string | null
           telefone_celular?: string | null
           telefone_fixo?: string | null
+          titulo_cidade_votacao?: string | null
+          titulo_data_emissao?: string | null
           titulo_eleitor?: string | null
           titulo_secao?: string | null
+          titulo_uf_votacao?: string | null
           titulo_zona?: string | null
           updated_at?: string | null
         }
@@ -6002,6 +6044,7 @@ export type Database = {
           cpf: string
           created_at: string | null
           created_by: string | null
+          ctps_data_emissao: string | null
           ctps_numero: string | null
           ctps_serie: string | null
           ctps_uf: string | null
@@ -6040,13 +6083,20 @@ export type Database = {
           naturalidade_cidade: string | null
           naturalidade_uf: string | null
           nome_completo: string
+          nome_mae: string | null
+          nome_pai: string | null
           nome_social: string | null
           observacoes: string | null
           orgao_destino_cessao: string | null
           orgao_origem: string | null
+          pcd: boolean | null
+          pcd_tipo: string | null
           pis_pasep: string | null
+          raca_cor: string | null
           regime_juridico: string | null
           remuneracao_bruta: number | null
+          reservista_data_emissao: string | null
+          reservista_orgao: string | null
           rg: string | null
           rg_data_emissao: string | null
           rg_orgao_expedidor: string | null
@@ -6057,8 +6107,11 @@ export type Database = {
           telefone_emergencia: string | null
           telefone_fixo: string | null
           tipo_servidor: Database["public"]["Enums"]["tipo_servidor"] | null
+          titulo_cidade_votacao: string | null
+          titulo_data_emissao: string | null
           titulo_eleitor: string | null
           titulo_secao: string | null
+          titulo_uf_votacao: string | null
           titulo_zona: string | null
           unidade_atual_id: string | null
           updated_at: string | null
@@ -6087,6 +6140,7 @@ export type Database = {
           cpf: string
           created_at?: string | null
           created_by?: string | null
+          ctps_data_emissao?: string | null
           ctps_numero?: string | null
           ctps_serie?: string | null
           ctps_uf?: string | null
@@ -6125,13 +6179,20 @@ export type Database = {
           naturalidade_cidade?: string | null
           naturalidade_uf?: string | null
           nome_completo: string
+          nome_mae?: string | null
+          nome_pai?: string | null
           nome_social?: string | null
           observacoes?: string | null
           orgao_destino_cessao?: string | null
           orgao_origem?: string | null
+          pcd?: boolean | null
+          pcd_tipo?: string | null
           pis_pasep?: string | null
+          raca_cor?: string | null
           regime_juridico?: string | null
           remuneracao_bruta?: number | null
+          reservista_data_emissao?: string | null
+          reservista_orgao?: string | null
           rg?: string | null
           rg_data_emissao?: string | null
           rg_orgao_expedidor?: string | null
@@ -6142,8 +6203,11 @@ export type Database = {
           telefone_emergencia?: string | null
           telefone_fixo?: string | null
           tipo_servidor?: Database["public"]["Enums"]["tipo_servidor"] | null
+          titulo_cidade_votacao?: string | null
+          titulo_data_emissao?: string | null
           titulo_eleitor?: string | null
           titulo_secao?: string | null
+          titulo_uf_votacao?: string | null
           titulo_zona?: string | null
           unidade_atual_id?: string | null
           updated_at?: string | null
@@ -6172,6 +6236,7 @@ export type Database = {
           cpf?: string
           created_at?: string | null
           created_by?: string | null
+          ctps_data_emissao?: string | null
           ctps_numero?: string | null
           ctps_serie?: string | null
           ctps_uf?: string | null
@@ -6210,13 +6275,20 @@ export type Database = {
           naturalidade_cidade?: string | null
           naturalidade_uf?: string | null
           nome_completo?: string
+          nome_mae?: string | null
+          nome_pai?: string | null
           nome_social?: string | null
           observacoes?: string | null
           orgao_destino_cessao?: string | null
           orgao_origem?: string | null
+          pcd?: boolean | null
+          pcd_tipo?: string | null
           pis_pasep?: string | null
+          raca_cor?: string | null
           regime_juridico?: string | null
           remuneracao_bruta?: number | null
+          reservista_data_emissao?: string | null
+          reservista_orgao?: string | null
           rg?: string | null
           rg_data_emissao?: string | null
           rg_orgao_expedidor?: string | null
@@ -6227,8 +6299,11 @@ export type Database = {
           telefone_emergencia?: string | null
           telefone_fixo?: string | null
           tipo_servidor?: Database["public"]["Enums"]["tipo_servidor"] | null
+          titulo_cidade_votacao?: string | null
+          titulo_data_emissao?: string | null
           titulo_eleitor?: string | null
           titulo_secao?: string | null
+          titulo_uf_votacao?: string | null
           titulo_zona?: string | null
           unidade_atual_id?: string | null
           updated_at?: string | null

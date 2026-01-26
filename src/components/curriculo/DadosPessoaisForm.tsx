@@ -221,6 +221,67 @@ export function DadosPessoaisForm({ dados, onChange, codigoAtual, onRecuperarPre
           </div>
         </div>
 
+        {/* Raça/Cor e PCD */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="raca_cor">Raça/Cor</Label>
+            <Select
+              value={dados.raca_cor || ""}
+              onValueChange={(value) => handleChange("raca_cor", value)}
+            >
+              <SelectTrigger id="raca_cor">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Branca">Branca</SelectItem>
+                <SelectItem value="Preta">Preta</SelectItem>
+                <SelectItem value="Parda">Parda</SelectItem>
+                <SelectItem value="Amarela">Amarela</SelectItem>
+                <SelectItem value="Indígena">Indígena</SelectItem>
+                <SelectItem value="Não declarada">Não declarada</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="pcd">Pessoa com Deficiência (PCD)</Label>
+            <Select
+              value={dados.pcd === true ? "sim" : dados.pcd === false ? "nao" : ""}
+              onValueChange={(value) => handleChange("pcd", value === "sim" ? "true" : "false")}
+            >
+              <SelectTrigger id="pcd">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nao">Não</SelectItem>
+                <SelectItem value="sim">Sim</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {dados.pcd === true && (
+            <div className="grid gap-2">
+              <Label htmlFor="pcd_tipo">Tipo de Deficiência</Label>
+              <Select
+                value={dados.pcd_tipo || ""}
+                onValueChange={(value) => handleChange("pcd_tipo", value)}
+              >
+                <SelectTrigger id="pcd_tipo">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Física">Física</SelectItem>
+                  <SelectItem value="Auditiva">Auditiva</SelectItem>
+                  <SelectItem value="Visual">Visual</SelectItem>
+                  <SelectItem value="Intelectual">Intelectual</SelectItem>
+                  <SelectItem value="Múltipla">Múltipla</SelectItem>
+                  <SelectItem value="Outra">Outra</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="grid gap-2">
             <Label htmlFor="nacionalidade">Nacionalidade</Label>
@@ -260,6 +321,31 @@ export function DadosPessoaisForm({ dados, onChange, codigoAtual, onRecuperarPre
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        </div>
+
+        {/* Nome dos Pais */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="nome_mae">Nome da Mãe</Label>
+            <Input
+              id="nome_mae"
+              value={dados.nome_mae || ""}
+              onChange={(e) => handleChange("nome_mae", e.target.value.toUpperCase())}
+              placeholder="Nome completo da mãe"
+              className="uppercase"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="nome_pai">Nome do Pai</Label>
+            <Input
+              id="nome_pai"
+              value={dados.nome_pai || ""}
+              onChange={(e) => handleChange("nome_pai", e.target.value.toUpperCase())}
+              placeholder="Nome completo do pai"
+              className="uppercase"
+            />
           </div>
         </div>
 

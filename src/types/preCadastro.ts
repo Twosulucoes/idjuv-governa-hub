@@ -36,6 +36,11 @@ export interface PreCadastro {
   naturalidade_cidade?: string;
   naturalidade_uf?: string;
   foto_url?: string;
+  raca_cor?: string;
+  pcd?: boolean;
+  pcd_tipo?: string;
+  nome_mae?: string;
+  nome_pai?: string;
   
   // Documentos Pessoais
   cpf: string;
@@ -47,7 +52,16 @@ export interface PreCadastro {
   titulo_eleitor?: string;
   titulo_zona?: string;
   titulo_secao?: string;
+  titulo_cidade_votacao?: string;
+  titulo_uf_votacao?: string;
+  titulo_data_emissao?: string;
   certificado_reservista?: string;
+  reservista_orgao?: string;
+  reservista_data_emissao?: string;
+  ctps_numero?: string;
+  ctps_serie?: string;
+  ctps_uf?: string;
+  ctps_data_emissao?: string;
   
   // Contato e Endereço
   email: string;
