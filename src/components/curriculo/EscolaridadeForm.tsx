@@ -2,7 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { PreCadastro } from "@/types/preCadastro";
-import { ESCOLARIDADES, CATEGORIAS_CNH } from "@/types/preCadastro";
+import { ESCOLARIDADES, CATEGORIAS_CNH, UFS } from "@/types/preCadastro";
 
 interface Props {
   dados: Partial<PreCadastro>;
@@ -151,7 +151,48 @@ export function EscolaridadeForm({ dados, onChange }: Props) {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="cnh_validade">Validade</Label>
+              <Label htmlFor="cnh_uf">UF</Label>
+              <Select
+                value={dados.cnh_uf || ""}
+                onValueChange={(value) => handleChange("cnh_uf", value)}
+              >
+                <SelectTrigger id="cnh_uf">
+                  <SelectValue placeholder="UF" />
+                </SelectTrigger>
+                <SelectContent>
+                  {UFS.map((uf) => (
+                    <SelectItem key={uf} value={uf}>
+                      {uf}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="cnh_data_expedicao">Data de Expedição</Label>
+              <Input
+                id="cnh_data_expedicao"
+                type="date"
+                value={dados.cnh_data_expedicao || ""}
+                onChange={(e) => handleChange("cnh_data_expedicao", e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="cnh_primeira_habilitacao">Data da 1ª Habilitação</Label>
+              <Input
+                id="cnh_primeira_habilitacao"
+                type="date"
+                value={dados.cnh_primeira_habilitacao || ""}
+                onChange={(e) => handleChange("cnh_primeira_habilitacao", e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="cnh_validade">Data de Validade</Label>
               <Input
                 id="cnh_validade"
                 type="date"

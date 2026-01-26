@@ -4991,7 +4991,10 @@ export type Database = {
           certidao_tipo: string | null
           certificado_reservista: string | null
           cnh_categoria: string | null
+          cnh_data_expedicao: string | null
           cnh_numero: string | null
+          cnh_primeira_habilitacao: string | null
+          cnh_uf: string | null
           cnh_validade: string | null
           codigo_acesso: string
           conselho_numero: string | null
@@ -5056,6 +5059,8 @@ export type Database = {
           pis_pasep: string | null
           raca_cor: string | null
           registro_conselho: string | null
+          reservista_ano: number | null
+          reservista_categoria: string | null
           reservista_data_emissao: string | null
           reservista_orgao: string | null
           rg: string | null
@@ -5067,6 +5072,7 @@ export type Database = {
           status: string | null
           telefone_celular: string | null
           telefone_fixo: string | null
+          tipo_sanguineo: string | null
           titulo_cidade_votacao: string | null
           titulo_data_emissao: string | null
           titulo_eleitor: string | null
@@ -5085,7 +5091,10 @@ export type Database = {
           certidao_tipo?: string | null
           certificado_reservista?: string | null
           cnh_categoria?: string | null
+          cnh_data_expedicao?: string | null
           cnh_numero?: string | null
+          cnh_primeira_habilitacao?: string | null
+          cnh_uf?: string | null
           cnh_validade?: string | null
           codigo_acesso: string
           conselho_numero?: string | null
@@ -5150,6 +5159,8 @@ export type Database = {
           pis_pasep?: string | null
           raca_cor?: string | null
           registro_conselho?: string | null
+          reservista_ano?: number | null
+          reservista_categoria?: string | null
           reservista_data_emissao?: string | null
           reservista_orgao?: string | null
           rg?: string | null
@@ -5161,6 +5172,7 @@ export type Database = {
           status?: string | null
           telefone_celular?: string | null
           telefone_fixo?: string | null
+          tipo_sanguineo?: string | null
           titulo_cidade_votacao?: string | null
           titulo_data_emissao?: string | null
           titulo_eleitor?: string | null
@@ -5179,7 +5191,10 @@ export type Database = {
           certidao_tipo?: string | null
           certificado_reservista?: string | null
           cnh_categoria?: string | null
+          cnh_data_expedicao?: string | null
           cnh_numero?: string | null
+          cnh_primeira_habilitacao?: string | null
+          cnh_uf?: string | null
           cnh_validade?: string | null
           codigo_acesso?: string
           conselho_numero?: string | null
@@ -5244,6 +5259,8 @@ export type Database = {
           pis_pasep?: string | null
           raca_cor?: string | null
           registro_conselho?: string | null
+          reservista_ano?: number | null
+          reservista_categoria?: string | null
           reservista_data_emissao?: string | null
           reservista_orgao?: string | null
           rg?: string | null
@@ -5255,6 +5272,7 @@ export type Database = {
           status?: string | null
           telefone_celular?: string | null
           telefone_fixo?: string | null
+          tipo_sanguineo?: string | null
           titulo_cidade_votacao?: string | null
           titulo_data_emissao?: string | null
           titulo_eleitor?: string | null
@@ -6037,7 +6055,10 @@ export type Database = {
           cargo_atual_id: string | null
           certificado_reservista: string | null
           cnh_categoria: string | null
+          cnh_data_expedicao: string | null
           cnh_numero: string | null
+          cnh_primeira_habilitacao: string | null
+          cnh_uf: string | null
           cnh_validade: string | null
           contato_emergencia_nome: string | null
           contato_emergencia_parentesco: string | null
@@ -6095,6 +6116,8 @@ export type Database = {
           raca_cor: string | null
           regime_juridico: string | null
           remuneracao_bruta: number | null
+          reservista_ano: number | null
+          reservista_categoria: string | null
           reservista_data_emissao: string | null
           reservista_orgao: string | null
           rg: string | null
@@ -6106,6 +6129,7 @@ export type Database = {
           telefone_celular: string | null
           telefone_emergencia: string | null
           telefone_fixo: string | null
+          tipo_sanguineo: string | null
           tipo_servidor: Database["public"]["Enums"]["tipo_servidor"] | null
           titulo_cidade_votacao: string | null
           titulo_data_emissao: string | null
@@ -6133,7 +6157,10 @@ export type Database = {
           cargo_atual_id?: string | null
           certificado_reservista?: string | null
           cnh_categoria?: string | null
+          cnh_data_expedicao?: string | null
           cnh_numero?: string | null
+          cnh_primeira_habilitacao?: string | null
+          cnh_uf?: string | null
           cnh_validade?: string | null
           contato_emergencia_nome?: string | null
           contato_emergencia_parentesco?: string | null
@@ -6191,6 +6218,8 @@ export type Database = {
           raca_cor?: string | null
           regime_juridico?: string | null
           remuneracao_bruta?: number | null
+          reservista_ano?: number | null
+          reservista_categoria?: string | null
           reservista_data_emissao?: string | null
           reservista_orgao?: string | null
           rg?: string | null
@@ -6202,6 +6231,7 @@ export type Database = {
           telefone_celular?: string | null
           telefone_emergencia?: string | null
           telefone_fixo?: string | null
+          tipo_sanguineo?: string | null
           tipo_servidor?: Database["public"]["Enums"]["tipo_servidor"] | null
           titulo_cidade_votacao?: string | null
           titulo_data_emissao?: string | null
@@ -6229,7 +6259,10 @@ export type Database = {
           cargo_atual_id?: string | null
           certificado_reservista?: string | null
           cnh_categoria?: string | null
+          cnh_data_expedicao?: string | null
           cnh_numero?: string | null
+          cnh_primeira_habilitacao?: string | null
+          cnh_uf?: string | null
           cnh_validade?: string | null
           contato_emergencia_nome?: string | null
           contato_emergencia_parentesco?: string | null
@@ -6287,6 +6320,8 @@ export type Database = {
           raca_cor?: string | null
           regime_juridico?: string | null
           remuneracao_bruta?: number | null
+          reservista_ano?: number | null
+          reservista_categoria?: string | null
           reservista_data_emissao?: string | null
           reservista_orgao?: string | null
           rg?: string | null
@@ -6298,6 +6333,7 @@ export type Database = {
           telefone_celular?: string | null
           telefone_emergencia?: string | null
           telefone_fixo?: string | null
+          tipo_sanguineo?: string | null
           tipo_servidor?: Database["public"]["Enums"]["tipo_servidor"] | null
           titulo_cidade_votacao?: string | null
           titulo_data_emissao?: string | null

@@ -41,6 +41,7 @@ export interface PreCadastro {
   pcd_tipo?: string;
   nome_mae?: string;
   nome_pai?: string;
+  tipo_sanguineo?: string;
   
   // Documentos Pessoais
   cpf: string;
@@ -58,6 +59,8 @@ export interface PreCadastro {
   certificado_reservista?: string;
   reservista_orgao?: string;
   reservista_data_emissao?: string;
+  reservista_categoria?: string;
+  reservista_ano?: number;
   ctps_numero?: string;
   ctps_serie?: string;
   ctps_uf?: string;
@@ -88,6 +91,9 @@ export interface PreCadastro {
   cnh_numero?: string;
   cnh_categoria?: string;
   cnh_validade?: string;
+  cnh_data_expedicao?: string;
+  cnh_primeira_habilitacao?: string;
+  cnh_uf?: string;
   
   // Aptidões e Características
   habilidades?: string[];
@@ -156,6 +162,16 @@ export const ESTADOS_CIVIS = [
   'Viúvo(a)',
   'União Estável',
   'Separado(a)',
+];
+
+export const TIPOS_SANGUINEOS = [
+  'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Não sei'
+];
+
+export const CATEGORIAS_RESERVA = [
+  '1ª Categoria',
+  '2ª Categoria',
+  '3ª Categoria',
 ];
 
 export const CATEGORIAS_CNH = ['A', 'B', 'AB', 'C', 'D', 'E', 'ACC'];
