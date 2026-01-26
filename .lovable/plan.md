@@ -1,149 +1,171 @@
 
-# Plano: Refatorar Ficha Cadastro SEGAD com Mapeamento Perfeito e Calibrador Visual
+# Plano: Descoberta Automática de Tabelas para Visualização e Backup
 
-## Contexto do Problema
+## Problema Atual
 
-O PDF gerado pelo sistema apresenta desalinhamento entre os dados preenchidos e os campos do formulário SEGAD, causando sobreposição e má legibilidade. O documento possui 7 páginas com estrutura complexa e muitos campos distribuídos em posições específicas.
+Ambos os sistemas (visualização e backup) usam listas **estáticas hardcoded** de tabelas:
+- `database-schema`: `KNOWN_TABLES` com 83 tabelas
+- `backup-offsite`: `ALL_TABLES` com 83 tabelas
 
-## Estratégia de Solução
-
-Implementaremos duas abordagens complementares:
-
-1. **Calibrador Visual** - Ferramenta administrativa para mapear coordenadas exatas
-2. **Mapeamento com Códigos SEGAD** - Adicionar tabelas de códigos oficiais para campos como Estado Civil e Tipo PCD
+Quando uma nova tabela é criada, ela **não aparece** automaticamente nesses sistemas até que o código seja manualmente atualizado.
 
 ---
 
-## Etapa 1: Criar Mapeamento de Códigos SEGAD
+## Solução Proposta
 
-Adicionar constantes com os códigos numéricos oficiais do SEGAD para os campos que requerem formatação específica:
+Substituir as listas estáticas por **consulta dinâmica ao catálogo PostgreSQL** (`information_schema.tables`), descobrindo automaticamente todas as tabelas do schema `public`.
 
 ```text
-Estado Civil:
-  1-SOLTEIRO(A)
-  2-CASADO(A)
-  3-DIVORCIADO(A)
-  4-VIÚVO(A)
-  5-UNIÃO ESTÁVEL
-  6-SEPARADO(A)
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      FLUXO ATUAL (Manual)                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Nova Tabela → [NADA ACONTECE] → Atualização Manual → Redeploy          │
+└─────────────────────────────────────────────────────────────────────────┘
 
-Tipo PCD:
-  99-NÃO DEFICIENTE
-  01-FÍSICA
-  02-AUDITIVA
-  03-VISUAL
-  04-INTELECTUAL
-  05-MÚLTIPLA
-  06-OUTRA
+                              ↓ TRANSFORMA EM ↓
 
-Raça/Cor:
-  1-BRANCA
-  2-PRETA
-  3-PARDA
-  4-AMARELA
-  5-INDÍGENA
-  6-NÃO DECLARADA
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      FLUXO NOVO (Automático)                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Nova Tabela → Catálogo PostgreSQL → Descoberta Automática              │
+│                                           ↓                             │
+│                        ┌─────────────────────────────────┐              │
+│                        │  Visualização    │   Backup     │              │
+│                        │  (database-      │   (backup-   │              │
+│                        │   schema)        │    offsite)  │              │
+│                        └─────────────────────────────────┘              │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Arquivos modificados:**
-- `src/types/rh.ts` - Adicionar constantes `SEGAD_ESTADO_CIVIL`, `SEGAD_TIPO_PCD`, `SEGAD_RACA_COR`
-- `src/lib/pdfFichaCadastroGeral.ts` - Funções de conversão para códigos SEGAD
+---
+
+## Etapa 1: Criar Função SQL para Listar Tabelas
+
+Criar uma função no banco de dados que retorna todas as tabelas do schema public, excluindo tabelas de sistema e views.
+
+**Migração SQL:**
+
+```sql
+CREATE OR REPLACE FUNCTION public.list_public_tables()
+RETURNS TABLE(table_name text, row_count bigint) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    t.table_name::text,
+    (xpath('/row/count/text()', 
+      query_to_xml(format('SELECT COUNT(*) FROM %I.%I', t.table_schema, t.table_name), false, true, '')
+    ))[1]::text::bigint AS row_count
+  FROM information_schema.tables t
+  WHERE t.table_schema = 'public'
+    AND t.table_type = 'BASE TABLE'
+    AND t.table_name NOT LIKE 'pg_%'
+    AND t.table_name NOT LIKE '_realtime_%'
+  ORDER BY t.table_name;
+END;
+$$;
+
+-- Permissão para service role
+GRANT EXECUTE ON FUNCTION public.list_public_tables() TO service_role;
+```
 
 ---
 
-## Etapa 2: Criar Página de Calibração de Coordenadas
+## Etapa 2: Atualizar Edge Function database-schema
 
-Uma ferramenta administrativa que permite ajustar visualmente as posições dos campos clicando na imagem do formulário.
+Modificar para usar a função `list_public_tables()` em vez da lista hardcoded.
 
-**Nova página:** `/admin/calibrador-segad`
+**Mudanças principais:**
 
-**Funcionalidades:**
-- Exibir cada página do formulário como imagem de fundo
-- Clicar para registrar coordenadas (x, y)
-- Listar todos os campos com suas posições atuais
-- Ajustar valores com input numérico ou clique direto
-- Exportar/importar configuração como JSON
-- Preview ao vivo do preenchimento
+1. Remover array `KNOWN_TABLES`
+2. Adicionar função `discoverTables()` que chama `supabase.rpc('list_public_tables')`
+3. Manter função `categorizeTable()` para classificar dinamicamente
+4. Adicionar cache de descoberta (5 minutos) para performance
 
-**Arquivos criados:**
-- `src/pages/admin/CalibradorSegadPage.tsx` - Página principal do calibrador
-- `src/config/segadFieldsConfig.ts` - Configuração centralizada de coordenadas
-
-**Estrutura do arquivo de configuração:**
+**Pseudocódigo:**
 
 ```text
-interface CampoSegad {
-  id: string;           // identificador único
-  label: string;        // nome exibido
-  pagina: number;       // 1-7
-  tipo: 'texto' | 'checkbox' | 'data';
-  x: number;            // coordenada X em mm
-  y: number;            // coordenada Y em mm
-  maxWidth?: number;    // largura máxima para truncar
-  campo?: string;       // nome do campo no servidor
-}
+async function discoverTables(supabase):
+  resultado = await supabase.rpc('list_public_tables')
+  
+  return resultado.data.map(t => ({
+    name: t.table_name,
+    rowCount: t.row_count
+  }))
 
-const CAMPOS_PAGINA_1: CampoSegad[] = [
-  { id: 'nome', label: 'Nome Completo', pagina: 1, tipo: 'texto', x: 58, y: 118, maxWidth: 100, campo: 'nome_completo' },
-  { id: 'estado_civil', label: 'Estado Civil', pagina: 1, tipo: 'texto', x: 104, y: 130, maxWidth: 35, campo: 'estado_civil' },
-  { id: 'sexo_m', label: 'Sexo M', pagina: 1, tipo: 'checkbox', x: 186.5, y: 116.5 },
-  { id: 'sexo_f', label: 'Sexo F', pagina: 1, tipo: 'checkbox', x: 195, y: 116.5 },
-  // ... demais campos
+// No handler principal:
+const tables = await discoverTables(supabase)
+
+// Processar cada tabela descoberta
+for (const table of tables):
+  const info = await processTable(supabase, table.name)
+  // categorizar, buscar colunas, etc.
+```
+
+---
+
+## Etapa 3: Atualizar Edge Function backup-offsite
+
+Modificar para usar a mesma função de descoberta automática.
+
+**Mudanças principais:**
+
+1. Remover array `ALL_TABLES`
+2. Adicionar função `discoverAllTables()` que chama `list_public_tables()`
+3. Usar lista dinâmica em todos os endpoints (execute, external-export, list-tables)
+4. Atualizar manifesto para mostrar tabelas descobertas vs processadas
+
+**Resultado no endpoint list-tables:**
+
+```json
+{
+  "success": true,
+  "discovery_mode": "automatic",
+  "discovered_at": "2026-01-26T20:00:00Z",
+  "tables": ["audit_logs", "cargos", "servidores", ...],
+  "total": 85,
+  "categories": {
+    "Pessoas": ["servidores", "profiles", ...],
+    "RH": ["ferias_servidor", "licencas_afastamentos", ...],
+    ...
+  }
+}
+```
+
+---
+
+## Etapa 4: Adicionar Lista de Exclusão (Opcional)
+
+Para evitar backup de tabelas temporárias ou de sistema, manter uma lista pequena de exclusões:
+
+```typescript
+const EXCLUDED_TABLES = [
+  '_realtime_subscription',
+  'schema_migrations',
+  'supabase_functions_hooks',
+  // Outras tabelas de sistema que podem aparecer
 ];
 ```
 
 ---
 
-## Etapa 3: Refatorar Gerador de PDF
+## Etapa 5: Atualizar Interface de Visualização
 
-Reescrever `src/lib/pdfFichaCadastroGeral.ts` para:
+Adicionar indicador visual de "modo de descoberta automática" na página de banco de dados.
 
-1. **Usar configuração centralizada** - Ler coordenadas do arquivo de config
-2. **Aplicar códigos SEGAD** - Converter valores para formato com código numérico
-3. **Marcar checkboxes com X** - Conforme solicitado
-4. **Truncar textos corretamente** - Usar largura máxima de cada campo
+**Modificações em `DatabaseSchemaPage.tsx`:**
 
-**Estrutura refatorada:**
-
-```text
-// Funções auxiliares
-function getSegadEstadoCivil(valor: string): string
-function getSegadTipoPcd(valor: string, isPcd: boolean): string
-function getSegadRacaCor(valor: string): string
-function renderCampo(doc, config, valor): void
-function renderCheckbox(doc, x, y, marcado): void
-
-// Renderização por página
-function renderPagina1(doc, servidor, cargo, unidade): void
-function renderPagina2(doc, servidor): void
-function renderPagina3(doc, servidor, cargo): void
-// ... páginas 4-7
-
-// Função principal
-export function gerarFichaCadastroGeral(dados): jsPDF {
-  const doc = new jsPDF("p", "mm", "a4");
-  const config = carregarConfigCampos();
-  
-  // Página 1
-  doc.addImage(fichaPage1, ...);
-  renderPagina1(doc, dados.servidor, dados.cargo, dados.unidade);
-  
-  // Páginas 2-7
-  // ...
-  
-  return doc;
-}
-```
+1. Mostrar badge "Auto-Discovery" 
+2. Exibir timestamp da última descoberta
+3. Botão "Atualizar Descoberta" para forçar refresh
 
 ---
 
-## Etapa 4: Integrar Rota do Calibrador no Admin
+## Etapa 6: Atualizar Documentação
 
-Adicionar a nova página ao menu administrativo.
-
-**Arquivos modificados:**
-- `src/config/adminMenu.ts` - Adicionar item "Calibrador SEGAD" na seção Configurações
-- `src/App.tsx` - Adicionar rota `/admin/calibrador-segad`
+Atualizar `docs/BACKUP_CONTINGENCIA.md` para refletir o novo comportamento automático.
 
 ---
 
@@ -151,86 +173,60 @@ Adicionar a nova página ao menu administrativo.
 
 | Ação | Arquivo |
 |------|---------|
-| Criar | `src/pages/admin/CalibradorSegadPage.tsx` |
-| Criar | `src/config/segadFieldsConfig.ts` |
-| Modificar | `src/types/rh.ts` |
-| Modificar | `src/lib/pdfFichaCadastroGeral.ts` |
-| Modificar | `src/config/adminMenu.ts` |
-| Modificar | `src/App.tsx` |
+| Migração SQL | Criar função `list_public_tables()` |
+| Modificar | `supabase/functions/database-schema/index.ts` |
+| Modificar | `supabase/functions/backup-offsite/index.ts` |
+| Modificar | `src/pages/admin/DatabaseSchemaPage.tsx` |
+| Modificar | `docs/BACKUP_CONTINGENCIA.md` |
 
 ---
 
 ## Detalhes Técnicos
 
-### Coordenadas Calibradas (Página 1)
+### Query ao information_schema
 
-Baseado na análise das imagens do formulário original e do PDF gerado, as coordenadas serão mapeadas em milímetros (A4 = 210x297mm):
+A função SQL usa `information_schema.tables` com filtros para obter apenas tabelas reais do schema public:
 
-```text
-DADOS DE IDENTIFICAÇÃO (Página 1)
-┌─────────────────────────────────────────────────────────────────────┐
-│ NOME: [x=58, y=118, w=100]                    SEXO: M[x=186.5] F[x=195] │
-│ ESTADO CIVIL: [x=104, y=130, w=35]  RAÇA/COR: [x=141, y=130, w=30]    │
-│                                     PCD: SIM[x=178] NÃO[x=191]       │
-│ NACIONALIDADE: [x=58, y=142, w=55]  TIPO: [x=147, y=142, w=50]       │
-│ NATURALIDADE: [x=58, y=154, w=55]   MOLÉSTIA: SIM[x=178] NÃO[x=191]  │
-│ DATA NASC: [x=58, y=166]            TIPO SANG: [x=147, y=166]        │
-│ NOME MÃE: [x=58, y=178, w=70]       NOME PAI: [x=147, y=178, w=55]   │
-└─────────────────────────────────────────────────────────────────────┘
-
-DOCUMENTAÇÃO (Página 1)
-┌─────────────────────────────────────────────────────────────────────┐
-│ CPF: [x=32, y=206]                  PIS/PASEP: [x=108, y=206]       │
-│ RG: [x=58, y=218]      ÓRGÃO/UF: [x=118, y=218]  DATA: [x=175, y=218] │
-│ RESERVISTA: [x=58, y=230] ÓRGÃO: [x=118, y=230]  DATA: [x=175, y=230] │
-│ CATEGORIA: [x=58, y=242, w=40]      ANO: [x=175, y=242]             │
-│ TÍTULO: [x=58, y=254]  SEÇÃO: [x=108, y=254]  ZONA: [x=135, y=254]  │
-│                                     DATA: [x=175, y=254]             │
-│ CIDADE VOT: [x=58, y=266]           UF: [x=175, y=266]              │
-└─────────────────────────────────────────────────────────────────────┘
+```sql
+WHERE table_schema = 'public'
+  AND table_type = 'BASE TABLE'  -- Exclui views
+  AND table_name NOT LIKE 'pg_%' -- Exclui tabelas do PostgreSQL
 ```
 
-### Interface do Calibrador
+### Contagem de Registros Eficiente
 
-```text
-┌──────────────────────────────────────────────────────────────────────────┐
-│  CALIBRADOR SEGAD                                    [Salvar] [Exportar] │
-├──────────────────────────────────────────────────────────────────────────┤
-│  ┌────────────────────────────┐  ┌─────────────────────────────────────┐ │
-│  │    Página [1▼] de 7       │  │  Lista de Campos                    │ │
-│  │                            │  │  ──────────────────────────────     │ │
-│  │  [Imagem do formulário]    │  │  ☑ nome_completo  x:58 y:118 w:100 │ │
-│  │                            │  │  ☑ estado_civil   x:104 y:130 w:35 │ │
-│  │  [Clique para posicionar]  │  │  ☑ sexo_m (check) x:186.5 y:116.5  │ │
-│  │                            │  │  ☑ sexo_f (check) x:195 y:116.5    │ │
-│  │                            │  │  ☑ raca_cor       x:141 y:130 w:30 │ │
-│  │                            │  │  ...                                │ │
-│  └────────────────────────────┘  └─────────────────────────────────────┘ │
-│                                                                          │
-│  [Preview PDF]  [Testar com Servidor]                                    │
-└──────────────────────────────────────────────────────────────────────────┘
-```
+A função usa `query_to_xml` com `xpath` para obter contagens de forma dinâmica sem precisar de SQL dinâmico explícito, mantendo a segurança.
 
-### Fluxo de Uso
+### Categorização Dinâmica
 
-1. Administrador acessa `/admin/calibrador-segad`
-2. Seleciona a página do formulário (1-7)
-3. Clica no campo da lista para editar
-4. Clica na imagem para definir nova posição OU ajusta valores manualmente
-5. Clica em "Preview PDF" para testar com dados de exemplo
-6. Após validar, clica em "Salvar" para persistir configuração
+A função `categorizeTable()` já existente será mantida e aplicada às tabelas descobertas. Ela usa padrões de nomenclatura para classificar:
 
-### Persistência
+- `servidor*` → Pessoas
+- `cargo*`, `estrutura*` → Estrutura
+- `folha*`, `rubrica*` → Financeiro
+- etc.
 
-As configurações serão salvas em localStorage inicialmente, com opção de exportar/importar JSON. Futuramente pode-se adicionar uma tabela no banco para persistência server-side.
+### Cache de Performance
+
+Para evitar consultas repetitivas ao catálogo, as Edge Functions podem implementar cache em memória de 5 minutos para a lista de tabelas.
 
 ---
 
 ## Benefícios
 
-1. **Precisão** - Mapeamento exato sem sobreposição
-2. **Manutenibilidade** - Alterações de coordenadas sem mexer no código
-3. **Códigos SEGAD** - Formatação oficial com prefixos numéricos
-4. **Validação Visual** - Preview em tempo real antes de gerar PDF final
-5. **Flexibilidade** - Fácil adaptar se o modelo do formulário mudar
+1. **Zero Manutenção** - Novas tabelas aparecem automaticamente
+2. **100% Cobertura** - Garantia de que todas as tabelas são incluídas
+3. **Consistência** - Mesma fonte de verdade para visualização e backup
+4. **Transparência** - Interface mostra exatamente quantas tabelas existem
+5. **Segurança** - Função SQL com `SECURITY DEFINER` e permissões controladas
 
+---
+
+## Verificação Pós-Implementação
+
+Após implementar, o sistema poderá ser verificado:
+
+1. Criar uma nova tabela de teste via SQL
+2. Acessar `/admin/database` - tabela deve aparecer automaticamente
+3. Executar backup - nova tabela deve ser incluída
+4. Verificar manifesto do backup - deve listar a nova tabela
