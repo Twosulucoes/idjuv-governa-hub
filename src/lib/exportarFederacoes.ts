@@ -19,15 +19,26 @@ function formatarValor(valor: unknown, campo: CampoRelatorioFederacao): string {
       }
     case 'badge':
       if (campo.id === 'status') {
-        const labels: Record<string, string> = {
+        // Verifica se é status de federação ou de evento
+        const federacaoLabels: Record<string, string> = {
           em_analise: 'Em Análise',
           ativo: 'Ativa',
           inativo: 'Inativa',
           rejeitado: 'Rejeitada',
         };
-        return labels[String(valor)] || String(valor);
+        const eventoLabels: Record<string, string> = {
+          planejado: 'Planejado',
+          confirmado: 'Confirmado',
+          em_andamento: 'Em Andamento',
+          concluido: 'Concluído',
+          cancelado: 'Cancelado',
+        };
+        return federacaoLabels[String(valor)] || eventoLabels[String(valor)] || String(valor);
       }
       return String(valor);
+    case 'numero':
+      const num = Number(valor);
+      return isNaN(num) ? String(valor) : num.toLocaleString('pt-BR');
     default:
       return String(valor);
   }

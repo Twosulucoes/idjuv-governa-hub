@@ -2,13 +2,13 @@
 // TIPOS E CONFIGURAÇÕES PARA RELATÓRIOS DE FEDERAÇÕES
 // ================================================================
 
-export type TipoRelatorioFederacao = 'federacoes' | 'dirigentes';
+export type TipoRelatorioFederacao = 'federacoes' | 'dirigentes' | 'calendario';
 
 export interface CampoRelatorioFederacao {
   id: string;
   label: string;
-  tipo: 'texto' | 'data' | 'badge' | 'lista';
-  grupo: 'federacao' | 'dirigentes' | 'contato' | 'social';
+  tipo: 'texto' | 'data' | 'badge' | 'lista' | 'numero';
+  grupo: 'federacao' | 'dirigentes' | 'contato' | 'social' | 'evento';
   largura?: 'pequena' | 'media' | 'grande' | 'auto';
 }
 
@@ -89,9 +89,33 @@ export const CAMPOS_DIRIGENTES: CampoRelatorioFederacao[] = [
   { id: 'data_nascimento', label: 'Data Nascimento', tipo: 'data', grupo: 'dirigentes', largura: 'media' },
 ];
 
+// ================================================================
+// CAMPOS DISPONÍVEIS - CALENDÁRIO (competições e eventos)
+// ================================================================
+
+export const CAMPOS_CALENDARIO: CampoRelatorioFederacao[] = [
+  // Dados da Federação
+  { id: 'federacao_nome', label: 'Federação', tipo: 'texto', grupo: 'federacao', largura: 'grande' },
+  { id: 'federacao_sigla', label: 'Sigla', tipo: 'texto', grupo: 'federacao', largura: 'pequena' },
+  
+  // Dados do Evento
+  { id: 'titulo', label: 'Título', tipo: 'texto', grupo: 'evento', largura: 'grande' },
+  { id: 'tipo', label: 'Tipo de Evento', tipo: 'badge', grupo: 'evento', largura: 'media' },
+  { id: 'status', label: 'Status', tipo: 'badge', grupo: 'evento', largura: 'pequena' },
+  { id: 'data_inicio', label: 'Data Início', tipo: 'data', grupo: 'evento', largura: 'media' },
+  { id: 'data_fim', label: 'Data Fim', tipo: 'data', grupo: 'evento', largura: 'media' },
+  { id: 'local', label: 'Local', tipo: 'texto', grupo: 'evento', largura: 'grande' },
+  { id: 'cidade', label: 'Cidade', tipo: 'texto', grupo: 'evento', largura: 'media' },
+  { id: 'categorias', label: 'Categorias', tipo: 'texto', grupo: 'evento', largura: 'media' },
+  { id: 'publico_estimado', label: 'Público Estimado', tipo: 'numero', grupo: 'evento', largura: 'pequena' },
+  { id: 'descricao', label: 'Descrição', tipo: 'texto', grupo: 'evento', largura: 'grande' },
+  { id: 'observacoes', label: 'Observações', tipo: 'texto', grupo: 'evento', largura: 'grande' },
+];
+
 export const CAMPOS_POR_TIPO_FEDERACAO: Record<TipoRelatorioFederacao, CampoRelatorioFederacao[]> = {
   federacoes: CAMPOS_FEDERACOES,
   dirigentes: CAMPOS_DIRIGENTES,
+  calendario: CAMPOS_CALENDARIO,
 };
 
 // ================================================================
@@ -182,9 +206,78 @@ export const FILTROS_DIRIGENTES: FiltroFederacao[] = [
   },
 ];
 
+export const FILTROS_CALENDARIO: FiltroFederacao[] = [
+  {
+    id: 'tipo_evento',
+    label: 'Tipo de Evento',
+    tipo: 'multiselect',
+    opcoes: [
+      { value: 'Campeonato Estadual', label: 'Campeonato Estadual' },
+      { value: 'Campeonato Regional', label: 'Campeonato Regional' },
+      { value: 'Torneio', label: 'Torneio' },
+      { value: 'Copa', label: 'Copa' },
+      { value: 'Festival', label: 'Festival' },
+      { value: 'Jogos Abertos', label: 'Jogos Abertos' },
+      { value: 'Seletiva', label: 'Seletiva' },
+      { value: 'Amistoso', label: 'Amistoso' },
+      { value: 'Outro', label: 'Outro' },
+    ],
+  },
+  {
+    id: 'status_evento',
+    label: 'Status do Evento',
+    tipo: 'multiselect',
+    opcoes: [
+      { value: 'planejado', label: 'Planejado' },
+      { value: 'confirmado', label: 'Confirmado' },
+      { value: 'em_andamento', label: 'Em Andamento' },
+      { value: 'concluido', label: 'Concluído' },
+      { value: 'cancelado', label: 'Cancelado' },
+    ],
+  },
+  {
+    id: 'periodo_evento',
+    label: 'Período do Evento',
+    tipo: 'periodo',
+  },
+  {
+    id: 'cidade',
+    label: 'Cidade',
+    tipo: 'multiselect',
+    opcoes: [
+      { value: 'Boa Vista', label: 'Boa Vista' },
+      { value: 'Alto Alegre', label: 'Alto Alegre' },
+      { value: 'Amajari', label: 'Amajari' },
+      { value: 'Bonfim', label: 'Bonfim' },
+      { value: 'Cantá', label: 'Cantá' },
+      { value: 'Caracaraí', label: 'Caracaraí' },
+      { value: 'Caroebe', label: 'Caroebe' },
+      { value: 'Iracema', label: 'Iracema' },
+      { value: 'Mucajaí', label: 'Mucajaí' },
+      { value: 'Normandia', label: 'Normandia' },
+      { value: 'Pacaraima', label: 'Pacaraima' },
+      { value: 'Rorainópolis', label: 'Rorainópolis' },
+      { value: 'São João da Baliza', label: 'São João da Baliza' },
+      { value: 'São Luiz', label: 'São Luiz' },
+      { value: 'Uiramutã', label: 'Uiramutã' },
+    ],
+  },
+  {
+    id: 'status_federacao',
+    label: 'Status da Federação',
+    tipo: 'multiselect',
+    opcoes: [
+      { value: 'em_analise', label: 'Em Análise' },
+      { value: 'ativo', label: 'Ativa' },
+      { value: 'inativo', label: 'Inativa' },
+    ],
+  },
+];
+
 export const FILTROS_POR_TIPO_FEDERACAO: Record<TipoRelatorioFederacao, FiltroFederacao[]> = {
   federacoes: FILTROS_FEDERACOES,
   dirigentes: FILTROS_DIRIGENTES,
+  calendario: FILTROS_CALENDARIO,
 };
 
 // ================================================================
@@ -194,6 +287,7 @@ export const FILTROS_POR_TIPO_FEDERACAO: Record<TipoRelatorioFederacao, FiltroFe
 export const TIPO_RELATORIO_FEDERACAO_LABELS: Record<TipoRelatorioFederacao, string> = {
   federacoes: 'Federações',
   dirigentes: 'Dirigentes',
+  calendario: 'Calendário de Competições',
 };
 
 export const STATUS_FEDERACAO_LABELS: Record<string, string> = {
@@ -201,6 +295,14 @@ export const STATUS_FEDERACAO_LABELS: Record<string, string> = {
   ativo: 'Ativa',
   inativo: 'Inativa',
   rejeitado: 'Rejeitada',
+};
+
+export const STATUS_EVENTO_LABELS: Record<string, string> = {
+  planejado: 'Planejado',
+  confirmado: 'Confirmado',
+  em_andamento: 'Em Andamento',
+  concluido: 'Concluído',
+  cancelado: 'Cancelado',
 };
 
 // ================================================================
@@ -222,6 +324,13 @@ export const CONFIG_PADRAO_FEDERACAO: Record<TipoRelatorioFederacao, Partial<Con
     orientacao: 'paisagem',
     ordenacao: { campo: 'federacao_sigla', direcao: 'asc' },
   },
+  calendario: {
+    titulo: 'Calendário de Competições e Campeonatos',
+    subtitulo: 'Instituto de Desenvolvimento da Juventude e do Esporte - IDJuv',
+    camposSelecionados: ['federacao_sigla', 'titulo', 'tipo', 'status', 'data_inicio', 'data_fim', 'cidade'],
+    orientacao: 'paisagem',
+    ordenacao: { campo: 'data_inicio', direcao: 'asc' },
+  },
 };
 
 // ================================================================
@@ -233,4 +342,5 @@ export const GRUPOS_CAMPOS: Record<string, string> = {
   dirigentes: 'Dirigentes',
   contato: 'Contatos',
   social: 'Redes Sociais',
+  evento: 'Dados do Evento',
 };

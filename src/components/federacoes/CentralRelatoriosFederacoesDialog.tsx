@@ -17,6 +17,7 @@ import {
   ChevronUp,
   Building2,
   RotateCcw,
+  Calendar,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -407,7 +408,7 @@ export function CentralRelatoriosFederacoesDialog({
             <ScrollArea className="h-full px-6">
               <div className="space-y-6 pb-6">
                 {/* Tipo de Relatório */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <Card
                     className={`cursor-pointer transition-all ${
                       tipoSelecionado === 'federacoes'
@@ -421,7 +422,7 @@ export function CentralRelatoriosFederacoesDialog({
                       <div>
                         <div className="font-medium">Federações</div>
                         <div className="text-sm text-muted-foreground">
-                          Dados das federações esportivas
+                          Dados das federações
                         </div>
                       </div>
                     </CardContent>
@@ -439,7 +440,25 @@ export function CentralRelatoriosFederacoesDialog({
                       <div>
                         <div className="font-medium">Dirigentes</div>
                         <div className="text-sm text-muted-foreground">
-                          Presidente, Vice e Diretor Técnico
+                          Presidente, Vice e Diretor
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card
+                    className={`cursor-pointer transition-all ${
+                      tipoSelecionado === 'calendario'
+                        ? 'ring-2 ring-primary'
+                        : 'hover:bg-muted/50'
+                    }`}
+                    onClick={() => setTipoSelecionado('calendario')}
+                  >
+                    <CardContent className="pt-4 flex items-center gap-3">
+                      <Calendar className="h-8 w-8 text-primary" />
+                      <div>
+                        <div className="font-medium">Calendário</div>
+                        <div className="text-sm text-muted-foreground">
+                          Competições e eventos
                         </div>
                       </div>
                     </CardContent>
