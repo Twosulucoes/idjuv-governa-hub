@@ -126,17 +126,18 @@ export function gerarFichaCadastroGeral(dados: DadosCompletos): jsPDF {
 
   // DADOS DE IDENTIFICAÇÃO
   // Nome - campo largo (até 120mm de largura)
-  const nomeCompleto = truncarTexto(doc, servidor.nome_completo?.toUpperCase() || "", 115);
+  const nomeCompleto = truncarTexto(doc, servidor.nome_completo?.toUpperCase() || "", 100);
   doc.text(nomeCompleto, 25, 56);
   
-  // Sexo - posição ajustada para não sobrepor PCD
-  doc.text(getSexoLabel(servidor.sexo), 150, 56);
+  // Estado Civil - na mesma linha do nome, mais à direita
+  const estadoCivil = truncarTexto(doc, getEstadoCivilLabel(servidor.estado_civil), 30);
+  doc.text(estadoCivil, 130, 56);
   
-  // Estado Civil - posição ajustada
-  doc.text(getEstadoCivilLabel(servidor.estado_civil), 38, 63);
+  // Sexo - campo separado na próxima área
+  doc.text(getSexoLabel(servidor.sexo), 25, 63);
   
-  // PCD - Marcar checkbox NÃO
-  doc.text("X", 189, 63);
+  // PCD - Marcar checkbox NÃO (posição ajustada)
+  doc.text("X", 100, 63);
   
   // Nacionalidade
   const nacionalidade = truncarTexto(doc, servidor.nacionalidade?.toUpperCase() || "BRASILEIRA", 45);
