@@ -1,10 +1,10 @@
 // ============================================
-// CONTEXTO DE AUTENTICAÇÃO E PERMISSÕES
+// CONTEXTO DE AUTENTICAÇÃO - SUPABASE EXTERNO
 // ============================================
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, clearOldSessions, isSupabaseConfigured } from '@/lib/supabase';
 import { AuthUser, AppRole, AppPermission, AuthState } from '@/types/auth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -30,6 +30,9 @@ interface AuthContextType extends AuthState {
   
   // Refresh de dados
   refreshUser: () => Promise<void>;
+  
+  // Status da conexão
+  isConfigured: boolean;
 }
 
 // ============================================
@@ -46,13 +49,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isConfigured] = useState(isSupabaseConfigured());
   const { toast } = useToast();
 
   // ============================================
   // FUNÇÕES AUXILIARES
   // ============================================
 
-  // Busca os dados completos do usuário (profile, role, permissions)
+  // Busca os dados completos do usuário (profile, perfis, permissões)
   const fetchUserData = useCallback(async (authUser: User): Promise<AuthUser | null> => {
     try {
       // Buscar profile
@@ -62,30 +66,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', authUser.id)
         .maybeSingle();
 
-      // Buscar role
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
+      // Buscar perfis do usuário via usuario_perfis
+      const { data: usuarioPerfis } = await supabase
+        .from('usuario_perfis')
+        .select(`
+          perfil:perfis(codigo, nome, nivel_hierarquia)
+        `)
         .eq('user_id', authUser.id)
-        .maybeSingle();
+        .eq('ativo', true);
 
-      // Buscar permissões diretas
-      const { data: directPermissions } = await supabase
-        .from('user_permissions')
-        .select('permission')
-        .eq('user_id', authUser.id);
+      // Determinar role principal (maior nível hierárquico)
+      let userRole: AppRole = 'user';
+      if (usuarioPerfis && usuarioPerfis.length > 0) {
+        const perfis = usuarioPerfis
+          .map((up: any) => up.perfil)
+          .filter(Boolean)
+          .sort((a: any, b: any) => (b.nivel_hierarquia || 0) - (a.nivel_hierarquia || 0));
+        
+        if (perfis[0]?.codigo) {
+          // Mapear código do perfil para AppRole
+          const codigoToRole: Record<string, AppRole> = {
+            'super_admin': 'admin',
+            'admin': 'admin',
+            'gerente': 'manager',
+            'operador': 'user',
+            'consulta': 'guest',
+          };
+          userRole = codigoToRole[perfis[0].codigo] || 'user';
+        }
+      }
 
-      // Buscar permissões do role
-      const userRole = (roleData?.role as AppRole) || 'user';
-      const { data: rolePermissions } = await supabase
-        .from('role_permissions')
-        .select('permission')
-        .eq('role', userRole);
+      // Buscar permissões via RPC
+      const { data: permissoesData } = await supabase.rpc('listar_permissoes_usuario', {
+        check_user_id: authUser.id
+      });
 
-      // Combinar permissões únicas
-      const allPermissions = new Set<AppPermission>();
-      directPermissions?.forEach(p => allPermissions.add(p.permission as AppPermission));
-      rolePermissions?.forEach(p => allPermissions.add(p.permission as AppPermission));
+      const permissions: AppPermission[] = permissoesData
+        ?.map((p: any) => p.funcao_codigo as AppPermission)
+        .filter(Boolean) || [];
 
       return {
         id: authUser.id,
@@ -93,11 +111,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fullName: profile?.full_name || null,
         avatarUrl: profile?.avatar_url || null,
         role: userRole,
-        permissions: Array.from(allPermissions)
+        permissions
       };
     } catch (error) {
-      console.error('Erro ao buscar dados do usuário:', error);
-      return null;
+      console.error('[Auth] Erro ao buscar dados do usuário:', error);
+      // Retorna usuário básico mesmo com erro
+      return {
+        id: authUser.id,
+        email: authUser.email || '',
+        fullName: null,
+        avatarUrl: null,
+        role: 'user',
+        permissions: []
+      };
     }
   }, []);
 
@@ -106,9 +132,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ============================================
 
   useEffect(() => {
+    if (!isConfigured) {
+      console.warn('[Auth] Supabase não configurado');
+      setIsLoading(false);
+      return;
+    }
+
+    // Limpar sessões antigas na inicialização
+    clearOldSessions();
+
     // Configurar listener de mudanças de autenticação PRIMEIRO
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('[Auth] Estado alterado:', event);
         setSession(session);
         
         if (session?.user) {
@@ -127,7 +163,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     // DEPOIS verificar sessão existente
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.warn('[Auth] Erro ao recuperar sessão:', error.message);
+        // Limpar sessão corrompida
+        supabase.auth.signOut();
+        setIsLoading(false);
+        return;
+      }
+
       setSession(session);
       if (session?.user) {
         fetchUserData(session.user).then(userData => {
@@ -140,13 +184,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchUserData]);
+  }, [fetchUserData, isConfigured]);
 
   // ============================================
   // FUNÇÕES DE AUTENTICAÇÃO
   // ============================================
 
   const signIn = async (email: string, password: string) => {
+    if (!isConfigured) {
+      return { error: new Error('Supabase não configurado') };
+    }
+
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -176,6 +224,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
+    if (!isConfigured) {
+      return { error: new Error('Supabase não configurado') };
+    }
+
     try {
       const redirectUrl = `${window.location.origin}/`;
       
@@ -238,6 +290,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const resetPassword = async (email: string) => {
+    if (!isConfigured) {
+      return { error: new Error('Supabase não configurado') };
+    }
+
     try {
       const redirectUrl = `${window.location.origin}/auth?mode=reset`;
       
@@ -266,6 +322,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updatePassword = async (newPassword: string) => {
+    if (!isConfigured) {
+      return { error: new Error('Supabase não configurado') };
+    }
+
     try {
       const { error } = await supabase.auth.updateUser({
         password: newPassword
@@ -295,44 +355,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // FUNÇÕES DE VERIFICAÇÃO DE PERMISSÕES
   // ============================================
 
-  // Verifica se usuário tem uma permissão específica
   const hasPermission = useCallback((permission: AppPermission): boolean => {
     if (!user) return false;
-    // Admin tem todas as permissões
     if (user.role === 'admin') return true;
     return user.permissions.includes(permission);
   }, [user]);
 
-  // Verifica se usuário tem pelo menos uma das permissões
   const hasAnyPermission = useCallback((permissions: AppPermission[]): boolean => {
     if (!user) return false;
     if (user.role === 'admin') return true;
     return permissions.some(permission => user.permissions.includes(permission));
   }, [user]);
 
-  // Verifica se usuário tem todas as permissões
   const hasAllPermissions = useCallback((permissions: AppPermission[]): boolean => {
     if (!user) return false;
     if (user.role === 'admin') return true;
     return permissions.every(permission => user.permissions.includes(permission));
   }, [user]);
 
-  // Verifica se usuário tem um role específico
   const hasRole = useCallback((role: AppRole): boolean => {
     if (!user) return false;
     return user.role === role;
   }, [user]);
 
-  // Verifica se usuário tem pelo menos um dos roles
   const hasAnyRole = useCallback((roles: AppRole[]): boolean => {
     if (!user) return false;
     return roles.includes(user.role);
   }, [user]);
 
-  // Verifica se usuário pode acessar (baseado em hierarquia de roles)
   const canAccess = useCallback((requiredRoles: AppRole[]): boolean => {
     if (!user) return false;
-    // Admin sempre pode acessar
     if (user.role === 'admin') return true;
     return requiredRoles.includes(user.role);
   }, [user]);
@@ -345,6 +397,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     isLoading,
     isAuthenticated: !!user,
+    isConfigured,
     signIn,
     signUp,
     signOut,

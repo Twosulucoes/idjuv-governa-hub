@@ -1,23 +1,25 @@
 /**
- * Helper para obter o cliente Supabase correto
+ * Helper para obter o cliente Supabase
  * 
- * Usa o cliente externo se configurado, senão usa o cliente padrão.
- * Isso permite uma transição suave entre ambientes.
+ * MIGRADO: Usa apenas o Supabase próprio do usuário.
+ * O cliente Lovable Cloud não é mais utilizado.
  */
 
-import { supabaseExternal, isExternalSupabaseConfigured } from '@/lib/supabaseExternal';
-import { supabase as supabaseDefault } from '@/integrations/supabase/client';
+import { supabase, isSupabaseConfigured, supabaseExternal } from '@/lib/supabase';
 
 /**
- * Retorna o cliente Supabase ativo (externo se configurado, senão padrão)
+ * Retorna o cliente Supabase ativo (sempre o próprio)
  */
 export function getActiveSupabaseClient() {
-  return isExternalSupabaseConfigured() ? supabaseExternal : supabaseDefault;
+  return supabase;
 }
 
 /**
- * Verifica se está usando o cliente externo
+ * Verifica se está usando cliente externo (sempre true agora)
  */
 export function isUsingExternalClient(): boolean {
-  return isExternalSupabaseConfigured();
+  return isSupabaseConfigured();
 }
+
+// Re-exporta para compatibilidade com código antigo
+export { supabase, supabaseExternal, isSupabaseConfigured };
