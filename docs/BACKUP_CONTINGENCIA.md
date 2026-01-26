@@ -55,6 +55,40 @@ O sistema de backup foi projetado para garantir **redundância total** dos dados
 
 ---
 
+## Verificação de Backup 100%
+
+Após cada backup, o sistema gera um **manifest** com detalhes completos:
+
+### Como verificar se o backup está completo:
+
+1. **Via Interface Admin:**
+   - Acesse: Admin > Backup Offsite > Histórico
+   - Verifique a coluna "Tabelas" (deve mostrar 83)
+
+2. **Via Resposta do Backup:**
+   ```json
+   {
+     "success": true,
+     "tablesExported": 83,
+     "totalRecords": 15000,
+     "format": "json"
+   }
+   ```
+
+3. **Via Manifest:**
+   - Baixe o manifest do backup
+   - Confira `tables.exported === 83`
+   - Confira `tables.list` para ver todas as tabelas
+
+4. **Via API:**
+   ```bash
+   # Listar tabelas disponíveis
+   curl -X POST https://tewgloptmijuaychoxnq.supabase.co/functions/v1/backup-offsite \
+     -d '{"action": "list-tables"}'
+   ```
+
+---
+
 ## Formatos de Exportação
 
 ### 1. JSON (padrão)

@@ -33,14 +33,17 @@ interface RelationshipInfo {
 
 function categorizeTable(tableName: string): string {
   const categories: Record<string, string[]> = {
-    'Pessoas': ['servidor', 'profile', 'user', 'participante', 'dependente'],
-    'Estrutura': ['cargo', 'unidade', 'estrutura', 'organograma', 'composicao', 'lotacao'],
-    'RH': ['ferias', 'licenca', 'frequencia', 'designacao', 'provimento', 'cessao', 'vinculo', 'nomeacao'],
-    'Financeiro': ['folha', 'ficha', 'pagamento', 'inss', 'irrf', 'rubrica', 'consigna', 'remessa', 'banco', 'conta', 'parametro'],
+    'Pessoas': ['servidor', 'profile', 'user', 'participante', 'dependente', 'pensoes'],
+    'Estrutura': ['cargo', 'unidade', 'estrutura', 'organograma', 'composicao', 'lotacao', 'centros_custo'],
+    'RH': ['ferias', 'licenca', 'frequencia', 'designacao', 'provimento', 'cessao', 'vinculo', 'nomeacao', 'historico_funcional', 'ocorrencias', 'pre_cadastro'],
+    'Financeiro': ['folha', 'ficha', 'pagamento', 'inss', 'irrf', 'rubrica', 'consigna', 'remessa', 'banco', 'conta', 'parametro', 'esocial', 'exportacoes', 'lancamentos_folha', 'itens_ficha', 'itens_retorno', 'retornos'],
+    'Ponto': ['ponto', 'jornada', 'horarios_jornada', 'justificativas', 'solicitacoes_ajuste', 'banco_horas', 'lancamentos_banco', 'feriados'],
     'Documentos': ['documento', 'portaria', 'memorando', 'ata', 'termo'],
-    'Reuniões': ['reunia', 'reunio', 'convite', 'pauta'],
-    'Unidades Locais': ['unidade_local', 'patrimonio_unidade', 'agenda_unidade', 'cedencia'],
-    'Sistema': ['audit', 'backup', 'config', 'role', 'permission', 'approval', 'indicacao'],
+    'Reuniões': ['reunia', 'reunio', 'convite', 'modelo', 'historico_convite'],
+    'Unidades Locais': ['unidade_local', 'patrimonio_unidade', 'agenda_unidade', 'cedencia', 'termos_cessao'],
+    'Federações': ['federac', 'calendario_federacao'],
+    'ASCOM': ['demandas_ascom', 'ascom_anexo', 'ascom_comentario', 'ascom_entregav'],
+    'Sistema': ['audit', 'backup', 'config', 'role', 'permission', 'approval', 'perfis', 'funcoes_sistema', 'perfil_funcoes', 'usuario_perfis', 'module_access'],
   };
 
   const lowerName = tableName.toLowerCase();
@@ -97,22 +100,61 @@ function inferTargetTable(columnName: string): string | null {
   return specialMappings[baseName] || `${baseName}s`;
 }
 
+// ============================================
+// LISTA COMPLETA DE TABELAS DO SISTEMA - 83 TABELAS
+// Sincronizada com backup-offsite em 2026-01-26
+// ============================================
 const KNOWN_TABLES = [
-  'agenda_unidade', 'approval_delegations', 'approval_requests', 'audit_logs',
-  'backup_config', 'backup_history', 'backup_integrity_checks', 'banco_horas',
-  'bancos_cnab', 'cargo_unidade_compatibilidade', 'cargos', 'centros_custo',
-  'cessoes', 'composicao_cargos', 'config_assinatura_reuniao', 'config_autarquia',
-  'configuracao_jornada', 'consignacoes', 'contas_autarquia', 'dependentes_irrf',
-  'designacoes', 'documentos', 'documentos_cedencia', 'estrutura_organizacional',
-  'ferias_servidor', 'fichas_financeiras', 'folhas_pagamento', 'frequencia_mensal',
-  'historico_cargo_servidor', 'historico_lotacao', 'indicacoes', 'licencas_afastamentos',
-  'lotacoes', 'memorandos_lotacao', 'modelos_mensagem_reuniao', 'nomeacoes_chefe_unidade',
-  'parametros_folha', 'participantes_reuniao', 'patrimonio_unidade', 'pautas_reuniao',
-  'portarias_servidor', 'pre_cadastros', 'profiles', 'provimentos',
-  'registro_ponto', 'remessas_bancarias', 'reunioes', 'role_permissions',
-  'rubricas', 'servidores', 'tabela_inss', 'tabela_irrf',
-  'unidades_locais', 'user_org_units', 'user_permissions', 'user_roles',
-  'user_security_settings', 'viagens_diarias', 'vinculos_funcionais'
+  // ===== USUÁRIOS E PERMISSÕES (11) =====
+  'profiles', 'user_roles', 'user_permissions', 'user_org_units', 
+  'user_security_settings', 'role_permissions', 'module_access_scopes',
+  'perfis', 'funcoes_sistema', 'perfil_funcoes', 'usuario_perfis',
+  
+  // ===== ESTRUTURA ORGANIZACIONAL (5) =====
+  'estrutura_organizacional', 'cargos', 'composicao_cargos', 
+  'cargo_unidade_compatibilidade', 'centros_custo',
+  
+  // ===== SERVIDORES E RH (15) =====
+  'servidores', 'lotacoes', 'memorandos_lotacao', 'historico_funcional',
+  'portarias_servidor', 'ocorrencias_servidor', 'ferias_servidor',
+  'licencas_afastamentos', 'cessoes', 'designacoes', 'provimentos',
+  'vinculos_funcionais', 'dependentes_irrf', 'pensoes_alimenticias', 'consignacoes',
+  
+  // ===== PRÉ-CADASTROS (1) =====
+  'pre_cadastros',
+  
+  // ===== PONTO E FREQUÊNCIA (10) =====
+  'configuracao_jornada', 'horarios_jornada', 'registros_ponto',
+  'justificativas_ponto', 'solicitacoes_ajuste_ponto', 'banco_horas',
+  'lancamentos_banco_horas', 'frequencia_mensal', 'feriados', 'viagens_diarias',
+  
+  // ===== FOLHA DE PAGAMENTO (17) =====
+  'folhas_pagamento', 'lancamentos_folha', 'fichas_financeiras', 
+  'itens_ficha_financeira', 'rubricas', 'rubricas_historico',
+  'parametros_folha', 'tabela_inss', 'tabela_irrf', 'eventos_esocial',
+  'exportacoes_folha', 'bancos_cnab', 'contas_autarquia', 
+  'remessas_bancarias', 'retornos_bancarios', 'itens_retorno_bancario', 'config_autarquia',
+  
+  // ===== UNIDADES LOCAIS (6) =====
+  'unidades_locais', 'agenda_unidade', 'documentos_cedencia',
+  'termos_cessao', 'patrimonio_unidade', 'nomeacoes_chefe_unidade',
+  
+  // ===== FEDERAÇÕES ESPORTIVAS (2) =====
+  'federacoes_esportivas', 'calendario_federacao',
+  
+  // ===== DOCUMENTOS E APROVAÇÕES (3) =====
+  'documentos', 'approval_requests', 'approval_delegations',
+  
+  // ===== REUNIÕES (5) =====
+  'reunioes', 'participantes_reuniao', 'config_assinatura_reuniao',
+  'modelos_mensagem_reuniao', 'historico_convites_reuniao',
+  
+  // ===== DEMANDAS ASCOM (4) =====
+  'demandas_ascom', 'demandas_ascom_anexos', 
+  'demandas_ascom_comentarios', 'demandas_ascom_entregaveis',
+  
+  // ===== AUDITORIA E BACKUP (4) =====
+  'audit_logs', 'backup_config', 'backup_history', 'backup_integrity_checks'
 ];
 
 async function processTable(
