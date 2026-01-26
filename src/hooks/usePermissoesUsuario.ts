@@ -52,25 +52,21 @@ export function usePermissoesUsuario(): UsePermissoesUsuarioReturn {
     setError(null);
 
     try {
-      // Chama a função RPC que lista permissões do usuário
+      // Tenta usar a função RPC
       const { data, error: rpcError } = await supabase.rpc('listar_permissoes_usuario', {
         check_user_id: user.id
       });
 
       if (rpcError) {
-        // Se a função não existir, tenta buscar diretamente
-        if (rpcError.code === 'PGRST301' || rpcError.message.includes('does not exist')) {
-          console.warn('[Permissões] Função RPC não encontrada, usando fallback');
-          await fetchPermissoesFallback();
-          return;
-        }
-        throw rpcError;
+        // Se houver qualquer erro na RPC, usa fallback
+        console.warn('[Permissões] Erro na RPC, usando fallback:', rpcError.message);
+        await fetchPermissoesFallback();
+        return;
       }
 
       setPermissoes(data || []);
     } catch (err: any) {
       console.error('[Permissões] Erro ao buscar:', err);
-      setError(err.message || 'Erro ao carregar permissões');
       // Em caso de erro, tenta fallback
       await fetchPermissoesFallback();
     } finally {
