@@ -4755,6 +4755,7 @@ export type Database = {
       perfis: {
         Row: {
           ativo: boolean
+          codigo: string | null
           cor: string | null
           created_at: string
           created_by: string | null
@@ -4771,6 +4772,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          codigo?: string | null
           cor?: string | null
           created_at?: string
           created_by?: string | null
@@ -4787,6 +4789,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          codigo?: string | null
           cor?: string | null
           created_at?: string
           created_by?: string | null
@@ -7372,6 +7375,7 @@ export type Database = {
         Args: { _unidade_id: string; _user_id: string }
         Returns: boolean
       }
+      usuario_eh_admin: { Args: { check_user_id: string }; Returns: boolean }
       usuario_tem_permissao: {
         Args: { _codigo_funcao: string; _user_id: string }
         Returns: boolean
