@@ -97,6 +97,12 @@ function getCampo(campos: CampoSegad[], id: string): CampoSegad | undefined {
   return campos.find(c => c.id === id);
 }
 
+// Limpar área antes de escrever (cobre instruções do template)
+function limparArea(doc: jsPDF, x: number, y: number, width: number, height: number): void {
+  doc.setFillColor(255, 255, 255);
+  doc.rect(x, y - height + 1, width, height, 'F');
+}
+
 // Renderizar texto em posição específica
 function renderTexto(
   doc: jsPDF,
@@ -111,13 +117,20 @@ function renderTexto(
     ? truncarTexto(doc, valor.toUpperCase(), campo.maxWidth)
     : valor.toUpperCase();
   
+  // Limpar área antes de escrever (para cobrir instruções do template)
+  if (campo.maxWidth) {
+    limparArea(doc, campo.x - 1, campo.y, campo.maxWidth + 2, 4);
+  }
+  
+  doc.setTextColor(0, 0, 0);
   doc.text(texto, campo.x, campo.y);
 }
 
-// Renderizar checkbox com X
+// Renderizar checkbox com X (apenas o X, sem limpar área para não cobrir o quadrado do checkbox)
 function renderCheckbox(doc: jsPDF, campos: CampoSegad[], id: string, marcado: boolean): void {
   const campo = getCampo(campos, id);
   if (!campo || !marcado) return;
+  doc.setTextColor(0, 0, 0);
   doc.text("X", campo.x, campo.y);
 }
 
