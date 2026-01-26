@@ -29,6 +29,119 @@ interface BackupResult {
   error?: string;
 }
 
+// ============================================
+// LISTA COMPLETA DE TABELAS DO SISTEMA
+// Atualizada em 2026-01-26
+// ============================================
+const ALL_TABLES = [
+  // ===== USUÁRIOS E PERMISSÕES =====
+  'profiles',
+  'user_roles',
+  'user_permissions',
+  'user_org_units',
+  'user_security_settings',
+  'role_permissions',
+  'module_access_scopes',
+  'perfis',
+  'funcoes_sistema',
+  'perfil_funcoes',
+  'usuario_perfis',
+  
+  // ===== ESTRUTURA ORGANIZACIONAL =====
+  'estrutura_organizacional',
+  'cargos',
+  'composicao_cargos',
+  'cargo_unidade_compatibilidade',
+  'centros_custo',
+  
+  // ===== SERVIDORES E RH =====
+  'servidores',
+  'lotacoes',
+  'memorandos_lotacao',
+  'historico_funcional',
+  'portarias_servidor',
+  'ocorrencias_servidor',
+  'ferias_servidor',
+  'licencas_afastamentos',
+  'cessoes',
+  'designacoes',
+  'provimentos',
+  'vinculos_funcionais',
+  'dependentes_irrf',
+  'pensoes_alimenticias',
+  'consignacoes',
+  
+  // ===== PRÉ-CADASTROS =====
+  'pre_cadastros',
+  
+  // ===== PONTO E FREQUÊNCIA =====
+  'configuracao_jornada',
+  'horarios_jornada',
+  'registros_ponto',
+  'justificativas_ponto',
+  'solicitacoes_ajuste_ponto',
+  'banco_horas',
+  'lancamentos_banco_horas',
+  'frequencia_mensal',
+  'feriados',
+  'viagens_diarias',
+  
+  // ===== FOLHA DE PAGAMENTO =====
+  'folhas_pagamento',
+  'lancamentos_folha',
+  'fichas_financeiras',
+  'itens_ficha_financeira',
+  'rubricas',
+  'rubricas_historico',
+  'parametros_folha',
+  'tabela_inss',
+  'tabela_irrf',
+  'eventos_esocial',
+  'exportacoes_folha',
+  'bancos_cnab',
+  'contas_autarquia',
+  'remessas_bancarias',
+  'retornos_bancarios',
+  'itens_retorno_bancario',
+  'config_autarquia',
+  
+  // ===== UNIDADES LOCAIS =====
+  'unidades_locais',
+  'agenda_unidade',
+  'documentos_cedencia',
+  'termos_cessao',
+  'patrimonio_unidade',
+  'nomeacoes_chefe_unidade',
+  
+  // ===== FEDERAÇÕES ESPORTIVAS =====
+  'federacoes_esportivas',
+  'calendario_federacao',
+  
+  // ===== DOCUMENTOS E APROVAÇÕES =====
+  'documentos',
+  'approval_requests',
+  'approval_delegations',
+  
+  // ===== REUNIÕES =====
+  'reunioes',
+  'participantes_reuniao',
+  'config_assinatura_reuniao',
+  'modelos_mensagem_reuniao',
+  'historico_convites_reuniao',
+  
+  // ===== DEMANDAS ASCOM =====
+  'demandas_ascom',
+  'demandas_ascom_anexos',
+  'demandas_ascom_comentarios',
+  'demandas_ascom_entregaveis',
+  
+  // ===== AUDITORIA E BACKUP =====
+  'audit_logs',
+  'backup_config',
+  'backup_history',
+  'backup_integrity_checks'
+];
+
 // Função para gerar hash SHA-256
 async function sha256(data: Uint8Array): Promise<string> {
   const hashBuffer = await crypto.subtle.digest('SHA-256', data.buffer as ArrayBuffer);
@@ -47,14 +160,11 @@ function hexToBytes(hex: string): Uint8Array {
 
 // Função para criptografar dados (AES-256-GCM)
 async function encryptData(data: Uint8Array, keyString: string): Promise<{ encrypted: Uint8Array; iv: Uint8Array }> {
-  // Suporta chave em hex (64 chars) ou texto (será hashado)
   let keyData: Uint8Array;
   
   if (/^[a-fA-F0-9]{64}$/.test(keyString)) {
-    // Chave em formato hexadecimal (32 bytes = 64 hex chars)
     keyData = hexToBytes(keyString);
   } else {
-    // Se não for hex, usar hash SHA-256 da string
     const encoder = new TextEncoder();
     const keyBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(keyString));
     keyData = new Uint8Array(keyBuffer);
@@ -113,13 +223,58 @@ function formatDateTime(): string {
   return now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
 }
 
+// Converter dados para CSV
+function jsonToCsv(data: Record<string, unknown>[]): string {
+  if (data.length === 0) return '';
+  
+  const headers = Object.keys(data[0]);
+  const csvRows = [headers.join(',')];
+  
+  for (const row of data) {
+    const values = headers.map(header => {
+      const val = row[header];
+      if (val === null || val === undefined) return '';
+      if (typeof val === 'object') return `"${JSON.stringify(val).replace(/"/g, '""')}"`;
+      if (typeof val === 'string') return `"${val.replace(/"/g, '""')}"`;
+      return String(val);
+    });
+    csvRows.push(values.join(','));
+  }
+  
+  return csvRows.join('\n');
+}
+
+// Gerar SQL INSERT statements
+function jsonToSql(tableName: string, data: Record<string, unknown>[]): string {
+  if (data.length === 0) return `-- Tabela ${tableName}: sem dados\n`;
+  
+  const headers = Object.keys(data[0]);
+  const sqlLines = [`-- Tabela: ${tableName} (${data.length} registros)`];
+  sqlLines.push(`DELETE FROM ${tableName};`);
+  
+  for (const row of data) {
+    const values = headers.map(header => {
+      const val = row[header];
+      if (val === null || val === undefined) return 'NULL';
+      if (typeof val === 'object') return `'${JSON.stringify(val).replace(/'/g, "''")}'`;
+      if (typeof val === 'string') return `'${val.replace(/'/g, "''")}'`;
+      if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
+      return String(val);
+    });
+    sqlLines.push(`INSERT INTO ${tableName} (${headers.join(', ')}) VALUES (${values.join(', ')});`);
+  }
+  
+  sqlLines.push('');
+  return sqlLines.join('\n');
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { action, backupId, backupType } = await req.json();
+    const { action, backupId, backupType, format, tables, since, apiKey } = await req.json();
 
     // Clientes Supabase
     const supabaseOrigin = createClient(
@@ -130,7 +285,126 @@ serve(async (req) => {
     const destUrl = Deno.env.get('BACKUP_DEST_SUPABASE_URL');
     const destKey = Deno.env.get('BACKUP_DEST_SERVICE_ROLE_KEY');
     const encryptionKey = Deno.env.get('BACKUP_ENCRYPTION_KEY');
+    const externalApiKey = Deno.env.get('BACKUP_EXTERNAL_API_KEY');
 
+    // ============================================
+    // ENDPOINT PÚBLICO PARA CONTINGÊNCIA EXTERNA
+    // ============================================
+    if (action === 'external-export') {
+      // Validar API key para acesso externo
+      if (!externalApiKey || apiKey !== externalApiKey) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'API key inválida' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const exportFormat = format || 'json'; // json, csv, sql
+      const exportTables = tables || ALL_TABLES;
+      const sinceDate = since ? new Date(since) : null;
+
+      console.log(`[EXPORT] Formato: ${exportFormat}, Tabelas: ${exportTables.length}, Desde: ${sinceDate || 'completo'}`);
+
+      const exportData: Record<string, unknown> = {
+        exported_at: new Date().toISOString(),
+        format: exportFormat,
+        incremental: !!sinceDate,
+        since: sinceDate?.toISOString() || null,
+        tables_count: 0,
+        total_records: 0,
+        data: {}
+      };
+
+      let totalRecords = 0;
+
+      for (const table of exportTables) {
+        try {
+          let query = supabaseOrigin.from(table).select('*');
+          
+          // Backup incremental por updated_at ou created_at
+          if (sinceDate) {
+            // Tentar filtrar por updated_at primeiro, depois created_at
+            query = query.or(`updated_at.gte.${sinceDate.toISOString()},created_at.gte.${sinceDate.toISOString()}`);
+          }
+          
+          const { data, error } = await query;
+          
+          if (!error && data && data.length > 0) {
+            if (exportFormat === 'csv') {
+              (exportData.data as Record<string, string>)[table] = jsonToCsv(data);
+            } else if (exportFormat === 'sql') {
+              (exportData.data as Record<string, string>)[table] = jsonToSql(table, data);
+            } else {
+              (exportData.data as Record<string, unknown[]>)[table] = data;
+            }
+            totalRecords += data.length;
+          }
+        } catch (tableError) {
+          console.warn(`[EXPORT] Erro na tabela ${table}:`, tableError);
+        }
+      }
+
+      exportData.tables_count = Object.keys(exportData.data as Record<string, unknown>).length;
+      exportData.total_records = totalRecords;
+
+      // Log de acesso externo
+      try {
+        await supabaseOrigin.rpc('log_audit', {
+          _action: 'view',
+          _entity_type: 'backup_export',
+          _module_name: 'backup_offsite',
+          _description: `Exportação externa: ${exportFormat}, ${totalRecords} registros`,
+          _metadata: { format: exportFormat, tables_count: exportData.tables_count, total_records: totalRecords, incremental: !!sinceDate }
+        });
+      } catch {
+        // Ignora erro de log
+      }
+
+      return new Response(
+        JSON.stringify(exportData),
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'X-Export-Format': exportFormat,
+            'X-Export-Records': String(totalRecords),
+            'X-Export-Tables': String(exportData.tables_count)
+          } 
+        }
+      );
+    }
+
+    // ============================================
+    // ENDPOINT PARA LISTAR TABELAS DISPONÍVEIS
+    // ============================================
+    if (action === 'list-tables') {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          tables: ALL_TABLES,
+          total: ALL_TABLES.length,
+          categories: {
+            usuarios_permissoes: ALL_TABLES.slice(0, 11),
+            estrutura_organizacional: ALL_TABLES.slice(11, 16),
+            servidores_rh: ALL_TABLES.slice(16, 31),
+            ponto_frequencia: ALL_TABLES.slice(32, 42),
+            folha_pagamento: ALL_TABLES.slice(42, 59),
+            unidades_locais: ALL_TABLES.slice(59, 65),
+            federacoes: ALL_TABLES.slice(65, 67),
+            documentos_aprovacoes: ALL_TABLES.slice(67, 70),
+            reunioes: ALL_TABLES.slice(70, 75),
+            demandas_ascom: ALL_TABLES.slice(75, 79),
+            auditoria_backup: ALL_TABLES.slice(79)
+          }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ============================================
+    // ENDPOINTS AUTENTICADOS (ADMIN)
+    // ============================================
+    
     if (!destUrl || !destKey) {
       throw new Error('Credenciais do Supabase destino não configuradas');
     }
@@ -167,11 +441,9 @@ serve(async (req) => {
 
     switch (action) {
       case 'test-connection': {
-        // Testar conexão com Supabase destino
         console.log('Testando conexão com destino:', destUrl);
         
         try {
-          // Primeiro, testar se conseguimos listar buckets
           const { data, error } = await supabaseDest.storage.listBuckets();
           
           if (error) {
@@ -181,27 +453,23 @@ serve(async (req) => {
 
           console.log('Buckets encontrados:', data?.map(b => b.name));
 
-          // Verificar se bucket idjuv-backups existe
           const bucketExists = data?.some(b => b.name === 'idjuv-backups');
           
           if (!bucketExists) {
-            // Tentar criar o bucket automaticamente
             console.log('Bucket não existe, tentando criar...');
             const { error: createError } = await supabaseDest.storage.createBucket('idjuv-backups', {
               public: false
             });
             
             if (createError) {
-              // Se já existe (condição de corrida), tudo bem
               if (createError.message.includes('already exists')) {
                 console.log('Bucket já existe (condição de corrida)');
               } else {
-                // Qualquer outro erro: informar que precisa criar manualmente
                 console.warn('Não foi possível criar bucket:', createError.message);
                 return new Response(
                   JSON.stringify({
                     success: false,
-                    error: `Bucket "idjuv-backups" não encontrado no destino e não foi possível criá-lo automaticamente. Por favor, crie o bucket manualmente no projeto de destino e tente novamente. Detalhe: ${createError.message}`,
+                    error: `Bucket "idjuv-backups" não encontrado e não foi possível criá-lo. Detalhe: ${createError.message}`,
                     needsManualBucket: true,
                   }),
                   { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -210,11 +478,8 @@ serve(async (req) => {
             } else {
               console.log('Bucket criado com sucesso');
             }
-          } else {
-            console.log('Bucket idjuv-backups já existe no destino');
           }
 
-          // Testar se conseguimos fazer upload no bucket
           const testData = new TextEncoder().encode('test');
           const testPath = `_connection_test_${Date.now()}.txt`;
           
@@ -223,17 +488,15 @@ serve(async (req) => {
             .upload(testPath, testData, { upsert: true });
           
           if (uploadError) {
-            console.error('Erro ao testar upload:', uploadError);
             return new Response(
               JSON.stringify({
                 success: false,
-                error: `Conexão OK, mas falha ao gravar no bucket: ${uploadError.message}. Verifique as permissões do bucket.`,
+                error: `Conexão OK, mas falha ao gravar: ${uploadError.message}`,
               }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
           }
           
-          // Limpar arquivo de teste
           await supabaseDest.storage.from('idjuv-backups').remove([testPath]);
 
           return new Response(
@@ -249,8 +512,8 @@ serve(async (req) => {
       case 'execute-backup': {
         const dateTime = formatDateTime();
         const type = backupType || 'manual';
+        const exportFormat = format || 'json'; // json, csv, sql
         
-        // Criar registro de backup
         const { data: backupRecord, error: insertError } = await supabaseOrigin
           .from('backup_history')
           .insert({
@@ -258,7 +521,8 @@ serve(async (req) => {
             status: 'running',
             triggered_by: user.id,
             trigger_mode: type === 'manual' ? 'manual' : 'auto',
-            system_version: '1.0.0'
+            system_version: '2.0.0',
+            metadata: { format: exportFormat, tables_count: ALL_TABLES.length }
           })
           .select()
           .single();
@@ -273,48 +537,90 @@ serve(async (req) => {
         let storageChecksum = '';
 
         try {
-          // 1. Backup COMPLETO do banco de dados - todas as tabelas
-          // Lista completa de tabelas para permitir restauração total
-          const tables = [
-            // Usuários e permissões
-            'profiles', 'user_roles', 'user_permissions', 'user_org_units', 'user_security_settings',
-            'role_permissions', 'module_access_scopes',
-            // Estrutura organizacional
-            'estrutura_organizacional', 'cargos', 'composicao_cargos',
-            // Servidores e RH
-            'servidores', 'lotacoes', 'historico_funcional', 'portarias_servidor', 'ocorrencias_servidor',
-            'ferias_servidor', 'licencas_afastamentos',
-            // Ponto e frequência
-            'configuracao_jornada', 'horarios_jornada', 'registros_ponto', 'justificativas_ponto',
-            'solicitacoes_ajuste_ponto', 'banco_horas', 'lancamentos_banco_horas', 'frequencia_mensal',
-            'feriados', 'viagens_diarias',
-            // Unidades locais
-            'unidades_locais', 'agenda_unidade', 'documentos_cedencia', 'termos_cessao',
-            'patrimonio_unidade', 'nomeacoes_chefe_unidade',
-            // Documentos e aprovações
-            'documentos', 'approval_requests', 'approval_delegations',
-            // Auditoria e backup (meta)
-            'audit_logs', 'backup_config', 'backup_history', 'backup_integrity_checks'
-          ];
+          // 1. Backup COMPLETO do banco de dados - TODAS as tabelas
+          console.log(`[BACKUP] Iniciando backup de ${ALL_TABLES.length} tabelas`);
 
           const dbData: Record<string, unknown[]> = {};
-          for (const table of tables) {
-            const { data, error } = await supabaseOrigin.from(table).select('*');
-            if (!error && data) {
-              dbData[table] = data;
+          const tableStats: Record<string, number> = {};
+          
+          for (const table of ALL_TABLES) {
+            try {
+              const { data, error } = await supabaseOrigin.from(table).select('*');
+              if (!error && data) {
+                dbData[table] = data;
+                tableStats[table] = data.length;
+              }
+            } catch (tableError) {
+              console.warn(`[BACKUP] Erro na tabela ${table}:`, tableError);
             }
           }
 
-          const dbJson = JSON.stringify(dbData, null, 2);
-          const dbBytes = new TextEncoder().encode(dbJson);
+          // Gerar no formato solicitado
+          let dbContent: string;
+          let dbContentType: string;
+          let dbExtension: string;
+
+          if (exportFormat === 'sql') {
+            // SQL PostgreSQL
+            const sqlLines = [
+              '-- ============================================',
+              '-- BACKUP COMPLETO IDJUV',
+              `-- Gerado em: ${new Date().toISOString()}`,
+              `-- Tabelas: ${Object.keys(dbData).length}`,
+              `-- Total de registros: ${Object.values(tableStats).reduce((a, b) => a + b, 0)}`,
+              '-- ============================================',
+              '',
+              'BEGIN;',
+              ''
+            ];
+            
+            for (const [table, data] of Object.entries(dbData)) {
+              if (data.length > 0) {
+                sqlLines.push(jsonToSql(table, data as Record<string, unknown>[]));
+              }
+            }
+            
+            sqlLines.push('COMMIT;');
+            dbContent = sqlLines.join('\n');
+            dbContentType = 'application/sql';
+            dbExtension = 'sql';
+          } else if (exportFormat === 'csv') {
+            // CSV (arquivo ZIP seria ideal, mas simplificamos para JSON com CSVs internos)
+            const csvData: Record<string, string> = {};
+            for (const [table, data] of Object.entries(dbData)) {
+              if (data.length > 0) {
+                csvData[table] = jsonToCsv(data as Record<string, unknown>[]);
+              }
+            }
+            dbContent = JSON.stringify({
+              format: 'csv',
+              exported_at: new Date().toISOString(),
+              tables: csvData
+            }, null, 2);
+            dbContentType = 'application/json';
+            dbExtension = 'csv.json';
+          } else {
+            // JSON padrão
+            dbContent = JSON.stringify({
+              exported_at: new Date().toISOString(),
+              system_version: '2.0.0',
+              tables_count: Object.keys(dbData).length,
+              total_records: Object.values(tableStats).reduce((a, b) => a + b, 0),
+              table_stats: tableStats,
+              data: dbData
+            }, null, 2);
+            dbContentType = 'application/json';
+            dbExtension = 'json';
+          }
+
+          const dbBytes = new TextEncoder().encode(dbContent);
           dbChecksum = await sha256(dbBytes);
 
           let dbToUpload = dbBytes;
-          let dbFileName = `db/idjuv_prod_${dateTime}.json`;
+          let dbFileName = `db/idjuv_prod_${dateTime}.${dbExtension}`;
 
           if (encryptionKey) {
             const { encrypted, iv } = await encryptData(dbBytes, encryptionKey);
-            // Concatenar IV + dados criptografados
             const combined = new Uint8Array(iv.length + encrypted.length);
             combined.set(iv);
             combined.set(encrypted, iv.length);
@@ -322,14 +628,14 @@ serve(async (req) => {
             dbFileName += '.enc';
           }
 
-          // Garantir que o bucket existe no destino (e que a chave tem permissão)
+          // Verificar bucket no destino
           const { data: destBuckets, error: destBucketsError } = await supabaseDest.storage.listBuckets();
           if (destBucketsError) {
             throw new Error(`Falha ao acessar buckets do destino: ${destBucketsError.message}`);
           }
           const hasBackupBucket = destBuckets?.some((b) => b.name === 'idjuv-backups');
           if (!hasBackupBucket) {
-            throw new Error('Bucket "idjuv-backups" não encontrado no destino. Confirme que ele foi criado no projeto de destino e que a chave do destino é uma service role key.');
+            throw new Error('Bucket "idjuv-backups" não encontrado no destino.');
           }
 
           // Upload do banco
@@ -345,6 +651,7 @@ serve(async (req) => {
           }
 
           totalSize += dbToUpload.length;
+          console.log(`[BACKUP] Banco exportado: ${dbFileName} (${dbToUpload.length} bytes)`);
 
           // 2. Backup do Storage
           const { data: configData } = await supabaseOrigin
@@ -359,7 +666,7 @@ serve(async (req) => {
             const { data: files } = await supabaseOrigin.storage.from(bucket).list();
             if (files) {
               storageData[bucket] = [];
-              for (const file of files.slice(0, 100)) { // Limitar a 100 arquivos por bucket
+              for (const file of files.slice(0, 100)) {
                 if (file.name) {
                   const { data: fileData } = await supabaseOrigin.storage
                     .from(bucket)
@@ -404,17 +711,25 @@ serve(async (req) => {
 
           totalSize += storageToUpload.length;
 
-          // 3. Criar manifest
+          // 3. Criar manifest detalhado
           const manifest = {
             created_at: new Date().toISOString(),
             type,
-            system_version: '1.0.0',
+            format: exportFormat,
+            system_version: '2.0.0',
+            tables: {
+              total: ALL_TABLES.length,
+              exported: Object.keys(dbData).length,
+              list: ALL_TABLES,
+              stats: tableStats
+            },
             files: {
               db: {
                 path: dbFileName,
                 size: dbToUpload.length,
                 checksum: dbChecksum,
-                encrypted: !!encryptionKey
+                encrypted: !!encryptionKey,
+                format: exportFormat
               },
               storage: {
                 path: storageFileName,
@@ -425,7 +740,13 @@ serve(async (req) => {
               }
             },
             total_size: totalSize,
-            status: 'success'
+            status: 'success',
+            documentation: {
+              restore_instructions: 'Para restaurar, importe o arquivo de banco diretamente no PostgreSQL ou use a API de importação.',
+              formats_available: ['json', 'csv', 'sql'],
+              incremental_field: 'updated_at ou created_at',
+              external_access: 'Use action=external-export com API key para exportação via endpoint'
+            }
           };
 
           const manifestJson = JSON.stringify(manifest, null, 2);
@@ -458,7 +779,8 @@ serve(async (req) => {
               manifest_path: manifestFileName,
               manifest_checksum: manifestChecksum,
               total_size: totalSize,
-              duration_seconds: duration
+              duration_seconds: duration,
+              metadata: { format: exportFormat, tables_count: Object.keys(dbData).length, table_stats: tableStats }
             })
             .eq('id', backupRecord.id);
 
@@ -479,8 +801,8 @@ serve(async (req) => {
             _entity_type: 'backup',
             _entity_id: backupRecord.id,
             _module_name: 'backup_offsite',
-            _description: `Backup ${type} executado com sucesso`,
-            _metadata: { total_size: totalSize, duration }
+            _description: `Backup ${type} (${exportFormat}) executado com sucesso`,
+            _metadata: { total_size: totalSize, duration, format: exportFormat, tables: Object.keys(dbData).length }
           });
 
           return new Response(
@@ -491,14 +813,16 @@ serve(async (req) => {
               storageFilePath: storageFileName,
               manifestPath: manifestFileName,
               totalSize,
-              duration
+              duration,
+              format: exportFormat,
+              tablesExported: Object.keys(dbData).length,
+              totalRecords: Object.values(tableStats).reduce((a, b) => a + b, 0)
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
 
         } catch (backupError) {
           const errorMessage = backupError instanceof Error ? backupError.message : 'Erro desconhecido';
-          // Atualizar registro com erro
           await supabaseOrigin
             .from('backup_history')
             .update({
@@ -518,7 +842,6 @@ serve(async (req) => {
           throw new Error('ID do backup não informado');
         }
 
-        // Buscar backup
         const { data: backup } = await supabaseOrigin
           .from('backup_history')
           .select('*')
@@ -529,7 +852,6 @@ serve(async (req) => {
           throw new Error('Backup não encontrado');
         }
 
-        // Baixar e verificar manifest
         const { data: manifestData } = await supabaseDest.storage
           .from('idjuv-backups')
           .download(backup.manifest_path);
@@ -541,11 +863,9 @@ serve(async (req) => {
         const manifestText = await manifestData.text();
         const manifest = JSON.parse(manifestText);
 
-        // Verificar checksums
         const dbValid = manifest.files.db.checksum === backup.db_checksum;
         const storageValid = manifest.files.storage.checksum === backup.storage_checksum;
 
-        // Registrar verificação
         await supabaseOrigin
           .from('backup_integrity_checks')
           .insert({
@@ -571,7 +891,6 @@ serve(async (req) => {
       }
 
       case 'list-backups': {
-        // Listar backups do destino
         const { data: dbFiles } = await supabaseDest.storage
           .from('idjuv-backups')
           .list('db');
@@ -598,7 +917,6 @@ serve(async (req) => {
       }
 
       case 'cleanup-old-backups': {
-        // Obter configuração de retenção
         const { data: config } = await supabaseOrigin
           .from('backup_config')
           .select('*')
@@ -608,10 +926,8 @@ serve(async (req) => {
           throw new Error('Configuração não encontrada');
         }
 
-        const now = new Date();
         let deletedCount = 0;
 
-        // Buscar backups antigos
         const { data: oldBackups } = await supabaseOrigin
           .from('backup_history')
           .select('*')
@@ -623,7 +939,6 @@ serve(async (req) => {
           const weeklyBackups = oldBackups.filter(b => b.backup_type === 'weekly');
           const monthlyBackups = oldBackups.filter(b => b.backup_type === 'monthly');
 
-          // Limpar diários além da retenção
           const dailyToDelete = dailyBackups.slice(0, Math.max(0, dailyBackups.length - config.retention_daily));
           const weeklyToDelete = weeklyBackups.slice(0, Math.max(0, weeklyBackups.length - config.retention_weekly));
           const monthlyToDelete = monthlyBackups.slice(0, Math.max(0, monthlyBackups.length - config.retention_monthly));
@@ -631,7 +946,6 @@ serve(async (req) => {
           const toDelete = [...dailyToDelete, ...weeklyToDelete, ...monthlyToDelete];
 
           for (const backup of toDelete) {
-            // Deletar arquivos do destino
             if (backup.db_file_path) {
               await supabaseDest.storage.from('idjuv-backups').remove([backup.db_file_path]);
             }
@@ -642,13 +956,11 @@ serve(async (req) => {
               await supabaseDest.storage.from('idjuv-backups').remove([backup.manifest_path]);
             }
 
-            // Deletar registro
             await supabaseOrigin.from('backup_history').delete().eq('id', backup.id);
             deletedCount++;
           }
         }
 
-        // Log de auditoria
         await supabaseOrigin.rpc('log_audit', {
           _action: 'delete',
           _entity_type: 'backup',
@@ -704,7 +1016,6 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
       {
-        // Importante: retornar 200 para que o client consiga ler o JSON de erro
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
