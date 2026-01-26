@@ -4,54 +4,44 @@
 
 O sistema de backup foi projetado para garantir **redundância total** dos dados do IDJUV, permitindo operação e leitura dos dados fora da plataforma Lovable em caso de indisponibilidade.
 
+### 🚀 Descoberta Automática de Tabelas
+
+O sistema utiliza **descoberta dinâmica** via catálogo PostgreSQL (`information_schema.tables`), garantindo que:
+
+- ✅ **Novas tabelas são incluídas automaticamente** no backup sem necessidade de atualização de código
+- ✅ **Visualização de banco de dados** sempre mostra 100% das tabelas existentes
+- ✅ **Zero manutenção** - não é necessário adicionar tabelas manualmente
+
+A descoberta é feita através da função SQL `public.list_public_tables()`.
+
 ---
 
-## Tabelas Incluídas (83 tabelas)
+## Tabelas Incluídas (Descoberta Automática)
 
-### Usuários e Permissões (11 tabelas)
-- `profiles`, `user_roles`, `user_permissions`, `user_org_units`, `user_security_settings`
-- `role_permissions`, `module_access_scopes`, `perfis`, `funcoes_sistema`, `perfil_funcoes`, `usuario_perfis`
+O sistema descobre automaticamente todas as tabelas do schema `public`, excluindo apenas tabelas de sistema:
 
-### Estrutura Organizacional (5 tabelas)
-- `estrutura_organizacional`, `cargos`, `composicao_cargos`, `cargo_unidade_compatibilidade`, `centros_custo`
+- `_realtime_subscription`
+- `schema_migrations`
+- `supabase_functions_migrations`
+- `supabase_functions_hooks`
 
-### Servidores e RH (15 tabelas)
-- `servidores`, `lotacoes`, `memorandos_lotacao`, `historico_funcional`, `portarias_servidor`
-- `ocorrencias_servidor`, `ferias_servidor`, `licencas_afastamentos`, `cessoes`, `designacoes`
-- `provimentos`, `vinculos_funcionais`, `dependentes_irrf`, `pensoes_alimenticias`, `consignacoes`
+### Categorização Automática
 
-### Pré-Cadastros (1 tabela)
-- `pre_cadastros`
+As tabelas são categorizadas automaticamente por padrões de nomenclatura:
 
-### Ponto e Frequência (10 tabelas)
-- `configuracao_jornada`, `horarios_jornada`, `registros_ponto`, `justificativas_ponto`
-- `solicitacoes_ajuste_ponto`, `banco_horas`, `lancamentos_banco_horas`, `frequencia_mensal`, `feriados`, `viagens_diarias`
-
-### Folha de Pagamento (17 tabelas)
-- `folhas_pagamento`, `lancamentos_folha`, `fichas_financeiras`, `itens_ficha_financeira`
-- `rubricas`, `rubricas_historico`, `parametros_folha`, `tabela_inss`, `tabela_irrf`
-- `eventos_esocial`, `exportacoes_folha`, `bancos_cnab`, `contas_autarquia`
-- `remessas_bancarias`, `retornos_bancarios`, `itens_retorno_bancario`, `config_autarquia`
-
-### Unidades Locais (6 tabelas)
-- `unidades_locais`, `agenda_unidade`, `documentos_cedencia`, `termos_cessao`
-- `patrimonio_unidade`, `nomeacoes_chefe_unidade`
-
-### Federações Esportivas (2 tabelas)
-- `federacoes_esportivas`, `calendario_federacao`
-
-### Documentos e Aprovações (3 tabelas)
-- `documentos`, `approval_requests`, `approval_delegations`
-
-### Reuniões (5 tabelas)
-- `reunioes`, `participantes_reuniao`, `config_assinatura_reuniao`
-- `modelos_mensagem_reuniao`, `historico_convites_reuniao`
-
-### Demandas ASCOM (4 tabelas)
-- `demandas_ascom`, `demandas_ascom_anexos`, `demandas_ascom_comentarios`, `demandas_ascom_entregaveis`
-
-### Auditoria e Backup (4 tabelas)
-- `audit_logs`, `backup_config`, `backup_history`, `backup_integrity_checks`
+| Categoria | Padrões |
+|-----------|---------|
+| **Usuários e Permissões** | profile*, user_*, role_*, perfis, funcoes_*, usuario_* |
+| **Estrutura Organizacional** | estrutura_*, cargo*, composicao_*, centros_custo |
+| **Servidores e RH** | servidor*, lotacao*, ferias*, licenca*, cessao*, designacao* |
+| **Ponto e Frequência** | jornada*, ponto*, banco_hora*, feriado* |
+| **Folha de Pagamento** | folha*, rubrica*, inss*, irrf*, remessa*, banco* |
+| **Unidades Locais** | unidades_locais*, agenda_unidade*, patrimonio_unidade* |
+| **Federações** | federac*, calendario_federacao* |
+| **Documentos** | documento*, portaria*, memorando*, termo* |
+| **Reuniões** | reunio*, participantes_reuniao*, config_assinatura* |
+| **ASCOM** | demandas_ascom* |
+| **Sistema** | audit*, backup*, config*, approval* |
 
 ---
 
@@ -60,6 +50,22 @@ O sistema de backup foi projetado para garantir **redundância total** dos dados
 Após cada backup, o sistema gera um **manifest** com detalhes completos:
 
 ### Como verificar se o backup está completo:
+
+1. **Via Interface Admin:**
+   - Acesse: Admin > Backup Offsite > Histórico
+   - O campo "Tabelas" mostra o número descoberto automaticamente
+   - Badge "Descoberta Automática" indica que o sistema está usando detecção dinâmica
+
+2. **Via Resposta do Backup:**
+   ```json
+   {
+     "success": true,
+     "tablesExported": 85,
+     "totalRecords": 15000,
+     "format": "json",
+     "discoveryMode": "automatic"
+   }
+   ```
 
 1. **Via Interface Admin:**
    - Acesse: Admin > Backup Offsite > Histórico
@@ -77,14 +83,25 @@ Após cada backup, o sistema gera um **manifest** com detalhes completos:
 
 3. **Via Manifest:**
    - Baixe o manifest do backup
-   - Confira `tables.exported === 83`
-   - Confira `tables.list` para ver todas as tabelas
+   - Confira `discovery.mode === 'automatic'`
+   - Confira `tables.list` para ver todas as tabelas descobertas
 
-4. **Via API:**
+4. **Via API (list-tables):**
    ```bash
-   # Listar tabelas disponíveis
    curl -X POST https://tewgloptmijuaychoxnq.supabase.co/functions/v1/backup-offsite \
      -d '{"action": "list-tables"}'
+   ```
+
+   Resposta:
+   ```json
+   {
+     "success": true,
+     "discovery_mode": "automatic",
+     "discovered_at": "2026-01-26T20:00:00.000Z",
+     "tables": ["audit_logs", "cargos", "servidores", ...],
+     "total": 85,
+     "categories": {...}
+   }
    ```
 
 ---
@@ -96,7 +113,8 @@ Após cada backup, o sistema gera um **manifest** com detalhes completos:
 {
   "exported_at": "2026-01-26T12:00:00.000Z",
   "system_version": "2.0.0",
-  "tables_count": 83,
+  "discovery_mode": "automatic",
+  "tables_count": 85,
   "total_records": 15000,
   "table_stats": {
     "servidores": 500,
@@ -114,6 +132,7 @@ Após cada backup, o sistema gera um **manifest** com detalhes completos:
 {
   "format": "csv",
   "exported_at": "2026-01-26T12:00:00.000Z",
+  "discovery_mode": "automatic",
   "tables": {
     "servidores": "id,nome_completo,cpf\n\"uuid-1\",\"NOME\",\"123.456.789-00\"",
     "documentos": "id,numero,tipo\n\"uuid-2\",\"001/2026\",\"portaria\""
@@ -124,9 +143,9 @@ Após cada backup, o sistema gera um **manifest** com detalhes completos:
 ### 3. SQL PostgreSQL
 ```sql
 -- ============================================
--- BACKUP COMPLETO IDJUV
+-- BACKUP COMPLETO IDJUV (Descoberta Automática)
 -- Gerado em: 2026-01-26T12:00:00.000Z
--- Tabelas: 83
+-- Tabelas: 85
 -- Total de registros: 15000
 -- ============================================
 

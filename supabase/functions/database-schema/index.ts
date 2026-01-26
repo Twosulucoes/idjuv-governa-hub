@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,6 +31,19 @@ interface RelationshipInfo {
   exists: boolean;
 }
 
+// ============================================
+// TABELAS DE SISTEMA A IGNORAR
+// ============================================
+const EXCLUDED_TABLES = [
+  '_realtime_subscription',
+  'schema_migrations',
+  'supabase_functions_migrations',
+  'supabase_functions_hooks',
+];
+
+// ============================================
+// CATEGORIZAÇÃO DINÂMICA POR PADRÕES DE NOME
+// ============================================
 function categorizeTable(tableName: string): string {
   const categories: Record<string, string[]> = {
     'Pessoas': ['servidor', 'profile', 'user', 'participante', 'dependente', 'pensoes'],
@@ -101,85 +114,52 @@ function inferTargetTable(columnName: string): string | null {
 }
 
 // ============================================
-// LISTA COMPLETA DE TABELAS DO SISTEMA - 83 TABELAS
-// Sincronizada com backup-offsite em 2026-01-26
+// DESCOBERTA DINÂMICA DE TABELAS
 // ============================================
-const KNOWN_TABLES = [
-  // ===== USUÁRIOS E PERMISSÕES (11) =====
-  'profiles', 'user_roles', 'user_permissions', 'user_org_units', 
-  'user_security_settings', 'role_permissions', 'module_access_scopes',
-  'perfis', 'funcoes_sistema', 'perfil_funcoes', 'usuario_perfis',
-  
-  // ===== ESTRUTURA ORGANIZACIONAL (5) =====
-  'estrutura_organizacional', 'cargos', 'composicao_cargos', 
-  'cargo_unidade_compatibilidade', 'centros_custo',
-  
-  // ===== SERVIDORES E RH (15) =====
-  'servidores', 'lotacoes', 'memorandos_lotacao', 'historico_funcional',
-  'portarias_servidor', 'ocorrencias_servidor', 'ferias_servidor',
-  'licencas_afastamentos', 'cessoes', 'designacoes', 'provimentos',
-  'vinculos_funcionais', 'dependentes_irrf', 'pensoes_alimenticias', 'consignacoes',
-  
-  // ===== PRÉ-CADASTROS (1) =====
-  'pre_cadastros',
-  
-  // ===== PONTO E FREQUÊNCIA (10) =====
-  'configuracao_jornada', 'horarios_jornada', 'registros_ponto',
-  'justificativas_ponto', 'solicitacoes_ajuste_ponto', 'banco_horas',
-  'lancamentos_banco_horas', 'frequencia_mensal', 'feriados', 'viagens_diarias',
-  
-  // ===== FOLHA DE PAGAMENTO (17) =====
-  'folhas_pagamento', 'lancamentos_folha', 'fichas_financeiras', 
-  'itens_ficha_financeira', 'rubricas', 'rubricas_historico',
-  'parametros_folha', 'tabela_inss', 'tabela_irrf', 'eventos_esocial',
-  'exportacoes_folha', 'bancos_cnab', 'contas_autarquia', 
-  'remessas_bancarias', 'retornos_bancarios', 'itens_retorno_bancario', 'config_autarquia',
-  
-  // ===== UNIDADES LOCAIS (6) =====
-  'unidades_locais', 'agenda_unidade', 'documentos_cedencia',
-  'termos_cessao', 'patrimonio_unidade', 'nomeacoes_chefe_unidade',
-  
-  // ===== FEDERAÇÕES ESPORTIVAS (2) =====
-  'federacoes_esportivas', 'calendario_federacao',
-  
-  // ===== DOCUMENTOS E APROVAÇÕES (3) =====
-  'documentos', 'approval_requests', 'approval_delegations',
-  
-  // ===== REUNIÕES (5) =====
-  'reunioes', 'participantes_reuniao', 'config_assinatura_reuniao',
-  'modelos_mensagem_reuniao', 'historico_convites_reuniao',
-  
-  // ===== DEMANDAS ASCOM (4) =====
-  'demandas_ascom', 'demandas_ascom_anexos', 
-  'demandas_ascom_comentarios', 'demandas_ascom_entregaveis',
-  
-  // ===== AUDITORIA E BACKUP (4) =====
-  'audit_logs', 'backup_config', 'backup_history', 'backup_integrity_checks'
-];
+interface DiscoveredTable {
+  table_name: string;
+  row_count: number;
+}
 
+// deno-lint-ignore no-explicit-any
+async function discoverTables(supabase: SupabaseClient<any, any, any>): Promise<DiscoveredTable[]> {
+  console.log('[DISCOVERY] Consultando catálogo PostgreSQL...');
+  
+  const { data, error } = await supabase.rpc('list_public_tables');
+  
+  if (error) {
+    console.error('[DISCOVERY] Erro ao listar tabelas:', error);
+    throw new Error(`Falha na descoberta de tabelas: ${error.message}`);
+  }
+  
+  // Filtrar tabelas excluídas
+  const rawData = data as DiscoveredTable[] | null;
+  const tables = (rawData || []).filter(
+    (t: DiscoveredTable) => !EXCLUDED_TABLES.includes(t.table_name)
+  );
+  
+  console.log(`[DISCOVERY] ${tables.length} tabelas descobertas automaticamente`);
+  
+  return tables;
+}
+
+// deno-lint-ignore no-explicit-any
 async function processTable(
-  supabase: any,
-  tableName: string
+  supabase: SupabaseClient<any, any, any>,
+  tableName: string,
+  rowCount: number,
+  allTableNames: string[]
 ): Promise<{ table: TableInfo; rels: RelationshipInfo[] } | null> {
   try {
-    // Buscar contagem e amostra em paralelo
-    const [countResult, sampleResult] = await Promise.all([
-      supabase.from(tableName).select('*', { count: 'exact', head: true }),
-      supabase.from(tableName).select('*').limit(1)
-    ]);
-
-    if (countResult.error) {
-      console.warn(`Erro ao contar ${tableName}:`, countResult.error.message);
-      return null;
-    }
-
-    const rowCount = countResult.count ?? 0;
     const category = categorizeTable(tableName);
     const columns: ColumnInfo[] = [];
     const rels: RelationshipInfo[] = [];
 
-    if (sampleResult.data && sampleResult.data.length > 0) {
-      const sample = sampleResult.data[0];
+    // Buscar amostra para inferir colunas
+    const { data: sampleResult } = await supabase.from(tableName).select('*').limit(1);
+
+    if (sampleResult && sampleResult.length > 0) {
+      const sample = sampleResult[0];
       for (const [colName, value] of Object.entries(sample)) {
         const isFK = colName.endsWith('_id') && colName !== 'id';
         const targetTable = inferTargetTable(colName);
@@ -202,7 +182,7 @@ async function processTable(
             sourceColumn: colName,
             targetTable,
             type: 'implicit',
-            exists: KNOWN_TABLES.includes(targetTable),
+            exists: allTableNames.includes(targetTable),
           });
         }
       }
@@ -220,7 +200,7 @@ async function processTable(
       rels
     };
   } catch (e) {
-    console.error(`Erro ao processar tabela ${tableName}:`, e);
+    console.error(`[PROCESS] Erro ao processar tabela ${tableName}:`, e);
     return null;
   }
 }
@@ -236,9 +216,18 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // ============================================
+    // DESCOBERTA AUTOMÁTICA DE TABELAS
+    // ============================================
+    const discoveredTables = await discoverTables(supabase);
+    const allTableNames = discoveredTables.map(t => t.table_name);
+    const discoveredAt = new Date().toISOString();
+
+    console.log(`[SCHEMA] Processando ${discoveredTables.length} tabelas...`);
+
     // Processar TODAS as tabelas em paralelo para máxima velocidade
     const results = await Promise.all(
-      KNOWN_TABLES.map(tableName => processTable(supabase, tableName))
+      discoveredTables.map(t => processTable(supabase, t.table_name, t.row_count, allTableNames))
     );
 
     const tables: TableInfo[] = [];
@@ -300,8 +289,20 @@ Deno.serve(async (req) => {
       }
     }
 
+    console.log(`[SCHEMA] Concluído: ${tables.length} tabelas, ${relationships.length} relacionamentos`);
+
     return new Response(
-      JSON.stringify({ tables, relationships, stats, diagnostics }),
+      JSON.stringify({ 
+        tables, 
+        relationships, 
+        stats, 
+        diagnostics,
+        discovery: {
+          mode: 'automatic',
+          discoveredAt,
+          source: 'information_schema.tables'
+        }
+      }),
       { 
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,

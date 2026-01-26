@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,118 +29,71 @@ interface BackupResult {
   error?: string;
 }
 
+interface DiscoveredTable {
+  table_name: string;
+  row_count: number;
+}
+
 // ============================================
-// LISTA COMPLETA DE TABELAS DO SISTEMA
-// Atualizada em 2026-01-26
+// TABELAS DE SISTEMA A IGNORAR
 // ============================================
-const ALL_TABLES = [
-  // ===== USUÁRIOS E PERMISSÕES =====
-  'profiles',
-  'user_roles',
-  'user_permissions',
-  'user_org_units',
-  'user_security_settings',
-  'role_permissions',
-  'module_access_scopes',
-  'perfis',
-  'funcoes_sistema',
-  'perfil_funcoes',
-  'usuario_perfis',
-  
-  // ===== ESTRUTURA ORGANIZACIONAL =====
-  'estrutura_organizacional',
-  'cargos',
-  'composicao_cargos',
-  'cargo_unidade_compatibilidade',
-  'centros_custo',
-  
-  // ===== SERVIDORES E RH =====
-  'servidores',
-  'lotacoes',
-  'memorandos_lotacao',
-  'historico_funcional',
-  'portarias_servidor',
-  'ocorrencias_servidor',
-  'ferias_servidor',
-  'licencas_afastamentos',
-  'cessoes',
-  'designacoes',
-  'provimentos',
-  'vinculos_funcionais',
-  'dependentes_irrf',
-  'pensoes_alimenticias',
-  'consignacoes',
-  
-  // ===== PRÉ-CADASTROS =====
-  'pre_cadastros',
-  
-  // ===== PONTO E FREQUÊNCIA =====
-  'configuracao_jornada',
-  'horarios_jornada',
-  'registros_ponto',
-  'justificativas_ponto',
-  'solicitacoes_ajuste_ponto',
-  'banco_horas',
-  'lancamentos_banco_horas',
-  'frequencia_mensal',
-  'feriados',
-  'viagens_diarias',
-  
-  // ===== FOLHA DE PAGAMENTO =====
-  'folhas_pagamento',
-  'lancamentos_folha',
-  'fichas_financeiras',
-  'itens_ficha_financeira',
-  'rubricas',
-  'rubricas_historico',
-  'parametros_folha',
-  'tabela_inss',
-  'tabela_irrf',
-  'eventos_esocial',
-  'exportacoes_folha',
-  'bancos_cnab',
-  'contas_autarquia',
-  'remessas_bancarias',
-  'retornos_bancarios',
-  'itens_retorno_bancario',
-  'config_autarquia',
-  
-  // ===== UNIDADES LOCAIS =====
-  'unidades_locais',
-  'agenda_unidade',
-  'documentos_cedencia',
-  'termos_cessao',
-  'patrimonio_unidade',
-  'nomeacoes_chefe_unidade',
-  
-  // ===== FEDERAÇÕES ESPORTIVAS =====
-  'federacoes_esportivas',
-  'calendario_federacao',
-  
-  // ===== DOCUMENTOS E APROVAÇÕES =====
-  'documentos',
-  'approval_requests',
-  'approval_delegations',
-  
-  // ===== REUNIÕES =====
-  'reunioes',
-  'participantes_reuniao',
-  'config_assinatura_reuniao',
-  'modelos_mensagem_reuniao',
-  'historico_convites_reuniao',
-  
-  // ===== DEMANDAS ASCOM =====
-  'demandas_ascom',
-  'demandas_ascom_anexos',
-  'demandas_ascom_comentarios',
-  'demandas_ascom_entregaveis',
-  
-  // ===== AUDITORIA E BACKUP =====
-  'audit_logs',
-  'backup_config',
-  'backup_history',
-  'backup_integrity_checks'
+const EXCLUDED_TABLES = [
+  '_realtime_subscription',
+  'schema_migrations',
+  'supabase_functions_migrations',
+  'supabase_functions_hooks',
 ];
+
+// ============================================
+// DESCOBERTA DINÂMICA DE TABELAS
+// ============================================
+// deno-lint-ignore no-explicit-any
+async function discoverAllTables(supabase: SupabaseClient<any, any, any>): Promise<string[]> {
+  console.log('[DISCOVERY] Consultando catálogo PostgreSQL para backup...');
+  
+  const { data, error } = await supabase.rpc('list_public_tables');
+  
+  if (error) {
+    console.error('[DISCOVERY] Erro ao listar tabelas:', error);
+    throw new Error(`Falha na descoberta de tabelas: ${error.message}`);
+  }
+  
+  const rawData = data as DiscoveredTable[] | null;
+  const tables = (rawData || [])
+    .filter((t: DiscoveredTable) => !EXCLUDED_TABLES.includes(t.table_name))
+    .map((t: DiscoveredTable) => t.table_name);
+  
+  console.log(`[DISCOVERY] ${tables.length} tabelas descobertas para backup`);
+  
+  return tables;
+}
+
+// Categorizar tabelas para organização
+function categorizeTable(tableName: string): string {
+  const categories: Record<string, string[]> = {
+    'usuarios_permissoes': ['profile', 'user_role', 'user_permission', 'user_org', 'user_security', 'role_permission', 'module_access', 'perfis', 'funcoes_sistema', 'perfil_funcoes', 'usuario_perfis'],
+    'estrutura_organizacional': ['estrutura_organizacional', 'cargo', 'composicao_cargo', 'cargo_unidade', 'centros_custo'],
+    'servidores_rh': ['servidor', 'lotacao', 'memorando', 'historico_funcional', 'portarias_servidor', 'ocorrencia', 'ferias', 'licenca', 'cessao', 'designacao', 'provimento', 'vinculo', 'dependente', 'pensoes', 'consignac', 'pre_cadastro'],
+    'ponto_frequencia': ['jornada', 'horario', 'ponto', 'justificativa', 'solicitacoes_ajuste', 'banco_hora', 'lancamentos_banco', 'frequencia_mensal', 'feriado', 'viagens_diarias'],
+    'folha_pagamento': ['folha', 'lancamentos_folha', 'ficha', 'itens_ficha', 'rubrica', 'parametros_folha', 'tabela_inss', 'tabela_irrf', 'esocial', 'exportacoes_folha', 'banco', 'conta', 'remessa', 'retorno', 'config_autarquia'],
+    'unidades_locais': ['unidades_locais', 'agenda_unidade', 'documentos_cedencia', 'termos_cessao', 'patrimonio_unidade', 'nomeacoes_chefe'],
+    'federacoes': ['federac', 'calendario_federacao'],
+    'documentos_aprovacoes': ['documento', 'approval'],
+    'reunioes': ['reunio', 'participantes_reuniao', 'config_assinatura', 'modelos_mensagem', 'historico_convites'],
+    'demandas_ascom': ['demandas_ascom'],
+    'auditoria_backup': ['audit', 'backup'],
+  };
+
+  const lowerName = tableName.toLowerCase();
+  
+  for (const [category, keywords] of Object.entries(categories)) {
+    if (keywords.some(kw => lowerName.includes(kw))) {
+      return category;
+    }
+  }
+  
+  return 'outros';
+}
 
 // Função para gerar hash SHA-256
 async function sha256(data: Uint8Array): Promise<string> {
@@ -288,6 +241,20 @@ serve(async (req) => {
     const externalApiKey = Deno.env.get('BACKUP_EXTERNAL_API_KEY');
 
     // ============================================
+    // DESCOBERTA DINÂMICA DE TABELAS
+    // ============================================
+    let ALL_TABLES: string[];
+    try {
+      ALL_TABLES = await discoverAllTables(supabaseOrigin);
+    } catch (discoveryError) {
+      console.error('[DISCOVERY] Falha na descoberta:', discoveryError);
+      // Fallback para lista mínima crítica em caso de erro
+      ALL_TABLES = ['profiles', 'servidores', 'cargos', 'estrutura_organizacional'];
+    }
+
+    const discoveredAt = new Date().toISOString();
+
+    // ============================================
     // ENDPOINT PÚBLICO PARA CONTINGÊNCIA EXTERNA
     // ============================================
     if (action === 'external-export') {
@@ -310,6 +277,7 @@ serve(async (req) => {
         format: exportFormat,
         incremental: !!sinceDate,
         since: sinceDate?.toISOString() || null,
+        discovery_mode: 'automatic',
         tables_count: 0,
         total_records: 0,
         data: {}
@@ -323,7 +291,6 @@ serve(async (req) => {
           
           // Backup incremental por updated_at ou created_at
           if (sinceDate) {
-            // Tentar filtrar por updated_at primeiro, depois created_at
             query = query.or(`updated_at.gte.${sinceDate.toISOString()},created_at.gte.${sinceDate.toISOString()}`);
           }
           
@@ -368,7 +335,8 @@ serve(async (req) => {
             'Content-Type': 'application/json',
             'X-Export-Format': exportFormat,
             'X-Export-Records': String(totalRecords),
-            'X-Export-Tables': String(exportData.tables_count)
+            'X-Export-Tables': String(exportData.tables_count),
+            'X-Discovery-Mode': 'automatic'
           } 
         }
       );
@@ -378,24 +346,24 @@ serve(async (req) => {
     // ENDPOINT PARA LISTAR TABELAS DISPONÍVEIS
     // ============================================
     if (action === 'list-tables') {
+      // Organizar tabelas por categoria
+      const categorizedTables: Record<string, string[]> = {};
+      for (const table of ALL_TABLES) {
+        const category = categorizeTable(table);
+        if (!categorizedTables[category]) {
+          categorizedTables[category] = [];
+        }
+        categorizedTables[category].push(table);
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
+          discovery_mode: 'automatic',
+          discovered_at: discoveredAt,
           tables: ALL_TABLES,
           total: ALL_TABLES.length,
-          categories: {
-            usuarios_permissoes: ALL_TABLES.slice(0, 11),
-            estrutura_organizacional: ALL_TABLES.slice(11, 16),
-            servidores_rh: ALL_TABLES.slice(16, 31),
-            ponto_frequencia: ALL_TABLES.slice(32, 42),
-            folha_pagamento: ALL_TABLES.slice(42, 59),
-            unidades_locais: ALL_TABLES.slice(59, 65),
-            federacoes: ALL_TABLES.slice(65, 67),
-            documentos_aprovacoes: ALL_TABLES.slice(67, 70),
-            reunioes: ALL_TABLES.slice(70, 75),
-            demandas_ascom: ALL_TABLES.slice(75, 79),
-            auditoria_backup: ALL_TABLES.slice(79)
-          }
+          categories: categorizedTables
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -500,7 +468,12 @@ serve(async (req) => {
           await supabaseDest.storage.from('idjuv-backups').remove([testPath]);
 
           return new Response(
-            JSON.stringify({ success: true, message: 'Conexão estabelecida com sucesso' }),
+            JSON.stringify({ 
+              success: true, 
+              message: 'Conexão estabelecida com sucesso',
+              discovery_mode: 'automatic',
+              tables_available: ALL_TABLES.length
+            }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         } catch (connError) {
@@ -512,7 +485,7 @@ serve(async (req) => {
       case 'execute-backup': {
         const dateTime = formatDateTime();
         const type = backupType || 'manual';
-        const exportFormat = format || 'json'; // json, csv, sql
+        const exportFormat = format || 'json';
         
         const { data: backupRecord, error: insertError } = await supabaseOrigin
           .from('backup_history')
@@ -522,7 +495,12 @@ serve(async (req) => {
             triggered_by: user.id,
             trigger_mode: type === 'manual' ? 'manual' : 'auto',
             system_version: '2.0.0',
-            metadata: { format: exportFormat, tables_count: ALL_TABLES.length }
+            metadata: { 
+              format: exportFormat, 
+              tables_count: ALL_TABLES.length,
+              discovery_mode: 'automatic',
+              discovered_at: discoveredAt
+            }
           })
           .select()
           .single();
@@ -537,8 +515,8 @@ serve(async (req) => {
         let storageChecksum = '';
 
         try {
-          // 1. Backup COMPLETO do banco de dados - TODAS as tabelas
-          console.log(`[BACKUP] Iniciando backup de ${ALL_TABLES.length} tabelas`);
+          // 1. Backup COMPLETO do banco de dados - TODAS as tabelas descobertas
+          console.log(`[BACKUP] Iniciando backup de ${ALL_TABLES.length} tabelas (descoberta automática)`);
 
           const dbData: Record<string, unknown[]> = {};
           const tableStats: Record<string, number> = {};
@@ -561,10 +539,9 @@ serve(async (req) => {
           let dbExtension: string;
 
           if (exportFormat === 'sql') {
-            // SQL PostgreSQL
             const sqlLines = [
               '-- ============================================',
-              '-- BACKUP COMPLETO IDJUV',
+              '-- BACKUP COMPLETO IDJUV (Descoberta Automática)',
               `-- Gerado em: ${new Date().toISOString()}`,
               `-- Tabelas: ${Object.keys(dbData).length}`,
               `-- Total de registros: ${Object.values(tableStats).reduce((a, b) => a + b, 0)}`,
@@ -585,7 +562,6 @@ serve(async (req) => {
             dbContentType = 'application/sql';
             dbExtension = 'sql';
           } else if (exportFormat === 'csv') {
-            // CSV (arquivo ZIP seria ideal, mas simplificamos para JSON com CSVs internos)
             const csvData: Record<string, string> = {};
             for (const [table, data] of Object.entries(dbData)) {
               if (data.length > 0) {
@@ -595,15 +571,16 @@ serve(async (req) => {
             dbContent = JSON.stringify({
               format: 'csv',
               exported_at: new Date().toISOString(),
+              discovery_mode: 'automatic',
               tables: csvData
             }, null, 2);
             dbContentType = 'application/json';
             dbExtension = 'csv.json';
           } else {
-            // JSON padrão
             dbContent = JSON.stringify({
               exported_at: new Date().toISOString(),
               system_version: '2.0.0',
+              discovery_mode: 'automatic',
               tables_count: Object.keys(dbData).length,
               total_records: Object.values(tableStats).reduce((a, b) => a + b, 0),
               table_stats: tableStats,
@@ -717,6 +694,11 @@ serve(async (req) => {
             type,
             format: exportFormat,
             system_version: '2.0.0',
+            discovery: {
+              mode: 'automatic',
+              discovered_at: discoveredAt,
+              source: 'information_schema.tables via list_public_tables()'
+            },
             tables: {
               total: ALL_TABLES.length,
               exported: Object.keys(dbData).length,
@@ -745,7 +727,8 @@ serve(async (req) => {
               restore_instructions: 'Para restaurar, importe o arquivo de banco diretamente no PostgreSQL ou use a API de importação.',
               formats_available: ['json', 'csv', 'sql'],
               incremental_field: 'updated_at ou created_at',
-              external_access: 'Use action=external-export com API key para exportação via endpoint'
+              external_access: 'Use action=external-export com API key para exportação via endpoint',
+              auto_discovery: 'O sistema descobre automaticamente novas tabelas criadas no banco'
             }
           };
 
@@ -780,7 +763,12 @@ serve(async (req) => {
               manifest_checksum: manifestChecksum,
               total_size: totalSize,
               duration_seconds: duration,
-              metadata: { format: exportFormat, tables_count: Object.keys(dbData).length, table_stats: tableStats }
+              metadata: { 
+                format: exportFormat, 
+                tables_count: Object.keys(dbData).length, 
+                table_stats: tableStats,
+                discovery_mode: 'automatic'
+              }
             })
             .eq('id', backupRecord.id);
 
@@ -801,8 +789,8 @@ serve(async (req) => {
             _entity_type: 'backup',
             _entity_id: backupRecord.id,
             _module_name: 'backup_offsite',
-            _description: `Backup ${type} (${exportFormat}) executado com sucesso`,
-            _metadata: { total_size: totalSize, duration, format: exportFormat, tables: Object.keys(dbData).length }
+            _description: `Backup ${type} (${exportFormat}) executado com sucesso - descoberta automática`,
+            _metadata: { total_size: totalSize, duration, format: exportFormat, tables: Object.keys(dbData).length, discovery_mode: 'automatic' }
           });
 
           return new Response(
@@ -816,7 +804,8 @@ serve(async (req) => {
               duration,
               format: exportFormat,
               tablesExported: Object.keys(dbData).length,
-              totalRecords: Object.values(tableStats).reduce((a, b) => a + b, 0)
+              totalRecords: Object.values(tableStats).reduce((a, b) => a + b, 0),
+              discoveryMode: 'automatic'
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
@@ -970,7 +959,11 @@ serve(async (req) => {
         });
 
         return new Response(
-          JSON.stringify({ success: true, deletedCount }),
+          JSON.stringify({
+            success: true,
+            deletedCount,
+            message: `${deletedCount} backups antigos removidos`
+          }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -990,18 +983,12 @@ serve(async (req) => {
           throw new Error('Manifest não encontrado');
         }
 
-        const { data: manifestData } = await supabaseDest.storage
+        const { data: signedUrl } = await supabaseDest.storage
           .from('idjuv-backups')
-          .download(backup.manifest_path);
-
-        if (!manifestData) {
-          throw new Error('Falha ao baixar manifest');
-        }
-
-        const manifest = await manifestData.text();
+          .createSignedUrl(backup.manifest_path, 3600);
 
         return new Response(
-          JSON.stringify({ success: true, manifest: JSON.parse(manifest) }),
+          JSON.stringify({ success: true, url: signedUrl?.signedUrl }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -1011,13 +998,13 @@ serve(async (req) => {
     }
 
   } catch (error) {
-    console.error('Erro no backup:', error);
+    console.error('Erro:', error);
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
   }

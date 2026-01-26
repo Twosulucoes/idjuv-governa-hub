@@ -18,6 +18,8 @@ import {
   BarChart3,
   RefreshCw,
   Loader2,
+  Zap,
+  Clock,
 } from 'lucide-react';
 import { useDatabaseSchema, CATEGORY_COLORS } from '@/hooks/useDatabaseSchema';
 import { DatabaseDiagram } from '@/components/database/DatabaseDiagram';
@@ -25,6 +27,8 @@ import { TableListTab } from '@/components/database/TableListTab';
 import { RelationshipsTab } from '@/components/database/RelationshipsTab';
 import { DiagnosticsTab } from '@/components/database/DiagnosticsTab';
 import { TableDetailDialog } from '@/components/database/TableDetailDialog';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 export default function DatabaseSchemaPage() {
   const { data, isLoading, isError, refetch } = useDatabaseSchema();
@@ -78,6 +82,7 @@ export default function DatabaseSchemaPage() {
   }
 
   const categories = Object.keys(data.stats.categoryCounts).sort();
+  const discoveryInfo = data.discovery;
 
   return (
     <AdminLayout 
@@ -85,6 +90,25 @@ export default function DatabaseSchemaPage() {
       description="Mapa completo das tabelas, relacionamentos e estatísticas do sistema"
     >
       <div className="space-y-6">
+        {/* Indicador de Descoberta Automática */}
+        {discoveryInfo?.mode === 'automatic' && (
+          <div className="flex items-center gap-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+            <Zap className="h-5 w-5 text-emerald-500" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">
+                Descoberta Automática Ativa
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Novas tabelas são detectadas automaticamente via catálogo PostgreSQL
+              </p>
+            </div>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              {discoveryInfo.discoveredAt && format(new Date(discoveryInfo.discoveredAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+            </div>
+          </div>
+        )}
+
         {/* Cards de Resumo */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>

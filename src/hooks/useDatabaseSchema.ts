@@ -33,6 +33,12 @@ export interface DiagnosticInfo {
   table?: string;
 }
 
+export interface DiscoveryInfo {
+  mode: 'automatic' | 'static';
+  discoveredAt: string;
+  source: string;
+}
+
 export interface DatabaseSchemaData {
   tables: TableInfo[];
   relationships: RelationshipInfo[];
@@ -46,6 +52,7 @@ export interface DatabaseSchemaData {
     categoryCounts: Record<string, number>;
   };
   diagnostics: DiagnosticInfo[];
+  discovery?: DiscoveryInfo;
 }
 
 async function fetchDatabaseSchema(): Promise<DatabaseSchemaData> {
@@ -80,6 +87,9 @@ export const CATEGORY_COLORS: Record<string, string> = {
   'Documentos': '#8b5cf6',
   'Reuniões': '#ec4899',
   'Unidades Locais': '#06b6d4',
+  'Ponto': '#10b981',
+  'Federações': '#6366f1',
+  'ASCOM': '#f43f5e',
   'Sistema': '#6b7280',
   'Outros': '#a1a1aa',
 };
