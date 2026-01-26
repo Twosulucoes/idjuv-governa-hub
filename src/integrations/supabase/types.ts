@@ -637,6 +637,71 @@ export type Database = {
         }
         Relationships: []
       }
+      calendario_federacao: {
+        Row: {
+          categorias: string | null
+          cidade: string | null
+          created_at: string | null
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string
+          descricao: string | null
+          federacao_id: string
+          id: string
+          local: string | null
+          observacoes: string | null
+          publico_estimado: number | null
+          status: string
+          tipo: string
+          titulo: string
+          updated_at: string | null
+        }
+        Insert: {
+          categorias?: string | null
+          cidade?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio: string
+          descricao?: string | null
+          federacao_id: string
+          id?: string
+          local?: string | null
+          observacoes?: string | null
+          publico_estimado?: number | null
+          status?: string
+          tipo?: string
+          titulo: string
+          updated_at?: string | null
+        }
+        Update: {
+          categorias?: string | null
+          cidade?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          descricao?: string | null
+          federacao_id?: string
+          id?: string
+          local?: string | null
+          observacoes?: string | null
+          publico_estimado?: number | null
+          status?: string
+          tipo?: string
+          titulo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendario_federacao_federacao_id_fkey"
+            columns: ["federacao_id"]
+            isOneToOne: false
+            referencedRelation: "federacoes_esportivas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cargo_unidade_compatibilidade: {
         Row: {
           cargo_id: string | null
