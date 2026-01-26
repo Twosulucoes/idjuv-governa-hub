@@ -3,8 +3,13 @@
 -- Execute TERCEIRO no SQL Editor do Supabase
 -- ============================================================
 
+-- DROPAR funções existentes primeiro
+DROP FUNCTION IF EXISTS public.usuario_eh_admin(uuid);
+DROP FUNCTION IF EXISTS public.listar_permissoes_usuario(uuid);
+DROP FUNCTION IF EXISTS public.usuario_tem_permissao(uuid, varchar);
+
 -- Função para verificar se usuário é admin
-CREATE OR REPLACE FUNCTION public.usuario_eh_admin(check_user_id UUID)
+CREATE FUNCTION public.usuario_eh_admin(check_user_id UUID)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
