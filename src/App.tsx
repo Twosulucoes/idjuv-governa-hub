@@ -96,6 +96,7 @@ import ConfiguracaoReunioesPage from "./pages/admin/ConfiguracaoReunioesPage";
 import CheckinReuniaoPage from "./pages/admin/CheckinReuniaoPage";
 import DatabaseSchemaPage from "./pages/admin/DatabaseSchemaPage";
 import RelatorioAdminPage from "./pages/admin/RelatorioAdminPage";
+import CalibradorSegadPage from "./pages/admin/CalibradorSegadPage";
 
 // ASCOM
 import GestaoDemandasAscomPage from "./pages/ascom/GestaoDemandasAscomPage";
@@ -180,6 +181,7 @@ const App = () => (
                 <Route path="/admin/reunioes/:reuniaoId/checkin" element={<CheckinReuniaoPage />} />
                 <Route path="/admin/database" element={<DatabaseSchemaPage />} />
                 <Route path="/admin/relatorio" element={<RelatorioAdminPage />} />
+                <Route path="/admin/calibrador-segad" element={<CalibradorSegadPage />} />
                 <Route path="/acesso" element={<ControleAcessoAdminPage />} />
                 
                 {/* ASCOM */}

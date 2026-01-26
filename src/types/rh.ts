@@ -511,3 +511,48 @@ export const BANCOS = [
   { codigo: '260', nome: 'Nubank' },
   { codigo: '336', nome: 'C6 Bank' },
 ];
+
+// ============================================
+// CÓDIGOS SEGAD - Mapeamento para Ficha Cadastral
+// ============================================
+
+export const SEGAD_ESTADO_CIVIL: Record<string, string> = {
+  'solteiro(a)': '1-SOLTEIRO(A)',
+  'solteiro': '1-SOLTEIRO(A)',
+  'casado(a)': '2-CASADO(A)',
+  'casado': '2-CASADO(A)',
+  'divorciado(a)': '3-DIVORCIADO(A)',
+  'divorciado': '3-DIVORCIADO(A)',
+  'viúvo(a)': '4-VIÚVO(A)',
+  'viuvo(a)': '4-VIÚVO(A)',
+  'viuvo': '4-VIÚVO(A)',
+  'união estável': '5-UNIÃO ESTÁVEL',
+  'uniao estavel': '5-UNIÃO ESTÁVEL',
+  'separado(a)': '6-SEPARADO(A)',
+  'separado': '6-SEPARADO(A)',
+};
+
+export const SEGAD_TIPO_PCD: Record<string, string> = {
+  'não deficiente': '99-NÃO DEFICIENTE',
+  'nao deficiente': '99-NÃO DEFICIENTE',
+  '': '99-NÃO DEFICIENTE',
+  'física': '01-FÍSICA',
+  'fisica': '01-FÍSICA',
+  'auditiva': '02-AUDITIVA',
+  'visual': '03-VISUAL',
+  'intelectual': '04-INTELECTUAL',
+  'múltipla': '05-MÚLTIPLA',
+  'multipla': '05-MÚLTIPLA',
+  'outra': '06-OUTRA',
+};
+
+export const SEGAD_RACA_COR: Record<string, string> = {
+  'branca': '1-BRANCA',
+  'preta': '2-PRETA',
+  'parda': '3-PARDA',
+  'amarela': '4-AMARELA',
+  'indígena': '5-INDÍGENA',
+  'indigena': '5-INDÍGENA',
+  'não declarada': '6-NÃO DECLARADA',
+  'nao declarada': '6-NÃO DECLARADA',
+};

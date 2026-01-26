@@ -627,6 +627,13 @@ export const adminMenuConfig: AdminMenuSection[] = [
         icon: Shield,
         keywords: ["disaster", "recovery", "recuperação", "emergência"],
       },
+      {
+        id: "calibrador-segad",
+        label: "Calibrador SEGAD",
+        href: "/admin/calibrador-segad",
+        icon: FileSpreadsheet,
+        keywords: ["calibrador", "segad", "ficha", "cadastro", "pdf", "coordenadas"],
+      },
     ],
   },
   {
