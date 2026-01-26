@@ -11,6 +11,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   ArrowLeft, 
   Pencil,
@@ -25,9 +33,12 @@ import {
   Plane,
   FileDown,
   History,
-  Star
+  Star,
+  ChevronDown,
+  FileText
 } from "lucide-react";
 import { generateFichaCadastral } from "@/lib/pdfGenerator";
+import { downloadFichaCadastroGeral } from "@/lib/pdfFichaCadastroGeral";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
@@ -243,82 +254,107 @@ export default function ServidorDetalheePage() {
             </div>
 
             <div className="flex gap-2">
-              <Button 
-                variant="outline"
-                onClick={() => {
-                  generateFichaCadastral({
-                    nome_completo: servidor.nome_completo,
-                    nome_social: servidor.nome_social,
-                    cpf: servidor.cpf,
-                    rg: servidor.rg,
-                    rg_orgao_expedidor: servidor.rg_orgao_expedidor,
-                    rg_uf: servidor.rg_uf,
-                    rg_data_emissao: servidor.rg_data_emissao,
-                    data_nascimento: servidor.data_nascimento,
-                    sexo: servidor.sexo,
-                    estado_civil: servidor.estado_civil,
-                    nacionalidade: servidor.nacionalidade,
-                    naturalidade_cidade: servidor.naturalidade_cidade,
-                    naturalidade_uf: servidor.naturalidade_uf,
-                    titulo_eleitor: servidor.titulo_eleitor,
-                    titulo_zona: servidor.titulo_zona,
-                    titulo_secao: servidor.titulo_secao,
-                    pis_pasep: servidor.pis_pasep,
-                    ctps_numero: servidor.ctps_numero,
-                    ctps_serie: servidor.ctps_serie,
-                    ctps_uf: servidor.ctps_uf,
-                    cnh_numero: servidor.cnh_numero,
-                    cnh_categoria: servidor.cnh_categoria,
-                    cnh_validade: servidor.cnh_validade,
-                    certificado_reservista: servidor.certificado_reservista,
-                    email_pessoal: servidor.email_pessoal,
-                    email_institucional: servidor.email_institucional,
-                    telefone_fixo: servidor.telefone_fixo,
-                    telefone_celular: servidor.telefone_celular,
-                    telefone_emergencia: servidor.telefone_emergencia,
-                    contato_emergencia_nome: servidor.contato_emergencia_nome,
-                    contato_emergencia_parentesco: servidor.contato_emergencia_parentesco,
-                    endereco_logradouro: servidor.endereco_logradouro,
-                    endereco_numero: servidor.endereco_numero,
-                    endereco_complemento: servidor.endereco_complemento,
-                    endereco_bairro: servidor.endereco_bairro,
-                    endereco_cidade: servidor.endereco_cidade,
-                    endereco_uf: servidor.endereco_uf,
-                    endereco_cep: servidor.endereco_cep,
-                    matricula: servidor.matricula,
-                    situacao: servidor.situacao,
-                    cargo_nome: servidor.cargo?.nome,
-                    cargo_sigla: servidor.cargo?.sigla,
-                    unidade_nome: servidor.unidade?.nome,
-                    unidade_sigla: servidor.unidade?.sigla,
-                    carga_horaria: servidor.carga_horaria,
-                    regime_juridico: servidor.regime_juridico,
-                    data_admissao: servidor.data_admissao,
-                    data_desligamento: servidor.data_desligamento,
-                    escolaridade: servidor.escolaridade,
-                    formacao_academica: servidor.formacao_academica,
-                    instituicao_ensino: servidor.instituicao_ensino,
-                    ano_conclusao: servidor.ano_conclusao,
-                    cursos_especializacao: servidor.cursos_especializacao,
-                    banco_codigo: servidor.banco_codigo,
-                    banco_nome: servidor.banco_nome,
-                    banco_agencia: servidor.banco_agencia,
-                    banco_conta: servidor.banco_conta,
-                    banco_tipo_conta: servidor.banco_tipo_conta,
-                    remuneracao_bruta: servidor.remuneracao_bruta,
-                    gratificacoes: servidor.gratificacoes,
-                    descontos: servidor.descontos,
-                    acumula_cargo: servidor.acumula_cargo,
-                    acumulo_descricao: servidor.acumulo_descricao,
-                    declaracao_bens_data: servidor.declaracao_bens_data,
-                    declaracao_acumulacao_data: servidor.declaracao_acumulacao_data,
-                    observacoes: servidor.observacoes,
-                  });
-                }}
-              >
-                <FileDown className="h-4 w-4 mr-2" />
-                Ficha PDF
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Fichas PDF
+                    <ChevronDown className="h-4 w-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Documentos</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={() => {
+                      downloadFichaCadastroGeral({
+                        servidor: servidor as any,
+                        cargo: servidor.cargo,
+                        unidade: lotacaoVigente?.unidade || servidor.unidade,
+                        dependentes: servidor.dependentes,
+                      });
+                    }}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Ficha Cadastro SEGAD
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => {
+                      generateFichaCadastral({
+                        nome_completo: servidor.nome_completo,
+                        nome_social: servidor.nome_social,
+                        cpf: servidor.cpf,
+                        rg: servidor.rg,
+                        rg_orgao_expedidor: servidor.rg_orgao_expedidor,
+                        rg_uf: servidor.rg_uf,
+                        rg_data_emissao: servidor.rg_data_emissao,
+                        data_nascimento: servidor.data_nascimento,
+                        sexo: servidor.sexo,
+                        estado_civil: servidor.estado_civil,
+                        nacionalidade: servidor.nacionalidade,
+                        naturalidade_cidade: servidor.naturalidade_cidade,
+                        naturalidade_uf: servidor.naturalidade_uf,
+                        titulo_eleitor: servidor.titulo_eleitor,
+                        titulo_zona: servidor.titulo_zona,
+                        titulo_secao: servidor.titulo_secao,
+                        pis_pasep: servidor.pis_pasep,
+                        ctps_numero: servidor.ctps_numero,
+                        ctps_serie: servidor.ctps_serie,
+                        ctps_uf: servidor.ctps_uf,
+                        cnh_numero: servidor.cnh_numero,
+                        cnh_categoria: servidor.cnh_categoria,
+                        cnh_validade: servidor.cnh_validade,
+                        certificado_reservista: servidor.certificado_reservista,
+                        email_pessoal: servidor.email_pessoal,
+                        email_institucional: servidor.email_institucional,
+                        telefone_fixo: servidor.telefone_fixo,
+                        telefone_celular: servidor.telefone_celular,
+                        telefone_emergencia: servidor.telefone_emergencia,
+                        contato_emergencia_nome: servidor.contato_emergencia_nome,
+                        contato_emergencia_parentesco: servidor.contato_emergencia_parentesco,
+                        endereco_logradouro: servidor.endereco_logradouro,
+                        endereco_numero: servidor.endereco_numero,
+                        endereco_complemento: servidor.endereco_complemento,
+                        endereco_bairro: servidor.endereco_bairro,
+                        endereco_cidade: servidor.endereco_cidade,
+                        endereco_uf: servidor.endereco_uf,
+                        endereco_cep: servidor.endereco_cep,
+                        matricula: servidor.matricula,
+                        situacao: servidor.situacao,
+                        cargo_nome: servidor.cargo?.nome,
+                        cargo_sigla: servidor.cargo?.sigla,
+                        unidade_nome: servidor.unidade?.nome,
+                        unidade_sigla: servidor.unidade?.sigla,
+                        carga_horaria: servidor.carga_horaria,
+                        regime_juridico: servidor.regime_juridico,
+                        data_admissao: servidor.data_admissao,
+                        data_desligamento: servidor.data_desligamento,
+                        escolaridade: servidor.escolaridade,
+                        formacao_academica: servidor.formacao_academica,
+                        instituicao_ensino: servidor.instituicao_ensino,
+                        ano_conclusao: servidor.ano_conclusao,
+                        cursos_especializacao: servidor.cursos_especializacao,
+                        banco_codigo: servidor.banco_codigo,
+                        banco_nome: servidor.banco_nome,
+                        banco_agencia: servidor.banco_agencia,
+                        banco_conta: servidor.banco_conta,
+                        banco_tipo_conta: servidor.banco_tipo_conta,
+                        remuneracao_bruta: servidor.remuneracao_bruta,
+                        gratificacoes: servidor.gratificacoes,
+                        descontos: servidor.descontos,
+                        acumula_cargo: servidor.acumula_cargo,
+                        acumulo_descricao: servidor.acumulo_descricao,
+                        declaracao_bens_data: servidor.declaracao_bens_data,
+                        declaracao_acumulacao_data: servidor.declaracao_acumulacao_data,
+                        observacoes: servidor.observacoes,
+                      });
+                    }}
+                  >
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Ficha Cadastral IDJUV
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button onClick={() => navigate(`/rh/servidores/${id}/editar`)}>
                 <Pencil className="h-4 w-4 mr-2" />
                 Editar
