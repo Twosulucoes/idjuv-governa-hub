@@ -19,6 +19,19 @@ interface DadosCompletos {
   dependentes?: Dependente[];
 }
 
+// Função para truncar texto que excede largura máxima
+function truncarTexto(doc: jsPDF, texto: string, maxWidth: number): string {
+  if (!texto) return "";
+  const textWidth = doc.getTextWidth(texto);
+  if (textWidth <= maxWidth) return texto;
+  
+  let truncated = texto;
+  while (doc.getTextWidth(truncated + "...") > maxWidth && truncated.length > 0) {
+    truncated = truncated.slice(0, -1);
+  }
+  return truncated + "...";
+}
+
 function formatCPF(cpf: string): string {
   if (!cpf) return "";
   const clean = cpf.replace(/\D/g, "");
@@ -103,7 +116,7 @@ export function gerarFichaCadastroGeral(dados: DadosCompletos): jsPDF {
 
   // Configuração de fonte para preenchimento
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setTextColor(0, 0, 0);
 
   // =============================================
@@ -112,126 +125,112 @@ export function gerarFichaCadastroGeral(dados: DadosCompletos): jsPDF {
   doc.addImage(fichaPage1, "JPEG", 0, 0, pageWidth, pageHeight);
 
   // DADOS DE IDENTIFICAÇÃO
-  // Nome (linha ~46mm do topo)
-  doc.text(servidor.nome_completo?.toUpperCase() || "", 25, 56);
+  // Nome - campo largo (até 120mm de largura)
+  const nomeCompleto = truncarTexto(doc, servidor.nome_completo?.toUpperCase() || "", 115);
+  doc.text(nomeCompleto, 25, 56);
   
-  // Estado Civil (~51mm)
+  // Sexo - posição ajustada para não sobrepor PCD
+  doc.text(getSexoLabel(servidor.sexo), 150, 56);
+  
+  // Estado Civil - posição ajustada
   doc.text(getEstadoCivilLabel(servidor.estado_civil), 38, 63);
   
-  // Raça/Cor
-  doc.text("", 92, 63);
-  
-  // Sexo
-  doc.text(getSexoLabel(servidor.sexo), 149, 56);
-  
-  // PCD - Marcar checkbox (posição aproximada)
-  // Se não for PCD, marca NÃO
-  doc.text("X", 189, 63); // NÃO
+  // PCD - Marcar checkbox NÃO
+  doc.text("X", 189, 63);
   
   // Nacionalidade
-  doc.text(servidor.nacionalidade?.toUpperCase() || "BRASILEIRA", 45, 70);
+  const nacionalidade = truncarTexto(doc, servidor.nacionalidade?.toUpperCase() || "BRASILEIRA", 45);
+  doc.text(nacionalidade, 45, 70);
   
   // Naturalidade
   const naturalidade = servidor.naturalidade_cidade 
     ? `${servidor.naturalidade_cidade?.toUpperCase() || ""} - ${servidor.naturalidade_uf || ""}`
     : "";
-  doc.text(naturalidade, 40, 77);
+  const naturalidadeTrunc = truncarTexto(doc, naturalidade, 50);
+  doc.text(naturalidadeTrunc, 40, 77);
   
   // Data de Nascimento
   doc.text(formatDate(servidor.data_nascimento), 52, 84);
-  
-  // Tipo Sanguíneo
-  doc.text("", 178, 84);
-  
-  // Nome da Mãe
-  doc.text("", 38, 91);
-  
-  // Nome do Pai
-  doc.text("", 38, 98);
 
   // DOCUMENTAÇÃO
   // CPF
   doc.text(formatCPF(servidor.cpf), 25, 112);
   
-  // PIS/PASEP
-  doc.text(servidor.pis_pasep || "", 135, 112);
+  // PIS/PASEP - posição ajustada
+  doc.text(servidor.pis_pasep || "", 138, 112);
   
-  // Documento de Identidade
-  doc.text(servidor.rg?.toUpperCase() || "", 52, 119);
+  // Documento de Identidade (RG)
+  const rg = truncarTexto(doc, servidor.rg?.toUpperCase() || "", 50);
+  doc.text(rg, 52, 119);
   
   // Órgão Expedidor RG
-  doc.text(servidor.rg_orgao_expedidor?.toUpperCase() || "", 110, 119);
+  const rgOrgao = truncarTexto(doc, servidor.rg_orgao_expedidor?.toUpperCase() || "", 35);
+  doc.text(rgOrgao, 112, 119);
   
   // UF RG
-  doc.text(servidor.rg_uf || "", 155, 119);
-  
-  // Data Expedição RG
-  doc.text("", 185, 119);
+  doc.text(servidor.rg_uf || "", 158, 119);
   
   // Carteira de Reservista
-  doc.text(servidor.certificado_reservista || "", 54, 126);
+  const reservista = truncarTexto(doc, servidor.certificado_reservista || "", 40);
+  doc.text(reservista, 54, 126);
   
   // Título de Eleitor
   doc.text(servidor.titulo_eleitor || "", 50, 140);
   
   // Zona
-  doc.text(servidor.titulo_zona || "", 108, 140);
+  doc.text(servidor.titulo_zona || "", 110, 140);
   
   // Seção
-  doc.text(servidor.titulo_secao || "", 133, 140);
-  
-  // Cidade de Votação
-  doc.text("", 48, 147);
+  doc.text(servidor.titulo_secao || "", 138, 140);
   
   // CTPS
   doc.text(servidor.ctps_numero || "", 54, 154);
   
   // Série CTPS
-  doc.text(servidor.ctps_serie || "", 110, 154);
+  doc.text(servidor.ctps_serie || "", 112, 154);
   
   // UF CTPS
-  doc.text(servidor.ctps_uf || "", 140, 154);
+  doc.text(servidor.ctps_uf || "", 145, 154);
 
   // ESCOLARIDADE
   // Grau de Instrução
-  doc.text(servidor.escolaridade?.toUpperCase() || "", 53, 168);
+  const escolaridade = truncarTexto(doc, servidor.escolaridade?.toUpperCase() || "", 55);
+  doc.text(escolaridade, 53, 168);
   
-  // Curso
-  doc.text(servidor.formacao_academica?.toUpperCase() || "", 28, 175);
+  // Curso - campo amplo
+  const formacao = truncarTexto(doc, servidor.formacao_academica?.toUpperCase() || "", 95);
+  doc.text(formacao, 28, 175);
   
-  // Instituição
-  doc.text(servidor.instituicao_ensino?.toUpperCase() || "", 135, 175);
+  // Instituição - posição ajustada para não sobrepor
+  const instituicao = truncarTexto(doc, servidor.instituicao_ensino?.toUpperCase() || "", 60);
+  doc.text(instituicao, 138, 175);
 
   // DADOS FUNCIONAIS
-  // Ano início primeiro emprego
-  doc.text("", 60, 189);
-  
-  // Ano fim primeiro emprego
-  doc.text("", 122, 189);
-  
   // Ocupa vaga deficiente - NÃO
   doc.text("X", 189, 189);
   
-  // Lotação atual
-  doc.text(unidade?.nome?.toUpperCase() || "", 43, 196);
+  // Lotação atual - campo amplo
+  const lotacao = truncarTexto(doc, unidade?.nome?.toUpperCase() || "", 85);
+  doc.text(lotacao, 43, 196);
   
-  // Cargo/Função
-  doc.text(cargo?.nome?.toUpperCase() || "", 135, 196);
+  // Cargo/Função - posição ajustada
+  const cargoNome = truncarTexto(doc, cargo?.nome?.toUpperCase() || "", 55);
+  doc.text(cargoNome, 138, 196);
   
   // Código Cargo
-  doc.text(cargo?.sigla || "", 165, 203);
+  doc.text(cargo?.sigla || "", 168, 203);
   
   // Servidor quadro efetivo - NÃO
   doc.text("X", 189, 210);
   
   // Matrícula
-  doc.text(servidor.matricula || "", 115, 210);
+  doc.text(servidor.matricula || "", 118, 210);
   
   // CNH
   if (servidor.cnh_numero) {
     doc.text(servidor.cnh_numero, 32, 224);
-    doc.text(formatDate(servidor.cnh_validade), 82, 224);
-    doc.text(servidor.cnh_categoria || "", 185, 231);
+    doc.text(formatDate(servidor.cnh_validade), 85, 224);
+    doc.text(servidor.cnh_categoria || "", 180, 224);
   }
 
   // =============================================
@@ -244,46 +243,52 @@ export function gerarFichaCadastroGeral(dados: DadosCompletos): jsPDF {
   // CEP
   doc.text(formatCEP(servidor.endereco_cep || ""), 25, 56);
   
-  // Logradouro
-  doc.text(servidor.endereco_logradouro?.toUpperCase() || "", 58, 56);
+  // Logradouro - truncar para não sobrepor
+  const logradouro = truncarTexto(doc, servidor.endereco_logradouro?.toUpperCase() || "", 130);
+  doc.text(logradouro, 58, 56);
   
   // Número
   doc.text(servidor.endereco_numero || "", 32, 63);
   
   // Bairro
-  doc.text(servidor.endereco_bairro?.toUpperCase() || "", 70, 63);
+  const bairro = truncarTexto(doc, servidor.endereco_bairro?.toUpperCase() || "", 50);
+  doc.text(bairro, 72, 63);
   
   // Município
-  doc.text(servidor.endereco_cidade?.toUpperCase() || "", 130, 63);
+  const cidade = truncarTexto(doc, servidor.endereco_cidade?.toUpperCase() || "", 45);
+  doc.text(cidade, 133, 63);
   
   // Complemento
-  doc.text(servidor.endereco_complemento?.toUpperCase() || "", 45, 70);
+  const complemento = truncarTexto(doc, servidor.endereco_complemento?.toUpperCase() || "", 110);
+  doc.text(complemento, 48, 70);
   
   // Estado/UF
-  doc.text(servidor.endereco_uf || "", 170, 70);
+  doc.text(servidor.endereco_uf || "", 172, 70);
   
   // Celular
   doc.text(formatPhone(servidor.telefone_celular), 45, 77);
   
-  // E-mail
-  doc.text(servidor.email_pessoal?.toLowerCase() || "", 85, 77);
+  // E-mail - truncar para caber
+  const email = truncarTexto(doc, servidor.email_pessoal?.toLowerCase() || "", 95);
+  doc.text(email, 88, 77);
 
   // DADOS BANCÁRIOS
   // Código do Banco
   doc.text(servidor.banco_codigo || "", 48, 91);
   
   // Nome do Banco
-  doc.text(servidor.banco_nome?.toUpperCase() || "", 118, 91);
+  const bancoNome = truncarTexto(doc, servidor.banco_nome?.toUpperCase() || "", 70);
+  doc.text(bancoNome, 120, 91);
   
   // Agência
   doc.text(servidor.banco_agencia || "", 32, 98);
   
   // Conta Corrente
-  doc.text(servidor.banco_conta || "", 105, 98);
+  doc.text(servidor.banco_conta || "", 108, 98);
 
   // Data e Local
   const dataAtual = format(new Date(), "dd/MM/yyyy", { locale: ptBR });
-  doc.text(`Boa Vista/RR, ${dataAtual}`, 20, 112);
+  doc.text(`Boa Vista/RR, ${dataAtual}`, 20, 115);
 
   // =============================================
   // PÁGINA 3 - DECLARAÇÃO DE GRAU DE PARENTESCO
@@ -291,11 +296,12 @@ export function gerarFichaCadastroGeral(dados: DadosCompletos): jsPDF {
   doc.addPage();
   doc.addImage(fichaPage3, "JPEG", 0, 0, pageWidth, pageHeight);
 
-  // Nome
-  doc.text(servidor.nome_completo?.toUpperCase() || "", 32, 28);
+  // Nome - campo com limite
+  const nome3 = truncarTexto(doc, servidor.nome_completo?.toUpperCase() || "", 115);
+  doc.text(nome3, 32, 28);
   
   // CPF
-  doc.text(formatCPF(servidor.cpf), 160, 28);
+  doc.text(formatCPF(servidor.cpf), 162, 28);
 
   // Marcar checkbox NÃO para parentesco
   doc.text("X", 48, 93);
@@ -310,13 +316,15 @@ export function gerarFichaCadastroGeral(dados: DadosCompletos): jsPDF {
   doc.addImage(fichaPage4, "JPEG", 0, 0, pageWidth, pageHeight);
 
   // Nome
-  doc.text(servidor.nome_completo?.toUpperCase() || "", 32, 28);
+  const nome4 = truncarTexto(doc, servidor.nome_completo?.toUpperCase() || "", 150);
+  doc.text(nome4, 32, 28);
   
   // CPF
   doc.text(formatCPF(servidor.cpf), 32, 35);
   
   // Cargo/Função
-  doc.text(cargo?.nome?.toUpperCase() || "", 48, 42);
+  const cargo4 = truncarTexto(doc, cargo?.nome?.toUpperCase() || "", 140);
+  doc.text(cargo4, 48, 42);
 
   // Marcar NÃO ACUMULA
   doc.text("X", 16, 56);
@@ -331,13 +339,15 @@ export function gerarFichaCadastroGeral(dados: DadosCompletos): jsPDF {
   doc.addImage(fichaPage5, "JPEG", 0, 0, pageWidth, pageHeight);
 
   // Nome
-  doc.text(servidor.nome_completo?.toUpperCase() || "", 32, 28);
+  const nome5 = truncarTexto(doc, servidor.nome_completo?.toUpperCase() || "", 150);
+  doc.text(nome5, 32, 28);
   
   // CPF
   doc.text(formatCPF(servidor.cpf), 32, 35);
   
   // Cargo/Função
-  doc.text(cargo?.nome?.toUpperCase() || "", 48, 42);
+  const cargo5 = truncarTexto(doc, cargo?.nome?.toUpperCase() || "", 140);
+  doc.text(cargo5, 48, 42);
 
   // Marcar DECLARO QUE NÃO POSSUO por padrão
   doc.text("X", 75, 49);
@@ -352,16 +362,15 @@ export function gerarFichaCadastroGeral(dados: DadosCompletos): jsPDF {
   doc.addImage(fichaPage6, "JPEG", 0, 0, pageWidth, pageHeight);
 
   // Nome do Servidor
-  doc.text(servidor.nome_completo?.toUpperCase() || "", 32, 28);
+  const nome6 = truncarTexto(doc, servidor.nome_completo?.toUpperCase() || "", 115);
+  doc.text(nome6, 32, 28);
   
   // CPF do Servidor
   doc.text(formatCPF(servidor.cpf), 32, 35);
   
   // Cargo/Função
-  doc.text(cargo?.nome?.toUpperCase() || "", 65, 35);
-
-  // Nome do Cônjuge - deixar em branco
-  // CPF do Cônjuge - deixar em branco
+  const cargo6 = truncarTexto(doc, cargo?.nome?.toUpperCase() || "", 110);
+  doc.text(cargo6, 68, 35);
 
   // Marcar DECLARO QUE NÃO POSSUO CÔNJUGE por padrão (se solteiro)
   if (servidor.estado_civil === "solteiro" || !servidor.estado_civil) {
@@ -380,40 +389,40 @@ export function gerarFichaCadastroGeral(dados: DadosCompletos): jsPDF {
   doc.addImage(fichaPage7, "JPEG", 0, 0, pageWidth, pageHeight);
 
   // Nome do Servidor
-  doc.text(servidor.nome_completo?.toUpperCase() || "", 32, 28);
+  const nome7 = truncarTexto(doc, servidor.nome_completo?.toUpperCase() || "", 115);
+  doc.text(nome7, 32, 28);
   
   // CPF do Servidor
   doc.text(formatCPF(servidor.cpf), 32, 35);
   
   // Cargo/Função
-  doc.text(cargo?.nome?.toUpperCase() || "", 48, 42);
+  const cargo7 = truncarTexto(doc, cargo?.nome?.toUpperCase() || "", 140);
+  doc.text(cargo7, 48, 42);
 
   // Preencher dependentes se houver
   if (dependentes && dependentes.length > 0) {
     doc.text("X", 16, 49); // POSSUO DEPENDENTES
 
     const depPositions = [
-      { nome: 70, cpf: 133, nasc: 70, sexo: 89, parent: 40 },
-      { nome: 113, cpf: 133, nasc: 113, sexo: 132, parent: 83 },
-      { nome: 156, cpf: 133, nasc: 156, sexo: 175, parent: 126 },
-      { nome: 199, cpf: 133, nasc: 199, sexo: 218, parent: 169 },
+      { y: 56, nomeX: 40, cpfX: 135, nascX: 158 },
+      { y: 63, nomeX: 40, cpfX: 135, nascX: 158 },
+      { y: 70, nomeX: 40, cpfX: 135, nascX: 158 },
+      { y: 77, nomeX: 40, cpfX: 135, nascX: 158 },
     ];
 
     dependentes.slice(0, 4).forEach((dep, idx) => {
       const pos = depPositions[idx];
       if (!pos) return;
 
-      // Nome do dependente
-      doc.text(dep.nome?.toUpperCase() || "", 40, pos.nome - 14);
+      // Nome do dependente - truncar
+      const depNome = truncarTexto(doc, dep.nome?.toUpperCase() || "", 85);
+      doc.text(depNome, pos.nomeX, pos.y);
       
       // CPF do dependente
-      doc.text(formatCPF(dep.cpf || ""), pos.cpf, pos.nome - 14);
+      doc.text(formatCPF(dep.cpf || ""), pos.cpfX, pos.y);
       
       // Data de nascimento
-      doc.text(formatDate(dep.data_nascimento), 155, pos.nome - 14);
-      
-      // Parentesco
-      doc.text(getParentescoLabel(dep.parentesco), pos.parent, pos.nome - 7);
+      doc.text(formatDate(dep.data_nascimento), pos.nascX, pos.y);
     });
   } else {
     doc.text("X", 75, 49); // NÃO POSSUO DEPENDENTES
