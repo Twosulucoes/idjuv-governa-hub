@@ -35,6 +35,7 @@ const federacaoSchema = z.object({
   email: z.string().email('E-mail inválido'),
   instagram: z.string().optional(),
   facebook: z.string().optional(),
+  site: z.string().url('URL inválida').optional().or(z.literal('')),
   
   // Mandato
   mandato_inicio: z.string().min(1, 'Informe a data de início do mandato'),
@@ -86,6 +87,7 @@ export default function CadastroFederacaoPage() {
       email: '',
       instagram: '',
       facebook: '',
+      site: '',
       mandato_inicio: '',
       mandato_fim: '',
       presidente_nome: '',
@@ -161,6 +163,7 @@ export default function CadastroFederacaoPage() {
           email: data.email.toLowerCase(),
           instagram: data.instagram || null,
           facebook: data.facebook || null,
+          site: data.site || null,
           mandato_inicio: data.mandato_inicio,
           mandato_fim: data.mandato_fim,
           presidente_nome: data.presidente_nome.toUpperCase(),
@@ -461,6 +464,24 @@ export default function CadastroFederacaoPage() {
                     )}
                   />
                 </div>
+
+                <FormField
+                  control={form.control}
+                  name="site"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Site da Federação</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="url" 
+                          placeholder="https://www.federacao.com.br" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </CardContent>
             </Card>
 

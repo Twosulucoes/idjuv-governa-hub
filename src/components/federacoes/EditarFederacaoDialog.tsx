@@ -40,6 +40,7 @@ const federacaoEditSchema = z.object({
   email: z.string().email('E-mail inválido'),
   instagram: z.string().optional(),
   facebook: z.string().optional(),
+  site: z.string().url('URL inválida').optional().or(z.literal('')),
   mandato_inicio: z.string().min(1, 'Informe a data de início do mandato'),
   mandato_fim: z.string().min(1, 'Informe a data de fim do mandato'),
   presidente_nome: z.string().min(5, 'Nome deve ter pelo menos 5 caracteres'),
@@ -79,6 +80,7 @@ interface Federacao {
   email: string;
   instagram: string | null;
   facebook?: string | null;
+  site?: string | null;
   mandato_inicio: string;
   mandato_fim: string;
   presidente_nome: string;
@@ -127,6 +129,7 @@ export function EditarFederacaoDialog({ open, onOpenChange, federacao }: EditarF
       email: '',
       instagram: '',
       facebook: '',
+      site: '',
       mandato_inicio: '',
       mandato_fim: '',
       presidente_nome: '',
@@ -166,6 +169,7 @@ export function EditarFederacaoDialog({ open, onOpenChange, federacao }: EditarF
         email: federacao.email || '',
         instagram: federacao.instagram || '',
         facebook: federacao.facebook || '',
+        site: federacao.site || '',
         mandato_inicio: federacao.mandato_inicio?.split('T')[0] || '',
         mandato_fim: federacao.mandato_fim?.split('T')[0] || '',
         presidente_nome: federacao.presidente_nome || '',
@@ -215,6 +219,7 @@ export function EditarFederacaoDialog({ open, onOpenChange, federacao }: EditarF
           email: data.email.toLowerCase(),
           instagram: data.instagram || null,
           facebook: data.facebook || null,
+          site: data.site || null,
           mandato_inicio: data.mandato_inicio,
           mandato_fim: data.mandato_fim,
           presidente_nome: data.presidente_nome.toUpperCase(),
@@ -476,6 +481,24 @@ export function EditarFederacaoDialog({ open, onOpenChange, federacao }: EditarF
                         <FormLabel>Facebook</FormLabel>
                         <FormControl>
                           <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="site"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel>Site da Federação</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="url" 
+                            placeholder="https://www.federacao.com.br" 
+                            {...field} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

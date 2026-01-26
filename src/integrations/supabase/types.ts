@@ -2528,6 +2528,7 @@ export type Database = {
           presidente_nome: string
           presidente_telefone: string
           sigla: string
+          site: string | null
           status: string
           telefone: string
           updated_at: string
@@ -2571,6 +2572,7 @@ export type Database = {
           presidente_nome: string
           presidente_telefone: string
           sigla: string
+          site?: string | null
           status?: string
           telefone: string
           updated_at?: string
@@ -2614,6 +2616,7 @@ export type Database = {
           presidente_nome?: string
           presidente_telefone?: string
           sigla?: string
+          site?: string | null
           status?: string
           telefone?: string
           updated_at?: string
