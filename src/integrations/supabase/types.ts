@@ -7522,6 +7522,13 @@ export type Database = {
       }
       is_admin_user: { Args: { _user_id: string }; Returns: boolean }
       is_usuario_tecnico: { Args: { _user_id: string }; Returns: boolean }
+      list_public_tables: {
+        Args: never
+        Returns: {
+          row_count: number
+          table_name: string
+        }[]
+      }
       listar_permissoes_usuario: {
         Args: { check_user_id: string }
         Returns: {
