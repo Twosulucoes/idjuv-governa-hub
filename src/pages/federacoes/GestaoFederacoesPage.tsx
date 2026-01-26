@@ -28,8 +28,10 @@ import {
 import { CentralRelatoriosFederacoesDialog } from '@/components/federacoes/CentralRelatoriosFederacoesDialog';
 import { EditarFederacaoDialog } from '@/components/federacoes/EditarFederacaoDialog';
 import { CalendarioFederacaoTab } from '@/components/federacoes/CalendarioFederacaoTab';
+import { CalendarioGeralFederacoesTab } from '@/components/federacoes/CalendarioGeralFederacoesTab';
 
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -278,6 +280,21 @@ export default function GestaoFederacoesPage() {
           </Button>
         </div>
 
+        {/* Tabs */}
+        <Tabs defaultValue="federacoes" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 max-w-md">
+            <TabsTrigger value="federacoes" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Federações
+            </TabsTrigger>
+            <TabsTrigger value="calendario" className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Calendário Geral
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="federacoes" className="space-y-6 mt-6">
+
         {/* Central de Relatórios Dialog */}
         <CentralRelatoriosFederacoesDialog
           open={relatoriosOpen}
@@ -408,6 +425,12 @@ export default function GestaoFederacoesPage() {
             </Table>
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="calendario" className="mt-6">
+            <CalendarioGeralFederacoesTab />
+          </TabsContent>
+        </Tabs>
 
         {/* Detail Sheet */}
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
