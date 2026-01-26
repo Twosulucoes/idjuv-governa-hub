@@ -193,7 +193,7 @@ export default function BackupOffsitePage() {
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction onClick={() => {
-                      executeBackup('manual');
+                      executeBackup({ backupType: 'manual' });
                       setConfirmBackup(false);
                     }}>
                       Executar
