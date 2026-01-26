@@ -147,17 +147,19 @@ export const useBackupOffsite = () => {
     }
   });
 
-  // Executar backup
+  // Executar backup com formato
   const executeBackup = useMutation({
-    mutationFn: async (backupType: string = 'manual') => {
+    mutationFn: async (params: { backupType?: string; format?: string } = {}) => {
       setIsExecuting(true);
-      return invokeBackupFunction('execute-backup', { backupType });
+      const backupType = params.backupType || 'manual';
+      const format = params.format || 'json';
+      return invokeBackupFunction('execute-backup', { backupType, format });
     },
     onSuccess: (data) => {
       setIsExecuting(false);
       queryClient.invalidateQueries({ queryKey: ['backup-history'] });
       queryClient.invalidateQueries({ queryKey: ['backup-config'] });
-      toast.success(`Backup concluído! Tamanho: ${formatBytes(data.totalSize)}`);
+      toast.success(`Backup concluído! ${data.tablesExported} tabelas, ${formatBytes(data.totalSize)}`);
     },
     onError: (error) => {
       setIsExecuting(false);
