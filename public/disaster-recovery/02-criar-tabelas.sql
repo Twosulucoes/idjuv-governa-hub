@@ -276,4 +276,38 @@ CREATE TABLE IF NOT EXISTS public.tabela_irrf (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Config Autarquia
+CREATE TABLE IF NOT EXISTS public.config_autarquia (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  razao_social VARCHAR(255) NOT NULL,
+  nome_fantasia VARCHAR(255),
+  cnpj VARCHAR(20) NOT NULL,
+  natureza_juridica VARCHAR(100),
+  regime_tributario VARCHAR(50),
+  codigo_municipio VARCHAR(10),
+  endereco_logradouro VARCHAR(255),
+  endereco_numero VARCHAR(20),
+  endereco_complemento VARCHAR(100),
+  endereco_bairro VARCHAR(100),
+  endereco_cidade VARCHAR(100),
+  endereco_uf CHAR(2),
+  endereco_cep VARCHAR(10),
+  telefone VARCHAR(20),
+  email_institucional VARCHAR(255),
+  site VARCHAR(255),
+  responsavel_legal VARCHAR(200),
+  cargo_responsavel VARCHAR(100),
+  cpf_responsavel VARCHAR(14),
+  responsavel_contabil VARCHAR(200),
+  cpf_contabil VARCHAR(14),
+  crc_contabil VARCHAR(20),
+  esocial_ambiente VARCHAR(20),
+  esocial_processo_emissao VARCHAR(10),
+  ativo BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  created_by UUID,
+  updated_by UUID
+);
+
 SELECT 'Tabelas criadas com sucesso!' as resultado;
