@@ -46,6 +46,8 @@ export function useDadosFederacoes(
             return await buscarDadosFederacoes(filtros);
           case 'dirigentes':
             return await buscarDadosDirigentes(filtros);
+          case 'calendario':
+            return await buscarDadosCalendario(filtros);
           default:
             return { dados: [], total: 0 };
         }
@@ -228,6 +230,93 @@ async function buscarDadosDirigentes(
 }
 
 // ================================================================
+// BUSCAR CALENDÁRIO (competições e eventos)
+// ================================================================
+
+async function buscarDadosCalendario(
+  filtros: Record<string, unknown>
+): Promise<DadosRelatorioFederacao> {
+  // Buscar federações primeiro
+  let queryFederacoes = supabase
+    .from('federacoes_esportivas')
+    .select('id, nome, sigla, status')
+    .order('nome', { ascending: true });
+
+  // Filtrar por status da federação
+  if (filtros.status_federacao && Array.isArray(filtros.status_federacao) && filtros.status_federacao.length > 0) {
+    queryFederacoes = queryFederacoes.in('status', filtros.status_federacao);
+  }
+
+  const { data: federacoes, error: errorFederacoes } = await queryFederacoes;
+  if (errorFederacoes) throw errorFederacoes;
+
+  if (!federacoes || federacoes.length === 0) {
+    return { dados: [], total: 0 };
+  }
+
+  const federacoesIds = federacoes.map(f => f.id);
+
+  // Buscar eventos do calendário
+  let queryCalendario = supabase
+    .from('calendario_federacao')
+    .select('*')
+    .in('federacao_id', federacoesIds)
+    .order('data_inicio', { ascending: true });
+
+  // Filtrar por tipo de evento
+  if (filtros.tipo_evento && Array.isArray(filtros.tipo_evento) && filtros.tipo_evento.length > 0) {
+    queryCalendario = queryCalendario.in('tipo', filtros.tipo_evento);
+  }
+
+  // Filtrar por status do evento
+  if (filtros.status_evento && Array.isArray(filtros.status_evento) && filtros.status_evento.length > 0) {
+    queryCalendario = queryCalendario.in('status', filtros.status_evento);
+  }
+
+  // Filtrar por cidade
+  if (filtros.cidade && Array.isArray(filtros.cidade) && filtros.cidade.length > 0) {
+    queryCalendario = queryCalendario.in('cidade', filtros.cidade);
+  }
+
+  // Filtrar por período
+  if (filtros.periodo_evento && typeof filtros.periodo_evento === 'object') {
+    const periodo = filtros.periodo_evento as { inicio?: string; fim?: string };
+    if (periodo.inicio) {
+      queryCalendario = queryCalendario.gte('data_inicio', periodo.inicio);
+    }
+    if (periodo.fim) {
+      queryCalendario = queryCalendario.lte('data_inicio', periodo.fim);
+    }
+  }
+
+  const { data: eventos, error: errorEventos } = await queryCalendario;
+  if (errorEventos) throw errorEventos;
+
+  // Mapear federações para lookup rápido
+  const federacoesMap = new Map(federacoes.map(f => [f.id, f]));
+
+  // Processar dados
+  const dadosProcessados = (eventos || []).map((evento) => {
+    const fed = federacoesMap.get(evento.federacao_id);
+    return {
+      ...evento,
+      federacao_nome: fed?.nome || '-',
+      federacao_sigla: fed?.sigla || '-',
+      status_label: getStatusEventoLabel(evento.status),
+      tipo_label: evento.tipo,
+      data_inicio_formatada: evento.data_inicio
+        ? format(new Date(evento.data_inicio), 'dd/MM/yyyy', { locale: ptBR })
+        : '-',
+      data_fim_formatada: evento.data_fim
+        ? format(new Date(evento.data_fim), 'dd/MM/yyyy', { locale: ptBR })
+        : '-',
+    };
+  });
+
+  return { dados: dadosProcessados, total: dadosProcessados.length };
+}
+
+// ================================================================
 // HELPERS
 // ================================================================
 
@@ -237,6 +326,17 @@ function getStatusLabel(status: string): string {
     ativo: 'Ativa',
     inativo: 'Inativa',
     rejeitado: 'Rejeitada',
+  };
+  return labels[status] || status;
+}
+
+function getStatusEventoLabel(status: string): string {
+  const labels: Record<string, string> = {
+    planejado: 'Planejado',
+    confirmado: 'Confirmado',
+    em_andamento: 'Em Andamento',
+    concluido: 'Concluído',
+    cancelado: 'Cancelado',
   };
   return labels[status] || status;
 }
