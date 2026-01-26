@@ -22,10 +22,12 @@ import {
   FileText,
   Pencil,
   Trash2,
+  Trophy,
 } from 'lucide-react';
 
 import { CentralRelatoriosFederacoesDialog } from '@/components/federacoes/CentralRelatoriosFederacoesDialog';
 import { EditarFederacaoDialog } from '@/components/federacoes/EditarFederacaoDialog';
+import { CalendarioFederacaoTab } from '@/components/federacoes/CalendarioFederacaoTab';
 
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Input } from '@/components/ui/input';
@@ -638,6 +640,14 @@ export default function GestaoFederacoesPage() {
                       </div>
                     </>
                   )}
+
+                  <Separator />
+
+                  {/* Calendário de Competições */}
+                  <CalendarioFederacaoTab
+                    federacaoId={selectedFederacao.id}
+                    federacaoSigla={selectedFederacao.sigla}
+                  />
                 </div>
               </>
             )}
