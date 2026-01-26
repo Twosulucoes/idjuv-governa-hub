@@ -136,8 +136,16 @@ export function gerarFichaCadastroGeral(dados: DadosCompletos): jsPDF {
   // Sexo - campo separado na próxima área
   doc.text(getSexoLabel(servidor.sexo), 25, 63);
   
-  // PCD - Marcar checkbox NÃO (posição ajustada)
-  doc.text("X", 100, 63);
+  // Raça/Cor
+  const racaCor = truncarTexto(doc, servidor.raca_cor?.toUpperCase() || "", 25);
+  doc.text(racaCor, 65, 63);
+  
+  // PCD - Marcar checkbox SIM ou NÃO conforme valor
+  if (servidor.pcd) {
+    doc.text("X", 90, 63); // SIM
+  } else {
+    doc.text("X", 100, 63); // NÃO
+  }
   
   // Nacionalidade
   const nacionalidade = truncarTexto(doc, servidor.nacionalidade?.toUpperCase() || "BRASILEIRA", 45);
@@ -152,6 +160,14 @@ export function gerarFichaCadastroGeral(dados: DadosCompletos): jsPDF {
   
   // Data de Nascimento
   doc.text(formatDate(servidor.data_nascimento), 52, 84);
+  
+  // Nome da Mãe
+  const nomeMae = truncarTexto(doc, servidor.nome_mae?.toUpperCase() || "", 95);
+  doc.text(nomeMae, 45, 91);
+  
+  // Nome do Pai
+  const nomePai = truncarTexto(doc, servidor.nome_pai?.toUpperCase() || "", 95);
+  doc.text(nomePai, 45, 98);
 
   // DOCUMENTAÇÃO
   // CPF

@@ -57,7 +57,9 @@ import {
   UFS,
   ESTADOS_CIVIS,
   ESCOLARIDADES,
-  BANCOS
+  BANCOS,
+  RACAS_CORES,
+  TIPOS_PCD
 } from "@/types/rh";
 
 type FormData = {
@@ -73,6 +75,11 @@ type FormData = {
   nacionalidade: string;
   naturalidade_cidade: string;
   naturalidade_uf: string;
+  raca_cor: string;
+  pcd: boolean;
+  pcd_tipo: string;
+  nome_mae: string;
+  nome_pai: string;
   email_pessoal: string;
   email_institucional: string;
   telefone_fixo: string;
@@ -98,6 +105,19 @@ type FormData = {
   titulo_eleitor: string;
   titulo_zona: string;
   titulo_secao: string;
+  titulo_cidade_votacao: string;
+  titulo_uf_votacao: string;
+  titulo_data_emissao: string;
+  certificado_reservista: string;
+  reservista_orgao: string;
+  reservista_data_emissao: string;
+  ctps_numero: string;
+  ctps_serie: string;
+  ctps_uf: string;
+  ctps_data_emissao: string;
+  cnh_numero: string;
+  cnh_categoria: string;
+  cnh_validade: string;
   acumula_cargo: boolean;
   acumulo_descricao: string;
   observacoes: string;
@@ -117,6 +137,11 @@ const initialFormData: FormData = {
   nacionalidade: 'Brasileira',
   naturalidade_cidade: '',
   naturalidade_uf: '',
+  raca_cor: '',
+  pcd: false,
+  pcd_tipo: '',
+  nome_mae: '',
+  nome_pai: '',
   email_pessoal: '',
   email_institucional: '',
   telefone_fixo: '',
@@ -142,6 +167,19 @@ const initialFormData: FormData = {
   titulo_eleitor: '',
   titulo_zona: '',
   titulo_secao: '',
+  titulo_cidade_votacao: '',
+  titulo_uf_votacao: '',
+  titulo_data_emissao: '',
+  certificado_reservista: '',
+  reservista_orgao: '',
+  reservista_data_emissao: '',
+  ctps_numero: '',
+  ctps_serie: '',
+  ctps_uf: '',
+  ctps_data_emissao: '',
+  cnh_numero: '',
+  cnh_categoria: '',
+  cnh_validade: '',
   acumula_cargo: false,
   acumulo_descricao: '',
   observacoes: '',
@@ -218,6 +256,11 @@ export default function ServidorFormPage() {
         nacionalidade: servidor.nacionalidade || 'Brasileira',
         naturalidade_cidade: servidor.naturalidade_cidade || '',
         naturalidade_uf: servidor.naturalidade_uf || '',
+        raca_cor: servidor.raca_cor || '',
+        pcd: servidor.pcd || false,
+        pcd_tipo: servidor.pcd_tipo || '',
+        nome_mae: servidor.nome_mae || '',
+        nome_pai: servidor.nome_pai || '',
         email_pessoal: servidor.email_pessoal || '',
         email_institucional: servidor.email_institucional || '',
         telefone_fixo: servidor.telefone_fixo || '',
@@ -243,6 +286,19 @@ export default function ServidorFormPage() {
         titulo_eleitor: servidor.titulo_eleitor || '',
         titulo_zona: servidor.titulo_zona || '',
         titulo_secao: servidor.titulo_secao || '',
+        titulo_cidade_votacao: servidor.titulo_cidade_votacao || '',
+        titulo_uf_votacao: servidor.titulo_uf_votacao || '',
+        titulo_data_emissao: servidor.titulo_data_emissao || '',
+        certificado_reservista: servidor.certificado_reservista || '',
+        reservista_orgao: servidor.reservista_orgao || '',
+        reservista_data_emissao: servidor.reservista_data_emissao || '',
+        ctps_numero: servidor.ctps_numero || '',
+        ctps_serie: servidor.ctps_serie || '',
+        ctps_uf: servidor.ctps_uf || '',
+        ctps_data_emissao: servidor.ctps_data_emissao || '',
+        cnh_numero: servidor.cnh_numero || '',
+        cnh_categoria: servidor.cnh_categoria || '',
+        cnh_validade: servidor.cnh_validade || '',
         acumula_cargo: servidor.acumula_cargo || false,
         acumulo_descricao: servidor.acumulo_descricao || '',
         observacoes: servidor.observacoes || '',
@@ -273,6 +329,11 @@ export default function ServidorFormPage() {
         nacionalidade: data.nacionalidade || null,
         naturalidade_cidade: data.naturalidade_cidade || null,
         naturalidade_uf: data.naturalidade_uf || null,
+        raca_cor: data.raca_cor || null,
+        pcd: data.pcd,
+        pcd_tipo: data.pcd_tipo || null,
+        nome_mae: data.nome_mae || null,
+        nome_pai: data.nome_pai || null,
         email_pessoal: data.email_pessoal || null,
         email_institucional: data.email_institucional || null,
         telefone_fixo: data.telefone_fixo || null,
@@ -299,6 +360,19 @@ export default function ServidorFormPage() {
         titulo_eleitor: data.titulo_eleitor || null,
         titulo_zona: data.titulo_zona || null,
         titulo_secao: data.titulo_secao || null,
+        titulo_cidade_votacao: data.titulo_cidade_votacao || null,
+        titulo_uf_votacao: data.titulo_uf_votacao || null,
+        titulo_data_emissao: data.titulo_data_emissao || null,
+        certificado_reservista: data.certificado_reservista || null,
+        reservista_orgao: data.reservista_orgao || null,
+        reservista_data_emissao: data.reservista_data_emissao || null,
+        ctps_numero: data.ctps_numero || null,
+        ctps_serie: data.ctps_serie || null,
+        ctps_uf: data.ctps_uf || null,
+        ctps_data_emissao: data.ctps_data_emissao || null,
+        cnh_numero: data.cnh_numero || null,
+        cnh_categoria: data.cnh_categoria || null,
+        cnh_validade: data.cnh_validade || null,
         acumula_cargo: data.acumula_cargo,
         acumulo_descricao: data.acumulo_descricao || null,
         observacoes: data.observacoes || null,
@@ -625,6 +699,70 @@ export default function ServidorFormPage() {
                       </div>
                     </div>
 
+                    {/* Raça/Cor e PCD */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div>
+                        <Label>Raça/Cor</Label>
+                        <Select value={formData.raca_cor} onValueChange={(v) => updateField('raca_cor', v)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {RACAS_CORES.map(rc => (
+                              <SelectItem key={rc} value={rc}>{rc}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Pessoa com Deficiência (PCD)</Label>
+                        <Select value={formData.pcd ? "sim" : "nao"} onValueChange={(v) => updateField('pcd', v === 'sim')}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="nao">Não</SelectItem>
+                            <SelectItem value="sim">Sim</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {formData.pcd && (
+                        <div>
+                          <Label>Tipo de Deficiência</Label>
+                          <Select value={formData.pcd_tipo} onValueChange={(v) => updateField('pcd_tipo', v)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {TIPOS_PCD.map(t => (
+                                <SelectItem key={t} value={t}>{t}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Nome dos Pais */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Nome da Mãe</Label>
+                        <UppercaseInput
+                          value={formData.nome_mae}
+                          onChange={(value) => updateField('nome_mae', value)}
+                          placeholder="Nome completo da mãe"
+                        />
+                      </div>
+                      <div>
+                        <Label>Nome do Pai</Label>
+                        <UppercaseInput
+                          value={formData.nome_pai}
+                          onChange={(value) => updateField('nome_pai', value)}
+                          placeholder="Nome completo do pai"
+                        />
+                      </div>
+                    </div>
+
                     <Separator />
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -747,6 +885,141 @@ export default function ServidorFormPage() {
                         <Input
                           value={formData.titulo_secao}
                           onChange={(e) => updateField('titulo_secao', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Cidade de Votação</Label>
+                        <UppercaseInput
+                          value={formData.titulo_cidade_votacao}
+                          onChange={(value) => updateField('titulo_cidade_votacao', value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>UF de Votação</Label>
+                        <Select value={formData.titulo_uf_votacao} onValueChange={(v) => updateField('titulo_uf_votacao', v)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="UF" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {UFS.map(uf => (
+                              <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Data de Emissão</Label>
+                        <Input
+                          type="date"
+                          value={formData.titulo_data_emissao}
+                          onChange={(e) => updateField('titulo_data_emissao', e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Certificado de Reservista */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label>Certificado de Reservista</Label>
+                        <Input
+                          value={formData.certificado_reservista}
+                          onChange={(e) => updateField('certificado_reservista', e.target.value)}
+                          placeholder="Número do certificado"
+                        />
+                      </div>
+                      <div>
+                        <Label>Órgão/UF Reservista</Label>
+                        <UppercaseInput
+                          value={formData.reservista_orgao}
+                          onChange={(value) => updateField('reservista_orgao', value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Data de Expedição</Label>
+                        <Input
+                          type="date"
+                          value={formData.reservista_data_emissao}
+                          onChange={(e) => updateField('reservista_data_emissao', e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* CTPS */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div>
+                        <Label>CTPS Número</Label>
+                        <Input
+                          value={formData.ctps_numero}
+                          onChange={(e) => updateField('ctps_numero', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>CTPS Série</Label>
+                        <Input
+                          value={formData.ctps_serie}
+                          onChange={(e) => updateField('ctps_serie', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>CTPS UF</Label>
+                        <Select value={formData.ctps_uf} onValueChange={(v) => updateField('ctps_uf', v)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="UF" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {UFS.map(uf => (
+                              <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Data de Expedição</Label>
+                        <Input
+                          type="date"
+                          value={formData.ctps_data_emissao}
+                          onChange={(e) => updateField('ctps_data_emissao', e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* CNH */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label>CNH Número</Label>
+                        <Input
+                          value={formData.cnh_numero}
+                          onChange={(e) => updateField('cnh_numero', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Categoria</Label>
+                        <Select value={formData.cnh_categoria} onValueChange={(v) => updateField('cnh_categoria', v)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Categoria" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="A">A</SelectItem>
+                            <SelectItem value="B">B</SelectItem>
+                            <SelectItem value="AB">AB</SelectItem>
+                            <SelectItem value="C">C</SelectItem>
+                            <SelectItem value="D">D</SelectItem>
+                            <SelectItem value="E">E</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Validade</Label>
+                        <Input
+                          type="date"
+                          value={formData.cnh_validade}
+                          onChange={(e) => updateField('cnh_validade', e.target.value)}
                         />
                       </div>
                     </div>
