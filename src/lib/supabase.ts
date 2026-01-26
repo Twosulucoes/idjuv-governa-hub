@@ -2,9 +2,9 @@
  * Cliente Supabase ÚNICO do sistema
  * 
  * Este cliente conecta ao Supabase PRÓPRIO do usuário.
- * Usa as variáveis de ambiente:
- * - NEXT_PUBLIC_SUPABASE_URL
- * - NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
+ * Suporta dois formatos de variáveis de ambiente:
+ * - VITE_SUPABASE_EXTERNAL_URL + VITE_SUPABASE_EXTERNAL_KEY (preferido)
+ * - NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY (fallback)
  * 
  * IMPORTANTE: Este é o ÚNICO cliente Supabase do sistema.
  * O cliente nativo do Lovable NÃO é utilizado.
@@ -12,20 +12,31 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Variáveis do Supabase próprio (configuradas nos secrets)
-const SUPABASE_URL = import.meta.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
+// Tenta ler variáveis com prefixo VITE_ primeiro, depois NEXT_PUBLIC_
+const SUPABASE_URL = 
+  import.meta.env.VITE_SUPABASE_EXTERNAL_URL || 
+  import.meta.env.NEXT_PUBLIC_SUPABASE_URL ||
+  '';
+
+const SUPABASE_ANON_KEY = 
+  import.meta.env.VITE_SUPABASE_EXTERNAL_KEY || 
+  import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ||
+  '';
 
 // Storage key separada para evitar conflito com cliente antigo
 const STORAGE_KEY = 'idjuv-external-auth';
 
-// Validação para garantir que as variáveis estão configuradas
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.error(
-    '[IDJUV] ⚠️ Variáveis de ambiente não configuradas!\n' +
+// Flag para verificar se está configurado
+const isConfigured = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+
+// Log de status
+if (!isConfigured) {
+  console.warn(
+    '[IDJUV] ⚠️ Supabase externo não configurado.\n' +
     'Configure os secrets:\n' +
-    '- NEXT_PUBLIC_SUPABASE_URL\n' +
-    '- NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY'
+    '- VITE_SUPABASE_EXTERNAL_URL\n' +
+    '- VITE_SUPABASE_EXTERNAL_KEY\n' +
+    'O sistema usará o cliente Lovable Cloud como fallback.'
   );
 }
 
@@ -37,10 +48,11 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
  * 
  * const { data } = await supabase.from('tabela').select('*');
  */
-export const supabase: SupabaseClient = createClient(
-  SUPABASE_URL || '',
-  SUPABASE_ANON_KEY || '',
-  {
+let supabase: SupabaseClient;
+
+if (isConfigured) {
+  // Usa cliente externo
+  supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
       storageKey: STORAGE_KEY,
       storage: localStorage,
@@ -48,22 +60,35 @@ export const supabase: SupabaseClient = createClient(
       autoRefreshToken: true,
       detectSessionInUrl: true,
     },
-  }
-);
+  });
+} else {
+  // Fallback para Lovable Cloud
+  const LOVABLE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const LOVABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  
+  supabase = createClient(LOVABLE_URL || '', LOVABLE_KEY || '', {
+    auth: {
+      storage: localStorage,
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  });
+}
+
+export { supabase };
 
 /**
- * Verifica se o cliente está configurado corretamente
+ * Verifica se o cliente externo está configurado
  */
-export const isSupabaseConfigured = (): boolean => {
-  return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
-};
+export const isSupabaseConfigured = (): boolean => isConfigured;
 
 /**
  * Retorna informações sobre a conexão (sem expor chaves)
  */
 export const getConnectionInfo = () => ({
-  configured: isSupabaseConfigured(),
+  configured: isConfigured,
   url: SUPABASE_URL ? new URL(SUPABASE_URL).hostname : null,
+  mode: isConfigured ? 'external' : 'lovable-cloud',
 });
 
 /**
