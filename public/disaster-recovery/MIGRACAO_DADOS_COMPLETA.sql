@@ -38,22 +38,22 @@ ON CONFLICT (id) DO NOTHING;
 -- ============================================================
 -- PARTE 3: TABELA INSS 2025
 -- ============================================================
-INSERT INTO public.tabela_inss (id, faixa_ordem, valor_minimo, valor_maximo, aliquota, descricao, vigencia_inicio) VALUES
-('2b537c7f-590c-4d1d-b24e-e1438e54246a', 1, 0.00, 1518.00, 0.0750, 'Faixa 1 - até 1 SM', '2025-01-01'),
-('9d74c72e-b6f3-4aff-b493-2ba71ef58f0c', 2, 1518.01, 2793.88, 0.0900, 'Faixa 2', '2025-01-01'),
-('641dc990-9ca3-4926-a751-ccf3d6a7aa29', 3, 2793.89, 4190.83, 0.1200, 'Faixa 3', '2025-01-01'),
-('f58e0e82-7877-4fce-a383-c3ec55f23aec', 4, 4190.84, 8157.41, 0.1400, 'Faixa 4 - até teto', '2025-01-01')
+INSERT INTO public.tabela_inss (id, faixa_ordem, valor_minimo, valor_maximo, aliquota, vigencia_inicio) VALUES
+('2b537c7f-590c-4d1d-b24e-e1438e54246a', 1, 0.00, 1518.00, 0.0750, '2025-01-01'),
+('9d74c72e-b6f3-4aff-b493-2ba71ef58f0c', 2, 1518.01, 2793.88, 0.0900, '2025-01-01'),
+('641dc990-9ca3-4926-a751-ccf3d6a7aa29', 3, 2793.89, 4190.83, 0.1200, '2025-01-01'),
+('f58e0e82-7877-4fce-a383-c3ec55f23aec', 4, 4190.84, 8157.41, 0.1400, '2025-01-01')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
 -- PARTE 4: TABELA IRRF 2025
 -- ============================================================
-INSERT INTO public.tabela_irrf (id, faixa_ordem, valor_minimo, valor_maximo, aliquota, parcela_deduzir, descricao, vigencia_inicio) VALUES
-('0470a7bb-f281-47d8-85f4-b699b7640e3b', 1, 0.00, 2259.20, 0.0000, 0.00, 'Isento', '2025-01-01'),
-('9bbc6122-f4c8-4552-a8bb-53149456af7a', 2, 2259.21, 2826.65, 0.0750, 169.44, '7.5%', '2025-01-01'),
-('385903ee-5666-44b1-9d0e-b7a380a5ca69', 3, 2826.66, 3751.05, 0.1500, 381.44, '15%', '2025-01-01'),
-('871310e5-1c2d-4aae-af4a-0ead8269b9cb', 4, 3751.06, 4664.68, 0.2250, 662.77, '22.5%', '2025-01-01'),
-('eb3ee103-dd81-4f3f-8b6a-256faf81d14a', 5, 4664.69, NULL, 0.2750, 896.00, '27.5%', '2025-01-01')
+INSERT INTO public.tabela_irrf (id, faixa_ordem, valor_minimo, valor_maximo, aliquota, parcela_deduzir, vigencia_inicio) VALUES
+('0470a7bb-f281-47d8-85f4-b699b7640e3b', 1, 0.00, 2259.20, 0.0000, 0.00, '2025-01-01'),
+('9bbc6122-f4c8-4552-a8bb-53149456af7a', 2, 2259.21, 2826.65, 0.0750, 169.44, '2025-01-01'),
+('385903ee-5666-44b1-9d0e-b7a380a5ca69', 3, 2826.66, 3751.05, 0.1500, 381.44, '2025-01-01'),
+('871310e5-1c2d-4aae-af4a-0ead8269b9cb', 4, 3751.06, 4664.68, 0.2250, 662.77, '2025-01-01'),
+('eb3ee103-dd81-4f3f-8b6a-256faf81d14a', 5, 4664.69, NULL, 0.2750, 896.00, '2025-01-01')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
