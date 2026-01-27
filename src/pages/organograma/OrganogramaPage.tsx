@@ -447,7 +447,7 @@ export default function OrganogramaPage() {
               <div>
                 <p className="font-medium text-foreground">Base Legal</p>
                 <p>
-                  Estrutura definida conforme <strong>Projeto de Lei nº 290/25</strong> de 22 de dezembro de 2025
+                  Estrutura definida conforme <strong>Lei nº 2.301, de 29 de dezembro de 2025</strong>
                 </p>
               </div>
               <div className="text-right">

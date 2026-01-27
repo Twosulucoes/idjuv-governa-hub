@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 const governancaItems = [
   {
     title: "Lei de Criação",
-    description: "Projeto de Lei nº 290/2025 - Criação do IDJUV como autarquia estadual",
+    description: "Lei nº 2.301/2025 - Criação do IDJuv como autarquia estadual",
     icon: FileText,
     href: "/governanca/lei-criacao",
   },
