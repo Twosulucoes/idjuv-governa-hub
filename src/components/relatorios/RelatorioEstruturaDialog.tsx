@@ -25,7 +25,7 @@ export function RelatorioEstruturaDialog({
   onOpenChange,
 }: RelatorioEstruturaDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [orgaoSigla, setOrgaoSigla] = useState("IDJUV");
+  const [orgaoSigla, setOrgaoSigla] = useState("IDJuv");
 
   // Buscar unidades da estrutura organizacional
   const { data: unidades = [], isLoading } = useQuery({

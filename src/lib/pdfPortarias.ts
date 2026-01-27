@@ -129,7 +129,7 @@ async function addHeaderWithLogos(doc: jsPDF): Promise<number> {
   
   y += 4;
   doc.setFont('helvetica', 'bold');
-  doc.text('IDJUV', centerX, y, { align: 'center' });
+  doc.text('IDJuv', centerX, y, { align: 'center' });
   
   // Linha separadora
   y += 4;
@@ -550,7 +550,7 @@ function addHeader(doc: jsPDF) {
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA', CONFIG.pageWidth / 2, CONFIG.marginTop + 5, { align: 'center' });
-  doc.text('IDJUV', CONFIG.pageWidth / 2, CONFIG.marginTop + 10, { align: 'center' });
+  doc.text('IDJuv', CONFIG.pageWidth / 2, CONFIG.marginTop + 10, { align: 'center' });
   
   doc.setLineWidth(0.3);
   doc.line(CONFIG.marginLeft, CONFIG.marginTop + 14, CONFIG.pageWidth - CONFIG.marginRight, CONFIG.marginTop + 14);

@@ -135,7 +135,7 @@ export const generateRelatorioEstruturaPDF = async (
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     
-    const orgaoSigla = config.orgaoSigla || 'IDJUV';
+    const orgaoSigla = config.orgaoSigla || 'IDJuv';
     
     const valores = [
       orgaoSigla,

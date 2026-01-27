@@ -18,11 +18,12 @@ interface OrgUnit {
 }
 
 const orgUnits: OrgUnit[] = [
+  // NÍVEL DE ADMINISTRAÇÃO SUPERIOR
   {
     id: "presidencia",
     name: "Presidência",
     level: "presidencia",
-    description: "Órgão máximo de direção do IDJUV, responsável pela gestão estratégica e representação institucional.",
+    description: "Órgão máximo de direção do IDJuv, responsável pela gestão estratégica e representação institucional.",
     competencias: [
       "Representar o Instituto judicial e extrajudicialmente",
       "Ordenar despesas e autorizar pagamentos",
@@ -32,9 +33,11 @@ const orgUnits: OrgUnit[] = [
     ],
     responsavel: "Presidente"
   },
+  // NÍVEL DE ASSESSORAMENTO
   {
     id: "gabinete",
     name: "Gabinete da Presidência",
+    shortName: "GAB",
     level: "assessoria",
     parent: "presidencia",
     description: "Assessoria direta à Presidência para assuntos administrativos e de representação.",
@@ -62,6 +65,51 @@ const orgUnits: OrgUnit[] = [
     responsavel: "Assessor Jurídico"
   },
   {
+    id: "assessoria-especial",
+    name: "Assessoria Especial",
+    shortName: "ASESP",
+    level: "assessoria",
+    parent: "presidencia",
+    description: "Assessoria de alto nível para assuntos estratégicos e especiais.",
+    competencias: [
+      "Assessorar o Presidente em assuntos estratégicos",
+      "Elaborar estudos e pareceres técnicos",
+      "Acompanhar projetos especiais",
+      "Representar o Instituto em missões específicas"
+    ],
+    responsavel: "Assessor Especial"
+  },
+  {
+    id: "controle-interno",
+    name: "Controle Interno",
+    shortName: "CI",
+    level: "assessoria",
+    parent: "presidencia",
+    description: "Órgão responsável pela fiscalização e orientação da gestão administrativa.",
+    competencias: [
+      "Realizar auditorias internas",
+      "Orientar gestores sobre conformidade",
+      "Acompanhar recomendações do TCE",
+      "Elaborar relatórios de controle"
+    ],
+    responsavel: "Chefe de Controle Interno"
+  },
+  {
+    id: "comissao-contratacao",
+    name: "Comissão de Contratação",
+    shortName: "CPL",
+    level: "assessoria",
+    parent: "presidencia",
+    description: "Responsável pelos processos licitatórios e de contratação do Instituto.",
+    competencias: [
+      "Conduzir processos licitatórios",
+      "Analisar propostas e documentação",
+      "Julgar recursos administrativos",
+      "Emitir atos de adjudicação"
+    ],
+    responsavel: "Presidente da CPL"
+  },
+  {
     id: "assessoria-comunicacao",
     name: "Assessoria de Comunicação",
     shortName: "ASCOM",
@@ -76,20 +124,7 @@ const orgUnits: OrgUnit[] = [
     ],
     responsavel: "Assessor de Comunicação"
   },
-  {
-    id: "controle-interno",
-    name: "Controle Interno",
-    level: "assessoria",
-    parent: "presidencia",
-    description: "Órgão responsável pela fiscalização e orientação da gestão administrativa.",
-    competencias: [
-      "Realizar auditorias internas",
-      "Orientar gestores sobre conformidade",
-      "Acompanhar recomendações do TCE",
-      "Elaborar relatórios de controle"
-    ],
-    responsavel: "Controlador Interno"
-  },
+  // NÍVEL DE EXECUÇÃO INSTRUMENTAL
   {
     id: "diraf",
     name: "Diretoria Administrativa e Financeira",
@@ -101,70 +136,76 @@ const orgUnits: OrgUnit[] = [
       "Elaborar a proposta orçamentária anual",
       "Executar o orçamento e controlar a execução financeira",
       "Gerenciar a folha de pagamento",
-      "Administrar o patrimônio e o almoxarifado",
-      "Conduzir processos de aquisição e contratação"
+      "Administrar o patrimônio e contratos",
+      "Coordenar a tecnologia da informação"
     ],
     responsavel: "Diretor Administrativo e Financeiro"
   },
   {
-    id: "coord-rh",
-    name: "Coordenação de Recursos Humanos",
+    id: "dicof",
+    name: "Divisão de Contabilidade, Orçamento e Finanças",
+    shortName: "DiCOF",
+    level: "coordenacao",
+    parent: "diraf",
+    description: "Gestão contábil, orçamentária e financeira do Instituto.",
+    competencias: [
+      "Efetuar e controlar arrecadações e pagamentos",
+      "Controlar contas a receber e a pagar",
+      "Executar a escrituração contábil",
+      "Elaborar balancetes e balanços"
+    ],
+    responsavel: "Chefe de Divisão"
+  },
+  {
+    id: "diagp",
+    name: "Divisão Administrativa e Gestão Patrimonial",
+    shortName: "DiAGP",
+    level: "coordenacao",
+    parent: "diraf",
+    description: "Gestão administrativa, patrimonial e logística.",
+    competencias: [
+      "Elaborar cronograma de aquisição de material",
+      "Promover cadastro e tombamento de bens",
+      "Coordenar serviços de transporte",
+      "Promover publicação de atos oficiais"
+    ],
+    responsavel: "Chefe de Divisão"
+  },
+  {
+    id: "drh",
+    name: "Divisão de Recursos Humanos",
+    shortName: "DRH",
     level: "coordenacao",
     parent: "diraf",
     description: "Gestão de pessoal, folha de pagamento e desenvolvimento de servidores.",
     competencias: [
-      "Gerenciar a folha de pagamento",
-      "Controlar frequência e férias",
-      "Promover capacitação de servidores",
-      "Manter cadastro funcional atualizado"
+      "Propor normas relativas à área de pessoal",
+      "Processar atos relativos aos servidores",
+      "Elaborar folha de pagamento",
+      "Coordenar programas de estágio"
     ],
-    responsavel: "Coordenador de RH"
+    responsavel: "Chefe de Divisão"
   },
   {
-    id: "coord-orcamento",
-    name: "Coordenação de Orçamento e Finanças",
+    id: "diti",
+    name: "Divisão de Tecnologia da Informação",
+    shortName: "DiTI",
     level: "coordenacao",
     parent: "diraf",
-    description: "Planejamento e execução orçamentária e financeira.",
+    description: "Gestão de tecnologia, sistemas e infraestrutura digital.",
     competencias: [
-      "Elaborar proposta orçamentária",
-      "Acompanhar execução orçamentária",
-      "Processar pagamentos",
-      "Elaborar prestações de contas"
+      "Gerenciar infraestrutura de TI",
+      "Desenvolver e manter sistemas",
+      "Garantir segurança da informação",
+      "Prestar suporte técnico"
     ],
-    responsavel: "Coordenador de Orçamento"
+    responsavel: "Chefe de Divisão"
   },
+  // NÍVEL DE EXECUÇÃO PROGRAMÁTICA - DIESP
   {
-    id: "coord-compras",
-    name: "Coordenação de Compras e Contratos",
-    level: "coordenacao",
-    parent: "diraf",
-    description: "Aquisições, contratações e gestão de contratos administrativos.",
-    competencias: [
-      "Instruir processos de compras",
-      "Elaborar termos de referência",
-      "Acompanhar licitações",
-      "Fiscalizar contratos"
-    ],
-    responsavel: "Coordenador de Compras"
-  },
-  {
-    id: "coord-patrimonio",
-    name: "Coordenação de Patrimônio e Almoxarifado",
-    level: "coordenacao",
-    parent: "diraf",
-    description: "Gestão do patrimônio e controle de materiais.",
-    competencias: [
-      "Controlar bens patrimoniais",
-      "Gerenciar almoxarifado",
-      "Realizar inventários",
-      "Processar baixas patrimoniais"
-    ],
-    responsavel: "Coordenador de Patrimônio"
-  },
-  {
-    id: "dir-esporte",
+    id: "diesp",
     name: "Diretoria de Esporte",
+    shortName: "DIESP",
     level: "diretoria",
     parent: "presidencia",
     description: "Planejamento e execução das políticas de desenvolvimento esportivo.",
@@ -178,18 +219,104 @@ const orgUnits: OrgUnit[] = [
     responsavel: "Diretor de Esporte"
   },
   {
-    id: "dir-juventude",
-    name: "Diretoria de Juventude e Lazer",
+    id: "digel",
+    name: "Divisão de Gestão de Esporte e Lazer",
+    shortName: "DiGEL",
+    level: "coordenacao",
+    parent: "diesp",
+    description: "Promoção do esporte comunitário e atividades de lazer.",
+    competencias: [
+      "Promover desporto comunitário",
+      "Desenvolver atividades de lazer",
+      "Fomentar qualidade de vida através do esporte"
+    ],
+    responsavel: "Chefe de Divisão"
+  },
+  {
+    id: "dire",
+    name: "Divisão de Esporte de Alto Rendimento",
+    shortName: "DiRE",
+    level: "coordenacao",
+    parent: "diesp",
+    description: "Apoio ao esporte de alto rendimento e organizações esportivas.",
+    competencias: [
+      "Apoiar atletas de alto rendimento",
+      "Articular com organizações esportivas",
+      "Promover competições estaduais e nacionais"
+    ],
+    responsavel: "Chefe de Divisão"
+  },
+  {
+    id: "diede",
+    name: "Divisão de Educação e Desporto Estudantil",
+    shortName: "DiEDE",
+    level: "coordenacao",
+    parent: "diesp",
+    description: "Promoção do esporte educacional e de base.",
+    competencias: [
+      "Promover esporte educacional nas escolas",
+      "Desenvolver esporte de base",
+      "Organizar jogos escolares"
+    ],
+    responsavel: "Chefe de Divisão"
+  },
+  {
+    id: "digi",
+    name: "Divisão de Gestão Inclusiva e Qualidade de Vida",
+    shortName: "DiGI",
+    level: "coordenacao",
+    parent: "diesp",
+    description: "Promoção da inclusão social através do esporte e paradesporto.",
+    competencias: [
+      "Promover esporte inclusivo",
+      "Desenvolver paradesporto",
+      "Fomentar qualidade de vida"
+    ],
+    responsavel: "Chefe de Divisão"
+  },
+  // NÍVEL DE EXECUÇÃO PROGRAMÁTICA - DIJUV
+  {
+    id: "dijuv",
+    name: "Diretoria da Juventude",
+    shortName: "DIJUV",
     level: "diretoria",
     parent: "presidencia",
-    description: "Políticas públicas voltadas à juventude e atividades de lazer.",
+    description: "Políticas públicas voltadas à juventude e participação juvenil.",
     competencias: [
       "Formular políticas para juventude",
-      "Promover atividades de lazer",
-      "Fomentar participação juvenil",
+      "Promover protagonismo juvenil",
+      "Fomentar participação em conselhos",
       "Desenvolver programas de inclusão"
     ],
-    responsavel: "Diretor de Juventude e Lazer"
+    responsavel: "Diretor da Juventude"
+  },
+  {
+    id: "dipp",
+    name: "Divisão de Programas e Projetos",
+    shortName: "DiPP",
+    level: "coordenacao",
+    parent: "dijuv",
+    description: "Gestão de programas e projetos voltados à juventude.",
+    competencias: [
+      "Desenvolver programas para juventude",
+      "Gerenciar projetos temáticos",
+      "Articular com Centro de Referência da Juventude"
+    ],
+    responsavel: "Chefe de Divisão"
+  },
+  {
+    id: "dapt",
+    name: "Divisão de Articulação de Políticas Transversais",
+    shortName: "DAPT",
+    level: "coordenacao",
+    parent: "dijuv",
+    description: "Articulação de políticas transversais e relações institucionais.",
+    competencias: [
+      "Articular políticas transversais",
+      "Promover relações institucionais",
+      "Defender direitos da juventude"
+    ],
+    responsavel: "Chefe de Divisão"
   }
 ];
 

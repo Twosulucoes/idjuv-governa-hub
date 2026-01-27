@@ -143,24 +143,26 @@ export default function LeiCriacaoPage() {
                       <ul className="list-[lower-alpha] pl-6 font-normal">
                         <li>Divisão de Contabilidade, Orçamento e Finanças (DiCOF)</li>
                         <li>Divisão Administrativa e Gestão Patrimonial (DiAGP)</li>
-                        <li>Divisão de Gestão de Pessoas (DiGP)</li>
+                        <li>Divisão de Recursos Humanos (DRH)</li>
+                        <li>Divisão de Tecnologia da Informação (DiTI)</li>
                       </ul>
                     </li>
                   </ul>
 
                   <p className="font-semibold mb-2 mt-4">IV - Nível de Execução Programática:</p>
                   <ul className="list-decimal pl-6">
-                    <li className="font-medium">Diretoria de Esporte (DiEsp):
+                    <li className="font-medium">Diretoria de Esporte (DIESP):
                       <ul className="list-[lower-alpha] pl-6 font-normal">
-                        <li>Divisão de Promoção do Desporto Comunitário, Lazer e Qualidade de Vida (DiPDCL)</li>
-                        <li>Divisão de Desporto de Alto Rendimento e Organizações Esportivas (DiDAR)</li>
-                        <li>Divisão de Esporte Educacional (DiEspE)</li>
+                        <li>Divisão de Gestão de Esporte e Lazer (DiGEL)</li>
+                        <li>Divisão de Esporte de Alto Rendimento (DiRE)</li>
+                        <li>Divisão de Educação e Desporto Estudantil (DiEDE)</li>
+                        <li>Divisão de Gestão Inclusiva e Qualidade de Vida (DiGI)</li>
                       </ul>
                     </li>
-                    <li className="font-medium mt-2">Diretoria da Juventude (DiJuv):
+                    <li className="font-medium mt-2">Diretoria da Juventude (DIJUV):
                       <ul className="list-[lower-alpha] pl-6 font-normal">
-                        <li>Divisão de Desenvolvimento, Inovação e Tecnologia (DiDIT)</li>
-                        <li>Divisão de Políticas Públicas para a Juventude (DiPPJ)</li>
+                        <li>Divisão de Programas e Projetos (DiPP)</li>
+                        <li>Divisão de Articulação de Políticas Transversais (DAPT)</li>
                       </ul>
                     </li>
                   </ul>

@@ -81,33 +81,40 @@ const DESCRICOES_VINCULOS = {
     empreendedorismo, políticas transversais e articulação com conselhos de juventude.`
 };
 
-// Mapeamento de núcleos com nomes completos
+// Mapeamento de núcleos com nomes completos conforme Lei nº 2.301/2025
 const NUCLEOS_COMPLETOS: Record<string, string> = {
-  // DIRAF
+  // DIRAF - DiCOF (Divisão de Contabilidade, Orçamento e Finanças)
   'NuPrO': 'Núcleo de Programação Orçamentária',
   'NuFI': 'Núcleo de Finanças',
   'NuCont': 'Núcleo de Contabilidade',
-  'NuDoc': 'Núcleo de Documentação',
-  'NuPat': 'Núcleo de Patrimônio',
-  'NuAC': 'Núcleo de Almoxarifado e Compras',
+  // DIRAF - DiAGP (Divisão Administrativa e Gestão Patrimonial)
+  'NuDoc': 'Núcleo de Documentação, Protocolo e Arquivo',
+  'NuPat': 'Núcleo de Patrimônio e Logística',
+  'NuAC': 'Núcleo Administrativo de Contratos e Convênios',
+  // DIRAF - DRH (Divisão de Recursos Humanos)
   'NuP': 'Núcleo de Pessoal',
   'NuF': 'Núcleo de Folha de Pagamento',
+  // DIRAF - DiTI (Divisão de Tecnologia da Informação)
   'NuST': 'Núcleo de Suporte Técnico',
-  'NuProg': 'Núcleo de Programação e Desenvolvimento',
-  // DIESP
+  'NuProg': 'Núcleo de Programação',
+  // DIESP - DiGEL (Divisão de Gestão de Esporte e Lazer)
   'NuDeC': 'Núcleo de Desporto Comunitário',
-  'NuPAF': 'Núcleo de Promoção de Atividades Físicas',
-  'NuRE': 'Núcleo de Rendimento Esportivo',
-  'NuGAO': 'Núcleo de Gestão de Atletas Olímpicos',
-  'NuED': 'Núcleo de Educação Esportiva',
+  'NuPAF': 'Núcleo de Promoção de Atividade Física e Lazer',
+  // DIESP - DiRE (Divisão de Esporte de Alto Rendimento)
+  'NuRE': 'Núcleo de Esporte de Alto Rendimento',
+  'NuGAO': 'Núcleo de Gestão e Apoio às Organizações Esportivas',
+  // DIESP - DiEDE (Divisão de Educação e Desporto Estudantil)
+  'NuED': 'Núcleo de Esporte Educacional',
   'NuBase': 'Núcleo de Esporte de Base',
-  'NuInc': 'Núcleo de Inclusão',
+  // DIESP - DiGI (Divisão de Gestão Inclusiva e Qualidade de Vida)
+  'NuInc': 'Núcleo de Esporte, Inclusão Social e Saúde',
   'NuPar': 'Núcleo de Paradesporto',
-  // DIJUV
-  'NAT': 'Núcleo de Apoio Técnico',
+  // DIJUV - DiPP (Divisão de Programas e Projetos)
+  'NAT': 'Núcleo de Ações Temáticas de Políticas da Juventude',
   'CRJuv': 'Centro de Referência da Juventude',
-  'NuREL': 'Núcleo de Relações Institucionais',
-  'NuPol': 'Núcleo de Políticas Públicas'
+  // DIJUV - DAPT (Divisão de Articulação de Políticas Transversais)
+  'NuREL': 'Núcleo de Relações Institucionais e Articulação Regional',
+  'NuPol': 'Núcleo de Políticas de Direitos da Juventude'
 };
 
 export default function EstruturaOrganizacionalPage() {
@@ -486,7 +493,7 @@ export default function EstruturaOrganizacionalPage() {
               <div className="w-full max-w-3xl">
                 <div className="text-center text-xs text-muted-foreground mb-2">Assessoramento</div>
                 <div className="flex justify-center flex-wrap gap-2">
-                  {['Gabinete', 'Jurídico', 'ASCOM', 'Controle', 'CPL'].map((item, idx) => (
+                  {['Gabinete', 'Assessoria Jurídica', 'Assessoria Especial', 'ASCOM', 'Controle Interno', 'CPL'].map((item, idx) => (
                     <Badge key={idx} variant="secondary" className="text-xs">{item}</Badge>
                   ))}
                 </div>
@@ -533,12 +540,12 @@ export default function EstruturaOrganizacionalPage() {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Link to="/documentos/LEI_2301_25.pdf" target="_blank">
+                <a href="/documentos/LEI_2301_29-12-2025.pdf" target="_blank" rel="noopener noreferrer">
                   <Badge variant="outline" className="cursor-pointer hover:bg-muted">
                     <FileText className="h-3 w-3 mr-1" />
                     Ver Lei Completa
                   </Badge>
-                </Link>
+                </a>
                 <Link to="/transparencia/cargos">
                   <Badge variant="outline" className="cursor-pointer hover:bg-muted">
                     <Users className="h-3 w-3 mr-1" />
