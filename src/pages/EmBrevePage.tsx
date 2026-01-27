@@ -1,12 +1,13 @@
+import { forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Construction, ArrowRight, Lock } from "lucide-react";
 import { Link } from "react-router-dom";
 import logoIdjuv from "@/assets/logo-idjuv-oficial.png";
 
-const EmBrevePage = () => {
+const EmBrevePage = forwardRef<HTMLDivElement>((_, ref) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-muted via-background to-muted flex flex-col items-center justify-center p-4">
+    <div ref={ref} className="min-h-screen bg-gradient-to-br from-muted via-background to-muted flex flex-col items-center justify-center p-4">
       <Card className="max-w-lg w-full text-center shadow-xl bg-card border-border">
         <CardContent className="pt-8 pb-8 space-y-6">
           <img
@@ -57,6 +58,8 @@ const EmBrevePage = () => {
       </p>
     </div>
   );
-};
+});
+
+EmBrevePage.displayName = "EmBrevePage";
 
 export default EmBrevePage;
