@@ -411,8 +411,8 @@ const RegimentoInternoPage = () => {
                         <h4 className="font-semibold mb-2">Referências Normativas</h4>
                         <ul className="text-sm space-y-1">
                           <li>• Lei Complementar Estadual nº 053/2001</li>
-                          <li>• Projeto de Lei nº 290/25 (Criação do IDJUV)</li>
-                          <li>• Decreto Regulamentador do IDJUV</li>
+                          <li>• Lei nº 2.301, de 29 de dezembro de 2025 (Criação do IDJuv)</li>
+                          <li>• Decreto nº 39.840-E, de 23 de janeiro de 2026 (Regulamentação)</li>
                           <li>• Lei Estadual nº 053/2001 (Estatuto dos Servidores)</li>
                         </ul>
                       </div>
