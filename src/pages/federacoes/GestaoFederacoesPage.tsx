@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
+import { format, isValid, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import {
@@ -102,8 +102,8 @@ interface Federacao {
   vice_presidente_data_nascimento?: string | null;
   vice_presidente_instagram?: string | null;
   vice_presidente_facebook?: string | null;
-  diretor_tecnico_nome: string;
-  diretor_tecnico_telefone: string;
+  diretor_tecnico_nome: string | null;
+  diretor_tecnico_telefone: string | null;
   diretor_tecnico_data_nascimento?: string | null;
   diretor_tecnico_instagram?: string | null;
   diretor_tecnico_facebook?: string | null;
@@ -256,12 +256,17 @@ export default function GestaoFederacoesPage() {
     return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5, 8)}/${numbers.slice(8, 12)}-${numbers.slice(12, 14)}`;
   };
 
-  const formatDate = (date: string) => {
-    return format(new Date(date), 'dd/MM/yyyy', { locale: ptBR });
+  const formatDate = (date?: string | null) => {
+    if (!date) return '-';
+    // Prefer parseISO for yyyy-mm-dd / timestamps; fall back to raw on invalid.
+    const parsed = parseISO(date);
+    if (!isValid(parsed)) return date;
+    return format(parsed, 'dd/MM/yyyy', { locale: ptBR });
   };
 
-  const formatPhone = (phone: string) => {
-    const cleaned = phone.replace(/\D/g, '');
+  const getWhatsappLink = (phone?: string | null) => {
+    const cleaned = (phone || '').replace(/\D/g, '');
+    if (!cleaned) return null;
     return `https://wa.me/55${cleaned}`;
   };
 
@@ -539,15 +544,19 @@ export default function GestaoFederacoesPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Phone className="h-4 w-4 text-muted-foreground" />
-                        <a
-                          href={formatPhone(selectedFederacao.telefone)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline flex items-center gap-1"
-                        >
-                          {selectedFederacao.telefone}
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
+                        {getWhatsappLink(selectedFederacao.telefone) ? (
+                          <a
+                            href={getWhatsappLink(selectedFederacao.telefone) as string}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline flex items-center gap-1"
+                          >
+                            {selectedFederacao.telefone}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground">Não informado</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <Mail className="h-4 w-4 text-muted-foreground" />
@@ -590,15 +599,19 @@ export default function GestaoFederacoesPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Phone className="h-4 w-4 text-muted-foreground" />
-                        <a
-                          href={formatPhone(selectedFederacao.presidente_telefone)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline flex items-center gap-1"
-                        >
-                          {selectedFederacao.presidente_telefone}
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
+                        {getWhatsappLink(selectedFederacao.presidente_telefone) ? (
+                          <a
+                            href={getWhatsappLink(selectedFederacao.presidente_telefone) as string}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline flex items-center gap-1"
+                          >
+                            {selectedFederacao.presidente_telefone}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground">Não informado</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <Mail className="h-4 w-4 text-muted-foreground" />
@@ -630,26 +643,34 @@ export default function GestaoFederacoesPage() {
                       <div>
                         <div className="text-sm font-medium">Vice-Presidente</div>
                         <div className="text-sm">{selectedFederacao.vice_presidente_nome}</div>
-                        <a
-                          href={formatPhone(selectedFederacao.vice_presidente_telefone)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-primary hover:underline"
-                        >
-                          {selectedFederacao.vice_presidente_telefone}
-                        </a>
+                        {getWhatsappLink(selectedFederacao.vice_presidente_telefone) ? (
+                          <a
+                            href={getWhatsappLink(selectedFederacao.vice_presidente_telefone) as string}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline"
+                          >
+                            {selectedFederacao.vice_presidente_telefone}
+                          </a>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">Telefone não informado</div>
+                        )}
                       </div>
                       <div>
                         <div className="text-sm font-medium">Diretor Técnico</div>
-                        <div className="text-sm">{selectedFederacao.diretor_tecnico_nome}</div>
-                        <a
-                          href={formatPhone(selectedFederacao.diretor_tecnico_telefone)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-primary hover:underline"
-                        >
-                          {selectedFederacao.diretor_tecnico_telefone}
-                        </a>
+                        <div className="text-sm">{selectedFederacao.diretor_tecnico_nome || 'Não informado'}</div>
+                        {getWhatsappLink(selectedFederacao.diretor_tecnico_telefone) ? (
+                          <a
+                            href={getWhatsappLink(selectedFederacao.diretor_tecnico_telefone) as string}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline"
+                          >
+                            {selectedFederacao.diretor_tecnico_telefone}
+                          </a>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">Telefone não informado</div>
+                        )}
                       </div>
                     </div>
                   </div>
