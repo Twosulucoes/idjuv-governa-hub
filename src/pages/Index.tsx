@@ -15,6 +15,8 @@ import {
   IconeIntegridade, 
   IconeTransparencia 
 } from "@/components/icons";
+import { useDadosOficiais } from "@/hooks/useDadosOficiais";
+import { DadoOficialDisplay } from "@/components/institucional";
 
 interface ResumoData {
   total_cargos: number;
@@ -88,6 +90,13 @@ const processos = [
 
 const Index = () => {
   const [resumo, setResumo] = useState<ResumoData | null>(null);
+  const { 
+    nomeOficial, 
+    nomeCurto, 
+    vinculacao, 
+    obterValor,
+    leiCriacao 
+  } = useDadosOficiais();
 
   useEffect(() => {
     fetch('/data/resumo.json')
@@ -378,13 +387,12 @@ const Index = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2">
                 <h2 className="font-serif text-2xl font-bold mb-4">
-                  Sobre o IDJUV
+                  Sobre o {nomeCurto}
                 </h2>
                 <p className="text-muted-foreground mb-4 leading-relaxed">
-                  O Instituto de Desporto, Juventude e Lazer do Estado de Roraima – IDJUV é 
-                  uma entidade autárquica com personalidade jurídica de Direito Público, dotada 
-                  de autonomia administrativa e financeira, vinculada à Secretaria de Estado 
-                  da Educação e Desporto (SEED).
+                  O {nomeOficial} é uma entidade autárquica com personalidade 
+                  jurídica de Direito Público, dotada de autonomia administrativa e financeira, 
+                  vinculada à {vinculacao}.
                 </p>
                 <p className="text-muted-foreground leading-relaxed">
                   Tem por finalidade promover, coordenar e executar políticas públicas de desporto, 
@@ -393,20 +401,20 @@ const Index = () => {
                 </p>
               </div>
               <div className="space-y-4">
+                <DadoOficialDisplay
+                  label="Vinculação"
+                  valor={vinculacao}
+                  leiReferencia={leiCriacao}
+                  variant="card"
+                />
+                <DadoOficialDisplay
+                  label="Natureza Jurídica"
+                  valor={obterValor('natureza_juridica')}
+                  leiReferencia={leiCriacao}
+                  variant="card"
+                />
                 <div className="bg-muted rounded-lg p-4">
-                  <h3 className="font-semibold mb-2">Vinculação</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Secretaria de Estado da Educação e Desporto – SEED
-                  </p>
-                </div>
-                <div className="bg-muted rounded-lg p-4">
-                  <h3 className="font-semibold mb-2">Natureza Jurídica</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Autarquia estadual com autonomia administrativa e financeira
-                  </p>
-                </div>
-                <div className="bg-muted rounded-lg p-4">
-                  <h3 className="font-semibold mb-2">Jurisdição</h3>
+                  <h3 className="font-semibold mb-2 text-sm">Jurisdição</h3>
                   <p className="text-sm text-muted-foreground">
                     Todo o Estado de Roraima
                   </p>
