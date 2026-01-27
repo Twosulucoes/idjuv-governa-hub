@@ -145,13 +145,22 @@ export function useMenuDinamico(): UseMenuDinamicoReturn {
   const { permissoes, loading, error, temPermissao } = usePermissoesUsuario();
 
   const menuFiltrado = useMemo(() => {
-    // Se não há permissões carregadas e está carregando, retorna vazio
+    // Se está carregando, retorna vazio
     if (loading) {
       return [];
     }
 
+    // FALLBACK: Se não há permissões carregadas, mostra menu completo
+    // Isso garante que o usuário tenha acesso mesmo se houver erro na RPC
+    const usarFallback = !permissoes || permissoes.length === 0;
+
     // Função para verificar se um item deve ser visível
     const itemVisivel = (item: AdminMenuItem): boolean => {
+      // Se usando fallback, mostra tudo
+      if (usarFallback) {
+        return true;
+      }
+
       // Itens sempre visíveis
       if (ITENS_SEMPRE_VISIVEIS.has(item.id)) {
         return true;
