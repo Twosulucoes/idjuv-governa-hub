@@ -3,9 +3,18 @@ import { Link } from "react-router-dom";
 import { MapPin, Phone, Mail, Clock, ExternalLink } from "lucide-react";
 import logoGoverno from "@/assets/logo-governo-roraima.jpg";
 import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
+import { useDadosOficiais } from "@/hooks/useDadosOficiais";
 
 export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
   (props, ref) => {
+    const { 
+      nomeOficial, 
+      nomeCurto, 
+      vinculacao, 
+      enderecoCompleto,
+      emailInstitucional 
+    } = useDadosOficiais();
+
     return (
       <footer ref={ref} className="border-t border-border" {...props}>
         {/* Faixa decorativa superior */}
@@ -24,8 +33,8 @@ export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
                   />
                 </div>
                 <p className="text-sm text-primary-foreground/80 dark:text-muted-foreground leading-relaxed mb-4">
-                  Instituto de Desporto, Juventude e Lazer do Estado de Roraima. Autarquia vinculada 
-                  à Secretaria de Estado da Educação e Desporto.
+                  {nomeOficial}. Autarquia vinculada 
+                  à {vinculacao}.
                 </p>
                 <div className="flex items-center gap-3 pt-2">
                   {/* Logo Governo - precisa de container branco */}
@@ -75,7 +84,7 @@ export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
                 <ul className="space-y-3">
                   <li className="flex items-start gap-3 text-sm text-primary-foreground/70 dark:text-muted-foreground">
                     <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary-foreground/50 dark:text-muted-foreground" />
-                    <span>Boa Vista, Roraima - RR</span>
+                    <span>{enderecoCompleto || 'Boa Vista, Roraima - RR'}</span>
                   </li>
                   <li className="flex items-center gap-3 text-sm text-primary-foreground/70 dark:text-muted-foreground">
                     <Phone className="w-4 h-4 flex-shrink-0 text-primary-foreground/50 dark:text-muted-foreground" />
@@ -83,7 +92,7 @@ export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
                   </li>
                   <li className="flex items-center gap-3 text-sm text-primary-foreground/70 dark:text-muted-foreground">
                     <Mail className="w-4 h-4 flex-shrink-0 text-primary-foreground/50 dark:text-muted-foreground" />
-                    <span>contato@idjuv.rr.gov.br</span>
+                    <span>{emailInstitucional}</span>
                   </li>
                   <li className="flex items-center gap-3 text-sm text-primary-foreground/70 dark:text-muted-foreground">
                     <Clock className="w-4 h-4 flex-shrink-0 text-primary-foreground/50 dark:text-muted-foreground" />
@@ -112,7 +121,7 @@ export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
             {/* Barra inferior */}
             <div className="mt-10 pt-6 border-t border-primary-foreground/10 dark:border-border flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-xs text-primary-foreground/60 dark:text-muted-foreground text-center md:text-left">
-                © {new Date().getFullYear()} IDJUV - Instituto de Desporto, Juventude e Lazer do Estado de Roraima
+                © {new Date().getFullYear()} {nomeCurto} - {nomeOficial}
               </p>
               <p className="text-xs text-primary-foreground/60 dark:text-muted-foreground">
                 Governo do Estado de Roraima
