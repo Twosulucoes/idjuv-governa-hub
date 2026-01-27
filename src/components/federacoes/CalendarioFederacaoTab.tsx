@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Calendar, Loader2, MapPin, Users, Trash2, Pencil } from "lucide-react";
+import { Plus, Calendar, Loader2, MapPin, Users, Trash2 } from "lucide-react";
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { NovaCompeticaoDialog } from "./NovaCompeticaoDialog";
@@ -61,8 +61,19 @@ export function CalendarioFederacaoTab({ federacaoId, federacaoSigla }: Calendar
   });
 
   useEffect(() => {
-    loadCompeticoes();
+    if (federacaoId) {
+      loadCompeticoes();
+    }
   }, [federacaoId, currentMonth]);
+
+  // Verificação de segurança - retorna null se não tiver os dados necessários
+  if (!federacaoId) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        Federação não selecionada
+      </div>
+    );
+  }
 
   async function loadCompeticoes() {
     try {
