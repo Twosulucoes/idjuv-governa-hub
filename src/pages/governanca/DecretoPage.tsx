@@ -82,7 +82,7 @@ const DecretoPage = () => {
 
             <Separator className="my-6" />
 
-            <h2 className="text-xl font-semibold mt-6 mb-4">CAPÍTULO I - DAS DISPOSIÇÕES GERAIS</h2>
+            <h2 className="text-xl font-semibold mt-6 mb-4">CAPÍTULO I – DAS DISPOSIÇÕES GERAIS</h2>
             
             <p className="mb-4">
               <strong>Art. 1º</strong> O Instituto de Desporto, Juventude e Lazer do Estado de Roraima – IDJuv 
@@ -92,109 +92,249 @@ const DecretoPage = () => {
 
             <Separator className="my-6" />
 
-            <h2 className="text-xl font-semibold mt-6 mb-4">CAPÍTULO II - DA ESTRUTURA ORGANIZACIONAL</h2>
+            <h2 className="text-xl font-semibold mt-6 mb-4">CAPÍTULO II – DO FUNCIONAMENTO, DAS ATRIBUIÇÕES E DAS RESPONSABILIDADES</h2>
             
+            <h3 className="text-lg font-semibold mt-6 mb-3">Seção I – Do Funcionamento das Unidades Administrativas</h3>
             <p className="mb-4">
-              <strong>Art. 2º</strong> A estrutura organizacional do IDJuv, conforme estabelecida no art. 4º 
-              da Lei nº 2.301/2025, compreende:
+              <strong>Art. 2º</strong> As unidades administrativas do Instituto de Desporto, Juventude e Lazer 
+              do Estado de Roraima – IDJuv funcionarão conforme o disposto neste Decreto e no Regimento Interno 
+              da referida Autarquia.
             </p>
 
-            <div className="grid md:grid-cols-2 gap-4 mt-4">
-              <Card className="border-l-4 border-l-primary">
-                <CardContent className="pt-4">
-                  <h4 className="font-semibold mb-2">I - Administração Superior</h4>
-                  <ul className="text-sm space-y-1 text-muted-foreground">
-                    <li>• Presidência</li>
-                  </ul>
-                </CardContent>
-              </Card>
+            <h3 className="text-lg font-semibold mt-6 mb-3">Seção II – Das Atribuições e das Responsabilidades das Unidades Administrativas</h3>
+            
+            <p className="mb-2"><strong>Art. 3º</strong> Compete ao Presidente do IDJuv:</p>
+            <ol className="list-[upper-roman] pl-6 space-y-1 mb-4 text-sm">
+              <li>cumprir e fazer cumprir a legislação aplicável à IDJuv, bem como as deliberações de suas unidades administrativas;</li>
+              <li>dirigir, coordenar, supervisionar, controlar e avaliar as atividades do IDJuv;</li>
+              <li>formular as políticas e diretrizes básicas do IDJuv, a programação anual de suas atividades e fixar prioridades;</li>
+              <li>apreciar e aprovar planos, programas e projetos apresentados pelas diversas unidades do IDJuv;</li>
+              <li>articular-se com organismos públicos e/ou privados, estaduais, nacionais, estrangeiros e internacionais, objetivando o cumprimento das finalidades do IDJuv;</li>
+              <li>coordenar a elaboração do programa de trabalho e da proposta orçamentária anual e plurianual do IDJuv e suas alterações;</li>
+              <li>coordenar a elaboração das propostas de Regimento, bem como alterações de seus dispositivos;</li>
+              <li>estabelecer critérios para contratação de serviços de terceiros;</li>
+              <li>administrar os recursos financeiros do IDJuv;</li>
+              <li>coordenar ações operacionais da Autarquia, com vista à obtenção de sua autossustentação financeira;</li>
+              <li>elaborar, na forma e prazo definidos na legislação específica, a prestação de contas, os demonstrativos orçamentários, financeiros, patrimonial e o relatório das atividades do IDJuv;</li>
+              <li>elaborar o Quadro de Pessoal da Autarquia, o Plano de Cargos e Salários e suas alterações;</li>
+              <li>coordenar as atividades de comunicação social;</li>
+              <li>encaminhar à Secretaria Estadual de Educação e Desporto relatórios periódicos referentes às atividades do IDJuv.</li>
+            </ol>
 
-              <Card className="border-l-4 border-l-secondary">
-                <CardContent className="pt-4">
-                  <h4 className="font-semibold mb-2">II - Assessoramento</h4>
-                  <ul className="text-sm space-y-1 text-muted-foreground">
-                    <li>• Chefia de Gabinete</li>
-                    <li>• Assessoria Jurídica</li>
-                    <li>• Assessoria Especial</li>
-                    <li>• Controle Interno</li>
-                    <li>• Comissão de Contratação</li>
-                    <li>• Assessoria de Comunicação (ASCOM)</li>
-                  </ul>
-                </CardContent>
-              </Card>
+            <p className="mb-2"><strong>Art. 4º</strong> Compete ao Diretor Administrativo e Financeiro:</p>
+            <p className="text-sm mb-2 pl-4">I – por meio da Divisão de Recursos Humanos (DRH):</p>
+            <ol className="list-[lower-alpha] pl-10 space-y-1 mb-2 text-sm">
+              <li>propor normas relativas à área de pessoal;</li>
+              <li>processar, examinar e expedir todos os atos, certificados, certidões e documentos relativos aos servidores;</li>
+              <li>promover o recrutamento, seleção e avaliação de pessoal;</li>
+              <li>elaborar a folha de pagamento de pessoal e recolhimento das obrigações trabalhistas e previdenciárias;</li>
+              <li>organizar e manter atualizado o registro de atos referentes a vida funcional dos servidores;</li>
+              <li>coordenar programas de estágio para estudantes de nível médio e superior.</li>
+            </ol>
+            <p className="text-sm mb-2 pl-4">II – por meio da Divisão Administrativa e de Gestão Patrimonial (DiAGP):</p>
+            <ol className="list-[lower-alpha] pl-10 space-y-1 mb-2 text-sm">
+              <li>elaborar cronograma de aquisição de material;</li>
+              <li>receber, conferir e guardar o material adquirido;</li>
+              <li>atender às requisições de material e efetuar controle físico e financeiro;</li>
+              <li>promover o cadastro e tombamento dos bens móveis e imóveis;</li>
+              <li>coordenar os serviços de transporte, controlando o uso da frota;</li>
+              <li>promover a publicação dos atos e documentos do IDJuv.</li>
+            </ol>
+            <p className="text-sm mb-2 pl-4">III – por meio da Divisão de Contabilidade, Orçamento e Finanças (DiCOF):</p>
+            <ol className="list-[lower-alpha] pl-10 space-y-1 mb-4 text-sm">
+              <li>efetuar e controlar arrecadações e pagamentos;</li>
+              <li>controlar as contas a receber e a pagar;</li>
+              <li>executar a escrituração contábil e proceder a contabilidade orçamentária, financeira e patrimonial;</li>
+              <li>elaborar balancetes e balanços orçamentários, financeiros e patrimoniais.</li>
+            </ol>
 
-              <Card className="border-l-4 border-l-accent">
-                <CardContent className="pt-4">
-                  <h4 className="font-semibold mb-2">III - Execução Instrumental</h4>
-                  <ul className="text-sm space-y-1 text-muted-foreground">
-                    <li>• <strong>DIRAF</strong> - Diretoria Administrativa e Financeira
-                      <ul className="pl-4 mt-1">
-                        <li>- DiCOF (Contabilidade, Orçamento e Finanças)</li>
-                        <li>- DiAGP (Administrativa e Gestão Patrimonial)</li>
-                        <li>- DiGP (Gestão de Pessoas)</li>
-                      </ul>
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
+            <p className="mb-2"><strong>Art. 5º</strong> Compete ao Diretor de Esporte:</p>
+            <ol className="list-[upper-roman] pl-6 space-y-1 mb-4 text-sm">
+              <li>coordenar a edição, a execução e o monitoramento das políticas, programas e projetos esportivos da Autarquia, assegurando sua conformidade com os eixos educacional, participativo e de alto rendimento;</li>
+              <li>promover o desenvolvimento técnico das modalidades, acompanhar o desempenho das ações nas regiões do Estado e articular parcerias com federações, clubes e entidades esportivas;</li>
+              <li>propor iniciativas e diretrizes que fortaleçam a prática esportiva;</li>
+              <li>outras competências pertinentes, definidas no Regimento Interno.</li>
+            </ol>
 
-              <Card className="border-l-4 border-l-primary">
-                <CardContent className="pt-4">
-                  <h4 className="font-semibold mb-2">IV - Execução Programática</h4>
-                  <ul className="text-sm space-y-1 text-muted-foreground">
-                    <li>• <strong>DiEsp</strong> - Diretoria de Esporte
-                      <ul className="pl-4 mt-1">
-                        <li>- DiPDCL (Desporto Comunitário, Lazer)</li>
-                        <li>- DiDAR (Alto Rendimento)</li>
-                        <li>- DiEspE (Esporte Educacional)</li>
-                      </ul>
-                    </li>
-                    <li className="mt-2">• <strong>DiJuv</strong> - Diretoria da Juventude
-                      <ul className="pl-4 mt-1">
-                        <li>- DiDIT (Desenvolvimento, Inovação e Tecnologia)</li>
-                        <li>- DiPPJ (Políticas Públicas para Juventude)</li>
-                      </ul>
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
+            <p className="mb-2"><strong>Art. 6º</strong> Compete ao Diretor da Juventude:</p>
+            <ol className="list-[upper-roman] pl-6 space-y-1 mb-4 text-sm">
+              <li>coordenar a edição, a execução e o monitoramento das políticas, programas e projetos da Autarquia voltados às ações temáticas de Políticas da Juventude;</li>
+              <li>outras competências pertinentes, definidas no Regimento Interno.</li>
+            </ol>
+
+            <p className="mb-2"><strong>Art. 7º</strong> Compete ao Assessor Jurídico:</p>
+            <ol className="list-[upper-roman] pl-6 space-y-1 mb-4 text-sm">
+              <li>prestar assessoramento jurídico à Presidência e às unidades administrativas do IDJuv;</li>
+              <li>emitir pareceres jurídicos sobre contratos, convênios, licitações, atos normativos e processos administrativos;</li>
+              <li>zelar pela legalidade, constitucionalidade e regimentalidade dos atos administrativos;</li>
+              <li>outras competências pertinentes, definidas no Regimento Interno.</li>
+            </ol>
+
+            <p className="mb-2"><strong>Art. 8º</strong> Compete ao Assessor Especial:</p>
+            <ol className="list-[upper-roman] pl-6 space-y-1 mb-4 text-sm">
+              <li>assessorar a Presidência em matérias estratégicas, técnicas ou institucionais de elevada complexidade;</li>
+              <li>elaborar estudos, notas técnicas e relatórios especiais para subsidiar decisões superiores;</li>
+              <li>apoiar a articulação interinstitucional com órgãos governamentais e entidades da sociedade civil;</li>
+              <li>desempenhar outras atribuições correlatas determinadas pelo Presidente;</li>
+              <li>outras competências pertinentes, definidas no Regimento Interno.</li>
+            </ol>
+
+            <p className="mb-2"><strong>Art. 9º</strong> Compete ao Agente de Contratação:</p>
+            <ol className="list-[upper-roman] pl-6 space-y-1 mb-4 text-sm">
+              <li>conduzir os procedimentos de contratação pública, desde a fase preparatória até a adjudicação;</li>
+              <li>elaborar e revisar documentos do processo de contratação;</li>
+              <li>analisar propostas, lances e documentos de habilitação dos licitantes;</li>
+              <li>zelar pela observância dos princípios da legalidade, isonomia, transparência e eficiência nas contratações;</li>
+              <li>outras competências pertinentes, definidas no Regimento Interno.</li>
+            </ol>
+
+            <p className="mb-2"><strong>Art. 10.</strong> Compete ao Chefe de Controle Interno:</p>
+            <ol className="list-[upper-roman] pl-6 space-y-1 mb-4 text-sm">
+              <li>avaliar a legalidade, legitimidade e economicidade dos atos de gestão administrativa e financeira;</li>
+              <li>fiscalizar a execução orçamentária, financeira e patrimonial do Instituto;</li>
+              <li>emitir relatórios e recomendações visando ao aperfeiçoamento dos controles internos;</li>
+              <li>apoiar os órgãos de controle externo e atender às suas diligências;</li>
+              <li>outras competências pertinentes, definidas no Regimento Interno.</li>
+            </ol>
+
+            <p className="mb-2"><strong>Art. 11.</strong> Compete ao Assessor de Comunicação:</p>
+            <ol className="list-[upper-roman] pl-6 space-y-1 mb-4 text-sm">
+              <li>planejar e executar a política de comunicação institucional do IDJuv;</li>
+              <li>produzir conteúdos informativos sobre programas, projetos e ações do Instituto;</li>
+              <li>gerenciar a relação com a imprensa e os canais oficiais de comunicação;</li>
+              <li>zelar pela transparência e pela correta divulgação das ações institucionais;</li>
+              <li>outras competências pertinentes, definidas no Regimento Interno.</li>
+            </ol>
+
+            <p className="mb-2"><strong>Art. 12.</strong> Compete ao Chefe de Gabinete:</p>
+            <ol className="list-[upper-roman] pl-6 space-y-1 mb-4 text-sm">
+              <li>coordenar a representação social e política do Presidente do IDJuv;</li>
+              <li>assistir ao Presidente em sua representação e contato com o público e organismos oficiais;</li>
+              <li>organizar, preparar e encaminhar o expediente do IDJuv;</li>
+              <li>orientar, supervisionar e controlar as atividades do Gabinete;</li>
+              <li>coordenar o fluxo de informações e as relações de interesse do IDJuv;</li>
+              <li>exercer outras atribuições pertinentes ao cargo.</li>
+            </ol>
+
+            <p className="mb-2"><strong>Art. 13.</strong> Compete ao Pregoeiro:</p>
+            <ol className="list-[upper-roman] pl-6 space-y-1 mb-4 text-sm">
+              <li>conduzir sessões públicas de pregão eletrônico ou presencial;</li>
+              <li>receber, analisar e julgar propostas e lances, bem como verificar a habilitação dos licitantes;</li>
+              <li>elaborar atas, relatórios e demais documentos decorrentes dos procedimentos de pregão;</li>
+              <li>atuar em conformidade com as normas legais e orientações da autoridade competente;</li>
+              <li>outras competências pertinentes, definidas no Regimento Interno.</li>
+            </ol>
+
+            <p className="mb-2"><strong>Art. 14.</strong> Compete ao Chefe de Divisão:</p>
+            <ol className="list-[upper-roman] pl-6 space-y-1 mb-4 text-sm">
+              <li>coordenar e supervisionar as atividades técnicas e administrativas da divisão;</li>
+              <li>executar as diretrizes estabelecidas pela diretoria à qual está vinculada;</li>
+              <li>controlar prazos, metas e resultados das ações desenvolvidas;</li>
+              <li>elaborar relatórios e prestar informações à instância superior;</li>
+              <li>outras competências pertinentes, definidas no Regimento Interno.</li>
+            </ol>
+
+            <p className="mb-2"><strong>Art. 15.</strong> Compete ao Assistente Técnico:</p>
+            <ol className="list-[upper-roman] pl-6 space-y-1 mb-4 text-sm">
+              <li>prestar apoio técnico e administrativo às unidades organizacionais do IDJuv;</li>
+              <li>auxiliar na elaboração de relatórios, pareceres, planilhas e documentos técnicos;</li>
+              <li>organizar informações, dados e processos necessários à execução das atividades institucionais;</li>
+              <li>executar outras atividades correlatas determinadas pela chefia imediata;</li>
+              <li>outras competências pertinentes, definidas no Regimento Interno.</li>
+            </ol>
+
+            <p className="mb-2"><strong>Art. 16.</strong> Compete ao Membro da Comissão de Contratação:</p>
+            <ol className="list-[upper-roman] pl-6 space-y-1 mb-4 text-sm">
+              <li>planejar, coordenar e executar os procedimentos de contratação pública do IDJuv;</li>
+              <li>elaborar termos de referência, editais, atas e demais documentos do processo licitatório;</li>
+              <li>conduzir sessões públicas e analisar propostas e habilitações;</li>
+              <li>zelar pela observância dos princípios da legalidade, impessoalidade, moralidade, publicidade e eficiência;</li>
+              <li>outras competências pertinentes, definidas no Regimento Interno.</li>
+            </ol>
+
+            <p className="mb-2"><strong>Art. 17.</strong> Compete à Secretária da Presidência:</p>
+            <ol className="list-[upper-roman] pl-6 space-y-1 mb-4 text-sm">
+              <li>assessorar administrativamente o Presidente no desempenho de suas atribuições;</li>
+              <li>organizar agendas, compromissos oficiais, reuniões e despachos da Presidência;</li>
+              <li>redigir, controlar e arquivar expedientes, documentos e correspondências oficiais;</li>
+              <li>manter fluxo adequado de informações entre a Presidência e as demais unidades do IDJuv;</li>
+              <li>outras competências pertinentes, definidas no Regimento Interno.</li>
+            </ol>
+
+            <p className="mb-2"><strong>Art. 18.</strong> Compete ao Chefe de Núcleo:</p>
+            <ol className="list-[upper-roman] pl-6 space-y-1 mb-4 text-sm">
+              <li>executar atividades operacionais e técnicas específicas do núcleo;</li>
+              <li>apoiar a divisão na implementação de programas, projetos e rotinas administrativas;</li>
+              <li>organizar documentos, dados e informações sob sua responsabilidade;</li>
+              <li>cumprir e fazer cumprir normas e procedimentos internos;</li>
+              <li>outras competências pertinentes, definidas no Regimento Interno.</li>
+            </ol>
+
+            <p className="mb-2"><strong>Art. 19.</strong> Compete à Secretária da Diretoria:</p>
+            <ol className="list-[upper-roman] pl-6 space-y-1 mb-4 text-sm">
+              <li>prestar apoio administrativo às diretorias do IDJuv;</li>
+              <li>organizar agendas, reuniões e expedientes da diretoria à qual estiver vinculada;</li>
+              <li>elaborar, registrar e arquivar documentos, atas e relatórios administrativos;</li>
+              <li>controlar prazos, demandas e fluxos de processos sob responsabilidade da diretoria.</li>
+            </ol>
+
+            <p className="mb-2"><strong>Art. 20.</strong> Compete ao Chefe de Unidade Local:</p>
+            <ol className="list-[upper-roman] pl-6 space-y-1 mb-4 text-sm">
+              <li>coordenar e supervisionar as atividades administrativas e operacionais da unidade local;</li>
+              <li>executar, no âmbito local, os programas, projetos e ações do IDJuv;</li>
+              <li>articular com a administração central para o cumprimento das diretrizes institucionais;</li>
+              <li>elaborar relatórios de atividades e prestar informações à instância superior;</li>
+              <li>outras competências pertinentes, definidas no Regimento Interno.</li>
+            </ol>
+
+            <p className="mb-4">
+              <strong>Art. 21.</strong> O Regimento Interno definirá e detalhará outras responsabilidades das unidades administrativas.
+            </p>
 
             <Separator className="my-6" />
 
-            <h2 className="text-xl font-semibold mt-6 mb-4">CAPÍTULO III - DAS COMPETÊNCIAS</h2>
-
-            <h3 className="text-lg font-semibold mt-6 mb-3">Seção I - Da Presidência</h3>
+            <h2 className="text-xl font-semibold mt-6 mb-4">CAPÍTULO III – DOS DEMAIS ATOS CONSTITUTIVOS REGULAMENTARES</h2>
+            
             <p className="mb-4">
-              <strong>Art. 3º</strong> Compete ao Presidente do IDJuv:
-            </p>
-            <ul className="list-[upper-roman] pl-6 space-y-2">
-              <li>representar o IDJuv judicial e extrajudicialmente;</li>
-              <li>dirigir, coordenar e supervisionar as atividades do Instituto;</li>
-              <li>ordenar despesas e autorizar pagamentos;</li>
-              <li>celebrar contratos, convênios e acordos;</li>
-              <li>nomear e exonerar servidores ocupantes de cargos em comissão;</li>
-              <li>aprovar o Regimento Interno;</li>
-              <li>exercer outras atribuições previstas em lei.</li>
-            </ul>
-
-            <h3 className="text-lg font-semibold mt-6 mb-3">Seção II - Das Diretorias</h3>
-            <p className="mb-4">
-              <strong>Art. 4º</strong> As competências específicas de cada Diretoria e suas Divisões 
-              serão detalhadas no Regimento Interno do IDJuv.
+              <strong>Art. 22.</strong> Os demais atos constitutivos regulamentares que se fizerem necessários estarão 
+              consignados no Regimento Interno do IDJuv, sendo autorizado ao Presidente da Autarquia a edição de 
+              Portaria para tratar da regulação pós-constitutiva.
             </p>
 
             <Separator className="my-6" />
 
-            <h2 className="text-xl font-semibold mt-6 mb-4">CAPÍTULO IV - DAS DISPOSIÇÕES FINAIS</h2>
+            <h2 className="text-xl font-semibold mt-6 mb-4">CAPÍTULO IV – DAS DISPOSIÇÕES FINAIS</h2>
             
             <p className="mb-4">
-              <strong>Art. 5º</strong> O IDJuv deverá elaborar e aprovar seu Regimento Interno 
-              no prazo de 90 (noventa) dias a contar da publicação deste Decreto.
+              <strong>Art. 23.</strong> O Regimento Interno disporá sobre o afastamento e as substituições nos cargos 
+              em comissão, detalhando as eventuais medidas necessárias e os reflexos financeiros inerentes, 
+              sejam eles compensatórios ou não.
             </p>
 
             <p className="mb-4">
-              <strong>Art. 6º</strong> Este Decreto entra em vigor na data de sua publicação.
+              <strong>Art. 24.</strong> O Presidente do IDJuv poderá constituir, mediante Portaria, grupos de trabalho 
+              para o desenvolvimento de projetos e atividades específicas, estabelecendo sua finalidade, prazo de 
+              duração e atribuições dos respectivos titulares.
+            </p>
+
+            <p className="mb-4">
+              <strong>Art. 25.</strong> O Presidente do IDJuv será nomeado pelo Governador do Estado de Roraima.
+            </p>
+
+            <p className="mb-4">
+              <strong>Art. 26.</strong> Os titulares dos cargos em comissão do IDJuv serão nomeados e exonerados 
+              mediante Portaria do seu Presidente.
+            </p>
+
+            <p className="mb-4">
+              <strong>Art. 27.</strong> Os recursos financeiros do IDJuv serão depositados em instituição bancária 
+              credenciada pelo Governo do Estado de Roraima, salvo condições em contrário expressas em contrato ou convênio.
+            </p>
+
+            <p className="mb-4">
+              <strong>Art. 28.</strong> As dúvidas de aplicação e os casos omissos neste Decreto serão dirimidos pela 
+              interpretação sistemática e teleológica do mesmo em conjunto com o Regimento Interno à luz da norma 
+              constitucional vigente.
             </p>
 
             <div className="bg-muted/50 rounded-lg p-4 mt-6 text-center">
@@ -235,15 +375,6 @@ const DecretoPage = () => {
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
-            </div>
-
-            <div className="mt-8 p-4 bg-muted rounded-lg">
-              <h4 className="font-semibold mb-2">Base Legal</h4>
-              <ul className="text-sm space-y-1">
-                <li>• Constituição Estadual de Roraima, art. 62</li>
-                <li>• Lei nº 2.301, de 29 de dezembro de 2025 (Criação do IDJuv)</li>
-                <li>• Lei Complementar Estadual nº 053/2001 (Organização Administrativa)</li>
-              </ul>
             </div>
           </CardContent>
         </Card>
