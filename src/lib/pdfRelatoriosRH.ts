@@ -36,6 +36,9 @@ interface ServidorDiretoriaItem {
 interface GrupoDiretoria {
   unidade_nome: string;
   unidade_sigla: string | null;
+  unidade_tipo?: string;
+  nivel?: number;
+  caminho_hierarquico?: string;
   servidores: ServidorDiretoriaItem[];
 }
 
@@ -153,6 +156,24 @@ interface RelatorioVagasCargoData {
 
 // ===== Relatório por Diretoria =====
 
+// Labels para tipos de unidade
+const TIPO_UNIDADE_LABELS: Record<string, string> = {
+  presidencia: 'PRESIDÊNCIA',
+  diretoria: 'DIRETORIA',
+  coordenacao: 'ASSESSORIA/COORDENAÇÃO',
+  divisao: 'DIVISÃO',
+  nucleo: 'NÚCLEO',
+  setor: 'SETOR',
+};
+
+// Cores por nível hierárquico
+const CORES_NIVEL: Record<number, { bg: string; border: string }> = {
+  1: { bg: '#1a365d', border: '#1a365d' }, // Presidência - azul escuro
+  2: { bg: '#2c5282', border: '#2c5282' }, // Diretorias/Assessorias - azul médio
+  3: { bg: '#3182ce', border: '#3182ce' }, // Divisões - azul claro
+  4: { bg: '#63b3ed', border: '#63b3ed' }, // Núcleos - azul mais claro
+};
+
 export const generateRelatorioServidoresDiretoria = async (data: RelatorioServidoresDiretoriaData): Promise<void> => {
   const logos = await loadLogos();
   const doc = new jsPDF();
@@ -163,7 +184,7 @@ export const generateRelatorioServidoresDiretoria = async (data: RelatorioServid
     : 'Todas as Unidades Organizacionais';
   
   let y = await generateInstitutionalHeader(doc, {
-    titulo: 'RELATÓRIO DE SERVIDORES POR DIRETORIA',
+    titulo: 'RELATÓRIO DE SERVIDORES POR ESTRUTURA ORGANIZACIONAL',
     subtitulo,
     fundoEscuro: true,
   }, logos);
@@ -176,27 +197,67 @@ export const generateRelatorioServidoresDiretoria = async (data: RelatorioServid
   doc.text(`Total de servidores: ${data.totalServidores}`, width - PAGINA.margemDireita - 50, y);
   y += 10;
   
-  // Iterar grupos
+  // Variável para rastrear o caminho anterior e mostrar separadores visuais
+  let caminhoAnterior = '';
+  
+  // Iterar grupos ordenados hierarquicamente
   data.grupos.forEach((grupo) => {
     y = checkPageBreak(doc, y, 60);
     
-    // Header do grupo
-    setColor(doc, CORES.cinzaMuitoClaro, 'fill');
-    doc.rect(PAGINA.margemEsquerda, y - 5, contentWidth, 8, 'F');
-    setColor(doc, CORES.textoEscuro);
-    doc.setFontSize(10);
+    // Determinar nível e cor
+    const nivel = grupo.nivel || 2;
+    const indentacao = Math.min((nivel - 1) * 5, 15); // Indentação máxima de 15
+    const corNivel = CORES_NIVEL[nivel] || CORES_NIVEL[4];
+    const tipoLabel = TIPO_UNIDADE_LABELS[grupo.unidade_tipo || 'diretoria'] || '';
+    
+    // Se mudou a hierarquia superior, adicionar linha separadora
+    const caminhoAtual = grupo.caminho_hierarquico || '';
+    const partesAnterior = caminhoAnterior.split(' > ');
+    const partesAtual = caminhoAtual.split(' > ');
+    
+    // Se a primeira parte (presidência/diretoria principal) mudou, adicionar separador maior
+    if (partesAnterior[0] && partesAtual[0] && partesAnterior.length > 1 && 
+        partesAnterior.slice(0, -1).join(' > ') !== partesAtual.slice(0, -1).join(' > ')) {
+      y += 3;
+    }
+    caminhoAnterior = caminhoAtual;
+    
+    // Header do grupo com cor baseada no nível
+    doc.setFillColor(corNivel.bg);
+    const headerHeight = nivel === 1 ? 10 : 8;
+    doc.rect(PAGINA.margemEsquerda + indentacao, y - 5, contentWidth - indentacao, headerHeight, 'F');
+    
+    // Texto do header
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(nivel === 1 ? 11 : 10);
     doc.setFont('helvetica', 'bold');
+    
     const unidadeLabel = grupo.unidade_sigla 
       ? `${grupo.unidade_sigla} - ${grupo.unidade_nome}` 
       : grupo.unidade_nome;
-    doc.text(`${unidadeLabel} (${grupo.servidores.length} servidores)`, PAGINA.margemEsquerda + 2, y);
-    y += 10;
+    
+    // Mostrar tipo da unidade para contexto
+    const prefixo = nivel > 1 && tipoLabel ? `[${tipoLabel}] ` : '';
+    const textoCompleto = `${prefixo}${unidadeLabel} (${grupo.servidores.length})`;
+    
+    doc.text(textoCompleto.substring(0, 70), PAGINA.margemEsquerda + indentacao + 2, y + (nivel === 1 ? 1 : 0));
+    y += headerHeight + 2;
+    
+    // Mostrar caminho hierárquico para contexto (apenas se não for nível 1)
+    if (nivel > 1 && grupo.caminho_hierarquico) {
+      setColor(doc, CORES.cinzaMedio);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'italic');
+      doc.text(`Hierarquia: ${grupo.caminho_hierarquico}`, PAGINA.margemEsquerda + indentacao + 2, y);
+      y += 5;
+    }
     
     // Table header
     setColor(doc, CORES.cinzaMedio);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.text('Nome', PAGINA.margemEsquerda + 2, y);
+    const tableStart = PAGINA.margemEsquerda + indentacao;
+    doc.text('Nome', tableStart + 2, y);
     doc.text('CPF', 85, y);
     doc.text('Cargo', 115, y);
     doc.text('Vínculo', 155, y);
@@ -204,7 +265,7 @@ export const generateRelatorioServidoresDiretoria = async (data: RelatorioServid
     y += 2;
     setColor(doc, CORES.cinzaMuitoClaro, 'draw');
     doc.setLineWidth(0.2);
-    doc.line(PAGINA.margemEsquerda, y, width - PAGINA.margemDireita, y);
+    doc.line(tableStart, y, width - PAGINA.margemDireita, y);
     y += 4;
     
     // Rows
@@ -213,7 +274,7 @@ export const generateRelatorioServidoresDiretoria = async (data: RelatorioServid
     grupo.servidores.forEach((s) => {
       y = checkPageBreak(doc, y, 30);
       
-      doc.text(s.nome.substring(0, 35), PAGINA.margemEsquerda + 2, y);
+      doc.text(s.nome.substring(0, 35), tableStart + 2, y);
       doc.text(formatCPF(s.cpf), 85, y);
       doc.text((s.cargo || '-').substring(0, 20), 115, y);
       doc.text((s.vinculo || '-').substring(0, 12), 155, y);
@@ -227,7 +288,7 @@ export const generateRelatorioServidoresDiretoria = async (data: RelatorioServid
   generateInstitutionalFooter(doc, { sistema: 'Sistema de Gestão de RH - IDJUV' });
   addPageNumbers(doc);
   
-  doc.save(`Relatorio_Servidores_Diretoria_${data.dataGeracao.replace(/\//g, '-')}.pdf`);
+  doc.save(`Relatorio_Servidores_Estrutura_${data.dataGeracao.replace(/\//g, '-')}.pdf`);
 };
 
 // ===== Relatório por Vínculo =====

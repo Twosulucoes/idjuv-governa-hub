@@ -55,13 +55,13 @@ export default function RelatoriosRHPage() {
   const [selectedStatusPortaria, setSelectedStatusPortaria] = useState<string>("all");
   const [loadingReport, setLoadingReport] = useState<string | null>(null);
 
-  // Fetch unidades
+  // Fetch unidades com hierarquia completa
   const { data: unidades = [] } = useQuery({
     queryKey: ["unidades-relatorio"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("estrutura_organizacional")
-        .select("id, nome, sigla, tipo")
+        .select("id, nome, sigla, tipo, nivel, superior_id")
         .eq("ativo", true)
         .order("nivel")
         .order("nome");
@@ -69,6 +69,72 @@ export default function RelatoriosRHPage() {
       return data;
     },
   });
+
+  // Função para organizar unidades hierarquicamente para o relatório
+  const organizarUnidadesHierarquicamente = (
+    unidadesList: typeof unidades,
+    servidoresList: typeof servidores
+  ) => {
+    // Mapear unidades por ID
+    const unidadesMap = new Map(unidadesList.map(u => [u.id, u]));
+    
+    // Obter caminho hierárquico de uma unidade (para ordenação)
+    const getCaminhoHierarquico = (unidadeId: string): string[] => {
+      const caminho: string[] = [];
+      let currentId: string | null = unidadeId;
+      while (currentId) {
+        const unidade = unidadesMap.get(currentId);
+        if (unidade) {
+          caminho.unshift(unidade.nome);
+          currentId = unidade.superior_id;
+        } else {
+          break;
+        }
+      }
+      return caminho;
+    };
+
+    // Agrupar servidores por unidade
+    const servidoresPorUnidade: Record<string, {
+      unidade_id: string;
+      unidade_nome: string;
+      unidade_sigla: string | null;
+      unidade_tipo: string;
+      nivel: number;
+      superior_id: string | null;
+      caminho: string[];
+      servidores: typeof servidoresList;
+    }> = {};
+
+    servidoresList.forEach(s => {
+      const unidadeId = s.unidade?.id || "sem_lotacao";
+      const unidade = unidadesMap.get(unidadeId);
+      
+      if (!servidoresPorUnidade[unidadeId]) {
+        servidoresPorUnidade[unidadeId] = {
+          unidade_id: unidadeId,
+          unidade_nome: unidade?.nome || s.unidade?.nome || "Sem Lotação",
+          unidade_sigla: unidade?.sigla || s.unidade?.sigla || null,
+          unidade_tipo: unidade?.tipo || "outro",
+          nivel: unidade?.nivel || 99,
+          superior_id: unidade?.superior_id || null,
+          caminho: unidade ? getCaminhoHierarquico(unidadeId) : ["ZZZ - Sem Lotação"],
+          servidores: []
+        };
+      }
+      servidoresPorUnidade[unidadeId].servidores.push(s);
+    });
+
+    // Ordenar grupos pelo caminho hierárquico
+    const gruposOrdenados = Object.values(servidoresPorUnidade).sort((a, b) => {
+      // Primeiro por caminho hierárquico (para manter Presidência > Diretoria > Divisão > Núcleo)
+      const caminhoA = a.caminho.join(' > ');
+      const caminhoB = b.caminho.join(' > ');
+      return caminhoA.localeCompare(caminhoB, 'pt-BR');
+    });
+
+    return gruposOrdenados;
+  };
 
   // Fetch servidores
   const { data: servidores = [] } = useQuery({
@@ -147,32 +213,16 @@ export default function RelatoriosRHPage() {
         return;
       }
 
-      // Group by unidade
-      const servidoresPorUnidade: Record<string, {
-        unidade_nome: string;
-        unidade_sigla: string | null;
-        servidores: typeof filteredServidores;
-      }> = {};
-
-      filteredServidores.forEach(s => {
-        const unidadeId = s.unidade?.id || "sem_lotacao";
-        const unidadeNome = s.unidade?.nome || "Sem Lotação";
-        const unidadeSigla = s.unidade?.sigla || null;
-        
-        if (!servidoresPorUnidade[unidadeId]) {
-          servidoresPorUnidade[unidadeId] = {
-            unidade_nome: unidadeNome,
-            unidade_sigla: unidadeSigla,
-            servidores: []
-          };
-        }
-        servidoresPorUnidade[unidadeId].servidores.push(s);
-      });
+      // Usar organização hierárquica
+      const gruposHierarquicos = organizarUnidadesHierarquicamente(unidades, filteredServidores);
 
       await generateRelatorioServidoresDiretoria({
-        grupos: Object.values(servidoresPorUnidade).map(g => ({
+        grupos: gruposHierarquicos.map(g => ({
           unidade_nome: g.unidade_nome,
           unidade_sigla: g.unidade_sigla,
+          unidade_tipo: g.unidade_tipo,
+          nivel: g.nivel,
+          caminho_hierarquico: g.caminho.join(' > '),
           servidores: g.servidores.map(s => ({
             nome: s.nome_completo,
             cpf: s.cpf,
