@@ -986,7 +986,7 @@ export const generateRelatorioGovernancaPDF = (): void => {
   // Footer
   doc.setFontSize(7);
   doc.setTextColor(128, 128, 128);
-  doc.text('Documento gerado pelo Sistema de Governança Digital IDJUV', 105, 285, { align: 'center' });
+  doc.text('Documento gerado pelo Sistema de Governança Digital IDJuv', 105, 285, { align: 'center' });
   doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 105, 290, { align: 'center' });
   
   doc.save('Relatorio_Governanca_Integridade_2025.pdf');
@@ -1427,13 +1427,13 @@ export const generateDeclaracaoAcumulacao = (data: DeclaracaoAcumulacaoData): vo
   let texto = '';
   
   if (data.acumula_cargo) {
-    texto = `Eu, ${data.nome_completo.toUpperCase()}, inscrito(a) no CPF sob o nº ${cpfFormatado}${rgInfo}, ocupante do cargo de ${data.cargo_nome || '[cargo não informado]'}, lotado(a) no(a) ${data.unidade_nome || 'IDJUV'}, DECLARO, para os devidos fins, que ACUMULO cargo, emprego ou função pública, conforme descrição abaixo:
+    texto = `Eu, ${data.nome_completo.toUpperCase()}, inscrito(a) no CPF sob o nº ${cpfFormatado}${rgInfo}, ocupante do cargo de ${data.cargo_nome || '[cargo não informado]'}, lotado(a) no(a) ${data.unidade_nome || 'IDJuv'}, DECLARO, para os devidos fins, que ACUMULO cargo, emprego ou função pública, conforme descrição abaixo:
 
 ${data.acumulo_descricao || '[Descrição do acúmulo não informada]'}
 
 Declaro estar ciente de que a acumulação de cargos só é permitida nos casos previstos no Art. 37, inciso XVI, da Constituição Federal de 1988, e que a ocultação de informações ou declaração falsa sujeitará o(a) declarante às penalidades previstas em lei.`;
   } else {
-    texto = `Eu, ${data.nome_completo.toUpperCase()}, inscrito(a) no CPF sob o nº ${cpfFormatado}${rgInfo}, ocupante do cargo de ${data.cargo_nome || '[cargo não informado]'}, lotado(a) no(a) ${data.unidade_nome || 'IDJUV'}, DECLARO, para os devidos fins, que NÃO ACUMULO cargo, emprego ou função pública na Administração Pública Federal, Estadual ou Municipal, direta ou indireta, incluindo autarquias, fundações, empresas públicas, sociedades de economia mista e fundações mantidas pelo Poder Público.
+    texto = `Eu, ${data.nome_completo.toUpperCase()}, inscrito(a) no CPF sob o nº ${cpfFormatado}${rgInfo}, ocupante do cargo de ${data.cargo_nome || '[cargo não informado]'}, lotado(a) no(a) ${data.unidade_nome || 'IDJuv'}, DECLARO, para os devidos fins, que NÃO ACUMULO cargo, emprego ou função pública na Administração Pública Federal, Estadual ou Municipal, direta ou indireta, incluindo autarquias, fundações, empresas públicas, sociedades de economia mista e fundações mantidas pelo Poder Público.
 
 Declaro estar ciente de que a acumulação ilícita de cargos, empregos ou funções públicas sujeitará o(a) declarante às penalidades previstas em lei, incluindo a restituição dos valores indevidamente recebidos.`;
   }
@@ -1532,7 +1532,7 @@ export const generateDeclaracaoBens = (data: DeclaracaoBensData): void => {
   const cpfFormatado = formatCPFPDF(data.cpf);
   const rgInfo = data.rg ? `, portador(a) do RG nº ${data.rg}${data.rg_orgao_expedidor ? ` - ${data.rg_orgao_expedidor}` : ''}` : '';
   
-  const texto = `Eu, ${data.nome_completo.toUpperCase()}, inscrito(a) no CPF sob o nº ${cpfFormatado}${rgInfo}, ocupante do cargo de ${data.cargo_nome || '[cargo não informado]'}, lotado(a) no(a) ${data.unidade_nome || 'IDJUV'}, DECLARO, sob as penas da lei, que possuo os seguintes bens e valores que integram meu patrimônio:`;
+  const texto = `Eu, ${data.nome_completo.toUpperCase()}, inscrito(a) no CPF sob o nº ${cpfFormatado}${rgInfo}, ocupante do cargo de ${data.cargo_nome || '[cargo não informado]'}, lotado(a) no(a) ${data.unidade_nome || 'IDJuv'}, DECLARO, sob as penas da lei, que possuo os seguintes bens e valores que integram meu patrimônio:`;
   
   const textLines = doc.splitTextToSize(texto, contentWidth);
   doc.text(textLines, margin, y);

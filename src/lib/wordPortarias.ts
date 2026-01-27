@@ -228,7 +228,7 @@ export async function generatePortariaColetivaWord(
           new Paragraph({
             children: [
               new TextRun({
-                text: 'IDJUV',
+                text: 'IDJuv',
                 font: 'Times New Roman',
                 size: FONT_SIZE_9,
               }),

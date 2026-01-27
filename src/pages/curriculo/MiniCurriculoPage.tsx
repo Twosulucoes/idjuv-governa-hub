@@ -191,7 +191,7 @@ export default function MiniCurriculoPage() {
         <div className="container max-w-4xl mx-auto px-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src={logoIdjuv} alt="IDJUV" className="h-12 bg-white rounded p-1" />
+              <img src={logoIdjuv} alt="IDJuv" className="h-12 bg-white rounded p-1" />
               <div>
                 <h1 className="font-bold text-lg">Pré-Cadastro de Servidor</h1>
                 <p className="text-sm opacity-90">

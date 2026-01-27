@@ -5,7 +5,7 @@
 
 // Constantes de versão e namespaces
 export const ESOCIAL_VERSION = "S_01_03_00";
-export const ESOCIAL_PROC_VERSION = "IDJUV_1.0.0";
+export const ESOCIAL_PROC_VERSION = "IDJuv_1.0.0";
 
 export const ESOCIAL_NAMESPACES = {
   S1200: "http://www.esocial.gov.br/schema/evt/evtRemun/v_S_01_03_00",

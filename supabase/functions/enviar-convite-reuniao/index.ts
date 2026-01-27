@@ -90,7 +90,7 @@ function substituirVariaveis(
 
   const horaInicio = formatarHorario(reuniao.hora_inicio);
   const horaFim = reuniao.hora_fim ? formatarHorario(reuniao.hora_fim) : "";
-  const organizador = assinatura?.nome || "IDJUV";
+  const organizador = assinatura?.nome || "IDJuv";
   const unidadeResponsavel = assinatura?.setor || "";
 
   let resultado = texto

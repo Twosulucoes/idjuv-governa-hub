@@ -98,7 +98,7 @@ export function LogoIdjuvSimple({
   return (
     <img
       src={logoSrc}
-      alt="IDJUV"
+      alt="IDJuv"
       className={cn("logo object-contain", className)}
       loading="lazy"
       {...props}

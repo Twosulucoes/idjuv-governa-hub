@@ -11,7 +11,7 @@ const EmBrevePage = () => {
         <CardContent className="pt-8 pb-8 space-y-6">
           <img
             src={logoIdjuv}
-            alt="IDJUV"
+            alt="IDJuv"
             className="h-20 mx-auto"
           />
           
