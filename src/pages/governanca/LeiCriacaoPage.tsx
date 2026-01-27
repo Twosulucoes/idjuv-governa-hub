@@ -1,11 +1,18 @@
 import { Link } from "react-router-dom";
-import { FileText, ArrowLeft, Download, BookOpen } from "lucide-react";
+import { FileText, ArrowLeft, Download, BookOpen, ExternalLink } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useDadosOficiais } from "@/hooks/useDadosOficiais";
 
 export default function LeiCriacaoPage() {
+  const { obterValor } = useDadosOficiais();
+  
+  const handleDownload = () => {
+    window.open('/documentos/LEI_2301_29-12-2025.pdf', '_blank');
+  };
+
   return (
     <MainLayout>
       {/* Cabeçalho */}
@@ -25,7 +32,7 @@ export default function LeiCriacaoPage() {
             <div>
               <h1 className="font-serif text-3xl lg:text-4xl font-bold">Lei de Criação</h1>
               <p className="opacity-90 mt-1">
-                Projeto de Lei nº 290/2025 - Criação do IDJUV
+                {obterValor('lei_criacao')} - Criação do IDJuv
               </p>
             </div>
           </div>
@@ -42,7 +49,7 @@ export default function LeiCriacaoPage() {
                   <BookOpen className="w-5 h-5" />
                   Texto Integral
                 </CardTitle>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={handleDownload}>
                   <Download className="w-4 h-4 mr-2" />
                   Baixar PDF
                 </Button>
@@ -50,7 +57,10 @@ export default function LeiCriacaoPage() {
               <CardContent className="prose prose-sm max-w-none">
                 <div className="bg-muted/50 rounded-lg p-6 mb-6 text-center">
                   <p className="text-sm text-muted-foreground mb-1">ESTADO DE RORAIMA</p>
-                  <p className="text-lg font-serif font-bold">PROJETO DE LEI Nº 290, DE 22 DE DEZEMBRO DE 2025</p>
+                  <p className="text-lg font-serif font-bold">LEI Nº 2.301, DE 29 DE DEZEMBRO DE 2025</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Publicada no DOE Edição nº 5076 de 29/12/2025
+                  </p>
                 </div>
 
                 <p className="italic text-muted-foreground">
@@ -88,20 +98,24 @@ export default function LeiCriacaoPage() {
                   desenvolvimento social, educacional, tecnológico e cultural do público-alvo, 
                   atuando em conjunto com a população e suas organizações.
                 </p>
+                <p className="text-muted-foreground text-sm pl-4 border-l-2 border-primary">
+                  <strong>Parágrafo único.</strong> É também finalidade precípua do IDJuv, a implementação 
+                  e a gestão no âmbito da Administração Pública Estadual, do Programa Estadual de 
+                  Incentivo ao Esporte - ProEsporte, instituído pela Lei nº 1.859, de 18 de setembro de 2023.
+                </p>
 
                 <h3 className="font-semibold mt-6">Seção III - Dos Objetivos</h3>
                 <p><strong>Art. 3º</strong> O IDJuv tem por objetivos:</p>
-                <ul className="list-disc pl-6 space-y-2">
-                  <li>Planejar, coordenar e executar programas de desporto, lazer e juventude;</li>
-                  <li>Promover o desporto comunitário;</li>
-                  <li>Desenvolver a promoção de atividade física e lazer;</li>
-                  <li>Fomentar o esporte e a tecnologia através dos jogos eletrônicos;</li>
-                  <li>Executar a educação e desporto estudantil;</li>
-                  <li>Promover e gerir o esporte de alto rendimento;</li>
-                  <li>Atuar na gestão inclusiva e qualidade de vida;</li>
-                  <li>Desenvolver programas, projetos e políticas voltados à Juventude;</li>
-                  <li>Adotar indicadores de medição de serviços;</li>
-                  <li>Apoiar o associativismo e cooperativismo.</li>
+                <ul className="list-[upper-roman] pl-6 space-y-2">
+                  <li>promover o desporto comunitário;</li>
+                  <li>desenvolver a promoção de atividade física e lazer;</li>
+                  <li>fomentar o esporte e a tecnologia através dos jogos eletrônicos;</li>
+                  <li>executar a educação e desporto estudantil, compreendendo o esporte educacional;</li>
+                  <li>promover e gerir o esporte de alto rendimento e apoiar as Organizações Esportivas;</li>
+                  <li>atuar na gestão inclusiva e qualidade de vida, promovendo o esporte, o lazer, a saúde e a inclusão social através do desenvolvimento do paradesporto;</li>
+                  <li>desenvolver programas, projetos e políticas voltados à Juventude;</li>
+                  <li>adotar indicadores que sirvam para apresentar e medir os serviços oferecidos aos seus beneficiários; e</li>
+                  <li>apoiar o associativismo e cooperativismo no âmbito de suas finalidades.</li>
                 </ul>
 
                 <Separator className="my-6" />
@@ -111,33 +125,73 @@ export default function LeiCriacaoPage() {
                 
                 <div className="bg-muted/50 rounded-lg p-4 my-4">
                   <p className="font-semibold mb-2">I - Nível de Administração Superior:</p>
-                  <ul className="list-disc pl-6"><li>Presidência</li></ul>
+                  <ul className="list-[lower-alpha] pl-6"><li>Presidência.</li></ul>
 
                   <p className="font-semibold mb-2 mt-4">II - Nível de Assessoramento:</p>
-                  <ul className="list-disc pl-6">
-                    <li>Chefia de Gabinete</li>
-                    <li>Assessoria Jurídica</li>
-                    <li>Assessoria Especial</li>
-                    <li>Controle Interno</li>
-                    <li>Comissão Permanente de Licitação (CPL)</li>
-                    <li>Assessoria de Comunicação (ASCOM)</li>
+                  <ul className="list-[lower-alpha] pl-6">
+                    <li>Chefia de Gabinete;</li>
+                    <li>Assessoria Jurídica;</li>
+                    <li>Assessoria Especial;</li>
+                    <li>Controle Interno;</li>
+                    <li>Comissão de Contratação; e</li>
+                    <li>Assessoria de Comunicação (ASCOM).</li>
                   </ul>
 
                   <p className="font-semibold mb-2 mt-4">III - Nível de Execução Instrumental:</p>
-                  <ul className="list-disc pl-6">
-                    <li>Diretoria Administrativa e Financeira (DIRAF)</li>
+                  <ul className="list-decimal pl-6">
+                    <li className="font-medium">Diretoria Administrativa e Financeira (DIRAF):
+                      <ul className="list-[lower-alpha] pl-6 font-normal">
+                        <li>Divisão de Contabilidade, Orçamento e Finanças (DiCOF)</li>
+                        <li>Divisão Administrativa e Gestão Patrimonial (DiAGP)</li>
+                        <li>Divisão de Gestão de Pessoas (DiGP)</li>
+                      </ul>
+                    </li>
                   </ul>
 
                   <p className="font-semibold mb-2 mt-4">IV - Nível de Execução Programática:</p>
-                  <ul className="list-disc pl-6">
-                    <li>Diretoria de Esporte (DIESP)</li>
-                    <li>Diretoria da Juventude (DIJUV)</li>
+                  <ul className="list-decimal pl-6">
+                    <li className="font-medium">Diretoria de Esporte (DiEsp):
+                      <ul className="list-[lower-alpha] pl-6 font-normal">
+                        <li>Divisão de Promoção do Desporto Comunitário, Lazer e Qualidade de Vida (DiPDCL)</li>
+                        <li>Divisão de Desporto de Alto Rendimento e Organizações Esportivas (DiDAR)</li>
+                        <li>Divisão de Esporte Educacional (DiEspE)</li>
+                      </ul>
+                    </li>
+                    <li className="font-medium mt-2">Diretoria da Juventude (DiJuv):
+                      <ul className="list-[lower-alpha] pl-6 font-normal">
+                        <li>Divisão de Desenvolvimento, Inovação e Tecnologia (DiDIT)</li>
+                        <li>Divisão de Políticas Públicas para a Juventude (DiPPJ)</li>
+                      </ul>
+                    </li>
                   </ul>
                 </div>
 
-                <p className="text-center text-muted-foreground mt-8">
-                  [Texto parcial - documento completo disponível para download]
-                </p>
+                <Separator className="my-6" />
+
+                {/* Card de documentos relacionados */}
+                <div className="not-prose bg-accent/10 rounded-lg p-4 mt-6">
+                  <h3 className="font-semibold text-base mb-3">Documentos Relacionados</h3>
+                  <div className="space-y-2">
+                    <a 
+                      href="/documentos/DOE_5076_29-12-2025.pdf" 
+                      target="_blank" 
+                      className="flex items-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      <FileText className="w-4 h-4" />
+                      DOE Edição nº 5076 - Publicação da Lei
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                    <a 
+                      href="/documentos/DOE_5091_23-01-2026_Decreto_39840-E.pdf" 
+                      target="_blank" 
+                      className="flex items-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Decreto nº 39.840-E - Regulamentação do IDJuv
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
