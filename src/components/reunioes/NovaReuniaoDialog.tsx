@@ -36,7 +36,7 @@ const formSchema = z.object({
   descricao: z.string().optional(),
   data: z.string().min(1, "Data é obrigatória"),
   hora: z.string().min(1, "Hora é obrigatória"),
-  duracao_minutos: z.coerce.number().min(15, "Mínimo 15 minutos"),
+  hora_fim: z.string().optional(),
   tipo: z.enum(["ordinaria", "extraordinaria", "audiencia", "sessao_solene", "reuniao_trabalho"]),
   local: z.string().optional(),
   link_virtual: z.string().url().optional().or(z.literal("")),
@@ -61,7 +61,7 @@ export function NovaReuniaoDialog({ open, onOpenChange, onSuccess }: NovaReuniao
       descricao: "",
       data: "",
       hora: "",
-      duracao_minutos: 60,
+      hora_fim: "",
       tipo: "ordinaria",
       local: "",
       link_virtual: "",
@@ -77,6 +77,7 @@ export function NovaReuniaoDialog({ open, onOpenChange, onSuccess }: NovaReuniao
         observacoes: values.descricao || null,
         data_reuniao: values.data,
         hora_inicio: values.hora,
+        hora_fim: values.hora_fim || null,
         tipo: values.tipo as "ordinaria" | "extraordinaria" | "audiencia" | "sessao_solene" | "reuniao_trabalho",
         local: values.local || null,
         link_virtual: values.link_virtual || null,
@@ -178,21 +179,24 @@ export function NovaReuniaoDialog({ open, onOpenChange, onSuccess }: NovaReuniao
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="duracao_minutos"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Duração (min)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={15} step={15} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <FormField
+              control={form.control}
+              name="hora_fim"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5" />
+                    Hora Fim (opcional)
+                  </FormLabel>
+                  <FormControl>
+                    <Input type="time" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
+            <div className="grid grid-cols-1 gap-4">
               <FormField
                 control={form.control}
                 name="tipo"
@@ -218,6 +222,7 @@ export function NovaReuniaoDialog({ open, onOpenChange, onSuccess }: NovaReuniao
                 )}
               />
             </div>
+
 
             <FormField
               control={form.control}
