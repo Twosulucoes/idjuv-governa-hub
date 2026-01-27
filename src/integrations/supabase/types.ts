@@ -1476,6 +1476,105 @@ export type Database = {
           },
         ]
       }
+      conteudo_rascunho: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          atualizado_por: string | null
+          conteudo: string
+          conteudo_estruturado: Json | null
+          created_at: string | null
+          criado_por: string | null
+          id: string
+          identificador: string | null
+          motivo_rejeicao: string | null
+          status: Database["public"]["Enums"]["status_conteudo"] | null
+          tipo: Database["public"]["Enums"]["tipo_conteudo_institucional"]
+          titulo: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          atualizado_por?: string | null
+          conteudo: string
+          conteudo_estruturado?: Json | null
+          created_at?: string | null
+          criado_por?: string | null
+          id?: string
+          identificador?: string | null
+          motivo_rejeicao?: string | null
+          status?: Database["public"]["Enums"]["status_conteudo"] | null
+          tipo: Database["public"]["Enums"]["tipo_conteudo_institucional"]
+          titulo?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          atualizado_por?: string | null
+          conteudo?: string
+          conteudo_estruturado?: Json | null
+          created_at?: string | null
+          criado_por?: string | null
+          id?: string
+          identificador?: string | null
+          motivo_rejeicao?: string | null
+          status?: Database["public"]["Enums"]["status_conteudo"] | null
+          tipo?: Database["public"]["Enums"]["tipo_conteudo_institucional"]
+          titulo?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      dados_oficiais: {
+        Row: {
+          bloqueado: boolean | null
+          categoria: string | null
+          chave: string
+          created_at: string | null
+          descricao: string | null
+          documento_url: string | null
+          id: string
+          lei_referencia: string | null
+          motivo_alteracao: string | null
+          ultima_alteracao_em: string | null
+          ultima_alteracao_por: string | null
+          updated_at: string | null
+          valor: string
+        }
+        Insert: {
+          bloqueado?: boolean | null
+          categoria?: string | null
+          chave: string
+          created_at?: string | null
+          descricao?: string | null
+          documento_url?: string | null
+          id?: string
+          lei_referencia?: string | null
+          motivo_alteracao?: string | null
+          ultima_alteracao_em?: string | null
+          ultima_alteracao_por?: string | null
+          updated_at?: string | null
+          valor: string
+        }
+        Update: {
+          bloqueado?: boolean | null
+          categoria?: string | null
+          chave?: string
+          created_at?: string | null
+          descricao?: string | null
+          documento_url?: string | null
+          id?: string
+          lei_referencia?: string | null
+          motivo_alteracao?: string | null
+          ultima_alteracao_em?: string | null
+          ultima_alteracao_por?: string | null
+          updated_at?: string | null
+          valor?: string
+        }
+        Relationships: []
+      }
       demandas_ascom: {
         Row: {
           ano: number
@@ -2238,6 +2337,7 @@ export type Database = {
         Row: {
           ativo: boolean | null
           atribuicoes: string | null
+          base_legal: boolean | null
           cargo_chefe_id: string | null
           competencias: string[] | null
           created_at: string | null
@@ -2254,6 +2354,7 @@ export type Database = {
           nivel: number
           nome: string
           ordem: number | null
+          ordem_exibicao: number | null
           ramal: string | null
           servidor_responsavel_id: string | null
           sigla: string | null
@@ -2265,6 +2366,7 @@ export type Database = {
         Insert: {
           ativo?: boolean | null
           atribuicoes?: string | null
+          base_legal?: boolean | null
           cargo_chefe_id?: string | null
           competencias?: string[] | null
           created_at?: string | null
@@ -2281,6 +2383,7 @@ export type Database = {
           nivel?: number
           nome: string
           ordem?: number | null
+          ordem_exibicao?: number | null
           ramal?: string | null
           servidor_responsavel_id?: string | null
           sigla?: string | null
@@ -2292,6 +2395,7 @@ export type Database = {
         Update: {
           ativo?: boolean | null
           atribuicoes?: string | null
+          base_legal?: boolean | null
           cargo_chefe_id?: string | null
           competencias?: string[] | null
           created_at?: string | null
@@ -2308,6 +2412,7 @@ export type Database = {
           nivel?: number
           nome?: string
           ordem?: number | null
+          ordem_exibicao?: number | null
           ramal?: string | null
           servidor_responsavel_id?: string | null
           sigla?: string | null
@@ -3279,6 +3384,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      historico_conteudo_oficial: {
+        Row: {
+          conteudo: string
+          conteudo_estruturado: Json | null
+          created_at: string | null
+          documento_aprovacao_url: string | null
+          id: string
+          identificador: string | null
+          justificativa: string | null
+          promovido_em: string | null
+          promovido_por: string | null
+          tipo: Database["public"]["Enums"]["tipo_conteudo_institucional"]
+          titulo: string | null
+          versao: number
+        }
+        Insert: {
+          conteudo: string
+          conteudo_estruturado?: Json | null
+          created_at?: string | null
+          documento_aprovacao_url?: string | null
+          id?: string
+          identificador?: string | null
+          justificativa?: string | null
+          promovido_em?: string | null
+          promovido_por?: string | null
+          tipo: Database["public"]["Enums"]["tipo_conteudo_institucional"]
+          titulo?: string | null
+          versao?: number
+        }
+        Update: {
+          conteudo?: string
+          conteudo_estruturado?: Json | null
+          created_at?: string | null
+          documento_aprovacao_url?: string | null
+          id?: string
+          identificador?: string | null
+          justificativa?: string | null
+          promovido_em?: string | null
+          promovido_por?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_conteudo_institucional"]
+          titulo?: string | null
+          versao?: number
+        }
+        Relationships: []
       }
       historico_convites_reuniao: {
         Row: {
@@ -7556,7 +7706,12 @@ export type Database = {
         }
         Returns: string
       }
+      obter_dado_oficial: { Args: { p_chave: string }; Returns: string }
       processar_folha_pagamento: { Args: { p_folha_id: string }; Returns: Json }
+      promover_rascunho: {
+        Args: { p_justificativa?: string; p_rascunho_id: string }
+        Returns: boolean
+      }
       user_has_unit_access: {
         Args: { _unidade_id: string; _user_id: string }
         Returns: boolean
@@ -7715,6 +7870,12 @@ export type Database = {
         | "rejeitado"
         | "cancelado"
         | "concluido"
+      status_conteudo:
+        | "rascunho"
+        | "em_revisao"
+        | "aprovado"
+        | "publicado"
+        | "arquivado"
       status_demanda_ascom:
         | "rascunho"
         | "enviada"
@@ -7776,6 +7937,15 @@ export type Database = {
         | "missao"
         | "outro"
       tipo_ato_nomeacao: "portaria" | "decreto" | "ato" | "outro"
+      tipo_conteudo_institucional:
+        | "missao"
+        | "visao"
+        | "valores"
+        | "objetivos_estrategicos"
+        | "descricao_programa"
+        | "slogan"
+        | "narrativa_institucional"
+        | "identidade_visual"
       tipo_demanda_ascom:
         | "cobertura_fotografica"
         | "cobertura_audiovisual"
@@ -8197,6 +8367,13 @@ export const Constants = {
         "cancelado",
         "concluido",
       ],
+      status_conteudo: [
+        "rascunho",
+        "em_revisao",
+        "aprovado",
+        "publicado",
+        "arquivado",
+      ],
       status_demanda_ascom: [
         "rascunho",
         "enviada",
@@ -8265,6 +8442,16 @@ export const Constants = {
         "outro",
       ],
       tipo_ato_nomeacao: ["portaria", "decreto", "ato", "outro"],
+      tipo_conteudo_institucional: [
+        "missao",
+        "visao",
+        "valores",
+        "objetivos_estrategicos",
+        "descricao_programa",
+        "slogan",
+        "narrativa_institucional",
+        "identidade_visual",
+      ],
       tipo_demanda_ascom: [
         "cobertura_fotografica",
         "cobertura_audiovisual",
