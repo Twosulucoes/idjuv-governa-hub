@@ -29,6 +29,7 @@ import { CentralRelatoriosFederacoesDialog } from '@/components/federacoes/Centr
 import { EditarFederacaoDialog } from '@/components/federacoes/EditarFederacaoDialog';
 import { CalendarioFederacaoTab } from '@/components/federacoes/CalendarioFederacaoTab';
 import { CalendarioGeralFederacoesTab } from '@/components/federacoes/CalendarioGeralFederacoesTab';
+import { FederacoesErrorBoundary } from '@/components/federacoes/FederacoesErrorBoundary';
 
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -146,18 +147,31 @@ export default function GestaoFederacoesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingFederacao, setDeletingFederacao] = useState<Federacao | null>(null);
 
-  const { data: federacoes = [], isLoading } = useQuery({
+  const { data: federacoes = [], isLoading, isError, error: queryError } = useQuery({
     queryKey: ['federacoes'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('federacoes_esportivas')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data as Federacao[];
+      try {
+        const { data, error } = await supabase
+          .from('federacoes_esportivas')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          console.error('[Federações] Erro na query:', error);
+          throw error;
+        }
+        return (data || []) as Federacao[];
+      } catch (err) {
+        console.error('[Federações] Erro ao buscar:', err);
+        return [] as Federacao[];
+      }
     },
   });
+
+  // Log de debug para erros
+  if (isError) {
+    console.error('[Federações] Query error:', queryError);
+  }
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status, observacoes }: { id: string; status: string; observacoes?: string }) => {
@@ -286,6 +300,7 @@ export default function GestaoFederacoesPage() {
   };
 
   return (
+    <FederacoesErrorBoundary>
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
@@ -784,5 +799,6 @@ export default function GestaoFederacoesPage() {
         />
       </div>
     </AdminLayout>
+    </FederacoesErrorBoundary>
   );
 }
