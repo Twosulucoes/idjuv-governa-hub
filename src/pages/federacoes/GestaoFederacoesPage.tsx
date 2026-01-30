@@ -113,11 +113,19 @@ interface Federacao {
   created_at: string;
 }
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
   em_analise: { label: 'Em Análise', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
   ativo: { label: 'Ativa', color: 'bg-green-100 text-green-800', icon: CheckCircle },
   inativo: { label: 'Inativa', color: 'bg-gray-100 text-gray-800', icon: XCircle },
   rejeitado: { label: 'Rejeitada', color: 'bg-red-100 text-red-800', icon: XCircle },
+};
+
+// Fallback seguro para status desconhecido
+const getStatusConfig = (status: string | null | undefined) => {
+  if (!status || !statusConfig[status]) {
+    return { label: 'Desconhecido', color: 'bg-gray-100 text-gray-800', icon: Clock };
+  }
+  return statusConfig[status];
 };
 
 export default function GestaoFederacoesPage() {
@@ -196,11 +204,18 @@ export default function GestaoFederacoesPage() {
     },
   });
 
-  const filteredFederacoes = federacoes.filter((fed) => {
+  const filteredFederacoes = (federacoes || []).filter((fed) => {
+    if (!fed) return false;
+    
+    const nome = (fed.nome || '').toLowerCase();
+    const sigla = (fed.sigla || '').toLowerCase();
+    const presidenteNome = (fed.presidente_nome || '').toLowerCase();
+    const searchLower = search.toLowerCase();
+    
     const matchesSearch = 
-      fed.nome.toLowerCase().includes(search.toLowerCase()) ||
-      fed.sigla.toLowerCase().includes(search.toLowerCase()) ||
-      fed.presidente_nome.toLowerCase().includes(search.toLowerCase());
+      nome.includes(searchLower) ||
+      sigla.includes(searchLower) ||
+      presidenteNome.includes(searchLower);
     
     const matchesStatus = statusFilter === 'todos' || fed.status === statusFilter;
     
@@ -208,10 +223,10 @@ export default function GestaoFederacoesPage() {
   });
 
   const stats = {
-    total: federacoes.length,
-    emAnalise: federacoes.filter((f) => f.status === 'em_analise').length,
-    ativas: federacoes.filter((f) => f.status === 'ativo').length,
-    inativas: federacoes.filter((f) => f.status === 'inativo').length,
+    total: (federacoes || []).length,
+    emAnalise: (federacoes || []).filter((f) => f?.status === 'em_analise').length,
+    ativas: (federacoes || []).filter((f) => f?.status === 'ativo').length,
+    inativas: (federacoes || []).filter((f) => f?.status === 'inativo').length,
   };
 
   const handleViewDetails = (federacao: Federacao) => {
@@ -388,19 +403,20 @@ export default function GestaoFederacoesPage() {
                   </TableRow>
                 ) : (
                   filteredFederacoes.map((fed) => {
-                    const StatusIcon = statusConfig[fed.status].icon;
+                    const statusInfo = getStatusConfig(fed.status);
+                    const StatusIcon = statusInfo.icon;
                     return (
                       <TableRow key={fed.id}>
                         <TableCell>
                           <div>
-                            <div className="font-medium">{fed.sigla}</div>
+                            <div className="font-medium">{fed.sigla || '-'}</div>
                             <div className="text-sm text-muted-foreground truncate max-w-[200px]">
-                              {fed.nome}
+                              {fed.nome || '-'}
                             </div>
                           </div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          <div className="text-sm">{fed.presidente_nome}</div>
+                          <div className="text-sm">{fed.presidente_nome || '-'}</div>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
                           <div className="text-sm">
@@ -408,9 +424,9 @@ export default function GestaoFederacoesPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={statusConfig[fed.status].color}>
+                          <Badge className={statusInfo.color}>
                             <StatusIcon className="h-3 w-3 mr-1" />
-                            {statusConfig[fed.status].label}
+                            {statusInfo.label}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -453,8 +469,8 @@ export default function GestaoFederacoesPage() {
                 <div className="mt-6 space-y-6">
                   {/* Status */}
                   <div className="flex items-center justify-between">
-                    <Badge className={statusConfig[selectedFederacao.status].color}>
-                      {statusConfig[selectedFederacao.status].label}
+                    <Badge className={getStatusConfig(selectedFederacao.status).color}>
+                      {getStatusConfig(selectedFederacao.status).label}
                     </Badge>
                     <div className="text-sm text-muted-foreground">
                       Cadastro: {formatDate(selectedFederacao.created_at)}
