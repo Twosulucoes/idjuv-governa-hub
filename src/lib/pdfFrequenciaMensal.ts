@@ -16,6 +16,22 @@ import logoGoverno from '@/assets/logo-governo-roraima.jpg';
 import logoIdjuv from '@/assets/logo-idjuv-oficial.png';
 import { getLogosPDF, LOGO_CONFIG_PADRAO } from './pdfLogos';
 
+async function getImageAspectRatio(src: string): Promise<number> {
+  const img = new Image();
+  img.decoding = 'async';
+  img.src = src;
+
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error('Falha ao carregar imagem'));
+  });
+
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+  if (!w || !h) throw new Error('Dimensões inválidas');
+  return w / h;
+}
+
 // ============================================
 // INTERFACES
 // ============================================
@@ -203,12 +219,18 @@ export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData)
 
   // ===== CABEÇALHO COM LOGOS (28mm) =====
   const headerHeight = 24;
-  
+
   // Logos com proporções ORIGINAIS preservadas (sem distorção)
-  const logoGovernoH = 12; // Governo: proporção 3.69:1
-  const logoGovernoW = logoGovernoH * 3.69; // ~44mm
-  const logoIdjuvH = 22; // IDJuv: maior destaque
-  const logoIdjuvW = logoIdjuvH * 1.55; // ~34mm (proporção 1.55:1)
+  // Nota: usamos a proporção real da própria imagem para evitar qualquer “achatamento”.
+  const [aspectGov, aspectIdjuv] = await Promise.all([
+    getImageAspectRatio(logoGoverno).catch(() => 3.69),
+    getImageAspectRatio(logoIdjuv).catch(() => 1.55),
+  ]);
+
+  const logoGovernoH = 15; // um pouco maior para não parecer “achatado”
+  const logoGovernoW = logoGovernoH * aspectGov;
+  const logoIdjuvH = 22; // IDJuv em destaque
+  const logoIdjuvW = logoIdjuvH * aspectIdjuv;
   
   // Centralizar verticalmente ambos os logos no espaço do cabeçalho
   const logoGovernoY = y + (headerHeight - logoGovernoH) / 2;
@@ -598,11 +620,21 @@ const generateFrequenciaMensalPDFInternal = async (data: FrequenciaMensalPDFData
 
   // ===== CABEÇALHO COM LOGOS (28mm) =====
   const headerHeight = 24;
-  const logoHeight = 15;
-  
-  const logoGovWidth = logoHeight * 3.5;
+  const [aspectGov, aspectIdjuv] = await Promise.all([
+    getImageAspectRatio(logoGoverno).catch(() => 3.69),
+    getImageAspectRatio(logoIdjuv).catch(() => 1.55),
+  ]);
+
+  const logoGovernoH = 15;
+  const logoGovernoW = logoGovernoH * aspectGov;
+  const logoIdjuvH = 22;
+  const logoIdjuvW = logoIdjuvH * aspectIdjuv;
+
+  const logoGovernoY = y + (headerHeight - logoGovernoH) / 2;
+  const logoIdjuvY = y + (headerHeight - logoIdjuvH) / 2;
+
   try {
-    doc.addImage(logoGoverno, 'JPEG', margin, y + 1, logoGovWidth, logoHeight);
+    doc.addImage(logoGoverno, 'JPEG', margin, logoGovernoY, logoGovernoW, logoGovernoH);
   } catch (e) {
     console.warn('Logo Governo não carregado');
   }
@@ -619,9 +651,8 @@ const generateFrequenciaMensalPDFInternal = async (data: FrequenciaMensalPDFData
   doc.setFontSize(7);
   doc.text(`CNPJ: ${INSTITUICAO.cnpj} | ${INSTITUICAO.endereco}`, pageWidth / 2, y + 17, { align: 'center' });
   
-  const logoIdjuvWidth = logoHeight * 1.0;
   try {
-    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth, y + 1, logoIdjuvWidth, logoHeight);
+    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvW, logoIdjuvY, logoIdjuvW, logoIdjuvH);
   } catch (e) {
     console.warn('Logo IDJuv não carregado');
   }
