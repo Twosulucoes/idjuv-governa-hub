@@ -223,10 +223,25 @@ export const adminMenuConfig: AdminMenuSection[] = [
       },
       {
         id: "frequencia",
-        label: "Gestão de Frequência",
-        href: "/rh/frequencia",
+        label: "Frequência",
         icon: Clock,
         keywords: ["frequência", "ponto", "faltas", "atestado", "presença"],
+        children: [
+          {
+            id: "gestao-frequencia",
+            label: "Gestão de Frequência",
+            href: "/rh/frequencia",
+            icon: Clock,
+            keywords: ["frequência", "ponto", "faltas", "lançamento"],
+          },
+          {
+            id: "config-frequencia",
+            label: "Configuração",
+            href: "/rh/frequencia/configuracao",
+            icon: Settings,
+            keywords: ["configurar", "jornada", "regime", "feriados", "parâmetros"],
+          },
+        ],
       },
       {
         id: "viagens",
