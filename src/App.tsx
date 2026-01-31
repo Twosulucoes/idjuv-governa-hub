@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 // Pages
 import EmBrevePage from "./pages/EmBrevePage";
@@ -115,9 +116,6 @@ import MiniCurriculoSucessoPage from "./pages/curriculo/MiniCurriculoSucessoPage
 import GestaoPreCadastrosPage from "./pages/curriculo/GestaoPreCadastrosPage";
 import DiagnosticoPendenciasPage from "./pages/curriculo/DiagnosticoPendenciasPage";
 
-// Auth Protection
-import RequireAuthOrRedirect from "./components/auth/RequireAuthOrRedirect";
-
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -130,168 +128,573 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               {/* ============================================ */}
-              {/* ROTAS PÚBLICAS - Mini-Currículo */}
+              {/* ROTAS PÚBLICAS - Sem autenticação */}
               {/* ============================================ */}
+              <Route path="/" element={<EmBrevePage />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/acesso-negado" element={<AccessDeniedPage />} />
               <Route path="/curriculo" element={<MiniCurriculoPage />} />
               <Route path="/curriculo/sucesso" element={<MiniCurriculoSucessoPage />} />
               <Route path="/curriculo/:codigo" element={<MiniCurriculoPage />} />
-              
-              {/* ============================================ */}
-              {/* ROTAS PÚBLICAS - ASCOM */}
-              {/* ============================================ */}
               <Route path="/ascom/solicitar" element={<SolicitacaoPublicaAscomPage />} />
               <Route path="/ascom/consultar" element={<ConsultaProtocoloAscomPage />} />
-              
-              {/* ============================================ */}
-              {/* ROTAS PÚBLICAS - Federações */}
-              {/* ============================================ */}
               <Route path="/federacoes/cadastro" element={<CadastroFederacaoPage />} />
               
-              {/* Página "Em Breve" na raiz */}
-              <Route path="/" element={<EmBrevePage />} />
+              {/* ============================================ */}
+              {/* ROTAS PROTEGIDAS - Apenas autenticação */}
+              {/* ============================================ */}
               
-              {/* Autenticação */}
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/acesso-negado" element={<AccessDeniedPage />} />
+              {/* Sistema interno - apenas autenticação */}
+              <Route path="/sistema" element={
+                <ProtectedRoute>
+                  <SistemaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/apresentacao" element={
+                <ProtectedRoute>
+                  <ApresentacaoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/noticias" element={
+                <ProtectedRoute>
+                  <NoticiasPage />
+                </ProtectedRoute>
+              } />
               
               {/* ============================================ */}
-              {/* ROTAS PROTEGIDAS - Requer autenticação */}
+              {/* ADMIN - Com permissões */}
               {/* ============================================ */}
-              <Route element={<RequireAuthOrRedirect />}>
-                {/* Sistema interno */}
-                <Route path="/sistema" element={<SistemaPage />} />
-                <Route path="/apresentacao" element={<ApresentacaoPage />} />
-                
-                {/* Admin */}
-                <Route path="/admin" element={<AdminDashboardPage />} />
-                <Route path="/admin/ajuda" element={<AdminHelpPage />} />
-                <Route path="/admin/usuarios" element={<GerenciamentoUsuariosPage />} />
-                <Route path="/admin/documentos" element={<GestaoDocumentosPage />} />
-                <Route path="/admin/acesso" element={<ControleAcessoAdminPage />} />
-                <Route path="/admin/aprovacoes" element={<CentralAprovacoesPage />} />
-                <Route path="/admin/auditoria" element={<AuditoriaPage />} />
-                <Route path="/admin/perfis" element={<GestaoPerfilPage />} />
-                <Route path="/admin/backup" element={<BackupOffsitePage />} />
-                <Route path="/admin/disaster-recovery" element={<DisasterRecoveryPage />} />
-                <Route path="/admin/usuarios-tecnicos" element={<UsuariosTecnicosPage />} />
-                <Route path="/admin/pre-cadastros" element={<GestaoPreCadastrosPage />} />
-                <Route path="/admin/pre-cadastros/pendencias" element={<DiagnosticoPendenciasPage />} />
-                <Route path="/admin/reunioes" element={<ReunioesPage />} />
-                <Route path="/admin/reunioes/configuracao" element={<ConfiguracaoReunioesPage />} />
-                <Route path="/admin/reunioes/:reuniaoId/checkin" element={<CheckinReuniaoPage />} />
-                <Route path="/admin/database" element={<DatabaseSchemaPage />} />
-                <Route path="/admin/relatorio" element={<RelatorioAdminPage />} />
-                <Route path="/admin/calibrador-segad" element={<CalibradorSegadPage />} />
-                <Route path="/acesso" element={<ControleAcessoAdminPage />} />
-                
-                {/* ASCOM */}
-                <Route path="/admin/ascom/demandas" element={<GestaoDemandasAscomPage />} />
-                <Route path="/admin/ascom/demandas/nova" element={<NovaDemandaAscomPage />} />
-                <Route path="/admin/ascom/demandas/:id" element={<DetalheDemandaAscomPage />} />
-                
-                {/* Federações */}
-                <Route path="/admin/federacoes" element={<GestaoFederacoesPage />} />
-                
-                {/* Governança */}
-                <Route path="/governanca" element={<GovernancaPage />} />
-                <Route path="/governanca/lei-criacao" element={<LeiCriacaoPage />} />
-                <Route path="/governanca/matriz-raci" element={<MatrizRaciPage />} />
-                <Route path="/governanca/decreto" element={<DecretoPage />} />
-                <Route path="/governanca/regimento" element={<RegimentoInternoPage />} />
-                <Route path="/governanca/organograma" element={<Navigate to="/organograma" replace />} />
-                <Route path="/governanca/estrutura" element={<EstruturaOrganizacionalPage />} />
-                <Route path="/governanca/portarias" element={<PortariasPage />} />
-                <Route path="/governanca/relatorio" element={<RelatorioGovernancaPage />} />
-                
-                {/* Organograma Interativo */}
-                <Route path="/organograma" element={<OrganogramaPage />} />
-                <Route path="/organograma/gestao" element={<GestaoOrganogramaPage />} />
-                
-                {/* Cargos */}
-                <Route path="/cargos" element={<GestaoCargosPage />} />
-                <Route path="/lotacoes" element={<GestaoLotacoesPage />} />
-                
-                {/* Unidades Locais */}
-                <Route path="/unidades" element={<GestaoUnidadesLocaisPage />} />
-                <Route path="/unidades/gestao" element={<GestaoUnidadesLocaisPage />} />
-                <Route path="/unidades/relatorios" element={<RelatoriosUnidadesLocaisPage />} />
-                <Route path="/unidades/cedencia" element={<RelatoriosCedenciaPage />} />
-                <Route path="/unidades/:id" element={<UnidadeDetalhePage />} />
-                
-                {/* RH - Gestão de Servidores */}
-                <Route path="/rh/servidores" element={<GestaoServidoresPage />} />
-                <Route path="/rh/servidores/novo" element={<ServidorFormPage />} />
-                <Route path="/rh/servidores/:id" element={<ServidorDetalhePage />} />
-                <Route path="/rh/servidores/:id/editar" element={<ServidorFormPage />} />
-                <Route path="/rh/viagens" element={<GestaoViagensPage />} />
-                <Route path="/rh/ferias" element={<GestaoFeriasPage />} />
-                <Route path="/rh/licencas" element={<GestaoLicencasPage />} />
-                <Route path="/rh/frequencia" element={<GestaoFrequenciaPage />} />
-                <Route path="/rh/designacoes" element={<GestaoDesignacoesPage />} />
-                <Route path="/rh/portarias" element={<CentralPortariasPage />} />
-                <Route path="/rh/relatorios" element={<RelatoriosRHPage />} />
-                <Route path="/rh/pendencias" element={<DiagnosticoPendenciasServidoresPage />} />
-                <Route path="/rh/modelos" element={<ModelosDocumentosPage />} />
-                <Route path="/rh/exportar" element={<ExportacaoPlanilhaPage />} />
-                <Route path="/rh/aniversariantes" element={<AniversariantesPage />} />
-                
-                {/* Folha de Pagamento */}
-                <Route path="/folha/configuracao" element={<ConfiguracaoFolhaPage />} />
-                <Route path="/folha/gestao" element={<GestaoFolhaPagamentoPage />} />
-                <Route path="/folha/:id" element={<FolhaDetalhePage />} />
-                
-                {/* Processos */}
-                <Route path="/processos" element={<ProcessosPage />} />
-                <Route path="/processos/compras" element={<ComprasProcessoPage />} />
-                <Route path="/processos/diarias" element={<DiariasProcessoPage />} />
-                <Route path="/processos/patrimonio" element={<PatrimonioProcessoPage />} />
-                <Route path="/processos/convenios" element={<ConveniosProcessoPage />} />
-                <Route path="/processos/almoxarifado" element={<AlmoxarifadoProcessoPage />} />
-                <Route path="/processos/veiculos" element={<VeiculosProcessoPage />} />
-                <Route path="/processos/pagamentos" element={<PagamentosProcessoPage />} />
-                
-                {/* Formulários */}
-                <Route path="/formularios/termo-demanda" element={<TermoDemandaPage />} />
-                <Route path="/formularios/ordem-missao" element={<OrdemMissaoPage />} />
-                <Route path="/formularios/relatorio-viagem" element={<RelatorioViagemPage />} />
-                <Route path="/formularios/requisicao-material" element={<RequisicaoMaterialPage />} />
-                <Route path="/formularios/termo-responsabilidade" element={<TermoResponsabilidadePage />} />
-                
-                {/* Manuais */}
-                <Route path="/manuais" element={<ManuaisPage />} />
-                <Route path="/manuais/compras" element={<ManuaisPage />} />
-                <Route path="/manuais/diarias" element={<ManuaisPage />} />
-                <Route path="/manuais/patrimonio" element={<ManuaisPage />} />
-                <Route path="/manuais/convenios" element={<ManuaisPage />} />
-                
-                {/* Integridade */}
-                <Route path="/integridade" element={<IntegridadePage />} />
-                <Route path="/integridade/denuncias" element={<DenunciasPage />} />
-                <Route path="/integridade/gestao-denuncias" element={<GestaoDenunciasPage />} />
-                <Route path="/integridade/codigo-etica" element={<IntegridadePage />} />
-                <Route path="/integridade/conflito" element={<IntegridadePage />} />
-                <Route path="/integridade/politica" element={<IntegridadePage />} />
-                
-                {/* Transparência */}
-                <Route path="/transparencia" element={<TransparenciaPage />} />
-                <Route path="/transparencia/cargos" element={<CargosRemuneracaoPage />} />
-                <Route path="/transparencia/relatorios" element={<TransparenciaPage />} />
-                <Route path="/transparencia/pessoal" element={<TransparenciaPage />} />
-                <Route path="/transparencia/licitacoes" element={<TransparenciaPage />} />
-                <Route path="/transparencia/orcamento" element={<TransparenciaPage />} />
-                
-                {/* Programas */}
-                <Route path="/programas/bolsa-atleta" element={<BolsaAtletaPage />} />
-                <Route path="/programas/juventude-cidada" element={<JuventudeCidadaPage />} />
-                <Route path="/programas/esporte-comunidade" element={<EsporteComunidadePage />} />
-                <Route path="/programas/jovem-empreendedor" element={<JovemEmpreendedorPage />} />
-                <Route path="/programas/jogos-escolares" element={<JogosEscolaresPage />} />
-                
-                {/* Notícias */}
-                <Route path="/noticias" element={<NoticiasPage />} />
-              </Route>
+              <Route path="/admin" element={
+                <ProtectedRoute requiredPermissions="admin">
+                  <AdminDashboardPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/ajuda" element={
+                <ProtectedRoute>
+                  <AdminHelpPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/usuarios" element={
+                <ProtectedRoute requiredPermissions="admin.usuarios">
+                  <GerenciamentoUsuariosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/documentos" element={
+                <ProtectedRoute requiredPermissions="admin">
+                  <GestaoDocumentosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/acesso" element={
+                <ProtectedRoute requiredPermissions="admin">
+                  <ControleAcessoAdminPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/aprovacoes" element={
+                <ProtectedRoute requiredPermissions="aprovacoes.visualizar">
+                  <CentralAprovacoesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/auditoria" element={
+                <ProtectedRoute requiredPermissions="admin.auditoria">
+                  <AuditoriaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/perfis" element={
+                <ProtectedRoute requiredPermissions="admin.perfis">
+                  <GestaoPerfilPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/backup" element={
+                <ProtectedRoute requiredPermissions="admin.backup">
+                  <BackupOffsitePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/disaster-recovery" element={
+                <ProtectedRoute requiredPermissions="admin.disaster_recovery">
+                  <DisasterRecoveryPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/usuarios-tecnicos" element={
+                <ProtectedRoute requiredPermissions="admin.usuarios">
+                  <UsuariosTecnicosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/pre-cadastros" element={
+                <ProtectedRoute requiredPermissions="rh.precadastros.visualizar">
+                  <GestaoPreCadastrosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/pre-cadastros/pendencias" element={
+                <ProtectedRoute requiredPermissions="rh.precadastros.visualizar">
+                  <DiagnosticoPendenciasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/reunioes" element={
+                <ProtectedRoute requiredPermissions="admin.reunioes">
+                  <ReunioesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/reunioes/configuracao" element={
+                <ProtectedRoute requiredPermissions="admin.reunioes">
+                  <ConfiguracaoReunioesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/reunioes/:reuniaoId/checkin" element={
+                <ProtectedRoute requiredPermissions="admin.reunioes">
+                  <CheckinReuniaoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/database" element={
+                <ProtectedRoute requiredPermissions="admin.database">
+                  <DatabaseSchemaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/relatorio" element={
+                <ProtectedRoute requiredPermissions="admin">
+                  <RelatorioAdminPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/calibrador-segad" element={
+                <ProtectedRoute requiredPermissions="admin.segad">
+                  <CalibradorSegadPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/acesso" element={
+                <ProtectedRoute requiredPermissions="admin">
+                  <ControleAcessoAdminPage />
+                </ProtectedRoute>
+              } />
               
-              {/* 404 - Redireciona para curriculo */}
+              {/* ============================================ */}
+              {/* ASCOM - Com permissões */}
+              {/* ============================================ */}
+              <Route path="/admin/ascom/demandas" element={
+                <ProtectedRoute requiredPermissions="ascom.demandas.visualizar">
+                  <GestaoDemandasAscomPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/ascom/demandas/nova" element={
+                <ProtectedRoute requiredPermissions="ascom.demandas.criar">
+                  <NovaDemandaAscomPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/ascom/demandas/:id" element={
+                <ProtectedRoute requiredPermissions="ascom.demandas.visualizar">
+                  <DetalheDemandaAscomPage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
+              {/* FEDERAÇÕES - Com permissões */}
+              {/* ============================================ */}
+              <Route path="/admin/federacoes" element={
+                <ProtectedRoute requiredPermissions="federacoes.visualizar">
+                  <GestaoFederacoesPage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
+              {/* GOVERNANÇA - Com permissões */}
+              {/* ============================================ */}
+              <Route path="/governanca" element={
+                <ProtectedRoute requiredPermissions="governanca.visualizar">
+                  <GovernancaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/governanca/lei-criacao" element={
+                <ProtectedRoute requiredPermissions="governanca.documentos.visualizar">
+                  <LeiCriacaoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/governanca/matriz-raci" element={
+                <ProtectedRoute requiredPermissions="governanca.matriz.visualizar">
+                  <MatrizRaciPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/governanca/decreto" element={
+                <ProtectedRoute requiredPermissions="governanca.documentos.visualizar">
+                  <DecretoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/governanca/regimento" element={
+                <ProtectedRoute requiredPermissions="governanca.documentos.visualizar">
+                  <RegimentoInternoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/governanca/organograma" element={<Navigate to="/organograma" replace />} />
+              <Route path="/governanca/estrutura" element={
+                <ProtectedRoute requiredPermissions="governanca.estrutura.visualizar">
+                  <EstruturaOrganizacionalPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/governanca/portarias" element={
+                <ProtectedRoute requiredPermissions="governanca.portarias.visualizar">
+                  <PortariasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/governanca/relatorio" element={
+                <ProtectedRoute requiredPermissions="governanca.relatorios.visualizar">
+                  <RelatorioGovernancaPage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
+              {/* ORGANOGRAMA - Com permissões */}
+              {/* ============================================ */}
+              <Route path="/organograma" element={
+                <ProtectedRoute requiredPermissions="governanca.organograma.visualizar">
+                  <OrganogramaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/organograma/gestao" element={
+                <ProtectedRoute requiredPermissions="governanca.organograma.editar">
+                  <GestaoOrganogramaPage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
+              {/* CARGOS / LOTAÇÕES - Com permissões */}
+              {/* ============================================ */}
+              <Route path="/cargos" element={
+                <ProtectedRoute requiredPermissions="governanca.cargos.visualizar">
+                  <GestaoCargosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/lotacoes" element={
+                <ProtectedRoute requiredPermissions="rh.lotacoes.visualizar">
+                  <GestaoLotacoesPage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
+              {/* UNIDADES LOCAIS - Com permissões */}
+              {/* ============================================ */}
+              <Route path="/unidades" element={
+                <ProtectedRoute requiredPermissions="unidades.visualizar">
+                  <GestaoUnidadesLocaisPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/unidades/gestao" element={
+                <ProtectedRoute requiredPermissions="unidades.visualizar">
+                  <GestaoUnidadesLocaisPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/unidades/relatorios" element={
+                <ProtectedRoute requiredPermissions="unidades.relatorios.visualizar">
+                  <RelatoriosUnidadesLocaisPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/unidades/cedencia" element={
+                <ProtectedRoute requiredPermissions="unidades.cedencias.visualizar">
+                  <RelatoriosCedenciaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/unidades/:id" element={
+                <ProtectedRoute requiredPermissions="unidades.visualizar">
+                  <UnidadeDetalhePage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
+              {/* RH - Com permissões */}
+              {/* ============================================ */}
+              <Route path="/rh/servidores" element={
+                <ProtectedRoute requiredPermissions="rh.servidores.visualizar">
+                  <GestaoServidoresPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/servidores/novo" element={
+                <ProtectedRoute requiredPermissions="rh.servidores.criar">
+                  <ServidorFormPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/servidores/:id" element={
+                <ProtectedRoute requiredPermissions="rh.servidores.visualizar">
+                  <ServidorDetalhePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/servidores/:id/editar" element={
+                <ProtectedRoute requiredPermissions="rh.servidores.editar">
+                  <ServidorFormPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/viagens" element={
+                <ProtectedRoute requiredPermissions="rh.viagens.visualizar">
+                  <GestaoViagensPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/ferias" element={
+                <ProtectedRoute requiredPermissions="rh.ferias.visualizar">
+                  <GestaoFeriasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/licencas" element={
+                <ProtectedRoute requiredPermissions="rh.licencas.visualizar">
+                  <GestaoLicencasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/frequencia" element={
+                <ProtectedRoute requiredPermissions="rh.frequencia.visualizar">
+                  <GestaoFrequenciaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/designacoes" element={
+                <ProtectedRoute requiredPermissions="rh.designacoes.visualizar">
+                  <GestaoDesignacoesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/portarias" element={
+                <ProtectedRoute requiredPermissions="rh.portarias.visualizar">
+                  <CentralPortariasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/relatorios" element={
+                <ProtectedRoute requiredPermissions="rh.relatorios.visualizar">
+                  <RelatoriosRHPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/pendencias" element={
+                <ProtectedRoute requiredPermissions="rh.servidores.visualizar">
+                  <DiagnosticoPendenciasServidoresPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/modelos" element={
+                <ProtectedRoute requiredPermissions="rh.modelos.visualizar">
+                  <ModelosDocumentosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/exportar" element={
+                <ProtectedRoute requiredPermissions="rh.exportar">
+                  <ExportacaoPlanilhaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/aniversariantes" element={
+                <ProtectedRoute requiredPermissions="rh.servidores.visualizar">
+                  <AniversariantesPage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
+              {/* FOLHA DE PAGAMENTO - Com permissões */}
+              {/* ============================================ */}
+              <Route path="/folha/configuracao" element={
+                <ProtectedRoute requiredPermissions="financeiro.folha.configurar">
+                  <ConfiguracaoFolhaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/folha/gestao" element={
+                <ProtectedRoute requiredPermissions="financeiro.folha.visualizar">
+                  <GestaoFolhaPagamentoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/folha/:id" element={
+                <ProtectedRoute requiredPermissions="financeiro.folha.visualizar">
+                  <FolhaDetalhePage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
+              {/* PROCESSOS - Com permissões */}
+              {/* ============================================ */}
+              <Route path="/processos" element={
+                <ProtectedRoute>
+                  <ProcessosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/processos/compras" element={
+                <ProtectedRoute requiredPermissions="processos.compras.visualizar">
+                  <ComprasProcessoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/processos/diarias" element={
+                <ProtectedRoute requiredPermissions="processos.diarias.visualizar">
+                  <DiariasProcessoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/processos/patrimonio" element={
+                <ProtectedRoute requiredPermissions="processos.patrimonio.visualizar">
+                  <PatrimonioProcessoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/processos/convenios" element={
+                <ProtectedRoute requiredPermissions="processos.convenios.visualizar">
+                  <ConveniosProcessoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/processos/almoxarifado" element={
+                <ProtectedRoute requiredPermissions="processos.almoxarifado.visualizar">
+                  <AlmoxarifadoProcessoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/processos/veiculos" element={
+                <ProtectedRoute requiredPermissions="processos.veiculos.visualizar">
+                  <VeiculosProcessoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/processos/pagamentos" element={
+                <ProtectedRoute requiredPermissions="processos.pagamentos.visualizar">
+                  <PagamentosProcessoPage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
+              {/* FORMULÁRIOS - Com permissões */}
+              {/* ============================================ */}
+              <Route path="/formularios/termo-demanda" element={
+                <ProtectedRoute requiredPermissions="formularios.visualizar">
+                  <TermoDemandaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/formularios/ordem-missao" element={
+                <ProtectedRoute requiredPermissions="formularios.visualizar">
+                  <OrdemMissaoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/formularios/relatorio-viagem" element={
+                <ProtectedRoute requiredPermissions="formularios.visualizar">
+                  <RelatorioViagemPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/formularios/requisicao-material" element={
+                <ProtectedRoute requiredPermissions="formularios.visualizar">
+                  <RequisicaoMaterialPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/formularios/termo-responsabilidade" element={
+                <ProtectedRoute requiredPermissions="formularios.visualizar">
+                  <TermoResponsabilidadePage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
+              {/* MANUAIS - Apenas autenticação */}
+              {/* ============================================ */}
+              <Route path="/manuais" element={
+                <ProtectedRoute>
+                  <ManuaisPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/manuais/compras" element={
+                <ProtectedRoute>
+                  <ManuaisPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/manuais/diarias" element={
+                <ProtectedRoute>
+                  <ManuaisPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/manuais/patrimonio" element={
+                <ProtectedRoute>
+                  <ManuaisPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/manuais/convenios" element={
+                <ProtectedRoute>
+                  <ManuaisPage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
+              {/* INTEGRIDADE - Apenas autenticação */}
+              {/* ============================================ */}
+              <Route path="/integridade" element={
+                <ProtectedRoute>
+                  <IntegridadePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/integridade/denuncias" element={
+                <ProtectedRoute>
+                  <DenunciasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/integridade/gestao-denuncias" element={
+                <ProtectedRoute>
+                  <GestaoDenunciasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/integridade/codigo-etica" element={
+                <ProtectedRoute>
+                  <IntegridadePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/integridade/conflito" element={
+                <ProtectedRoute>
+                  <IntegridadePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/integridade/politica" element={
+                <ProtectedRoute>
+                  <IntegridadePage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
+              {/* TRANSPARÊNCIA - Apenas autenticação */}
+              {/* ============================================ */}
+              <Route path="/transparencia" element={
+                <ProtectedRoute>
+                  <TransparenciaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/transparencia/cargos" element={
+                <ProtectedRoute>
+                  <CargosRemuneracaoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/transparencia/relatorios" element={
+                <ProtectedRoute>
+                  <TransparenciaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/transparencia/pessoal" element={
+                <ProtectedRoute>
+                  <TransparenciaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/transparencia/licitacoes" element={
+                <ProtectedRoute>
+                  <TransparenciaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/transparencia/orcamento" element={
+                <ProtectedRoute>
+                  <TransparenciaPage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
+              {/* PROGRAMAS - Com permissões */}
+              {/* ============================================ */}
+              <Route path="/programas/bolsa-atleta" element={
+                <ProtectedRoute requiredPermissions="programas.visualizar">
+                  <BolsaAtletaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/programas/juventude-cidada" element={
+                <ProtectedRoute requiredPermissions="programas.visualizar">
+                  <JuventudeCidadaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/programas/esporte-comunidade" element={
+                <ProtectedRoute requiredPermissions="programas.visualizar">
+                  <EsporteComunidadePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/programas/jovem-empreendedor" element={
+                <ProtectedRoute requiredPermissions="programas.visualizar">
+                  <JovemEmpreendedorPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/programas/jogos-escolares" element={
+                <ProtectedRoute requiredPermissions="programas.visualizar">
+                  <JogosEscolaresPage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
+              {/* 404 */}
+              {/* ============================================ */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
