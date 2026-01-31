@@ -1,232 +1,126 @@
 
-# Plano: Descoberta Automática de Tabelas para Visualização e Backup
 
-## Problema Atual
+# Plano de Correção: PDF de Frequência Mensal
 
-Ambos os sistemas (visualização e backup) usam listas **estáticas hardcoded** de tabelas:
-- `database-schema`: `KNOWN_TABLES` com 83 tabelas
-- `backup-offsite`: `ALL_TABLES` com 83 tabelas
+## Problemas Identificados
 
-Quando uma nova tabela é criada, ela **não aparece** automaticamente nesses sistemas até que o código seja manualmente atualizado.
-
----
-
-## Solução Proposta
-
-Substituir as listas estáticas por **consulta dinâmica ao catálogo PostgreSQL** (`information_schema.tables`), descobrindo automaticamente todas as tabelas do schema `public`.
-
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      FLUXO ATUAL (Manual)                               │
-├─────────────────────────────────────────────────────────────────────────┤
-│  Nova Tabela → [NADA ACONTECE] → Atualização Manual → Redeploy          │
-└─────────────────────────────────────────────────────────────────────────┘
-
-                              ↓ TRANSFORMA EM ↓
-
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      FLUXO NOVO (Automático)                            │
-├─────────────────────────────────────────────────────────────────────────┤
-│  Nova Tabela → Catálogo PostgreSQL → Descoberta Automática              │
-│                                           ↓                             │
-│                        ┌─────────────────────────────────┐              │
-│                        │  Visualização    │   Backup     │              │
-│                        │  (database-      │   (backup-   │              │
-│                        │   schema)        │    offsite)  │              │
-│                        └─────────────────────────────────┘              │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+| # | Problema | Severidade | Localização |
+|---|----------|------------|-------------|
+| 1 | Logo IDJuv com proporção errada (esticado/comprimido) | Alta | `pdfLogos.ts` |
+| 2 | Texto do Cargo sobrepondo Unidade no cabeçalho | Alta | `pdfFrequenciaMensal.ts` |
+| 3 | Falta de truncamento em campos longos | Média | `pdfFrequenciaMensal.ts` |
+| 4 | Grid de dados com espaçamento inadequado | Média | `pdfFrequenciaMensal.ts` |
 
 ---
 
-## Etapa 1: Criar Função SQL para Listar Tabelas
+## Correções Propostas
 
-Criar uma função no banco de dados que retorna todas as tabelas do schema public, excluindo tabelas de sistema e views.
+### 1. Corrigir Proporção do Logo IDJuv
 
-**Migração SQL:**
+**Arquivo:** `src/lib/pdfLogos.ts`
 
-```sql
-CREATE OR REPLACE FUNCTION public.list_public_tables()
-RETURNS TABLE(table_name text, row_count bigint) 
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    t.table_name::text,
-    (xpath('/row/count/text()', 
-      query_to_xml(format('SELECT COUNT(*) FROM %I.%I', t.table_schema, t.table_name), false, true, '')
-    ))[1]::text::bigint AS row_count
-  FROM information_schema.tables t
-  WHERE t.table_schema = 'public'
-    AND t.table_type = 'BASE TABLE'
-    AND t.table_name NOT LIKE 'pg_%'
-    AND t.table_name NOT LIKE '_realtime_%'
-  ORDER BY t.table_name;
-END;
-$$;
-
--- Permissão para service role
-GRANT EXECUTE ON FUNCTION public.list_public_tables() TO service_role;
-```
-
----
-
-## Etapa 2: Atualizar Edge Function database-schema
-
-Modificar para usar a função `list_public_tables()` em vez da lista hardcoded.
-
-**Mudanças principais:**
-
-1. Remover array `KNOWN_TABLES`
-2. Adicionar função `discoverTables()` que chama `supabase.rpc('list_public_tables')`
-3. Manter função `categorizeTable()` para classificar dinamicamente
-4. Adicionar cache de descoberta (5 minutos) para performance
-
-**Pseudocódigo:**
-
-```text
-async function discoverTables(supabase):
-  resultado = await supabase.rpc('list_public_tables')
-  
-  return resultado.data.map(t => ({
-    name: t.table_name,
-    rowCount: t.row_count
-  }))
-
-// No handler principal:
-const tables = await discoverTables(supabase)
-
-// Processar cada tabela descoberta
-for (const table of tables):
-  const info = await processTable(supabase, table.name)
-  // categorizar, buscar colunas, etc.
-```
-
----
-
-## Etapa 3: Atualizar Edge Function backup-offsite
-
-Modificar para usar a mesma função de descoberta automática.
-
-**Mudanças principais:**
-
-1. Remover array `ALL_TABLES`
-2. Adicionar função `discoverAllTables()` que chama `list_public_tables()`
-3. Usar lista dinâmica em todos os endpoints (execute, external-export, list-tables)
-4. Atualizar manifesto para mostrar tabelas descobertas vs processadas
-
-**Resultado no endpoint list-tables:**
-
-```json
-{
-  "success": true,
-  "discovery_mode": "automatic",
-  "discovered_at": "2026-01-26T20:00:00Z",
-  "tables": ["audit_logs", "cargos", "servidores", ...],
-  "total": 85,
-  "categories": {
-    "Pessoas": ["servidores", "profiles", ...],
-    "RH": ["ferias_servidor", "licencas_afastamentos", ...],
-    ...
-  }
-}
-```
-
----
-
-## Etapa 4: Adicionar Lista de Exclusão (Opcional)
-
-Para evitar backup de tabelas temporárias ou de sistema, manter uma lista pequena de exclusões:
+A imagem `logo-idjuv-oficial.png` **não é quadrada** - ela é horizontal (aproximadamente 1400x900px, proporção ~1.55:1).
 
 ```typescript
-const EXCLUDED_TABLES = [
-  '_realtime_subscription',
-  'schema_migrations',
-  'supabase_functions_hooks',
-  // Outras tabelas de sistema que podem aparecer
-];
+// ANTES (ERRADO)
+export const LOGO_ASPECTOS = {
+  governo: 3.69,  // OK
+  idjuv: 1.0,     // ERRADO - o logo não é quadrado!
+};
+
+// DEPOIS (CORRETO)
+export const LOGO_ASPECTOS = {
+  governo: 3.69,  // 1063 / 288 px
+  idjuv: 1.55,    // ~1400 / 900 px (horizontal, não quadrado)
+};
 ```
 
 ---
 
-## Etapa 5: Atualizar Interface de Visualização
+### 2. Corrigir Sobreposição de Texto no Cabeçalho
 
-Adicionar indicador visual de "modo de descoberta automática" na página de banco de dados.
+**Arquivo:** `src/lib/pdfFrequenciaMensal.ts` (linhas 274-309)
 
-**Modificações em `DatabaseSchemaPage.tsx`:**
+**Problemas atuais:**
+- Campo "Cargo:" começa muito perto de "Matrícula:"
+- Não há truncamento para cargos longos
+- "Unidade:" fica colada no texto anterior
 
-1. Mostrar badge "Auto-Discovery" 
-2. Exibir timestamp da última descoberta
-3. Botão "Atualizar Descoberta" para forçar refresh
+**Solução:**
+- Reorganizar layout em linhas dedicadas
+- Adicionar função de truncamento
+- Usar `maxWidth` do jsPDF para evitar vazamento
+
+```typescript
+// Função auxiliar para truncar texto
+function truncarTexto(doc: jsPDF, texto: string, maxWidth: number): string {
+  if (doc.getTextWidth(texto) <= maxWidth) return texto;
+  while (doc.getTextWidth(texto + '...') > maxWidth && texto.length > 0) {
+    texto = texto.slice(0, -1);
+  }
+  return texto + '...';
+}
+
+// Layout reorganizado (4 linhas em vez de 3):
+// Linha 1: SERVIDOR: [nome] | COMPETÊNCIA: [mês/ano]
+// Linha 2: Matrícula: [mat] | Cargo: [cargo truncado]
+// Linha 3: Unidade: [unidade] | Local: [local]
+// Linha 4: Regime: [regime] | Jornada: [jornada]
+```
 
 ---
 
-## Etapa 6: Atualizar Documentação
+### 3. Ajustar Grid do Cabeçalho
 
-Atualizar `docs/BACKUP_CONTINGENCIA.md` para refletir o novo comportamento automático.
+Aumentar altura do box de identificação de 18mm para 22mm e redistribuir os campos:
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ SERVIDOR: Crislane Penhalosa...        COMPETÊNCIA: Fev/2026│
+│ Matrícula: 0012                                              │
+│ Cargo: Membro da Comissão de Contratação                     │
+│ Unidade: CPL - Comissão de Contratação                       │
+│ Regime: Presencial    Jornada: 8h/dia | 40h/sem              │
+└──────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Resumo de Arquivos
+## Resumo das Alterações
 
-| Ação | Arquivo |
-|------|---------|
-| Migração SQL | Criar função `list_public_tables()` |
-| Modificar | `supabase/functions/database-schema/index.ts` |
-| Modificar | `supabase/functions/backup-offsite/index.ts` |
-| Modificar | `src/pages/admin/DatabaseSchemaPage.tsx` |
-| Modificar | `docs/BACKUP_CONTINGENCIA.md` |
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/lib/pdfLogos.ts` | Corrigir proporção do IDJuv de 1.0 para ~1.55 |
+| `src/lib/pdfFrequenciaMensal.ts` | Reorganizar grid do cabeçalho, adicionar truncamento |
 
 ---
 
 ## Detalhes Técnicos
 
-### Query ao information_schema
+### Proporções Corretas dos Logos
 
-A função SQL usa `information_schema.tables` com filtros para obter apenas tabelas reais do schema public:
+Para verificação, as dimensões reais são:
 
-```sql
-WHERE table_schema = 'public'
-  AND table_type = 'BASE TABLE'  -- Exclui views
-  AND table_name NOT LIKE 'pg_%' -- Exclui tabelas do PostgreSQL
-```
+| Logo | Arquivo | Proporção (L:A) |
+|------|---------|-----------------|
+| Governo RR | `logo-governo-roraima.jpg` | 3.69:1 (horizontal amplo) |
+| IDJuv | `logo-idjuv-oficial.png` | ~1.55:1 (horizontal moderado) |
 
-### Contagem de Registros Eficiente
+### Cálculo de Dimensões no PDF
 
-A função usa `query_to_xml` com `xpath` para obter contagens de forma dinâmica sem precisar de SQL dinâmico explícito, mantendo a segurança.
+Com altura padrão de **14mm**:
 
-### Categorização Dinâmica
-
-A função `categorizeTable()` já existente será mantida e aplicada às tabelas descobertas. Ela usa padrões de nomenclatura para classificar:
-
-- `servidor*` → Pessoas
-- `cargo*`, `estrutura*` → Estrutura
-- `folha*`, `rubrica*` → Financeiro
-- etc.
-
-### Cache de Performance
-
-Para evitar consultas repetitivas ao catálogo, as Edge Functions podem implementar cache em memória de 5 minutos para a lista de tabelas.
+| Logo | Largura | Altura |
+|------|---------|--------|
+| Governo | 51.7mm | 14mm |
+| IDJuv | 21.7mm | 14mm |
 
 ---
 
-## Benefícios
+## Resultado Esperado
 
-1. **Zero Manutenção** - Novas tabelas aparecem automaticamente
-2. **100% Cobertura** - Garantia de que todas as tabelas são incluídas
-3. **Consistência** - Mesma fonte de verdade para visualização e backup
-4. **Transparência** - Interface mostra exatamente quantas tabelas existem
-5. **Segurança** - Função SQL com `SECURITY DEFINER` e permissões controladas
+Após as correções:
+- Logos proporcionais e profissionais (mesma altura, larguras diferentes)
+- Campos de texto sem sobreposição
+- Layout limpo e oficial para uso em processos administrativos
 
----
-
-## Verificação Pós-Implementação
-
-Após implementar, o sistema poderá ser verificado:
-
-1. Criar uma nova tabela de teste via SQL
-2. Acessar `/admin/database` - tabela deve aparecer automaticamente
-3. Executar backup - nova tabela deve ser incluída
-4. Verificar manifesto do backup - deve listar a nova tabela
