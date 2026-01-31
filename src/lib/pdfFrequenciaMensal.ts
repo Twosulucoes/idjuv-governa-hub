@@ -14,22 +14,17 @@ import type { DiaNaoUtil, StatusFechamento } from '@/types/frequencia';
 // Importar logos e utilitário
 import logoGoverno from '@/assets/logo-governo-roraima.jpg';
 import logoIdjuv from '@/assets/logo-idjuv-oficial.png';
-import { getLogosPDF, LOGO_CONFIG_PADRAO } from './pdfLogos';
 
-async function getImageAspectRatio(src: string): Promise<number> {
-  const img = new Image();
-  img.decoding = 'async';
-  img.src = src;
-
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = () => reject(new Error('Falha ao carregar imagem'));
-  });
-
-  const w = img.naturalWidth;
-  const h = img.naturalHeight;
-  if (!w || !h) throw new Error('Dimensões inválidas');
-  return w / h;
+function getImageAspectRatioFromDoc(doc: jsPDF, src: string, fallback: number): number {
+  try {
+    const props = doc.getImageProperties(src);
+    const w = (props as unknown as { width?: number }).width;
+    const h = (props as unknown as { height?: number }).height;
+    if (!w || !h) return fallback;
+    return w / h;
+  } catch {
+    return fallback;
+  }
 }
 
 // ============================================
@@ -221,13 +216,12 @@ export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData)
   const headerHeight = 24;
 
   // Logos com proporções ORIGINAIS preservadas (sem distorção)
-  // Nota: usamos a proporção real da própria imagem para evitar qualquer “achatamento”.
-  const [aspectGov, aspectIdjuv] = await Promise.all([
-    getImageAspectRatio(logoGoverno).catch(() => 3.69),
-    getImageAspectRatio(logoIdjuv).catch(() => 1.55),
-  ]);
+  // Nota: usamos as dimensões embutidas no próprio dado da imagem (via jsPDF)
+  // para evitar qualquer “achatamento”.
+  const aspectGov = getImageAspectRatioFromDoc(doc, logoGoverno, 3.69);
+  const aspectIdjuv = getImageAspectRatioFromDoc(doc, logoIdjuv, 1.55);
 
-  const logoGovernoH = 15; // um pouco maior para não parecer “achatado”
+  const logoGovernoH = 18; // aumentada para não parecer “achatada”
   const logoGovernoW = logoGovernoH * aspectGov;
   const logoIdjuvH = 22; // IDJuv em destaque
   const logoIdjuvW = logoIdjuvH * aspectIdjuv;
@@ -620,12 +614,11 @@ const generateFrequenciaMensalPDFInternal = async (data: FrequenciaMensalPDFData
 
   // ===== CABEÇALHO COM LOGOS (28mm) =====
   const headerHeight = 24;
-  const [aspectGov, aspectIdjuv] = await Promise.all([
-    getImageAspectRatio(logoGoverno).catch(() => 3.69),
-    getImageAspectRatio(logoIdjuv).catch(() => 1.55),
-  ]);
 
-  const logoGovernoH = 15;
+  const aspectGov = getImageAspectRatioFromDoc(doc, logoGoverno, 3.69);
+  const aspectIdjuv = getImageAspectRatioFromDoc(doc, logoIdjuv, 1.55);
+
+  const logoGovernoH = 18;
   const logoGovernoW = logoGovernoH * aspectGov;
   const logoIdjuvH = 22;
   const logoIdjuvW = logoIdjuvH * aspectIdjuv;
