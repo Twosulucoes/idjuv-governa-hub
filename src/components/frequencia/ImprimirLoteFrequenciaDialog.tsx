@@ -4,7 +4,7 @@
  * REGRA DE OURO: 1 PÁGINA POR SERVIDOR (NUNCA AGRUPAR)
  * O lote é apenas para organização, ordenação e encadernação
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Building2,
   Users,
@@ -31,15 +32,20 @@ import {
   Calendar,
   Info,
   ClipboardList,
+  Layers,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { Link } from "react-router-dom";
 
 import { useUnidadesAdministrativas, useServidoresUnidadeFrequencia, type ServidorComSituacao } from "@/hooks/useServidoresPorUnidade";
+import { useAgrupamentosUnidades, type AgrupamentoUnidade } from "@/hooks/useAgrupamentoUnidades";
 import { useDiasNaoUteis, useAssinaturaPadrao } from "@/hooks/useParametrizacoesFrequencia";
 import { useAuth } from "@/contexts/AuthContext";
 import { generateFrequenciaLotePDF, type LoteFrequenciaPDFConfig } from "@/lib/pdfFrequenciaLote";
 import { MESES } from "@/types/folha";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ImprimirLoteFrequenciaDialogProps {
   open: boolean;
@@ -57,7 +63,9 @@ export function ImprimirLoteFrequenciaDialog({
   const anoAtual = new Date().getFullYear();
   const mesAtual = new Date().getMonth() + 1;
 
+  const [modoSelecao, setModoSelecao] = useState<'unidade' | 'agrupamento'>('agrupamento');
   const [unidadeId, setUnidadeId] = useState<string>("");
+  const [agrupamentoId, setAgrupamentoId] = useState<string>("");
   const [ano, setAno] = useState(anoInicial || anoAtual);
   const [mes, setMes] = useState(mesInicial || mesAtual);
   const [ordenacao, setOrdenacao] = useState<'alfabetica' | 'matricula'>('alfabetica');
@@ -65,10 +73,16 @@ export function ImprimirLoteFrequenciaDialog({
   const [incluirDispensados, setIncluirDispensados] = useState(true);
   const [gerando, setGerando] = useState(false);
 
+  // Dados do agrupamento selecionado
+  const [servidoresAgrupamento, setServidoresAgrupamento] = useState<ServidorComSituacao[]>([]);
+  const [loadingAgrupamento, setLoadingAgrupamento] = useState(false);
+  const [agrupamentoInfo, setAgrupamentoInfo] = useState<{ nome: string; unidades: string[] } | null>(null);
+
   const { user } = useAuth();
   const { data: unidades, isLoading: loadingUnidades } = useUnidadesAdministrativas();
+  const { data: agrupamentos, isLoading: loadingAgrupamentos } = useAgrupamentosUnidades();
   const { data: dadosUnidade, isLoading: loadingServidores } = useServidoresUnidadeFrequencia(
-    unidadeId || undefined,
+    modoSelecao === 'unidade' ? (unidadeId || undefined) : undefined,
     ano,
     mes
   );
@@ -77,11 +91,185 @@ export function ImprimirLoteFrequenciaDialog({
 
   const anos = useMemo(() => Array.from({ length: 5 }, (_, i) => anoAtual - i), [anoAtual]);
 
+  // Buscar servidores do agrupamento quando selecionado
+  useEffect(() => {
+    if (modoSelecao !== 'agrupamento' || !agrupamentoId) {
+      setServidoresAgrupamento([]);
+      setAgrupamentoInfo(null);
+      return;
+    }
+
+    const agrupamento = agrupamentos?.find(a => a.id === agrupamentoId);
+    if (!agrupamento || agrupamento.unidades.length === 0) {
+      setServidoresAgrupamento([]);
+      setAgrupamentoInfo(null);
+      return;
+    }
+
+    setAgrupamentoInfo({
+      nome: agrupamento.nome,
+      unidades: agrupamento.unidades.map(u => u.sigla || u.nome),
+    });
+
+    const fetchServidoresAgrupamento = async () => {
+      setLoadingAgrupamento(true);
+      try {
+        const primeiroDia = `${ano}-${String(mes).padStart(2, "0")}-01`;
+        const ultimoDiaMes = new Date(ano, mes, 0).getDate();
+        const ultimoDia = `${ano}-${String(mes).padStart(2, "0")}-${ultimoDiaMes}`;
+
+        const unidadeIds = agrupamento.unidades.map(u => u.unidade_id);
+
+        // Buscar servidores de todas as unidades do agrupamento
+        const { data: servidores, error: errServ } = await supabase
+          .from("servidores")
+          .select(`
+            id,
+            nome_completo,
+            matricula,
+            cpf,
+            cargo_atual_id,
+            unidade_atual_id,
+            cargos:cargo_atual_id(nome),
+            unidades:unidade_atual_id(id, nome, sigla)
+          `)
+          .in("unidade_atual_id", unidadeIds)
+          .eq("ativo", true)
+          .eq("situacao", "ativo")
+          .order("nome_completo");
+
+        if (errServ) throw errServ;
+
+        // Buscar licenças
+        const { data: licencas } = await supabase
+          .from("licencas_afastamentos")
+          .select("*")
+          .in("servidor_id", servidores?.map(s => s.id) || [])
+          .lte("data_inicio", ultimoDia)
+          .or(`data_fim.gte.${primeiroDia},data_fim.is.null`)
+          .eq("status", "aprovado");
+
+        // Buscar cessões
+        const { data: cessoes } = await supabase
+          .from("cessoes")
+          .select("*")
+          .in("servidor_id", servidores?.map(s => s.id) || [])
+          .eq("tipo", "cedido")
+          .eq("ativa", true)
+          .lte("data_inicio", ultimoDia)
+          .or(`data_fim.gte.${primeiroDia},data_fim.is.null`);
+
+        // Processar servidores com situações
+        const processados: ServidorComSituacao[] = (servidores || []).map(s => {
+          const cargo = s.cargos as { nome: string } | null;
+          const unidade = s.unidades as { id: string; nome: string; sigla: string } | null;
+          
+          const situacoes: any[] = [];
+
+          // Licenças
+          (licencas || []).filter(l => l.servidor_id === s.id).forEach(lic => {
+            situacoes.push({
+              tipo: 'licenca',
+              subtipo: lic.tipo_licenca || lic.tipo_afastamento || 'Afastamento',
+              data_inicio: lic.data_inicio,
+              data_fim: lic.data_fim,
+              descricao: lic.tipo_licenca || lic.tipo_afastamento || 'Afastamento',
+              dispensa_frequencia: true,
+            });
+          });
+
+          // Cessões
+          (cessoes || []).filter(c => c.servidor_id === s.id).forEach(ces => {
+            situacoes.push({
+              tipo: 'cessao',
+              subtipo: 'Cedido para outro órgão',
+              data_inicio: ces.data_inicio,
+              data_fim: ces.data_fim,
+              descricao: `Cessão para ${ces.orgao_destino || 'outro órgão'}`,
+              dispensa_frequencia: true,
+            });
+          });
+
+          // Calcular dias dispensados
+          const diasDispensados = calcularDiasDispensados(situacoes, ano, mes, ultimoDiaMes);
+          const diasUteisMes = calcularDiasUteis(ano, mes, ultimoDiaMes);
+
+          return {
+            id: s.id,
+            nome_completo: s.nome_completo,
+            matricula: s.matricula,
+            cpf: s.cpf,
+            cargo_id: s.cargo_atual_id,
+            cargo_nome: cargo?.nome,
+            unidade_id: unidade?.id,
+            unidade_nome: unidade?.nome,
+            unidade_sigla: unidade?.sigla,
+            regime: 'Presencial',
+            carga_horaria_diaria: 8,
+            carga_horaria_semanal: 40,
+            situacoes_mes: situacoes,
+            dias_dispensados: diasDispensados,
+            dispensa_total: diasDispensados >= diasUteisMes,
+            observacao_automatica: situacoes.length > 0 
+              ? situacoes.map(s => s.descricao).join('; ') 
+              : undefined,
+          };
+        });
+
+        setServidoresAgrupamento(processados);
+      } catch (error) {
+        console.error("Erro ao buscar servidores do agrupamento:", error);
+        toast.error("Erro ao carregar servidores do agrupamento");
+      } finally {
+        setLoadingAgrupamento(false);
+      }
+    };
+
+    fetchServidoresAgrupamento();
+  }, [modoSelecao, agrupamentoId, agrupamentos, ano, mes]);
+
+  // Helpers para cálculo de dias
+  const calcularDiasDispensados = (situacoes: any[], ano: number, mes: number, ultimoDia: number) => {
+    if (!situacoes.length) return 0;
+    const primeiroDiaMes = new Date(ano, mes - 1, 1);
+    const ultimoDiaMes = new Date(ano, mes - 1, ultimoDia);
+    let dias = 0;
+    
+    situacoes.forEach(sit => {
+      const inicio = new Date(sit.data_inicio);
+      const fim = sit.data_fim ? new Date(sit.data_fim) : ultimoDiaMes;
+      const inicioEfetivo = inicio < primeiroDiaMes ? primeiroDiaMes : inicio;
+      const fimEfetivo = fim > ultimoDiaMes ? ultimoDiaMes : fim;
+      
+      if (inicioEfetivo <= fimEfetivo) {
+        const dataAtual = new Date(inicioEfetivo);
+        while (dataAtual <= fimEfetivo) {
+          const diaSemana = dataAtual.getDay();
+          if (diaSemana !== 0 && diaSemana !== 6) dias++;
+          dataAtual.setDate(dataAtual.getDate() + 1);
+        }
+      }
+    });
+    return dias;
+  };
+
+  const calcularDiasUteis = (ano: number, mes: number, ultimoDia: number) => {
+    let dias = 0;
+    for (let d = 1; d <= ultimoDia; d++) {
+      const data = new Date(ano, mes - 1, d);
+      if (data.getDay() !== 0 && data.getDay() !== 6) dias++;
+    }
+    return dias;
+  };
+
+  // Selecionar fonte de dados baseado no modo
+  const servidoresFonte = modoSelecao === 'agrupamento' ? servidoresAgrupamento : (dadosUnidade?.servidores || []);
+  const isLoadingServidores = modoSelecao === 'agrupamento' ? loadingAgrupamento : loadingServidores;
+  const temSelecao = modoSelecao === 'agrupamento' ? !!agrupamentoId : !!unidadeId;
+
   // Filtrar servidores conforme opções
   const servidoresParaImprimir = useMemo(() => {
-    if (!dadosUnidade?.servidores) return [];
-
-    let lista = [...dadosUnidade.servidores];
+    let lista = [...servidoresFonte];
 
     // Excluir dispensados totais se não marcado
     if (!incluirDispensados) {
@@ -96,34 +284,49 @@ export function ImprimirLoteFrequenciaDialog({
     }
 
     return lista;
-  }, [dadosUnidade?.servidores, incluirDispensados, ordenacao]);
+  }, [servidoresFonte, incluirDispensados, ordenacao]);
 
   // Estatísticas
   const stats = useMemo(() => {
-    if (!dadosUnidade) return null;
+    if (servidoresFonte.length === 0) return null;
     return {
-      total: dadosUnidade.total_servidores,
-      normais: dadosUnidade.servidores_normais,
-      parciais: dadosUnidade.servidores_parciais,
-      dispensados: dadosUnidade.servidores_dispensados,
+      total: servidoresFonte.length,
+      normais: servidoresFonte.filter(s => s.dias_dispensados === 0).length,
+      parciais: servidoresFonte.filter(s => !s.dispensa_total && s.dias_dispensados > 0).length,
+      dispensados: servidoresFonte.filter(s => s.dispensa_total).length,
       aImprimir: servidoresParaImprimir.length,
     };
-  }, [dadosUnidade, servidoresParaImprimir]);
+  }, [servidoresFonte, servidoresParaImprimir]);
 
   const handleImprimir = async () => {
-    if (!unidadeId || !dadosUnidade || servidoresParaImprimir.length === 0) {
-      toast.error("Selecione uma unidade com servidores para imprimir.");
+    if (!temSelecao || servidoresParaImprimir.length === 0) {
+      toast.error("Selecione uma unidade ou agrupamento com servidores para imprimir.");
       return;
     }
 
     setGerando(true);
 
     try {
+      // Determinar nome da unidade/agrupamento
+      let nomeUnidade = '';
+      let siglaUnidade = '';
+      let idUnidade = '';
+
+      if (modoSelecao === 'agrupamento' && agrupamentoInfo) {
+        nomeUnidade = agrupamentoInfo.nome;
+        siglaUnidade = agrupamentoInfo.unidades.join(', ');
+        idUnidade = agrupamentoId;
+      } else if (dadosUnidade) {
+        nomeUnidade = dadosUnidade.nome;
+        siglaUnidade = dadosUnidade.sigla || '';
+        idUnidade = dadosUnidade.id;
+      }
+
       const config: LoteFrequenciaPDFConfig = {
         unidade: {
-          id: dadosUnidade.id,
-          nome: dadosUnidade.nome,
-          sigla: dadosUnidade.sigla,
+          id: idUnidade,
+          nome: nomeUnidade,
+          sigla: siglaUnidade,
         },
         competencia: { mes, ano },
         servidores: servidoresParaImprimir,
@@ -170,8 +373,8 @@ export function ImprimirLoteFrequenciaDialog({
 
         <ScrollArea className="flex-1 pr-4">
           <div className="space-y-6 py-4">
-            {/* Seleção de Período e Unidade */}
-            <div className="grid gap-4 sm:grid-cols-3">
+            {/* Seleção de Período */}
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Mês</Label>
                 <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
@@ -199,47 +402,125 @@ export function ImprimirLoteFrequenciaDialog({
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="space-y-2 sm:col-span-1">
-                <Label className="text-sm font-medium">Unidade Administrativa</Label>
-                <Select value={unidadeId} onValueChange={setUnidadeId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a unidade..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {loadingUnidades ? (
-                      <div className="flex items-center justify-center py-4">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      </div>
-                    ) : (
-                      unidades?.map((u) => (
-                        <SelectItem key={u.id} value={u.id}>
-                          {u.sigla ? `${u.sigla} - ${u.nome}` : u.nome}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
+            <Separator />
+
+            {/* Tabs: Agrupamento vs Unidade */}
+            <Tabs value={modoSelecao} onValueChange={(v) => setModoSelecao(v as 'agrupamento' | 'unidade')}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="agrupamento" className="flex items-center gap-2">
+                  <Layers className="h-4 w-4" />
+                  Por Agrupamento
+                </TabsTrigger>
+                <TabsTrigger value="unidade" className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Por Unidade
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="agrupamento" className="mt-4 space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Agrupamento de Unidades</Label>
+                    <Link 
+                      to="/rh/frequencia/configuracao" 
+                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      <Settings className="h-3 w-3" />
+                      Configurar
+                    </Link>
+                  </div>
+                  <Select value={agrupamentoId} onValueChange={setAgrupamentoId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um agrupamento..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {loadingAgrupamentos ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        </div>
+                      ) : (!agrupamentos || agrupamentos.length === 0) ? (
+                        <div className="py-4 text-center text-sm text-muted-foreground">
+                          Nenhum agrupamento configurado
+                        </div>
+                      ) : (
+                        agrupamentos.map((ag) => (
+                          <SelectItem key={ag.id} value={ag.id}>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-2 h-2 rounded-full" 
+                                style={{ backgroundColor: ag.cor || '#3b82f6' }}
+                              />
+                              <span>{ag.nome}</span>
+                              <Badge variant="secondary" className="text-xs ml-2">
+                                {ag.unidades.length} unidades
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {agrupamentoInfo && (
+                    <div className="text-xs text-muted-foreground">
+                      Unidades: {agrupamentoInfo.unidades.join(', ')}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="unidade" className="mt-4 space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Unidade Administrativa</Label>
+                  <Select value={unidadeId} onValueChange={setUnidadeId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a unidade..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {loadingUnidades ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        </div>
+                      ) : (
+                        unidades?.map((u) => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.sigla ? `${u.sigla} - ${u.nome}` : u.nome}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </TabsContent>
+            </Tabs>
+
             {/* Carregando servidores */}
-            {unidadeId && loadingServidores && (
+            {temSelecao && isLoadingServidores && (
               <div className="flex items-center justify-center py-8 text-muted-foreground">
                 <Loader2 className="h-6 w-6 animate-spin mr-2" />
                 Carregando servidores...
               </div>
             )}
 
-            {/* Estatísticas da Unidade */}
-            {stats && (
+            {/* Estatísticas */}
+            {stats && !isLoadingServidores && (
               <>
                 <Separator />
                 
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-primary" />
-                    <span className="font-medium">{dadosUnidade?.sigla || ''} - {dadosUnidade?.nome}</span>
+                    {modoSelecao === 'agrupamento' ? (
+                      <>
+                        <Layers className="h-4 w-4 text-primary" />
+                        <span className="font-medium">{agrupamentoInfo?.nome}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Building2 className="h-4 w-4 text-primary" />
+                        <span className="font-medium">{dadosUnidade?.sigla || ''} - {dadosUnidade?.nome}</span>
+                      </>
+                    )}
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-4">
@@ -269,7 +550,7 @@ export function ImprimirLoteFrequenciaDialog({
                         Situações Administrativas Identificadas:
                       </div>
                       <div className="space-y-1 text-xs">
-                        {dadosUnidade?.servidores
+                        {servidoresFonte
                           .filter(s => s.situacoes_mes.length > 0)
                           .slice(0, 5)
                           .map((s, idx) => (
@@ -366,10 +647,10 @@ export function ImprimirLoteFrequenciaDialog({
             )}
 
             {/* Estado vazio */}
-            {unidadeId && !loadingServidores && (!dadosUnidade || dadosUnidade.total_servidores === 0) && (
+            {temSelecao && !isLoadingServidores && servidoresFonte.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhum servidor ativo encontrado nesta unidade.</p>
+                <p>Nenhum servidor ativo encontrado {modoSelecao === 'agrupamento' ? 'neste agrupamento' : 'nesta unidade'}.</p>
               </div>
             )}
           </div>
@@ -381,7 +662,7 @@ export function ImprimirLoteFrequenciaDialog({
           </Button>
           <Button
             onClick={handleImprimir}
-            disabled={gerando || !unidadeId || !stats || stats.aImprimir === 0}
+            disabled={gerando || !temSelecao || !stats || stats.aImprimir === 0}
           >
             {gerando ? (
               <>
