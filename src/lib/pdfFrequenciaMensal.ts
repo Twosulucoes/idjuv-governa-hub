@@ -204,13 +204,12 @@ export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData)
   // ===== CABEÇALHO COM LOGOS (28mm) =====
   const headerHeight = 24;
   
-  // Logos com LARGURA FIXA para equilíbrio visual (sem distorção)
-  // Governo: horizontal amplo (3.69:1) → largura 40mm, altura ~11mm
-  // IDJuv: horizontal moderado (1.55:1) → largura 25mm, altura ~16mm
-  const logoGovernoW = 40;
-  const logoGovernoH = logoGovernoW / 3.69; // ~10.8mm
-  const logoIdjuvW = 25;
-  const logoIdjuvH = logoIdjuvW / 1.55; // ~16mm
+  // Logos com ALTURA como base para preservar proporções originais (sem distorção)
+  // Alturas visuais similares mas não iguais para equilíbrio
+  const logoGovernoH = 12; // Governo: menor pois é muito horizontal
+  const logoGovernoW = logoGovernoH * 3.69; // ~44mm (proporção 3.69:1)
+  const logoIdjuvH = 14; // IDJuv: altura padrão
+  const logoIdjuvW = logoIdjuvH * 1.55; // ~22mm (proporção 1.55:1)
   
   // Centralizar verticalmente ambos os logos no espaço do cabeçalho
   const logoGovernoY = y + (headerHeight - logoGovernoH) / 2;
