@@ -6,6 +6,7 @@ import jsPDF from 'jspdf';
 import logoGovernoSrc from '@/assets/logo-governo-roraima.jpg';
 import logoIDJUVOficialSrc from '@/assets/logo-idjuv-oficial.png';
 import logoIDJUVDarkSrc from '@/assets/logo-idjuv-dark4.png';
+import { getLogosPDF, LOGO_CONFIG_PADRAO } from './pdfLogos';
 
 // ============ CORES INSTITUCIONAIS ============
 export const CORES = {
@@ -194,8 +195,8 @@ export const setColor = (doc: jsPDF, cor: { r: number; g: number; b: number }, t
 
 // ============ CABEÇALHO INSTITUCIONAL ============
 
-// Altura máxima das logos no cabeçalho
-const LOGO_MAX_HEIGHT = 14;
+// Altura máxima das logos no cabeçalho (14mm = padrão para documentos oficiais)
+const LOGO_MAX_HEIGHT = LOGO_CONFIG_PADRAO.altura;
 
 /**
  * Adiciona logo com proporção correta

@@ -4,6 +4,7 @@ import { ptBR } from 'date-fns/locale';
 
 import logoGovernoSrc from '@/assets/logo-governo-roraima.jpg';
 import logoIDJUVOficialSrc from '@/assets/logo-idjuv-oficial.png';
+import { getLogosPDF } from './pdfLogos';
 
 // ================================================================
 // GERADOR DE PDF - RELATÓRIO SIMPLIFICADO DE FOLHA
@@ -133,18 +134,14 @@ export async function gerarRelatorioFolhaSimplificado(
   const renderHeader = (): void => {
     y = marginY;
     
-    // Logos - mantendo proporção original
-    // Logo Governo: proporção original ~2.5:1 (largura:altura)
+    // Logos - mesma altura para ambos, mantendo proporção original
+    const logos = getLogosPDF(14); // 14mm de altura para ambos
+    
     if (logoGov) {
-      const govWidth = 35;
-      const govHeight = govWidth / 2.5; // ~14mm
-      doc.addImage(logoGov, 'JPEG', marginX, y, govWidth, govHeight);
+      doc.addImage(logoGov, 'JPEG', marginX, y, logos.governo.width, logos.governo.height);
     }
-    // Logo IDJUV: proporção original ~1.2:1 (mais quadrada)
     if (logoIdjuv) {
-      const idjuvHeight = 16;
-      const idjuvWidth = idjuvHeight * 1.2; // ~19mm
-      doc.addImage(logoIdjuv, 'PNG', pageWidth - marginX - idjuvWidth, y, idjuvWidth, idjuvHeight);
+      doc.addImage(logoIdjuv, 'PNG', pageWidth - marginX - logos.idjuv.width, y, logos.idjuv.width, logos.idjuv.height);
     }
     
     // Título centralizado

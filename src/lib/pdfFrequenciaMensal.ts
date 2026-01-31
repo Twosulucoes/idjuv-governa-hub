@@ -11,9 +11,10 @@ import jsPDF from 'jspdf';
 import { DIAS_SEMANA_SIGLA } from '@/types/frequencia';
 import type { DiaNaoUtil, StatusFechamento } from '@/types/frequencia';
 
-// Importar logos
+// Importar logos e utilitário
 import logoGoverno from '@/assets/logo-governo-roraima.jpg';
 import logoIdjuv from '@/assets/logo-idjuv-oficial.png';
+import { getLogosPDF, LOGO_CONFIG_PADRAO } from './pdfLogos';
 
 // ============================================
 // INTERFACES
@@ -202,12 +203,11 @@ export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData)
 
   // ===== CABEÇALHO COM LOGOS (28mm) =====
   const headerHeight = 24;
-  const logoHeight = 15; // Altura elegante para ambas as logos
+  const logos = getLogosPDF(14); // 14mm de altura para ambos os logos
   
-  // Logo Governo (esquerda) - proporção original ~3.5:1 (retangular horizontal)
-  const logoGovWidth = logoHeight * 3.5;
+  // Logo Governo (esquerda) - mantém proporção original
   try {
-    doc.addImage(logoGoverno, 'JPEG', margin, y + 1, logoGovWidth, logoHeight);
+    doc.addImage(logoGoverno, 'JPEG', margin, y + 2, logos.governo.width, logos.governo.height);
   } catch (e) {
     console.warn('Logo Governo não carregado');
   }
@@ -225,10 +225,9 @@ export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData)
   doc.setFontSize(7);
   doc.text(`CNPJ: ${INSTITUICAO.cnpj} | ${INSTITUICAO.endereco}`, pageWidth / 2, y + 17, { align: 'center' });
   
-  // Logo IDJuv (direita) - proporção original ~1:1 (quadrada/levemente vertical)
-  const logoIdjuvWidth = logoHeight * 1.0;
+  // Logo IDJuv (direita) - mantém proporção original, mesma altura do Governo
   try {
-    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth, y + 1, logoIdjuvWidth, logoHeight);
+    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logos.idjuv.width, y + 2, logos.idjuv.width, logos.idjuv.height);
   } catch (e) {
     console.warn('Logo IDJuv não carregado');
   }
