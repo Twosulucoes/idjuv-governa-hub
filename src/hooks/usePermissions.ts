@@ -1,12 +1,12 @@
 // ============================================
-// HOOK DE PERMISSÕES
+// HOOK DE PERMISSÕES - FASE 6
 // ============================================
 // Hook customizado para gerenciamento de permissões
-// Fornece funções utilitárias para verificar acesso
+// Baseado EXCLUSIVAMENTE em permissões do banco
 
 import { useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { AppRole, AppPermission, ROLE_LABELS, PERMISSION_LABELS } from '@/types/auth';
+import { PermissionCode, PermissaoUsuario, MODULE_PERMISSIONS } from '@/types/auth';
 
 interface UsePermissionsReturn {
   // Dados do usuário
@@ -15,32 +15,39 @@ interface UsePermissionsReturn {
   isAuthenticated: boolean;
   
   // Verificações de permissão
-  hasPermission: (permission: AppPermission) => boolean;
-  hasAnyPermission: (permissions: AppPermission[]) => boolean;
-  hasAllPermissions: (permissions: AppPermission[]) => boolean;
+  hasPermission: (codigo: PermissionCode) => boolean;
+  hasAnyPermission: (codigos: PermissionCode[]) => boolean;
+  hasAllPermissions: (codigos: PermissionCode[]) => boolean;
   
-  // Verificações de role
-  hasRole: (role: AppRole) => boolean;
-  hasAnyRole: (roles: AppRole[]) => boolean;
-  canAccess: (requiredRoles: AppRole[]) => boolean;
+  // Verificar acesso a módulo inteiro
+  hasModuleAccess: (modulo: string) => boolean;
   
   // Utilitários
-  getRoleLabel: (role: AppRole) => string;
-  getPermissionLabel: (permission: AppPermission) => string;
-  getUserRoleLabel: () => string;
+  getUserPermissions: () => PermissionCode[];
+  getPermissoesDetalhadas: () => PermissaoUsuario[];
+  getModulosAcessiveis: () => string[];
   
   // Verificações rápidas
-  isAdmin: boolean;
-  isManager: boolean;
-  isUser: boolean;
-  isGuest: boolean;
+  isSuperAdmin: boolean;
   
-  // Permissões agrupadas
-  canManageUsers: boolean;
-  canManageContent: boolean;
-  canManageReports: boolean;
-  canManageSettings: boolean;
-  canManageProcesses: boolean;
+  // Permissões agrupadas por módulo
+  canAccessAdmin: boolean;
+  canAccessRH: boolean;
+  canAccessGovernanca: boolean;
+  canAccessFinanceiro: boolean;
+  canAccessAscom: boolean;
+  canAccessFederacoes: boolean;
+  canAccessUnidades: boolean;
+  canAccessProcessos: boolean;
+  canAccessAprovacoes: boolean;
+  
+  // Ações específicas
+  canCreateServidores: boolean;
+  canEditServidores: boolean;
+  canDeleteServidores: boolean;
+  canCreatePortarias: boolean;
+  canProcessarFolha: boolean;
+  canAprovar: boolean;
 }
 
 export const usePermissions = (): UsePermissionsReturn => {
@@ -48,72 +55,130 @@ export const usePermissions = (): UsePermissionsReturn => {
     user,
     isLoading,
     isAuthenticated,
+    isSuperAdmin,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
-    hasRole,
-    hasAnyRole,
-    canAccess
+    getUserPermissions,
+    getPermissoesDetalhadas
   } = useAuth();
 
   // ============================================
-  // UTILITÁRIOS
+  // VERIFICAR ACESSO A MÓDULO
   // ============================================
 
-  const getRoleLabel = useCallback((role: AppRole): string => {
-    return ROLE_LABELS[role] || role;
-  }, []);
-
-  const getPermissionLabel = useCallback((permission: AppPermission): string => {
-    return PERMISSION_LABELS[permission] || permission;
-  }, []);
-
-  const getUserRoleLabel = useCallback((): string => {
-    if (!user) return 'Não autenticado';
-    return ROLE_LABELS[user.role] || user.role;
-  }, [user]);
+  const hasModuleAccess = useCallback((modulo: string): boolean => {
+    if (isSuperAdmin) return true;
+    
+    const permissions = getUserPermissions();
+    
+    // Verifica se tem qualquer permissão do módulo
+    return permissions.some(p => p.startsWith(`${modulo}.`) || p === modulo);
+  }, [isSuperAdmin, getUserPermissions]);
 
   // ============================================
-  // VERIFICAÇÕES RÁPIDAS DE ROLE
+  // OBTER MÓDULOS ACESSÍVEIS
   // ============================================
 
-  const isAdmin = useMemo(() => hasRole('admin'), [hasRole]);
-  const isManager = useMemo(() => hasRole('manager'), [hasRole]);
-  const isUser = useMemo(() => hasRole('user'), [hasRole]);
-  const isGuest = useMemo(() => hasRole('guest'), [hasRole]);
+  const getModulosAcessiveis = useCallback((): string[] => {
+    if (isSuperAdmin) {
+      return Object.keys(MODULE_PERMISSIONS);
+    }
+    
+    const permissions = getUserPermissions();
+    const modulos = new Set<string>();
+    
+    permissions.forEach(p => {
+      const partes = p.split('.');
+      if (partes.length > 0) {
+        modulos.add(partes[0]);
+      }
+    });
+    
+    return Array.from(modulos);
+  }, [isSuperAdmin, getUserPermissions]);
 
   // ============================================
-  // VERIFICAÇÕES DE GRUPOS DE PERMISSÕES
+  // VERIFICAÇÕES DE ACESSO A MÓDULOS
   // ============================================
 
-  // Pode gerenciar usuários (CRUD completo)
-  const canManageUsers = useMemo(() => 
-    hasAllPermissions(['users.read', 'users.create', 'users.update', 'users.delete']),
-    [hasAllPermissions]
+  const canAccessAdmin = useMemo(() => 
+    hasModuleAccess('admin'),
+    [hasModuleAccess]
   );
 
-  // Pode gerenciar conteúdo (CRUD completo)
-  const canManageContent = useMemo(() => 
-    hasAllPermissions(['content.read', 'content.create', 'content.update', 'content.delete']),
-    [hasAllPermissions]
+  const canAccessRH = useMemo(() => 
+    hasModuleAccess('rh'),
+    [hasModuleAccess]
   );
 
-  // Pode gerenciar relatórios (ver e exportar)
-  const canManageReports = useMemo(() => 
-    hasAllPermissions(['reports.view', 'reports.export']),
-    [hasAllPermissions]
+  const canAccessGovernanca = useMemo(() => 
+    hasModuleAccess('governanca'),
+    [hasModuleAccess]
   );
 
-  // Pode gerenciar configurações
-  const canManageSettings = useMemo(() => 
-    hasAllPermissions(['settings.view', 'settings.edit']),
-    [hasAllPermissions]
+  const canAccessFinanceiro = useMemo(() => 
+    hasModuleAccess('financeiro'),
+    [hasModuleAccess]
   );
 
-  // Pode gerenciar processos (CRUD + aprovação)
-  const canManageProcesses = useMemo(() => 
-    hasAllPermissions(['processes.read', 'processes.create', 'processes.update', 'processes.delete', 'processes.approve']),
-    [hasAllPermissions]
+  const canAccessAscom = useMemo(() => 
+    hasModuleAccess('ascom'),
+    [hasModuleAccess]
+  );
+
+  const canAccessFederacoes = useMemo(() => 
+    hasModuleAccess('federacoes'),
+    [hasModuleAccess]
+  );
+
+  const canAccessUnidades = useMemo(() => 
+    hasModuleAccess('unidades'),
+    [hasModuleAccess]
+  );
+
+  const canAccessProcessos = useMemo(() => 
+    hasModuleAccess('processos'),
+    [hasModuleAccess]
+  );
+
+  const canAccessAprovacoes = useMemo(() => 
+    hasModuleAccess('aprovacoes'),
+    [hasModuleAccess]
+  );
+
+  // ============================================
+  // VERIFICAÇÕES DE AÇÕES ESPECÍFICAS
+  // ============================================
+
+  const canCreateServidores = useMemo(() => 
+    hasPermission('rh.servidores.criar'),
+    [hasPermission]
+  );
+
+  const canEditServidores = useMemo(() => 
+    hasPermission('rh.servidores.editar'),
+    [hasPermission]
+  );
+
+  const canDeleteServidores = useMemo(() => 
+    hasPermission('rh.servidores.excluir'),
+    [hasPermission]
+  );
+
+  const canCreatePortarias = useMemo(() => 
+    hasAnyPermission(['rh.portarias.criar', 'governanca.portarias.criar']),
+    [hasAnyPermission]
+  );
+
+  const canProcessarFolha = useMemo(() => 
+    hasPermission('financeiro.folha.processar'),
+    [hasPermission]
+  );
+
+  const canAprovar = useMemo(() => 
+    hasAnyPermission(['aprovacoes.aprovar', 'aprovacoes.rejeitar']),
+    [hasAnyPermission]
   );
 
   // ============================================
@@ -124,24 +189,29 @@ export const usePermissions = (): UsePermissionsReturn => {
     user,
     isLoading,
     isAuthenticated,
+    isSuperAdmin,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
-    hasRole,
-    hasAnyRole,
-    canAccess,
-    getRoleLabel,
-    getPermissionLabel,
-    getUserRoleLabel,
-    isAdmin,
-    isManager,
-    isUser,
-    isGuest,
-    canManageUsers,
-    canManageContent,
-    canManageReports,
-    canManageSettings,
-    canManageProcesses
+    hasModuleAccess,
+    getUserPermissions,
+    getPermissoesDetalhadas,
+    getModulosAcessiveis,
+    canAccessAdmin,
+    canAccessRH,
+    canAccessGovernanca,
+    canAccessFinanceiro,
+    canAccessAscom,
+    canAccessFederacoes,
+    canAccessUnidades,
+    canAccessProcessos,
+    canAccessAprovacoes,
+    canCreateServidores,
+    canEditServidores,
+    canDeleteServidores,
+    canCreatePortarias,
+    canProcessarFolha,
+    canAprovar
   };
 };
 

@@ -1,41 +1,84 @@
 // ============================================
-// COMPONENTE DE ROTA PROTEGIDA
+// COMPONENTE DE ROTA PROTEGIDA - FASE 6
 // ============================================
-// Envolve rotas e verifica permissões antes de renderizar
-// Redireciona para login ou página de acesso negado
+// Baseado EXCLUSIVAMENTE em permissões do banco
+// Mantém compatibilidade com allowedRoles para migração gradual
 
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { AppRole, AppPermission } from '@/types/auth';
+import { PermissionCode, ROUTE_PERMISSIONS, AppRole } from '@/types/auth';
 import { Loader2 } from 'lucide-react';
+
+// ============================================
+// MAPEAMENTO DE ROLES LEGADOS PARA PERMISSÕES
+// ============================================
+// Usado durante a migração para converter roles antigos em permissões
+const ROLE_TO_PERMISSIONS: Record<string, PermissionCode[]> = {
+  'admin': ['admin'],
+  'ti_admin': ['admin'],
+  'presidencia': ['admin', 'aprovacoes.aprovar'],
+  'rh': ['rh.servidores.visualizar', 'rh.portarias.visualizar'],
+  'diraf': ['financeiro.folha.visualizar', 'financeiro.pagamentos.visualizar'],
+  'ascom': ['ascom.demandas.visualizar', 'ascom.demandas.tratar'],
+  'controle_interno': ['admin.auditoria'],
+  'manager': ['admin.dashboard'],
+  'user': [],
+  'guest': [],
+};
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   
-  // Requer autenticação (default: true)
+  /**
+   * Requer autenticação (default: true)
+   */
   requireAuth?: boolean;
   
-  // Roles permitidos (aceita único ou array)
+  /**
+   * @deprecated Use requiredPermissions em vez de allowedRoles
+   * Roles permitidos (mantido para compatibilidade)
+   */
   allowedRoles?: AppRole | AppRole[];
   
-  // Permissões requeridas
-  requiredPermissions?: AppPermission | AppPermission[];
+  /**
+   * Permissões requeridas para acessar a rota
+   * Pode ser uma permissão única ou array
+   */
+  requiredPermissions?: PermissionCode | PermissionCode[];
   
-  // Modo de verificação de permissões: 'any' ou 'all'
+  /**
+   * Modo de verificação de permissões: 'any' ou 'all'
+   * - 'any': precisa de pelo menos uma das permissões
+   * - 'all': precisa de todas as permissões
+   */
   permissionMode?: 'any' | 'all';
   
-  // Página de redirecionamento quando não autenticado
+  /**
+   * Página de redirecionamento quando não autenticado
+   */
   loginPath?: string;
   
-  // Página de redirecionamento quando sem permissão
+  /**
+   * Página de redirecionamento quando sem permissão
+   */
   accessDeniedPath?: string;
   
-  // Componente personalizado de loading
+  /**
+   * Componente personalizado de loading
+   */
   loadingComponent?: React.ReactNode;
   
-  // Callback quando acesso negado (antes do redirect)
+  /**
+   * Callback quando acesso negado (antes do redirect)
+   */
   onAccessDenied?: () => void;
+  
+  /**
+   * Se true, usa o mapeamento automático de rota para permissão
+   * baseado na rota atual
+   */
+  useRouteMapping?: boolean;
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
@@ -43,13 +86,21 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireAuth = true,
   allowedRoles,
   requiredPermissions,
-  permissionMode = 'all',
+  permissionMode = 'any',
   loginPath = '/auth',
   accessDeniedPath = '/acesso-negado',
   loadingComponent,
-  onAccessDenied
+  onAccessDenied,
+  useRouteMapping = false
 }) => {
-  const { user, isLoading, isAuthenticated, hasRole, hasAnyRole, hasPermission, hasAnyPermission, hasAllPermissions } = useAuth();
+  const { 
+    user, 
+    isLoading, 
+    isAuthenticated, 
+    isSuperAdmin,
+    hasAnyPermission, 
+    hasAllPermissions 
+  } = useAuth();
   const location = useLocation();
 
   // ============================================
@@ -76,17 +127,40 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to={loginPath} state={{ from: location }} replace />;
   }
 
+  // Super Admin tem acesso total
+  if (isSuperAdmin) {
+    return <>{children}</>;
+  }
+
   // ============================================
-  // VERIFICAÇÃO DE ROLES
+  // DETERMINAÇÃO DAS PERMISSÕES REQUERIDAS
   // ============================================
 
-  if (allowedRoles && user) {
+  let permissionsToCheck: PermissionCode[] = [];
+
+  // Se tem permissões explícitas, usar elas
+  if (requiredPermissions) {
+    permissionsToCheck = Array.isArray(requiredPermissions) 
+      ? requiredPermissions 
+      : [requiredPermissions];
+  }
+  // Se tem allowedRoles legado, converter para permissões
+  else if (allowedRoles) {
     const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
-    
-    // Admin sempre tem acesso
-    if (user.role !== 'admin' && !hasAnyRole(roles)) {
-      onAccessDenied?.();
-      return <Navigate to={accessDeniedPath} state={{ from: location }} replace />;
+    roles.forEach(role => {
+      const rolePermissions = ROLE_TO_PERMISSIONS[role] || [];
+      permissionsToCheck.push(...rolePermissions);
+    });
+    // Remover duplicatas
+    permissionsToCheck = [...new Set(permissionsToCheck)];
+  }
+  // Se deve usar mapeamento de rota
+  else if (useRouteMapping) {
+    const routePermission = ROUTE_PERMISSIONS[location.pathname];
+    if (routePermission) {
+      permissionsToCheck = Array.isArray(routePermission) 
+        ? routePermission 
+        : [routePermission];
     }
   }
 
@@ -94,15 +168,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // VERIFICAÇÃO DE PERMISSÕES
   // ============================================
 
-  if (requiredPermissions && user) {
-    const permissions = Array.isArray(requiredPermissions) ? requiredPermissions : [requiredPermissions];
-    
+  if (permissionsToCheck.length > 0 && user) {
     let hasAccess = false;
     
     if (permissionMode === 'any') {
-      hasAccess = hasAnyPermission(permissions);
+      hasAccess = hasAnyPermission(permissionsToCheck);
     } else {
-      hasAccess = hasAllPermissions(permissions);
+      hasAccess = hasAllPermissions(permissionsToCheck);
     }
     
     if (!hasAccess) {
