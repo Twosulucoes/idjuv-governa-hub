@@ -6456,14 +6456,14 @@ export type Database = {
             foreignKeyName: "registros_ponto_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "servidores"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "registros_ponto_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
+            referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
         ]
