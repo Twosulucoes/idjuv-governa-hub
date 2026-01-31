@@ -92,16 +92,18 @@ function StatusBadge({ status }: { status: FrequenciaPacote['status'] }) {
   );
 }
 
-function CopyLinkButton({ link, baseUrl }: { link: string; baseUrl: string }) {
+function CopyLinkButton({ link }: { link: string }) {
   const [copied, setCopied] = useState(false);
   
-  const fullUrl = `${baseUrl}/download/frequencias/${link}`;
+  // O link correto deve apontar para a edge function
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const fullUrl = `${supabaseUrl}/functions/v1/download-frequencia?link=${link}&action=info`;
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(fullUrl);
       setCopied(true);
-      toast.success('Link copiado!');
+      toast.success('Link copiado! (Requer autenticação para download)');
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error('Erro ao copiar link');
@@ -139,14 +141,13 @@ function DownloadButton({ pacote }: { pacote: FrequenciaPacote }) {
         return;
       }
 
-      const response = await supabase.functions.invoke('download-frequencia', {
-        body: null,
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
+      // Verificar se o pacote tem arquivo
+      if (!pacote.arquivo_path) {
+        toast.error('Arquivo do pacote não disponível. Gere novamente o lote.');
+        return;
+      }
 
-      // Usar query params via fetch direto
+      // Chamar edge function para obter URL assinada
       const funcUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download-frequencia?link=${pacote.link_download}`;
       const res = await fetch(funcUrl, {
         headers: {
@@ -171,21 +172,37 @@ function DownloadButton({ pacote }: { pacote: FrequenciaPacote }) {
     }
   };
 
+  // Desabilitar se não tiver arquivo
+  const isDisabled = loading || pacote.status !== 'gerado' || !pacote.arquivo_path;
+
   return (
-    <Button 
-      variant="default" 
-      size="sm" 
-      onClick={handleDownload}
-      disabled={loading || pacote.status !== 'gerado'}
-      className="gap-1"
-    >
-      {loading ? (
-        <Loader2 className="h-3 w-3 animate-spin" />
-      ) : (
-        <Download className="h-3 w-3" />
-      )}
-      Download
-    </Button>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span>
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={handleDownload}
+              disabled={isDisabled}
+              className="gap-1"
+            >
+              {loading ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Download className="h-3 w-3" />
+              )}
+              Download
+            </Button>
+          </span>
+        </TooltipTrigger>
+        {!pacote.arquivo_path && pacote.status === 'gerado' && (
+          <TooltipContent>
+            <p>Arquivo não disponível. Gere o lote novamente.</p>
+          </TooltipContent>
+        )}
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -209,9 +226,6 @@ export default function ControlePacotesFrequenciaPage() {
 
   const { data: pacotes, isLoading: loadingPacotes, refetch } = useFrequenciaPacotes(periodo);
   const { data: estatisticas, isLoading: loadingStats } = useEstatisticasPeriodo(periodo);
-
-  // URL base do app
-  const baseUrl = window.location.origin;
 
   // Anos disponíveis
   const anos = useMemo(() => {
@@ -380,7 +394,16 @@ export default function ControlePacotesFrequenciaPage() {
                           {pacote.agrupamento_nome || pacote.unidade_nome || 'Geral'}
                         </TableCell>
                         <TableCell>
-                          <StatusBadge status={pacote.status} />
+                          {pacote.arquivo_path ? (
+                            <StatusBadge status={pacote.status} />
+                          ) : pacote.status === 'gerado' ? (
+                            <Badge variant="outline" className="gap-1 text-amber-600 dark:text-amber-400">
+                              <AlertCircle className="h-3 w-3" />
+                              Sem ZIP
+                            </Badge>
+                          ) : (
+                            <StatusBadge status={pacote.status} />
+                          )}
                         </TableCell>
                         <TableCell>{pacote.total_arquivos}</TableCell>
                         <TableCell>{formatFileSize(pacote.arquivo_tamanho)}</TableCell>
@@ -393,11 +416,26 @@ export default function ControlePacotesFrequenciaPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            {pacote.status === 'gerado' && pacote.link_download && (
+                            {pacote.status === 'gerado' && pacote.link_download && pacote.arquivo_path && (
                               <>
-                                <CopyLinkButton link={pacote.link_download} baseUrl={baseUrl} />
+                                <CopyLinkButton link={pacote.link_download} />
                                 <DownloadButton pacote={pacote} />
                               </>
+                            )}
+                            {pacote.status === 'gerado' && !pacote.arquivo_path && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="outline" className="gap-1 text-muted-foreground">
+                                      <FileText className="h-3 w-3" />
+                                      {pacote.total_arquivos} PDFs
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Arquivos individuais salvos. ZIP não gerado.</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             )}
                             {pacote.status === 'erro' && (
                               <TooltipProvider>
