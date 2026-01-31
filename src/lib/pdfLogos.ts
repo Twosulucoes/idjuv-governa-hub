@@ -27,7 +27,7 @@
  */
 export const LOGO_ASPECTOS = {
   governo: 3.69,  // 1063 / 288 px → Logo horizontal do Governo de Roraima
-  idjuv: 1.0,     // 512 / 512 px → Logo quadrado do IDJuv
+  idjuv: 1.55,    // ~1400 / 900 px → Logo horizontal do IDJuv (NÃO é quadrado!)
 } as const;
 
 /**
