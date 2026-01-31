@@ -32,6 +32,7 @@ import { useFrequenciaResumo, type FrequenciaServidorResumo } from "@/hooks/useF
 import { MESES } from "@/types/folha";
 import { LancarFaltaDialog } from "@/components/frequencia/LancarFaltaDialog";
 import { ImprimirFrequenciaDialog } from "@/components/frequencia/ImprimirFrequenciaDialog";
+import { ImprimirLoteFrequenciaDialog } from "@/components/frequencia/ImprimirLoteFrequenciaDialog";
 import { generateRelatorioFrequenciaGeral } from "@/lib/pdfRelatorioFrequencia";
 import { format } from "date-fns";
 
@@ -44,6 +45,7 @@ export default function GestaoFrequenciaPage() {
   const [busca, setBusca] = useState("");
   const [showLancarFalta, setShowLancarFalta] = useState(false);
   const [showImprimirFrequencia, setShowImprimirFrequencia] = useState(false);
+  const [showImprimirLote, setShowImprimirLote] = useState(false);
   const [servidorSelecionado, setServidorSelecionado] = useState<FrequenciaServidorResumo | null>(null);
 
   const { data: servidores, isLoading } = useFrequenciaResumo(ano, mes);
@@ -132,9 +134,14 @@ export default function GestaoFrequenciaPage() {
               </SelectContent>
             </Select>
 
+            <Button variant="outline" onClick={() => setShowImprimirLote(true)}>
+              <Users className="mr-2 h-4 w-4" />
+              Imprimir Lote
+            </Button>
+
             <Button variant="outline" onClick={handleGerarRelatorio}>
               <Download className="mr-2 h-4 w-4" />
-              Imprimir Relatório
+              Relatório Geral
             </Button>
           </div>
         </div>
@@ -304,11 +311,19 @@ export default function GestaoFrequenciaPage() {
         mes={mes}
       />
 
-      {/* Dialog de Impressão */}
+      {/* Dialog de Impressão Individual */}
       <ImprimirFrequenciaDialog
         open={showImprimirFrequencia}
         onOpenChange={setShowImprimirFrequencia}
         servidor={servidorSelecionado}
+        ano={ano}
+        mes={mes}
+      />
+
+      {/* Dialog de Impressão em Lote */}
+      <ImprimirLoteFrequenciaDialog
+        open={showImprimirLote}
+        onOpenChange={setShowImprimirLote}
         ano={ano}
         mes={mes}
       />
