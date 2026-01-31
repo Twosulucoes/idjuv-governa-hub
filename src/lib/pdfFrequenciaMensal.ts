@@ -157,7 +157,7 @@ function getTipoDiaAbrev(situacao: RegistroDiario['situacao'], tipoReg?: string)
 // GERADOR PRINCIPAL - 1 PÁGINA A4 COMPLETA
 // ============================================
 
-export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData): Promise<void> => {
+export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData): Promise<{ doc: jsPDF; nomeArquivo: string }> => {
   const doc = new jsPDF('portrait', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
   const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
@@ -512,10 +512,355 @@ export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData)
   doc.text(`${INSTITUICAO.sigla} - Sistema de Gestão de Pessoas`, pageWidth / 2, pageHeight - 6, { align: 'center' });
   doc.text('Página 1 de 1', pageWidth - margin, pageHeight - 6, { align: 'right' });
 
-  // Salvar
+  // Salvar ou retornar blob
   const nome = srv.nome_completo.replace(/\s+/g, '_').substring(0, 20);
   const sufixo = data.tipo === 'em_branco' ? '_BRANCO' : '';
-  doc.save(`Frequencia_${nome}_${String(data.competencia.mes).padStart(2, '0')}-${data.competencia.ano}${sufixo}.pdf`);
+  const nomeArquivo = `Frequencia_${nome}_${String(data.competencia.mes).padStart(2, '0')}-${data.competencia.ano}${sufixo}.pdf`;
+  
+  doc.save(nomeArquivo);
+  
+  return { doc, nomeArquivo };
+};
+
+/**
+ * Gera PDF de frequência mensal e retorna como Blob (para upload no storage)
+ */
+export const generateFrequenciaMensalBlob = async (data: FrequenciaMensalPDFData): Promise<{ blob: Blob; nomeArquivo: string }> => {
+  const result = await generateFrequenciaMensalPDFInternal(data);
+  const blob = result.doc.output('blob');
+  return { blob, nomeArquivo: result.nomeArquivo };
+};
+
+/**
+ * Função interna que gera o documento sem salvar
+ */
+const generateFrequenciaMensalPDFInternal = async (data: FrequenciaMensalPDFData): Promise<{ doc: jsPDF; nomeArquivo: string }> => {
+  const doc = new jsPDF('portrait', 'mm', 'a4');
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 12;
+  const contentWidth = pageWidth - margin * 2;
+  
+  const competencia = `${MESES[data.competencia.mes - 1]} de ${data.competencia.ano}`;
+  const srv = data.servidor;
+
+  // Gerar dias do mês
+  const ultimoDia = getUltimoDiaMes(data.competencia.ano, data.competencia.mes);
+  const registros: RegistroDiario[] = [];
+
+  for (let dia = 1; dia <= ultimoDia; dia++) {
+    const dataAtual = new Date(data.competencia.ano, data.competencia.mes - 1, dia);
+    const dataStr = `${data.competencia.ano}-${String(data.competencia.mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+    const { situacao, label } = getSituacaoDia(dataAtual, data.diasNaoUteis);
+    const regExist = data.registros?.find(r => r.data === dataStr);
+
+    registros.push({
+      data: dataStr,
+      dia_semana: dataAtual.getDay(),
+      situacao: regExist?.situacao || situacao,
+      situacao_label: regExist?.situacao_label || label,
+      entrada: regExist?.entrada || regExist?.entrada_manha,
+      saida: regExist?.saida || regExist?.saida_tarde || regExist?.saida_manha,
+      tipo_registro: regExist?.tipo_registro,
+    });
+  }
+
+  let y = margin;
+
+  // ===== CABEÇALHO COM LOGOS (28mm) =====
+  const headerHeight = 24;
+  const logoHeight = 15;
+  
+  const logoGovWidth = logoHeight * 3.5;
+  try {
+    doc.addImage(logoGoverno, 'JPEG', margin, y + 1, logoGovWidth, logoHeight);
+  } catch (e) {
+    console.warn('Logo Governo não carregado');
+  }
+  
+  doc.setTextColor(0, 68, 68);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text('FOLHA DE FREQUÊNCIA MENSAL', pageWidth / 2, y + 6, { align: 'center' });
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(60, 65, 70);
+  doc.text(INSTITUICAO.nome, pageWidth / 2, y + 12, { align: 'center' });
+  doc.setFontSize(7);
+  doc.text(`CNPJ: ${INSTITUICAO.cnpj} | ${INSTITUICAO.endereco}`, pageWidth / 2, y + 17, { align: 'center' });
+  
+  const logoIdjuvWidth = logoHeight * 1.0;
+  try {
+    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth, y + 1, logoIdjuvWidth, logoHeight);
+  } catch (e) {
+    console.warn('Logo IDJuv não carregado');
+  }
+
+  y += headerHeight;
+
+  doc.setDrawColor(0, 68, 68);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 4;
+
+  // ===== IDENTIFICAÇÃO DO SERVIDOR =====
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(margin, y, contentWidth, 18, 2, 2, 'F');
+  doc.setDrawColor(220, 225, 230);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(margin, y, contentWidth, 18, 2, 2, 'S');
+
+  const col1 = margin + 4;
+  const col2 = margin + contentWidth / 2;
+  
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('SERVIDOR:', col1, y + 5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(srv.nome_completo || '-', col1 + 22, y + 5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('COMPETÊNCIA:', col2, y + 5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(competencia, col2 + 30, y + 5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('Matrícula:', col1, y + 10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(srv.matricula || '-', col1 + 18, y + 10);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('Cargo:', col1 + 45, y + 10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(srv.cargo || '-', col1 + 58, y + 10);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('Unidade:', col2, y + 10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(srv.unidade || '-', col2 + 17, y + 10);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('Regime:', col1, y + 15);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(srv.regime || 'Presencial', col1 + 15, y + 15);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('Jornada:', col1 + 50, y + 15);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(`${srv.carga_horaria_diaria || 8}h/dia | ${srv.carga_horaria_semanal || 40}h/sem`, col1 + 66, y + 15);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('Local:', col2, y + 15);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(srv.local_exercicio || srv.unidade || '-', col2 + 12, y + 15);
+
+  y += 22;
+
+  // ===== TABELA DE FREQUÊNCIA =====
+  const assinaturasHeight = 38;
+  const rodapeHeight = 10;
+  const espacoDisponivel = pageHeight - y - assinaturasHeight - rodapeHeight;
+  
+  const headerTableHeight = 7;
+  const rowHeight = (espacoDisponivel - headerTableHeight) / ultimoDia;
+  
+  const colWidths = {
+    dia: 12,
+    diaSemana: 16,
+    tipo: 32,
+    entrada: 22,
+    saida: 22,
+    assinatura: contentWidth - 104,
+  };
+
+  doc.setFillColor(0, 68, 68);
+  doc.rect(margin, y, contentWidth, headerTableHeight, 'F');
+  
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  
+  let colX = margin;
+  doc.text('DIA', colX + colWidths.dia / 2, y + 4.5, { align: 'center' });
+  colX += colWidths.dia;
+  doc.text('SEMANA', colX + colWidths.diaSemana / 2, y + 4.5, { align: 'center' });
+  colX += colWidths.diaSemana;
+  doc.text('TIPO DO DIA', colX + colWidths.tipo / 2, y + 4.5, { align: 'center' });
+  colX += colWidths.tipo;
+  doc.text('ENTRADA', colX + colWidths.entrada / 2, y + 4.5, { align: 'center' });
+  colX += colWidths.entrada;
+  doc.text('SAÍDA', colX + colWidths.saida / 2, y + 4.5, { align: 'center' });
+  colX += colWidths.saida;
+  doc.text('ASSINATURA DO SERVIDOR', colX + colWidths.assinatura / 2, y + 4.5, { align: 'center' });
+
+  y += headerTableHeight;
+
+  registros.forEach((reg, idx) => {
+    const isNaoUtil = reg.situacao !== 'util';
+    const isWeekend = reg.situacao === 'sabado' || reg.situacao === 'domingo';
+    const isFeriado = reg.situacao === 'feriado' || reg.situacao === 'ponto_facultativo' || reg.situacao === 'recesso';
+    
+    if (isFeriado) {
+      doc.setFillColor(255, 245, 220);
+    } else if (isWeekend) {
+      doc.setFillColor(250, 248, 240);
+    } else if (idx % 2 === 0) {
+      doc.setFillColor(252, 253, 255);
+    } else {
+      doc.setFillColor(255, 255, 255);
+    }
+    doc.rect(margin, y, contentWidth, rowHeight, 'F');
+    
+    doc.setDrawColor(230, 232, 236);
+    doc.setLineWidth(0.1);
+    doc.rect(margin, y, contentWidth, rowHeight, 'S');
+
+    const diaNum = parseInt(reg.data.split('-')[2]);
+    const centerY = y + rowHeight / 2 + 1;
+    colX = margin;
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 68, 68);
+    doc.setFontSize(7);
+    doc.text(String(diaNum).padStart(2, '0'), colX + colWidths.dia / 2, centerY, { align: 'center' });
+    colX += colWidths.dia;
+    
+    doc.setFont('helvetica', 'normal');
+    if (isWeekend) {
+      doc.setTextColor(140, 110, 60);
+    } else {
+      doc.setTextColor(70, 75, 80);
+    }
+    doc.text(DIAS_SEMANA_SIGLA[reg.dia_semana], colX + colWidths.diaSemana / 2, centerY, { align: 'center' });
+    colX += colWidths.diaSemana;
+    
+    const tipoLabel = getTipoDiaAbrev(reg.situacao, reg.tipo_registro);
+    if (reg.tipo_registro === 'falta') {
+      doc.setTextColor(180, 50, 50);
+      doc.setFont('helvetica', 'bold');
+    } else if (isNaoUtil) {
+      doc.setTextColor(150, 120, 50);
+      doc.setFont('helvetica', 'italic');
+    } else {
+      doc.setTextColor(100, 105, 110);
+      doc.setFont('helvetica', 'normal');
+    }
+    doc.text(tipoLabel, colX + colWidths.tipo / 2, centerY, { align: 'center' });
+    colX += colWidths.tipo;
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(50, 55, 60);
+    if (data.tipo === 'em_branco' && reg.situacao === 'util' && !reg.tipo_registro) {
+      doc.setDrawColor(180, 185, 190);
+      doc.setLineWidth(0.2);
+      doc.line(colX + 3, centerY, colX + colWidths.entrada - 3, centerY);
+    } else if (isNaoUtil) {
+      doc.setTextColor(180, 180, 180);
+      doc.text('—', colX + colWidths.entrada / 2, centerY, { align: 'center' });
+    } else {
+      doc.text(reg.entrada || '—', colX + colWidths.entrada / 2, centerY, { align: 'center' });
+    }
+    colX += colWidths.entrada;
+    
+    if (data.tipo === 'em_branco' && reg.situacao === 'util' && !reg.tipo_registro) {
+      doc.setDrawColor(180, 185, 190);
+      doc.setLineWidth(0.2);
+      doc.line(colX + 3, centerY, colX + colWidths.saida - 3, centerY);
+    } else if (isNaoUtil) {
+      doc.setTextColor(180, 180, 180);
+      doc.text('—', colX + colWidths.saida / 2, centerY, { align: 'center' });
+    } else {
+      doc.text(reg.saida || '—', colX + colWidths.saida / 2, centerY, { align: 'center' });
+    }
+    colX += colWidths.saida;
+    
+    if (reg.situacao === 'util' && !reg.tipo_registro) {
+      doc.setDrawColor(200, 205, 210);
+      doc.setLineWidth(0.15);
+      doc.line(colX + 8, centerY, colX + colWidths.assinatura - 8, centerY);
+    }
+
+    y += rowHeight;
+  });
+
+  // ===== BLOCO DE ASSINATURAS =====
+  y += 3;
+  
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(margin, y, contentWidth, 10, 1.5, 1.5, 'F');
+  doc.setDrawColor(210, 215, 220);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(margin, y, contentWidth, 10, 1.5, 1.5, 'S');
+  
+  doc.setTextColor(60, 65, 70);
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'italic');
+  doc.text(
+    'Declaro, para os devidos fins, que as informações constantes nesta folha correspondem à minha efetiva jornada de trabalho no período de referência.',
+    pageWidth / 2, y + 6, { align: 'center', maxWidth: contentWidth - 10 }
+  );
+  
+  y += 14;
+  
+  const assWidth = (contentWidth - 20) / 2;
+  
+  doc.setDrawColor(0, 68, 68);
+  doc.setLineWidth(0.4);
+  doc.line(margin + 5, y + 10, margin + 5 + assWidth, y + 10);
+  doc.setTextColor(0, 68, 68);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.text('ASSINATURA DO SERVIDOR', margin + 5 + assWidth / 2, y + 14, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6);
+  doc.setTextColor(100, 105, 110);
+  doc.text(srv.nome_completo || '', margin + 5 + assWidth / 2, y + 18, { align: 'center' });
+  
+  doc.setDrawColor(0, 68, 68);
+  doc.line(margin + 15 + assWidth, y + 10, margin + 15 + assWidth * 2, y + 10);
+  doc.setTextColor(0, 68, 68);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.text('ASSINATURA DA CHEFIA IMEDIATA', margin + 15 + assWidth + assWidth / 2, y + 14, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6);
+  doc.setTextColor(100, 105, 110);
+  doc.text(data.configAssinatura?.nome_chefia || '', margin + 15 + assWidth + assWidth / 2, y + 18, { align: 'center' });
+
+  // ===== RODAPÉ =====
+  doc.setDrawColor(220, 225, 230);
+  doc.setLineWidth(0.3);
+  doc.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
+  
+  doc.setTextColor(130, 135, 140);
+  doc.setFontSize(6);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Gerado em: ${data.dataGeracao}`, margin, pageHeight - 6);
+  doc.text(`${INSTITUICAO.sigla} - Sistema de Gestão de Pessoas`, pageWidth / 2, pageHeight - 6, { align: 'center' });
+  doc.text('Página 1 de 1', pageWidth - margin, pageHeight - 6, { align: 'right' });
+
+  const nome = srv.nome_completo.replace(/\s+/g, '_').substring(0, 20);
+  const sufixo = data.tipo === 'em_branco' ? '_BRANCO' : '';
+  const nomeArquivo = `Frequencia_${nome}_${String(data.competencia.mes).padStart(2, '0')}-${data.competencia.ano}${sufixo}.pdf`;
+  
+  return { doc, nomeArquivo };
 };
 
 // ============================================

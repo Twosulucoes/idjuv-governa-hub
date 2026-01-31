@@ -3684,6 +3684,88 @@ export type Database = {
           },
         ]
       }
+      frequencia_arquivos: {
+        Row: {
+          ano: number
+          arquivo_nome: string
+          arquivo_path: string
+          arquivo_tamanho: number | null
+          created_at: string
+          created_by: string | null
+          hash_conteudo: string | null
+          id: string
+          mes: number
+          periodo: string
+          servidor_id: string | null
+          servidor_matricula: string | null
+          servidor_nome: string | null
+          tipo: string
+          unidade_id: string | null
+          unidade_nome: string | null
+          unidade_sigla: string | null
+        }
+        Insert: {
+          ano: number
+          arquivo_nome: string
+          arquivo_path: string
+          arquivo_tamanho?: number | null
+          created_at?: string
+          created_by?: string | null
+          hash_conteudo?: string | null
+          id?: string
+          mes: number
+          periodo: string
+          servidor_id?: string | null
+          servidor_matricula?: string | null
+          servidor_nome?: string | null
+          tipo?: string
+          unidade_id?: string | null
+          unidade_nome?: string | null
+          unidade_sigla?: string | null
+        }
+        Update: {
+          ano?: number
+          arquivo_nome?: string
+          arquivo_path?: string
+          arquivo_tamanho?: number | null
+          created_at?: string
+          created_by?: string | null
+          hash_conteudo?: string | null
+          id?: string
+          mes?: number
+          periodo?: string
+          servidor_id?: string | null
+          servidor_matricula?: string | null
+          servidor_nome?: string | null
+          tipo?: string
+          unidade_id?: string | null
+          unidade_nome?: string | null
+          unidade_sigla?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "frequencia_arquivos_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "frequencia_arquivos_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "frequencia_arquivos_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       frequencia_fechamento: {
         Row: {
           ano: number
@@ -3845,6 +3927,93 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      frequencia_pacotes: {
+        Row: {
+          agrupamento_id: string | null
+          agrupamento_nome: string | null
+          ano: number
+          arquivo_nome: string | null
+          arquivo_path: string | null
+          arquivo_tamanho: number | null
+          created_at: string
+          created_by: string | null
+          erro_mensagem: string | null
+          gerado_em: string | null
+          id: string
+          link_download: string | null
+          link_expira_em: string | null
+          mes: number
+          periodo: string
+          status: string
+          tipo: string
+          total_arquivos: number | null
+          unidade_id: string | null
+          unidade_nome: string | null
+          updated_at: string
+        }
+        Insert: {
+          agrupamento_id?: string | null
+          agrupamento_nome?: string | null
+          ano: number
+          arquivo_nome?: string | null
+          arquivo_path?: string | null
+          arquivo_tamanho?: number | null
+          created_at?: string
+          created_by?: string | null
+          erro_mensagem?: string | null
+          gerado_em?: string | null
+          id?: string
+          link_download?: string | null
+          link_expira_em?: string | null
+          mes: number
+          periodo: string
+          status?: string
+          tipo?: string
+          total_arquivos?: number | null
+          unidade_id?: string | null
+          unidade_nome?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agrupamento_id?: string | null
+          agrupamento_nome?: string | null
+          ano?: number
+          arquivo_nome?: string | null
+          arquivo_path?: string | null
+          arquivo_tamanho?: number | null
+          created_at?: string
+          created_by?: string | null
+          erro_mensagem?: string | null
+          gerado_em?: string | null
+          id?: string
+          link_download?: string | null
+          link_expira_em?: string | null
+          mes?: number
+          periodo?: string
+          status?: string
+          tipo?: string
+          total_arquivos?: number | null
+          unidade_id?: string | null
+          unidade_nome?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "frequencia_pacotes_agrupamento_id_fkey"
+            columns: ["agrupamento_id"]
+            isOneToOne: false
+            referencedRelation: "config_agrupamento_unidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "frequencia_pacotes_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
             referencedColumns: ["id"]
           },
         ]
@@ -8407,6 +8576,7 @@ export type Database = {
         Returns: undefined
       }
       gerar_codigo_pre_cadastro: { Args: never; Returns: string }
+      gerar_link_frequencia: { Args: never; Returns: string }
       gerar_numero_portaria: { Args: { p_ano?: number }; Returns: string }
       gerar_protocolo_cedencia: {
         Args: { p_unidade_id: string }
