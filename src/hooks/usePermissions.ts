@@ -6,9 +6,9 @@
 
 import { useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { PermissionCode, PermissaoUsuario, MODULE_PERMISSIONS } from '@/types/auth';
+import { PermissionCode, PermissaoUsuario, MODULE_PERMISSIONS, ROLE_LABELS, AppRole } from '@/types/auth';
 
-interface UsePermissionsReturn {
+export interface UsePermissionsReturn {
   // Dados do usuário
   user: ReturnType<typeof useAuth>['user'];
   isLoading: boolean;
@@ -29,6 +29,21 @@ interface UsePermissionsReturn {
   
   // Verificações rápidas
   isSuperAdmin: boolean;
+  
+  // ============================================
+  // COMPATIBILIDADE LEGADA
+  // ============================================
+  // @deprecated - Use isSuperAdmin e verificações de permissão
+  isAdmin: boolean;
+  isManager: boolean;
+  getUserRoleLabel: () => string;
+  
+  // @deprecated - Use hasPermission com permissões específicas
+  canManageUsers: boolean;
+  canManageContent: boolean;
+  canManageReports: boolean;
+  canManageSettings: boolean;
+  canManageProcesses: boolean;
   
   // Permissões agrupadas por módulo
   canAccessAdmin: boolean;
@@ -97,6 +112,60 @@ export const usePermissions = (): UsePermissionsReturn => {
     
     return Array.from(modulos);
   }, [isSuperAdmin, getUserPermissions]);
+
+  // ============================================
+  // COMPATIBILIDADE LEGADA
+  // ============================================
+  
+  // Simular isAdmin baseado em permissões (super_admin ou acesso admin)
+  const isAdmin = useMemo(() => 
+    isSuperAdmin || hasModuleAccess('admin'),
+    [isSuperAdmin, hasModuleAccess]
+  );
+
+  // Simular isManager (quem tem acesso a aprovações ou gerência)
+  const isManager = useMemo(() => 
+    isSuperAdmin || hasModuleAccess('aprovacoes') || hasAnyPermission(['rh.gerenciar', 'governanca.gerenciar']),
+    [isSuperAdmin, hasModuleAccess, hasAnyPermission]
+  );
+
+  // Obter label do "role" baseado em permissões
+  const getUserRoleLabel = useCallback((): string => {
+    if (isSuperAdmin) return 'Super Administrador';
+    if (hasModuleAccess('admin')) return 'Administrador';
+    if (hasModuleAccess('aprovacoes')) return 'Gerente';
+    if (hasModuleAccess('rh')) return 'Recursos Humanos';
+    if (hasModuleAccess('governanca')) return 'Governança';
+    if (hasModuleAccess('financeiro')) return 'Financeiro';
+    if (hasModuleAccess('ascom')) return 'ASCOM';
+    return 'Usuário';
+  }, [isSuperAdmin, hasModuleAccess]);
+
+  // Verificações legadas de gerenciamento
+  const canManageUsers = useMemo(() => 
+    hasAnyPermission(['admin.usuarios', 'admin.usuarios.criar', 'admin.usuarios.editar', 'admin.usuarios.excluir']),
+    [hasAnyPermission]
+  );
+
+  const canManageContent = useMemo(() => 
+    hasAnyPermission(['governanca.documentos.criar', 'governanca.documentos.editar', 'governanca.portarias.criar']),
+    [hasAnyPermission]
+  );
+
+  const canManageReports = useMemo(() => 
+    hasAnyPermission(['rh.relatorios.visualizar', 'governanca.relatorios.visualizar', 'financeiro.relatorios', 'rh.exportar']),
+    [hasAnyPermission]
+  );
+
+  const canManageSettings = useMemo(() => 
+    hasAnyPermission(['admin.configuracoes', 'admin.perfis', 'admin.perfis.gerenciar']),
+    [hasAnyPermission]
+  );
+
+  const canManageProcesses = useMemo(() => 
+    hasModuleAccess('processos') || hasAnyPermission(['aprovacoes.aprovar', 'aprovacoes.rejeitar']),
+    [hasModuleAccess, hasAnyPermission]
+  );
 
   // ============================================
   // VERIFICAÇÕES DE ACESSO A MÓDULOS
@@ -197,6 +266,16 @@ export const usePermissions = (): UsePermissionsReturn => {
     getUserPermissions,
     getPermissoesDetalhadas,
     getModulosAcessiveis,
+    // Legado
+    isAdmin,
+    isManager,
+    getUserRoleLabel,
+    canManageUsers,
+    canManageContent,
+    canManageReports,
+    canManageSettings,
+    canManageProcesses,
+    // Módulos
     canAccessAdmin,
     canAccessRH,
     canAccessGovernanca,
@@ -206,6 +285,7 @@ export const usePermissions = (): UsePermissionsReturn => {
     canAccessUnidades,
     canAccessProcessos,
     canAccessAprovacoes,
+    // Ações
     canCreateServidores,
     canEditServidores,
     canDeleteServidores,

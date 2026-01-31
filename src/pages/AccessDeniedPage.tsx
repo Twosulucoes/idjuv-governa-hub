@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShieldX, ArrowLeft, Home, LogIn } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { ROLE_LABELS } from '@/types/auth';
+// Legacy ROLE_LABELS removed - using permission-based access
 
 const AccessDeniedPage: React.FC = () => {
   const navigate = useNavigate();
@@ -47,7 +47,7 @@ const AccessDeniedPage: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Nível de acesso:</span>
-                  <span className="font-medium text-foreground">{ROLE_LABELS[user.role]}</span>
+                  <span className="font-medium text-foreground">{user.isSuperAdmin ? 'Super Administrador' : 'Usuário'}</span>
                 </div>
               </>
             )}

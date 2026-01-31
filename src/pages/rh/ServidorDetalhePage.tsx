@@ -56,8 +56,8 @@ import { HistoricoFuncionalTab } from "@/components/rh/HistoricoFuncionalTab";
 export default function ServidorDetalheePage() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'ti_admin' || user?.role === 'presidencia';
+  const { user, isSuperAdmin, hasAnyPermission } = useAuth();
+  const isAdmin = isSuperAdmin || hasAnyPermission(['admin', 'rh.servidores.editar']);
 
   // Fetch servidor
   const { data: servidor, isLoading } = useQuery({

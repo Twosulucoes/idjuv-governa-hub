@@ -204,9 +204,9 @@ export default function ServidorFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, isSuperAdmin, hasAnyPermission } = useAuth();
   const isEditing = !!id;
-  const isAdmin = user?.role === 'admin' || user?.role === 'ti_admin' || user?.role === 'presidencia';
+  const isAdmin = isSuperAdmin || hasAnyPermission(['admin', 'rh.servidores.editar']);
 
   const [formData, setFormData] = useState<FormData>(initialFormData);
 
