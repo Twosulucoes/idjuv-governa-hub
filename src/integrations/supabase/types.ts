@@ -1032,6 +1032,54 @@ export type Database = {
           },
         ]
       }
+      config_assinatura_frequencia: {
+        Row: {
+          assinatura_chefia_obrigatoria: boolean | null
+          assinatura_rh_obrigatoria: boolean | null
+          assinatura_servidor_obrigatoria: boolean | null
+          ativo: boolean | null
+          created_at: string | null
+          id: string
+          nome: string
+          ordem_assinaturas: string[] | null
+          padrao: boolean | null
+          quem_valida_final: string | null
+          texto_declaracao: string | null
+          tipo_assinatura: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          assinatura_chefia_obrigatoria?: boolean | null
+          assinatura_rh_obrigatoria?: boolean | null
+          assinatura_servidor_obrigatoria?: boolean | null
+          ativo?: boolean | null
+          created_at?: string | null
+          id?: string
+          nome: string
+          ordem_assinaturas?: string[] | null
+          padrao?: boolean | null
+          quem_valida_final?: string | null
+          texto_declaracao?: string | null
+          tipo_assinatura?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          assinatura_chefia_obrigatoria?: boolean | null
+          assinatura_rh_obrigatoria?: boolean | null
+          assinatura_servidor_obrigatoria?: boolean | null
+          ativo?: boolean | null
+          created_at?: string | null
+          id?: string
+          nome?: string
+          ordem_assinaturas?: string[] | null
+          padrao?: boolean | null
+          quem_valida_final?: string | null
+          texto_declaracao?: string | null
+          tipo_assinatura?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       config_assinatura_reuniao: {
         Row: {
           ativo: boolean | null
@@ -1201,6 +1249,268 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      config_compensacao: {
+        Row: {
+          aplicar_a_todos: boolean | null
+          ativo: boolean | null
+          compensacao_automatica: boolean | null
+          compensacao_manual: boolean | null
+          created_at: string | null
+          created_by: string | null
+          exibe_na_frequencia: boolean | null
+          exibe_na_impressao: boolean | null
+          id: string
+          limite_acumulo_horas: number | null
+          limite_horas_extras_dia: number | null
+          limite_horas_extras_mes: number | null
+          nome: string
+          padrao: boolean | null
+          permite_banco_horas: boolean | null
+          prazo_compensar_dias: number | null
+          quem_autoriza: string | null
+          unidade_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          aplicar_a_todos?: boolean | null
+          ativo?: boolean | null
+          compensacao_automatica?: boolean | null
+          compensacao_manual?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          exibe_na_frequencia?: boolean | null
+          exibe_na_impressao?: boolean | null
+          id?: string
+          limite_acumulo_horas?: number | null
+          limite_horas_extras_dia?: number | null
+          limite_horas_extras_mes?: number | null
+          nome: string
+          padrao?: boolean | null
+          permite_banco_horas?: boolean | null
+          prazo_compensar_dias?: number | null
+          quem_autoriza?: string | null
+          unidade_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          aplicar_a_todos?: boolean | null
+          ativo?: boolean | null
+          compensacao_automatica?: boolean | null
+          compensacao_manual?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          exibe_na_frequencia?: boolean | null
+          exibe_na_impressao?: boolean | null
+          id?: string
+          limite_acumulo_horas?: number | null
+          limite_horas_extras_dia?: number | null
+          limite_horas_extras_mes?: number | null
+          nome?: string
+          padrao?: boolean | null
+          permite_banco_horas?: boolean | null
+          prazo_compensar_dias?: number | null
+          quem_autoriza?: string | null
+          unidade_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_compensacao_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      config_fechamento_frequencia: {
+        Row: {
+          ano: number
+          chefia_pode_fechar: boolean | null
+          consolidado_em: string | null
+          consolidado_por: string | null
+          created_at: string | null
+          data_limite_chefia: string | null
+          data_limite_rh: string | null
+          data_limite_servidor: string | null
+          fechado_em: string | null
+          fechado_por: string | null
+          id: string
+          mes: number
+          permite_reabertura: boolean | null
+          prazo_reabertura_dias: number | null
+          reabertura_exige_justificativa: boolean | null
+          rh_pode_fechar: boolean | null
+          servidor_pode_fechar: boolean | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ano: number
+          chefia_pode_fechar?: boolean | null
+          consolidado_em?: string | null
+          consolidado_por?: string | null
+          created_at?: string | null
+          data_limite_chefia?: string | null
+          data_limite_rh?: string | null
+          data_limite_servidor?: string | null
+          fechado_em?: string | null
+          fechado_por?: string | null
+          id?: string
+          mes: number
+          permite_reabertura?: boolean | null
+          prazo_reabertura_dias?: number | null
+          reabertura_exige_justificativa?: boolean | null
+          rh_pode_fechar?: boolean | null
+          servidor_pode_fechar?: boolean | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ano?: number
+          chefia_pode_fechar?: boolean | null
+          consolidado_em?: string | null
+          consolidado_por?: string | null
+          created_at?: string | null
+          data_limite_chefia?: string | null
+          data_limite_rh?: string | null
+          data_limite_servidor?: string | null
+          fechado_em?: string | null
+          fechado_por?: string | null
+          id?: string
+          mes?: number
+          permite_reabertura?: boolean | null
+          prazo_reabertura_dias?: number | null
+          reabertura_exige_justificativa?: boolean | null
+          rh_pode_fechar?: boolean | null
+          servidor_pode_fechar?: boolean | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      config_jornada_padrao: {
+        Row: {
+          ativo: boolean | null
+          banco_tolerancia_diario: boolean | null
+          banco_tolerancia_mensal: boolean | null
+          carga_horaria_diaria: number
+          carga_horaria_semanal: number
+          cargo_id: string | null
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          entrada_manha: string | null
+          entrada_tarde: string | null
+          escopo: string | null
+          id: string
+          intervalo_maximo: number | null
+          intervalo_minimo: number | null
+          intervalo_obrigatorio: boolean | null
+          intervalo_remunerado: boolean | null
+          nome: string
+          padrao: boolean | null
+          saida_manha: string | null
+          saida_tarde: string | null
+          servidor_id: string | null
+          tolerancia_atraso: number | null
+          tolerancia_intervalo: number | null
+          tolerancia_saida_antecipada: number | null
+          unidade_id: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          banco_tolerancia_diario?: boolean | null
+          banco_tolerancia_mensal?: boolean | null
+          carga_horaria_diaria?: number
+          carga_horaria_semanal?: number
+          cargo_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          entrada_manha?: string | null
+          entrada_tarde?: string | null
+          escopo?: string | null
+          id?: string
+          intervalo_maximo?: number | null
+          intervalo_minimo?: number | null
+          intervalo_obrigatorio?: boolean | null
+          intervalo_remunerado?: boolean | null
+          nome: string
+          padrao?: boolean | null
+          saida_manha?: string | null
+          saida_tarde?: string | null
+          servidor_id?: string | null
+          tolerancia_atraso?: number | null
+          tolerancia_intervalo?: number | null
+          tolerancia_saida_antecipada?: number | null
+          unidade_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          banco_tolerancia_diario?: boolean | null
+          banco_tolerancia_mensal?: boolean | null
+          carga_horaria_diaria?: number
+          carga_horaria_semanal?: number
+          cargo_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          entrada_manha?: string | null
+          entrada_tarde?: string | null
+          escopo?: string | null
+          id?: string
+          intervalo_maximo?: number | null
+          intervalo_minimo?: number | null
+          intervalo_obrigatorio?: boolean | null
+          intervalo_remunerado?: boolean | null
+          nome?: string
+          padrao?: boolean | null
+          saida_manha?: string | null
+          saida_tarde?: string | null
+          servidor_id?: string | null
+          tolerancia_atraso?: number | null
+          tolerancia_intervalo?: number | null
+          tolerancia_saida_antecipada?: number | null
+          unidade_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_jornada_padrao_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_jornada_padrao_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_jornada_padrao_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_jornada_padrao_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
             referencedColumns: ["id"]
           },
         ]
@@ -2134,6 +2444,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      dias_nao_uteis: {
+        Row: {
+          abrangencia: string | null
+          ativo: boolean | null
+          conta_frequencia: boolean | null
+          created_at: string | null
+          created_by: string | null
+          data: string
+          dia_recorrente: number | null
+          exige_compensacao: boolean | null
+          horas_expediente: number | null
+          id: string
+          mes_recorrente: number | null
+          nome: string
+          observacao: string | null
+          recorrente: boolean | null
+          tipo: string
+          unidades_aplicaveis: string[] | null
+        }
+        Insert: {
+          abrangencia?: string | null
+          ativo?: boolean | null
+          conta_frequencia?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          data: string
+          dia_recorrente?: number | null
+          exige_compensacao?: boolean | null
+          horas_expediente?: number | null
+          id?: string
+          mes_recorrente?: number | null
+          nome: string
+          observacao?: string | null
+          recorrente?: boolean | null
+          tipo: string
+          unidades_aplicaveis?: string[] | null
+        }
+        Update: {
+          abrangencia?: string | null
+          ativo?: boolean | null
+          conta_frequencia?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          data?: string
+          dia_recorrente?: number | null
+          exige_compensacao?: boolean | null
+          horas_expediente?: number | null
+          id?: string
+          mes_recorrente?: number | null
+          nome?: string
+          observacao?: string | null
+          recorrente?: boolean | null
+          tipo?: string
+          unidades_aplicaveis?: string[] | null
+        }
+        Relationships: []
       }
       documentos: {
         Row: {
@@ -3238,6 +3605,87 @@ export type Database = {
             columns: ["reaberto_por"]
             isOneToOne: false
             referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      frequencia_fechamento: {
+        Row: {
+          ano: number
+          assinado_servidor: boolean | null
+          assinado_servidor_em: string | null
+          consolidado_rh: boolean | null
+          consolidado_rh_em: string | null
+          consolidado_rh_por: string | null
+          created_at: string | null
+          id: string
+          justificativa_reabertura: string | null
+          mes: number
+          observacoes: string | null
+          reaberto: boolean | null
+          reaberto_em: string | null
+          reaberto_por: string | null
+          servidor_id: string
+          updated_at: string | null
+          validado_chefia: boolean | null
+          validado_chefia_em: string | null
+          validado_chefia_por: string | null
+        }
+        Insert: {
+          ano: number
+          assinado_servidor?: boolean | null
+          assinado_servidor_em?: string | null
+          consolidado_rh?: boolean | null
+          consolidado_rh_em?: string | null
+          consolidado_rh_por?: string | null
+          created_at?: string | null
+          id?: string
+          justificativa_reabertura?: string | null
+          mes: number
+          observacoes?: string | null
+          reaberto?: boolean | null
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          servidor_id: string
+          updated_at?: string | null
+          validado_chefia?: boolean | null
+          validado_chefia_em?: string | null
+          validado_chefia_por?: string | null
+        }
+        Update: {
+          ano?: number
+          assinado_servidor?: boolean | null
+          assinado_servidor_em?: string | null
+          consolidado_rh?: boolean | null
+          consolidado_rh_em?: string | null
+          consolidado_rh_por?: string | null
+          created_at?: string | null
+          id?: string
+          justificativa_reabertura?: string | null
+          mes?: number
+          observacoes?: string | null
+          reaberto?: boolean | null
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          servidor_id?: string
+          updated_at?: string | null
+          validado_chefia?: boolean | null
+          validado_chefia_em?: string | null
+          validado_chefia_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "frequencia_fechamento_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "frequencia_fechamento_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
         ]
@@ -5603,6 +6051,66 @@ export type Database = {
           },
         ]
       }
+      regimes_trabalho: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          dias_trabalho: number[] | null
+          exige_assinatura_servidor: boolean | null
+          exige_foto: boolean | null
+          exige_localizacao: boolean | null
+          exige_registro_ponto: boolean | null
+          exige_validacao_chefia: boolean | null
+          id: string
+          nome: string
+          padrao_escala: string | null
+          permite_ponto_remoto: boolean | null
+          tipo: string
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          dias_trabalho?: number[] | null
+          exige_assinatura_servidor?: boolean | null
+          exige_foto?: boolean | null
+          exige_localizacao?: boolean | null
+          exige_registro_ponto?: boolean | null
+          exige_validacao_chefia?: boolean | null
+          id?: string
+          nome: string
+          padrao_escala?: string | null
+          permite_ponto_remoto?: boolean | null
+          tipo: string
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          dias_trabalho?: number[] | null
+          exige_assinatura_servidor?: boolean | null
+          exige_foto?: boolean | null
+          exige_localizacao?: boolean | null
+          exige_registro_ponto?: boolean | null
+          exige_validacao_chefia?: boolean | null
+          id?: string
+          nome?: string
+          padrao_escala?: string | null
+          permite_ponto_remoto?: boolean | null
+          tipo?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       registros_ponto: {
         Row: {
           aprovado: boolean | null
@@ -6190,6 +6698,83 @@ export type Database = {
           },
         ]
       }
+      servidor_regime: {
+        Row: {
+          ativo: boolean | null
+          carga_horaria_customizada: number | null
+          created_at: string | null
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string
+          dias_trabalho_customizados: number[] | null
+          id: string
+          jornada_id: string | null
+          observacoes: string | null
+          regime_id: string
+          servidor_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          carga_horaria_customizada?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          dias_trabalho_customizados?: number[] | null
+          id?: string
+          jornada_id?: string | null
+          observacoes?: string | null
+          regime_id: string
+          servidor_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          carga_horaria_customizada?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          dias_trabalho_customizados?: number[] | null
+          id?: string
+          jornada_id?: string | null
+          observacoes?: string | null
+          regime_id?: string
+          servidor_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "servidor_regime_jornada_id_fkey"
+            columns: ["jornada_id"]
+            isOneToOne: false
+            referencedRelation: "config_jornada_padrao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servidor_regime_regime_id_fkey"
+            columns: ["regime_id"]
+            isOneToOne: false
+            referencedRelation: "regimes_trabalho"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servidor_regime_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servidor_regime_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       servidores: {
         Row: {
           acumula_cargo: boolean | null
@@ -6510,6 +7095,91 @@ export type Database = {
             columns: ["unidade_atual_id"]
             isOneToOne: false
             referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitacoes_abono: {
+        Row: {
+          aprovado_chefia_em: string | null
+          aprovado_chefia_por: string | null
+          aprovado_rh_em: string | null
+          aprovado_rh_por: string | null
+          created_at: string | null
+          created_by: string | null
+          data_fim: string
+          data_inicio: string
+          documento_url: string | null
+          hora_fim: string | null
+          hora_inicio: string | null
+          id: string
+          justificativa: string
+          motivo_rejeicao: string | null
+          servidor_id: string
+          status: string | null
+          tipo_abono_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          aprovado_chefia_em?: string | null
+          aprovado_chefia_por?: string | null
+          aprovado_rh_em?: string | null
+          aprovado_rh_por?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_fim: string
+          data_inicio: string
+          documento_url?: string | null
+          hora_fim?: string | null
+          hora_inicio?: string | null
+          id?: string
+          justificativa: string
+          motivo_rejeicao?: string | null
+          servidor_id: string
+          status?: string | null
+          tipo_abono_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          aprovado_chefia_em?: string | null
+          aprovado_chefia_por?: string | null
+          aprovado_rh_em?: string | null
+          aprovado_rh_por?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_fim?: string
+          data_inicio?: string
+          documento_url?: string | null
+          hora_fim?: string | null
+          hora_inicio?: string | null
+          id?: string
+          justificativa?: string
+          motivo_rejeicao?: string | null
+          servidor_id?: string
+          status?: string | null
+          tipo_abono_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacoes_abono_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_abono_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_abono_tipo_abono_id_fkey"
+            columns: ["tipo_abono_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_abono"
             referencedColumns: ["id"]
           },
         ]
@@ -6888,6 +7558,63 @@ export type Database = {
             referencedColumns: ["unidade_id"]
           },
         ]
+      }
+      tipos_abono: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          conta_como_presenca: boolean | null
+          created_at: string | null
+          descricao: string | null
+          exige_aprovacao_chefia: boolean | null
+          exige_aprovacao_rh: boolean | null
+          exige_documento: boolean | null
+          id: string
+          impacto_horas: string | null
+          max_horas_dia: number | null
+          max_ocorrencias_mes: number | null
+          nome: string
+          ordem: number | null
+          tipos_documento_aceitos: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          conta_como_presenca?: boolean | null
+          created_at?: string | null
+          descricao?: string | null
+          exige_aprovacao_chefia?: boolean | null
+          exige_aprovacao_rh?: boolean | null
+          exige_documento?: boolean | null
+          id?: string
+          impacto_horas?: string | null
+          max_horas_dia?: number | null
+          max_ocorrencias_mes?: number | null
+          nome: string
+          ordem?: number | null
+          tipos_documento_aceitos?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          conta_como_presenca?: boolean | null
+          created_at?: string | null
+          descricao?: string | null
+          exige_aprovacao_chefia?: boolean | null
+          exige_aprovacao_rh?: boolean | null
+          exige_documento?: boolean | null
+          id?: string
+          impacto_horas?: string | null
+          max_horas_dia?: number | null
+          max_ocorrencias_mes?: number | null
+          nome?: string
+          ordem?: number | null
+          tipos_documento_aceitos?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       unidades_locais: {
         Row: {
