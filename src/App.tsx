@@ -65,6 +65,7 @@ import CentralPortariasPage from "./pages/rh/CentralPortariasPage";
 import DiagnosticoPendenciasServidoresPage from "./pages/rh/DiagnosticoPendenciasServidoresPage";
 import ExportacaoPlanilhaPage from "./pages/rh/ExportacaoPlanilhaPage";
 import AniversariantesPage from "./pages/rh/AniversariantesPage";
+import ControlePacotesFrequenciaPage from "./pages/rh/ControlePacotesFrequenciaPage";
 
 // Folha de Pagamento
 import ConfiguracaoFolhaPage from "./pages/folha/ConfiguracaoFolhaPage";
@@ -404,6 +405,11 @@ const App = () => (
               <Route path="/rh/aniversariantes" element={
                 <ProtectedRoute requiredPermissions="rh.servidores.visualizar">
                   <AniversariantesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/frequencia/pacotes" element={
+                <ProtectedRoute requiredPermissions="rh.frequencia.visualizar">
+                  <ControlePacotesFrequenciaPage />
                 </ProtectedRoute>
               } />
               

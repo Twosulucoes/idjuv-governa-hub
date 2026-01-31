@@ -27,6 +27,7 @@ import { toast } from "sonner";
 
 import { 
   generateFrequenciaMensalPDF, 
+  generateFrequenciaMensalBlob,
   gerarRegistrosDiariosBranco,
   calcularResumoMensal,
   type FrequenciaMensalPDFData,
@@ -34,6 +35,7 @@ import {
 } from "@/lib/pdfFrequenciaMensal";
 import { useDiasNaoUteis, useAssinaturaPadrao } from "@/hooks/useParametrizacoesFrequencia";
 import { useRegistrosPonto, useFrequenciaMensal, calcularDiasUteis } from "@/hooks/useFrequencia";
+import { useUploadFrequencia } from "@/hooks/useFrequenciaPacotes";
 import type { FrequenciaServidorResumo } from "@/hooks/useFrequencia";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -54,14 +56,18 @@ export function ImprimirFrequenciaDialog({
 }: ImprimirFrequenciaDialogProps) {
   const [tipo, setTipo] = useState<'em_branco' | 'preenchida'>('em_branco');
   const [gerando, setGerando] = useState(false);
+  const [salvarStorage, setSalvarStorage] = useState(true);
 
   const { user } = useAuth();
   const { data: diasNaoUteis } = useDiasNaoUteis(ano);
   const { data: configAssinatura } = useAssinaturaPadrao();
   const { data: registrosPonto } = useRegistrosPonto(servidor?.servidor_id, ano, mes);
   const { data: frequenciaMensal } = useFrequenciaMensal(servidor?.servidor_id, ano, mes);
+  const uploadFrequencia = useUploadFrequencia();
 
   if (!servidor) return null;
+
+  const periodo = `${ano}-${String(mes).padStart(2, '0')}`;
 
   const handleImprimir = async () => {
     setGerando(true);
@@ -131,9 +137,42 @@ export function ImprimirFrequenciaDialog({
         usuarioGeracao: user?.email || 'Sistema',
       };
 
-      await generateFrequenciaMensalPDF(pdfData);
+      // Gerar PDF
+      const { doc, nomeArquivo } = await generateFrequenciaMensalPDF(pdfData);
       
-      toast.success('PDF gerado com sucesso!');
+      // Salvar localmente
+      doc.save(nomeArquivo);
+
+      // Salvar no storage se habilitado
+      if (salvarStorage && tipo === 'preenchida') {
+        try {
+          const blob = doc.output('blob');
+          await uploadFrequencia.mutateAsync({
+            pdfBlob: blob,
+            periodo,
+            ano,
+            mes,
+            servidor: {
+              id: servidor.servidor_id,
+              nome: servidor.servidor_nome,
+              matricula: servidor.servidor_matricula,
+            },
+            unidade: {
+              id: '', // Unidade ID não disponível no resumo
+              nome: servidor.servidor_unidade || 'Sem Unidade',
+              sigla: undefined,
+            },
+            tipo: 'individual',
+          });
+          toast.success('PDF gerado e salvo no storage!');
+        } catch (uploadError) {
+          console.warn('Erro ao salvar no storage:', uploadError);
+          toast.success('PDF gerado! (Erro ao salvar no storage)');
+        }
+      } else {
+        toast.success('PDF gerado com sucesso!');
+      }
+      
       onOpenChange(false);
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
