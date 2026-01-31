@@ -202,12 +202,12 @@ export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData)
 
   // ===== CABEÇALHO COM LOGOS (28mm) =====
   const headerHeight = 24;
-  const logoHeight = 18;
+  const logoHeight = 15; // Altura elegante para ambas as logos
   
-  // Logo Governo (esquerda) - proporção ~2.5:1
-  const logoGovWidth = logoHeight * 2.5;
+  // Logo Governo (esquerda) - proporção original ~3.5:1 (retangular horizontal)
+  const logoGovWidth = logoHeight * 3.5;
   try {
-    doc.addImage(logoGoverno, 'JPEG', margin, y, logoGovWidth, logoHeight);
+    doc.addImage(logoGoverno, 'JPEG', margin, y + 1, logoGovWidth, logoHeight);
   } catch (e) {
     console.warn('Logo Governo não carregado');
   }
@@ -225,10 +225,10 @@ export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData)
   doc.setFontSize(7);
   doc.text(`CNPJ: ${INSTITUICAO.cnpj} | ${INSTITUICAO.endereco}`, pageWidth / 2, y + 17, { align: 'center' });
   
-  // Logo IDJuv (direita) - proporção ~1.2:1
-  const logoIdjuvWidth = logoHeight * 1.2;
+  // Logo IDJuv (direita) - proporção original ~1:1 (quadrada/levemente vertical)
+  const logoIdjuvWidth = logoHeight * 1.0;
   try {
-    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth, y, logoIdjuvWidth, logoHeight);
+    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth, y + 1, logoIdjuvWidth, logoHeight);
   } catch (e) {
     console.warn('Logo IDJuv não carregado');
   }
