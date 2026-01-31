@@ -105,7 +105,7 @@ export default function CentralAprovacoesPage() {
     const success = await approveRequest(
       selectedRequest.id,
       approvalDecision || 'Aprovado',
-      { name: user.fullName || user.email, role: user.role }
+      { name: user.fullName || user.email, role: user.isSuperAdmin ? 'Super Admin' : 'Aprovador' }
     );
 
     if (success) {
@@ -345,7 +345,7 @@ export default function CentralAprovacoesPage() {
             <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
               <p className="text-sm text-green-800 dark:text-green-200">
                 <strong>Assinatura Eletrônica:</strong><br />
-                {user?.fullName || user?.email} - {user?.role}<br />
+                {user?.fullName || user?.email} - {user?.isSuperAdmin ? 'Super Admin' : 'Aprovador'}<br />
                 {format(new Date(), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
               </p>
             </div>

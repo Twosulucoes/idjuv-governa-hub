@@ -258,12 +258,12 @@ const GerenciamentoUsuariosContent: React.FC = () => {
       if (editPermissions.length > 0) {
         const newPermissions = editPermissions.map(permission => ({
           user_id: editingUser.id,
-          permission
+          permission: permission as any // Cast para evitar erro de tipo estrito
         }));
 
         const { error: insertError } = await supabase
           .from('user_permissions')
-          .insert(newPermissions);
+          .insert(newPermissions as any);
 
         if (insertError) throw insertError;
       }
@@ -643,11 +643,11 @@ const GerenciamentoUsuariosContent: React.FC = () => {
                     </p>
                   </div>
 
-                  {Object.entries(PERMISSION_GROUPS).map(([group, permissions]) => (
+                  {Object.entries(PERMISSION_GROUPS as Record<string, string[]>).map(([group, permissions]) => (
                     <div key={group} className="space-y-2">
                       <Label className="text-sm font-medium capitalize">{group}</Label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {permissions.map(permission => (
+                        {(permissions as string[]).map(permission => (
                           <div 
                             key={permission}
                             className="flex items-center space-x-2 p-2 rounded border hover:bg-accent/50"

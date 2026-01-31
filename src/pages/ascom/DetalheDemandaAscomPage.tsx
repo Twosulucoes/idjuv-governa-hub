@@ -81,7 +81,7 @@ import {
 export default function DetalheDemandaAscomPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, hasAnyRole } = useAuth();
+  const { user, isSuperAdmin, hasAnyPermission } = useAuth();
   
   const {
     demandaAtual,
@@ -113,8 +113,8 @@ export default function DetalheDemandaAscomPage() {
     link_publicacao: ''
   });
 
-  const isAscom = hasAnyRole(['admin', 'ascom']);
-  const isPresidencia = hasAnyRole(['admin', 'presidencia']);
+  const isAscom = isSuperAdmin || hasAnyPermission(['ascom.demandas.tratar', 'ascom.demandas.visualizar']);
+  const isPresidencia = isSuperAdmin || hasAnyPermission(['aprovacoes.aprovar', 'aprovacoes.presidencia']);
 
   useEffect(() => {
     if (id) {

@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { AppRole, AppPermission } from '@/types/auth';
+import { PermissionCode } from '@/types/auth';
 import {
   Tooltip,
   TooltipContent,
@@ -16,11 +16,8 @@ import {
 interface DisabledWithPermissionProps {
   children: React.ReactElement;
   
-  // Roles permitidos
-  allowedRoles?: AppRole | AppRole[];
-  
   // Permissões requeridas
-  requiredPermissions?: AppPermission | AppPermission[];
+  requiredPermissions?: PermissionCode | PermissionCode[];
   
   // Modo de verificação
   permissionMode?: 'any' | 'all';
@@ -34,7 +31,6 @@ interface DisabledWithPermissionProps {
 
 export const DisabledWithPermission: React.FC<DisabledWithPermissionProps> = ({
   children,
-  allowedRoles,
   requiredPermissions,
   permissionMode = 'all',
   disabledMessage = 'Você não tem permissão para esta ação',
@@ -43,7 +39,7 @@ export const DisabledWithPermission: React.FC<DisabledWithPermissionProps> = ({
   const { 
     user, 
     isAuthenticated, 
-    hasAnyRole, 
+    isSuperAdmin,
     hasAnyPermission, 
     hasAllPermissions 
   } = useAuth();
@@ -54,14 +50,12 @@ export const DisabledWithPermission: React.FC<DisabledWithPermissionProps> = ({
 
   let hasAccess = isAuthenticated;
 
-  // Verificar roles
-  if (hasAccess && allowedRoles && user) {
-    const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
-    hasAccess = user.role === 'admin' || hasAnyRole(roles);
+  // Super admin tem acesso total
+  if (hasAccess && isSuperAdmin) {
+    hasAccess = true;
   }
-
   // Verificar permissões
-  if (hasAccess && requiredPermissions && user) {
+  else if (hasAccess && requiredPermissions && user) {
     const permissions = Array.isArray(requiredPermissions) ? requiredPermissions : [requiredPermissions];
     
     if (permissionMode === 'any') {
