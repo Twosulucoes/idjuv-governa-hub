@@ -33,8 +33,9 @@ const TIPOS_OCORRENCIA = [
   { value: "atestado", label: "Atestado Médico" },
   { value: "licenca", label: "Licença" },
   { value: "ferias", label: "Férias" },
-  { value: "abono", label: "Abono" },
-  { value: "folga", label: "Folga/Compensação" },
+  // No banco, o tipo é um ENUM (tipo_registro_ponto) e NÃO existe "abono".
+  // O equivalente funcional é "folga".
+  { value: "folga", label: "Abono / Folga / Compensação" },
 ];
 
 export function LancarFaltaDialog({ open, onOpenChange, servidor, ano, mes }: LancarFaltaDialogProps) {
