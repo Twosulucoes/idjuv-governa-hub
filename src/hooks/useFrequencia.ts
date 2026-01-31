@@ -333,7 +333,6 @@ export function useRecalcularFrequencia() {
             servidor_id,
             ano,
             mes,
-            dias_uteis: diasUteis,
             dias_trabalhados: diasTrabalhados,
             dias_falta: faltas,
             dias_atestado: atestados,
