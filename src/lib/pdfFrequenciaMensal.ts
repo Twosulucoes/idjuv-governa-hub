@@ -13,7 +13,7 @@ import type { DiaNaoUtil, StatusFechamento } from '@/types/frequencia';
 
 // Importar logos
 import logoGoverno from '@/assets/logo-governo-roraima.jpg';
-import logoIdjuv from '@/assets/logo-idjuv-dark4.png';
+import logoIdjuv from '@/assets/logo-idjuv-oficial.png';
 
 // ============================================
 // INTERFACES
@@ -202,11 +202,12 @@ export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData)
 
   // ===== CABEÇALHO COM LOGOS (28mm) =====
   const headerHeight = 24;
-  const logoHeight = 16;
+  const logoHeight = 18;
   
-  // Logo Governo (esquerda)
+  // Logo Governo (esquerda) - proporção ~2.5:1
+  const logoGovWidth = logoHeight * 2.5;
   try {
-    doc.addImage(logoGoverno, 'JPEG', margin, y, 28, logoHeight);
+    doc.addImage(logoGoverno, 'JPEG', margin, y, logoGovWidth, logoHeight);
   } catch (e) {
     console.warn('Logo Governo não carregado');
   }
@@ -224,9 +225,10 @@ export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData)
   doc.setFontSize(7);
   doc.text(`CNPJ: ${INSTITUICAO.cnpj} | ${INSTITUICAO.endereco}`, pageWidth / 2, y + 17, { align: 'center' });
   
-  // Logo IDJuv (direita)
+  // Logo IDJuv (direita) - proporção ~1.2:1
+  const logoIdjuvWidth = logoHeight * 1.2;
   try {
-    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - 22, y, 22, logoHeight);
+    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth, y, logoIdjuvWidth, logoHeight);
   } catch (e) {
     console.warn('Logo IDJuv não carregado');
   }
