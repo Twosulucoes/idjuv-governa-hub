@@ -11,9 +11,10 @@ import { DIAS_SEMANA_SIGLA } from '@/types/frequencia';
 import type { DiaNaoUtil } from '@/types/frequencia';
 import type { ServidorComSituacao } from '@/hooks/useServidoresPorUnidade';
 
-// Importar logos
+// Importar logos e utilitário
 import logoGoverno from '@/assets/logo-governo-roraima.jpg';
 import logoIdjuv from '@/assets/logo-idjuv-oficial.png';
+import { getLogosPDF, LOGO_CONFIG_PADRAO } from './pdfLogos';
 
 // ============================================
 // INTERFACES
@@ -209,19 +210,17 @@ interface CapaParams {
 function gerarCapaLote(doc: jsPDF, params: CapaParams) {
   const { unidade, competenciaStr, totalServidores, dataGeracao, usuarioGeracao, pageWidth, pageHeight, margin, contentWidth } = params;
 
-  // Logos no topo
-  const logoHeight = 20;
-  const logoGovWidth = logoHeight * 3.5;
-  const logoIdjuvWidth = logoHeight * 1.0;
+  // Logos no topo - mesma altura para ambos
+  const logos = getLogosPDF(18); // 18mm para capa (maior destaque)
   
   try {
-    doc.addImage(logoGoverno, 'JPEG', margin, margin, logoGovWidth, logoHeight);
-    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth, margin, logoIdjuvWidth, logoHeight);
+    doc.addImage(logoGoverno, 'JPEG', margin, margin, logos.governo.width, logos.governo.height);
+    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logos.idjuv.width, margin, logos.idjuv.width, logos.idjuv.height);
   } catch (e) {
     console.warn('Logos não carregados');
   }
 
-  let y = margin + logoHeight + 15;
+  let y = margin + logos.altura + 15;
 
   // Instituição
   doc.setTextColor(0, 68, 68);
@@ -342,13 +341,11 @@ function gerarPaginaServidor(doc: jsPDF, params: PaginaServidorParams) {
 
   // ===== CABEÇALHO COM LOGOS =====
   const headerHeight = 24;
-  const logoHeight = 15;
-  const logoGovWidth = logoHeight * 3.5;
-  const logoIdjuvWidth = logoHeight * 1.0;
+  const logos = getLogosPDF(14); // 14mm para páginas internas
 
   try {
-    doc.addImage(logoGoverno, 'JPEG', margin, y + 1, logoGovWidth, logoHeight);
-    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth, y + 1, logoIdjuvWidth, logoHeight);
+    doc.addImage(logoGoverno, 'JPEG', margin, y + 2, logos.governo.width, logos.governo.height);
+    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logos.idjuv.width, y + 2, logos.idjuv.width, logos.idjuv.height);
   } catch (e) {
     console.warn('Logos não carregados');
   }
