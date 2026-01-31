@@ -240,75 +240,96 @@ export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData)
   doc.line(margin, y, pageWidth - margin, y);
   y += 4;
 
-  // ===== IDENTIFICAÇÃO DO SERVIDOR (20mm) =====
+  // ===== IDENTIFICAÇÃO DO SERVIDOR (22mm - reorganizado em 4 linhas) =====
+  const boxHeight = 22;
   doc.setFillColor(248, 250, 252);
-  doc.roundedRect(margin, y, contentWidth, 18, 2, 2, 'F');
+  doc.roundedRect(margin, y, contentWidth, boxHeight, 2, 2, 'F');
   doc.setDrawColor(220, 225, 230);
   doc.setLineWidth(0.3);
-  doc.roundedRect(margin, y, contentWidth, 18, 2, 2, 'S');
+  doc.roundedRect(margin, y, contentWidth, boxHeight, 2, 2, 'S');
 
-  // Grid de dados do servidor
+  // Função para truncar texto longo
+  const truncarTexto = (texto: string, maxWidth: number): string => {
+    if (!texto) return '-';
+    if (doc.getTextWidth(texto) <= maxWidth) return texto;
+    let truncado = texto;
+    while (doc.getTextWidth(truncado + '...') > maxWidth && truncado.length > 0) {
+      truncado = truncado.slice(0, -1);
+    }
+    return truncado + '...';
+  };
+
+  // Grid de dados do servidor - Layout reorganizado
   const col1 = margin + 4;
-  const col2 = margin + contentWidth / 2;
+  const col2 = margin + contentWidth / 2 + 10;
+  const lineSpacing = 4.5;
   
+  // ===== LINHA 1: Servidor + Competência =====
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 68, 68);
-  doc.text('SERVIDOR:', col1, y + 5);
+  doc.text('SERVIDOR:', col1, y + lineSpacing);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(30, 35, 40);
-  doc.text(srv.nome_completo || '-', col1 + 22, y + 5);
+  const nomeMaxWidth = col2 - col1 - 30;
+  doc.text(truncarTexto(srv.nome_completo || '-', nomeMaxWidth), col1 + 22, y + lineSpacing);
 
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 68, 68);
-  doc.text('COMPETÊNCIA:', col2, y + 5);
+  doc.text('COMPETÊNCIA:', col2, y + lineSpacing);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(30, 35, 40);
-  doc.text(competencia, col2 + 30, y + 5);
+  doc.text(competencia, col2 + 30, y + lineSpacing);
+
+  // ===== LINHA 2: Matrícula + Cargo =====
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('Matrícula:', col1, y + lineSpacing * 2);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(srv.matricula || '-', col1 + 18, y + lineSpacing * 2);
 
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 68, 68);
-  doc.text('Matrícula:', col1, y + 10);
+  doc.text('Cargo:', col1 + 42, y + lineSpacing * 2);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(30, 35, 40);
-  doc.text(srv.matricula || '-', col1 + 18, y + 10);
+  const cargoMaxWidth = contentWidth - 60;
+  doc.text(truncarTexto(srv.cargo || '-', cargoMaxWidth), col1 + 55, y + lineSpacing * 2);
+
+  // ===== LINHA 3: Unidade + Local =====
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('Unidade:', col1, y + lineSpacing * 3);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  const unidadeMaxWidth = col2 - col1 - 25;
+  doc.text(truncarTexto(srv.unidade || '-', unidadeMaxWidth), col1 + 17, y + lineSpacing * 3);
 
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 68, 68);
-  doc.text('Cargo:', col1 + 45, y + 10);
+  doc.text('Local:', col2, y + lineSpacing * 3);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(30, 35, 40);
-  doc.text(srv.cargo || '-', col1 + 58, y + 10);
+  const localMaxWidth = contentWidth - (col2 - margin) - 15;
+  doc.text(truncarTexto(srv.local_exercicio || srv.unidade || '-', localMaxWidth), col2 + 12, y + lineSpacing * 3);
+
+  // ===== LINHA 4: Regime + Jornada =====
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('Regime:', col1, y + lineSpacing * 4);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(srv.regime || 'Presencial', col1 + 15, y + lineSpacing * 4);
 
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 68, 68);
-  doc.text('Unidade:', col2, y + 10);
+  doc.text('Jornada:', col1 + 55, y + lineSpacing * 4);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(30, 35, 40);
-  doc.text(srv.unidade || '-', col2 + 17, y + 10);
+  doc.text(`${srv.carga_horaria_diaria || 8}h/dia | ${srv.carga_horaria_semanal || 40}h/sem`, col1 + 71, y + lineSpacing * 4);
 
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Regime:', col1, y + 15);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(srv.regime || 'Presencial', col1 + 15, y + 15);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Jornada:', col1 + 50, y + 15);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(`${srv.carga_horaria_diaria || 8}h/dia | ${srv.carga_horaria_semanal || 40}h/sem`, col1 + 66, y + 15);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Local:', col2, y + 15);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(srv.local_exercicio || srv.unidade || '-', col2 + 12, y + 15);
-
-  y += 22;
+  y += boxHeight + 4;
 
   // ===== TABELA DE FREQUÊNCIA (proporcional) =====
   // Calcular altura disponível para tabela
