@@ -1,15 +1,19 @@
 /**
  * Geração de PDF da Frequência Mensal - IDJuv-RR
  * 
- * REGRA DE OURO: TUDO EM UMA ÚNICA PÁGINA
- * - Layout ultra-compacto
- * - Sem elementos desnecessários
- * - Pronto para impressão e assinatura manual
+ * REGRA DE OURO: TUDO EM UMA ÚNICA PÁGINA A4 (297mm)
+ * - Layout proporcional distribuído
+ * - Logos institucionais
+ * - Dados completos do servidor
+ * - Aproveitamento total da página
  */
 import jsPDF from 'jspdf';
-import { PAGINA } from './pdfTemplate';
 import { DIAS_SEMANA_SIGLA } from '@/types/frequencia';
 import type { DiaNaoUtil, StatusFechamento } from '@/types/frequencia';
+
+// Importar logos
+import logoGoverno from '@/assets/logo-governo-roraima.jpg';
+import logoIdjuv from '@/assets/logo-idjuv-dark4.png';
 
 // ============================================
 // INTERFACES
@@ -99,9 +103,10 @@ const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 const INSTITUICAO = {
-  nome: 'IDJUV - Instituto de Desporto, Juventude e Lazer de Roraima',
+  nome: 'Instituto de Desporto, Juventude e Lazer do Estado de Roraima',
+  sigla: 'IDJuv',
   cnpj: '64.689.510/0001-09',
-  endereco: 'Rua Cel. Pinto, 588, Centro, Boa Vista/RR',
+  endereco: 'Rua Cel. Pinto, 588, Centro, Boa Vista/RR, CEP 69.301-150',
 };
 
 // ============================================
@@ -130,36 +135,37 @@ function getSituacaoDia(data: Date, diasNaoUteis: DiaNaoUtil[]): { situacao: Reg
 
 function getTipoDiaAbrev(situacao: RegistroDiario['situacao'], tipoReg?: string): string {
   if (tipoReg === 'falta') return 'FALTA';
-  if (tipoReg === 'atestado') return 'Atest.';
+  if (tipoReg === 'atestado') return 'Atestado';
   if (tipoReg === 'ferias') return 'Férias';
-  if (tipoReg === 'licenca') return 'Lic.';
+  if (tipoReg === 'licenca') return 'Licença';
   if (tipoReg === 'folga') return 'Folga';
   if (tipoReg === 'abono') return 'Abono';
   
   switch (situacao) {
     case 'util': return '';
-    case 'sabado': return 'Sáb';
-    case 'domingo': return 'Dom';
+    case 'sabado': return 'Sábado';
+    case 'domingo': return 'Domingo';
     case 'feriado': return 'Feriado';
-    case 'ponto_facultativo': return 'Facult.';
+    case 'ponto_facultativo': return 'P. Facultativo';
     case 'recesso': return 'Recesso';
-    case 'expediente_reduzido': return 'Exp.Red.';
+    case 'expediente_reduzido': return 'Exp. Reduzido';
     default: return '';
   }
 }
 
 // ============================================
-// GERADOR PRINCIPAL - TUDO EM 1 PÁGINA
+// GERADOR PRINCIPAL - 1 PÁGINA A4 COMPLETA
 // ============================================
 
 export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData): Promise<void> => {
   const doc = new jsPDF('portrait', 'mm', 'a4');
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 10;
-  const contentWidth = pageWidth - margin * 2;
+  const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
+  const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
+  const margin = 12;
+  const contentWidth = pageWidth - margin * 2; // 186mm
   
-  const competencia = `${MESES[data.competencia.mes - 1]}/${data.competencia.ano}`;
+  const competencia = `${MESES[data.competencia.mes - 1]} de ${data.competencia.ano}`;
+  const srv = data.servidor;
 
   // Gerar dias do mês
   const ultimoDia = getUltimoDiaMes(data.competencia.ano, data.competencia.mes);
@@ -182,204 +188,332 @@ export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData)
     });
   }
 
+  // =========================================================
+  // CÁLCULO PROPORCIONAL DA PÁGINA A4 (297mm)
+  // =========================================================
+  // Cabeçalho com logos: 28mm
+  // Identificação servidor: 20mm
+  // Tabela: ~200mm (dinâmico baseado em dias)
+  // Assinaturas: 35mm
+  // Rodapé: 8mm
+  // =========================================================
+
   let y = margin;
 
-  // ===== CABEÇALHO COMPACTO =====
-  doc.setFillColor(0, 68, 68);
-  doc.rect(0, 0, pageWidth, 16, 'F');
+  // ===== CABEÇALHO COM LOGOS (28mm) =====
+  const headerHeight = 24;
+  const logoHeight = 16;
   
-  doc.setTextColor(255, 255, 255);
+  // Logo Governo (esquerda)
+  try {
+    doc.addImage(logoGoverno, 'JPEG', margin, y, 28, logoHeight);
+  } catch (e) {
+    console.warn('Logo Governo não carregado');
+  }
+  
+  // Título central
+  doc.setTextColor(0, 68, 68);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('FOLHA DE FREQUÊNCIA MENSAL', pageWidth / 2, 7, { align: 'center' });
-  
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`${INSTITUICAO.nome} | CNPJ: ${INSTITUICAO.cnpj}`, pageWidth / 2, 12, { align: 'center' });
-
-  y = 20;
-
-  // ===== IDENTIFICAÇÃO DO SERVIDOR (linha única) =====
-  doc.setFillColor(245, 247, 250);
-  doc.rect(margin, y, contentWidth, 12, 'F');
-  doc.setDrawColor(200, 205, 210);
-  doc.setLineWidth(0.3);
-  doc.rect(margin, y, contentWidth, 12, 'S');
-
-  doc.setTextColor(40, 45, 50);
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  
-  const srv = data.servidor;
-  const linha1 = `${srv.nome_completo}`;
-  const linha2 = `Mat: ${srv.matricula || '-'} | Cargo: ${srv.cargo || '-'} | Unidade: ${srv.unidade || '-'} | Competência: ${competencia}`;
+  doc.setFontSize(12);
+  doc.text('FOLHA DE FREQUÊNCIA MENSAL', pageWidth / 2, y + 6, { align: 'center' });
   
   doc.setFontSize(9);
-  doc.text(linha1, margin + 3, y + 5);
-  doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
-  doc.text(linha2, margin + 3, y + 10);
-
-  y += 16;
-
-  // ===== TABELA DE FREQUÊNCIA (ultra-compacta) =====
-  const rowHeight = 5.8;
-  const colWidths = { dia: 8, sem: 12, tipo: 22, entrada: 18, saida: 18, ass: contentWidth - 78 };
+  doc.setTextColor(60, 65, 70);
+  doc.text(INSTITUICAO.nome, pageWidth / 2, y + 12, { align: 'center' });
+  doc.setFontSize(7);
+  doc.text(`CNPJ: ${INSTITUICAO.cnpj} | ${INSTITUICAO.endereco}`, pageWidth / 2, y + 17, { align: 'center' });
   
-  // Header
-  doc.setFillColor(50, 55, 60);
-  doc.rect(margin, y, contentWidth, 5, 'F');
+  // Logo IDJuv (direita)
+  try {
+    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - 22, y, 22, logoHeight);
+  } catch (e) {
+    console.warn('Logo IDJuv não carregado');
+  }
+
+  y += headerHeight;
+
+  // Linha divisória
+  doc.setDrawColor(0, 68, 68);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 4;
+
+  // ===== IDENTIFICAÇÃO DO SERVIDOR (20mm) =====
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(margin, y, contentWidth, 18, 2, 2, 'F');
+  doc.setDrawColor(220, 225, 230);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(margin, y, contentWidth, 18, 2, 2, 'S');
+
+  // Grid de dados do servidor
+  const col1 = margin + 4;
+  const col2 = margin + contentWidth / 2;
+  
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('SERVIDOR:', col1, y + 5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(srv.nome_completo || '-', col1 + 22, y + 5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('COMPETÊNCIA:', col2, y + 5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(competencia, col2 + 30, y + 5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('Matrícula:', col1, y + 10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(srv.matricula || '-', col1 + 18, y + 10);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('Cargo:', col1 + 45, y + 10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(srv.cargo || '-', col1 + 58, y + 10);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('Unidade:', col2, y + 10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(srv.unidade || '-', col2 + 17, y + 10);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('Regime:', col1, y + 15);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(srv.regime || 'Presencial', col1 + 15, y + 15);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('Jornada:', col1 + 50, y + 15);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(`${srv.carga_horaria_diaria || 8}h/dia | ${srv.carga_horaria_semanal || 40}h/sem`, col1 + 66, y + 15);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 68, 68);
+  doc.text('Local:', col2, y + 15);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 35, 40);
+  doc.text(srv.local_exercicio || srv.unidade || '-', col2 + 12, y + 15);
+
+  y += 22;
+
+  // ===== TABELA DE FREQUÊNCIA (proporcional) =====
+  // Calcular altura disponível para tabela
+  const assinaturasHeight = 38;
+  const rodapeHeight = 10;
+  const espacoDisponivel = pageHeight - y - assinaturasHeight - rodapeHeight;
+  
+  // Altura da linha baseada no espaço disponível
+  const headerTableHeight = 7;
+  const rowHeight = (espacoDisponivel - headerTableHeight) / ultimoDia;
+  
+  // Larguras das colunas
+  const colWidths = {
+    dia: 12,
+    diaSemana: 16,
+    tipo: 32,
+    entrada: 22,
+    saida: 22,
+    assinatura: contentWidth - 104,
+  };
+
+  // Header da tabela
+  doc.setFillColor(0, 68, 68);
+  doc.rect(margin, y, contentWidth, headerTableHeight, 'F');
   
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(6);
+  doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
   
-  let colX = margin + 1;
-  doc.text('Dia', colX, y + 3.5); colX += colWidths.dia;
-  doc.text('Sem', colX, y + 3.5); colX += colWidths.sem;
-  doc.text('Tipo', colX, y + 3.5); colX += colWidths.tipo;
-  doc.text('Entrada', colX, y + 3.5); colX += colWidths.entrada;
-  doc.text('Saída', colX, y + 3.5); colX += colWidths.saida;
-  doc.text('Assinatura do Servidor', colX, y + 3.5);
+  let colX = margin;
+  doc.text('DIA', colX + colWidths.dia / 2, y + 4.5, { align: 'center' });
+  colX += colWidths.dia;
+  doc.text('SEMANA', colX + colWidths.diaSemana / 2, y + 4.5, { align: 'center' });
+  colX += colWidths.diaSemana;
+  doc.text('TIPO DO DIA', colX + colWidths.tipo / 2, y + 4.5, { align: 'center' });
+  colX += colWidths.tipo;
+  doc.text('ENTRADA', colX + colWidths.entrada / 2, y + 4.5, { align: 'center' });
+  colX += colWidths.entrada;
+  doc.text('SAÍDA', colX + colWidths.saida / 2, y + 4.5, { align: 'center' });
+  colX += colWidths.saida;
+  doc.text('ASSINATURA DO SERVIDOR', colX + colWidths.assinatura / 2, y + 4.5, { align: 'center' });
 
-  y += 5;
+  y += headerTableHeight;
 
   // Linhas de dados
-  doc.setFontSize(6);
   registros.forEach((reg, idx) => {
     const isNaoUtil = reg.situacao !== 'util';
     const isWeekend = reg.situacao === 'sabado' || reg.situacao === 'domingo';
+    const isFeriado = reg.situacao === 'feriado' || reg.situacao === 'ponto_facultativo' || reg.situacao === 'recesso';
     
-    // Fundo alternado
-    if (isNaoUtil) {
-      if (isWeekend) {
-        doc.setFillColor(252, 250, 240);
-      } else {
-        doc.setFillColor(255, 248, 230);
-      }
-      doc.rect(margin, y, contentWidth, rowHeight, 'F');
+    // Fundo alternado e destacado
+    if (isFeriado) {
+      doc.setFillColor(255, 245, 220);
+    } else if (isWeekend) {
+      doc.setFillColor(250, 248, 240);
     } else if (idx % 2 === 0) {
-      doc.setFillColor(250, 251, 253);
-      doc.rect(margin, y, contentWidth, rowHeight, 'F');
+      doc.setFillColor(252, 253, 255);
+    } else {
+      doc.setFillColor(255, 255, 255);
     }
+    doc.rect(margin, y, contentWidth, rowHeight, 'F');
     
-    // Linha inferior
-    doc.setDrawColor(235, 238, 242);
+    // Bordas
+    doc.setDrawColor(230, 232, 236);
     doc.setLineWidth(0.1);
-    doc.line(margin, y + rowHeight, margin + contentWidth, y + rowHeight);
-    
+    doc.rect(margin, y, contentWidth, rowHeight, 'S');
+
     const diaNum = parseInt(reg.data.split('-')[2]);
-    colX = margin + 1;
+    const centerY = y + rowHeight / 2 + 1;
+    colX = margin;
     
     // Dia
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 68, 68);
-    doc.text(String(diaNum).padStart(2, '0'), colX + 2, y + 4);
+    doc.setFontSize(7);
+    doc.text(String(diaNum).padStart(2, '0'), colX + colWidths.dia / 2, centerY, { align: 'center' });
     colX += colWidths.dia;
     
     // Dia semana
     doc.setFont('helvetica', 'normal');
     if (isWeekend) {
-      doc.setTextColor(160, 130, 80);
+      doc.setTextColor(140, 110, 60);
     } else {
-      doc.setTextColor(80, 85, 90);
+      doc.setTextColor(70, 75, 80);
     }
-    doc.text(DIAS_SEMANA_SIGLA[reg.dia_semana], colX, y + 4);
-    colX += colWidths.sem;
+    doc.text(DIAS_SEMANA_SIGLA[reg.dia_semana], colX + colWidths.diaSemana / 2, centerY, { align: 'center' });
+    colX += colWidths.diaSemana;
     
-    // Tipo
+    // Tipo do dia
     const tipoLabel = getTipoDiaAbrev(reg.situacao, reg.tipo_registro);
     if (reg.tipo_registro === 'falta') {
-      doc.setTextColor(200, 50, 50);
+      doc.setTextColor(180, 50, 50);
       doc.setFont('helvetica', 'bold');
     } else if (isNaoUtil) {
-      doc.setTextColor(170, 130, 60);
+      doc.setTextColor(150, 120, 50);
+      doc.setFont('helvetica', 'italic');
     } else {
       doc.setTextColor(100, 105, 110);
+      doc.setFont('helvetica', 'normal');
     }
-    doc.text(tipoLabel.substring(0, 12), colX, y + 4);
+    doc.text(tipoLabel, colX + colWidths.tipo / 2, centerY, { align: 'center' });
     colX += colWidths.tipo;
     
-    // Entrada e Saída
+    // Entrada
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(60, 65, 70);
-    
-    if (data.tipo === 'em_branco') {
-      if (reg.situacao === 'util' && !reg.tipo_registro) {
-        doc.setDrawColor(180, 185, 190);
-        doc.setLineWidth(0.15);
-        doc.line(colX, y + 4, colX + colWidths.entrada - 3, y + 4);
-        colX += colWidths.entrada;
-        doc.line(colX, y + 4, colX + colWidths.saida - 3, y + 4);
-        colX += colWidths.saida;
-      } else {
-        doc.setTextColor(180, 180, 180);
-        doc.text('—', colX + 5, y + 4);
-        colX += colWidths.entrada;
-        doc.text('—', colX + 5, y + 4);
-        colX += colWidths.saida;
-      }
+    doc.setTextColor(50, 55, 60);
+    if (data.tipo === 'em_branco' && reg.situacao === 'util' && !reg.tipo_registro) {
+      // Linha para preenchimento manual
+      doc.setDrawColor(180, 185, 190);
+      doc.setLineWidth(0.2);
+      doc.line(colX + 3, centerY, colX + colWidths.entrada - 3, centerY);
+    } else if (isNaoUtil) {
+      doc.setTextColor(180, 180, 180);
+      doc.text('—', colX + colWidths.entrada / 2, centerY, { align: 'center' });
     } else {
-      doc.text(reg.entrada || '—', colX + 1, y + 4);
-      colX += colWidths.entrada;
-      doc.text(reg.saida || '—', colX + 1, y + 4);
-      colX += colWidths.saida;
+      doc.text(reg.entrada || '—', colX + colWidths.entrada / 2, centerY, { align: 'center' });
     }
+    colX += colWidths.entrada;
     
-    // Linha assinatura
+    // Saída
+    if (data.tipo === 'em_branco' && reg.situacao === 'util' && !reg.tipo_registro) {
+      doc.setDrawColor(180, 185, 190);
+      doc.setLineWidth(0.2);
+      doc.line(colX + 3, centerY, colX + colWidths.saida - 3, centerY);
+    } else if (isNaoUtil) {
+      doc.setTextColor(180, 180, 180);
+      doc.text('—', colX + colWidths.saida / 2, centerY, { align: 'center' });
+    } else {
+      doc.text(reg.saida || '—', colX + colWidths.saida / 2, centerY, { align: 'center' });
+    }
+    colX += colWidths.saida;
+    
+    // Linha de assinatura
     if (reg.situacao === 'util' && !reg.tipo_registro) {
       doc.setDrawColor(200, 205, 210);
       doc.setLineWidth(0.15);
-      doc.line(colX + 3, y + 4, colX + colWidths.ass - 5, y + 4);
+      doc.line(colX + 8, centerY, colX + colWidths.assinatura - 8, centerY);
     }
 
     y += rowHeight;
   });
 
-  // ===== BLOCO DE ASSINATURAS (compacto) =====
-  y += 4;
+  // ===== BLOCO DE ASSINATURAS (38mm) =====
+  y += 3;
   
   // Declaração
-  doc.setFillColor(252, 253, 255);
-  doc.rect(margin, y, contentWidth, 8, 'F');
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(margin, y, contentWidth, 10, 1.5, 1.5, 'F');
   doc.setDrawColor(210, 215, 220);
   doc.setLineWidth(0.2);
-  doc.rect(margin, y, contentWidth, 8, 'S');
+  doc.roundedRect(margin, y, contentWidth, 10, 1.5, 1.5, 'S');
   
-  doc.setTextColor(70, 75, 80);
-  doc.setFontSize(6);
+  doc.setTextColor(60, 65, 70);
+  doc.setFontSize(7);
   doc.setFont('helvetica', 'italic');
-  doc.text('Declaro que as informações acima correspondem à minha efetiva jornada de trabalho no período.', margin + 3, y + 5);
+  doc.text(
+    'Declaro, para os devidos fins, que as informações constantes nesta folha correspondem à minha efetiva jornada de trabalho no período de referência.',
+    pageWidth / 2, y + 6, { align: 'center', maxWidth: contentWidth - 10 }
+  );
   
-  y += 11;
+  y += 14;
   
   // Assinaturas lado a lado
-  const assWidth = (contentWidth - 10) / 2;
+  const assWidth = (contentWidth - 20) / 2;
   
   // Servidor
   doc.setDrawColor(0, 68, 68);
-  doc.setLineWidth(0.3);
-  doc.line(margin, y + 6, margin + assWidth, y + 6);
+  doc.setLineWidth(0.4);
+  doc.line(margin + 5, y + 10, margin + 5 + assWidth, y + 10);
   doc.setTextColor(0, 68, 68);
   doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.text('ASSINATURA DO SERVIDOR', margin + 5 + assWidth / 2, y + 14, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(6);
-  doc.text('ASSINATURA DO SERVIDOR', margin, y + 10);
+  doc.setTextColor(100, 105, 110);
+  doc.text(srv.nome_completo || '', margin + 5 + assWidth / 2, y + 18, { align: 'center' });
   
   // Chefia
-  doc.line(margin + assWidth + 10, y + 6, margin + contentWidth, y + 6);
-  doc.text('ASSINATURA DA CHEFIA IMEDIATA', margin + assWidth + 10, y + 10);
-
-  // ===== RODAPÉ (mínimo) =====
-  doc.setTextColor(150, 155, 160);
-  doc.setFontSize(5);
+  doc.setDrawColor(0, 68, 68);
+  doc.line(margin + 15 + assWidth, y + 10, margin + 15 + assWidth * 2, y + 10);
+  doc.setTextColor(0, 68, 68);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.text('ASSINATURA DA CHEFIA IMEDIATA', margin + 15 + assWidth + assWidth / 2, y + 14, { align: 'center' });
   doc.setFont('helvetica', 'normal');
-  doc.text(`Gerado em: ${data.dataGeracao}`, margin, pageHeight - 5);
-  doc.text(INSTITUICAO.endereco, pageWidth - margin, pageHeight - 5, { align: 'right' });
+  doc.setFontSize(6);
+  doc.setTextColor(100, 105, 110);
+  doc.text(data.configAssinatura?.nome_chefia || '', margin + 15 + assWidth + assWidth / 2, y + 18, { align: 'center' });
+
+  // ===== RODAPÉ (8mm) =====
+  doc.setDrawColor(220, 225, 230);
+  doc.setLineWidth(0.3);
+  doc.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
+  
+  doc.setTextColor(130, 135, 140);
+  doc.setFontSize(6);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Gerado em: ${data.dataGeracao}`, margin, pageHeight - 6);
+  doc.text(`${INSTITUICAO.sigla} - Sistema de Gestão de Pessoas`, pageWidth / 2, pageHeight - 6, { align: 'center' });
+  doc.text('Página 1 de 1', pageWidth - margin, pageHeight - 6, { align: 'right' });
 
   // Salvar
-  const nome = srv.nome_completo.replace(/\s+/g, '_').substring(0, 15);
+  const nome = srv.nome_completo.replace(/\s+/g, '_').substring(0, 20);
   const sufixo = data.tipo === 'em_branco' ? '_BRANCO' : '';
-  doc.save(`Freq_${nome}_${String(data.competencia.mes).padStart(2, '0')}-${data.competencia.ano}${sufixo}.pdf`);
+  doc.save(`Frequencia_${nome}_${String(data.competencia.mes).padStart(2, '0')}-${data.competencia.ano}${sufixo}.pdf`);
 };
 
 // ============================================
