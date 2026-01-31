@@ -7,6 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
   Calendar,
   Clock,
   Users,
@@ -17,10 +24,14 @@ import {
   CheckCircle,
   Download,
   Plus,
+  Printer,
+  MoreHorizontal,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useFrequenciaResumo, type FrequenciaServidorResumo } from "@/hooks/useFrequencia";
 import { MESES } from "@/types/folha";
 import { LancarFaltaDialog } from "@/components/frequencia/LancarFaltaDialog";
+import { ImprimirFrequenciaDialog } from "@/components/frequencia/ImprimirFrequenciaDialog";
 import { generateRelatorioFrequenciaGeral } from "@/lib/pdfRelatorioFrequencia";
 import { format } from "date-fns";
 
@@ -32,6 +43,7 @@ export default function GestaoFrequenciaPage() {
   const [mes, setMes] = useState(mesAtual);
   const [busca, setBusca] = useState("");
   const [showLancarFalta, setShowLancarFalta] = useState(false);
+  const [showImprimirFrequencia, setShowImprimirFrequencia] = useState(false);
   const [servidorSelecionado, setServidorSelecionado] = useState<FrequenciaServidorResumo | null>(null);
 
   const { data: servidores, isLoading } = useFrequenciaResumo(ano, mes);
@@ -59,6 +71,11 @@ export default function GestaoFrequenciaPage() {
   const handleLancarFalta = (servidor: FrequenciaServidorResumo) => {
     setServidorSelecionado(servidor);
     setShowLancarFalta(true);
+  };
+
+  const handleImprimirFrequencia = (servidor: FrequenciaServidorResumo) => {
+    setServidorSelecionado(servidor);
+    setShowImprimirFrequencia(true);
   };
 
   const handleGerarRelatorio = async () => {
@@ -249,15 +266,24 @@ export default function GestaoFrequenciaPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleLancarFalta(s)}
-                            title="Lançar falta/atestado"
-                          >
-                            <Plus className="mr-1 h-3 w-3" />
-                            Lançar
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleLancarFalta(s)}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Lançar Ocorrência
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleImprimirFrequencia(s)}>
+                                <Printer className="mr-2 h-4 w-4" />
+                                Imprimir Frequência
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -273,6 +299,15 @@ export default function GestaoFrequenciaPage() {
       <LancarFaltaDialog
         open={showLancarFalta}
         onOpenChange={setShowLancarFalta}
+        servidor={servidorSelecionado}
+        ano={ano}
+        mes={mes}
+      />
+
+      {/* Dialog de Impressão */}
+      <ImprimirFrequenciaDialog
+        open={showImprimirFrequencia}
+        onOpenChange={setShowImprimirFrequencia}
         servidor={servidorSelecionado}
         ano={ano}
         mes={mes}
