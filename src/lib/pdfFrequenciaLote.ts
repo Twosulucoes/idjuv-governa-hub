@@ -106,7 +106,15 @@ function isDiaDispensado(
 // GERADOR PRINCIPAL
 // ============================================
 
-export const generateFrequenciaLotePDF = async (config: LoteFrequenciaPDFConfig): Promise<void> => {
+export interface FrequenciaLotePDFResult {
+  doc: jsPDF;
+  nomeArquivo: string;
+}
+
+/**
+ * Gera o PDF em lote e retorna o documento para processamento
+ */
+export const generateFrequenciaLotePDFInternal = async (config: LoteFrequenciaPDFConfig): Promise<FrequenciaLotePDFResult> => {
   const doc = new jsPDF('portrait', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -159,9 +167,27 @@ export const generateFrequenciaLotePDF = async (config: LoteFrequenciaPDFConfig)
     });
   });
 
-  // Salvar
   const sigla = unidade.sigla || unidade.nome.substring(0, 10);
-  doc.save(`Frequencia_Lote_${sigla}_${String(competencia.mes).padStart(2, '0')}-${competencia.ano}.pdf`);
+  const nomeArquivo = `Frequencia_Lote_${sigla}_${String(competencia.mes).padStart(2, '0')}-${competencia.ano}.pdf`;
+
+  return { doc, nomeArquivo };
+};
+
+/**
+ * Gera e faz download do PDF em lote
+ */
+export const generateFrequenciaLotePDF = async (config: LoteFrequenciaPDFConfig): Promise<void> => {
+  const { doc, nomeArquivo } = await generateFrequenciaLotePDFInternal(config);
+  doc.save(nomeArquivo);
+};
+
+/**
+ * Gera o PDF e retorna como Blob para upload
+ */
+export const generateFrequenciaLoteBlob = async (config: LoteFrequenciaPDFConfig): Promise<{ blob: Blob; nomeArquivo: string }> => {
+  const { doc, nomeArquivo } = await generateFrequenciaLotePDFInternal(config);
+  const blob = doc.output('blob');
+  return { blob, nomeArquivo };
 };
 
 // ============================================

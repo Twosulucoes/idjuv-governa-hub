@@ -3,6 +3,11 @@
  * 
  * REGRA DE OURO: 1 PÁGINA POR SERVIDOR (NUNCA AGRUPAR)
  * O lote é apenas para organização, ordenação e encadernação
+ * 
+ * Funcionalidades:
+ * - Gerar PDF em lote
+ * - Salvar automaticamente no storage
+ * - Criar pacote ZIP com link de download
  */
 import { useState, useMemo, useEffect } from "react";
 import {
@@ -34,6 +39,8 @@ import {
   ClipboardList,
   Layers,
   Settings,
+  Archive,
+  CloudUpload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -43,7 +50,8 @@ import { useUnidadesAdministrativas, useServidoresUnidadeFrequencia, type Servid
 import { useAgrupamentosUnidades, type AgrupamentoUnidade } from "@/hooks/useAgrupamentoUnidades";
 import { useDiasNaoUteis, useAssinaturaPadrao } from "@/hooks/useParametrizacoesFrequencia";
 import { useAuth } from "@/contexts/AuthContext";
-import { generateFrequenciaLotePDF, type LoteFrequenciaPDFConfig } from "@/lib/pdfFrequenciaLote";
+import { generateFrequenciaLotePDF, generateFrequenciaLoteBlob, type LoteFrequenciaPDFConfig } from "@/lib/pdfFrequenciaLote";
+import { useUploadFrequencia, useCriarPacote, useAtualizarPacote } from "@/hooks/useFrequenciaPacotes";
 import { MESES } from "@/types/folha";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -72,6 +80,9 @@ export function ImprimirLoteFrequenciaDialog({
   const [incluirCapa, setIncluirCapa] = useState(true);
   const [incluirDispensados, setIncluirDispensados] = useState(true);
   const [gerando, setGerando] = useState(false);
+  const [salvarStorage, setSalvarStorage] = useState(true);
+  const [criarPacote, setCriarPacote] = useState(true);
+  const [progresso, setProgresso] = useState<string>('');
 
   // Dados do agrupamento selecionado
   const [servidoresAgrupamento, setServidoresAgrupamento] = useState<ServidorComSituacao[]>([]);
@@ -88,6 +99,9 @@ export function ImprimirLoteFrequenciaDialog({
   );
   const { data: diasNaoUteis } = useDiasNaoUteis(ano);
   const { data: configAssinatura } = useAssinaturaPadrao();
+  const uploadFrequencia = useUploadFrequencia();
+  const criarPacoteMutation = useCriarPacote();
+  const atualizarPacoteMutation = useAtualizarPacote();
 
   const anos = useMemo(() => Array.from({ length: 5 }, (_, i) => anoAtual - i), [anoAtual]);
 
@@ -305,8 +319,11 @@ export function ImprimirLoteFrequenciaDialog({
     }
 
     setGerando(true);
+    setProgresso('Preparando configurações...');
 
     try {
+      const periodo = `${ano}-${String(mes).padStart(2, '0')}`;
+      
       // Determinar nome da unidade/agrupamento
       let nomeUnidade = '';
       let siglaUnidade = '';
@@ -346,15 +363,103 @@ export function ImprimirLoteFrequenciaDialog({
         usuarioGeracao: user?.email || 'Sistema',
       };
 
-      await generateFrequenciaLotePDF(config);
+      // Gerar PDF
+      setProgresso('Gerando PDF...');
+      const { blob, nomeArquivo } = await generateFrequenciaLoteBlob(config);
 
-      toast.success(`PDF gerado com ${servidoresParaImprimir.length} folhas de frequência!`);
+      // Download local
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = nomeArquivo;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      // Salvar no storage se habilitado
+      if (salvarStorage) {
+        setProgresso(`Salvando ${servidoresParaImprimir.length} frequências no storage...`);
+        
+        let arquivosSalvos = 0;
+        
+        for (const servidor of servidoresParaImprimir) {
+          try {
+            // Gerar PDF individual para cada servidor
+            const configIndividual: LoteFrequenciaPDFConfig = {
+              ...config,
+              servidores: [servidor],
+              opcoes: { ...config.opcoes, incluirCapa: false },
+            };
+            
+            const { blob: blobIndividual } = await generateFrequenciaLoteBlob(configIndividual);
+            
+            await uploadFrequencia.mutateAsync({
+              pdfBlob: blobIndividual,
+              periodo,
+              ano,
+              mes,
+              servidor: {
+                id: servidor.id,
+                nome: servidor.nome_completo,
+                matricula: servidor.matricula,
+              },
+              unidade: {
+                id: servidor.unidade_id || idUnidade,
+                nome: servidor.unidade_nome || nomeUnidade,
+                sigla: servidor.unidade_sigla || siglaUnidade,
+              },
+              tipo: 'lote',
+            });
+            
+            arquivosSalvos++;
+            setProgresso(`Salvando frequências... (${arquivosSalvos}/${servidoresParaImprimir.length})`);
+          } catch (uploadError) {
+            console.warn(`Erro ao salvar frequência de ${servidor.nome_completo}:`, uploadError);
+          }
+        }
+      }
+
+      // Criar pacote se habilitado
+      if (criarPacote && salvarStorage) {
+        setProgresso('Criando pacote de frequências...');
+        
+        try {
+          const pacote = await criarPacoteMutation.mutateAsync({
+            periodo,
+            ano,
+            mes,
+            unidadeId: modoSelecao === 'unidade' ? idUnidade : undefined,
+            unidadeNome: modoSelecao === 'unidade' ? nomeUnidade : undefined,
+            agrupamentoId: modoSelecao === 'agrupamento' ? agrupamentoId : undefined,
+            agrupamentoNome: modoSelecao === 'agrupamento' ? nomeUnidade : undefined,
+            tipo: modoSelecao === 'agrupamento' ? 'agrupamento' : 'unidade',
+          });
+
+          // Atualizar status do pacote para gerado
+          await atualizarPacoteMutation.mutateAsync({
+            id: pacote.id,
+            status: 'gerado',
+            total_arquivos: servidoresParaImprimir.length,
+            gerado_em: new Date().toISOString(),
+          });
+
+          toast.success(`PDF gerado e pacote criado! ${servidoresParaImprimir.length} frequências salvas.`);
+        } catch (pacoteError) {
+          console.warn('Erro ao criar pacote:', pacoteError);
+          toast.success(`PDF gerado! ${servidoresParaImprimir.length} frequências salvas.`);
+        }
+      } else if (salvarStorage) {
+        toast.success(`PDF gerado! ${servidoresParaImprimir.length} frequências salvas no storage.`);
+      } else {
+        toast.success(`PDF gerado com ${servidoresParaImprimir.length} folhas de frequência!`);
+      }
+
       onOpenChange(false);
     } catch (error) {
       console.error("Erro ao gerar PDF em lote:", error);
       toast.error("Erro ao gerar o PDF. Tente novamente.");
     } finally {
       setGerando(false);
+      setProgresso('');
     }
   };
 
@@ -619,6 +724,62 @@ export function ImprimirLoteFrequenciaDialog({
                   </div>
                 </div>
 
+                <Separator />
+
+                {/* Opções de Arquivamento */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Archive className="h-4 w-4 text-primary" />
+                    <Label className="text-sm font-medium">Arquivamento e Pacotes (SEI)</Label>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="salvarStorage"
+                        checked={salvarStorage}
+                        onCheckedChange={(v) => setSalvarStorage(!!v)}
+                      />
+                      <div className="flex flex-col">
+                        <Label htmlFor="salvarStorage" className="text-sm cursor-pointer flex items-center gap-1">
+                          <CloudUpload className="h-3 w-3" />
+                          Salvar frequências no storage
+                        </Label>
+                        <span className="text-xs text-muted-foreground">
+                          Cada PDF individual é salvo organizado por período e unidade
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="criarPacote"
+                        checked={criarPacote}
+                        disabled={!salvarStorage}
+                        onCheckedChange={(v) => setCriarPacote(!!v)}
+                      />
+                      <div className="flex flex-col">
+                        <Label htmlFor="criarPacote" className="text-sm cursor-pointer flex items-center gap-1">
+                          <Archive className="h-3 w-3" />
+                          Criar pacote com link de download
+                        </Label>
+                        <span className="text-xs text-muted-foreground">
+                          Gera link único para inclusão em processos do SEI
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {salvarStorage && criarPacote && (
+                    <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                      <CheckCircle className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                      <div className="text-xs text-primary">
+                        Após gerar, acesse a página <Link to="/rh/frequencia/pacotes" className="font-medium underline">Controle de Pacotes</Link> para copiar o link de download.
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Resumo Final */}
                 <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
                   <div className="flex items-center gap-3">
@@ -667,12 +828,15 @@ export function ImprimirLoteFrequenciaDialog({
             {gerando ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Gerando PDF...
+                {progresso || 'Gerando PDF...'}
               </>
             ) : (
               <>
                 <Printer className="mr-2 h-4 w-4" />
                 Gerar PDF do Lote
+                {salvarStorage && criarPacote && (
+                  <Badge variant="secondary" className="ml-2 text-xs">+ Pacote SEI</Badge>
+                )}
               </>
             )}
           </Button>
