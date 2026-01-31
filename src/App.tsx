@@ -142,51 +142,34 @@ const App = () => (
               
               {/* ============================================ */}
               {/* ROTAS PROTEGIDAS - Apenas autenticação */}
+              {/* (Sem mapeamento em ROUTE_PERMISSIONS) */}
               {/* ============================================ */}
               
-              {/* Sistema interno - apenas autenticação */}
-              <Route path="/sistema" element={
-                <ProtectedRoute>
-                  <SistemaPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/apresentacao" element={
-                <ProtectedRoute>
-                  <ApresentacaoPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/noticias" element={
-                <ProtectedRoute>
-                  <NoticiasPage />
-                </ProtectedRoute>
-              } />
+              <Route path="/sistema" element={<ProtectedRoute><SistemaPage /></ProtectedRoute>} />
+              <Route path="/apresentacao" element={<ProtectedRoute><ApresentacaoPage /></ProtectedRoute>} />
+              <Route path="/noticias" element={<ProtectedRoute><NoticiasPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
-              {/* ADMIN - Com permissões */}
+              {/* ADMIN - Com permissões mapeadas */}
               {/* ============================================ */}
-              <Route path="/admin" element={
-                <ProtectedRoute requiredPermissions="admin">
-                  <AdminDashboardPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/ajuda" element={
-                <ProtectedRoute>
-                  <AdminHelpPage />
-                </ProtectedRoute>
-              } />
+              
+              {/* Apenas autenticação (sem mapeamento específico) */}
+              <Route path="/admin" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
+              <Route path="/admin/ajuda" element={<ProtectedRoute><AdminHelpPage /></ProtectedRoute>} />
+              <Route path="/admin/documentos" element={<ProtectedRoute><GestaoDocumentosPage /></ProtectedRoute>} />
+              <Route path="/admin/acesso" element={<ProtectedRoute><ControleAcessoAdminPage /></ProtectedRoute>} />
+              <Route path="/admin/relatorio" element={<ProtectedRoute><RelatorioAdminPage /></ProtectedRoute>} />
+              <Route path="/acesso" element={<ProtectedRoute><ControleAcessoAdminPage /></ProtectedRoute>} />
+              
+              {/* Com permissões mapeadas em ROUTE_PERMISSIONS */}
               <Route path="/admin/usuarios" element={
                 <ProtectedRoute requiredPermissions="admin.usuarios">
                   <GerenciamentoUsuariosPage />
                 </ProtectedRoute>
               } />
-              <Route path="/admin/documentos" element={
-                <ProtectedRoute requiredPermissions="admin">
-                  <GestaoDocumentosPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/acesso" element={
-                <ProtectedRoute requiredPermissions="admin">
-                  <ControleAcessoAdminPage />
+              <Route path="/admin/usuarios-tecnicos" element={
+                <ProtectedRoute requiredPermissions="admin.usuarios">
+                  <UsuariosTecnicosPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/aprovacoes" element={
@@ -214,21 +197,6 @@ const App = () => (
                   <DisasterRecoveryPage />
                 </ProtectedRoute>
               } />
-              <Route path="/admin/usuarios-tecnicos" element={
-                <ProtectedRoute requiredPermissions="admin.usuarios">
-                  <UsuariosTecnicosPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/pre-cadastros" element={
-                <ProtectedRoute requiredPermissions="rh.precadastros.visualizar">
-                  <GestaoPreCadastrosPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/pre-cadastros/pendencias" element={
-                <ProtectedRoute requiredPermissions="rh.precadastros.visualizar">
-                  <DiagnosticoPendenciasPage />
-                </ProtectedRoute>
-              } />
               <Route path="/admin/reunioes" element={
                 <ProtectedRoute requiredPermissions="admin.reunioes">
                   <ReunioesPage />
@@ -249,24 +217,24 @@ const App = () => (
                   <DatabaseSchemaPage />
                 </ProtectedRoute>
               } />
-              <Route path="/admin/relatorio" element={
-                <ProtectedRoute requiredPermissions="admin">
-                  <RelatorioAdminPage />
-                </ProtectedRoute>
-              } />
               <Route path="/admin/calibrador-segad" element={
                 <ProtectedRoute requiredPermissions="admin.segad">
                   <CalibradorSegadPage />
                 </ProtectedRoute>
               } />
-              <Route path="/acesso" element={
-                <ProtectedRoute requiredPermissions="admin">
-                  <ControleAcessoAdminPage />
+              <Route path="/admin/pre-cadastros" element={
+                <ProtectedRoute requiredPermissions="rh.precadastros.visualizar">
+                  <GestaoPreCadastrosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/pre-cadastros/pendencias" element={
+                <ProtectedRoute requiredPermissions="rh.precadastros.visualizar">
+                  <DiagnosticoPendenciasPage />
                 </ProtectedRoute>
               } />
               
               {/* ============================================ */}
-              {/* ASCOM - Com permissões */}
+              {/* ASCOM - Com permissões mapeadas */}
               {/* ============================================ */}
               <Route path="/admin/ascom/demandas" element={
                 <ProtectedRoute requiredPermissions="ascom.demandas.visualizar">
@@ -285,16 +253,13 @@ const App = () => (
               } />
               
               {/* ============================================ */}
-              {/* FEDERAÇÕES - Com permissões */}
+              {/* FEDERAÇÕES - Apenas autenticação */}
+              {/* (rota real é /admin/federacoes, não /federacoes) */}
               {/* ============================================ */}
-              <Route path="/admin/federacoes" element={
-                <ProtectedRoute requiredPermissions="federacoes.visualizar">
-                  <GestaoFederacoesPage />
-                </ProtectedRoute>
-              } />
+              <Route path="/admin/federacoes" element={<ProtectedRoute><GestaoFederacoesPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
-              {/* GOVERNANÇA - Com permissões */}
+              {/* GOVERNANÇA - Com permissões mapeadas */}
               {/* ============================================ */}
               <Route path="/governanca" element={
                 <ProtectedRoute requiredPermissions="governanca.visualizar">
@@ -332,28 +297,17 @@ const App = () => (
                   <PortariasPage />
                 </ProtectedRoute>
               } />
-              <Route path="/governanca/relatorio" element={
-                <ProtectedRoute requiredPermissions="governanca.relatorios.visualizar">
-                  <RelatorioGovernancaPage />
-                </ProtectedRoute>
-              } />
+              <Route path="/governanca/relatorio" element={<ProtectedRoute><RelatorioGovernancaPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
-              {/* ORGANOGRAMA - Com permissões */}
+              {/* ORGANOGRAMA - Apenas autenticação */}
+              {/* (rotas reais não batem com ROUTE_PERMISSIONS) */}
               {/* ============================================ */}
-              <Route path="/organograma" element={
-                <ProtectedRoute requiredPermissions="governanca.organograma.visualizar">
-                  <OrganogramaPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/organograma/gestao" element={
-                <ProtectedRoute requiredPermissions="governanca.organograma.editar">
-                  <GestaoOrganogramaPage />
-                </ProtectedRoute>
-              } />
+              <Route path="/organograma" element={<ProtectedRoute><OrganogramaPage /></ProtectedRoute>} />
+              <Route path="/organograma/gestao" element={<ProtectedRoute><GestaoOrganogramaPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
-              {/* CARGOS / LOTAÇÕES - Com permissões */}
+              {/* CARGOS / LOTAÇÕES - Com permissões mapeadas */}
               {/* ============================================ */}
               <Route path="/cargos" element={
                 <ProtectedRoute requiredPermissions="governanca.cargos.visualizar">
@@ -367,36 +321,17 @@ const App = () => (
               } />
               
               {/* ============================================ */}
-              {/* UNIDADES LOCAIS - Com permissões */}
+              {/* UNIDADES LOCAIS - Apenas autenticação */}
+              {/* (rotas reais não batem com ROUTE_PERMISSIONS) */}
               {/* ============================================ */}
-              <Route path="/unidades" element={
-                <ProtectedRoute requiredPermissions="unidades.visualizar">
-                  <GestaoUnidadesLocaisPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/unidades/gestao" element={
-                <ProtectedRoute requiredPermissions="unidades.visualizar">
-                  <GestaoUnidadesLocaisPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/unidades/relatorios" element={
-                <ProtectedRoute requiredPermissions="unidades.relatorios.visualizar">
-                  <RelatoriosUnidadesLocaisPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/unidades/cedencia" element={
-                <ProtectedRoute requiredPermissions="unidades.cedencias.visualizar">
-                  <RelatoriosCedenciaPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/unidades/:id" element={
-                <ProtectedRoute requiredPermissions="unidades.visualizar">
-                  <UnidadeDetalhePage />
-                </ProtectedRoute>
-              } />
+              <Route path="/unidades" element={<ProtectedRoute><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
+              <Route path="/unidades/gestao" element={<ProtectedRoute><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
+              <Route path="/unidades/relatorios" element={<ProtectedRoute><RelatoriosUnidadesLocaisPage /></ProtectedRoute>} />
+              <Route path="/unidades/cedencia" element={<ProtectedRoute><RelatoriosCedenciaPage /></ProtectedRoute>} />
+              <Route path="/unidades/:id" element={<ProtectedRoute><UnidadeDetalhePage /></ProtectedRoute>} />
               
               {/* ============================================ */}
-              {/* RH - Com permissões */}
+              {/* RH - Com permissões mapeadas */}
               {/* ============================================ */}
               <Route path="/rh/servidores" element={
                 <ProtectedRoute requiredPermissions="rh.servidores.visualizar">
@@ -413,11 +348,7 @@ const App = () => (
                   <ServidorDetalhePage />
                 </ProtectedRoute>
               } />
-              <Route path="/rh/servidores/:id/editar" element={
-                <ProtectedRoute requiredPermissions="rh.servidores.editar">
-                  <ServidorFormPage />
-                </ProtectedRoute>
-              } />
+              <Route path="/rh/servidores/:id/editar" element={<ProtectedRoute><ServidorFormPage /></ProtectedRoute>} />
               <Route path="/rh/viagens" element={
                 <ProtectedRoute requiredPermissions="rh.viagens.visualizar">
                   <GestaoViagensPage />
@@ -463,11 +394,7 @@ const App = () => (
                   <ModelosDocumentosPage />
                 </ProtectedRoute>
               } />
-              <Route path="/rh/exportar" element={
-                <ProtectedRoute requiredPermissions="rh.exportar">
-                  <ExportacaoPlanilhaPage />
-                </ProtectedRoute>
-              } />
+              <Route path="/rh/exportar" element={<ProtectedRoute><ExportacaoPlanilhaPage /></ProtectedRoute>} />
               <Route path="/rh/aniversariantes" element={
                 <ProtectedRoute requiredPermissions="rh.servidores.visualizar">
                   <AniversariantesPage />
@@ -475,18 +402,14 @@ const App = () => (
               } />
               
               {/* ============================================ */}
-              {/* FOLHA DE PAGAMENTO - Com permissões */}
+              {/* FOLHA DE PAGAMENTO - Com permissões mapeadas */}
               {/* ============================================ */}
               <Route path="/folha/configuracao" element={
                 <ProtectedRoute requiredPermissions="financeiro.folha.configurar">
                   <ConfiguracaoFolhaPage />
                 </ProtectedRoute>
               } />
-              <Route path="/folha/gestao" element={
-                <ProtectedRoute requiredPermissions="financeiro.folha.visualizar">
-                  <GestaoFolhaPagamentoPage />
-                </ProtectedRoute>
-              } />
+              <Route path="/folha/gestao" element={<ProtectedRoute><GestaoFolhaPagamentoPage /></ProtectedRoute>} />
               <Route path="/folha/:id" element={
                 <ProtectedRoute requiredPermissions="financeiro.folha.visualizar">
                   <FolhaDetalhePage />
@@ -494,13 +417,9 @@ const App = () => (
               } />
               
               {/* ============================================ */}
-              {/* PROCESSOS - Com permissões */}
+              {/* PROCESSOS - Com permissões mapeadas */}
               {/* ============================================ */}
-              <Route path="/processos" element={
-                <ProtectedRoute>
-                  <ProcessosPage />
-                </ProtectedRoute>
-              } />
+              <Route path="/processos" element={<ProtectedRoute><ProcessosPage /></ProtectedRoute>} />
               <Route path="/processos/compras" element={
                 <ProtectedRoute requiredPermissions="processos.compras.visualizar">
                   <ComprasProcessoPage />
@@ -538,159 +457,53 @@ const App = () => (
               } />
               
               {/* ============================================ */}
-              {/* FORMULÁRIOS - Com permissões */}
+              {/* FORMULÁRIOS - Apenas autenticação */}
+              {/* (permissão genérica removida) */}
               {/* ============================================ */}
-              <Route path="/formularios/termo-demanda" element={
-                <ProtectedRoute requiredPermissions="formularios.visualizar">
-                  <TermoDemandaPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/formularios/ordem-missao" element={
-                <ProtectedRoute requiredPermissions="formularios.visualizar">
-                  <OrdemMissaoPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/formularios/relatorio-viagem" element={
-                <ProtectedRoute requiredPermissions="formularios.visualizar">
-                  <RelatorioViagemPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/formularios/requisicao-material" element={
-                <ProtectedRoute requiredPermissions="formularios.visualizar">
-                  <RequisicaoMaterialPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/formularios/termo-responsabilidade" element={
-                <ProtectedRoute requiredPermissions="formularios.visualizar">
-                  <TermoResponsabilidadePage />
-                </ProtectedRoute>
-              } />
+              <Route path="/formularios/termo-demanda" element={<ProtectedRoute><TermoDemandaPage /></ProtectedRoute>} />
+              <Route path="/formularios/ordem-missao" element={<ProtectedRoute><OrdemMissaoPage /></ProtectedRoute>} />
+              <Route path="/formularios/relatorio-viagem" element={<ProtectedRoute><RelatorioViagemPage /></ProtectedRoute>} />
+              <Route path="/formularios/requisicao-material" element={<ProtectedRoute><RequisicaoMaterialPage /></ProtectedRoute>} />
+              <Route path="/formularios/termo-responsabilidade" element={<ProtectedRoute><TermoResponsabilidadePage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* MANUAIS - Apenas autenticação */}
               {/* ============================================ */}
-              <Route path="/manuais" element={
-                <ProtectedRoute>
-                  <ManuaisPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/manuais/compras" element={
-                <ProtectedRoute>
-                  <ManuaisPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/manuais/diarias" element={
-                <ProtectedRoute>
-                  <ManuaisPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/manuais/patrimonio" element={
-                <ProtectedRoute>
-                  <ManuaisPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/manuais/convenios" element={
-                <ProtectedRoute>
-                  <ManuaisPage />
-                </ProtectedRoute>
-              } />
+              <Route path="/manuais" element={<ProtectedRoute><ManuaisPage /></ProtectedRoute>} />
+              <Route path="/manuais/compras" element={<ProtectedRoute><ManuaisPage /></ProtectedRoute>} />
+              <Route path="/manuais/diarias" element={<ProtectedRoute><ManuaisPage /></ProtectedRoute>} />
+              <Route path="/manuais/patrimonio" element={<ProtectedRoute><ManuaisPage /></ProtectedRoute>} />
+              <Route path="/manuais/convenios" element={<ProtectedRoute><ManuaisPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* INTEGRIDADE - Apenas autenticação */}
               {/* ============================================ */}
-              <Route path="/integridade" element={
-                <ProtectedRoute>
-                  <IntegridadePage />
-                </ProtectedRoute>
-              } />
-              <Route path="/integridade/denuncias" element={
-                <ProtectedRoute>
-                  <DenunciasPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/integridade/gestao-denuncias" element={
-                <ProtectedRoute>
-                  <GestaoDenunciasPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/integridade/codigo-etica" element={
-                <ProtectedRoute>
-                  <IntegridadePage />
-                </ProtectedRoute>
-              } />
-              <Route path="/integridade/conflito" element={
-                <ProtectedRoute>
-                  <IntegridadePage />
-                </ProtectedRoute>
-              } />
-              <Route path="/integridade/politica" element={
-                <ProtectedRoute>
-                  <IntegridadePage />
-                </ProtectedRoute>
-              } />
+              <Route path="/integridade" element={<ProtectedRoute><IntegridadePage /></ProtectedRoute>} />
+              <Route path="/integridade/denuncias" element={<ProtectedRoute><DenunciasPage /></ProtectedRoute>} />
+              <Route path="/integridade/gestao-denuncias" element={<ProtectedRoute><GestaoDenunciasPage /></ProtectedRoute>} />
+              <Route path="/integridade/codigo-etica" element={<ProtectedRoute><IntegridadePage /></ProtectedRoute>} />
+              <Route path="/integridade/conflito" element={<ProtectedRoute><IntegridadePage /></ProtectedRoute>} />
+              <Route path="/integridade/politica" element={<ProtectedRoute><IntegridadePage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* TRANSPARÊNCIA - Apenas autenticação */}
               {/* ============================================ */}
-              <Route path="/transparencia" element={
-                <ProtectedRoute>
-                  <TransparenciaPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/transparencia/cargos" element={
-                <ProtectedRoute>
-                  <CargosRemuneracaoPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/transparencia/relatorios" element={
-                <ProtectedRoute>
-                  <TransparenciaPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/transparencia/pessoal" element={
-                <ProtectedRoute>
-                  <TransparenciaPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/transparencia/licitacoes" element={
-                <ProtectedRoute>
-                  <TransparenciaPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/transparencia/orcamento" element={
-                <ProtectedRoute>
-                  <TransparenciaPage />
-                </ProtectedRoute>
-              } />
+              <Route path="/transparencia" element={<ProtectedRoute><TransparenciaPage /></ProtectedRoute>} />
+              <Route path="/transparencia/cargos" element={<ProtectedRoute><CargosRemuneracaoPage /></ProtectedRoute>} />
+              <Route path="/transparencia/relatorios" element={<ProtectedRoute><TransparenciaPage /></ProtectedRoute>} />
+              <Route path="/transparencia/pessoal" element={<ProtectedRoute><TransparenciaPage /></ProtectedRoute>} />
+              <Route path="/transparencia/licitacoes" element={<ProtectedRoute><TransparenciaPage /></ProtectedRoute>} />
+              <Route path="/transparencia/orcamento" element={<ProtectedRoute><TransparenciaPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
-              {/* PROGRAMAS - Com permissões */}
+              {/* PROGRAMAS - Apenas autenticação */}
+              {/* (permissão genérica removida) */}
               {/* ============================================ */}
-              <Route path="/programas/bolsa-atleta" element={
-                <ProtectedRoute requiredPermissions="programas.visualizar">
-                  <BolsaAtletaPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/programas/juventude-cidada" element={
-                <ProtectedRoute requiredPermissions="programas.visualizar">
-                  <JuventudeCidadaPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/programas/esporte-comunidade" element={
-                <ProtectedRoute requiredPermissions="programas.visualizar">
-                  <EsporteComunidadePage />
-                </ProtectedRoute>
-              } />
-              <Route path="/programas/jovem-empreendedor" element={
-                <ProtectedRoute requiredPermissions="programas.visualizar">
-                  <JovemEmpreendedorPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/programas/jogos-escolares" element={
-                <ProtectedRoute requiredPermissions="programas.visualizar">
-                  <JogosEscolaresPage />
-                </ProtectedRoute>
-              } />
+              <Route path="/programas/bolsa-atleta" element={<ProtectedRoute><BolsaAtletaPage /></ProtectedRoute>} />
+              <Route path="/programas/juventude-cidada" element={<ProtectedRoute><JuventudeCidadaPage /></ProtectedRoute>} />
+              <Route path="/programas/esporte-comunidade" element={<ProtectedRoute><EsporteComunidadePage /></ProtectedRoute>} />
+              <Route path="/programas/jovem-empreendedor" element={<ProtectedRoute><JovemEmpreendedorPage /></ProtectedRoute>} />
+              <Route path="/programas/jogos-escolares" element={<ProtectedRoute><JogosEscolaresPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* 404 */}
