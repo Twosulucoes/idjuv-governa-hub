@@ -1,12 +1,11 @@
 // ============================================
-// COMPONENTE USER MENU
+// COMPONENTE USER MENU - FASE 6
 // ============================================
 // Menu dropdown com informações do usuário e ações
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { ROLE_LABELS } from '@/types/auth';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -26,7 +25,7 @@ interface UserMenuProps {
 
 export const UserMenu: React.FC<UserMenuProps> = ({ showRoleBadge = true }) => {
   const navigate = useNavigate();
-  const { user, signOut, isAuthenticated } = useAuth();
+  const { user, signOut, isAuthenticated, isSuperAdmin } = useAuth();
 
   if (!isAuthenticated || !user) {
     return (
@@ -47,14 +46,26 @@ export const UserMenu: React.FC<UserMenuProps> = ({ showRoleBadge = true }) => {
       .slice(0, 2);
   };
 
-  const getRoleBadgeVariant = () => {
-    switch (user.role) {
-      case 'admin': return 'destructive';
-      case 'manager': return 'default';
-      case 'user': return 'secondary';
-      default: return 'outline';
+  // Determinar badge baseado em permissões
+  const getRoleBadge = () => {
+    if (isSuperAdmin) {
+      return { label: 'Super Admin', variant: 'destructive' as const };
     }
+    
+    const permissionCount = user.permissions.length;
+    if (permissionCount > 50) {
+      return { label: 'Administrador', variant: 'destructive' as const };
+    }
+    if (permissionCount > 20) {
+      return { label: 'Gestor', variant: 'default' as const };
+    }
+    if (permissionCount > 5) {
+      return { label: 'Operador', variant: 'secondary' as const };
+    }
+    return { label: 'Usuário', variant: 'outline' as const };
   };
+
+  const roleBadge = getRoleBadge();
 
   return (
     <DropdownMenu>
@@ -69,8 +80,8 @@ export const UserMenu: React.FC<UserMenuProps> = ({ showRoleBadge = true }) => {
           <div className="flex flex-col items-start text-left hidden md:flex">
             <span className="text-sm font-medium">{user.fullName || 'Usuário'}</span>
             {showRoleBadge && (
-              <Badge variant={getRoleBadgeVariant()} className="text-xs h-5">
-                {ROLE_LABELS[user.role]}
+              <Badge variant={roleBadge.variant} className="text-xs h-5">
+                {roleBadge.label}
               </Badge>
             )}
           </div>
