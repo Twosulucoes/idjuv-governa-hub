@@ -68,6 +68,8 @@ const MENU_PERMISSAO_MAP: Record<string, string> = {
   'ferias': 'rh.ferias.visualizar',
   'licencas': 'rh.licencas.visualizar',
   'frequencia': 'rh.frequencia.visualizar',
+  'gestao-frequencia': 'rh.frequencia.visualizar',
+  'config-frequencia': 'rh.frequencia.configurar',
   'viagens': 'rh.viagens.visualizar',
   'modelos-documentos': 'rh.modelos.visualizar',
   'usuarios-servidores': 'admin.usuarios.visualizar',
