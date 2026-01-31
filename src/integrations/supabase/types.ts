@@ -181,6 +181,45 @@ export type Database = {
           },
         ]
       }
+      agrupamento_unidade_vinculo: {
+        Row: {
+          agrupamento_id: string
+          created_at: string | null
+          id: string
+          ordem: number | null
+          unidade_id: string
+        }
+        Insert: {
+          agrupamento_id: string
+          created_at?: string | null
+          id?: string
+          ordem?: number | null
+          unidade_id: string
+        }
+        Update: {
+          agrupamento_id?: string
+          created_at?: string | null
+          id?: string
+          ordem?: number | null
+          unidade_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agrupamento_unidade_vinculo_agrupamento_id_fkey"
+            columns: ["agrupamento_id"]
+            isOneToOne: false
+            referencedRelation: "config_agrupamento_unidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agrupamento_unidade_vinculo_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_delegations: {
         Row: {
           created_at: string | null
@@ -1031,6 +1070,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      config_agrupamento_unidades: {
+        Row: {
+          ativo: boolean | null
+          cor: string | null
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          ordem: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          cor?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          ordem?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          cor?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          ordem?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       config_assinatura_frequencia: {
         Row: {

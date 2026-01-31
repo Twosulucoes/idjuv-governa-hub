@@ -11,7 +11,8 @@ import {
   Timer,
   PenLine,
   Lock,
-  Briefcase
+  Briefcase,
+  Layers
 } from "lucide-react";
 import { JornadaTab } from "@/components/frequencia/config/JornadaTab";
 import { RegimesTab } from "@/components/frequencia/config/RegimesTab";
@@ -20,6 +21,7 @@ import { TiposAbonoTab } from "@/components/frequencia/config/TiposAbonoTab";
 import { CompensacaoTab } from "@/components/frequencia/config/CompensacaoTab";
 import { FechamentoTab } from "@/components/frequencia/config/FechamentoTab";
 import { AssinaturasTab } from "@/components/frequencia/config/AssinaturasTab";
+import { AgrupamentosUnidadesTab } from "@/components/frequencia/config/AgrupamentosUnidadesTab";
 
 export default function ConfiguracaoFrequenciaPage() {
   const [activeTab, setActiveTab] = useState("jornada");
@@ -32,6 +34,7 @@ export default function ConfiguracaoFrequenciaPage() {
     { id: "compensacao", label: "Compensação", icon: Timer, description: "Banco de horas" },
     { id: "fechamento", label: "Fechamento", icon: Lock, description: "Prazos e consolidação" },
     { id: "assinaturas", label: "Assinaturas", icon: PenLine, description: "Validação e assinaturas" },
+    { id: "agrupamentos", label: "Agrupamentos", icon: Layers, description: "Grupos de unidades para impressão em lote" },
   ];
 
   return (
@@ -113,6 +116,10 @@ export default function ConfiguracaoFrequenciaPage() {
 
           <TabsContent value="assinaturas" className="mt-0">
             <AssinaturasTab />
+          </TabsContent>
+
+          <TabsContent value="agrupamentos" className="mt-0">
+            <AgrupamentosUnidadesTab />
           </TabsContent>
         </Tabs>
       </div>
