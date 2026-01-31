@@ -208,8 +208,8 @@ export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData)
   // Alturas visuais similares mas não iguais para equilíbrio
   const logoGovernoH = 12; // Governo: menor pois é muito horizontal
   const logoGovernoW = logoGovernoH * 3.69; // ~44mm (proporção 3.69:1)
-  const logoIdjuvH = 14; // IDJuv: altura padrão
-  const logoIdjuvW = logoIdjuvH * 1.55; // ~22mm (proporção 1.55:1)
+  const logoIdjuvH = 18; // IDJuv: altura maior para destaque
+  const logoIdjuvW = logoIdjuvH * 1.55; // ~28mm (proporção 1.55:1)
   
   // Centralizar verticalmente ambos os logos no espaço do cabeçalho
   const logoGovernoY = y + (headerHeight - logoGovernoH) / 2;
