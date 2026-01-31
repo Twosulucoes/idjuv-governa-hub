@@ -7717,6 +7717,10 @@ export type Database = {
         Returns: boolean
       }
       usuario_eh_admin: { Args: { check_user_id: string }; Returns: boolean }
+      usuario_eh_super_admin: {
+        Args: { check_user_id: string }
+        Returns: boolean
+      }
       usuario_tem_permissao: {
         Args: { _codigo_funcao: string; _user_id: string }
         Returns: boolean
