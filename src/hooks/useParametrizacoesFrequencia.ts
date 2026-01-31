@@ -278,9 +278,14 @@ export function useSalvarTipoAbono() {
         if (error) throw error;
         return data;
       } else {
+        const insertData = {
+          codigo: dados.codigo || '',
+          nome: dados.nome || '',
+          ...dados
+        };
         const { data, error } = await supabase
           .from("tipos_abono")
-          .insert(dados)
+          .insert(insertData)
           .select()
           .single();
         if (error) throw error;
@@ -351,9 +356,13 @@ export function useSalvarCompensacao() {
         if (error) throw error;
         return data;
       } else {
+        const insertData = {
+          nome: dados.nome || 'Nova Configuração',
+          ...dados
+        };
         const { data, error } = await supabase
           .from("config_compensacao")
-          .insert(dados)
+          .insert(insertData)
           .select()
           .single();
         if (error) throw error;
@@ -401,9 +410,14 @@ export function useSalvarFechamento() {
     mutationFn: async (config: Partial<ConfigFechamentoFrequencia>) => {
       const { id, ...dados } = config;
 
+      const upsertData = {
+        ano: dados.ano || new Date().getFullYear(),
+        mes: dados.mes || (new Date().getMonth() + 1),
+        ...dados
+      };
       const { data, error } = await supabase
         .from("config_fechamento_frequencia")
-        .upsert(dados, { onConflict: "ano,mes" })
+        .upsert(upsertData, { onConflict: "ano,mes" })
         .select()
         .single();
 
@@ -476,9 +490,13 @@ export function useSalvarAssinatura() {
         if (error) throw error;
         return data;
       } else {
+        const insertData = {
+          nome: dados.nome || 'Nova Configuração',
+          ...dados
+        };
         const { data, error } = await supabase
           .from("config_assinatura_frequencia")
-          .insert(dados)
+          .insert(insertData)
           .select()
           .single();
         if (error) throw error;

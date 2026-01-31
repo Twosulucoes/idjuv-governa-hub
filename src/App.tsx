@@ -57,6 +57,7 @@ import GestaoViagensPage from "./pages/rh/GestaoViagensPage";
 import GestaoFeriasPage from "./pages/rh/GestaoFeriasPage";
 import GestaoLicencasPage from "./pages/rh/GestaoLicencasPage";
 import GestaoFrequenciaPage from "./pages/rh/GestaoFrequenciaPage";
+import ConfiguracaoFrequenciaPage from "./pages/rh/ConfiguracaoFrequenciaPage";
 import RelatoriosRHPage from "./pages/rh/RelatoriosRHPage";
 import ModelosDocumentosPage from "./pages/rh/ModelosDocumentosPage";
 import GestaoDesignacoesPage from "./pages/rh/GestaoDesignacoesPage";
@@ -395,6 +396,11 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/rh/exportar" element={<ProtectedRoute><ExportacaoPlanilhaPage /></ProtectedRoute>} />
+              <Route path="/rh/frequencia/configuracao" element={
+                <ProtectedRoute requiredPermissions="rh.frequencia.configurar">
+                  <ConfiguracaoFrequenciaPage />
+                </ProtectedRoute>
+              } />
               <Route path="/rh/aniversariantes" element={
                 <ProtectedRoute requiredPermissions="rh.servidores.visualizar">
                   <AniversariantesPage />
