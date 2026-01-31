@@ -235,6 +235,13 @@ export const adminMenuConfig: AdminMenuSection[] = [
             keywords: ["frequência", "ponto", "faltas", "lançamento"],
           },
           {
+            id: "pacotes-frequencia",
+            label: "Controle de Pacotes",
+            href: "/rh/frequencia/pacotes",
+            icon: Package,
+            keywords: ["pacotes", "zip", "sei", "arquivamento", "download"],
+          },
+          {
             id: "config-frequencia",
             label: "Configuração",
             href: "/rh/frequencia/configuracao",
