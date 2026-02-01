@@ -195,14 +195,6 @@ export function ImprimirFrequenciaDialog({
         } : undefined,
         dataGeracao: format(new Date(), "dd/MM/yyyy 'às' HH:mm"),
         usuarioGeracao: user?.email || 'Sistema',
-        versao: '1.0.0',
-        dataVersao: format(new Date(), 'yyyy-MM-dd'),
-        metadados: incluirMetadados ? {
-          geradoEm: new Date().toISOString(),
-          usuario: user?.email || 'sistema',
-          tipoDocumento: tipo,
-          qualidade: altaQualidade ? 'alta' : 'normal'
-        } : undefined,
       };
 
       atualizarProgresso(4, 5);
@@ -304,14 +296,6 @@ export function ImprimirFrequenciaDialog({
         } : undefined,
         dataGeracao: format(new Date(), "dd/MM/yyyy 'às' HH:mm"),
         usuarioGeracao: user?.email || 'Sistema',
-        versao: '1.0.0',
-        dataVersao: format(new Date(), 'yyyy-MM-dd'),
-        metadados: incluirMetadados ? {
-          geradoEm: new Date().toISOString(),
-          usuario: user?.email || 'sistema',
-          tipoDocumento: tipo,
-          qualidade: altaQualidade ? 'alta' : 'normal'
-        } : undefined,
       };
 
       atualizarProgresso(4, 6);
