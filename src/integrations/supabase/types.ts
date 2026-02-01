@@ -14,6 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
+      aditivos_contrato: {
+        Row: {
+          contrato_id: string
+          created_at: string | null
+          created_by: string | null
+          data_assinatura: string
+          data_publicacao_doe: string | null
+          fundamentacao_legal: string | null
+          id: string
+          justificativa: string | null
+          nova_data_fim: string | null
+          numero_aditivo: number
+          numero_doe: string | null
+          objeto: string
+          prazo_adicional_dias: number | null
+          tipo: Database["public"]["Enums"]["tipo_aditivo"]
+          valor_acrescimo: number | null
+          valor_supressao: number | null
+        }
+        Insert: {
+          contrato_id: string
+          created_at?: string | null
+          created_by?: string | null
+          data_assinatura: string
+          data_publicacao_doe?: string | null
+          fundamentacao_legal?: string | null
+          id?: string
+          justificativa?: string | null
+          nova_data_fim?: string | null
+          numero_aditivo: number
+          numero_doe?: string | null
+          objeto: string
+          prazo_adicional_dias?: number | null
+          tipo: Database["public"]["Enums"]["tipo_aditivo"]
+          valor_acrescimo?: number | null
+          valor_supressao?: number | null
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          data_assinatura?: string
+          data_publicacao_doe?: string | null
+          fundamentacao_legal?: string | null
+          id?: string
+          justificativa?: string | null
+          nova_data_fim?: string | null
+          numero_aditivo?: number
+          numero_doe?: string | null
+          objeto?: string
+          prazo_adicional_dias?: number | null
+          tipo?: Database["public"]["Enums"]["tipo_aditivo"]
+          valor_acrescimo?: number | null
+          valor_supressao?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aditivos_contrato_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agenda_unidade: {
         Row: {
           ano_vigencia: number | null
@@ -338,6 +403,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      audit_log_licitacoes: {
+        Row: {
+          acao: string
+          campos_alterados: string[] | null
+          created_at: string
+          dados_anteriores: Json | null
+          dados_novos: Json | null
+          id: string
+          ip_address: unknown
+          motivo: string | null
+          registro_id: string
+          tabela_origem: string
+          user_agent: string | null
+          usuario_id: string | null
+          usuario_nome: string | null
+          usuario_perfil: string | null
+        }
+        Insert: {
+          acao: string
+          campos_alterados?: string[] | null
+          created_at?: string
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          id?: string
+          ip_address?: unknown
+          motivo?: string | null
+          registro_id: string
+          tabela_origem: string
+          user_agent?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+          usuario_perfil?: string | null
+        }
+        Update: {
+          acao?: string
+          campos_alterados?: string[] | null
+          created_at?: string
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          id?: string
+          ip_address?: unknown
+          motivo?: string | null
+          registro_id?: string
+          tabela_origem?: string
+          user_agent?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+          usuario_perfil?: string | null
+        }
+        Relationships: []
       }
       audit_logs: {
         Row: {
@@ -1912,6 +2028,148 @@ export type Database = {
         }
         Relationships: []
       }
+      contratos: {
+        Row: {
+          ano: number
+          created_at: string | null
+          created_by: string | null
+          data_assinatura: string
+          data_fim: string
+          data_fim_atual: string | null
+          data_inicio: string
+          data_publicacao_doe: string | null
+          dotacao_orcamentaria: string | null
+          fiscal_id: string | null
+          fonte_recurso: string | null
+          fornecedor_id: string
+          garantia_tipo: string | null
+          garantia_valor: number | null
+          garantia_vencimento: string | null
+          gestor_id: string | null
+          id: string
+          numero_contrato: string
+          numero_doe: string | null
+          objeto: string
+          objeto_resumido: string | null
+          observacoes: string | null
+          processo_licitatorio_id: string | null
+          saldo_contrato: number | null
+          status: Database["public"]["Enums"]["status_contrato"] | null
+          updated_at: string | null
+          updated_by: string | null
+          valor_atual: number
+          valor_executado: number | null
+          valor_inicial: number
+        }
+        Insert: {
+          ano?: number
+          created_at?: string | null
+          created_by?: string | null
+          data_assinatura: string
+          data_fim: string
+          data_fim_atual?: string | null
+          data_inicio: string
+          data_publicacao_doe?: string | null
+          dotacao_orcamentaria?: string | null
+          fiscal_id?: string | null
+          fonte_recurso?: string | null
+          fornecedor_id: string
+          garantia_tipo?: string | null
+          garantia_valor?: number | null
+          garantia_vencimento?: string | null
+          gestor_id?: string | null
+          id?: string
+          numero_contrato: string
+          numero_doe?: string | null
+          objeto: string
+          objeto_resumido?: string | null
+          observacoes?: string | null
+          processo_licitatorio_id?: string | null
+          saldo_contrato?: number | null
+          status?: Database["public"]["Enums"]["status_contrato"] | null
+          updated_at?: string | null
+          updated_by?: string | null
+          valor_atual: number
+          valor_executado?: number | null
+          valor_inicial: number
+        }
+        Update: {
+          ano?: number
+          created_at?: string | null
+          created_by?: string | null
+          data_assinatura?: string
+          data_fim?: string
+          data_fim_atual?: string | null
+          data_inicio?: string
+          data_publicacao_doe?: string | null
+          dotacao_orcamentaria?: string | null
+          fiscal_id?: string | null
+          fonte_recurso?: string | null
+          fornecedor_id?: string
+          garantia_tipo?: string | null
+          garantia_valor?: number | null
+          garantia_vencimento?: string | null
+          gestor_id?: string | null
+          id?: string
+          numero_contrato?: string
+          numero_doe?: string | null
+          objeto?: string
+          objeto_resumido?: string | null
+          observacoes?: string | null
+          processo_licitatorio_id?: string | null
+          saldo_contrato?: number | null
+          status?: Database["public"]["Enums"]["status_contrato"] | null
+          updated_at?: string | null
+          updated_by?: string | null
+          valor_atual?: number
+          valor_executado?: number | null
+          valor_inicial?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_fiscal_id_fkey"
+            columns: ["fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_fiscal_id_fkey"
+            columns: ["fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_gestor_id_fkey"
+            columns: ["gestor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_gestor_id_fkey"
+            columns: ["gestor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_processo_licitatorio_id_fkey"
+            columns: ["processo_licitatorio_id"]
+            isOneToOne: false
+            referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dados_oficiais: {
         Row: {
           bloqueado: boolean | null
@@ -2772,6 +3030,108 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_cedencias_a_vencer"
             referencedColumns: ["agenda_id"]
+          },
+        ]
+      }
+      documentos_preparatorios_licitacao: {
+        Row: {
+          aprovado: boolean | null
+          aprovado_em: string | null
+          aprovado_por: string | null
+          arquivo_nome: string | null
+          arquivo_url: string | null
+          created_at: string | null
+          created_by: string | null
+          data_documento: string | null
+          descricao: string | null
+          id: string
+          numero_documento: string | null
+          observacoes: string | null
+          processo_licitatorio_id: string
+          responsavel_id: string | null
+          tipo: Database["public"]["Enums"]["tipo_documento_licitacao"]
+          titulo: string
+          updated_at: string | null
+          updated_by: string | null
+          versao: number | null
+        }
+        Insert: {
+          aprovado?: boolean | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          arquivo_nome?: string | null
+          arquivo_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_documento?: string | null
+          descricao?: string | null
+          id?: string
+          numero_documento?: string | null
+          observacoes?: string | null
+          processo_licitatorio_id: string
+          responsavel_id?: string | null
+          tipo: Database["public"]["Enums"]["tipo_documento_licitacao"]
+          titulo: string
+          updated_at?: string | null
+          updated_by?: string | null
+          versao?: number | null
+        }
+        Update: {
+          aprovado?: boolean | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          arquivo_nome?: string | null
+          arquivo_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_documento?: string | null
+          descricao?: string | null
+          id?: string
+          numero_documento?: string | null
+          observacoes?: string | null
+          processo_licitatorio_id?: string
+          responsavel_id?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_documento_licitacao"]
+          titulo?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          versao?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentos_preparatorios_licitacao_aprovado_por_fkey"
+            columns: ["aprovado_por"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_preparatorios_licitacao_aprovado_por_fkey"
+            columns: ["aprovado_por"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_preparatorios_licitacao_processo_licitatorio_id_fkey"
+            columns: ["processo_licitatorio_id"]
+            isOneToOne: false
+            referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_preparatorios_licitacao_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_preparatorios_licitacao_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3684,6 +4044,114 @@ export type Database = {
           },
         ]
       }
+      fornecedores: {
+        Row: {
+          agencia: string | null
+          ativo: boolean | null
+          banco_codigo: string | null
+          banco_nome: string | null
+          conta: string | null
+          cpf_cnpj: string
+          created_at: string | null
+          created_by: string | null
+          data_cadastro: string | null
+          email: string | null
+          endereco_bairro: string | null
+          endereco_cep: string | null
+          endereco_cidade: string | null
+          endereco_complemento: string | null
+          endereco_logradouro: string | null
+          endereco_numero: string | null
+          endereco_uf: string | null
+          id: string
+          inscricao_estadual: string | null
+          inscricao_municipal: string | null
+          nome_fantasia: string | null
+          observacoes: string | null
+          razao_social: string
+          representante_cpf: string | null
+          representante_email: string | null
+          representante_nome: string | null
+          representante_telefone: string | null
+          site: string | null
+          telefone: string | null
+          tipo_conta: string | null
+          tipo_pessoa: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          agencia?: string | null
+          ativo?: boolean | null
+          banco_codigo?: string | null
+          banco_nome?: string | null
+          conta?: string | null
+          cpf_cnpj: string
+          created_at?: string | null
+          created_by?: string | null
+          data_cadastro?: string | null
+          email?: string | null
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_complemento?: string | null
+          endereco_logradouro?: string | null
+          endereco_numero?: string | null
+          endereco_uf?: string | null
+          id?: string
+          inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
+          nome_fantasia?: string | null
+          observacoes?: string | null
+          razao_social: string
+          representante_cpf?: string | null
+          representante_email?: string | null
+          representante_nome?: string | null
+          representante_telefone?: string | null
+          site?: string | null
+          telefone?: string | null
+          tipo_conta?: string | null
+          tipo_pessoa: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          agencia?: string | null
+          ativo?: boolean | null
+          banco_codigo?: string | null
+          banco_nome?: string | null
+          conta?: string | null
+          cpf_cnpj?: string
+          created_at?: string | null
+          created_by?: string | null
+          data_cadastro?: string | null
+          email?: string | null
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_complemento?: string | null
+          endereco_logradouro?: string | null
+          endereco_numero?: string | null
+          endereco_uf?: string | null
+          id?: string
+          inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
+          nome_fantasia?: string | null
+          observacoes?: string | null
+          razao_social?: string
+          representante_cpf?: string | null
+          representante_email?: string | null
+          representante_nome?: string | null
+          representante_telefone?: string | null
+          site?: string | null
+          telefone?: string | null
+          tipo_conta?: string | null
+          tipo_pessoa?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       frequencia_arquivos: {
         Row: {
           ano: number
@@ -4399,6 +4867,72 @@ export type Database = {
           },
         ]
       }
+      itens_licitacao: {
+        Row: {
+          created_at: string | null
+          descricao: string
+          id: string
+          numero_item: number
+          observacoes: string | null
+          processo_id: string
+          quantidade: number
+          situacao: string | null
+          unidade_medida: string | null
+          valor_total_estimado: number | null
+          valor_total_final: number | null
+          valor_unitario_estimado: number | null
+          valor_unitario_final: number | null
+          vencedor_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          descricao: string
+          id?: string
+          numero_item: number
+          observacoes?: string | null
+          processo_id: string
+          quantidade?: number
+          situacao?: string | null
+          unidade_medida?: string | null
+          valor_total_estimado?: number | null
+          valor_total_final?: number | null
+          valor_unitario_estimado?: number | null
+          valor_unitario_final?: number | null
+          vencedor_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          descricao?: string
+          id?: string
+          numero_item?: number
+          observacoes?: string | null
+          processo_id?: string
+          quantidade?: number
+          situacao?: string | null
+          unidade_medida?: string | null
+          valor_total_estimado?: number | null
+          valor_total_final?: number | null
+          valor_unitario_estimado?: number | null
+          valor_unitario_final?: number | null
+          vencedor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itens_licitacao_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itens_licitacao_vencedor_id_fkey"
+            columns: ["vencedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       itens_retorno_bancario: {
         Row: {
           codigo_ocorrencia: string | null
@@ -4832,6 +5366,94 @@ export type Database = {
             columns: ["unidade_id"]
             isOneToOne: false
             referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medicoes_contrato: {
+        Row: {
+          aprovado_por: string | null
+          contrato_id: string
+          created_at: string | null
+          created_by: string | null
+          data_aprovacao: string | null
+          data_envio: string | null
+          data_pagamento: string | null
+          id: string
+          motivo_rejeicao: string | null
+          nota_fiscal_data: string | null
+          nota_fiscal_numero: string | null
+          nota_fiscal_valor: number | null
+          numero_medicao: number
+          observacoes: string | null
+          periodo_fim: string
+          periodo_inicio: string
+          status: Database["public"]["Enums"]["status_medicao"] | null
+          valor_aprovado: number | null
+          valor_medido: number
+        }
+        Insert: {
+          aprovado_por?: string | null
+          contrato_id: string
+          created_at?: string | null
+          created_by?: string | null
+          data_aprovacao?: string | null
+          data_envio?: string | null
+          data_pagamento?: string | null
+          id?: string
+          motivo_rejeicao?: string | null
+          nota_fiscal_data?: string | null
+          nota_fiscal_numero?: string | null
+          nota_fiscal_valor?: number | null
+          numero_medicao: number
+          observacoes?: string | null
+          periodo_fim: string
+          periodo_inicio: string
+          status?: Database["public"]["Enums"]["status_medicao"] | null
+          valor_aprovado?: number | null
+          valor_medido: number
+        }
+        Update: {
+          aprovado_por?: string | null
+          contrato_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          data_aprovacao?: string | null
+          data_envio?: string | null
+          data_pagamento?: string | null
+          id?: string
+          motivo_rejeicao?: string | null
+          nota_fiscal_data?: string | null
+          nota_fiscal_numero?: string | null
+          nota_fiscal_valor?: number | null
+          numero_medicao?: number
+          observacoes?: string | null
+          periodo_fim?: string
+          periodo_inicio?: string
+          status?: Database["public"]["Enums"]["status_medicao"] | null
+          valor_aprovado?: number | null
+          valor_medido?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medicoes_contrato_aprovado_por_fkey"
+            columns: ["aprovado_por"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medicoes_contrato_aprovado_por_fkey"
+            columns: ["aprovado_por"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medicoes_contrato_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
             referencedColumns: ["id"]
           },
         ]
@@ -6140,6 +6762,132 @@ export type Database = {
           },
         ]
       }
+      processos_licitatorios: {
+        Row: {
+          ano: number
+          created_at: string | null
+          created_by: string | null
+          data_abertura: string | null
+          data_limite_propostas: string | null
+          data_publicacao_edital: string | null
+          data_sessao: string | null
+          dotacao_orcamentaria: string | null
+          elemento_despesa: string | null
+          fase_atual: Database["public"]["Enums"]["fase_licitacao"] | null
+          fonte_recurso: string | null
+          fundamentacao_legal: string | null
+          historico_fases: Json | null
+          id: string
+          modalidade: Database["public"]["Enums"]["modalidade_licitacao"]
+          numero_processo: string
+          objeto: string
+          objeto_resumido: string | null
+          observacoes: string | null
+          pregoeiro_id: string | null
+          programa_trabalho: string | null
+          servidor_responsavel_id: string | null
+          tipo_licitacao: string | null
+          unidade_requisitante_id: string | null
+          updated_at: string | null
+          updated_by: string | null
+          valor_estimado: number | null
+        }
+        Insert: {
+          ano?: number
+          created_at?: string | null
+          created_by?: string | null
+          data_abertura?: string | null
+          data_limite_propostas?: string | null
+          data_publicacao_edital?: string | null
+          data_sessao?: string | null
+          dotacao_orcamentaria?: string | null
+          elemento_despesa?: string | null
+          fase_atual?: Database["public"]["Enums"]["fase_licitacao"] | null
+          fonte_recurso?: string | null
+          fundamentacao_legal?: string | null
+          historico_fases?: Json | null
+          id?: string
+          modalidade: Database["public"]["Enums"]["modalidade_licitacao"]
+          numero_processo: string
+          objeto: string
+          objeto_resumido?: string | null
+          observacoes?: string | null
+          pregoeiro_id?: string | null
+          programa_trabalho?: string | null
+          servidor_responsavel_id?: string | null
+          tipo_licitacao?: string | null
+          unidade_requisitante_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          valor_estimado?: number | null
+        }
+        Update: {
+          ano?: number
+          created_at?: string | null
+          created_by?: string | null
+          data_abertura?: string | null
+          data_limite_propostas?: string | null
+          data_publicacao_edital?: string | null
+          data_sessao?: string | null
+          dotacao_orcamentaria?: string | null
+          elemento_despesa?: string | null
+          fase_atual?: Database["public"]["Enums"]["fase_licitacao"] | null
+          fonte_recurso?: string | null
+          fundamentacao_legal?: string | null
+          historico_fases?: Json | null
+          id?: string
+          modalidade?: Database["public"]["Enums"]["modalidade_licitacao"]
+          numero_processo?: string
+          objeto?: string
+          objeto_resumido?: string | null
+          observacoes?: string | null
+          pregoeiro_id?: string | null
+          programa_trabalho?: string | null
+          servidor_responsavel_id?: string | null
+          tipo_licitacao?: string | null
+          unidade_requisitante_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          valor_estimado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processos_licitatorios_pregoeiro_id_fkey"
+            columns: ["pregoeiro_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_licitatorios_pregoeiro_id_fkey"
+            columns: ["pregoeiro_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_licitatorios_servidor_responsavel_id_fkey"
+            columns: ["servidor_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_licitatorios_servidor_responsavel_id_fkey"
+            columns: ["servidor_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_licitatorios_unidade_requisitante_id_fkey"
+            columns: ["unidade_requisitante_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -6199,6 +6947,82 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      propostas_licitacao: {
+        Row: {
+          classificacao: number | null
+          created_at: string | null
+          data_proposta: string | null
+          desclassificada: boolean | null
+          fornecedor_id: string
+          id: string
+          item_id: string | null
+          marca: string | null
+          modelo: string | null
+          motivo_desclassificacao: string | null
+          observacoes: string | null
+          processo_id: string
+          valor_total: number | null
+          valor_unitario: number
+          vencedora: boolean | null
+        }
+        Insert: {
+          classificacao?: number | null
+          created_at?: string | null
+          data_proposta?: string | null
+          desclassificada?: boolean | null
+          fornecedor_id: string
+          id?: string
+          item_id?: string | null
+          marca?: string | null
+          modelo?: string | null
+          motivo_desclassificacao?: string | null
+          observacoes?: string | null
+          processo_id: string
+          valor_total?: number | null
+          valor_unitario: number
+          vencedora?: boolean | null
+        }
+        Update: {
+          classificacao?: number | null
+          created_at?: string | null
+          data_proposta?: string | null
+          desclassificada?: boolean | null
+          fornecedor_id?: string
+          id?: string
+          item_id?: string | null
+          marca?: string | null
+          modelo?: string | null
+          motivo_desclassificacao?: string | null
+          observacoes?: string | null
+          processo_id?: string
+          valor_total?: number | null
+          valor_unitario?: number
+          vencedora?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propostas_licitacao_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propostas_licitacao_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens_licitacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propostas_licitacao_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_licitatorios"
             referencedColumns: ["id"]
           },
         ]
@@ -6291,6 +7115,197 @@ export type Database = {
             columns: ["unidade_id"]
             isOneToOne: false
             referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      publicacoes_lai: {
+        Row: {
+          ano_referencia: number | null
+          arquivo_nome: string | null
+          arquivo_url: string | null
+          categoria: string
+          conteudo: string | null
+          contrato_id: string | null
+          created_at: string | null
+          created_by: string | null
+          data_publicacao: string | null
+          descricao: string | null
+          destaque: boolean | null
+          id: string
+          mes_referencia: number | null
+          ordem_exibicao: number | null
+          periodo_referencia: string | null
+          publicado: boolean | null
+          publicado_por: string | null
+          servidor_id: string | null
+          subcategoria: string | null
+          titulo: string
+          unidade_id: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          ano_referencia?: number | null
+          arquivo_nome?: string | null
+          arquivo_url?: string | null
+          categoria: string
+          conteudo?: string | null
+          contrato_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_publicacao?: string | null
+          descricao?: string | null
+          destaque?: boolean | null
+          id?: string
+          mes_referencia?: number | null
+          ordem_exibicao?: number | null
+          periodo_referencia?: string | null
+          publicado?: boolean | null
+          publicado_por?: string | null
+          servidor_id?: string | null
+          subcategoria?: string | null
+          titulo: string
+          unidade_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          ano_referencia?: number | null
+          arquivo_nome?: string | null
+          arquivo_url?: string | null
+          categoria?: string
+          conteudo?: string | null
+          contrato_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_publicacao?: string | null
+          descricao?: string | null
+          destaque?: boolean | null
+          id?: string
+          mes_referencia?: number | null
+          ordem_exibicao?: number | null
+          periodo_referencia?: string | null
+          publicado?: boolean | null
+          publicado_por?: string | null
+          servidor_id?: string | null
+          subcategoria?: string | null
+          titulo?: string
+          unidade_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publicacoes_lai_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicacoes_lai_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicacoes_lai_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicacoes_lai_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      publicacoes_legais: {
+        Row: {
+          arquivo_url: string | null
+          conteudo_resumido: string | null
+          contrato_id: string | null
+          created_at: string | null
+          created_by: string | null
+          data_publicacao: string
+          id: string
+          numero_publicacao: string | null
+          observacoes: string | null
+          pagina: string | null
+          pncp_id: string | null
+          pncp_sequencial: number | null
+          pncp_sincronizado: boolean | null
+          pncp_sincronizado_em: string | null
+          processo_licitatorio_id: string | null
+          secao: string | null
+          tipo_publicacao: string
+          updated_at: string | null
+          url_publicacao: string | null
+          veiculo: Database["public"]["Enums"]["veiculo_publicacao"]
+        }
+        Insert: {
+          arquivo_url?: string | null
+          conteudo_resumido?: string | null
+          contrato_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_publicacao: string
+          id?: string
+          numero_publicacao?: string | null
+          observacoes?: string | null
+          pagina?: string | null
+          pncp_id?: string | null
+          pncp_sequencial?: number | null
+          pncp_sincronizado?: boolean | null
+          pncp_sincronizado_em?: string | null
+          processo_licitatorio_id?: string | null
+          secao?: string | null
+          tipo_publicacao: string
+          updated_at?: string | null
+          url_publicacao?: string | null
+          veiculo: Database["public"]["Enums"]["veiculo_publicacao"]
+        }
+        Update: {
+          arquivo_url?: string | null
+          conteudo_resumido?: string | null
+          contrato_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_publicacao?: string
+          id?: string
+          numero_publicacao?: string | null
+          observacoes?: string | null
+          pagina?: string | null
+          pncp_id?: string | null
+          pncp_sequencial?: number | null
+          pncp_sincronizado?: boolean | null
+          pncp_sincronizado_em?: string | null
+          processo_licitatorio_id?: string | null
+          secao?: string | null
+          tipo_publicacao?: string
+          updated_at?: string | null
+          url_publicacao?: string | null
+          veiculo?: Database["public"]["Enums"]["veiculo_publicacao"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publicacoes_legais_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicacoes_legais_processo_licitatorio_id_fkey"
+            columns: ["processo_licitatorio_id"]
+            isOneToOne: false
+            referencedRelation: "processos_licitatorios"
             referencedColumns: ["id"]
           },
         ]
@@ -7521,6 +8536,122 @@ export type Database = {
           },
         ]
       }
+      solicitacoes_sic: {
+        Row: {
+          bloqueado_ate: string | null
+          categoria: string | null
+          created_at: string | null
+          descricao_pedido: string
+          forma_recebimento: string | null
+          id: string
+          prazo_resposta: string | null
+          protocolo: string
+          recurso_data: string | null
+          recurso_respondido_em: string | null
+          recurso_respondido_por: string | null
+          recurso_resposta: string | null
+          recurso_texto: string | null
+          respondido_em: string | null
+          respondido_por: string | null
+          resposta: string | null
+          resposta_arquivo_url: string | null
+          solicitante_documento: string | null
+          solicitante_email: string | null
+          solicitante_hash: string | null
+          solicitante_nome: string
+          solicitante_telefone: string | null
+          status: string | null
+          tentativas_consulta: number | null
+          token_consulta: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          bloqueado_ate?: string | null
+          categoria?: string | null
+          created_at?: string | null
+          descricao_pedido: string
+          forma_recebimento?: string | null
+          id?: string
+          prazo_resposta?: string | null
+          protocolo: string
+          recurso_data?: string | null
+          recurso_respondido_em?: string | null
+          recurso_respondido_por?: string | null
+          recurso_resposta?: string | null
+          recurso_texto?: string | null
+          respondido_em?: string | null
+          respondido_por?: string | null
+          resposta?: string | null
+          resposta_arquivo_url?: string | null
+          solicitante_documento?: string | null
+          solicitante_email?: string | null
+          solicitante_hash?: string | null
+          solicitante_nome: string
+          solicitante_telefone?: string | null
+          status?: string | null
+          tentativas_consulta?: number | null
+          token_consulta?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          bloqueado_ate?: string | null
+          categoria?: string | null
+          created_at?: string | null
+          descricao_pedido?: string
+          forma_recebimento?: string | null
+          id?: string
+          prazo_resposta?: string | null
+          protocolo?: string
+          recurso_data?: string | null
+          recurso_respondido_em?: string | null
+          recurso_respondido_por?: string | null
+          recurso_resposta?: string | null
+          recurso_texto?: string | null
+          respondido_em?: string | null
+          respondido_por?: string | null
+          resposta?: string | null
+          resposta_arquivo_url?: string | null
+          solicitante_documento?: string | null
+          solicitante_email?: string | null
+          solicitante_hash?: string | null
+          solicitante_nome?: string
+          solicitante_telefone?: string | null
+          status?: string | null
+          tentativas_consulta?: number | null
+          token_consulta?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacoes_sic_recurso_respondido_por_fkey"
+            columns: ["recurso_respondido_por"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_sic_recurso_respondido_por_fkey"
+            columns: ["recurso_respondido_por"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_sic_respondido_por_fkey"
+            columns: ["respondido_por"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_sic_respondido_por_fkey"
+            columns: ["respondido_por"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tabela_inss: {
         Row: {
           aliquota: number
@@ -8491,6 +9622,36 @@ export type Database = {
           },
         ]
       }
+      v_sic_consulta_publica: {
+        Row: {
+          data_resposta: string | null
+          data_solicitacao: string | null
+          dias_restantes: number | null
+          prazo_resposta: string | null
+          protocolo: string | null
+          respondido_no_prazo: boolean | null
+          status: string | null
+        }
+        Insert: {
+          data_resposta?: string | null
+          data_solicitacao?: string | null
+          dias_restantes?: never
+          prazo_resposta?: string | null
+          protocolo?: string | null
+          respondido_no_prazo?: never
+          status?: string | null
+        }
+        Update: {
+          data_resposta?: string | null
+          data_solicitacao?: string | null
+          dias_restantes?: never
+          prazo_resposta?: string | null
+          protocolo?: string | null
+          respondido_no_prazo?: never
+          status?: string | null
+        }
+        Relationships: []
+      }
       v_usuarios_sistema: {
         Row: {
           avatar_url: string | null
@@ -8559,6 +9720,18 @@ export type Database = {
       }
       can_view_audit: { Args: { _user_id: string }; Returns: boolean }
       can_view_indicacao: { Args: { _user_id: string }; Returns: boolean }
+      consultar_protocolo_sic: {
+        Args: { p_protocolo: string; p_token: string }
+        Returns: {
+          data_resposta: string
+          data_solicitacao: string
+          dias_restantes: number
+          prazo_resposta: string
+          protocolo: string
+          resposta: string
+          status: string
+        }[]
+      }
       count_dependentes_irrf: {
         Args: { p_data?: string; p_servidor_id: string }
         Returns: number
@@ -8813,12 +9986,37 @@ export type Database = {
         | "ferias"
         | "licenca"
       estado_conservacao: "otimo" | "bom" | "regular" | "ruim" | "inservivel"
+      fase_licitacao:
+        | "planejamento"
+        | "elaboracao"
+        | "edital"
+        | "publicacao"
+        | "propostas"
+        | "habilitacao"
+        | "julgamento"
+        | "homologacao"
+        | "adjudicacao"
+        | "contratacao"
+        | "encerrado"
+        | "revogado"
+        | "anulado"
+        | "deserto"
+        | "fracassado"
       formula_tipo:
         | "valor_fixo"
         | "percentual_base"
         | "quantidade_valor"
         | "calculo_especial"
         | "referencia_cargo"
+      modalidade_licitacao:
+        | "pregao_eletronico"
+        | "pregao_presencial"
+        | "concorrencia"
+        | "concurso"
+        | "leilao"
+        | "dialogo_competitivo"
+        | "dispensa"
+        | "inexigibilidade"
       natureza_cargo: "efetivo" | "comissionado"
       natureza_rubrica: "remuneratorio" | "indenizatorio" | "informativo"
       nivel_perfil: "sistema" | "organizacional" | "operacional"
@@ -8852,6 +10050,13 @@ export type Database = {
         | "aprovado"
         | "publicado"
         | "arquivado"
+      status_contrato:
+        | "rascunho"
+        | "vigente"
+        | "suspenso"
+        | "encerrado"
+        | "rescindido"
+        | "aditado"
       status_demanda_ascom:
         | "rascunho"
         | "enviada"
@@ -8880,6 +10085,7 @@ export type Database = {
         | "rejeitado"
         | "erro"
       status_folha: "aberta" | "previa" | "processando" | "fechada" | "reaberta"
+      status_medicao: "rascunho" | "enviada" | "aprovada" | "rejeitada" | "paga"
       status_nomeacao: "ativo" | "encerrado" | "revogado"
       status_participante:
         | "pendente"
@@ -8904,6 +10110,14 @@ export type Database = {
       status_solicitacao: "pendente" | "aprovada" | "rejeitada" | "cancelada"
       status_termo_cessao: "pendente" | "emitido" | "assinado" | "cancelado"
       status_unidade_local: "ativa" | "inativa" | "manutencao" | "interditada"
+      tipo_aditivo:
+        | "prazo"
+        | "valor"
+        | "prazo_valor"
+        | "objeto"
+        | "supressao"
+        | "reequilibrio"
+        | "apostilamento"
       tipo_afastamento:
         | "licenca"
         | "suspensao"
@@ -8958,6 +10172,19 @@ export type Database = {
         | "comunicado"
         | "decreto"
         | "lei"
+        | "outro"
+      tipo_documento_licitacao:
+        | "etp"
+        | "termo_referencia"
+        | "projeto_basico"
+        | "pesquisa_precos"
+        | "parecer_juridico"
+        | "autorizacao"
+        | "dotacao_orcamentaria"
+        | "mapa_riscos"
+        | "minuta_edital"
+        | "minuta_contrato"
+        | "ata_aprovacao"
         | "outro"
       tipo_folha:
         | "mensal"
@@ -9063,6 +10290,7 @@ export type Database = {
         | "comissionado_idjuv"
         | "cedido_entrada"
         | "cedido_saida"
+      veiculo_publicacao: "doe" | "pncp" | "dou" | "jornal" | "site" | "mural"
       vinculo_funcional:
         | "efetivo"
         | "comissionado"
@@ -9306,12 +10534,39 @@ export const Constants = {
         "licenca",
       ],
       estado_conservacao: ["otimo", "bom", "regular", "ruim", "inservivel"],
+      fase_licitacao: [
+        "planejamento",
+        "elaboracao",
+        "edital",
+        "publicacao",
+        "propostas",
+        "habilitacao",
+        "julgamento",
+        "homologacao",
+        "adjudicacao",
+        "contratacao",
+        "encerrado",
+        "revogado",
+        "anulado",
+        "deserto",
+        "fracassado",
+      ],
       formula_tipo: [
         "valor_fixo",
         "percentual_base",
         "quantidade_valor",
         "calculo_especial",
         "referencia_cargo",
+      ],
+      modalidade_licitacao: [
+        "pregao_eletronico",
+        "pregao_presencial",
+        "concorrencia",
+        "concurso",
+        "leilao",
+        "dialogo_competitivo",
+        "dispensa",
+        "inexigibilidade",
       ],
       natureza_cargo: ["efetivo", "comissionado"],
       natureza_rubrica: ["remuneratorio", "indenizatorio", "informativo"],
@@ -9350,6 +10605,14 @@ export const Constants = {
         "publicado",
         "arquivado",
       ],
+      status_contrato: [
+        "rascunho",
+        "vigente",
+        "suspenso",
+        "encerrado",
+        "rescindido",
+        "aditado",
+      ],
       status_demanda_ascom: [
         "rascunho",
         "enviada",
@@ -9381,6 +10644,7 @@ export const Constants = {
         "erro",
       ],
       status_folha: ["aberta", "previa", "processando", "fechada", "reaberta"],
+      status_medicao: ["rascunho", "enviada", "aprovada", "rejeitada", "paga"],
       status_nomeacao: ["ativo", "encerrado", "revogado"],
       status_participante: [
         "pendente",
@@ -9408,6 +10672,15 @@ export const Constants = {
       status_solicitacao: ["pendente", "aprovada", "rejeitada", "cancelada"],
       status_termo_cessao: ["pendente", "emitido", "assinado", "cancelado"],
       status_unidade_local: ["ativa", "inativa", "manutencao", "interditada"],
+      tipo_aditivo: [
+        "prazo",
+        "valor",
+        "prazo_valor",
+        "objeto",
+        "supressao",
+        "reequilibrio",
+        "apostilamento",
+      ],
       tipo_afastamento: [
         "licenca",
         "suspensao",
@@ -9465,6 +10738,20 @@ export const Constants = {
         "comunicado",
         "decreto",
         "lei",
+        "outro",
+      ],
+      tipo_documento_licitacao: [
+        "etp",
+        "termo_referencia",
+        "projeto_basico",
+        "pesquisa_precos",
+        "parecer_juridico",
+        "autorizacao",
+        "dotacao_orcamentaria",
+        "mapa_riscos",
+        "minuta_edital",
+        "minuta_contrato",
+        "ata_aprovacao",
         "outro",
       ],
       tipo_folha: [
@@ -9583,6 +10870,7 @@ export const Constants = {
         "cedido_entrada",
         "cedido_saida",
       ],
+      veiculo_publicacao: ["doe", "pncp", "dou", "jornal", "site", "mural"],
       vinculo_funcional: [
         "efetivo",
         "comissionado",
