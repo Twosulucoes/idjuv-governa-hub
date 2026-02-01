@@ -15,17 +15,39 @@ import type { DiaNaoUtil, StatusFechamento } from '@/types/frequencia';
 import logoGoverno from '@/assets/logo-governo-roraima.jpg';
 import logoIdjuv from '@/assets/logo-idjuv-oficial.png';
 
-function getImageAspectRatioFromDoc(doc: jsPDF, src: string, fallback: number): number {
-  try {
-    const props = doc.getImageProperties(src);
-    const w = (props as unknown as { width?: number }).width;
-    const h = (props as unknown as { height?: number }).height;
-    if (!w || !h) return fallback;
-    return w / h;
-  } catch {
-    return fallback;
-  }
-}
+// ============================================
+// CONSTANTES GLOBAIS
+// ============================================
+
+const MESES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
+const INSTITUICAO = {
+  nome: 'Instituto de Desporto, Juventude e Lazer do Estado de Roraima',
+  sigla: 'IDJuv',
+  cnpj: '64.689.510/0001-09',
+  endereco: 'Rua Cel. Pinto, 588, Centro, Boa Vista/RR, CEP 69.301-150',
+} as const;
+
+const CORES = {
+  primaria: { r: 0, g: 68, b: 68 },
+  texto: { r: 60, g: 65, b: 70 },
+  textoEscuro: { r: 30, g: 35, b: 40 },
+  fundoCabecalho: { r: 248, g: 250, b: 252 },
+  bordaCabecalho: { r: 220, g: 225, b: 230 },
+  feriado: { r: 255, g: 245, b: 220 },
+  fimSemana: { r: 250, g: 248, b: 240 },
+  linhaPar: { r: 252, g: 253, b: 255 },
+  linhaImpar: { r: 255, g: 255, b: 255 },
+  falta: { r: 180, g: 50, b: 50 },
+  fimSemanaTexto: { r: 140, g: 110, b: 60 },
+  naoUtilTexto: { r: 150, g: 120, b: 50 },
+  cinzaClaro: { r: 180, g: 185, b: 190 },
+  linhaAssinatura: { r: 200, g: 205, b: 210 },
+  rodape: { r: 130, g: 135, b: 140 },
+} as const;
 
 // ============================================
 // INTERFACES
@@ -105,25 +127,31 @@ export interface FrequenciaMensalPDFData {
   statusPeriodo?: StatusPeriodo;
   dataGeracao: string;
   usuarioGeracao?: string;
+  versao?: string;
+  dataVersao?: string;
+  metadados?: {
+    geradoEm: string;
+    usuario: string;
+    tipoDocumento: 'em_branco' | 'preenchida';
+    qualidade?: 'normal' | 'alta';
+  };
 }
-
-// ============================================
-// CONSTANTES
-// ============================================
-
-const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-
-const INSTITUICAO = {
-  nome: 'Instituto de Desporto, Juventude e Lazer do Estado de Roraima',
-  sigla: 'IDJuv',
-  cnpj: '64.689.510/0001-09',
-  endereco: 'Rua Cel. Pinto, 588, Centro, Boa Vista/RR, CEP 69.301-150',
-};
 
 // ============================================
 // HELPERS
 // ============================================
+
+function getImageAspectRatioFromDoc(doc: jsPDF, src: string, fallback: number): number {
+  try {
+    const props = doc.getImageProperties(src);
+    const w = (props as unknown as { width?: number }).width;
+    const h = (props as unknown as { height?: number }).height;
+    if (!w || !h) return fallback;
+    return w / h;
+  } catch {
+    return fallback;
+  }
+}
 
 function getUltimoDiaMes(ano: number, mes: number): number {
   return new Date(ano, mes, 0).getDate();
@@ -165,756 +193,464 @@ function getTipoDiaAbrev(situacao: RegistroDiario['situacao'], tipoReg?: string)
   }
 }
 
-// ============================================
-// GERADOR PRINCIPAL - 1 PÁGINA A4 COMPLETA
-// ============================================
+function parsearDataString(dataStr: string): Date | null {
+  try {
+    const [ano, mes, dia] = dataStr.split('-').map(Number);
+    return new Date(ano, mes - 1, dia);
+  } catch {
+    return null;
+  }
+}
 
-export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData): Promise<{ doc: jsPDF; nomeArquivo: string }> => {
-  const doc = new jsPDF('portrait', 'mm', 'a4');
-  const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
-  const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
-  const margin = 12;
-  const contentWidth = pageWidth - margin * 2; // 186mm
+function truncarTexto(doc: jsPDF, texto: string, maxWidth: number): string {
+  if (!texto) return '-';
+  if (doc.getTextWidth(texto) <= maxWidth) return texto;
   
-  const competencia = `${MESES[data.competencia.mes - 1]} de ${data.competencia.ano}`;
-  const srv = data.servidor;
+  let truncado = texto;
+  const ellipsis = '...';
+  while (truncado.length > 0 && doc.getTextWidth(truncado + ellipsis) > maxWidth) {
+    truncado = truncado.slice(0, -1);
+  }
+  return truncado + ellipsis;
+}
 
-  // Gerar dias do mês
-  const ultimoDia = getUltimoDiaMes(data.competencia.ano, data.competencia.mes);
-  const registros: RegistroDiario[] = [];
+// ============================================
+// CLASSE GERADORA DE PDF (Modular)
+// ============================================
 
-  for (let dia = 1; dia <= ultimoDia; dia++) {
-    const dataAtual = new Date(data.competencia.ano, data.competencia.mes - 1, dia);
-    const dataStr = `${data.competencia.ano}-${String(data.competencia.mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-    const { situacao, label } = getSituacaoDia(dataAtual, data.diasNaoUteis);
-    const regExist = data.registros?.find(r => r.data === dataStr);
+class GeradorPDFFrequencia {
+  private doc: jsPDF;
+  private data: FrequenciaMensalPDFData;
+  private pageWidth: number;
+  private pageHeight: number;
+  private margin: number;
+  private contentWidth: number;
+  private y: number;
 
-    registros.push({
-      data: dataStr,
-      dia_semana: dataAtual.getDay(),
-      situacao: regExist?.situacao || situacao,
-      situacao_label: regExist?.situacao_label || label,
-      entrada: regExist?.entrada || regExist?.entrada_manha,
-      saida: regExist?.saida || regExist?.saida_tarde || regExist?.saida_manha,
-      tipo_registro: regExist?.tipo_registro,
+  constructor(data: FrequenciaMensalPDFData) {
+    this.data = data;
+    this.doc = new jsPDF('portrait', 'mm', 'a4');
+    this.pageWidth = this.doc.internal.pageSize.getWidth();
+    this.pageHeight = this.doc.internal.pageSize.getHeight();
+    this.margin = 12;
+    this.contentWidth = this.pageWidth - this.margin * 2;
+    this.y = this.margin;
+  }
+
+  // ===== MÉTODOS PÚBLICOS =====
+
+  public gerarPDF(): jsPDF {
+    try {
+      this.adicionarCabecalho();
+      this.adicionarIdentificacaoServidor();
+      this.adicionarTabelaFrequencia();
+      this.adicionarAssinaturas();
+      this.adicionarRodape();
+      
+      return this.doc;
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      throw new Error(`Falha na geração do PDF: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    }
+  }
+
+  public async gerarBlob(): Promise<Blob> {
+    this.gerarPDF();
+    return this.doc.output('blob');
+  }
+
+  // ===== MÉTODOS PRIVADOS =====
+
+  private adicionarCabecalho(): void {
+    const headerHeight = 24;
+    
+    // Logos com proporções originais
+    const aspectGov = getImageAspectRatioFromDoc(this.doc, logoGoverno, 3.69);
+    const aspectIdjuv = getImageAspectRatioFromDoc(this.doc, logoIdjuv, 1.55);
+
+    const logoGovH = 18;
+    const logoGovW = logoGovH * aspectGov;
+    const logoIdjuvH = 22;
+    const logoIdjuvW = logoIdjuvH * aspectIdjuv;
+
+    const logoGovY = this.y + (headerHeight - logoGovH) / 2;
+    const logoIdjuvY = this.y + (headerHeight - logoIdjuvH) / 2;
+
+    // Logo Governo (esquerda)
+    try {
+      this.doc.addImage(logoGoverno, 'JPEG', this.margin, logoGovY, logoGovW, logoGovH);
+    } catch (e) {
+      console.warn('Logo Governo não carregado:', e);
+    }
+    
+    // Título central
+    this.doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFontSize(12);
+    this.doc.text('FOLHA DE FREQUÊNCIA MENSAL', this.pageWidth / 2, this.y + 6, { align: 'center' });
+    
+    this.doc.setFontSize(9);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+    this.doc.text(INSTITUICAO.nome, this.pageWidth / 2, this.y + 12, { align: 'center' });
+    this.doc.setFontSize(7);
+    this.doc.text(`CNPJ: ${INSTITUICAO.cnpj} | ${INSTITUICAO.endereco}`, this.pageWidth / 2, this.y + 17, { align: 'center' });
+    
+    // Logo IDJuv (direita)
+    try {
+      this.doc.addImage(logoIdjuv, 'PNG', this.pageWidth - this.margin - logoIdjuvW, logoIdjuvY, logoIdjuvW, logoIdjuvH);
+    } catch (e) {
+      console.warn('Logo IDJuv não carregado:', e);
+    }
+
+    this.y += headerHeight;
+
+    // Linha divisória
+    this.doc.setDrawColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    this.doc.setLineWidth(0.5);
+    this.doc.line(this.margin, this.y, this.pageWidth - this.margin, this.y);
+    this.y += 4;
+  }
+
+  private adicionarIdentificacaoServidor(): void {
+    const boxHeight = 22;
+    const servidor = this.data.servidor;
+    const competencia = `${MESES[this.data.competencia.mes - 1]} de ${this.data.competencia.ano}`;
+
+    // Fundo do box
+    this.doc.setFillColor(CORES.fundoCabecalho.r, CORES.fundoCabecalho.g, CORES.fundoCabecalho.b);
+    this.doc.roundedRect(this.margin, this.y, this.contentWidth, boxHeight, 2, 2, 'F');
+    this.doc.setDrawColor(CORES.bordaCabecalho.r, CORES.bordaCabecalho.g, CORES.bordaCabecalho.b);
+    this.doc.setLineWidth(0.3);
+    this.doc.roundedRect(this.margin, this.y, this.contentWidth, boxHeight, 2, 2, 'S');
+
+    // Layout em 4 linhas
+    const col1 = this.margin + 4;
+    const col2 = this.margin + this.contentWidth / 2 + 10;
+    const lineSpacing = 4.5;
+    
+    this.doc.setFontSize(8);
+    
+    // Linha 1: Servidor + Competência
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    this.doc.text('SERVIDOR:', col1, this.y + lineSpacing);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setTextColor(CORES.textoEscuro.r, CORES.textoEscuro.g, CORES.textoEscuro.b);
+    const nomeMaxWidth = col2 - col1 - 30;
+    this.doc.text(truncarTexto(this.doc, servidor.nome_completo || '-', nomeMaxWidth), col1 + 22, this.y + lineSpacing);
+
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    this.doc.text('COMPETÊNCIA:', col2, this.y + lineSpacing);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setTextColor(CORES.textoEscuro.r, CORES.textoEscuro.g, CORES.textoEscuro.b);
+    this.doc.text(competencia, col2 + 30, this.y + lineSpacing);
+
+    // Linha 2: Matrícula + Cargo
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    this.doc.text('Matrícula:', col1, this.y + lineSpacing * 2);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setTextColor(CORES.textoEscuro.r, CORES.textoEscuro.g, CORES.textoEscuro.b);
+    this.doc.text(servidor.matricula || '-', col1 + 18, this.y + lineSpacing * 2);
+
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    this.doc.text('Cargo:', col1 + 42, this.y + lineSpacing * 2);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setTextColor(CORES.textoEscuro.r, CORES.textoEscuro.g, CORES.textoEscuro.b);
+    const cargoMaxWidth = this.contentWidth - 60;
+    this.doc.text(truncarTexto(this.doc, servidor.cargo || '-', cargoMaxWidth), col1 + 55, this.y + lineSpacing * 2);
+
+    // Linha 3: Unidade + Local
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    this.doc.text('Unidade:', col1, this.y + lineSpacing * 3);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setTextColor(CORES.textoEscuro.r, CORES.textoEscuro.g, CORES.textoEscuro.b);
+    const unidadeMaxWidth = col2 - col1 - 25;
+    this.doc.text(truncarTexto(this.doc, servidor.unidade || '-', unidadeMaxWidth), col1 + 17, this.y + lineSpacing * 3);
+
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    this.doc.text('Local:', col2, this.y + lineSpacing * 3);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setTextColor(CORES.textoEscuro.r, CORES.textoEscuro.g, CORES.textoEscuro.b);
+    const localMaxWidth = this.contentWidth - (col2 - this.margin) - 15;
+    this.doc.text(truncarTexto(this.doc, servidor.local_exercicio || servidor.unidade || '-', localMaxWidth), col2 + 12, this.y + lineSpacing * 3);
+
+    // Linha 4: Regime + Jornada
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    this.doc.text('Regime:', col1, this.y + lineSpacing * 4);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setTextColor(CORES.textoEscuro.r, CORES.textoEscuro.g, CORES.textoEscuro.b);
+    this.doc.text(servidor.regime || 'Presencial', col1 + 15, this.y + lineSpacing * 4);
+
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    this.doc.text('Jornada:', col1 + 55, this.y + lineSpacing * 4);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setTextColor(CORES.textoEscuro.r, CORES.textoEscuro.g, CORES.textoEscuro.b);
+    this.doc.text(`${servidor.carga_horaria_diaria || 8}h/dia | ${servidor.carga_horaria_semanal || 40}h/sem`, col1 + 71, this.y + lineSpacing * 4);
+
+    this.y += boxHeight + 4;
+  }
+
+  private adicionarTabelaFrequencia(): void {
+    const ultimoDia = getUltimoDiaMes(this.data.competencia.ano, this.data.competencia.mes);
+    const registros = this.gerarRegistrosMensais();
+    
+    // Calcular altura disponível
+    const assinaturasHeight = 38;
+    const rodapeHeight = 10;
+    const espacoDisponivel = this.pageHeight - this.y - assinaturasHeight - rodapeHeight;
+    
+    const headerTableHeight = 7;
+    const rowHeight = (espacoDisponivel - headerTableHeight) / ultimoDia;
+    
+    // Larguras das colunas
+    const colWidths = {
+      dia: 12,
+      diaSemana: 16,
+      tipo: 32,
+      entrada: 22,
+      saida: 22,
+      assinatura: this.contentWidth - 104,
+    };
+
+    // Header da tabela
+    this.doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    this.doc.rect(this.margin, this.y, this.contentWidth, headerTableHeight, 'F');
+    
+    this.doc.setTextColor(255, 255, 255);
+    this.doc.setFontSize(7);
+    this.doc.setFont('helvetica', 'bold');
+    
+    let colX = this.margin;
+    this.doc.text('DIA', colX + colWidths.dia / 2, this.y + 4.5, { align: 'center' });
+    colX += colWidths.dia;
+    this.doc.text('SEMANA', colX + colWidths.diaSemana / 2, this.y + 4.5, { align: 'center' });
+    colX += colWidths.diaSemana;
+    this.doc.text('TIPO DO DIA', colX + colWidths.tipo / 2, this.y + 4.5, { align: 'center' });
+    colX += colWidths.tipo;
+    this.doc.text('ENTRADA', colX + colWidths.entrada / 2, this.y + 4.5, { align: 'center' });
+    colX += colWidths.entrada;
+    this.doc.text('SAÍDA', colX + colWidths.saida / 2, this.y + 4.5, { align: 'center' });
+    colX += colWidths.saida;
+    this.doc.text('ASSINATURA DO SERVIDOR', colX + colWidths.assinatura / 2, this.y + 4.5, { align: 'center' });
+
+    this.y += headerTableHeight;
+
+    // Linhas de dados
+    registros.forEach((reg, idx) => {
+      this.desenharLinhaTabela(reg, idx, colWidths, rowHeight);
+      this.y += rowHeight;
     });
   }
 
-  // =========================================================
-  // CÁLCULO PROPORCIONAL DA PÁGINA A4 (297mm)
-  // =========================================================
-  // Cabeçalho com logos: 28mm
-  // Identificação servidor: 20mm
-  // Tabela: ~200mm (dinâmico baseado em dias)
-  // Assinaturas: 35mm
-  // Rodapé: 8mm
-  // =========================================================
-
-  let y = margin;
-
-  // ===== CABEÇALHO COM LOGOS (28mm) =====
-  const headerHeight = 24;
-
-  // Logos com proporções ORIGINAIS preservadas (sem distorção)
-  // Nota: usamos as dimensões embutidas no próprio dado da imagem (via jsPDF)
-  // para evitar qualquer “achatamento”.
-  const aspectGov = getImageAspectRatioFromDoc(doc, logoGoverno, 3.69);
-  const aspectIdjuv = getImageAspectRatioFromDoc(doc, logoIdjuv, 1.55);
-
-  const logoGovernoH = 18; // aumentada para não parecer “achatada”
-  const logoGovernoW = logoGovernoH * aspectGov;
-  const logoIdjuvH = 22; // IDJuv em destaque
-  const logoIdjuvW = logoIdjuvH * aspectIdjuv;
-  
-  // Centralizar verticalmente ambos os logos no espaço do cabeçalho
-  const logoGovernoY = y + (headerHeight - logoGovernoH) / 2;
-  const logoIdjuvY = y + (headerHeight - logoIdjuvH) / 2;
-  
-  // Logo Governo (esquerda)
-  try {
-    doc.addImage(logoGoverno, 'JPEG', margin, logoGovernoY, logoGovernoW, logoGovernoH);
-  } catch (e) {
-    console.warn('Logo Governo não carregado');
-  }
-  
-  // Título central
-  doc.setTextColor(0, 68, 68);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text('FOLHA DE FREQUÊNCIA MENSAL', pageWidth / 2, y + 6, { align: 'center' });
-  
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(60, 65, 70);
-  doc.text(INSTITUICAO.nome, pageWidth / 2, y + 12, { align: 'center' });
-  doc.setFontSize(7);
-  doc.text(`CNPJ: ${INSTITUICAO.cnpj} | ${INSTITUICAO.endereco}`, pageWidth / 2, y + 17, { align: 'center' });
-  
-  // Logo IDJuv (direita)
-  try {
-    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvW, logoIdjuvY, logoIdjuvW, logoIdjuvH);
-  } catch (e) {
-    console.warn('Logo IDJuv não carregado');
-  }
-
-  y += headerHeight;
-
-  // Linha divisória
-  doc.setDrawColor(0, 68, 68);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 4;
-
-  // ===== IDENTIFICAÇÃO DO SERVIDOR (22mm - reorganizado em 4 linhas) =====
-  const boxHeight = 22;
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(margin, y, contentWidth, boxHeight, 2, 2, 'F');
-  doc.setDrawColor(220, 225, 230);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, y, contentWidth, boxHeight, 2, 2, 'S');
-
-  // Função para truncar texto longo
-  const truncarTexto = (texto: string, maxWidth: number): string => {
-    if (!texto) return '-';
-    if (doc.getTextWidth(texto) <= maxWidth) return texto;
-    let truncado = texto;
-    while (doc.getTextWidth(truncado + '...') > maxWidth && truncado.length > 0) {
-      truncado = truncado.slice(0, -1);
-    }
-    return truncado + '...';
-  };
-
-  // Grid de dados do servidor - Layout reorganizado
-  const col1 = margin + 4;
-  const col2 = margin + contentWidth / 2 + 10;
-  const lineSpacing = 4.5;
-  
-  // ===== LINHA 1: Servidor + Competência =====
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('SERVIDOR:', col1, y + lineSpacing);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  const nomeMaxWidth = col2 - col1 - 30;
-  doc.text(truncarTexto(srv.nome_completo || '-', nomeMaxWidth), col1 + 22, y + lineSpacing);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('COMPETÊNCIA:', col2, y + lineSpacing);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(competencia, col2 + 30, y + lineSpacing);
-
-  // ===== LINHA 2: Matrícula + Cargo =====
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Matrícula:', col1, y + lineSpacing * 2);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(srv.matricula || '-', col1 + 18, y + lineSpacing * 2);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Cargo:', col1 + 42, y + lineSpacing * 2);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  const cargoMaxWidth = contentWidth - 60;
-  doc.text(truncarTexto(srv.cargo || '-', cargoMaxWidth), col1 + 55, y + lineSpacing * 2);
-
-  // ===== LINHA 3: Unidade + Local =====
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Unidade:', col1, y + lineSpacing * 3);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  const unidadeMaxWidth = col2 - col1 - 25;
-  doc.text(truncarTexto(srv.unidade || '-', unidadeMaxWidth), col1 + 17, y + lineSpacing * 3);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Local:', col2, y + lineSpacing * 3);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  const localMaxWidth = contentWidth - (col2 - margin) - 15;
-  doc.text(truncarTexto(srv.local_exercicio || srv.unidade || '-', localMaxWidth), col2 + 12, y + lineSpacing * 3);
-
-  // ===== LINHA 4: Regime + Jornada =====
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Regime:', col1, y + lineSpacing * 4);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(srv.regime || 'Presencial', col1 + 15, y + lineSpacing * 4);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Jornada:', col1 + 55, y + lineSpacing * 4);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(`${srv.carga_horaria_diaria || 8}h/dia | ${srv.carga_horaria_semanal || 40}h/sem`, col1 + 71, y + lineSpacing * 4);
-
-  y += boxHeight + 4;
-
-  // ===== TABELA DE FREQUÊNCIA (proporcional) =====
-  // Calcular altura disponível para tabela
-  const assinaturasHeight = 38;
-  const rodapeHeight = 10;
-  const espacoDisponivel = pageHeight - y - assinaturasHeight - rodapeHeight;
-  
-  // Altura da linha baseada no espaço disponível
-  const headerTableHeight = 7;
-  const rowHeight = (espacoDisponivel - headerTableHeight) / ultimoDia;
-  
-  // Larguras das colunas
-  const colWidths = {
-    dia: 12,
-    diaSemana: 16,
-    tipo: 32,
-    entrada: 22,
-    saida: 22,
-    assinatura: contentWidth - 104,
-  };
-
-  // Header da tabela
-  doc.setFillColor(0, 68, 68);
-  doc.rect(margin, y, contentWidth, headerTableHeight, 'F');
-  
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  
-  let colX = margin;
-  doc.text('DIA', colX + colWidths.dia / 2, y + 4.5, { align: 'center' });
-  colX += colWidths.dia;
-  doc.text('SEMANA', colX + colWidths.diaSemana / 2, y + 4.5, { align: 'center' });
-  colX += colWidths.diaSemana;
-  doc.text('TIPO DO DIA', colX + colWidths.tipo / 2, y + 4.5, { align: 'center' });
-  colX += colWidths.tipo;
-  doc.text('ENTRADA', colX + colWidths.entrada / 2, y + 4.5, { align: 'center' });
-  colX += colWidths.entrada;
-  doc.text('SAÍDA', colX + colWidths.saida / 2, y + 4.5, { align: 'center' });
-  colX += colWidths.saida;
-  doc.text('ASSINATURA DO SERVIDOR', colX + colWidths.assinatura / 2, y + 4.5, { align: 'center' });
-
-  y += headerTableHeight;
-
-  // Linhas de dados
-  registros.forEach((reg, idx) => {
+  private desenharLinhaTabela(reg: RegistroDiario, idx: number, colWidths: any, rowHeight: number): void {
     const isNaoUtil = reg.situacao !== 'util';
     const isWeekend = reg.situacao === 'sabado' || reg.situacao === 'domingo';
     const isFeriado = reg.situacao === 'feriado' || reg.situacao === 'ponto_facultativo' || reg.situacao === 'recesso';
     
-    // Fundo alternado e destacado
+    // Definir cor de fundo
     if (isFeriado) {
-      doc.setFillColor(255, 245, 220);
+      this.doc.setFillColor(CORES.feriado.r, CORES.feriado.g, CORES.feriado.b);
     } else if (isWeekend) {
-      doc.setFillColor(250, 248, 240);
+      this.doc.setFillColor(CORES.fimSemana.r, CORES.fimSemana.g, CORES.fimSemana.b);
     } else if (idx % 2 === 0) {
-      doc.setFillColor(252, 253, 255);
+      this.doc.setFillColor(CORES.linhaPar.r, CORES.linhaPar.g, CORES.linhaPar.b);
     } else {
-      doc.setFillColor(255, 255, 255);
+      this.doc.setFillColor(CORES.linhaImpar.r, CORES.linhaImpar.g, CORES.linhaImpar.b);
     }
-    doc.rect(margin, y, contentWidth, rowHeight, 'F');
+    
+    this.doc.rect(this.margin, this.y, this.contentWidth, rowHeight, 'F');
     
     // Bordas
-    doc.setDrawColor(230, 232, 236);
-    doc.setLineWidth(0.1);
-    doc.rect(margin, y, contentWidth, rowHeight, 'S');
+    this.doc.setDrawColor(CORES.bordaCabecalho.r, CORES.bordaCabecalho.g, CORES.bordaCabecalho.b);
+    this.doc.setLineWidth(0.1);
+    this.doc.rect(this.margin, this.y, this.contentWidth, rowHeight, 'S');
 
     const diaNum = parseInt(reg.data.split('-')[2]);
-    const centerY = y + rowHeight / 2 + 1;
-    colX = margin;
+    const centerY = this.y + rowHeight / 2 + 1;
+    let colX = this.margin;
     
     // Dia
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 68, 68);
-    doc.setFontSize(7);
-    doc.text(String(diaNum).padStart(2, '0'), colX + colWidths.dia / 2, centerY, { align: 'center' });
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    this.doc.setFontSize(7);
+    this.doc.text(String(diaNum).padStart(2, '0'), colX + colWidths.dia / 2, centerY, { align: 'center' });
     colX += colWidths.dia;
     
     // Dia semana
-    doc.setFont('helvetica', 'normal');
+    this.doc.setFont('helvetica', 'normal');
     if (isWeekend) {
-      doc.setTextColor(140, 110, 60);
+      this.doc.setTextColor(CORES.fimSemanaTexto.r, CORES.fimSemanaTexto.g, CORES.fimSemanaTexto.b);
     } else {
-      doc.setTextColor(70, 75, 80);
+      this.doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
     }
-    doc.text(DIAS_SEMANA_SIGLA[reg.dia_semana], colX + colWidths.diaSemana / 2, centerY, { align: 'center' });
+    this.doc.text(DIAS_SEMANA_SIGLA[reg.dia_semana], colX + colWidths.diaSemana / 2, centerY, { align: 'center' });
     colX += colWidths.diaSemana;
     
     // Tipo do dia
     const tipoLabel = getTipoDiaAbrev(reg.situacao, reg.tipo_registro);
     if (reg.tipo_registro === 'falta') {
-      doc.setTextColor(180, 50, 50);
-      doc.setFont('helvetica', 'bold');
+      this.doc.setTextColor(CORES.falta.r, CORES.falta.g, CORES.falta.b);
+      this.doc.setFont('helvetica', 'bold');
     } else if (isNaoUtil) {
-      doc.setTextColor(150, 120, 50);
-      doc.setFont('helvetica', 'italic');
+      this.doc.setTextColor(CORES.naoUtilTexto.r, CORES.naoUtilTexto.g, CORES.naoUtilTexto.b);
+      this.doc.setFont('helvetica', 'italic');
     } else {
-      doc.setTextColor(100, 105, 110);
-      doc.setFont('helvetica', 'normal');
+      this.doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+      this.doc.setFont('helvetica', 'normal');
     }
-    doc.text(tipoLabel, colX + colWidths.tipo / 2, centerY, { align: 'center' });
+    this.doc.text(tipoLabel, colX + colWidths.tipo / 2, centerY, { align: 'center' });
     colX += colWidths.tipo;
     
     // Entrada
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(50, 55, 60);
-    if (data.tipo === 'em_branco' && reg.situacao === 'util' && !reg.tipo_registro) {
-      // Linha para preenchimento manual
-      doc.setDrawColor(180, 185, 190);
-      doc.setLineWidth(0.2);
-      doc.line(colX + 3, centerY, colX + colWidths.entrada - 3, centerY);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setTextColor(CORES.textoEscuro.r, CORES.textoEscuro.g, CORES.textoEscuro.b);
+    if (this.data.tipo === 'em_branco' && reg.situacao === 'util' && !reg.tipo_registro) {
+      this.doc.setDrawColor(CORES.cinzaClaro.r, CORES.cinzaClaro.g, CORES.cinzaClaro.b);
+      this.doc.setLineWidth(0.2);
+      this.doc.line(colX + 3, centerY, colX + colWidths.entrada - 3, centerY);
     } else if (isNaoUtil) {
-      doc.setTextColor(180, 180, 180);
-      doc.text('—', colX + colWidths.entrada / 2, centerY, { align: 'center' });
+      this.doc.setTextColor(CORES.cinzaClaro.r, CORES.cinzaClaro.g, CORES.cinzaClaro.b);
+      this.doc.text('—', colX + colWidths.entrada / 2, centerY, { align: 'center' });
     } else {
-      doc.text(reg.entrada || '—', colX + colWidths.entrada / 2, centerY, { align: 'center' });
+      this.doc.text(reg.entrada || '—', colX + colWidths.entrada / 2, centerY, { align: 'center' });
     }
     colX += colWidths.entrada;
     
     // Saída
-    if (data.tipo === 'em_branco' && reg.situacao === 'util' && !reg.tipo_registro) {
-      doc.setDrawColor(180, 185, 190);
-      doc.setLineWidth(0.2);
-      doc.line(colX + 3, centerY, colX + colWidths.saida - 3, centerY);
+    if (this.data.tipo === 'em_branco' && reg.situacao === 'util' && !reg.tipo_registro) {
+      this.doc.setDrawColor(CORES.cinzaClaro.r, CORES.cinzaClaro.g, CORES.cinzaClaro.b);
+      this.doc.setLineWidth(0.2);
+      this.doc.line(colX + 3, centerY, colX + colWidths.saida - 3, centerY);
     } else if (isNaoUtil) {
-      doc.setTextColor(180, 180, 180);
-      doc.text('—', colX + colWidths.saida / 2, centerY, { align: 'center' });
+      this.doc.setTextColor(CORES.cinzaClaro.r, CORES.cinzaClaro.g, CORES.cinzaClaro.b);
+      this.doc.text('—', colX + colWidths.saida / 2, centerY, { align: 'center' });
     } else {
-      doc.text(reg.saida || '—', colX + colWidths.saida / 2, centerY, { align: 'center' });
+      this.doc.text(reg.saida || '—', colX + colWidths.saida / 2, centerY, { align: 'center' });
     }
     colX += colWidths.saida;
     
     // Linha de assinatura
     if (reg.situacao === 'util' && !reg.tipo_registro) {
-      doc.setDrawColor(200, 205, 210);
-      doc.setLineWidth(0.15);
-      doc.line(colX + 8, centerY, colX + colWidths.assinatura - 8, centerY);
+      this.doc.setDrawColor(CORES.linhaAssinatura.r, CORES.linhaAssinatura.g, CORES.linhaAssinatura.b);
+      this.doc.setLineWidth(0.15);
+      this.doc.line(colX + 8, centerY, colX + colWidths.assinatura - 8, centerY);
     }
-
-    y += rowHeight;
-  });
-
-  // ===== BLOCO DE ASSINATURAS (38mm) =====
-  y += 3;
-  
-  // Declaração
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(margin, y, contentWidth, 10, 1.5, 1.5, 'F');
-  doc.setDrawColor(210, 215, 220);
-  doc.setLineWidth(0.2);
-  doc.roundedRect(margin, y, contentWidth, 10, 1.5, 1.5, 'S');
-  
-  doc.setTextColor(60, 65, 70);
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'italic');
-  doc.text(
-    'Declaro, para os devidos fins, que as informações constantes nesta folha correspondem à minha efetiva jornada de trabalho no período de referência.',
-    pageWidth / 2, y + 6, { align: 'center', maxWidth: contentWidth - 10 }
-  );
-  
-  y += 14;
-  
-  // Assinaturas lado a lado
-  const assWidth = (contentWidth - 20) / 2;
-  
-  // Servidor
-  doc.setDrawColor(0, 68, 68);
-  doc.setLineWidth(0.4);
-  doc.line(margin + 5, y + 10, margin + 5 + assWidth, y + 10);
-  doc.setTextColor(0, 68, 68);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text('ASSINATURA DO SERVIDOR', margin + 5 + assWidth / 2, y + 14, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6);
-  doc.setTextColor(100, 105, 110);
-  doc.text(srv.nome_completo || '', margin + 5 + assWidth / 2, y + 18, { align: 'center' });
-  
-  // Chefia
-  doc.setDrawColor(0, 68, 68);
-  doc.line(margin + 15 + assWidth, y + 10, margin + 15 + assWidth * 2, y + 10);
-  doc.setTextColor(0, 68, 68);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text('ASSINATURA DA CHEFIA IMEDIATA', margin + 15 + assWidth + assWidth / 2, y + 14, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6);
-  doc.setTextColor(100, 105, 110);
-  doc.text(data.configAssinatura?.nome_chefia || '', margin + 15 + assWidth + assWidth / 2, y + 18, { align: 'center' });
-
-  // ===== RODAPÉ (8mm) =====
-  doc.setDrawColor(220, 225, 230);
-  doc.setLineWidth(0.3);
-  doc.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
-  
-  doc.setTextColor(130, 135, 140);
-  doc.setFontSize(6);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Gerado em: ${data.dataGeracao}`, margin, pageHeight - 6);
-  doc.text(`${INSTITUICAO.sigla} - Sistema de Gestão de Pessoas`, pageWidth / 2, pageHeight - 6, { align: 'center' });
-  doc.text('Página 1 de 1', pageWidth - margin, pageHeight - 6, { align: 'right' });
-
-  // Salvar ou retornar blob
-  const nome = srv.nome_completo.replace(/\s+/g, '_').substring(0, 20);
-  const sufixo = data.tipo === 'em_branco' ? '_BRANCO' : '';
-  const nomeArquivo = `Frequencia_${nome}_${String(data.competencia.mes).padStart(2, '0')}-${data.competencia.ano}${sufixo}.pdf`;
-  
-  doc.save(nomeArquivo);
-  
-  return { doc, nomeArquivo };
-};
-
-/**
- * Gera PDF de frequência mensal e retorna como Blob (para upload no storage)
- */
-export const generateFrequenciaMensalBlob = async (data: FrequenciaMensalPDFData): Promise<{ blob: Blob; nomeArquivo: string }> => {
-  const result = await generateFrequenciaMensalPDFInternal(data);
-  const blob = result.doc.output('blob');
-  return { blob, nomeArquivo: result.nomeArquivo };
-};
-
-/**
- * Função interna que gera o documento sem salvar
- */
-const generateFrequenciaMensalPDFInternal = async (data: FrequenciaMensalPDFData): Promise<{ doc: jsPDF; nomeArquivo: string }> => {
-  const doc = new jsPDF('portrait', 'mm', 'a4');
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 12;
-  const contentWidth = pageWidth - margin * 2;
-  
-  const competencia = `${MESES[data.competencia.mes - 1]} de ${data.competencia.ano}`;
-  const srv = data.servidor;
-
-  // Gerar dias do mês
-  const ultimoDia = getUltimoDiaMes(data.competencia.ano, data.competencia.mes);
-  const registros: RegistroDiario[] = [];
-
-  for (let dia = 1; dia <= ultimoDia; dia++) {
-    const dataAtual = new Date(data.competencia.ano, data.competencia.mes - 1, dia);
-    const dataStr = `${data.competencia.ano}-${String(data.competencia.mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-    const { situacao, label } = getSituacaoDia(dataAtual, data.diasNaoUteis);
-    const regExist = data.registros?.find(r => r.data === dataStr);
-
-    registros.push({
-      data: dataStr,
-      dia_semana: dataAtual.getDay(),
-      situacao: regExist?.situacao || situacao,
-      situacao_label: regExist?.situacao_label || label,
-      entrada: regExist?.entrada || regExist?.entrada_manha,
-      saida: regExist?.saida || regExist?.saida_tarde || regExist?.saida_manha,
-      tipo_registro: regExist?.tipo_registro,
-    });
   }
 
-  let y = margin;
+  private gerarRegistrosMensais(): RegistroDiario[] {
+    const ultimoDia = getUltimoDiaMes(this.data.competencia.ano, this.data.competencia.mes);
+    const registros: RegistroDiario[] = [];
 
-  // ===== CABEÇALHO COM LOGOS (28mm) =====
-  const headerHeight = 24;
+    for (let dia = 1; dia <= ultimoDia; dia++) {
+      const dataAtual = new Date(this.data.competencia.ano, this.data.competencia.mes - 1, dia);
+      const dataStr = `${this.data.competencia.ano}-${String(this.data.competencia.mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+      const { situacao, label } = getSituacaoDia(dataAtual, this.data.diasNaoUteis);
+      const regExist = this.data.registros?.find(r => r.data === dataStr);
 
-  const aspectGov = getImageAspectRatioFromDoc(doc, logoGoverno, 3.69);
-  const aspectIdjuv = getImageAspectRatioFromDoc(doc, logoIdjuv, 1.55);
+      registros.push({
+        data: dataStr,
+        dia_semana: dataAtual.getDay(),
+        situacao: regExist?.situacao || situacao,
+        situacao_label: regExist?.situacao_label || label,
+        entrada: regExist?.entrada || regExist?.entrada_manha,
+        saida: regExist?.saida || regExist?.saida_tarde || regExist?.saida_manha,
+        tipo_registro: regExist?.tipo_registro,
+      });
+    }
 
-  const logoGovernoH = 18;
-  const logoGovernoW = logoGovernoH * aspectGov;
-  const logoIdjuvH = 22;
-  const logoIdjuvW = logoIdjuvH * aspectIdjuv;
-
-  const logoGovernoY = y + (headerHeight - logoGovernoH) / 2;
-  const logoIdjuvY = y + (headerHeight - logoIdjuvH) / 2;
-
-  try {
-    doc.addImage(logoGoverno, 'JPEG', margin, logoGovernoY, logoGovernoW, logoGovernoH);
-  } catch (e) {
-    console.warn('Logo Governo não carregado');
-  }
-  
-  doc.setTextColor(0, 68, 68);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text('FOLHA DE FREQUÊNCIA MENSAL', pageWidth / 2, y + 6, { align: 'center' });
-  
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(60, 65, 70);
-  doc.text(INSTITUICAO.nome, pageWidth / 2, y + 12, { align: 'center' });
-  doc.setFontSize(7);
-  doc.text(`CNPJ: ${INSTITUICAO.cnpj} | ${INSTITUICAO.endereco}`, pageWidth / 2, y + 17, { align: 'center' });
-  
-  try {
-    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvW, logoIdjuvY, logoIdjuvW, logoIdjuvH);
-  } catch (e) {
-    console.warn('Logo IDJuv não carregado');
+    return registros;
   }
 
-  y += headerHeight;
-
-  doc.setDrawColor(0, 68, 68);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 4;
-
-  // ===== IDENTIFICAÇÃO DO SERVIDOR =====
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(margin, y, contentWidth, 18, 2, 2, 'F');
-  doc.setDrawColor(220, 225, 230);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, y, contentWidth, 18, 2, 2, 'S');
-
-  const col1 = margin + 4;
-  const col2 = margin + contentWidth / 2;
-  
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('SERVIDOR:', col1, y + 5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(srv.nome_completo || '-', col1 + 22, y + 5);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('COMPETÊNCIA:', col2, y + 5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(competencia, col2 + 30, y + 5);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Matrícula:', col1, y + 10);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(srv.matricula || '-', col1 + 18, y + 10);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Cargo:', col1 + 45, y + 10);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(srv.cargo || '-', col1 + 58, y + 10);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Unidade:', col2, y + 10);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(srv.unidade || '-', col2 + 17, y + 10);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Regime:', col1, y + 15);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(srv.regime || 'Presencial', col1 + 15, y + 15);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Jornada:', col1 + 50, y + 15);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(`${srv.carga_horaria_diaria || 8}h/dia | ${srv.carga_horaria_semanal || 40}h/sem`, col1 + 66, y + 15);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Local:', col2, y + 15);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(srv.local_exercicio || srv.unidade || '-', col2 + 12, y + 15);
-
-  y += 22;
-
-  // ===== TABELA DE FREQUÊNCIA =====
-  const assinaturasHeight = 38;
-  const rodapeHeight = 10;
-  const espacoDisponivel = pageHeight - y - assinaturasHeight - rodapeHeight;
-  
-  const headerTableHeight = 7;
-  const rowHeight = (espacoDisponivel - headerTableHeight) / ultimoDia;
-  
-  const colWidths = {
-    dia: 12,
-    diaSemana: 16,
-    tipo: 32,
-    entrada: 22,
-    saida: 22,
-    assinatura: contentWidth - 104,
-  };
-
-  doc.setFillColor(0, 68, 68);
-  doc.rect(margin, y, contentWidth, headerTableHeight, 'F');
-  
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  
-  let colX = margin;
-  doc.text('DIA', colX + colWidths.dia / 2, y + 4.5, { align: 'center' });
-  colX += colWidths.dia;
-  doc.text('SEMANA', colX + colWidths.diaSemana / 2, y + 4.5, { align: 'center' });
-  colX += colWidths.diaSemana;
-  doc.text('TIPO DO DIA', colX + colWidths.tipo / 2, y + 4.5, { align: 'center' });
-  colX += colWidths.tipo;
-  doc.text('ENTRADA', colX + colWidths.entrada / 2, y + 4.5, { align: 'center' });
-  colX += colWidths.entrada;
-  doc.text('SAÍDA', colX + colWidths.saida / 2, y + 4.5, { align: 'center' });
-  colX += colWidths.saida;
-  doc.text('ASSINATURA DO SERVIDOR', colX + colWidths.assinatura / 2, y + 4.5, { align: 'center' });
-
-  y += headerTableHeight;
-
-  registros.forEach((reg, idx) => {
-    const isNaoUtil = reg.situacao !== 'util';
-    const isWeekend = reg.situacao === 'sabado' || reg.situacao === 'domingo';
-    const isFeriado = reg.situacao === 'feriado' || reg.situacao === 'ponto_facultativo' || reg.situacao === 'recesso';
+  private adicionarAssinaturas(): void {
+    this.y += 3;
     
-    if (isFeriado) {
-      doc.setFillColor(255, 245, 220);
-    } else if (isWeekend) {
-      doc.setFillColor(250, 248, 240);
-    } else if (idx % 2 === 0) {
-      doc.setFillColor(252, 253, 255);
-    } else {
-      doc.setFillColor(255, 255, 255);
+    // Declaração
+    this.doc.setFillColor(CORES.fundoCabecalho.r, CORES.fundoCabecalho.g, CORES.fundoCabecalho.b);
+    this.doc.roundedRect(this.margin, this.y, this.contentWidth, 10, 1.5, 1.5, 'F');
+    this.doc.setDrawColor(CORES.bordaCabecalho.r, CORES.bordaCabecalho.g, CORES.bordaCabecalho.b);
+    this.doc.setLineWidth(0.2);
+    this.doc.roundedRect(this.margin, this.y, this.contentWidth, 10, 1.5, 1.5, 'S');
+    
+    this.doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+    this.doc.setFontSize(7);
+    this.doc.setFont('helvetica', 'italic');
+    this.doc.text(
+      this.data.configAssinatura.texto_declaracao ||
+      'Declaro, para os devidos fins, que as informações constantes nesta folha correspondem à minha efetiva jornada de trabalho no período de referência.',
+      this.pageWidth / 2, this.y + 6, { align: 'center', maxWidth: this.contentWidth - 10 }
+    );
+    
+    this.y += 14;
+    
+    // Assinaturas lado a lado
+    const assWidth = (this.contentWidth - 20) / 2;
+    
+    // Servidor
+    this.doc.setDrawColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    this.doc.setLineWidth(0.4);
+    this.doc.line(this.margin + 5, this.y + 10, this.margin + 5 + assWidth, this.y + 10);
+    this.doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFontSize(7);
+    this.doc.text('ASSINATURA DO SERVIDOR', this.margin + 5 + assWidth / 2, this.y + 14, { align: 'center' });
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFontSize(6);
+    this.doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+    this.doc.text(this.data.servidor.nome_completo || '', this.margin + 5 + assWidth / 2, this.y + 18, { align: 'center' });
+    
+    // Chefia
+    this.doc.setDrawColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    this.doc.line(this.margin + 15 + assWidth, this.y + 10, this.margin + 15 + assWidth * 2, this.y + 10);
+    this.doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFontSize(7);
+    this.doc.text('ASSINATURA DA CHEFIA IMEDIATA', this.margin + 15 + assWidth + assWidth / 2, this.y + 14, { align: 'center' });
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFontSize(6);
+    this.doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+    this.doc.text(this.data.configAssinatura?.nome_chefia || '', this.margin + 15 + assWidth + assWidth / 2, this.y + 18, { align: 'center' });
+  }
+
+  private adicionarRodape(): void {
+    this.doc.setDrawColor(CORES.bordaCabecalho.r, CORES.bordaCabecalho.g, CORES.bordaCabecalho.b);
+    this.doc.setLineWidth(0.3);
+    this.doc.line(this.margin, this.pageHeight - 10, this.pageWidth - this.margin, this.pageHeight - 10);
+    
+    this.doc.setTextColor(CORES.rodape.r, CORES.rodape.g, CORES.rodape.b);
+    this.doc.setFontSize(6);
+    this.doc.setFont('helvetica', 'normal');
+    
+    // Informações do rodapé
+    const versaoInfo = this.data.versao ? ` v${this.data.versao}` : '';
+    const metadadosInfo = this.data.metadados?.qualidade ? ` [${this.data.metadados.qualidade.toUpperCase()}]` : '';
+    
+    this.doc.text(`Gerado em: ${this.data.dataGeracao}${versaoInfo}${metadadosInfo}`, this.margin, this.pageHeight - 6);
+    this.doc.text(`${INSTITUICAO.sigla} - Sistema de Gestão de Pessoas`, this.pageWidth / 2, this.pageHeight - 6, { align: 'center' });
+    
+    // Adicionar usuário se disponível
+    if (this.data.usuarioGeracao) {
+      this.doc.setFontSize(5);
+      this.doc.text(`Usuário: ${this.data.usuarioGeracao}`, this.margin, this.pageHeight - 3);
     }
-    doc.rect(margin, y, contentWidth, rowHeight, 'F');
     
-    doc.setDrawColor(230, 232, 236);
-    doc.setLineWidth(0.1);
-    doc.rect(margin, y, contentWidth, rowHeight, 'S');
+    this.doc.setFontSize(6);
+    this.doc.text('Página 1 de 1', this.pageWidth - this.margin, this.pageHeight - 6, { align: 'right' });
+  }
 
-    const diaNum = parseInt(reg.data.split('-')[2]);
-    const centerY = y + rowHeight / 2 + 1;
-    colX = margin;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 68, 68);
-    doc.setFontSize(7);
-    doc.text(String(diaNum).padStart(2, '0'), colX + colWidths.dia / 2, centerY, { align: 'center' });
-    colX += colWidths.dia;
-    
-    doc.setFont('helvetica', 'normal');
-    if (isWeekend) {
-      doc.setTextColor(140, 110, 60);
-    } else {
-      doc.setTextColor(70, 75, 80);
-    }
-    doc.text(DIAS_SEMANA_SIGLA[reg.dia_semana], colX + colWidths.diaSemana / 2, centerY, { align: 'center' });
-    colX += colWidths.diaSemana;
-    
-    const tipoLabel = getTipoDiaAbrev(reg.situacao, reg.tipo_registro);
-    if (reg.tipo_registro === 'falta') {
-      doc.setTextColor(180, 50, 50);
-      doc.setFont('helvetica', 'bold');
-    } else if (isNaoUtil) {
-      doc.setTextColor(150, 120, 50);
-      doc.setFont('helvetica', 'italic');
-    } else {
-      doc.setTextColor(100, 105, 110);
-      doc.setFont('helvetica', 'normal');
-    }
-    doc.text(tipoLabel, colX + colWidths.tipo / 2, centerY, { align: 'center' });
-    colX += colWidths.tipo;
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(50, 55, 60);
-    if (data.tipo === 'em_branco' && reg.situacao === 'util' && !reg.tipo_registro) {
-      doc.setDrawColor(180, 185, 190);
-      doc.setLineWidth(0.2);
-      doc.line(colX + 3, centerY, colX + colWidths.entrada - 3, centerY);
-    } else if (isNaoUtil) {
-      doc.setTextColor(180, 180, 180);
-      doc.text('—', colX + colWidths.entrada / 2, centerY, { align: 'center' });
-    } else {
-      doc.text(reg.entrada || '—', colX + colWidths.entrada / 2, centerY, { align: 'center' });
-    }
-    colX += colWidths.entrada;
-    
-    if (data.tipo === 'em_branco' && reg.situacao === 'util' && !reg.tipo_registro) {
-      doc.setDrawColor(180, 185, 190);
-      doc.setLineWidth(0.2);
-      doc.line(colX + 3, centerY, colX + colWidths.saida - 3, centerY);
-    } else if (isNaoUtil) {
-      doc.setTextColor(180, 180, 180);
-      doc.text('—', colX + colWidths.saida / 2, centerY, { align: 'center' });
-    } else {
-      doc.text(reg.saida || '—', colX + colWidths.saida / 2, centerY, { align: 'center' });
-    }
-    colX += colWidths.saida;
-    
-    if (reg.situacao === 'util' && !reg.tipo_registro) {
-      doc.setDrawColor(200, 205, 210);
-      doc.setLineWidth(0.15);
-      doc.line(colX + 8, centerY, colX + colWidths.assinatura - 8, centerY);
-    }
-
-    y += rowHeight;
-  });
-
-  // ===== BLOCO DE ASSINATURAS =====
-  y += 3;
-  
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(margin, y, contentWidth, 10, 1.5, 1.5, 'F');
-  doc.setDrawColor(210, 215, 220);
-  doc.setLineWidth(0.2);
-  doc.roundedRect(margin, y, contentWidth, 10, 1.5, 1.5, 'S');
-  
-  doc.setTextColor(60, 65, 70);
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'italic');
-  doc.text(
-    'Declaro, para os devidos fins, que as informações constantes nesta folha correspondem à minha efetiva jornada de trabalho no período de referência.',
-    pageWidth / 2, y + 6, { align: 'center', maxWidth: contentWidth - 10 }
-  );
-  
-  y += 14;
-  
-  const assWidth = (contentWidth - 20) / 2;
-  
-  doc.setDrawColor(0, 68, 68);
-  doc.setLineWidth(0.4);
-  doc.line(margin + 5, y + 10, margin + 5 + assWidth, y + 10);
-  doc.setTextColor(0, 68, 68);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text('ASSINATURA DO SERVIDOR', margin + 5 + assWidth / 2, y + 14, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6);
-  doc.setTextColor(100, 105, 110);
-  doc.text(srv.nome_completo || '', margin + 5 + assWidth / 2, y + 18, { align: 'center' });
-  
-  doc.setDrawColor(0, 68, 68);
-  doc.line(margin + 15 + assWidth, y + 10, margin + 15 + assWidth * 2, y + 10);
-  doc.setTextColor(0, 68, 68);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text('ASSINATURA DA CHEFIA IMEDIATA', margin + 15 + assWidth + assWidth / 2, y + 14, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6);
-  doc.setTextColor(100, 105, 110);
-  doc.text(data.configAssinatura?.nome_chefia || '', margin + 15 + assWidth + assWidth / 2, y + 18, { align: 'center' });
-
-  // ===== RODAPÉ =====
-  doc.setDrawColor(220, 225, 230);
-  doc.setLineWidth(0.3);
-  doc.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
-  
-  doc.setTextColor(130, 135, 140);
-  doc.setFontSize(6);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Gerado em: ${data.dataGeracao}`, margin, pageHeight - 6);
-  doc.text(`${INSTITUICAO.sigla} - Sistema de Gestão de Pessoas`, pageWidth / 2, pageHeight - 6, { align: 'center' });
-  doc.text('Página 1 de 1', pageWidth - margin, pageHeight - 6, { align: 'right' });
-
-  const nome = srv.nome_completo.replace(/\s+/g, '_').substring(0, 20);
-  const sufixo = data.tipo === 'em_branco' ? '_BRANCO' : '';
-  const nomeArquivo = `Frequencia_${nome}_${String(data.competencia.mes).padStart(2, '0')}-${data.competencia.ano}${sufixo}.pdf`;
-  
-  return { doc, nomeArquivo };
-};
+  public getNomeArquivo(): string {
+    const nome = this.data.servidor.nome_completo.replace(/\s+/g, '_').substring(0, 20);
+    const sufixo = this.data.tipo === 'em_branco' ? '_BRANCO' : '';
+    return `Frequencia_${nome}_${String(this.data.competencia.mes).padStart(2, '0')}-${this.data.competencia.ano}${sufixo}.pdf`;
+  }
+}
 
 // ============================================
 // FUNÇÕES AUXILIARES EXPORTADAS
@@ -967,3 +703,76 @@ export function calcularResumoMensal(registros: RegistroDiario[], cargaHorariaDi
     saldo_banco_horas: horas_trabalhadas - (dias_uteis * cargaHorariaDiaria - horas_abonadas),
   };
 }
+
+// ============================================
+// FUNÇÕES PRINCIPAIS DE EXPORTAÇÃO
+// ============================================
+
+/**
+ * Gera PDF de frequência mensal e salva automaticamente
+ */
+export const generateFrequenciaMensalPDF = async (data: FrequenciaMensalPDFData): Promise<{ doc: jsPDF; nomeArquivo: string }> => {
+  try {
+    const gerador = new GeradorPDFFrequencia(data);
+    const doc = gerador.gerarPDF();
+    const nomeArquivo = gerador.getNomeArquivo();
+    
+    // Salva automaticamente
+    doc.save(nomeArquivo);
+    
+    return { doc, nomeArquivo };
+  } catch (error) {
+    console.error('Erro na geração do PDF:', error);
+    throw new Error(`Falha ao gerar PDF: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+  }
+};
+
+/**
+ * Gera PDF de frequência mensal e retorna como Blob (para upload no storage)
+ */
+export const generateFrequenciaMensalBlob = async (data: FrequenciaMensalPDFData): Promise<{ blob: Blob; nomeArquivo: string }> => {
+  try {
+    const gerador = new GeradorPDFFrequencia(data);
+    const blob = await gerador.gerarBlob();
+    const nomeArquivo = gerador.getNomeArquivo();
+    
+    return { blob, nomeArquivo };
+  } catch (error) {
+    console.error('Erro na geração do Blob:', error);
+    throw new Error(`Falha ao gerar Blob: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+  }
+};
+
+/**
+ * Gera PDF de frequência mensal sem salvar (apenas retorna o documento)
+ */
+export const generateFrequenciaMensalPDFInternal = async (data: FrequenciaMensalPDFData): Promise<{ doc: jsPDF; nomeArquivo: string }> => {
+  try {
+    const gerador = new GeradorPDFFrequencia(data);
+    const doc = gerador.gerarPDF();
+    const nomeArquivo = gerador.getNomeArquivo();
+    
+    return { doc, nomeArquivo };
+  } catch (error) {
+    console.error('Erro na geração do PDF interno:', error);
+    throw new Error(`Falha ao gerar PDF interno: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+  }
+};
+
+/**
+ * Gera PDF de frequência mensal e retorna URL para visualização
+ */
+export const generateFrequenciaMensalURL = async (data: FrequenciaMensalPDFData): Promise<{ url: string; nomeArquivo: string }> => {
+  try {
+    const gerador = new GeradorPDFFrequencia(data);
+    const doc = gerador.gerarPDF();
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    const nomeArquivo = gerador.getNomeArquivo();
+    
+    return { url, nomeArquivo };
+  } catch (error) {
+    console.error('Erro na geração da URL do PDF:', error);
+    throw new Error(`Falha ao gerar URL do PDF: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+  }
+};
