@@ -4933,6 +4933,68 @@ export type Database = {
           },
         ]
       }
+      itens_processo_licitatorio: {
+        Row: {
+          catmat_catser: string | null
+          created_at: string | null
+          descricao: string
+          especificacao_tecnica: string | null
+          id: string
+          marca_referencia: string | null
+          numero_item: number
+          observacoes: string | null
+          processo_id: string
+          quantidade: number
+          situacao: string | null
+          unidade_medida: string
+          updated_at: string | null
+          valor_estimado_total: number | null
+          valor_estimado_unitario: number | null
+        }
+        Insert: {
+          catmat_catser?: string | null
+          created_at?: string | null
+          descricao: string
+          especificacao_tecnica?: string | null
+          id?: string
+          marca_referencia?: string | null
+          numero_item: number
+          observacoes?: string | null
+          processo_id: string
+          quantidade: number
+          situacao?: string | null
+          unidade_medida: string
+          updated_at?: string | null
+          valor_estimado_total?: number | null
+          valor_estimado_unitario?: number | null
+        }
+        Update: {
+          catmat_catser?: string | null
+          created_at?: string | null
+          descricao?: string
+          especificacao_tecnica?: string | null
+          id?: string
+          marca_referencia?: string | null
+          numero_item?: number
+          observacoes?: string | null
+          processo_id?: string
+          quantidade?: number
+          situacao?: string | null
+          unidade_medida?: string
+          updated_at?: string | null
+          valor_estimado_total?: number | null
+          valor_estimado_unitario?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itens_processo_licitatorio_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       itens_retorno_bancario: {
         Row: {
           codigo_ocorrencia: string | null
