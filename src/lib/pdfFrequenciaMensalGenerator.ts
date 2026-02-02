@@ -253,40 +253,50 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
 
   let y = margin;
 
-  // ===== CABEÇALHO INSTITUCIONAL MODERNO =====
-  const headerHeight = 18;
+  // ===== CABEÇALHO INSTITUCIONAL LIMPO (SEM FAIXA ESCURA) =====
+  const headerHeight = 22;
   
-  // Fundo do cabeçalho com cor sólida institucional
-  doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
-  doc.rect(margin, y, contentWidth, headerHeight, 'F');
+  // Logos com proporções equilibradas
+  const logoGovernoHeight = 14;
+  const logoGovernoWidth = logoGovernoHeight * 3.69; // Proporção original
+  const logoIdjuvHeight = 14;
+  const logoIdjuvWidth = logoIdjuvHeight * 1.55; // Proporção original
   
-  // Logos no cabeçalho
-  const logoHeight = 12;
-  const logoGovernoWidth = logoHeight * 2.6;
-  const logoIdjuvWidth = logoHeight * 1.4;
+  // Área central para textos
+  const logoLeftEnd = margin + logoGovernoWidth + 4;
+  const logoRightStart = pageWidth - margin - logoIdjuvWidth - 4;
+  const textCenterX = pageWidth / 2;
   
   try {
-    // Logo Governo (esquerda)
-    doc.addImage(logoGoverno, 'JPEG', margin + 4, y + 3, logoGovernoWidth, logoHeight);
-    // Logo IDJuv (direita)
-    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth - 4, y + 3, logoIdjuvWidth, logoHeight);
+    // Logo Governo (esquerda, alinhada verticalmente)
+    doc.addImage(logoGoverno, 'JPEG', margin, y + (headerHeight - logoGovernoHeight) / 2, logoGovernoWidth, logoGovernoHeight);
+    // Logo IDJuv (direita, alinhada verticalmente)
+    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth, y + (headerHeight - logoIdjuvHeight) / 2, logoIdjuvWidth, logoIdjuvHeight);
   } catch (e) {
     console.warn('Logos não carregados');
   }
 
-  // Textos centralizados no cabeçalho
-  doc.setTextColor(CORES.branco.r, CORES.branco.g, CORES.branco.b);
+  // Textos centralizados (sem fundo escuro - direto no branco)
+  doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, y + 6, { align: 'center' });
+  doc.setFontSize(7);
+  doc.text('GOVERNO DO ESTADO DE RORAIMA', textCenterX, y + 5, { align: 'center' });
   
   doc.setFontSize(6);
   doc.setFont('helvetica', 'normal');
-  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER', pageWidth / 2, y + 10.5, { align: 'center' });
+  doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+  doc.text('Instituto de Desporto, Juventude e Lazer', textCenterX, y + 10, { align: 'center' });
   
+  // Título principal com destaque
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text('FOLHA INDIVIDUAL DE PRESENÇA', pageWidth / 2, y + 15, { align: 'center' });
+  doc.setFontSize(10);
+  doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+  doc.text('FOLHA INDIVIDUAL DE PRESENÇA', textCenterX, y + 18, { align: 'center' });
+
+  // Linha divisória sutil abaixo do cabeçalho
+  doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
+  doc.setLineWidth(0.4);
+  doc.line(margin, y + headerHeight + 1, pageWidth - margin, y + headerHeight + 1);
 
   y += headerHeight + 5;
 
