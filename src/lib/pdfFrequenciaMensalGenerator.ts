@@ -429,9 +429,9 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
     ];
   }
 
-  // Header da tabela - estilo moderno e limpo (FONTES MAIORES)
-  const headerHeight2 = usaDoisTurnos ? 12 : 10; // AUMENTADO para caber fontes maiores
-  const rowHeight = 5.5; // AUMENTADO de 4.8 para melhor legibilidade
+  // Header da tabela - estilo moderno e limpo (FONTES AUMENTADAS + COR PRETA)
+  const headerHeight2 = usaDoisTurnos ? 14 : 12; // AUMENTADO para caber fontes maiores
+  const rowHeight = 6.2; // AUMENTADO para alta legibilidade
   
   // Fundo do header (cinza claro em vez de verde)
   doc.setFillColor(CORES.headerTabela.r, CORES.headerTabela.g, CORES.headerTabela.b);
@@ -442,29 +442,31 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
   doc.setLineWidth(0.3);
   doc.rect(margin, y, contentWidth, headerHeight2);
   
-  // Textos do header
-  doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+  // Textos do header - COR PRETA OBRIGATÓRIA
+  doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
   doc.setFont('helvetica', 'bold');
   
   let colX = margin;
   
   if (usaDoisTurnos) {
-    // Header com indicadores de turno (FONTES MAIORES)
-    doc.setFontSize(6.5); // AUMENTADO de 5 para 6.5
+    // Header com indicadores de turno - FONTES GRANDES + PRETO
+    doc.setFontSize(7.5); // AUMENTADO para alta legibilidade
+    doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
     
     for (const col of colunas) {
       const centerX = colX + col.width / 2;
       
       if (col.key === 'dia') {
-        doc.setFontSize(7.5); // AUMENTADO de 6 para 7.5
-        doc.text(col.label, centerX, y + 6, { align: 'center' });
+        doc.setFontSize(8.5); // AUMENTADO para destaque
+        doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
+        doc.text(col.label, centerX, y + 7, { align: 'center' });
       } else if (col.label2) {
-        doc.setFontSize(6.5); // AUMENTADO de 5 para 6.5
-        doc.text(col.label, centerX, y + 5, { align: 'center' });
-        doc.setFontSize(5.5); // AUMENTADO de 4.5 para 5.5
-        doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
-        doc.text(`(${col.label2})`, centerX, y + 9, { align: 'center' });
-        doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+        doc.setFontSize(7.5); // AUMENTADO
+        doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
+        doc.text(col.label, centerX, y + 5.5, { align: 'center' });
+        doc.setFontSize(6.5); // AUMENTADO - sublegenda também preta
+        doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
+        doc.text(`(${col.label2})`, centerX, y + 10.5, { align: 'center' });
       }
       
       // Separador vertical entre colunas
@@ -483,12 +485,13 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
       colX += col.width;
     }
   } else {
-    // Header para 1 turno (FONTES MAIORES)
-    doc.setFontSize(7.5); // AUMENTADO de 6 para 7.5
+    // Header para 1 turno - FONTES GRANDES + PRETO
+    doc.setFontSize(8.5); // AUMENTADO para alta legibilidade
+    doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
     
     for (const col of colunas) {
       const centerX = colX + col.width / 2;
-      doc.text(col.label, centerX, y + 6, { align: 'center' });
+      doc.text(col.label, centerX, y + 7, { align: 'center' });
       
       // Separador vertical sutil
       if (col.key !== 'abo1') {
@@ -575,8 +578,8 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
       doc.line(colX, y, colX, y + rowHeight);
     }
 
-    // Conteúdo
-    const textY = y + rowHeight / 2 + 1.2;
+    // Conteúdo - FONTES MAIORES + COR PRETA
+    const textY = y + rowHeight / 2 + 1.5;
     colX = margin;
     
     for (const col of colunas) {
@@ -584,33 +587,33 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
       
       if (col.key === 'dia') {
         if (dia) {
-          // Número do dia + abreviação
+          // Número do dia + abreviação - PRETO E MAIOR
           const dataAtual = new Date(competencia.ano, competencia.mes - 1, dia);
           const diaSemana = DIAS_SEMANA_ABREV[dataAtual.getDay()];
           
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(6.5);
-          doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+          doc.setFontSize(8); // AUMENTADO de 6.5 para 8
+          doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
           doc.text(String(dia).padStart(2, '0'), colX + 4.5, textY);
           
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(4.5);
-          doc.setTextColor(CORES.textoSutil.r, CORES.textoSutil.g, CORES.textoSutil.b);
-          doc.text(diaSemana, colX + 10, textY);
+          doc.setFontSize(6); // AUMENTADO de 4.5 para 6
+          doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
+          doc.text(diaSemana, colX + 10.5, textY);
         } else {
           // Linha vazia (dia inexistente)
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(5);
+          doc.setFontSize(6);
           doc.setTextColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
           doc.text('—', centerX, textY, { align: 'center' });
         }
       } else if (isLinhaVazia) {
         // Linha vazia (dia inexistente) - minimalista
         doc.setTextColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
-        doc.setFontSize(5);
+        doc.setFontSize(6);
         doc.text('—', centerX, textY, { align: 'center' });
       } else if (isNaoUtil) {
-        // Dia não útil
+        // Dia não útil - FONTES MAIORES
         if (col.key === 'ass1' || col.key === 'ass2') {
           // Mostrar o motivo na coluna de assinatura
           let displayLabel = '';
@@ -630,20 +633,20 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
           if (isFeriado || isFerias || isLicenca) {
             doc.setTextColor(CORES.vermelho.r, CORES.vermelho.g, CORES.vermelho.b);
           } else {
-            doc.setTextColor(CORES.textoSutil.r, CORES.textoSutil.g, CORES.textoSutil.b);
+            doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b); // PRETO em vez de cinza sutil
           }
           doc.setFont('helvetica', 'italic');
-          doc.setFontSize(5);
+          doc.setFontSize(6.5); // AUMENTADO de 5 para 6.5
           doc.text(displayLabel, centerX, textY, { align: 'center' });
         } else {
           // Outras colunas em branco para dias não úteis - sem tracinho
           // Deixa vazio para visual mais limpo
         }
       } else if (tipo === 'preenchida' && registro) {
-        // Dia útil preenchido
-        doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+        // Dia útil preenchido - PRETO E MAIOR
+        doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(6);
+        doc.setFontSize(7.5); // AUMENTADO de 6 para 7.5
         
         let valor = '';
         if (col.key === 'ent1') valor = registro.entrada_manha || '';
@@ -663,12 +666,12 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
     y += rowHeight;
   }
 
-  // ===== RODAPÉ - LOCAL E DATA =====
+  // ===== RODAPÉ - LOCAL E DATA - PRETO E MAIOR =====
   y += 4;
   
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+  doc.setFontSize(8.5); // AUMENTADO de 7.5 para 8.5
+  doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
   doc.text('Boa Vista - RR, _______ de ________________________ de ________.', margin, y);
 
   y += 10;
@@ -680,17 +683,18 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
   doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
   doc.setLineWidth(0.4);
   
-  // Linha de assinatura do servidor
+  // Linha de assinatura do servidor - PRETO E MAIOR
   doc.line(margin, y, margin + assinaturaBoxWidth, y);
-  doc.setFontSize(6.5);
+  doc.setFontSize(7.5); // AUMENTADO de 6.5 para 7.5
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
-  doc.text('Assinatura do(a) Servidor(a)', margin + assinaturaBoxWidth / 2, y + 4, { align: 'center' });
+  doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
+  doc.text('Assinatura do(a) Servidor(a)', margin + assinaturaBoxWidth / 2, y + 4.5, { align: 'center' });
   
-  // Linha de assinatura da chefia
+  // Linha de assinatura da chefia - PRETO E MAIOR
   const chefiaX = margin + assinaturaBoxWidth + 16;
   doc.line(chefiaX, y, margin + contentWidth, y);
-  doc.text('Visto do(a) Chefe Imediato', chefiaX + assinaturaBoxWidth / 2, y + 4, { align: 'center' });
+  doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
+  doc.text('Visto do(a) Chefe Imediato', chefiaX + assinaturaBoxWidth / 2, y + 4.5, { align: 'center' });
 
   // ===== RODAPÉ DO SISTEMA =====
   const rodapeY = pageHeight - 6;
