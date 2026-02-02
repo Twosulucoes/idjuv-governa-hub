@@ -10,7 +10,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { getAllSearchableItems } from "@/config/adminMenu";
+import { getAllSearchableItems } from "@/config/navigation.config";
 import { Badge } from "@/components/ui/badge";
 
 const RECENT_PAGES_KEY = "admin-recent-pages";
@@ -126,12 +126,7 @@ export function AdminSearch({ open, onOpenChange }: AdminSearchProps) {
                 >
                   <div className="flex items-center gap-2">
                     <item.icon className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <span>{item.label}</span>
-                      <div className="text-xs text-muted-foreground">
-                        {item.breadcrumb.join(" > ")}
-                      </div>
-                    </div>
+                    <span>{item.label}</span>
                   </div>
                   <ArrowRight className="h-4 w-4 text-muted-foreground" />
                 </CommandItem>
@@ -178,7 +173,7 @@ export function AdminSearch({ open, onOpenChange }: AdminSearchProps) {
                     className="flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2">
-                      <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
+                      <Star className="h-4 w-4 fill-primary text-primary" />
                       <item.icon className="h-4 w-4 text-muted-foreground" />
                       <span>{item.label}</span>
                     </div>
