@@ -4017,6 +4017,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "documentos_provimento_id_fkey"
+            columns: ["provimento_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["provimento_id"]
+          },
+          {
             foreignKeyName: "documentos_unidade_id_fkey"
             columns: ["unidade_id"]
             isOneToOne: false
@@ -12908,22 +12915,41 @@ export type Database = {
       v_servidores_situacao: {
         Row: {
           ativo: boolean | null
+          cargo_id: string | null
           cargo_nome: string | null
           cargo_sigla: string | null
           cpf: string | null
           data_exercicio: string | null
           data_nomeacao: string | null
           data_posse: string | null
+          foto_url: string | null
           id: string | null
           matricula: string | null
           nome_completo: string | null
+          provimento_id: string | null
           situacao: Database["public"]["Enums"]["situacao_funcional"] | null
           tipo_servidor: Database["public"]["Enums"]["tipo_servidor"] | null
+          unidade_id: string | null
           unidade_nome: string | null
           unidade_sigla: string | null
           vinculo: Database["public"]["Enums"]["vinculo_funcional"] | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "servidores_cargo_atual_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servidores_unidade_atual_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_sic_consulta_publica: {
         Row: {
