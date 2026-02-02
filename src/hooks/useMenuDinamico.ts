@@ -86,6 +86,11 @@ const MENU_PERMISSAO_MAP: Record<string, string> = {
   'veiculos': 'processos.veiculos.visualizar',
   'pagamentos': 'processos.pagamentos.visualizar',
   
+  // Workflow
+  'gestao-processos': 'workflow.visualizar',
+  'tramitacao': 'workflow.tramitar',
+  'despachos': 'workflow.despachar',
+  
   // Governança
   'lei-criacao': 'governanca.lei.visualizar',
   'decreto': 'governanca.decreto.visualizar',
