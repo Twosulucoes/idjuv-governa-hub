@@ -1,6 +1,23 @@
+/**
+ * Gerador de PDFs para Relatórios de Reuniões
+ * 
+ * PADRONIZAÇÃO: Usa o sistema institucional (pdfInstitucional.ts)
+ */
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import {
+  criarDocumentoInstitucional,
+  finalizarDocumentoInstitucional,
+  adicionarSecao,
+  adicionarCampoInline,
+  verificarQuebraPagina,
+  CORES_INSTITUCIONAIS,
+  MARGENS,
+  TIPOGRAFIA,
+  getDimensoesPagina,
+  ConfiguracaoDocumento,
+} from "./pdfInstitucional";
 
 interface Participante {
   id: string;
@@ -41,355 +58,369 @@ const statusLabels: Record<string, string> = {
   ausente: "Ausente",
 };
 
-function addHeader(doc: jsPDF, titulo: string): number {
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text("GOVERNO DO ESTADO DE RORAIMA", 105, 15, { align: "center" });
-  doc.text("INSTITUTO DE DESPORTO, JUVENTUDE E LAZER - IDJUV", 105, 20, { align: "center" });
-
-  doc.setLineWidth(0.5);
-  doc.line(20, 25, 190, 25);
-
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text(titulo, 105, 35, { align: "center" });
-
-  doc.setLineWidth(0.3);
-  doc.line(20, 40, 190, 40);
-
-  return 48;
-}
-
-function addFooter(doc: jsPDF, pageNum: number) {
-  const pageHeight = doc.internal.pageSize.height;
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.text(
-    `Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`,
-    20,
-    pageHeight - 10
+/**
+ * Desenha cabeçalho de tabela
+ */
+function desenharCabecalhoTabela(
+  doc: jsPDF,
+  y: number,
+  colunas: { texto: string; x: number }[]
+): number {
+  doc.setFillColor(
+    CORES_INSTITUCIONAIS.primaria.r,
+    CORES_INSTITUCIONAIS.primaria.g,
+    CORES_INSTITUCIONAIS.primaria.b
   );
-  doc.text(`Página ${pageNum}`, 190, pageHeight - 10, { align: "right" });
+  doc.rect(MARGENS.esquerda, y, MARGENS.larguraUtil, 7, "F");
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+
+  colunas.forEach((col) => {
+    doc.text(col.texto, col.x, y + 5);
+  });
+
+  doc.setTextColor(
+    CORES_INSTITUCIONAIS.textoEscuro.r,
+    CORES_INSTITUCIONAIS.textoEscuro.g,
+    CORES_INSTITUCIONAIS.textoEscuro.b
+  );
+
+  return y + 10;
 }
 
-export function gerarPdfListaConvocados(reuniao: Reuniao, participantes: Participante[]): void {
-  const doc = new jsPDF();
-  let y = addHeader(doc, "LISTA DE CONVOCADOS");
+/**
+ * Adiciona informações da reunião
+ */
+function adicionarInfoReuniao(doc: jsPDF, reuniao: Reuniao, y: number): number {
+  const dataFormatada = format(
+    new Date(reuniao.data_reuniao),
+    "dd 'de' MMMM 'de' yyyy",
+    { locale: ptBR }
+  );
 
-  // Info da reunião
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text("Reunião:", 20, y);
-  doc.setFont("helvetica", "normal");
-  doc.text(reuniao.titulo, 45, y);
-
-  y += 6;
-  doc.setFont("helvetica", "bold");
-  doc.text("Data:", 20, y);
-  doc.setFont("helvetica", "normal");
-  doc.text(
-    format(new Date(reuniao.data_reuniao), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }),
-    45,
+  y = adicionarCampoInline(doc, "Reunião", reuniao.titulo, MARGENS.esquerda, y);
+  y = adicionarCampoInline(doc, "Data", dataFormatada, MARGENS.esquerda, y);
+  y = adicionarCampoInline(
+    doc,
+    "Horário",
+    `${reuniao.hora_inicio}${reuniao.hora_fim ? ` às ${reuniao.hora_fim}` : ""}`,
+    MARGENS.esquerda,
     y
   );
-  doc.text(`Horário: ${reuniao.hora_inicio}`, 120, y);
+  y = adicionarCampoInline(
+    doc,
+    "Local",
+    reuniao.local || "Não informado",
+    MARGENS.esquerda,
+    y
+  );
+  y = adicionarCampoInline(
+    doc,
+    "Tipo",
+    tipoLabels[reuniao.tipo] || reuniao.tipo,
+    MARGENS.esquerda,
+    y
+  );
 
-  y += 6;
-  doc.setFont("helvetica", "bold");
-  doc.text("Local:", 20, y);
+  return y + 5;
+}
+
+/**
+ * Gera PDF de Lista de Convocados
+ */
+export async function gerarPdfListaConvocados(
+  reuniao: Reuniao,
+  participantes: Participante[]
+): Promise<void> {
+  const config: ConfiguracaoDocumento = {
+    titulo: "LISTA DE CONVOCADOS",
+    subtitulo: reuniao.titulo,
+    variante: "escuro",
+    mostrarRodape: true,
+    mostrarPaginacao: true,
+  };
+
+  const { doc, yInicial } = await criarDocumentoInstitucional(config);
+  let y = yInicial;
+
+  // Informações da reunião
+  y = adicionarInfoReuniao(doc, reuniao, y);
+  y += 5;
+
+  // Cabeçalho da tabela
+  const colunas = [
+    { texto: "Nº", x: MARGENS.esquerda + 2 },
+    { texto: "Nome", x: MARGENS.esquerda + 15 },
+    { texto: "Cargo/Função", x: 110 },
+    { texto: "Status", x: 165 },
+  ];
+  y = desenharCabecalhoTabela(doc, y, colunas);
+
+  // Dados dos participantes
   doc.setFont("helvetica", "normal");
-  doc.text(reuniao.local || "Não informado", 45, y);
-
-  y += 6;
-  doc.setFont("helvetica", "bold");
-  doc.text("Tipo:", 20, y);
-  doc.setFont("helvetica", "normal");
-  doc.text(tipoLabels[reuniao.tipo] || reuniao.tipo, 45, y);
-
-  y += 10;
-  doc.line(20, y, 190, y);
-  y += 8;
-
-  // Tabela de participantes
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text("Nº", 22, y);
-  doc.text("Nome", 35, y);
-  doc.text("Cargo/Função", 110, y);
-  doc.text("Status", 165, y);
-
-  y += 3;
-  doc.line(20, y, 190, y);
-  y += 6;
-
   doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
 
   participantes.forEach((p, index) => {
-    if (y > 270) {
-      addFooter(doc, doc.getNumberOfPages());
-      doc.addPage();
-      y = 30;
+    y = verificarQuebraPagina(doc, y, 8, config);
+    if (y < 50) {
+      y = desenharCabecalhoTabela(doc, y, colunas);
     }
+
+    // Fundo alternado
+    if (index % 2 === 1) {
+      doc.setFillColor(
+        CORES_INSTITUCIONAIS.fundoClaro.r,
+        CORES_INSTITUCIONAIS.fundoClaro.g,
+        CORES_INSTITUCIONAIS.fundoClaro.b
+      );
+      doc.rect(MARGENS.esquerda, y - 3, MARGENS.larguraUtil, 6, "F");
+    }
+
+    doc.setTextColor(
+      CORES_INSTITUCIONAIS.textoEscuro.r,
+      CORES_INSTITUCIONAIS.textoEscuro.g,
+      CORES_INSTITUCIONAIS.textoEscuro.b
+    );
 
     const nome = p.servidor?.nome_completo || p.nome_externo || "—";
     const cargo = p.cargo_funcao || "—";
     const status = statusLabels[p.status] || p.status;
 
-    doc.text(String(index + 1).padStart(2, "0"), 22, y);
-    doc.text(nome.substring(0, 40), 35, y);
+    doc.text(String(index + 1).padStart(2, "0"), MARGENS.esquerda + 2, y);
+    doc.text(nome.substring(0, 40), MARGENS.esquerda + 15, y);
     doc.text(cargo.substring(0, 30), 110, y);
     doc.text(status, 165, y);
 
     y += 6;
   });
 
+  // Total
   y += 10;
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.text(`Total de convocados: ${participantes.length}`, 20, y);
+  doc.text(`Total de convocados: ${participantes.length}`, MARGENS.esquerda, y);
 
-  addFooter(doc, doc.getNumberOfPages());
+  finalizarDocumentoInstitucional(doc, config);
   doc.save(`lista-convocados-${reuniao.data_reuniao}.pdf`);
 }
 
-export function gerarPdfListaPresenca(reuniao: Reuniao, participantes: Participante[]): void {
-  const doc = new jsPDF();
-  let y = addHeader(doc, "LISTA DE PRESENÇA");
+/**
+ * Gera PDF de Lista de Presença
+ */
+export async function gerarPdfListaPresenca(
+  reuniao: Reuniao,
+  participantes: Participante[]
+): Promise<void> {
+  const config: ConfiguracaoDocumento = {
+    titulo: "LISTA DE PRESENÇA",
+    subtitulo: reuniao.titulo,
+    variante: "escuro",
+    mostrarRodape: true,
+    mostrarPaginacao: true,
+  };
 
-  // Info da reunião
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text("Reunião:", 20, y);
-  doc.setFont("helvetica", "normal");
-  doc.text(reuniao.titulo, 45, y);
+  const { doc, yInicial } = await criarDocumentoInstitucional(config);
+  let y = yInicial;
 
-  y += 6;
-  doc.setFont("helvetica", "bold");
-  doc.text("Data:", 20, y);
-  doc.setFont("helvetica", "normal");
-  doc.text(
-    format(new Date(reuniao.data_reuniao), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }),
-    45,
-    y
-  );
-
-  y += 6;
-  doc.setFont("helvetica", "bold");
-  doc.text("Horário:", 20, y);
-  doc.setFont("helvetica", "normal");
-  doc.text(
-    `${reuniao.hora_inicio}${reuniao.hora_fim ? ` às ${reuniao.hora_fim}` : ""}`,
-    45,
-    y
-  );
-
-  y += 6;
-  doc.setFont("helvetica", "bold");
-  doc.text("Local:", 20, y);
-  doc.setFont("helvetica", "normal");
-  doc.text(reuniao.local || "Não informado", 45, y);
-
-  y += 10;
-  doc.line(20, y, 190, y);
-  y += 8;
+  // Informações da reunião
+  y = adicionarInfoReuniao(doc, reuniao, y);
 
   // Estatísticas
   const presentes = participantes.filter((p) => p.status === "presente").length;
   const ausentes = participantes.filter((p) => p.status === "ausente").length;
   const total = participantes.length;
 
-  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.text(`Presentes: ${presentes}`, 20, y);
-  doc.text(`Ausentes: ${ausentes}`, 70, y);
-  doc.text(`Total: ${total}`, 120, y);
-
+  doc.setFontSize(10);
+  doc.setTextColor(
+    CORES_INSTITUCIONAIS.primaria.r,
+    CORES_INSTITUCIONAIS.primaria.g,
+    CORES_INSTITUCIONAIS.primaria.b
+  );
+  doc.text(`Presentes: ${presentes}`, MARGENS.esquerda, y);
+  doc.text(`Ausentes: ${ausentes}`, 80, y);
+  doc.text(`Total: ${total}`, 130, y);
   y += 10;
 
-  // Tabela
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text("Nº", 22, y);
-  doc.text("Nome", 35, y);
-  doc.text("Cargo/Função", 100, y);
-  doc.text("Presença", 155, y);
+  // Cabeçalho da tabela
+  const colunas = [
+    { texto: "Nº", x: MARGENS.esquerda + 2 },
+    { texto: "Nome", x: MARGENS.esquerda + 15 },
+    { texto: "Cargo/Função", x: 100 },
+    { texto: "Presença", x: 155 },
+  ];
+  y = desenharCabecalhoTabela(doc, y, colunas);
 
-  y += 3;
-  doc.line(20, y, 190, y);
-  y += 6;
-
-  doc.setFontSize(9);
+  // Dados
   doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
 
   participantes.forEach((p, index) => {
-    if (y > 260) {
-      addFooter(doc, doc.getNumberOfPages());
-      doc.addPage();
-      y = 30;
+    y = verificarQuebraPagina(doc, y, 12, config);
+    if (y < 50) {
+      y = desenharCabecalhoTabela(doc, y, colunas);
     }
+
+    if (index % 2 === 1) {
+      doc.setFillColor(
+        CORES_INSTITUCIONAIS.fundoClaro.r,
+        CORES_INSTITUCIONAIS.fundoClaro.g,
+        CORES_INSTITUCIONAIS.fundoClaro.b
+      );
+      doc.rect(MARGENS.esquerda, y - 3, MARGENS.larguraUtil, 6, "F");
+    }
+
+    doc.setTextColor(
+      CORES_INSTITUCIONAIS.textoEscuro.r,
+      CORES_INSTITUCIONAIS.textoEscuro.g,
+      CORES_INSTITUCIONAIS.textoEscuro.b
+    );
 
     const nome = p.servidor?.nome_completo || p.nome_externo || "—";
     const cargo = p.cargo_funcao || "—";
-    const presenca = p.status === "presente" ? "✓ Presente" : p.status === "ausente" ? "✗ Ausente" : "—";
+    const presenca =
+      p.status === "presente"
+        ? "✓ Presente"
+        : p.status === "ausente"
+        ? "✗ Ausente"
+        : "—";
 
-    doc.text(String(index + 1).padStart(2, "0"), 22, y);
-    doc.text(nome.substring(0, 35), 35, y);
+    doc.text(String(index + 1).padStart(2, "0"), MARGENS.esquerda + 2, y);
+    doc.text(nome.substring(0, 35), MARGENS.esquerda + 15, y);
     doc.text(cargo.substring(0, 28), 100, y);
     doc.text(presenca, 155, y);
 
     if (p.status === "ausente" && p.justificativa_ausencia) {
       y += 5;
       doc.setFontSize(8);
-      doc.setTextColor(100);
-      doc.text(`Justificativa: ${p.justificativa_ausencia.substring(0, 60)}`, 35, y);
-      doc.setTextColor(0);
+      doc.setTextColor(
+        CORES_INSTITUCIONAIS.textoClaro.r,
+        CORES_INSTITUCIONAIS.textoClaro.g,
+        CORES_INSTITUCIONAIS.textoClaro.b
+      );
+      doc.text(
+        `Justificativa: ${p.justificativa_ausencia.substring(0, 60)}`,
+        MARGENS.esquerda + 15,
+        y
+      );
+      doc.setTextColor(0, 0, 0);
       doc.setFontSize(9);
     }
 
     y += 6;
   });
 
-  // Assinaturas
-  y += 15;
-  if (y > 250) {
-    addFooter(doc, doc.getNumberOfPages());
-    doc.addPage();
-    y = 40;
-  }
+  // Assinatura
+  y += 20;
+  y = verificarQuebraPagina(doc, y, 40, config);
 
   doc.setFontSize(10);
-  doc.text("Boa Vista - RR, " + format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }), 105, y, {
-    align: "center",
-  });
+  doc.setTextColor(
+    CORES_INSTITUCIONAIS.textoEscuro.r,
+    CORES_INSTITUCIONAIS.textoEscuro.g,
+    CORES_INSTITUCIONAIS.textoEscuro.b
+  );
+  doc.text(
+    "Boa Vista - RR, " +
+      format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }),
+    105,
+    y,
+    { align: "center" }
+  );
 
   y += 25;
+  doc.setDrawColor(
+    CORES_INSTITUCIONAIS.bordaMedia.r,
+    CORES_INSTITUCIONAIS.bordaMedia.g,
+    CORES_INSTITUCIONAIS.bordaMedia.b
+  );
   doc.line(50, y, 160, y);
   y += 5;
+  doc.setFontSize(9);
   doc.text("Responsável pela Reunião", 105, y, { align: "center" });
 
-  addFooter(doc, doc.getNumberOfPages());
+  finalizarDocumentoInstitucional(doc, config);
   doc.save(`lista-presenca-${reuniao.data_reuniao}.pdf`);
 }
 
-export function gerarPdfRelatorioReuniao(reuniao: Reuniao, participantes: Participante[]): void {
-  const doc = new jsPDF();
-  let y = addHeader(doc, "RELATÓRIO DE REUNIÃO");
+/**
+ * Gera PDF de Relatório Completo da Reunião
+ */
+export async function gerarPdfRelatorioReuniao(
+  reuniao: Reuniao,
+  participantes: Participante[]
+): Promise<void> {
+  const config: ConfiguracaoDocumento = {
+    titulo: "RELATÓRIO DE REUNIÃO",
+    variante: "escuro",
+    mostrarRodape: true,
+    mostrarPaginacao: true,
+  };
 
-  // Info da reunião
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text("Título:", 20, y);
-  doc.setFont("helvetica", "normal");
-  doc.text(reuniao.titulo, 45, y);
+  const { doc, yInicial } = await criarDocumentoInstitucional(config);
+  let y = yInicial;
 
-  y += 6;
-  doc.setFont("helvetica", "bold");
-  doc.text("Data:", 20, y);
-  doc.setFont("helvetica", "normal");
-  doc.text(
-    format(new Date(reuniao.data_reuniao), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }),
-    45,
-    y
-  );
+  // Seção 1: Informações Gerais
+  y = adicionarSecao(doc, "Informações Gerais", y, 1);
+  y = adicionarInfoReuniao(doc, reuniao, y);
+  y += 5;
 
-  y += 6;
-  doc.setFont("helvetica", "bold");
-  doc.text("Horário:", 20, y);
-  doc.setFont("helvetica", "normal");
-  doc.text(
-    `${reuniao.hora_inicio}${reuniao.hora_fim ? ` às ${reuniao.hora_fim}` : ""}`,
-    45,
-    y
-  );
-
-  y += 6;
-  doc.setFont("helvetica", "bold");
-  doc.text("Local:", 20, y);
-  doc.setFont("helvetica", "normal");
-  doc.text(reuniao.local || "Não informado", 45, y);
-
-  y += 6;
-  doc.setFont("helvetica", "bold");
-  doc.text("Tipo:", 20, y);
-  doc.setFont("helvetica", "normal");
-  doc.text(tipoLabels[reuniao.tipo] || reuniao.tipo, 45, y);
-
-  y += 10;
-  doc.line(20, y, 190, y);
-  y += 8;
-
-  // Participantes presentes
+  // Seção 2: Participantes Presentes
   const presentes = participantes.filter((p) => p.status === "presente");
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text(`PARTICIPANTES PRESENTES (${presentes.length})`, 20, y);
-  y += 6;
+  y = verificarQuebraPagina(doc, y, 20, config);
+  y = adicionarSecao(doc, `Participantes Presentes (${presentes.length})`, y, 2);
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
+  doc.setTextColor(
+    CORES_INSTITUCIONAIS.textoEscuro.r,
+    CORES_INSTITUCIONAIS.textoEscuro.g,
+    CORES_INSTITUCIONAIS.textoEscuro.b
+  );
+
   presentes.forEach((p) => {
-    if (y > 265) {
-      doc.addPage();
-      y = 30;
-    }
+    y = verificarQuebraPagina(doc, y, 6, config);
     const nome = p.servidor?.nome_completo || p.nome_externo || "—";
     const cargo = p.cargo_funcao ? ` - ${p.cargo_funcao}` : "";
-    doc.text(`• ${nome}${cargo}`, 25, y);
+    doc.text(`• ${nome}${cargo}`, MARGENS.esquerda + 5, y);
     y += 5;
   });
 
-  y += 8;
+  y += 5;
 
-  // Pauta
+  // Seção 3: Pauta
   if (reuniao.pauta) {
-    if (y > 230) {
-      doc.addPage();
-      y = 30;
-    }
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text("PAUTA", 20, y);
-    y += 6;
+    y = verificarQuebraPagina(doc, y, 30, config);
+    y = adicionarSecao(doc, "Pauta", y, 3);
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    const pautaLines = doc.splitTextToSize(reuniao.pauta, 170);
+    const pautaLines = doc.splitTextToSize(reuniao.pauta, MARGENS.larguraUtil);
     pautaLines.forEach((line: string) => {
-      if (y > 270) {
-        doc.addPage();
-        y = 30;
-      }
-      doc.text(line, 20, y);
+      y = verificarQuebraPagina(doc, y, 6, config);
+      doc.text(line, MARGENS.esquerda, y);
       y += 5;
     });
     y += 5;
   }
 
-  // Ata
+  // Seção 4: Ata
   if (reuniao.ata_conteudo) {
-    if (y > 200) {
-      doc.addPage();
-      y = 30;
-    }
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text("ATA DA REUNIÃO", 20, y);
-    y += 6;
+    y = verificarQuebraPagina(doc, y, 30, config);
+    y = adicionarSecao(doc, "Ata da Reunião", y, 4);
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    const ataLines = doc.splitTextToSize(reuniao.ata_conteudo, 170);
+    const ataLines = doc.splitTextToSize(reuniao.ata_conteudo, MARGENS.larguraUtil);
     ataLines.forEach((line: string) => {
-      if (y > 270) {
-        addFooter(doc, doc.getNumberOfPages());
-        doc.addPage();
-        y = 30;
-      }
-      doc.text(line, 20, y);
+      y = verificarQuebraPagina(doc, y, 6, config);
+      doc.text(line, MARGENS.esquerda, y);
       y += 5;
     });
   }
 
-  addFooter(doc, doc.getNumberOfPages());
+  finalizarDocumentoInstitucional(doc, config);
   doc.save(`relatorio-reuniao-${reuniao.data_reuniao}.pdf`);
 }

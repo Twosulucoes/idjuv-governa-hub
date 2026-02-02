@@ -60,13 +60,13 @@ export function RelatoriosReuniaoDialog({
 
       switch (tipo) {
         case "convocados":
-          gerarPdfListaConvocados(reuniao, participantes);
+          await gerarPdfListaConvocados(reuniao, participantes);
           break;
         case "presenca":
-          gerarPdfListaPresenca(reuniao, participantes);
+          await gerarPdfListaPresenca(reuniao, participantes);
           break;
         case "completo":
-          gerarPdfRelatorioReuniao(reuniao, participantes);
+          await gerarPdfRelatorioReuniao(reuniao, participantes);
           break;
       }
 
