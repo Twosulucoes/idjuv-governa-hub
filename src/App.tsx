@@ -467,6 +467,20 @@ const App = () => (
               } />
               
               {/* ============================================ */}
+              {/* WORKFLOW (SEI-LIKE) - Com permissões */}
+              {/* ============================================ */}
+              <Route path="/workflow/processos" element={
+                <ProtectedRoute requiredPermissions="workflow.visualizar">
+                  <GestaoProcessosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/workflow/processos/:id" element={
+                <ProtectedRoute requiredPermissions="workflow.visualizar">
+                  <ProcessoDetalhePage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
               {/* FORMULÁRIOS - Apenas autenticação */}
               {/* (permissão genérica removida) */}
               {/* ============================================ */}
