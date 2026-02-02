@@ -477,12 +477,7 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
     }
     colX += colWidths.saida;
     
-    // SEPARADOR VISUAL entre Saída e Assinatura (linha vertical dupla mais elegante)
-    doc.setDrawColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
-    doc.setLineWidth(0.5);
-    doc.line(colX + 0.8, y + 0.5, colX + 0.8, y + rowHeight - 0.5);
-    doc.line(colX + 2.2, y + 0.5, colX + 2.2, y + rowHeight - 0.5);
-    colX += colWidths.separador;
+   
 
     // Coluna de assinatura
     // Se for dia não útil, desenhar riscos diagonais duplos elegantes
@@ -490,13 +485,7 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
       doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
       doc.setLineWidth(0.3);
       
-      // Duas linhas diagonais paralelas para efeito mais elegante
-      const offset = 1;
-      doc.line(colX + 3, y + rowHeight - 1, colX + colWidths.assinatura - 3, y + 1);
-      doc.line(colX + 3 + offset, y + rowHeight - 1, colX + colWidths.assinatura - 3 + offset, y + 1);
-    }
-
-    y += rowHeight;
+         y += rowHeight;
   }
 
   // Borda final da tabela
