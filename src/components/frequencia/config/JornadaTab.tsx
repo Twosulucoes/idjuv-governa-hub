@@ -22,8 +22,23 @@ export function JornadaTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editando, setEditando] = useState<Partial<ConfigJornadaPadrao> | null>(null);
 
+  const isJornadaCurta = (carga?: number) => (carga ?? 8) <= 6;
+
+  const aplicarRegraJornadaCurta = (base: Partial<ConfigJornadaPadrao>) => {
+    // REGRA: jornada <= 6h não tem 2º turno e não tem intervalo.
+    if (!isJornadaCurta(base.carga_horaria_diaria)) return base;
+    return {
+      ...base,
+      entrada_tarde: undefined,
+      saida_tarde: undefined,
+      intervalo_minimo: 0,
+      intervalo_maximo: 0,
+      intervalo_obrigatorio: false,
+    };
+  };
+
   const handleNova = () => {
-    setEditando({
+    setEditando(aplicarRegraJornadaCurta({
       nome: '',
       carga_horaria_diaria: 8,
       carga_horaria_semanal: 40,
@@ -39,12 +54,12 @@ export function JornadaTab() {
       escopo: 'orgao',
       ativo: true,
       padrao: false,
-    });
+    }));
     setDialogOpen(true);
   };
 
   const handleEditar = (jornada: ConfigJornadaPadrao) => {
-    setEditando(jornada);
+    setEditando(aplicarRegraJornadaCurta(jornada));
     setDialogOpen(true);
   };
 
@@ -102,7 +117,9 @@ export function JornadaTab() {
                   <TableCell className="text-center">{j.carga_horaria_diaria}h</TableCell>
                   <TableCell className="text-center">{j.carga_horaria_semanal}h</TableCell>
                   <TableCell className="text-sm">
-                    {j.entrada_manha?.slice(0, 5)} - {j.saida_manha?.slice(0, 5)} / {j.entrada_tarde?.slice(0, 5)} - {j.saida_tarde?.slice(0, 5)}
+                    {isJornadaCurta(j.carga_horaria_diaria)
+                      ? `${j.entrada_manha?.slice(0, 5)} - ${j.saida_manha?.slice(0, 5)}`
+                      : `${j.entrada_manha?.slice(0, 5)} - ${j.saida_manha?.slice(0, 5)} / ${j.entrada_tarde?.slice(0, 5)} - ${j.saida_tarde?.slice(0, 5)}`}
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge variant={j.ativo ? "default" : "secondary"}>
@@ -139,6 +156,12 @@ export function JornadaTab() {
 
           {editando && (
             <div className="space-y-6">
+              {isJornadaCurta(editando.carga_horaria_diaria) && (
+                <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                  Regra aplicada: jornada ≤ 6h não possui 2º turno e nem intervalo.
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2 space-y-2">
                   <Label>Nome da Configuração</Label>
@@ -185,7 +208,10 @@ export function JornadaTab() {
                   <Input
                     type="number"
                     value={editando.carga_horaria_diaria || 8}
-                    onChange={(e) => setEditando({ ...editando, carga_horaria_diaria: Number(e.target.value) })}
+                    onChange={(e) => {
+                      const carga = Number(e.target.value);
+                      setEditando(aplicarRegraJornadaCurta({ ...editando, carga_horaria_diaria: carga }));
+                    }}
                   />
                 </div>
                 <div className="space-y-2">
@@ -200,7 +226,7 @@ export function JornadaTab() {
 
               <div className="grid grid-cols-4 gap-4">
                 <div className="space-y-2">
-                  <Label>Entrada Manhã</Label>
+                  <Label>{isJornadaCurta(editando.carga_horaria_diaria) ? 'Entrada' : 'Entrada Manhã'}</Label>
                   <Input
                     type="time"
                     value={editando.entrada_manha || '08:00'}
@@ -208,40 +234,46 @@ export function JornadaTab() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Saída Manhã</Label>
+                  <Label>{isJornadaCurta(editando.carga_horaria_diaria) ? 'Saída' : 'Saída Manhã'}</Label>
                   <Input
                     type="time"
                     value={editando.saida_manha || '12:00'}
                     onChange={(e) => setEditando({ ...editando, saida_manha: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Entrada Tarde</Label>
-                  <Input
-                    type="time"
-                    value={editando.entrada_tarde || '14:00'}
-                    onChange={(e) => setEditando({ ...editando, entrada_tarde: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Saída Tarde</Label>
-                  <Input
-                    type="time"
-                    value={editando.saida_tarde || '18:00'}
-                    onChange={(e) => setEditando({ ...editando, saida_tarde: e.target.value })}
-                  />
-                </div>
+                {!isJornadaCurta(editando.carga_horaria_diaria) && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Entrada Tarde</Label>
+                      <Input
+                        type="time"
+                        value={editando.entrada_tarde || '14:00'}
+                        onChange={(e) => setEditando({ ...editando, entrada_tarde: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Saída Tarde</Label>
+                      <Input
+                        type="time"
+                        value={editando.saida_tarde || '18:00'}
+                        onChange={(e) => setEditando({ ...editando, saida_tarde: e.target.value })}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Intervalo Mínimo (min)</Label>
-                  <Input
-                    type="number"
-                    value={editando.intervalo_minimo || 60}
-                    onChange={(e) => setEditando({ ...editando, intervalo_minimo: Number(e.target.value) })}
-                  />
-                </div>
+                {!isJornadaCurta(editando.carga_horaria_diaria) && (
+                  <div className="space-y-2">
+                    <Label>Intervalo Mínimo (min)</Label>
+                    <Input
+                      type="number"
+                      value={editando.intervalo_minimo ?? 60}
+                      onChange={(e) => setEditando({ ...editando, intervalo_minimo: Number(e.target.value) })}
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label>Tolerância Atraso (min)</Label>
                   <Input

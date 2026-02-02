@@ -39,7 +39,7 @@ import {
   type FrequenciaMensalPDFData,
   type RegistroDiario,
 } from "@/lib/pdfFrequenciaMensalGenerator";
-import { useDiasNaoUteis, useAssinaturaPadrao } from "@/hooks/useParametrizacoesFrequencia";
+import { useAssinaturaPadrao, useDiasNaoUteis, useServidorRegime } from "@/hooks/useParametrizacoesFrequencia";
 import { useRegistrosPonto, useFrequenciaMensal, calcularDiasUteis } from "@/hooks/useFrequencia";
 import { useUploadFrequencia } from "@/hooks/useFrequenciaPacotes";
 import type { FrequenciaServidorResumo } from "@/hooks/useFrequencia";
@@ -91,11 +91,19 @@ export function ImprimirFrequenciaDialog({
   const { user } = useAuth();
   const { data: diasNaoUteis } = useDiasNaoUteis(ano);
   const { data: configAssinatura } = useAssinaturaPadrao();
+  const { data: servidorRegime } = useServidorRegime(servidor?.servidor_id);
   const { data: registrosPonto } = useRegistrosPonto(servidor?.servidor_id, ano, mes);
   const { data: frequenciaMensal } = useFrequenciaMensal(servidor?.servidor_id, ano, mes);
   const uploadFrequencia = useUploadFrequencia();
   const { gerarPDF } = useGerarFrequenciaPDF();
   const { validarDados } = useValidacaoFrequencia(servidor, tipo);
+
+  const cargaHorariaDiaria =
+    (servidorRegime as any)?.carga_horaria_customizada ??
+    (servidorRegime as any)?.jornada?.carga_horaria_diaria ??
+    8;
+  const cargaHorariaSemanal = (servidorRegime as any)?.jornada?.carga_horaria_semanal ?? 40;
+  const nomeRegime = (servidorRegime as any)?.regime?.nome ?? 'Presencial';
 
   // Limpar preview URL ao fechar dialog
   useEffect(() => {
@@ -162,7 +170,7 @@ export function ImprimirFrequenciaDialog({
       // Calcular resumo
       atualizarProgresso(3, 5);
       const resumo = tipo === 'preenchida' 
-        ? calcularResumoMensal(registros, servidor.dias_uteis ? 8 : 8)
+        ? calcularResumoMensal(registros, cargaHorariaDiaria)
         : undefined;
 
       // Dados para o PDF
@@ -176,9 +184,9 @@ export function ImprimirFrequenciaDialog({
           cpf: servidor.servidor_cpf,
           cargo: servidor.servidor_cargo,
           unidade: servidor.servidor_unidade,
-          regime: 'Presencial',
-          carga_horaria_diaria: 8,
-          carga_horaria_semanal: 40,
+          regime: nomeRegime,
+          carga_horaria_diaria: cargaHorariaDiaria,
+          carga_horaria_semanal: cargaHorariaSemanal,
         },
         registros: tipo === 'preenchida' ? registros : undefined,
         resumo,
@@ -263,7 +271,7 @@ export function ImprimirFrequenciaDialog({
       // Calcular resumo
       atualizarProgresso(3, 6);
       const resumo = tipo === 'preenchida' 
-        ? calcularResumoMensal(registros, servidor.dias_uteis ? 8 : 8)
+        ? calcularResumoMensal(registros, cargaHorariaDiaria)
         : undefined;
 
       // Dados para o PDF
@@ -277,9 +285,9 @@ export function ImprimirFrequenciaDialog({
           cpf: servidor.servidor_cpf,
           cargo: servidor.servidor_cargo,
           unidade: servidor.servidor_unidade,
-          regime: 'Presencial',
-          carga_horaria_diaria: 8,
-          carga_horaria_semanal: 40,
+          regime: nomeRegime,
+          carga_horaria_diaria: cargaHorariaDiaria,
+          carga_horaria_semanal: cargaHorariaSemanal,
         },
         registros: tipo === 'preenchida' ? registros : undefined,
         resumo,

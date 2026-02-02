@@ -52,6 +52,7 @@ import {
 import { formatDateBR } from "@/lib/formatters";
 import { type TipoServidor } from "@/types/servidor";
 import { HistoricoFuncionalTab } from "@/components/rh/HistoricoFuncionalTab";
+import { ServidorFrequenciaConfigCard } from "@/components/rh/ServidorFrequenciaConfigCard";
 
 export default function ServidorDetalheePage() {
   const navigate = useNavigate();
@@ -472,6 +473,9 @@ export default function ServidorDetalheePage() {
                     <InfoRow label="Remuneração Bruta" value={formatCurrency(servidor.remuneracao_bruta)} />
                   </CardContent>
                 </Card>
+
+                {/* Frequência (Jornada / Regime) */}
+                {isAdmin && id && <ServidorFrequenciaConfigCard servidorId={id} />}
 
                 {/* Formação */}
                 <Card>
