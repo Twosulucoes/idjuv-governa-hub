@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      acesso_processo_sigiloso: {
+        Row: {
+          concedido_por: string | null
+          created_at: string
+          id: string
+          motivo: string | null
+          nivel_acesso: string
+          processo_id: string
+          usuario_id: string
+        }
+        Insert: {
+          concedido_por?: string | null
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          nivel_acesso?: string
+          processo_id: string
+          usuario_id: string
+        }
+        Update: {
+          concedido_por?: string | null
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          nivel_acesso?: string
+          processo_id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acesso_processo_sigiloso_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_administrativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acesso_processo_sigiloso_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "v_processos_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       acoes: {
         Row: {
           codigo: string
@@ -3721,6 +3766,90 @@ export type Database = {
           },
         ]
       }
+      despachos: {
+        Row: {
+          autoridade_id: string | null
+          created_at: string
+          created_by: string | null
+          data_despacho: string
+          decisao: Database["public"]["Enums"]["decisao_despacho"] | null
+          fundamentacao_legal: string | null
+          id: string
+          movimentacao_id: string | null
+          numero_despacho: number
+          processo_id: string
+          texto_despacho: string
+          tipo_despacho: Database["public"]["Enums"]["tipo_despacho"]
+          updated_at: string
+        }
+        Insert: {
+          autoridade_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_despacho?: string
+          decisao?: Database["public"]["Enums"]["decisao_despacho"] | null
+          fundamentacao_legal?: string | null
+          id?: string
+          movimentacao_id?: string | null
+          numero_despacho?: number
+          processo_id: string
+          texto_despacho: string
+          tipo_despacho?: Database["public"]["Enums"]["tipo_despacho"]
+          updated_at?: string
+        }
+        Update: {
+          autoridade_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_despacho?: string
+          decisao?: Database["public"]["Enums"]["decisao_despacho"] | null
+          fundamentacao_legal?: string | null
+          id?: string
+          movimentacao_id?: string | null
+          numero_despacho?: number
+          processo_id?: string
+          texto_despacho?: string
+          tipo_despacho?: Database["public"]["Enums"]["tipo_despacho"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "despachos_autoridade_id_fkey"
+            columns: ["autoridade_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despachos_autoridade_id_fkey"
+            columns: ["autoridade_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despachos_movimentacao_id_fkey"
+            columns: ["movimentacao_id"]
+            isOneToOne: false
+            referencedRelation: "movimentacoes_processo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despachos_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_administrativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despachos_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "v_processos_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dias_nao_uteis: {
         Row: {
           abrangencia: string | null
@@ -4074,6 +4203,75 @@ export type Database = {
             columns: ["responsavel_id"]
             isOneToOne: false
             referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documentos_processo: {
+        Row: {
+          arquivo_nome: string | null
+          arquivo_tamanho: number | null
+          arquivo_url: string | null
+          conteudo_textual: string | null
+          created_at: string
+          created_by: string | null
+          hash_sha256: string | null
+          id: string
+          numero_documento: string | null
+          ordem: number
+          processo_id: string
+          sigilo: Database["public"]["Enums"]["nivel_sigilo_processo"]
+          tipo_documento: Database["public"]["Enums"]["tipo_documento_processo"]
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          arquivo_nome?: string | null
+          arquivo_tamanho?: number | null
+          arquivo_url?: string | null
+          conteudo_textual?: string | null
+          created_at?: string
+          created_by?: string | null
+          hash_sha256?: string | null
+          id?: string
+          numero_documento?: string | null
+          ordem?: number
+          processo_id: string
+          sigilo?: Database["public"]["Enums"]["nivel_sigilo_processo"]
+          tipo_documento?: Database["public"]["Enums"]["tipo_documento_processo"]
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          arquivo_nome?: string | null
+          arquivo_tamanho?: number | null
+          arquivo_url?: string | null
+          conteudo_textual?: string | null
+          created_at?: string
+          created_by?: string | null
+          hash_sha256?: string | null
+          id?: string
+          numero_documento?: string | null
+          ordem?: number
+          processo_id?: string
+          sigilo?: Database["public"]["Enums"]["nivel_sigilo_processo"]
+          tipo_documento?: Database["public"]["Enums"]["tipo_documento_processo"]
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentos_processo_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_administrativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_processo_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "v_processos_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -7868,6 +8066,126 @@ export type Database = {
           },
         ]
       }
+      movimentacoes_processo: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_recebimento: string | null
+          data_resposta: string | null
+          descricao: string
+          id: string
+          numero_sequencial: number
+          observacoes: string | null
+          prazo_dias: number | null
+          prazo_limite: string | null
+          processo_id: string
+          servidor_destino_id: string | null
+          servidor_origem_id: string | null
+          status: Database["public"]["Enums"]["status_movimentacao_processo"]
+          tipo_movimentacao: Database["public"]["Enums"]["tipo_movimentacao_processo"]
+          unidade_destino_id: string | null
+          unidade_origem_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_recebimento?: string | null
+          data_resposta?: string | null
+          descricao: string
+          id?: string
+          numero_sequencial?: number
+          observacoes?: string | null
+          prazo_dias?: number | null
+          prazo_limite?: string | null
+          processo_id: string
+          servidor_destino_id?: string | null
+          servidor_origem_id?: string | null
+          status?: Database["public"]["Enums"]["status_movimentacao_processo"]
+          tipo_movimentacao?: Database["public"]["Enums"]["tipo_movimentacao_processo"]
+          unidade_destino_id?: string | null
+          unidade_origem_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_recebimento?: string | null
+          data_resposta?: string | null
+          descricao?: string
+          id?: string
+          numero_sequencial?: number
+          observacoes?: string | null
+          prazo_dias?: number | null
+          prazo_limite?: string | null
+          processo_id?: string
+          servidor_destino_id?: string | null
+          servidor_origem_id?: string | null
+          status?: Database["public"]["Enums"]["status_movimentacao_processo"]
+          tipo_movimentacao?: Database["public"]["Enums"]["tipo_movimentacao_processo"]
+          unidade_destino_id?: string | null
+          unidade_origem_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimentacoes_processo_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_administrativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_processo_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "v_processos_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_processo_servidor_destino_id_fkey"
+            columns: ["servidor_destino_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_processo_servidor_destino_id_fkey"
+            columns: ["servidor_destino_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_processo_servidor_origem_id_fkey"
+            columns: ["servidor_origem_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_processo_servidor_origem_id_fkey"
+            columns: ["servidor_origem_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_processo_unidade_destino_id_fkey"
+            columns: ["unidade_destino_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_processo_unidade_origem_id_fkey"
+            columns: ["unidade_origem_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nomeacoes_chefe_unidade: {
         Row: {
           ato_data_publicacao: string
@@ -8929,6 +9247,89 @@ export type Database = {
         }
         Relationships: []
       }
+      prazos_processo: {
+        Row: {
+          base_legal: string | null
+          created_at: string
+          created_by: string | null
+          cumprido: boolean
+          data_cumprimento: string | null
+          data_inicio: string
+          data_limite: string
+          descricao: string
+          id: string
+          observacoes: string | null
+          prazo_dias: number
+          processo_id: string
+          referencia: Database["public"]["Enums"]["referencia_prazo_processo"]
+          responsavel_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          base_legal?: string | null
+          created_at?: string
+          created_by?: string | null
+          cumprido?: boolean
+          data_cumprimento?: string | null
+          data_inicio?: string
+          data_limite: string
+          descricao: string
+          id?: string
+          observacoes?: string | null
+          prazo_dias: number
+          processo_id: string
+          referencia?: Database["public"]["Enums"]["referencia_prazo_processo"]
+          responsavel_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          base_legal?: string | null
+          created_at?: string
+          created_by?: string | null
+          cumprido?: boolean
+          data_cumprimento?: string | null
+          data_inicio?: string
+          data_limite?: string
+          descricao?: string
+          id?: string
+          observacoes?: string | null
+          prazo_dias?: number
+          processo_id?: string
+          referencia?: Database["public"]["Enums"]["referencia_prazo_processo"]
+          responsavel_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prazos_processo_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_administrativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prazos_processo_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "v_processos_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prazos_processo_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prazos_processo_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pre_cadastros: {
         Row: {
           ano_conclusao: number | null
@@ -9243,6 +9644,94 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      processos_administrativos: {
+        Row: {
+          ano: number
+          assunto: string
+          created_at: string
+          created_by: string | null
+          data_abertura: string
+          data_encerramento: string | null
+          descricao: string | null
+          id: string
+          interessado_documento: string | null
+          interessado_nome: string
+          interessado_tipo: string
+          numero_processo: string
+          observacoes: string | null
+          processo_origem_id: string | null
+          sigilo: Database["public"]["Enums"]["nivel_sigilo_processo"]
+          status: Database["public"]["Enums"]["status_processo_administrativo"]
+          tipo_processo: Database["public"]["Enums"]["tipo_processo_administrativo"]
+          unidade_origem_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          ano?: number
+          assunto: string
+          created_at?: string
+          created_by?: string | null
+          data_abertura?: string
+          data_encerramento?: string | null
+          descricao?: string | null
+          id?: string
+          interessado_documento?: string | null
+          interessado_nome: string
+          interessado_tipo?: string
+          numero_processo: string
+          observacoes?: string | null
+          processo_origem_id?: string | null
+          sigilo?: Database["public"]["Enums"]["nivel_sigilo_processo"]
+          status?: Database["public"]["Enums"]["status_processo_administrativo"]
+          tipo_processo?: Database["public"]["Enums"]["tipo_processo_administrativo"]
+          unidade_origem_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ano?: number
+          assunto?: string
+          created_at?: string
+          created_by?: string | null
+          data_abertura?: string
+          data_encerramento?: string | null
+          descricao?: string | null
+          id?: string
+          interessado_documento?: string | null
+          interessado_nome?: string
+          interessado_tipo?: string
+          numero_processo?: string
+          observacoes?: string | null
+          processo_origem_id?: string | null
+          sigilo?: Database["public"]["Enums"]["nivel_sigilo_processo"]
+          status?: Database["public"]["Enums"]["status_processo_administrativo"]
+          tipo_processo?: Database["public"]["Enums"]["tipo_processo_administrativo"]
+          unidade_origem_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processos_administrativos_processo_origem_id_fkey"
+            columns: ["processo_origem_id"]
+            isOneToOne: false
+            referencedRelation: "processos_administrativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_administrativos_processo_origem_id_fkey"
+            columns: ["processo_origem_id"]
+            isOneToOne: false
+            referencedRelation: "v_processos_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_administrativos_unidade_origem_id_fkey"
+            columns: ["unidade_origem_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
             referencedColumns: ["id"]
           },
         ]
@@ -12305,6 +12794,28 @@ export type Database = {
         }
         Relationships: []
       }
+      v_processos_resumo: {
+        Row: {
+          assunto: string | null
+          created_at: string | null
+          created_by: string | null
+          data_abertura: string | null
+          data_encerramento: string | null
+          id: string | null
+          interessado_nome: string | null
+          numero_formatado: string | null
+          prazos_vencidos: number | null
+          sigilo: string | null
+          status: string | null
+          tipo_processo: string | null
+          total_despachos: number | null
+          total_documentos: number | null
+          total_movimentacoes: number | null
+          ultima_movimentacao: string | null
+          unidade_origem: string | null
+        }
+        Relationships: []
+      }
       v_relatorio_patrimonio: {
         Row: {
           anexos: string[] | null
@@ -12828,6 +13339,14 @@ export type Database = {
         | "cessao"
         | "ferias"
         | "licenca"
+      decisao_despacho:
+        | "deferido"
+        | "indeferido"
+        | "parcialmente_deferido"
+        | "encaminhar"
+        | "arquivar"
+        | "suspender"
+        | "informar"
       estado_conservacao: "otimo" | "bom" | "regular" | "ruim" | "inservivel"
       fase_licitacao:
         | "planejamento"
@@ -12865,6 +13384,7 @@ export type Database = {
       natureza_rubrica: "remuneratorio" | "indenizatorio" | "informativo"
       nivel_perfil: "sistema" | "organizacional" | "operacional"
       nivel_risco: "muito_baixo" | "baixo" | "medio" | "alto" | "muito_alto"
+      nivel_sigilo_processo: "publico" | "restrito" | "sigiloso"
       origem_lancamento: "automatico" | "manual" | "importado" | "retroativo"
       periodicidade_controle:
         | "diario"
@@ -12878,6 +13398,12 @@ export type Database = {
         | "eventual"
       prioridade_debito: "critica" | "alta" | "media" | "baixa"
       prioridade_demanda_ascom: "baixa" | "normal" | "alta" | "urgente"
+      referencia_prazo_processo:
+        | "legal"
+        | "interno"
+        | "judicial"
+        | "contratual"
+        | "regulamentar"
       situacao_funcional:
         | "ativo"
         | "afastado"
@@ -12954,6 +13480,12 @@ export type Database = {
         | "erro"
       status_folha: "aberta" | "previa" | "processando" | "fechada" | "reaberta"
       status_medicao: "rascunho" | "enviada" | "aprovada" | "rejeitada" | "paga"
+      status_movimentacao_processo:
+        | "pendente"
+        | "recebido"
+        | "respondido"
+        | "vencido"
+        | "cancelado"
       status_nomeacao: "ativo" | "encerrado" | "revogado"
       status_participante:
         | "pendente"
@@ -12967,6 +13499,12 @@ export type Database = {
         | "pendente_justificativa"
         | "justificado"
         | "aprovado"
+      status_processo_administrativo:
+        | "aberto"
+        | "em_tramitacao"
+        | "suspenso"
+        | "concluido"
+        | "arquivado"
       status_provimento: "ativo" | "suspenso" | "encerrado" | "vacante"
       status_recurso_lai:
         | "interposto"
@@ -13053,6 +13591,7 @@ export type Database = {
         | "emergencial_crise"
         | "emergencial_nota_urgente"
         | "emergencial_posicionamento"
+      tipo_despacho: "simples" | "decisorio" | "conclusivo"
       tipo_documento:
         | "portaria"
         | "resolucao"
@@ -13074,6 +13613,16 @@ export type Database = {
         | "minuta_edital"
         | "minuta_contrato"
         | "ata_aprovacao"
+        | "outro"
+      tipo_documento_processo:
+        | "oficio"
+        | "nota_tecnica"
+        | "parecer"
+        | "despacho"
+        | "anexo"
+        | "requerimento"
+        | "declaracao"
+        | "certidao"
         | "outro"
       tipo_evento_lai:
         | "abertura"
@@ -13134,6 +13683,14 @@ export type Database = {
         | "retorno"
         | "aposentadoria"
         | "vacancia"
+      tipo_movimentacao_processo:
+        | "despacho"
+        | "encaminhamento"
+        | "juntada"
+        | "decisao"
+        | "informacao"
+        | "ciencia"
+        | "devolucao"
       tipo_papel_raci: "responsavel" | "aprovador" | "consultado" | "informado"
       tipo_parecer:
         | "juridico"
@@ -13153,6 +13710,18 @@ export type Database = {
         | "substituicao"
         | "gratificacao"
         | "comissao"
+        | "outro"
+      tipo_processo_administrativo:
+        | "compra"
+        | "licitacao"
+        | "rh"
+        | "patrimonio"
+        | "lai"
+        | "governanca"
+        | "convenio"
+        | "diaria"
+        | "viagem"
+        | "federacao"
         | "outro"
       tipo_registro_ponto:
         | "normal"
@@ -13441,6 +14010,15 @@ export const Constants = {
         "ferias",
         "licenca",
       ],
+      decisao_despacho: [
+        "deferido",
+        "indeferido",
+        "parcialmente_deferido",
+        "encaminhar",
+        "arquivar",
+        "suspender",
+        "informar",
+      ],
       estado_conservacao: ["otimo", "bom", "regular", "ruim", "inservivel"],
       fase_licitacao: [
         "planejamento",
@@ -13481,6 +14059,7 @@ export const Constants = {
       natureza_rubrica: ["remuneratorio", "indenizatorio", "informativo"],
       nivel_perfil: ["sistema", "organizacional", "operacional"],
       nivel_risco: ["muito_baixo", "baixo", "medio", "alto", "muito_alto"],
+      nivel_sigilo_processo: ["publico", "restrito", "sigiloso"],
       origem_lancamento: ["automatico", "manual", "importado", "retroativo"],
       periodicidade_controle: [
         "diario",
@@ -13495,6 +14074,13 @@ export const Constants = {
       ],
       prioridade_debito: ["critica", "alta", "media", "baixa"],
       prioridade_demanda_ascom: ["baixa", "normal", "alta", "urgente"],
+      referencia_prazo_processo: [
+        "legal",
+        "interno",
+        "judicial",
+        "contratual",
+        "regulamentar",
+      ],
       situacao_funcional: [
         "ativo",
         "afastado",
@@ -13581,6 +14167,13 @@ export const Constants = {
       ],
       status_folha: ["aberta", "previa", "processando", "fechada", "reaberta"],
       status_medicao: ["rascunho", "enviada", "aprovada", "rejeitada", "paga"],
+      status_movimentacao_processo: [
+        "pendente",
+        "recebido",
+        "respondido",
+        "vencido",
+        "cancelado",
+      ],
       status_nomeacao: ["ativo", "encerrado", "revogado"],
       status_participante: [
         "pendente",
@@ -13595,6 +14188,13 @@ export const Constants = {
         "pendente_justificativa",
         "justificado",
         "aprovado",
+      ],
+      status_processo_administrativo: [
+        "aberto",
+        "em_tramitacao",
+        "suspenso",
+        "concluido",
+        "arquivado",
       ],
       status_provimento: ["ativo", "suspenso", "encerrado", "vacante"],
       status_recurso_lai: [
@@ -13690,6 +14290,7 @@ export const Constants = {
         "emergencial_nota_urgente",
         "emergencial_posicionamento",
       ],
+      tipo_despacho: ["simples", "decisorio", "conclusivo"],
       tipo_documento: [
         "portaria",
         "resolucao",
@@ -13712,6 +14313,17 @@ export const Constants = {
         "minuta_edital",
         "minuta_contrato",
         "ata_aprovacao",
+        "outro",
+      ],
+      tipo_documento_processo: [
+        "oficio",
+        "nota_tecnica",
+        "parecer",
+        "despacho",
+        "anexo",
+        "requerimento",
+        "declaracao",
+        "certidao",
         "outro",
       ],
       tipo_evento_lai: [
@@ -13779,6 +14391,15 @@ export const Constants = {
         "aposentadoria",
         "vacancia",
       ],
+      tipo_movimentacao_processo: [
+        "despacho",
+        "encaminhamento",
+        "juntada",
+        "decisao",
+        "informacao",
+        "ciencia",
+        "devolucao",
+      ],
       tipo_papel_raci: ["responsavel", "aprovador", "consultado", "informado"],
       tipo_parecer: [
         "juridico",
@@ -13799,6 +14420,19 @@ export const Constants = {
         "substituicao",
         "gratificacao",
         "comissao",
+        "outro",
+      ],
+      tipo_processo_administrativo: [
+        "compra",
+        "licitacao",
+        "rh",
+        "patrimonio",
+        "lai",
+        "governanca",
+        "convenio",
+        "diaria",
+        "viagem",
+        "federacao",
         "outro",
       ],
       tipo_registro_ponto: [
