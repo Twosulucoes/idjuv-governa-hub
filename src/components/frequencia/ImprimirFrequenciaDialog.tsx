@@ -38,7 +38,7 @@ import {
   calcularResumoMensal,
   type FrequenciaMensalPDFData,
   type RegistroDiario,
-} from "@/lib/pdfFrequenciaMensal";
+} from "@/lib/pdfFrequenciaMensalGenerator";
 import { useDiasNaoUteis, useAssinaturaPadrao } from "@/hooks/useParametrizacoesFrequencia";
 import { useRegistrosPonto, useFrequenciaMensal, calcularDiasUteis } from "@/hooks/useFrequencia";
 import { useUploadFrequencia } from "@/hooks/useFrequenciaPacotes";
