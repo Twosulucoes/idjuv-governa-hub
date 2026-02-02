@@ -1,12 +1,42 @@
 # IMPLEMENTAÇÃO DA CAMADA BASE DE PARAMETRIZAÇÃO
-## Status: ✅ IMPLEMENTADO
-### Data: 02/02/2026 | Versão 1.0
+## Status: ✅ IMPLEMENTADO E CORRIGIDO
+### Data: 02/02/2026 | Versão 1.0.1
 
 ---
 
 ## 📋 RESUMO DA IMPLEMENTAÇÃO
 
 Esta etapa implementou a **infraestrutura mínima de parametrização** do sistema, conforme definido no Modelo de Parametrização do RH aprovado. A implementação foi **incremental e segura**, sem impactar módulos existentes.
+
+---
+
+## 🔧 PATCH DE CORREÇÃO v1.0.1 (02/02/2026)
+
+### 1️⃣ Constraint UNIQUE para ON CONFLICT
+- **Criado:** `idx_config_parametros_valores_unicidade`
+- **Composição:** `instituicao_id`, `parametro_codigo`, `unidade_id`, `tipo_servidor`, `servidor_id`, `vigencia_inicio`
+- **Técnica:** Usa `COALESCE` para campos nulos, permitindo upserts seguros
+
+### 2️⃣ Políticas RLS Endurecidas
+| Tabela | SELECT | INSERT/UPDATE | DELETE |
+|--------|--------|---------------|--------|
+| `config_institucional` | admin OU admin.config | admin | admin |
+| `config_parametros_meta` | admin OU admin.config | admin | admin |
+| `config_parametros_valores` | admin OU admin.config | admin.config OU admin | super_admin |
+
+### 3️⃣ WITH CHECK em todas as policies FOR ALL
+- `config_institucional_admin_write`: USING + WITH CHECK ✅
+- `config_parametros_meta_admin_write`: USING + WITH CHECK ✅
+- `config_parametros_valores_update`: USING + WITH CHECK ✅
+
+### 4️⃣ CHECK Constraint de Vigência
+- **Criado:** `chk_vigencia_valida`
+- **Regra:** `vigencia_fim IS NULL OR vigencia_fim >= vigencia_inicio`
+
+### 5️⃣ Compatibilidade com Auditoria
+- **Verificado:** `audit_logs` e `audit_action` já existem ✅
+- **Trigger:** `fn_audit_parametros()` usa enum existente
+- **Padrão:** Segue `SET search_path = public`
 
 ---
 
