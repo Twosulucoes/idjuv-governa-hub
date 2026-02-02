@@ -435,12 +435,14 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
   // =====================================================
   // CÁLCULO DINÂMICO DO ROWHEIGHT PARA PROTEGER O RODAPÉ
   // =====================================================
-  // Zonas fixas após a tabela:
+  // Zonas fixas após a tabela (AUMENTADO para garantir espaço):
   // - Espaço após tabela: 2mm
-  // - Linha de data: 8mm (y += 8 no código)
-  // - Área de assinaturas finais: 10mm (linha + texto)
-  // - Rodapé do sistema: 6mm (pageHeight - 6)
-  const ZONA_RODAPE = 28; // 2 + 8 + 10 + 8 = 28mm de proteção
+  // - Linha de local e data: 10mm
+  // - Espaço antes das assinaturas: 10mm
+  // - Área de assinaturas finais (linha + texto): 12mm
+  // - Espaço antes do rodapé do sistema: 4mm
+  // - Rodapé do sistema: 6mm
+  const ZONA_RODAPE = 44; // 2 + 10 + 10 + 12 + 4 + 6 = 44mm de proteção
   
   // Calcular altura disponível para a tabela (31 linhas fixas)
   const alturaDisponivelTabela = pageHeight - y - headerHeight2 - ZONA_RODAPE;
