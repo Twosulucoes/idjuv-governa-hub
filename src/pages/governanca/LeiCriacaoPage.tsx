@@ -141,10 +141,33 @@ export default function LeiCriacaoPage() {
                   <ul className="list-decimal pl-6">
                     <li className="font-medium">Diretoria Administrativa e Financeira (DIRAF):
                       <ul className="list-[lower-alpha] pl-6 font-normal">
-                        <li>Divisão de Contabilidade, Orçamento e Finanças (DiCOF)</li>
-                        <li>Divisão Administrativa e Gestão Patrimonial (DiAGP)</li>
-                        <li>Divisão de Recursos Humanos (DRH)</li>
-                        <li>Divisão de Tecnologia da Informação (DiTI)</li>
+                        <li>Divisão de Contabilidade, Orçamento e Finanças (DiCOF):
+                          <ul className="list-[lower-roman] pl-6">
+                            <li>Núcleo de Contabilidade (NCONT)</li>
+                            <li>Núcleo de Orçamento (NORC)</li>
+                            <li>Núcleo de Finanças (NFIN)</li>
+                          </ul>
+                        </li>
+                        <li>Divisão Administrativa e Gestão Patrimonial (DiAGP):
+                          <ul className="list-[lower-roman] pl-6">
+                            <li>Núcleo de Almoxarifado (NALMO)</li>
+                            <li>Núcleo de Patrimônio (NPAT)</li>
+                            <li>Núcleo de Transporte (NTRANS)</li>
+                            <li>Núcleo de Serviços Gerais (NSG)</li>
+                          </ul>
+                        </li>
+                        <li>Divisão de Recursos Humanos (DRH):
+                          <ul className="list-[lower-roman] pl-6">
+                            <li>Núcleo de Gestão de Pessoas (NGP)</li>
+                            <li>Núcleo de Folha de Pagamento (NFPAG)</li>
+                          </ul>
+                        </li>
+                        <li>Divisão de Tecnologia da Informação (DiTI):
+                          <ul className="list-[lower-roman] pl-6">
+                            <li>Núcleo de Infraestrutura e Suporte (NIS)</li>
+                            <li>Núcleo de Sistemas e Desenvolvimento (NSD)</li>
+                          </ul>
+                        </li>
                       </ul>
                     </li>
                   </ul>
@@ -153,19 +176,222 @@ export default function LeiCriacaoPage() {
                   <ul className="list-decimal pl-6">
                     <li className="font-medium">Diretoria de Esporte (DIESP):
                       <ul className="list-[lower-alpha] pl-6 font-normal">
-                        <li>Divisão de Gestão de Esporte e Lazer (DiGEL)</li>
-                        <li>Divisão de Esporte de Alto Rendimento (DiRE)</li>
-                        <li>Divisão de Educação e Desporto Estudantil (DiEDE)</li>
-                        <li>Divisão de Gestão Inclusiva e Qualidade de Vida (DiGI)</li>
+                        <li>Divisão de Gestão de Esporte e Lazer (DiGEL):
+                          <ul className="list-[lower-roman] pl-6">
+                            <li>Núcleo de Esporte Comunitário (NEC)</li>
+                            <li>Núcleo de Lazer e Recreação (NLR)</li>
+                          </ul>
+                        </li>
+                        <li>Divisão de Esporte de Alto Rendimento (DiRE):
+                          <ul className="list-[lower-roman] pl-6">
+                            <li>Núcleo de Apoio a Atletas (NAA)</li>
+                            <li>Núcleo de Federações e Entidades (NFE)</li>
+                          </ul>
+                        </li>
+                        <li>Divisão de Educação e Desporto Estudantil (DiEDE):
+                          <ul className="list-[lower-roman] pl-6">
+                            <li>Núcleo de Jogos Escolares (NJE)</li>
+                            <li>Núcleo de Formação Esportiva (NFE)</li>
+                          </ul>
+                        </li>
+                        <li>Divisão de Gestão Inclusiva e Qualidade de Vida (DiGI):
+                          <ul className="list-[lower-roman] pl-6">
+                            <li>Núcleo de Paradesporto (NPAR)</li>
+                            <li>Núcleo de Promoção à Saúde (NPS)</li>
+                          </ul>
+                        </li>
                       </ul>
                     </li>
                     <li className="font-medium mt-2">Diretoria da Juventude (DIJUV):
                       <ul className="list-[lower-alpha] pl-6 font-normal">
-                        <li>Divisão de Programas e Projetos (DiPP)</li>
-                        <li>Divisão de Articulação de Políticas Transversais (DAPT)</li>
+                        <li>Divisão de Programas e Projetos (DiPP):
+                          <ul className="list-[lower-roman] pl-6">
+                            <li>Núcleo de Programas de Juventude (NPJ)</li>
+                            <li>Núcleo de Projetos Especiais (NPE)</li>
+                          </ul>
+                        </li>
+                        <li>Divisão de Articulação de Políticas Transversais (DAPT):
+                          <ul className="list-[lower-roman] pl-6">
+                            <li>Núcleo de Articulação Intersetorial (NAI)</li>
+                            <li>Núcleo de Participação Social (NPS)</li>
+                          </ul>
+                        </li>
                       </ul>
                     </li>
                   </ul>
+                </div>
+
+                <Separator className="my-6" />
+
+                <h2 className="font-serif text-xl font-bold">CAPÍTULO III - DOS CARGOS</h2>
+                <p><strong>Art. 5º</strong> O Quadro de Cargos de Provimento em Comissão e Funções Gratificadas do IDJuv é composto conforme o Anexo I desta Lei.</p>
+                
+                <p><strong>Art. 6º</strong> Os cargos de provimento em comissão são de livre nomeação e exoneração pelo Governador do Estado, mediante indicação do Presidente do IDJuv.</p>
+
+                <h3 className="font-semibold mt-6">ANEXO I - QUADRO DE CARGOS</h3>
+                
+                <div className="overflow-x-auto my-4">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-muted">
+                        <th className="border p-2 text-left">Cargo</th>
+                        <th className="border p-2 text-center">Símbolo</th>
+                        <th className="border p-2 text-center">Qtd</th>
+                        <th className="border p-2 text-right">Vencimento (R$)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="bg-primary/5 font-medium">
+                        <td colSpan={4} className="border p-2">NÍVEL DE ADMINISTRAÇÃO SUPERIOR</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Presidente</td>
+                        <td className="border p-2 text-center">CDS-1</td>
+                        <td className="border p-2 text-center">1</td>
+                        <td className="border p-2 text-right">18.500,00</td>
+                      </tr>
+                      
+                      <tr className="bg-primary/5 font-medium">
+                        <td colSpan={4} className="border p-2">NÍVEL DE ASSESSORAMENTO</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Chefe de Gabinete</td>
+                        <td className="border p-2 text-center">CDS-2</td>
+                        <td className="border p-2 text-center">1</td>
+                        <td className="border p-2 text-right">12.000,00</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Assessor Jurídico</td>
+                        <td className="border p-2 text-center">CDS-3</td>
+                        <td className="border p-2 text-center">1</td>
+                        <td className="border p-2 text-right">10.000,00</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Assessor Especial</td>
+                        <td className="border p-2 text-center">CDS-3</td>
+                        <td className="border p-2 text-center">2</td>
+                        <td className="border p-2 text-right">10.000,00</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Controlador Interno</td>
+                        <td className="border p-2 text-center">CDS-4</td>
+                        <td className="border p-2 text-center">1</td>
+                        <td className="border p-2 text-right">8.000,00</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Presidente da Comissão de Contratação</td>
+                        <td className="border p-2 text-center">CDS-5</td>
+                        <td className="border p-2 text-center">1</td>
+                        <td className="border p-2 text-right">6.000,00</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Assessor de Comunicação</td>
+                        <td className="border p-2 text-center">CDS-5</td>
+                        <td className="border p-2 text-center">1</td>
+                        <td className="border p-2 text-right">6.000,00</td>
+                      </tr>
+                      
+                      <tr className="bg-primary/5 font-medium">
+                        <td colSpan={4} className="border p-2">NÍVEL DE EXECUÇÃO INSTRUMENTAL</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Diretor Administrativo e Financeiro</td>
+                        <td className="border p-2 text-center">CDS-2</td>
+                        <td className="border p-2 text-center">1</td>
+                        <td className="border p-2 text-right">12.000,00</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Chefe de Divisão</td>
+                        <td className="border p-2 text-center">CDS-5</td>
+                        <td className="border p-2 text-center">4</td>
+                        <td className="border p-2 text-right">6.000,00</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Chefe de Núcleo</td>
+                        <td className="border p-2 text-center">CDS-6</td>
+                        <td className="border p-2 text-center">11</td>
+                        <td className="border p-2 text-right">4.500,00</td>
+                      </tr>
+                      
+                      <tr className="bg-primary/5 font-medium">
+                        <td colSpan={4} className="border p-2">NÍVEL DE EXECUÇÃO PROGRAMÁTICA</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Diretor de Esporte</td>
+                        <td className="border p-2 text-center">CDS-2</td>
+                        <td className="border p-2 text-center">1</td>
+                        <td className="border p-2 text-right">12.000,00</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Diretor da Juventude</td>
+                        <td className="border p-2 text-center">CDS-2</td>
+                        <td className="border p-2 text-center">1</td>
+                        <td className="border p-2 text-right">12.000,00</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Chefe de Divisão</td>
+                        <td className="border p-2 text-center">CDS-5</td>
+                        <td className="border p-2 text-center">6</td>
+                        <td className="border p-2 text-right">6.000,00</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Chefe de Núcleo</td>
+                        <td className="border p-2 text-center">CDS-6</td>
+                        <td className="border p-2 text-center">12</td>
+                        <td className="border p-2 text-right">4.500,00</td>
+                      </tr>
+                      
+                      <tr className="bg-primary/5 font-medium">
+                        <td colSpan={4} className="border p-2">FUNÇÕES GRATIFICADAS</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Função Gratificada - FG-1</td>
+                        <td className="border p-2 text-center">FG-1</td>
+                        <td className="border p-2 text-center">10</td>
+                        <td className="border p-2 text-right">2.500,00</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Função Gratificada - FG-2</td>
+                        <td className="border p-2 text-center">FG-2</td>
+                        <td className="border p-2 text-center">15</td>
+                        <td className="border p-2 text-right">1.800,00</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Função Gratificada - FG-3</td>
+                        <td className="border p-2 text-center">FG-3</td>
+                        <td className="border p-2 text-center">30</td>
+                        <td className="border p-2 text-right">1.200,00</td>
+                      </tr>
+                      
+                      <tr className="bg-muted font-semibold">
+                        <td className="border p-2">TOTAL DE CARGOS E FUNÇÕES</td>
+                        <td className="border p-2 text-center">-</td>
+                        <td className="border p-2 text-center">98</td>
+                        <td className="border p-2 text-right">-</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <Separator className="my-6" />
+
+                <h2 className="font-serif text-xl font-bold">CAPÍTULO IV - DAS DISPOSIÇÕES FINAIS</h2>
+                <p>
+                  <strong>Art. 7º</strong> A regulamentação desta Lei será feita por Decreto do Poder Executivo 
+                  no prazo de 30 (trinta) dias, contados da data de sua publicação.
+                </p>
+                <p>
+                  <strong>Art. 8º</strong> As despesas decorrentes da execução desta Lei correrão à conta das 
+                  dotações orçamentárias próprias, suplementadas se necessário.
+                </p>
+                <p>
+                  <strong>Art. 9º</strong> Esta Lei entra em vigor na data de sua publicação.
+                </p>
+
+                <div className="bg-muted/50 rounded-lg p-4 my-6 text-center">
+                  <p className="text-sm">Palácio Senador Hélio Campos, Boa Vista-RR, 29 de dezembro de 2025.</p>
+                  <p className="font-semibold mt-2">ANTONIO DENARIUM</p>
+                  <p className="text-sm text-muted-foreground">Governador do Estado de Roraima</p>
                 </div>
 
                 <Separator className="my-6" />
