@@ -2693,6 +2693,78 @@ export type Database = {
         }
         Relationships: []
       }
+      debitos_tecnicos: {
+        Row: {
+          codigo: string
+          created_at: string | null
+          created_by: string | null
+          data_identificacao: string | null
+          data_prevista: string | null
+          data_resolucao: string | null
+          dependencias: string[] | null
+          descricao: string | null
+          estimativa_esforco: string | null
+          fase_destino: string | null
+          fase_origem: string | null
+          id: string
+          impacto: string | null
+          modulo: string | null
+          observacoes: string | null
+          prioridade: Database["public"]["Enums"]["prioridade_debito"] | null
+          responsavel_id: string | null
+          solucao_proposta: string | null
+          status: Database["public"]["Enums"]["status_debito"] | null
+          titulo: string
+          updated_at: string | null
+        }
+        Insert: {
+          codigo: string
+          created_at?: string | null
+          created_by?: string | null
+          data_identificacao?: string | null
+          data_prevista?: string | null
+          data_resolucao?: string | null
+          dependencias?: string[] | null
+          descricao?: string | null
+          estimativa_esforco?: string | null
+          fase_destino?: string | null
+          fase_origem?: string | null
+          id?: string
+          impacto?: string | null
+          modulo?: string | null
+          observacoes?: string | null
+          prioridade?: Database["public"]["Enums"]["prioridade_debito"] | null
+          responsavel_id?: string | null
+          solucao_proposta?: string | null
+          status?: Database["public"]["Enums"]["status_debito"] | null
+          titulo: string
+          updated_at?: string | null
+        }
+        Update: {
+          codigo?: string
+          created_at?: string | null
+          created_by?: string | null
+          data_identificacao?: string | null
+          data_prevista?: string | null
+          data_resolucao?: string | null
+          dependencias?: string[] | null
+          descricao?: string | null
+          estimativa_esforco?: string | null
+          fase_destino?: string | null
+          fase_origem?: string | null
+          id?: string
+          impacto?: string | null
+          modulo?: string | null
+          observacoes?: string | null
+          prioridade?: Database["public"]["Enums"]["prioridade_debito"] | null
+          responsavel_id?: string | null
+          solucao_proposta?: string | null
+          status?: Database["public"]["Enums"]["status_debito"] | null
+          titulo?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       demandas_ascom: {
         Row: {
           ano: number
@@ -5485,6 +5557,77 @@ export type Database = {
           },
         ]
       }
+      historico_lai: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          dados_adicionais: Json | null
+          id: string
+          ip_address: unknown
+          justificativa: string | null
+          observacao: string | null
+          prazo_anterior: string | null
+          prazo_novo: string | null
+          responsavel_anterior_id: string | null
+          responsavel_novo_id: string | null
+          solicitacao_id: string
+          status_anterior: string | null
+          status_novo: string | null
+          tipo_evento: Database["public"]["Enums"]["tipo_evento_lai"]
+          unidade_anterior_id: string | null
+          unidade_nova_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          dados_adicionais?: Json | null
+          id?: string
+          ip_address?: unknown
+          justificativa?: string | null
+          observacao?: string | null
+          prazo_anterior?: string | null
+          prazo_novo?: string | null
+          responsavel_anterior_id?: string | null
+          responsavel_novo_id?: string | null
+          solicitacao_id: string
+          status_anterior?: string | null
+          status_novo?: string | null
+          tipo_evento: Database["public"]["Enums"]["tipo_evento_lai"]
+          unidade_anterior_id?: string | null
+          unidade_nova_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          dados_adicionais?: Json | null
+          id?: string
+          ip_address?: unknown
+          justificativa?: string | null
+          observacao?: string | null
+          prazo_anterior?: string | null
+          prazo_novo?: string | null
+          responsavel_anterior_id?: string | null
+          responsavel_novo_id?: string | null
+          solicitacao_id?: string
+          status_anterior?: string | null
+          status_novo?: string | null
+          tipo_evento?: Database["public"]["Enums"]["tipo_evento_lai"]
+          unidade_anterior_id?: string | null
+          unidade_nova_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historico_lai_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes_sic"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       horarios_jornada: {
         Row: {
           configuracao_id: string
@@ -7806,6 +7949,48 @@ export type Database = {
           },
         ]
       }
+      prazos_lai: {
+        Row: {
+          ativo: boolean | null
+          base_legal: string | null
+          created_at: string | null
+          descricao: string | null
+          dias_uteis: boolean | null
+          id: string
+          prazo_dias: number
+          prorrogacao_dias: number | null
+          prorrogavel: boolean | null
+          tipo_prazo: string
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          base_legal?: string | null
+          created_at?: string | null
+          descricao?: string | null
+          dias_uteis?: boolean | null
+          id?: string
+          prazo_dias: number
+          prorrogacao_dias?: number | null
+          prorrogavel?: boolean | null
+          tipo_prazo: string
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          base_legal?: string | null
+          created_at?: string | null
+          descricao?: string | null
+          dias_uteis?: boolean | null
+          id?: string
+          prazo_dias?: number
+          prorrogacao_dias?: number | null
+          prorrogavel?: boolean | null
+          tipo_prazo?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       pre_cadastros: {
         Row: {
           ano_conclusao: number | null
@@ -8750,6 +8935,71 @@ export type Database = {
             columns: ["processo_licitatorio_id"]
             isOneToOne: false
             referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recursos_lai: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          data_analise: string | null
+          data_interposicao: string
+          decisao: string | null
+          documentos_anexos: Json | null
+          fundamentacao: string
+          fundamentacao_decisao: string | null
+          id: string
+          instancia: Database["public"]["Enums"]["instancia_recurso"]
+          numero_recurso: string | null
+          prazo_resposta: string
+          responsavel_analise_id: string | null
+          solicitacao_id: string
+          status: Database["public"]["Enums"]["status_recurso_lai"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          data_analise?: string | null
+          data_interposicao?: string
+          decisao?: string | null
+          documentos_anexos?: Json | null
+          fundamentacao: string
+          fundamentacao_decisao?: string | null
+          id?: string
+          instancia: Database["public"]["Enums"]["instancia_recurso"]
+          numero_recurso?: string | null
+          prazo_resposta: string
+          responsavel_analise_id?: string | null
+          solicitacao_id: string
+          status?: Database["public"]["Enums"]["status_recurso_lai"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          data_analise?: string | null
+          data_interposicao?: string
+          decisao?: string | null
+          documentos_anexos?: Json | null
+          fundamentacao?: string
+          fundamentacao_decisao?: string | null
+          id?: string
+          instancia?: Database["public"]["Enums"]["instancia_recurso"]
+          numero_recurso?: string | null
+          prazo_resposta?: string
+          responsavel_analise_id?: string | null
+          solicitacao_id?: string
+          status?: Database["public"]["Enums"]["status_recurso_lai"] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recursos_lai_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes_sic"
             referencedColumns: ["id"]
           },
         ]
@@ -11158,6 +11408,10 @@ export type Database = {
         Args: { p_base_irrf: number; p_vigencia?: string }
         Returns: number
       }
+      calcular_prazo_lai: {
+        Args: { p_data_inicio: string; p_tipo_prazo?: string }
+        Returns: string
+      }
       can_approve: {
         Args: { _module_name?: string; _user_id: string }
         Returns: boolean
@@ -11452,6 +11706,7 @@ export type Database = {
         | "quantidade_valor"
         | "calculo_especial"
         | "referencia_cargo"
+      instancia_recurso: "primeira" | "segunda"
       modalidade_licitacao:
         | "pregao_eletronico"
         | "pregao_presencial"
@@ -11465,6 +11720,7 @@ export type Database = {
       natureza_rubrica: "remuneratorio" | "indenizatorio" | "informativo"
       nivel_perfil: "sistema" | "organizacional" | "operacional"
       origem_lancamento: "automatico" | "manual" | "importado" | "retroativo"
+      prioridade_debito: "critica" | "alta" | "media" | "baixa"
       prioridade_demanda_ascom: "baixa" | "normal" | "alta" | "urgente"
       situacao_funcional:
         | "ativo"
@@ -11501,6 +11757,12 @@ export type Database = {
         | "encerrado"
         | "rescindido"
         | "aditado"
+      status_debito:
+        | "pendente"
+        | "em_andamento"
+        | "resolvido"
+        | "cancelado"
+        | "adiado"
       status_demanda_ascom:
         | "rascunho"
         | "enviada"
@@ -11544,6 +11806,14 @@ export type Database = {
         | "justificado"
         | "aprovado"
       status_provimento: "ativo" | "suspenso" | "encerrado" | "vacante"
+      status_recurso_lai:
+        | "interposto"
+        | "em_analise"
+        | "deferido"
+        | "deferido_parcial"
+        | "indeferido"
+        | "nao_conhecido"
+        | "desistencia"
       status_reuniao:
         | "agendada"
         | "confirmada"
@@ -11630,6 +11900,18 @@ export type Database = {
         | "minuta_contrato"
         | "ata_aprovacao"
         | "outro"
+      tipo_evento_lai:
+        | "abertura"
+        | "classificacao"
+        | "encaminhamento"
+        | "resposta_parcial"
+        | "prorrogacao"
+        | "resposta_final"
+        | "recurso_interposto"
+        | "recurso_respondido"
+        | "encerramento"
+        | "reativacao"
+        | "alteracao_responsavel"
       tipo_folha:
         | "mensal"
         | "complementar"
@@ -12002,6 +12284,7 @@ export const Constants = {
         "calculo_especial",
         "referencia_cargo",
       ],
+      instancia_recurso: ["primeira", "segunda"],
       modalidade_licitacao: [
         "pregao_eletronico",
         "pregao_presencial",
@@ -12016,6 +12299,7 @@ export const Constants = {
       natureza_rubrica: ["remuneratorio", "indenizatorio", "informativo"],
       nivel_perfil: ["sistema", "organizacional", "operacional"],
       origem_lancamento: ["automatico", "manual", "importado", "retroativo"],
+      prioridade_debito: ["critica", "alta", "media", "baixa"],
       prioridade_demanda_ascom: ["baixa", "normal", "alta", "urgente"],
       situacao_funcional: [
         "ativo",
@@ -12056,6 +12340,13 @@ export const Constants = {
         "encerrado",
         "rescindido",
         "aditado",
+      ],
+      status_debito: [
+        "pendente",
+        "em_andamento",
+        "resolvido",
+        "cancelado",
+        "adiado",
       ],
       status_demanda_ascom: [
         "rascunho",
@@ -12105,6 +12396,15 @@ export const Constants = {
         "aprovado",
       ],
       status_provimento: ["ativo", "suspenso", "encerrado", "vacante"],
+      status_recurso_lai: [
+        "interposto",
+        "em_analise",
+        "deferido",
+        "deferido_parcial",
+        "indeferido",
+        "nao_conhecido",
+        "desistencia",
+      ],
       status_reuniao: [
         "agendada",
         "confirmada",
@@ -12197,6 +12497,19 @@ export const Constants = {
         "minuta_contrato",
         "ata_aprovacao",
         "outro",
+      ],
+      tipo_evento_lai: [
+        "abertura",
+        "classificacao",
+        "encaminhamento",
+        "resposta_parcial",
+        "prorrogacao",
+        "resposta_final",
+        "recurso_interposto",
+        "recurso_respondido",
+        "encerramento",
+        "reativacao",
+        "alteracao_responsavel",
       ],
       tipo_folha: [
         "mensal",
