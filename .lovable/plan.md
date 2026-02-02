@@ -1,155 +1,66 @@
 
+# Plano: Limitação da Tabela para Não Invadir o Rodapé
 
-# Ajuste Pontual no Plano RBAC — Remoção de `admin.super`
+## Diagnóstico
 
-## Resumo do Ajuste
+O problema identificado é que a tabela de frequência está sendo renderizada com **31 linhas fixas**, sem considerar o espaço disponível na página. Atualmente:
 
-O plano de refatoração RBAC aprovado será implementado **integralmente**, com uma única correção conceitual:
+- O **rodapé do sistema** está fixo em `pageHeight - 6` (linha 700)
+- A **área de assinaturas finais** e a **linha de data** são renderizadas após a tabela
+- Não há cálculo prévio para garantir que todo o conteúdo caiba antes do rodapé
 
-| Item | Antes | Depois |
-|------|-------|--------|
-| Total de permissões | 48 | **47** |
-| `admin.super` | Incluída como permissão | **Removida** |
-| Bypass super_admin | Via função `usuario_eh_super_admin()` | **Mantido (sem alteração)** |
+## Cálculo do Espaço Disponível
 
----
+Estrutura atual da página A4 (297mm altura):
 
-## Justificativa Técnica
+| Elemento | Altura Atual |
+|----------|-------------|
+| Margem superior | 8mm |
+| Cabeçalho institucional | 20mm |
+| Espaço após cabeçalho | 2mm |
+| Card de identificação | 24mm |
+| Espaço após card | 2mm |
+| Header da tabela | 10-12mm |
+| **31 linhas × 6.8mm** | **~211mm** |
+| Espaço após tabela | 2mm |
+| Linha de data | 8mm |
+| Área de assinaturas | ~10mm |
+| Rodapé do sistema | 6mm |
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  PROBLEMA: admin.super como permissão                          │
-├─────────────────────────────────────────────────────────────────┤
-│  • Redundante: super_admin já tem bypass via função            │
-│  • Risco: poderia ser concedida a outros perfis por engano     │
-│  • Anti-pattern: bypass não deve ser permissionável            │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  SOLUÇÃO: Manter bypass exclusivamente via função              │
-├─────────────────────────────────────────────────────────────────┤
-│  • usuario_eh_super_admin(_user_id) → único ponto de bypass    │
-│  • Não existe permissão que conceda acesso total               │
-│  • super_admin = perfil especial, não permissão especial       │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Total estimado: ~303mm** — ultrapassa os 297mm disponíveis!
 
----
+## Solução Proposta
 
-## Lista Final de Permissões (47)
+Implementar um **cálculo dinâmico** que determine a altura máxima disponível para a tabela, ajustando automaticamente o `rowHeight` para que o conteúdo sempre caiba em uma página.
 
-### Domínio ADMIN (6 permissões, não 7)
+### Ajustes Técnicos
 
-| Código | Descrição |
-|--------|-----------|
-| `admin.visualizar` | Visualizar painel administrativo |
-| `admin.usuarios` | Gerenciar usuários |
-| `admin.perfis` | Gerenciar perfis e permissões |
-| `admin.auditoria` | Visualizar logs de auditoria |
-| `admin.backup` | Gerenciar backups |
-| `admin.config` | Configurações do sistema |
-| ~~`admin.super`~~ | ~~Bypass total~~ **REMOVIDA** |
+1. **Definir zona de proteção do rodapé**
+   - Reservar espaço fixo para: linha de data (8mm) + assinaturas (12mm) + rodapé do sistema (8mm) = **28mm**
 
-### Demais Domínios (41 permissões — sem alteração)
+2. **Calcular altura disponível para tabela**
+   ```text
+   alturaDisponivel = pageHeight - margemSuperior - cabeçalho - card - headerTabela - zonaRodape
+   ```
 
-| Domínio | Quantidade | Permissões |
-|---------|------------|------------|
-| workflow | 8 | visualizar, criar, tramitar, despachar, aprovar, arquivar, responder, admin |
-| compras | 5 | visualizar, criar, tramitar, aprovar, admin |
-| contratos | 5 | visualizar, criar, tramitar, aprovar, admin |
-| rh | 6 | visualizar, criar, tramitar, aprovar, self, admin |
-| orcamento | 4 | visualizar, criar, aprovar, admin |
-| patrimonio | 4 | visualizar, criar, tramitar, admin |
-| governanca | 5 | visualizar, criar, aprovar, avaliar, admin |
-| transparencia | 4 | visualizar, publicar, responder, admin |
+3. **Ajustar `rowHeight` dinamicamente**
+   ```text
+   rowHeight = alturaDisponivel / 31 (linhas fixas)
+   ```
 
----
+4. **Validar altura mínima**
+   - Se `rowHeight` calculado for menor que 5.5mm (mínimo legível), manter 5.5mm e aceitar que algumas folhas podem ter layout mais apertado
 
-## Alteração no SQL de Migração
+### Arquivos a Modificar
 
-### INSERT de Permissões (Ajustado)
+- `src/lib/pdfFrequenciaMensalGenerator.ts`
+  - Adicionar constante `ZONA_RODAPE` (~28mm)
+  - Calcular `alturaDisponivelTabela` antes de iniciar a renderização das linhas
+  - Ajustar `rowHeight` proporcionalmente
 
-O bloco de INSERT na tabela `permissoes` **não incluirá** a linha:
+### Benefícios
 
-```sql
--- ❌ ESTA LINHA NÃO SERÁ INSERIDA:
--- ('admin.super', 'Bypass total do sistema', 'admin', 'administrar', 7)
-```
-
-### Atribuição ao super_admin (Sem Alteração)
-
-O super_admin receberá as **47 permissões** automaticamente:
-
-```sql
-INSERT INTO perfil_permissoes (perfil_id, permissao_id, concedido)
-SELECT 
-  (SELECT id FROM perfis WHERE codigo = 'super_admin'),
-  p.id,
-  true
-FROM permissoes p
-ON CONFLICT (perfil_id, permissao_id) DO NOTHING;
-```
-
-O bypass total continua garantido via função, não via permissão.
-
----
-
-## Validação de Não-Dependência
-
-### Nenhuma RLS depende de `admin.super`
-
-As políticas RLS usam:
-- `usuario_eh_super_admin(auth.uid())` para bypass
-- `usuario_tem_permissao(auth.uid(), 'codigo.especifico')` para permissões granulares
-
-### Nenhuma rota/menu depende de `admin.super`
-
-O mapeamento `NAV_PERMISSAO_MAP` não referencia `admin.super`:
-
-```typescript
-// Mapeamento final para domínio admin
-'usuarios': 'admin.usuarios',
-'perfis': 'admin.perfis',
-'parametros': 'admin.config',
-'debitos-tecnicos': 'admin.config',
-'auditoria': 'admin.auditoria',
-'backup': 'admin.backup',
-'database': 'admin.config',
-// NÃO existe referência a admin.super
-```
-
-### Nenhum hook/componente depende de `admin.super`
-
-Os componentes `PermissionGate`, `ProtectedRoute` e `DisabledWithPermission` usam:
-- `isSuperAdmin` (via AuthContext) para bypass
-- Códigos de permissão granulares para verificação específica
-
----
-
-## Checklist de Validação Final
-
-| Item | Status |
-|------|--------|
-| `admin.super` não existe em `permissoes` | Confirmado |
-| `super_admin` acessa tudo via `usuario_eh_super_admin()` | Confirmado |
-| Nenhuma RLS depende de `admin.super` | Confirmado |
-| Nenhuma rota/menu depende de `admin.super` | Confirmado |
-| Total de permissões = 47 | Confirmado |
-| Restante do plano inalterado | Confirmado |
-
----
-
-## Resumo Executivo
-
-| Aspecto | Decisão |
-|---------|---------|
-| Tabelas | `permissoes` e `perfil_permissoes` — sem alteração |
-| Funções RPC | `usuario_tem_permissao()`, `listar_permissoes_usuario()` — sem alteração |
-| Bypass | Exclusivamente via `usuario_eh_super_admin()` — sem alteração |
-| Permissões | 47 (removida `admin.super`) |
-| Frontend | Sem alteração |
-| Políticas RLS | Sem alteração |
-| Navegação | Sem alteração |
-
-O plano será executado **integralmente** com este único ajuste conceitual.
-
+- Garante que o documento nunca ultrapasse uma página
+- Protege a área do rodapé e assinaturas
+- Mantém layout institucional e profissional
+- Funciona automaticamente para jornadas de 6h e 8h
