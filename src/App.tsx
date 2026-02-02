@@ -103,6 +103,7 @@ import CheckinReuniaoPage from "./pages/admin/CheckinReuniaoPage";
 import DatabaseSchemaPage from "./pages/admin/DatabaseSchemaPage";
 import RelatorioAdminPage from "./pages/admin/RelatorioAdminPage";
 import CalibradorSegadPage from "./pages/admin/CalibradorSegadPage";
+import CentralRelatoriosPage from "./pages/admin/CentralRelatoriosPage";
 
 // ASCOM
 import GestaoDemandasAscomPage from "./pages/ascom/GestaoDemandasAscomPage";
@@ -168,6 +169,7 @@ const App = () => (
               <Route path="/admin/documentos" element={<ProtectedRoute><GestaoDocumentosPage /></ProtectedRoute>} />
               <Route path="/admin/acesso" element={<ProtectedRoute><ControleAcessoAdminPage /></ProtectedRoute>} />
               <Route path="/admin/relatorio" element={<ProtectedRoute><RelatorioAdminPage /></ProtectedRoute>} />
+              <Route path="/admin/central-relatorios" element={<ProtectedRoute><CentralRelatoriosPage /></ProtectedRoute>} />
               <Route path="/acesso" element={<ProtectedRoute><ControleAcessoAdminPage /></ProtectedRoute>} />
               
               {/* Com permissões mapeadas em ROUTE_PERMISSIONS */}
