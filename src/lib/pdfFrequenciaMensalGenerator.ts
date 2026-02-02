@@ -254,19 +254,14 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
   let y = margin;
 
   // ===== CABEÇALHO INSTITUCIONAL LIMPO (SEM FAIXA ESCURA) =====
-  const headerHeight = 22;
+  const headerHeight = 24;
   
-  // Logos com PESO VISUAL EQUIVALENTE
-  // A logo do Governo é horizontal (3.69:1), a do IDJuv é mais compacta (1.55:1)
-  // Para equilíbrio visual, a logo IDJuv precisa ter altura maior
-  const logoGovernoHeight = 14;
-  const logoGovernoWidth = logoGovernoHeight * 3.69; // Proporção original ~51.7mm
-  const logoIdjuvHeight = 18; // Altura maior para compensar formato compacto
-  const logoIdjuvWidth = logoIdjuvHeight * 1.55; // Proporção original ~27.9mm
+  // Logos com proporções MENORES e equilibradas para dar destaque aos TEXTOS
+  const logoGovernoHeight = 11; // REDUZIDO para dar espaço ao texto institucional
+  const logoGovernoWidth = logoGovernoHeight * 3.69; // Proporção original ~40.6mm
+  const logoIdjuvHeight = 14; // Proporcional ao governo
+  const logoIdjuvWidth = logoIdjuvHeight * 1.55; // Proporção original ~21.7mm
   
-  // Área central para textos
-  const logoLeftEnd = margin + logoGovernoWidth + 4;
-  const logoRightStart = pageWidth - margin - logoIdjuvWidth - 4;
   const textCenterX = pageWidth / 2;
   
   try {
@@ -278,22 +273,22 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
     console.warn('Logos não carregados');
   }
 
-  // Textos centralizados (sem fundo escuro - direto no branco)
+  // Textos institucionais COM DESTAQUE (fontes MAIORES)
   doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', textCenterX, y + 5, { align: 'center' });
+  doc.setFontSize(9); // AUMENTADO de 7 para 9
+  doc.text('GOVERNO DO ESTADO DE RORAIMA', textCenterX, y + 6, { align: 'center' });
   
-  doc.setFontSize(6);
+  doc.setFontSize(7.5); // AUMENTADO de 6 para 7.5
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
-  doc.text('Instituto de Desporto, Juventude e Lazer', textCenterX, y + 10, { align: 'center' });
+  doc.text('Instituto de Desporto, Juventude e Lazer / iDJUV', textCenterX, y + 11.5, { align: 'center' });
   
   // Título principal com destaque
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
+  doc.setFontSize(11); // AUMENTADO de 10 para 11
   doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
-  doc.text('FOLHA INDIVIDUAL DE PRESENÇA', textCenterX, y + 18, { align: 'center' });
+  doc.text('FOLHA INDIVIDUAL DE PRESENÇA', textCenterX, y + 19, { align: 'center' });
 
   // Linha divisória sutil abaixo do cabeçalho
   doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
@@ -434,9 +429,9 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
     ];
   }
 
-  // Header da tabela - estilo moderno e limpo
-  const headerHeight2 = usaDoisTurnos ? 10 : 8;
-  const rowHeight = 4.8;
+  // Header da tabela - estilo moderno e limpo (FONTES MAIORES)
+  const headerHeight2 = usaDoisTurnos ? 12 : 10; // AUMENTADO para caber fontes maiores
+  const rowHeight = 5.5; // AUMENTADO de 4.8 para melhor legibilidade
   
   // Fundo do header (cinza claro em vez de verde)
   doc.setFillColor(CORES.headerTabela.r, CORES.headerTabela.g, CORES.headerTabela.b);
@@ -454,21 +449,21 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
   let colX = margin;
   
   if (usaDoisTurnos) {
-    // Header com indicadores de turno
-    doc.setFontSize(5);
+    // Header com indicadores de turno (FONTES MAIORES)
+    doc.setFontSize(6.5); // AUMENTADO de 5 para 6.5
     
     for (const col of colunas) {
       const centerX = colX + col.width / 2;
       
       if (col.key === 'dia') {
-        doc.setFontSize(6);
-        doc.text(col.label, centerX, y + 5.5, { align: 'center' });
+        doc.setFontSize(7.5); // AUMENTADO de 6 para 7.5
+        doc.text(col.label, centerX, y + 6, { align: 'center' });
       } else if (col.label2) {
-        doc.setFontSize(5);
-        doc.text(col.label, centerX, y + 4, { align: 'center' });
-        doc.setFontSize(4.5);
+        doc.setFontSize(6.5); // AUMENTADO de 5 para 6.5
+        doc.text(col.label, centerX, y + 5, { align: 'center' });
+        doc.setFontSize(5.5); // AUMENTADO de 4.5 para 5.5
         doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
-        doc.text(`(${col.label2})`, centerX, y + 7.5, { align: 'center' });
+        doc.text(`(${col.label2})`, centerX, y + 9, { align: 'center' });
         doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
       }
       
@@ -488,12 +483,12 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
       colX += col.width;
     }
   } else {
-    // Header para 1 turno
-    doc.setFontSize(6);
+    // Header para 1 turno (FONTES MAIORES)
+    doc.setFontSize(7.5); // AUMENTADO de 6 para 7.5
     
     for (const col of colunas) {
       const centerX = colX + col.width / 2;
-      doc.text(col.label, centerX, y + 5, { align: 'center' });
+      doc.text(col.label, centerX, y + 6, { align: 'center' });
       
       // Separador vertical sutil
       if (col.key !== 'abo1') {
