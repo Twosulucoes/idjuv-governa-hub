@@ -285,6 +285,10 @@ export const adminMenuConfig: AdminMenuSection[] = [
           },
         ],
       },
+      // FOLHA DE PAGAMENTO - FASE FUTURA (Módulo bloqueado)
+      // Implementação técnica concluída, aguardando ativação em fase posterior.
+      // Para reativar: descomentar este bloco e ajustar rotas em App.tsx
+      /*
       {
         id: "folha-pagamento",
         label: "Folha de Pagamento",
@@ -306,6 +310,7 @@ export const adminMenuConfig: AdminMenuSection[] = [
           },
         ],
       },
+      */
     ],
   },
   {

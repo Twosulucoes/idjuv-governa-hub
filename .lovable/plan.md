@@ -1,126 +1,110 @@
+# Plano de Desenvolvimento - Sistema IDJuv
 
+## Status das Fases
 
-# Plano de Correção: PDF de Frequência Mensal
+| Fase | Escopo | Status |
+|------|--------|--------|
+| 1 | Licitações e Contratos (schema) | ✅ Concluída |
+| 2 | Orçamento e Patrimônio (schema) | ✅ Concluída |
+| 3 | RH Administrativo | 🚧 Em Andamento |
+| Futura | Folha de Pagamento | 🔒 Bloqueada |
 
-## Problemas Identificados
+---
+
+## FASE 3 - RH Administrativo (Atual)
+
+### Escopo Definido
+
+A Fase 3 contempla exclusivamente o **RH administrativo**:
+- Gestão de servidores
+- Atos de pessoal (portarias, nomeações, exonerações)
+- Frequência e controle de ponto
+- Designações e lotações
+- Processos administrativos
+
+### Exclusões Explícitas (FASE 3)
+
+- ❌ Cálculo de remuneração ou tributos
+- ❌ Geração de CNAB ou remessas bancárias
+- ❌ Integração e-Social
+- ❌ Efeitos financeiros automatizados
+- ❌ Contracheques e fichas financeiras operacionais
+
+---
+
+## DÉBITO TÉCNICO - FOLHA DE PAGAMENTO
+
+### Status: 🔒 BLOQUEADO (Fase Futura)
+
+O módulo de Folha de Pagamento foi **implementado tecnicamente** mas está **desativado** para a operação atual do IDJuv.
+
+### Implementações Existentes (Não Operacionais)
+
+#### Arquivos de Código
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `src/lib/folhaCalculos.ts` | Motor de cálculo INSS/IRRF progressivo |
+| `src/hooks/useFolhaPagamento.ts` | Hooks para fichas financeiras, rubricas, impostos |
+| `src/components/folha/*` | Componentes de UI (formulários, tabelas, diálogos) |
+| `src/lib/pdfContracheque.ts` | Geração de contracheques PDF |
+| `src/lib/cnabGenerator.ts` | Geração de remessas bancárias CNAB240/400 |
+| `src/lib/esocialGenerator.ts` | Geração de eventos e-Social XML |
+| `src/types/folha.ts` | Tipos TypeScript para o módulo |
+
+#### Páginas Bloqueadas
+
+| Rota | Página Original | Status |
+|------|-----------------|--------|
+| `/folha/gestao` | GestaoFolhaPagamentoPage | Redireciona para FolhaBloqueadaPage |
+| `/folha/configuracao` | ConfiguracaoFolhaPage | Redireciona para FolhaBloqueadaPage |
+| `/folha/:id` | FolhaDetalhePage | Redireciona para FolhaBloqueadaPage |
+
+#### Tabelas no Banco (Sem Dados Operacionais)
+
+| Tabela | Descrição |
+|--------|-----------|
+| `folhas_pagamento` | Competências mensais |
+| `fichas_financeiras` | Registros por servidor/competência |
+| `itens_ficha_financeira` | Rubricas lançadas |
+| `rubricas` | Catálogo de proventos/descontos |
+| `consignacoes` | Empréstimos consignados |
+| `dependentes_irrf` | Dependentes para dedução |
+| `tabela_inss` | Faixas INSS progressivo |
+| `tabela_irrf` | Faixas IRRF + parcela a deduzir |
+| `bancos_cnab` | Configuração de bancos |
+| `remessas_bancarias` | Histórico de remessas |
+| `eventos_esocial` | Eventos gerados |
+| `config_autarquia` | Dados do órgão pagador |
+| `config_folha` | Parâmetros gerais |
+
+### Como Reativar (Fase Futura)
+
+1. **App.tsx**: Restaurar imports das páginas originais
+2. **App.tsx**: Remover redirecionamento para FolhaBloqueadaPage
+3. **adminMenu.ts**: Descomentar bloco do menu "Folha de Pagamento"
+4. Validar políticas RLS para operação real
+5. Popular tabelas de configuração (INSS, IRRF, bancos, rubricas)
+
+---
+
+## Arquivos de Referência
+
+### Correções Pendentes (PDF Frequência)
 
 | # | Problema | Severidade | Localização |
 |---|----------|------------|-------------|
-| 1 | Logo IDJuv com proporção errada (esticado/comprimido) | Alta | `pdfLogos.ts` |
-| 2 | Texto do Cargo sobrepondo Unidade no cabeçalho | Alta | `pdfFrequenciaMensal.ts` |
+| 1 | Logo IDJuv com proporção errada | Alta | `pdfLogos.ts` |
+| 2 | Texto do Cargo sobrepondo Unidade | Alta | `pdfFrequenciaMensal.ts` |
 | 3 | Falta de truncamento em campos longos | Média | `pdfFrequenciaMensal.ts` |
-| 4 | Grid de dados com espaçamento inadequado | Média | `pdfFrequenciaMensal.ts` |
-
----
-
-## Correções Propostas
-
-### 1. Corrigir Proporção do Logo IDJuv
-
-**Arquivo:** `src/lib/pdfLogos.ts`
-
-A imagem `logo-idjuv-oficial.png` **não é quadrada** - ela é horizontal (aproximadamente 1400x900px, proporção ~1.55:1).
-
-```typescript
-// ANTES (ERRADO)
-export const LOGO_ASPECTOS = {
-  governo: 3.69,  // OK
-  idjuv: 1.0,     // ERRADO - o logo não é quadrado!
-};
-
-// DEPOIS (CORRETO)
-export const LOGO_ASPECTOS = {
-  governo: 3.69,  // 1063 / 288 px
-  idjuv: 1.55,    // ~1400 / 900 px (horizontal, não quadrado)
-};
-```
-
----
-
-### 2. Corrigir Sobreposição de Texto no Cabeçalho
-
-**Arquivo:** `src/lib/pdfFrequenciaMensal.ts` (linhas 274-309)
-
-**Problemas atuais:**
-- Campo "Cargo:" começa muito perto de "Matrícula:"
-- Não há truncamento para cargos longos
-- "Unidade:" fica colada no texto anterior
-
-**Solução:**
-- Reorganizar layout em linhas dedicadas
-- Adicionar função de truncamento
-- Usar `maxWidth` do jsPDF para evitar vazamento
-
-```typescript
-// Função auxiliar para truncar texto
-function truncarTexto(doc: jsPDF, texto: string, maxWidth: number): string {
-  if (doc.getTextWidth(texto) <= maxWidth) return texto;
-  while (doc.getTextWidth(texto + '...') > maxWidth && texto.length > 0) {
-    texto = texto.slice(0, -1);
-  }
-  return texto + '...';
-}
-
-// Layout reorganizado (4 linhas em vez de 3):
-// Linha 1: SERVIDOR: [nome] | COMPETÊNCIA: [mês/ano]
-// Linha 2: Matrícula: [mat] | Cargo: [cargo truncado]
-// Linha 3: Unidade: [unidade] | Local: [local]
-// Linha 4: Regime: [regime] | Jornada: [jornada]
-```
-
----
-
-### 3. Ajustar Grid do Cabeçalho
-
-Aumentar altura do box de identificação de 18mm para 22mm e redistribuir os campos:
-
-```text
-┌──────────────────────────────────────────────────────────────┐
-│ SERVIDOR: Crislane Penhalosa...        COMPETÊNCIA: Fev/2026│
-│ Matrícula: 0012                                              │
-│ Cargo: Membro da Comissão de Contratação                     │
-│ Unidade: CPL - Comissão de Contratação                       │
-│ Regime: Presencial    Jornada: 8h/dia | 40h/sem              │
-└──────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Resumo das Alterações
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/lib/pdfLogos.ts` | Corrigir proporção do IDJuv de 1.0 para ~1.55 |
-| `src/lib/pdfFrequenciaMensal.ts` | Reorganizar grid do cabeçalho, adicionar truncamento |
-
----
-
-## Detalhes Técnicos
 
 ### Proporções Corretas dos Logos
 
-Para verificação, as dimensões reais são:
-
 | Logo | Arquivo | Proporção (L:A) |
 |------|---------|-----------------|
-| Governo RR | `logo-governo-roraima.jpg` | 3.69:1 (horizontal amplo) |
-| IDJuv | `logo-idjuv-oficial.png` | ~1.55:1 (horizontal moderado) |
-
-### Cálculo de Dimensões no PDF
-
-Com altura padrão de **14mm**:
-
-| Logo | Largura | Altura |
-|------|---------|--------|
-| Governo | 51.7mm | 14mm |
-| IDJuv | 21.7mm | 14mm |
+| Governo RR | `logo-governo-roraima.jpg` | 3.69:1 |
+| IDJuv | `logo-idjuv-oficial.png` | ~1.55:1 |
 
 ---
 
-## Resultado Esperado
-
-Após as correções:
-- Logos proporcionais e profissionais (mesma altura, larguras diferentes)
-- Campos de texto sem sobreposição
-- Layout limpo e oficial para uso em processos administrativos
-
+*Última atualização: Fevereiro/2026*
