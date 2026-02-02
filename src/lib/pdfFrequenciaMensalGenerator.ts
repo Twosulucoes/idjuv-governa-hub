@@ -1,14 +1,13 @@
 /**
  * Geração de PDF de Frequência Mensal Individual - MODELO OFICIAL ÚNICO
  * 
- * ESTRUTURA CONFORME MODELO BASE:
- * - Cabeçalho: Estado de Roraima / IDJuv / DRH
- * - Título: FOLHA INDIVIDUAL DE PRESENÇA
- * - Identificação: Unidade, Servidor, Categoria, Cargo, Frequência, Jornada
- * - Tabela com 2 TURNOS (1º e 2º) quando jornada >= 8h
- * - Tabela com 1 TURNO apenas quando jornada <= 6h
- * - Colunas: DIA | HORA ENTRADA | HORA SAÍDA | RUBRICA SERVIDOR | ABONO CHEFE
- * - Rodapé: Boa Vista - RR, data + Assinaturas
+ * LAYOUT MODERNO COM PARAMETRIZAÇÃO OBRIGATÓRIA POR JORNADA:
+ * - Se carga horária <= 6h: 1 turno + 1 campo de assinatura
+ * - Se carga horária >= 8h: 2 turnos + 2 campos de assinatura
+ * 
+ * O LAYOUT É ÚNICO - apenas os campos são adaptados conforme a jornada.
+ * PROIBIDO: Exibir campos de 2º turno para servidor de 6h.
+ * PROIBIDO: Exibir apenas 1 assinatura para servidor de 8h.
  */
 import jsPDF from 'jspdf';
 import { DIAS_SEMANA_SIGLA, type DiaNaoUtil } from '@/types/frequencia';
@@ -97,18 +96,35 @@ export const INSTITUICAO = {
   endereco: 'Rua Cel. Pinto, 588, Centro, Boa Vista/RR, CEP 69.301-150',
 };
 
-// Cores do modelo oficial
+// Paleta de cores institucional moderna
 export const CORES = {
+  // Cores primárias institucionais
+  primaria: { r: 0, g: 68, b: 68 },      // Verde institucional
+  secundaria: { r: 41, g: 98, b: 135 },  // Azul moderno
+  accent: { r: 180, g: 145, b: 75 },     // Dourado sutil
+  
+  // Textos
   preto: { r: 0, g: 0, b: 0 },
-  texto: { r: 30, g: 35, b: 40 },
-  vermelho: { r: 255, g: 0, b: 0 },
-  border: { r: 0, g: 0, b: 0 },
-  bgCinza: { r: 248, g: 250, b: 252 },
-  bgAmarelo: { r: 255, g: 255, b: 200 },
-  primaria: { r: 0, g: 68, b: 68 },
-  secundaria: { r: 41, g: 128, b: 185 },
-  textoSecundario: { r: 100, g: 105, b: 110 },
-  bgFeriado: { r: 252, g: 248, b: 245 },
+  texto: { r: 30, g: 35, b: 45 },
+  textoSecundario: { r: 90, g: 95, b: 100 },
+  branco: { r: 255, g: 255, b: 255 },
+  
+  // Backgrounds
+  bgClaro: { r: 250, g: 252, b: 254 },
+  bgCinza: { r: 245, g: 247, b: 250 },
+  bgHeader: { r: 0, g: 68, b: 68 },
+  
+  // Bordas e linhas
+  border: { r: 200, g: 210, b: 220 },
+  borderStrong: { r: 0, g: 68, b: 68 },
+  
+  // Status
+  vermelho: { r: 200, g: 50, b: 50 },
+  verde: { r: 34, g: 139, b: 34 },
+  
+  // Dias especiais
+  bgFeriado: { r: 255, g: 245, b: 235 },
+  bgFimSemana: { r: 248, g: 250, b: 252 },
 };
 
 // ============================================
@@ -134,6 +150,10 @@ function getSituacaoDia(data: Date, diasNaoUteis: DiaNaoUtil[]): { situacao: str
   if (diaSemana === 6) return { situacao: 'sabado' };
   return { situacao: 'util' };
 }
+
+const DIAS_SEMANA_ABREV: Record<number, string> = {
+  0: 'Dom', 1: 'Seg', 2: 'Ter', 3: 'Qua', 4: 'Qui', 5: 'Sex', 6: 'Sáb'
+};
 
 // ============================================
 // FUNÇÕES AUXILIARES DE GERAÇÃO
@@ -198,285 +218,281 @@ export interface RenderizarPaginaParams {
 }
 
 /**
- * Renderiza uma página de frequência conforme MODELO OFICIAL BASE
- * Parametrização automática por jornada:
- * - Jornada <= 6h: 1 turno, 1 assinatura
- * - Jornada >= 8h: 2 turnos, 2 assinaturas
+ * Renderiza uma página de frequência conforme MODELO OFICIAL ÚNICO
+ * 
+ * PARAMETRIZAÇÃO OBRIGATÓRIA POR JORNADA:
+ * - Jornada <= 6h: 1 turno, 1 campo de assinatura por dia
+ * - Jornada >= 8h: 2 turnos, 2 campos de assinatura por dia
+ * 
+ * O layout visual é fixo. A estrutura se adapta automaticamente.
  */
 export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void {
   const { doc, data, rodapePersonalizado } = params;
   
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 12;
+  const margin = 10;
   const contentWidth = pageWidth - margin * 2;
 
-  const { tipo, competencia, servidor, registros, diasNaoUteis, configAssinatura, dataGeracao } = data;
+  const { tipo, competencia, servidor, registros, diasNaoUteis, configAssinatura, dataGeracao, usuarioGeracao } = data;
   const ultimoDia = getUltimoDiaMes(competencia.ano, competencia.mes);
 
-  // Determinar se usa 1 ou 2 turnos baseado na jornada
+  // =====================================================
+  // REGRA FUNCIONAL PRIORITÁRIA - PARAMETRIZAÇÃO
+  // =====================================================
   const cargaHorariaDiaria = servidor.carga_horaria_diaria || 8;
+  // REGRA: <= 6h = 1 turno | >= 8h = 2 turnos
   const usaDoisTurnos = cargaHorariaDiaria >= 8;
 
   let y = margin;
 
-  // ===== CABEÇALHO COM LOGOS =====
-  const logoGovernoHeight = 16;
-  const logoGovernoWidth = logoGovernoHeight * 3.0;
-  const logoIdjuvHeight = 20;
-  const logoIdjuvWidth = logoIdjuvHeight * 1.55;
-
+  // ===== CABEÇALHO INSTITUCIONAL MODERNO =====
+  const headerHeight = 22;
+  
+  // Fundo do cabeçalho com gradiente visual (cor sólida moderna)
+  doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+  doc.rect(margin, y, contentWidth, headerHeight, 'F');
+  
+  // Logos no cabeçalho
+  const logoHeight = 16;
+  const logoGovernoWidth = logoHeight * 2.8;
+  const logoIdjuvWidth = logoHeight * 1.5;
+  
   try {
-    doc.addImage(logoGoverno, 'JPEG', margin, y, logoGovernoWidth, logoGovernoHeight);
-    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth, y, logoIdjuvWidth, logoIdjuvHeight);
+    // Logo Governo (esquerda)
+    doc.addImage(logoGoverno, 'JPEG', margin + 3, y + 3, logoGovernoWidth, logoHeight);
+    // Logo IDJuv (direita)
+    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth - 3, y + 3, logoIdjuvWidth, logoHeight);
   } catch (e) {
     console.warn('Logos não carregados');
   }
 
-  // ===== TEXTO DO CABEÇALHO (CENTRO) =====
-  const headerCenterX = pageWidth / 2;
-  
-  doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
+  // Textos centralizados no cabeçalho
+  doc.setTextColor(CORES.branco.r, CORES.branco.g, CORES.branco.b);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('ESTADO DE RORAIMA', headerCenterX, y + 5, { align: 'center' });
+  doc.setFontSize(9);
+  doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, y + 7, { align: 'center' });
   
-  doc.setFontSize(8);
-  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA - IDJUV', headerCenterX, y + 10, { align: 'center' });
-  
-  doc.setFontSize(8);
-  doc.text('DIVISÃO DE RECURSOS HUMANOS - DRH', headerCenterX, y + 15, { align: 'center' });
-
-  y += Math.max(logoGovernoHeight, logoIdjuvHeight) + 6;
-
-  // ===== TÍTULO PRINCIPAL =====
-  doc.setFillColor(0, 0, 0);
-  doc.rect(margin, y, contentWidth, 7, 'F');
-  
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('FOLHA INDIVIDUAL DE PRESENÇA', headerCenterX, y + 5, { align: 'center' });
-  
-  y += 10;
-
-  // ===== IDENTIFICAÇÃO DO SERVIDOR =====
-  doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
+  doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-
-  const lineHeight = 5;
-  const labelWidth = 30;
-  const fieldStartX = margin + labelWidth;
-  const col2LabelX = pageWidth / 2 + 10;
+  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER', pageWidth / 2, y + 12, { align: 'center' });
   
-  // Função para desenhar campo com linha
-  const drawField = (label: string, value: string, x: number, yPos: number, fieldWidth: number, showLine: boolean = true) => {
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.text('FOLHA INDIVIDUAL DE PRESENÇA', pageWidth / 2, y + 18, { align: 'center' });
+
+  y += headerHeight + 4;
+
+  // ===== CARD DE IDENTIFICAÇÃO =====
+  const cardPadding = 3;
+  const identificacaoHeight = 32;
+  
+  // Fundo do card
+  doc.setFillColor(CORES.bgClaro.r, CORES.bgClaro.g, CORES.bgClaro.b);
+  doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(margin, y, contentWidth, identificacaoHeight, 1.5, 1.5, 'FD');
+
+  // Linha de destaque superior
+  doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+  doc.rect(margin, y, contentWidth, 1.5, 'F');
+
+  let infoY = y + 6;
+  const col1 = margin + cardPadding;
+  const col2 = margin + contentWidth * 0.5;
+  const labelStyle = () => {
     doc.setFont('helvetica', 'bold');
-    doc.text(label, x, yPos);
-    const labelW = doc.getTextWidth(label);
-    doc.setFont('helvetica', 'normal');
-    doc.text(value || '', x + labelW + 2, yPos);
-    if (showLine) {
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.3);
-      doc.line(x + labelW + 1, yPos + 1, x + fieldWidth, yPos + 1);
-    }
+    doc.setFontSize(6.5);
+    doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
   };
-
-  // Linha 1: Unidade
-  drawField('Unidade:', servidor.unidade || '', margin, y, contentWidth - 10);
-  y += lineHeight;
-
-  // Linha 2: Servidor + Matrícula
-  drawField('Servidor(a):', servidor.nome_completo || '', margin, y, contentWidth * 0.6);
-  drawField('Matrícula:', servidor.matricula || '', col2LabelX + 30, y, 40);
-  y += lineHeight;
-
-  // Linha 3: Categoria + Fone + CPF
-  drawField('Categoria:', servidor.categoria || '', margin, y, 50);
-  drawField('Fone:', servidor.telefone || '', margin + 60, y, 40);
-  drawField('CPF:', servidor.cpf || '', col2LabelX + 20, y, 40);
-  y += lineHeight;
-
-  // Linha 4: Cargo + Função
-  drawField('Cargo:', servidor.cargo || '', margin, y, 70);
-  drawField('Função:', servidor.funcao || '', col2LabelX, y, 50);
-  y += lineHeight;
-
-  // Linha 5: Frequência Integral + Carga Horária + H. Semanais
-  drawField('Frequência Integral:', servidor.frequencia_integral !== false ? 'Sim' : 'Não', margin, y, 45);
-  drawField('Horária:', `${cargaHorariaDiaria}h`, margin + 75, y, 20);
-  drawField('H. Semanais:', `${servidor.carga_horaria_semanal || 40}h`, col2LabelX + 30, y, 25);
-  y += lineHeight + 2;
-
-  // Linha 6: MÊS / ANO
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text('MÊS', margin, y);
-  
-  // Box para mês
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.5);
-  doc.rect(margin + 12, y - 4, 35, 6);
-  doc.setFont('helvetica', 'normal');
-  doc.text(MESES[competencia.mes - 1], margin + 14, y);
-  
-  doc.setFont('helvetica', 'bold');
-  doc.text('ANO:', margin + 100, y);
-  
-  // Box para ano
-  doc.rect(margin + 112, y - 4, 25, 6);
-  doc.setFont('helvetica', 'normal');
-  doc.text(String(competencia.ano), margin + 114, y);
-
-  y += 8;
-
-  // ===== TABELA DE FREQUÊNCIA =====
-  const headerHeight = usaDoisTurnos ? 12 : 8;
-  const rowHeight = 5.2;
-  
-  // Calcular larguras das colunas baseado no número de turnos
-  let colWidths: { [key: string]: number };
-  
-  if (usaDoisTurnos) {
-    // 2 TURNOS: DIA | ENTRADA | SAÍDA | RUBRICA | ABONO | ENTRADA | SAÍDA | RUBRICA | ABONO
-    const turnoWidth = (contentWidth - 14) / 2; // Espaço para cada turno
-    colWidths = {
-      dia: 14,
-      entrada: turnoWidth / 4,
-      saida: turnoWidth / 4,
-      rubrica: turnoWidth / 3,
-      abono: turnoWidth / 6,
-    };
-  } else {
-    // 1 TURNO: DIA | ENTRADA | SAÍDA | RUBRICA SERVIDOR | ABONO CHEFE
-    colWidths = {
-      dia: 16,
-      entrada: 28,
-      saida: 28,
-      rubrica: (contentWidth - 16 - 56) / 2 + 10,
-      abono: (contentWidth - 16 - 56) / 2 - 10,
-    };
-  }
-
-  // ===== CABEÇALHO DA TABELA =====
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.5);
-  
-  if (usaDoisTurnos) {
-    // Header para 2 turnos
-    // Linha superior
-    doc.rect(margin, y, contentWidth, headerHeight);
-    
-    // Título dos turnos
-    const turno1X = margin + colWidths.dia;
-    const turno1Width = colWidths.entrada + colWidths.saida + colWidths.rubrica + colWidths.abono;
-    const turno2X = turno1X + turno1Width;
-    
-    // Linha horizontal entre título turno e subcolunas
-    doc.line(margin, y + 6, margin + contentWidth, y + 6);
-    
-    // Título 1º TURNO
+  const valueStyle = () => {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
-    doc.setTextColor(0, 0, 0);
-    doc.text('1º TURNO', turno1X + turno1Width / 2, y + 4, { align: 'center' });
-    
-    // Título 2º TURNO
-    doc.text('2º TURNO', turno2X + turno1Width / 2, y + 4, { align: 'center' });
-    
-    // Separador vertical entre DIA e turnos
-    doc.line(margin + colWidths.dia, y, margin + colWidths.dia, y + headerHeight);
-    
-    // Separador vertical entre 1º e 2º turno
-    doc.line(turno2X, y, turno2X, y + headerHeight);
-    
-    // Subcolunas do 1º turno
-    let colX = margin + colWidths.dia;
-    doc.setFontSize(6);
-    
-    doc.text('HORA', colX + colWidths.entrada / 2, y + 10, { align: 'center' });
-    doc.text('ENTRADA', colX + colWidths.entrada / 2, y + 12.5, { align: 'center' });
-    doc.line(colX + colWidths.entrada, y + 6, colX + colWidths.entrada, y + headerHeight);
-    colX += colWidths.entrada;
-    
-    doc.text('HORA SAÍDA', colX + colWidths.saida / 2, y + 10.5, { align: 'center' });
-    doc.line(colX + colWidths.saida, y + 6, colX + colWidths.saida, y + headerHeight);
-    colX += colWidths.saida;
-    
-    doc.text('RUBRICA DO SERVIDOR', colX + colWidths.rubrica / 2, y + 10.5, { align: 'center' });
-    doc.line(colX + colWidths.rubrica, y + 6, colX + colWidths.rubrica, y + headerHeight);
-    colX += colWidths.rubrica;
-    
-    doc.text('ABONO DO', colX + colWidths.abono / 2, y + 9, { align: 'center' });
-    doc.text('CHEFE', colX + colWidths.abono / 2, y + 12, { align: 'center' });
-    colX += colWidths.abono;
-    
-    // Subcolunas do 2º turno
-    doc.text('HORA', colX + colWidths.entrada / 2, y + 10, { align: 'center' });
-    doc.text('ENTRADA', colX + colWidths.entrada / 2, y + 12.5, { align: 'center' });
-    doc.line(colX + colWidths.entrada, y + 6, colX + colWidths.entrada, y + headerHeight);
-    colX += colWidths.entrada;
-    
-    doc.text('HORA SAÍDA', colX + colWidths.saida / 2, y + 10.5, { align: 'center' });
-    doc.line(colX + colWidths.saida, y + 6, colX + colWidths.saida, y + headerHeight);
-    colX += colWidths.saida;
-    
-    doc.text('RUBRICA DO SERVIDOR', colX + colWidths.rubrica / 2, y + 10.5, { align: 'center' });
-    doc.line(colX + colWidths.rubrica, y + 6, colX + colWidths.rubrica, y + headerHeight);
-    colX += colWidths.rubrica;
-    
-    doc.text('ABONO DO', colX + colWidths.abono / 2, y + 9, { align: 'center' });
-    doc.text('CHEFE', colX + colWidths.abono / 2, y + 12, { align: 'center' });
-    
-    // Coluna DIA (com subcabeçalho)
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DIA', margin + colWidths.dia / 2, y + 8, { align: 'center' });
-    
-  } else {
-    // Header para 1 turno
-    doc.rect(margin, y, contentWidth, headerHeight);
-    
-    let colX = margin;
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'bold');
-    
-    doc.text('DIA', colX + colWidths.dia / 2, y + 5, { align: 'center' });
-    doc.line(colX + colWidths.dia, y, colX + colWidths.dia, y + headerHeight);
-    colX += colWidths.dia;
-    
-    doc.text('HORA ENTRADA', colX + colWidths.entrada / 2, y + 5, { align: 'center' });
-    doc.line(colX + colWidths.entrada, y, colX + colWidths.entrada, y + headerHeight);
-    colX += colWidths.entrada;
-    
-    doc.text('HORA SAÍDA', colX + colWidths.saida / 2, y + 5, { align: 'center' });
-    doc.line(colX + colWidths.saida, y, colX + colWidths.saida, y + headerHeight);
-    colX += colWidths.saida;
-    
-    doc.text('RUBRICA DO SERVIDOR', colX + colWidths.rubrica / 2, y + 5, { align: 'center' });
-    doc.line(colX + colWidths.rubrica, y, colX + colWidths.rubrica, y + headerHeight);
-    colX += colWidths.rubrica;
-    
-    doc.text('ABONO DO CHEFE', colX + colWidths.abono / 2, y + 5, { align: 'center' });
+    doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+  };
+
+  // Linha 1: Servidor e Matrícula
+  labelStyle();
+  doc.text('SERVIDOR(A)', col1, infoY);
+  doc.text('MATRÍCULA', col2, infoY);
+  infoY += 4;
+  valueStyle();
+  doc.text((servidor.nome_completo || '').toUpperCase(), col1, infoY);
+  doc.text(servidor.matricula || '', col2, infoY);
+  
+  infoY += 6;
+  
+  // Linha 2: Unidade e Cargo
+  labelStyle();
+  doc.text('UNIDADE', col1, infoY);
+  doc.text('CARGO / FUNÇÃO', col2, infoY);
+  infoY += 4;
+  valueStyle();
+  doc.setFontSize(7);
+  const unidadeText = (servidor.unidade || '').length > 50 
+    ? (servidor.unidade || '').substring(0, 47) + '...' 
+    : (servidor.unidade || '');
+  doc.text(unidadeText, col1, infoY);
+  const cargoFuncao = servidor.funcao 
+    ? `${servidor.cargo || ''} / ${servidor.funcao}` 
+    : (servidor.cargo || '');
+  doc.text(cargoFuncao, col2, infoY);
+  
+  infoY += 6;
+  
+  // Linha 3: Competência, Carga Horária, Jornada
+  labelStyle();
+  doc.text('COMPETÊNCIA', col1, infoY);
+  doc.text('JORNADA', col1 + 50, infoY);
+  doc.text('CARGA SEMANAL', col2, infoY);
+  infoY += 4;
+  valueStyle();
+  doc.setFontSize(8);
+  doc.text(`${MESES[competencia.mes - 1].toUpperCase()} / ${competencia.ano}`, col1, infoY);
+  
+  // Destaque visual para a jornada
+  doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+  doc.roundedRect(col1 + 48, infoY - 3.5, 18, 5, 1, 1, 'F');
+  doc.setTextColor(CORES.branco.r, CORES.branco.g, CORES.branco.b);
+  doc.setFontSize(7);
+  doc.text(`${cargaHorariaDiaria}h/dia`, col1 + 57, infoY, { align: 'center' });
+  
+  doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+  doc.setFontSize(8);
+  doc.text(`${servidor.carga_horaria_semanal || 40}h semanais`, col2, infoY);
+
+  y += identificacaoHeight + 3;
+
+  // ===== TABELA DE FREQUÊNCIA =====
+  
+  // Determinar estrutura das colunas baseado na JORNADA
+  interface ColConfig {
+    key: string;
+    label: string;
+    label2?: string;
+    width: number;
+    align: 'left' | 'center' | 'right';
   }
 
-  y += headerHeight;
+  let colunas: ColConfig[] = [];
+  
+  if (usaDoisTurnos) {
+    // JORNADA >= 8H: 2 TURNOS, 2 ASSINATURAS
+    const turnoWidth = (contentWidth - 12) / 2;
+    const colWidth = turnoWidth / 4;
+    
+    colunas = [
+      { key: 'dia', label: 'DIA', width: 12, align: 'center' },
+      // 1º TURNO
+      { key: 'ent1', label: 'ENTRADA', label2: '1º TURNO', width: colWidth, align: 'center' },
+      { key: 'sai1', label: 'SAÍDA', label2: '1º TURNO', width: colWidth, align: 'center' },
+      { key: 'ass1', label: 'ASSINATURA', label2: 'SERVIDOR', width: colWidth + 4, align: 'center' },
+      { key: 'abo1', label: 'ABONO', label2: 'CHEFIA', width: colWidth - 4, align: 'center' },
+      // 2º TURNO
+      { key: 'ent2', label: 'ENTRADA', label2: '2º TURNO', width: colWidth, align: 'center' },
+      { key: 'sai2', label: 'SAÍDA', label2: '2º TURNO', width: colWidth, align: 'center' },
+      { key: 'ass2', label: 'ASSINATURA', label2: 'SERVIDOR', width: colWidth + 4, align: 'center' },
+      { key: 'abo2', label: 'ABONO', label2: 'CHEFIA', width: colWidth - 4, align: 'center' },
+    ];
+  } else {
+    // JORNADA <= 6H: 1 TURNO, 1 ASSINATURA
+    colunas = [
+      { key: 'dia', label: 'DIA', width: 14, align: 'center' },
+      { key: 'ent1', label: 'HORA', label2: 'ENTRADA', width: 28, align: 'center' },
+      { key: 'sai1', label: 'HORA', label2: 'SAÍDA', width: 28, align: 'center' },
+      { key: 'ass1', label: 'ASSINATURA', label2: 'DO SERVIDOR', width: (contentWidth - 70) / 2 + 8, align: 'center' },
+      { key: 'abo1', label: 'ABONO', label2: 'DO CHEFE', width: (contentWidth - 70) / 2 - 8, align: 'center' },
+    ];
+  }
+
+  // Header da tabela
+  const headerHeight2 = usaDoisTurnos ? 11 : 9;
+  const rowHeight = 5.0;
+  
+  // Fundo do header
+  doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+  doc.rect(margin, y, contentWidth, headerHeight2, 'F');
+  
+  // Bordas
+  doc.setDrawColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+  doc.setLineWidth(0.4);
+  doc.rect(margin, y, contentWidth, headerHeight2);
+  
+  // Textos do header
+  doc.setTextColor(CORES.branco.r, CORES.branco.g, CORES.branco.b);
+  doc.setFont('helvetica', 'bold');
+  
+  let colX = margin;
+  
+  if (usaDoisTurnos) {
+    // Header com indicadores de turno
+    doc.setFontSize(5.5);
+    
+    for (const col of colunas) {
+      const centerX = colX + col.width / 2;
+      
+      if (col.key === 'dia') {
+        doc.setFontSize(6.5);
+        doc.text(col.label, centerX, y + 6, { align: 'center' });
+      } else if (col.label2) {
+        const isTurno1 = ['ent1', 'sai1', 'ass1', 'abo1'].includes(col.key);
+        const turnoLabel = isTurno1 ? '1º' : '2º';
+        
+        doc.setFontSize(5);
+        doc.text(col.label, centerX, y + 4.5, { align: 'center' });
+        doc.setFontSize(4.5);
+        doc.text(`(${turnoLabel})`, centerX, y + 8, { align: 'center' });
+      }
+      
+      // Separador vertical
+      if (col.key !== 'abo2') {
+        doc.setDrawColor(CORES.branco.r, CORES.branco.g, CORES.branco.b);
+        doc.setLineWidth(0.2);
+        doc.line(colX + col.width, y + 1, colX + col.width, y + headerHeight2 - 1);
+      }
+      
+      colX += col.width;
+    }
+  } else {
+    // Header para 1 turno
+    doc.setFontSize(6);
+    
+    for (const col of colunas) {
+      const centerX = colX + col.width / 2;
+      
+      if (col.label2) {
+        doc.text(col.label, centerX, y + 3.5, { align: 'center' });
+        doc.setFontSize(5);
+        doc.text(col.label2, centerX, y + 7, { align: 'center' });
+        doc.setFontSize(6);
+      } else {
+        doc.text(col.label, centerX, y + 5.5, { align: 'center' });
+      }
+      
+      // Separador vertical
+      if (col.key !== 'abo1') {
+        doc.setDrawColor(CORES.branco.r, CORES.branco.g, CORES.branco.b);
+        doc.setLineWidth(0.2);
+        doc.line(colX + col.width, y + 1, colX + col.width, y + headerHeight2 - 1);
+      }
+      
+      colX += col.width;
+    }
+  }
+
+  y += headerHeight2;
 
   // ===== LINHAS DA TABELA =====
   const registrosDias = registros || gerarRegistrosDiariosBranco(competencia.ano, competencia.mes, diasNaoUteis);
-  
-  // Calcular quantas linhas fixas (sempre 31 para manter layout consistente)
   const totalLinhas = 31;
 
   for (let linha = 1; linha <= totalLinhas; linha++) {
     const dia = linha <= ultimoDia ? linha : null;
     
-    // Buscar registro do dia
+    // Buscar situação do dia
+    let situacao = '';
+    let label = '';
     let registro: RegistroDiario | null = null;
-    let situacao: string = '';
-    let label: string = '';
     
     if (dia) {
       const dataAtual = new Date(competencia.ano, competencia.mes - 1, dia);
@@ -489,11 +505,9 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
         return diaRegistro === dia;
       }) || null;
       
-      if (registro) {
-        if (registro.situacao !== 'util') {
-          situacao = registro.situacao;
-          label = registro.label || '';
-        }
+      if (registro && registro.situacao !== 'util') {
+        situacao = registro.situacao;
+        label = registro.label || '';
       }
     }
 
@@ -504,187 +518,158 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
     const isFerias = situacao === 'ferias';
     const isLicenca = situacao === 'licenca';
     const isPontoFacultativo = situacao === 'ponto_facultativo';
+    const isLinhaVazia = !dia;
 
-    // Desenhar linha
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.3);
+    // Cor de fundo alternada e especial para dias não úteis
+    if (isNaoUtil && !isLinhaVazia) {
+      if (isFeriado || isFerias || isLicenca) {
+        doc.setFillColor(CORES.bgFeriado.r, CORES.bgFeriado.g, CORES.bgFeriado.b);
+      } else {
+        doc.setFillColor(CORES.bgFimSemana.r, CORES.bgFimSemana.g, CORES.bgFimSemana.b);
+      }
+      doc.rect(margin, y, contentWidth, rowHeight, 'F');
+    } else if (linha % 2 === 0 && !isLinhaVazia) {
+      doc.setFillColor(CORES.bgCinza.r, CORES.bgCinza.g, CORES.bgCinza.b);
+      doc.rect(margin, y, contentWidth, rowHeight, 'F');
+    }
+
+    // Borda da linha
+    doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
+    doc.setLineWidth(0.15);
     doc.rect(margin, y, contentWidth, rowHeight);
 
     // Separadores verticais
-    let colX = margin;
-    
-    if (usaDoisTurnos) {
-      const turnoWidth = colWidths.entrada + colWidths.saida + colWidths.rubrica + colWidths.abono;
-      
-      // DIA
-      doc.line(margin + colWidths.dia, y, margin + colWidths.dia, y + rowHeight);
-      colX = margin + colWidths.dia;
-      
-      // 1º Turno - colunas
-      doc.line(colX + colWidths.entrada, y, colX + colWidths.entrada, y + rowHeight);
-      doc.line(colX + colWidths.entrada + colWidths.saida, y, colX + colWidths.entrada + colWidths.saida, y + rowHeight);
-      doc.line(colX + colWidths.entrada + colWidths.saida + colWidths.rubrica, y, colX + colWidths.entrada + colWidths.saida + colWidths.rubrica, y + rowHeight);
-      doc.line(colX + turnoWidth, y, colX + turnoWidth, y + rowHeight);
-      
-      colX += turnoWidth;
-      
-      // 2º Turno - colunas
-      doc.line(colX + colWidths.entrada, y, colX + colWidths.entrada, y + rowHeight);
-      doc.line(colX + colWidths.entrada + colWidths.saida, y, colX + colWidths.entrada + colWidths.saida, y + rowHeight);
-      doc.line(colX + colWidths.entrada + colWidths.saida + colWidths.rubrica, y, colX + colWidths.entrada + colWidths.saida + colWidths.rubrica, y + rowHeight);
-    } else {
-      doc.line(margin + colWidths.dia, y, margin + colWidths.dia, y + rowHeight);
-      colX = margin + colWidths.dia;
-      doc.line(colX + colWidths.entrada, y, colX + colWidths.entrada, y + rowHeight);
-      colX += colWidths.entrada;
-      doc.line(colX + colWidths.saida, y, colX + colWidths.saida, y + rowHeight);
-      colX += colWidths.saida;
-      doc.line(colX + colWidths.rubrica, y, colX + colWidths.rubrica, y + rowHeight);
+    colX = margin;
+    for (let i = 0; i < colunas.length - 1; i++) {
+      colX += colunas[i].width;
+      doc.line(colX, y, colX, y + rowHeight);
     }
 
-    // Conteúdo da linha
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(0, 0, 0);
+    // Conteúdo
+    const textY = y + rowHeight / 2 + 1.3;
+    colX = margin;
     
-    const textY = y + rowHeight / 2 + 1.5;
-    
-    if (dia) {
-      // Número do dia
-      doc.setFont('helvetica', 'bold');
-      doc.text(String(dia).padStart(2, '0'), margin + colWidths.dia / 2, textY, { align: 'center' });
-      doc.setFont('helvetica', 'normal');
+    for (const col of colunas) {
+      const centerX = colX + col.width / 2;
       
-      if (usaDoisTurnos) {
-        const turnoWidth = colWidths.entrada + colWidths.saida + colWidths.rubrica + colWidths.abono;
-        colX = margin + colWidths.dia;
-        
-        if (isNaoUtil) {
-          // Para dias não úteis, mostrar label no lugar de entrada/saída
-          let displayLabel = '';
-          if (isDomingo) displayLabel = 'Dom';
-          else if (isSabado) displayLabel = 'Sáb';
-          else if (isFeriado) displayLabel = 'Feriado';
-          else if (isFerias) displayLabel = 'Férias';
-          else if (isLicenca) displayLabel = 'Licença';
-          else if (isPontoFacultativo) displayLabel = 'Ponto Facultativo';
-          else displayLabel = label || situacao;
+      if (col.key === 'dia') {
+        if (dia) {
+          // Número do dia + abreviação
+          const dataAtual = new Date(competencia.ano, competencia.mes - 1, dia);
+          const diaSemana = DIAS_SEMANA_ABREV[dataAtual.getDay()];
           
-          // Cor especial para feriado/férias
-          if (isFeriado || isFerias) {
-            doc.setTextColor(CORES.vermelho.r, CORES.vermelho.g, CORES.vermelho.b);
-            doc.setFont('helvetica', 'bold');
-          } else if (isPontoFacultativo) {
-            doc.setFont('helvetica', 'italic');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7);
+          doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+          doc.text(String(dia).padStart(2, '0'), colX + 4, textY);
+          
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(5);
+          doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
+          doc.text(diaSemana, colX + 9, textY);
+        } else {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(6);
+          doc.setTextColor(CORES.border.r, CORES.border.g, CORES.border.b);
+          doc.text('—', centerX, textY, { align: 'center' });
+        }
+      } else if (isLinhaVazia) {
+        // Linha vazia (dia inexistente)
+        doc.setTextColor(CORES.border.r, CORES.border.g, CORES.border.b);
+        doc.setFontSize(6);
+        doc.text('—', centerX, textY, { align: 'center' });
+      } else if (isNaoUtil) {
+        // Dia não útil
+        if (col.key === 'ass1' || col.key === 'ass2') {
+          // Mostrar o motivo na coluna de assinatura
+          let displayLabel = '';
+          if (isDomingo) displayLabel = 'DOMINGO';
+          else if (isSabado) displayLabel = 'SÁBADO';
+          else if (isFeriado) displayLabel = label || 'FERIADO';
+          else if (isFerias) displayLabel = 'FÉRIAS';
+          else if (isLicenca) displayLabel = 'LICENÇA';
+          else if (isPontoFacultativo) displayLabel = 'PTO. FACULTATIVO';
+          else displayLabel = label || situacao.toUpperCase();
+          
+          // Truncar se muito longo
+          if (displayLabel.length > 15) {
+            displayLabel = displayLabel.substring(0, 14) + '…';
           }
           
-          // 1º Turno - entrada vazia
-          doc.text('-', colX + colWidths.entrada / 2, textY, { align: 'center' });
-          // 1º Turno - saída vazia  
-          doc.text('-', colX + colWidths.entrada + colWidths.saida / 2, textY, { align: 'center' });
-          // 1º Turno - label na rubrica
-          doc.text(displayLabel, colX + colWidths.entrada + colWidths.saida + colWidths.rubrica / 2, textY, { align: 'center' });
-          // 1º Turno - abono vazio
-          doc.text('-', colX + colWidths.entrada + colWidths.saida + colWidths.rubrica + colWidths.abono / 2, textY, { align: 'center' });
-          
-          colX += turnoWidth;
-          
-          // 2º Turno - mesma coisa
-          doc.text('-', colX + colWidths.entrada / 2, textY, { align: 'center' });
-          doc.text('-', colX + colWidths.entrada + colWidths.saida / 2, textY, { align: 'center' });
-          doc.text(displayLabel, colX + colWidths.entrada + colWidths.saida + colWidths.rubrica / 2, textY, { align: 'center' });
-          doc.text('-', colX + colWidths.entrada + colWidths.saida + colWidths.rubrica + colWidths.abono / 2, textY, { align: 'center' });
-          
-          doc.setTextColor(0, 0, 0);
-          doc.setFont('helvetica', 'normal');
-        } else if (tipo === 'preenchida' && registro) {
-          // Dia útil com dados preenchidos
-          doc.text(registro.entrada_manha || '', colX + colWidths.entrada / 2, textY, { align: 'center' });
-          doc.text(registro.saida_manha || '', colX + colWidths.entrada + colWidths.saida / 2, textY, { align: 'center' });
-          colX += turnoWidth;
-          doc.text(registro.entrada_tarde || '', colX + colWidths.entrada / 2, textY, { align: 'center' });
-          doc.text(registro.saida_tarde || '', colX + colWidths.entrada + colWidths.saida / 2, textY, { align: 'center' });
-        }
-        // Se for em branco e dia útil, deixar campos vazios para preenchimento manual
-      } else {
-        // Layout 1 turno
-        colX = margin + colWidths.dia;
-        
-        if (isNaoUtil) {
-          let displayLabel = '';
-          if (isDomingo) displayLabel = 'Domingo';
-          else if (isSabado) displayLabel = 'Sábado';
-          else if (isFeriado) displayLabel = 'Feriado';
-          else if (isFerias) displayLabel = 'Férias';
-          else if (isLicenca) displayLabel = 'Licença';
-          else if (isPontoFacultativo) displayLabel = 'Ponto Facultativo';
-          else displayLabel = label || situacao;
-          
-          if (isFeriado || isFerias) {
+          if (isFeriado || isFerias || isLicenca) {
             doc.setTextColor(CORES.vermelho.r, CORES.vermelho.g, CORES.vermelho.b);
-            doc.setFont('helvetica', 'bold');
+          } else {
+            doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
           }
-          
-          doc.text('-', colX + colWidths.entrada / 2, textY, { align: 'center' });
-          doc.text('-', colX + colWidths.entrada + colWidths.saida / 2, textY, { align: 'center' });
-          doc.text(displayLabel, colX + colWidths.entrada + colWidths.saida + colWidths.rubrica / 2, textY, { align: 'center' });
-          doc.text('-', colX + colWidths.entrada + colWidths.saida + colWidths.rubrica + colWidths.abono / 2, textY, { align: 'center' });
-          
-          doc.setTextColor(0, 0, 0);
-          doc.setFont('helvetica', 'normal');
-        } else if (tipo === 'preenchida' && registro) {
-          doc.text(registro.entrada_manha || '', colX + colWidths.entrada / 2, textY, { align: 'center' });
-          doc.text(registro.saida_manha || registro.saida_tarde || '', colX + colWidths.entrada + colWidths.saida / 2, textY, { align: 'center' });
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(5.5);
+          doc.text(displayLabel, centerX, textY, { align: 'center' });
+        } else {
+          // Outras colunas vazias para dias não úteis
+          doc.setTextColor(CORES.border.r, CORES.border.g, CORES.border.b);
+          doc.setFontSize(6);
+          doc.text('—', centerX, textY, { align: 'center' });
+        }
+      } else if (tipo === 'preenchida' && registro) {
+        // Dia útil preenchido
+        doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.5);
+        
+        let valor = '';
+        if (col.key === 'ent1') valor = registro.entrada_manha || '';
+        else if (col.key === 'sai1') valor = registro.saida_manha || '';
+        else if (col.key === 'ent2') valor = registro.entrada_tarde || '';
+        else if (col.key === 'sai2') valor = registro.saida_tarde || '';
+        
+        if (valor) {
+          doc.text(valor, centerX, textY, { align: 'center' });
         }
       }
-    } else {
-      // Linha vazia (dia > ultimoDia do mês)
-      doc.text('-', margin + colWidths.dia / 2, textY, { align: 'center' });
+      // Campos em branco para dias úteis em folha vazia ficam vazios para preenchimento manual
       
-      if (usaDoisTurnos) {
-        const turnoWidth = colWidths.entrada + colWidths.saida + colWidths.rubrica + colWidths.abono;
-        colX = margin + colWidths.dia;
-        doc.text('-', colX + colWidths.entrada + colWidths.saida + colWidths.rubrica / 2, textY, { align: 'center' });
-        colX += turnoWidth;
-        doc.text('-', colX + colWidths.entrada + colWidths.saida + colWidths.rubrica / 2, textY, { align: 'center' });
-      } else {
-        doc.text('-', margin + colWidths.dia + colWidths.entrada + colWidths.saida + colWidths.rubrica / 2, textY, { align: 'center' });
-      }
+      colX += col.width;
     }
 
     y += rowHeight;
   }
 
-  // ===== RODAPÉ COM LOCAL E DATA =====
-  y += 4;
+  // ===== RODAPÉ - LOCAL E DATA =====
+  y += 3;
   
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(8);
+  doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
   doc.text('Boa Vista - RR, _______ de ________________________ de ________.', margin, y);
 
-  y += 10;
+  y += 8;
 
-  // ===== ASSINATURAS =====
-  const assinaturaWidth = contentWidth / 2 - 10;
+  // ===== ÁREA DE ASSINATURAS FINAIS =====
+  const assinaturaBoxWidth = contentWidth / 2 - 5;
   
-  // Assinatura do Servidor
-  doc.text('Ass. Servidor (a)', margin, y);
-  doc.setLineWidth(0.4);
-  doc.line(margin + 35, y, margin + assinaturaWidth, y);
+  // Box Assinatura do Servidor
+  doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
+  doc.setLineWidth(0.3);
   
-  // Visto do Chefe
-  doc.text('Visto do Chefe Imediato:', margin + assinaturaWidth + 20, y);
-  doc.line(margin + assinaturaWidth + 65, y, margin + contentWidth, y);
+  // Linha de assinatura do servidor
+  doc.line(margin, y, margin + assinaturaBoxWidth, y);
+  doc.setFontSize(7);
+  doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
+  doc.text('Assinatura do(a) Servidor(a)', margin + assinaturaBoxWidth / 2, y + 4, { align: 'center' });
+  
+  // Linha de assinatura da chefia
+  doc.line(margin + assinaturaBoxWidth + 10, y, margin + contentWidth, y);
+  doc.text('Visto do(a) Chefe Imediato', margin + assinaturaBoxWidth + 10 + assinaturaBoxWidth / 2, y + 4, { align: 'center' });
 
   // ===== RODAPÉ DO SISTEMA =====
-  const rodapeY = pageHeight - 6;
+  const rodapeY = pageHeight - 5;
+  
+  doc.setFontSize(5.5);
   doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
-  doc.setFontSize(6);
   doc.setFont('helvetica', 'normal');
   
-  doc.text(`Gerado em ${dataGeracao}`, margin, rodapeY);
-  doc.text(`${INSTITUICAO.sigla} - Sistema de Gestão de Pessoas`, pageWidth / 2, rodapeY, { align: 'center' });
+  doc.text(`Gerado em ${dataGeracao}${usuarioGeracao ? ` por ${usuarioGeracao}` : ''}`, margin, rodapeY);
+  doc.text(`${INSTITUICAO.sigla} • Sistema de Gestão de Pessoas`, pageWidth / 2, rodapeY, { align: 'center' });
   
   if (rodapePersonalizado) {
     doc.text(rodapePersonalizado, pageWidth - margin, rodapeY, { align: 'right' });
