@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      acoes: {
+        Row: {
+          codigo: string
+          created_at: string | null
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string | null
+          descricao: string | null
+          id: string
+          meta_financeira: number | null
+          meta_fisica: number | null
+          nome: string
+          processo_licitatorio_id: string | null
+          programa_id: string
+          situacao: string | null
+          tipo: string | null
+          unidade_medida: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          codigo: string
+          created_at?: string | null
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          descricao?: string | null
+          id?: string
+          meta_financeira?: number | null
+          meta_fisica?: number | null
+          nome: string
+          processo_licitatorio_id?: string | null
+          programa_id: string
+          situacao?: string | null
+          tipo?: string | null
+          unidade_medida?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          codigo?: string
+          created_at?: string | null
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          descricao?: string | null
+          id?: string
+          meta_financeira?: number | null
+          meta_fisica?: number | null
+          nome?: string
+          processo_licitatorio_id?: string | null
+          programa_id?: string
+          situacao?: string | null
+          tipo?: string | null
+          unidade_medida?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acoes_processo_licitatorio_id_fkey"
+            columns: ["processo_licitatorio_id"]
+            isOneToOne: false
+            referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acoes_programa_id_fkey"
+            columns: ["programa_id"]
+            isOneToOne: false
+            referencedRelation: "programas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       aditivos_contrato: {
         Row: {
           contrato_id: string
@@ -278,6 +350,61 @@ export type Database = {
           },
           {
             foreignKeyName: "agrupamento_unidade_vinculo_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      almoxarifados: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          created_at: string | null
+          id: string
+          localizacao: string | null
+          nome: string
+          responsavel_id: string | null
+          unidade_id: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          created_at?: string | null
+          id?: string
+          localizacao?: string | null
+          nome: string
+          responsavel_id?: string | null
+          unidade_id?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          created_at?: string | null
+          id?: string
+          localizacao?: string | null
+          nome?: string
+          responsavel_id?: string | null
+          unidade_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "almoxarifados_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "almoxarifados_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "almoxarifados_unidade_id_fkey"
             columns: ["unidade_id"]
             isOneToOne: false
             referencedRelation: "estrutura_organizacional"
@@ -876,6 +1003,174 @@ export type Database = {
         }
         Relationships: []
       }
+      bens_patrimoniais: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          data_aquisicao: string
+          depreciacao_acumulada: number | null
+          descricao: string
+          empenho_id: string | null
+          especificacao: string | null
+          estado_conservacao: string | null
+          fornecedor_id: string | null
+          garantia_ate: string | null
+          id: string
+          item_id: string | null
+          localizacao_especifica: string | null
+          marca: string | null
+          modelo: string | null
+          nota_fiscal: string | null
+          numero_patrimonio: string
+          numero_serie: string | null
+          observacao: string | null
+          responsavel_id: string | null
+          situacao: string | null
+          unidade_id: string | null
+          unidade_local_id: string | null
+          updated_at: string | null
+          valor_aquisicao: number
+          valor_liquido: number | null
+          valor_residual: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          data_aquisicao: string
+          depreciacao_acumulada?: number | null
+          descricao: string
+          empenho_id?: string | null
+          especificacao?: string | null
+          estado_conservacao?: string | null
+          fornecedor_id?: string | null
+          garantia_ate?: string | null
+          id?: string
+          item_id?: string | null
+          localizacao_especifica?: string | null
+          marca?: string | null
+          modelo?: string | null
+          nota_fiscal?: string | null
+          numero_patrimonio: string
+          numero_serie?: string | null
+          observacao?: string | null
+          responsavel_id?: string | null
+          situacao?: string | null
+          unidade_id?: string | null
+          unidade_local_id?: string | null
+          updated_at?: string | null
+          valor_aquisicao: number
+          valor_liquido?: number | null
+          valor_residual?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          data_aquisicao?: string
+          depreciacao_acumulada?: number | null
+          descricao?: string
+          empenho_id?: string | null
+          especificacao?: string | null
+          estado_conservacao?: string | null
+          fornecedor_id?: string | null
+          garantia_ate?: string | null
+          id?: string
+          item_id?: string | null
+          localizacao_especifica?: string | null
+          marca?: string | null
+          modelo?: string | null
+          nota_fiscal?: string | null
+          numero_patrimonio?: string
+          numero_serie?: string | null
+          observacao?: string | null
+          responsavel_id?: string | null
+          situacao?: string | null
+          unidade_id?: string | null
+          unidade_local_id?: string | null
+          updated_at?: string | null
+          valor_aquisicao?: number
+          valor_liquido?: number | null
+          valor_residual?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bens_patrimoniais_empenho_id_fkey"
+            columns: ["empenho_id"]
+            isOneToOne: false
+            referencedRelation: "empenhos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bens_patrimoniais_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bens_patrimoniais_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens_material"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bens_patrimoniais_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bens_patrimoniais_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bens_patrimoniais_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bens_patrimoniais_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "unidades_locais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bens_patrimoniais_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_cedencias_a_vencer"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "bens_patrimoniais_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_patrimonio"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "bens_patrimoniais_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_unidades_locais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bens_patrimoniais_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_uso_unidades"
+            referencedColumns: ["unidade_id"]
+          },
+        ]
+      }
       calendario_federacao: {
         Row: {
           categorias: string | null
@@ -1061,6 +1356,45 @@ export type Database = {
           sigla?: string | null
           updated_at?: string | null
           vencimento_base?: number | null
+        }
+        Relationships: []
+      }
+      categorias_material: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          conta_contabil: string | null
+          created_at: string | null
+          depreciavel: boolean | null
+          id: string
+          nome: string
+          taxa_depreciacao_anual: number | null
+          tipo: string | null
+          vida_util_meses: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          conta_contabil?: string | null
+          created_at?: string | null
+          depreciavel?: boolean | null
+          id?: string
+          nome: string
+          taxa_depreciacao_anual?: number | null
+          tipo?: string | null
+          vida_util_meses?: number | null
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          conta_contabil?: string | null
+          created_at?: string | null
+          depreciavel?: boolean | null
+          id?: string
+          nome?: string
+          taxa_depreciacao_anual?: number | null
+          tipo?: string | null
+          vida_util_meses?: number | null
         }
         Relationships: []
       }
@@ -2254,6 +2588,63 @@ export type Database = {
           },
         ]
       }
+      creditos_adicionais: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          data_decreto: string | null
+          dotacao_id: string
+          dotacao_origem_id: string | null
+          id: string
+          justificativa: string | null
+          numero_decreto: string | null
+          origem: string | null
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          data_decreto?: string | null
+          dotacao_id: string
+          dotacao_origem_id?: string | null
+          id?: string
+          justificativa?: string | null
+          numero_decreto?: string | null
+          origem?: string | null
+          tipo: string
+          valor: number
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          data_decreto?: string | null
+          dotacao_id?: string
+          dotacao_origem_id?: string | null
+          id?: string
+          justificativa?: string | null
+          numero_decreto?: string | null
+          origem?: string | null
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creditos_adicionais_dotacao_id_fkey"
+            columns: ["dotacao_id"]
+            isOneToOne: false
+            referencedRelation: "dotacoes_orcamentarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creditos_adicionais_dotacao_origem_id_fkey"
+            columns: ["dotacao_origem_id"]
+            isOneToOne: false
+            referencedRelation: "dotacoes_orcamentarias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dados_oficiais: {
         Row: {
           bloqueado: boolean | null
@@ -3215,6 +3606,244 @@ export type Database = {
             columns: ["responsavel_id"]
             isOneToOne: false
             referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dotacoes_orcamentarias: {
+        Row: {
+          acao_orcamentaria: string
+          categoria_economica: string
+          centro_custo_id: string | null
+          classificacao_completa: string | null
+          created_at: string | null
+          created_by: string | null
+          descricao_fonte: string | null
+          elemento_despesa: string
+          exercicio: number
+          fonte_recurso: string
+          funcao: string
+          grupo_despesa: string
+          id: string
+          modalidade_aplicacao: string
+          programa: string
+          saldo_disponivel: number | null
+          subfuncao: string
+          unidade_orcamentaria: string
+          updated_at: string | null
+          valor_anulado: number
+          valor_atual: number | null
+          valor_empenhado: number
+          valor_inicial: number
+          valor_liquidado: number
+          valor_pago: number
+          valor_suplementado: number
+        }
+        Insert: {
+          acao_orcamentaria: string
+          categoria_economica: string
+          centro_custo_id?: string | null
+          classificacao_completa?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao_fonte?: string | null
+          elemento_despesa: string
+          exercicio: number
+          fonte_recurso: string
+          funcao: string
+          grupo_despesa: string
+          id?: string
+          modalidade_aplicacao: string
+          programa: string
+          saldo_disponivel?: number | null
+          subfuncao: string
+          unidade_orcamentaria: string
+          updated_at?: string | null
+          valor_anulado?: number
+          valor_atual?: number | null
+          valor_empenhado?: number
+          valor_inicial?: number
+          valor_liquidado?: number
+          valor_pago?: number
+          valor_suplementado?: number
+        }
+        Update: {
+          acao_orcamentaria?: string
+          categoria_economica?: string
+          centro_custo_id?: string | null
+          classificacao_completa?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao_fonte?: string | null
+          elemento_despesa?: string
+          exercicio?: number
+          fonte_recurso?: string
+          funcao?: string
+          grupo_despesa?: string
+          id?: string
+          modalidade_aplicacao?: string
+          programa?: string
+          saldo_disponivel?: number | null
+          subfuncao?: string
+          unidade_orcamentaria?: string
+          updated_at?: string | null
+          valor_anulado?: number
+          valor_atual?: number | null
+          valor_empenhado?: number
+          valor_inicial?: number
+          valor_liquidado?: number
+          valor_pago?: number
+          valor_suplementado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dotacoes_orcamentarias_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      empenhos: {
+        Row: {
+          contrato_id: string | null
+          created_at: string | null
+          created_by: string | null
+          data_empenho: string
+          dotacao_id: string
+          exercicio: number
+          fornecedor_id: string
+          historico: string
+          id: string
+          modalidade: string
+          numero_empenho: string
+          observacao: string | null
+          processo_licitatorio_id: string | null
+          saldo_empenho: number | null
+          situacao: string | null
+          tipo: string
+          updated_at: string | null
+          valor_anulado: number
+          valor_empenhado: number
+          valor_liquidado: number
+          valor_pago: number
+        }
+        Insert: {
+          contrato_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_empenho: string
+          dotacao_id: string
+          exercicio: number
+          fornecedor_id: string
+          historico: string
+          id?: string
+          modalidade: string
+          numero_empenho: string
+          observacao?: string | null
+          processo_licitatorio_id?: string | null
+          saldo_empenho?: number | null
+          situacao?: string | null
+          tipo: string
+          updated_at?: string | null
+          valor_anulado?: number
+          valor_empenhado: number
+          valor_liquidado?: number
+          valor_pago?: number
+        }
+        Update: {
+          contrato_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_empenho?: string
+          dotacao_id?: string
+          exercicio?: number
+          fornecedor_id?: string
+          historico?: string
+          id?: string
+          modalidade?: string
+          numero_empenho?: string
+          observacao?: string | null
+          processo_licitatorio_id?: string | null
+          saldo_empenho?: number | null
+          situacao?: string | null
+          tipo?: string
+          updated_at?: string | null
+          valor_anulado?: number
+          valor_empenhado?: number
+          valor_liquidado?: number
+          valor_pago?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empenhos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "empenhos_dotacao_id_fkey"
+            columns: ["dotacao_id"]
+            isOneToOne: false
+            referencedRelation: "dotacoes_orcamentarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "empenhos_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "empenhos_processo_licitatorio_id_fkey"
+            columns: ["processo_licitatorio_id"]
+            isOneToOne: false
+            referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estoque: {
+        Row: {
+          almoxarifado_id: string
+          id: string
+          item_id: string
+          quantidade: number
+          ultima_movimentacao: string | null
+          valor_total: number
+        }
+        Insert: {
+          almoxarifado_id: string
+          id?: string
+          item_id: string
+          quantidade?: number
+          ultima_movimentacao?: string | null
+          valor_total?: number
+        }
+        Update: {
+          almoxarifado_id?: string
+          id?: string
+          item_id?: string
+          quantidade?: number
+          ultima_movimentacao?: string | null
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_almoxarifado_id_fkey"
+            columns: ["almoxarifado_id"]
+            isOneToOne: false
+            referencedRelation: "almoxarifados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens_material"
             referencedColumns: ["id"]
           },
         ]
@@ -5155,6 +5784,65 @@ export type Database = {
           },
         ]
       }
+      itens_material: {
+        Row: {
+          ativo: boolean | null
+          categoria_id: string | null
+          codigo: string
+          created_at: string | null
+          descricao: string
+          especificacao: string | null
+          estoque_maximo: number | null
+          estoque_minimo: number | null
+          id: string
+          ponto_reposicao: number | null
+          ultimo_valor_compra: number | null
+          unidade_medida: string
+          updated_at: string | null
+          valor_unitario_medio: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          categoria_id?: string | null
+          codigo: string
+          created_at?: string | null
+          descricao: string
+          especificacao?: string | null
+          estoque_maximo?: number | null
+          estoque_minimo?: number | null
+          id?: string
+          ponto_reposicao?: number | null
+          ultimo_valor_compra?: number | null
+          unidade_medida: string
+          updated_at?: string | null
+          valor_unitario_medio?: number | null
+        }
+        Update: {
+          ativo?: boolean | null
+          categoria_id?: string | null
+          codigo?: string
+          created_at?: string | null
+          descricao?: string
+          especificacao?: string | null
+          estoque_maximo?: number | null
+          estoque_minimo?: number | null
+          id?: string
+          ponto_reposicao?: number | null
+          ultimo_valor_compra?: number | null
+          unidade_medida?: string
+          updated_at?: string | null
+          valor_unitario_medio?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itens_material_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias_material"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       itens_processo_licitatorio: {
         Row: {
           catmat_catser: string | null
@@ -5549,6 +6237,107 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      liquidacoes: {
+        Row: {
+          atestado_por: string | null
+          created_at: string | null
+          created_by: string | null
+          data_atestado: string | null
+          data_liquidacao: string
+          data_nota_fiscal: string | null
+          empenho_id: string
+          id: string
+          medicao_id: string | null
+          nota_fiscal: string | null
+          numero_liquidacao: string
+          observacao: string | null
+          outras_retencoes: number | null
+          retencao_inss: number | null
+          retencao_irrf: number | null
+          retencao_iss: number | null
+          situacao: string | null
+          updated_at: string | null
+          valor_liquidado: number
+          valor_liquido: number | null
+          valor_retido: number
+        }
+        Insert: {
+          atestado_por?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_atestado?: string | null
+          data_liquidacao: string
+          data_nota_fiscal?: string | null
+          empenho_id: string
+          id?: string
+          medicao_id?: string | null
+          nota_fiscal?: string | null
+          numero_liquidacao: string
+          observacao?: string | null
+          outras_retencoes?: number | null
+          retencao_inss?: number | null
+          retencao_irrf?: number | null
+          retencao_iss?: number | null
+          situacao?: string | null
+          updated_at?: string | null
+          valor_liquidado: number
+          valor_liquido?: number | null
+          valor_retido?: number
+        }
+        Update: {
+          atestado_por?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_atestado?: string | null
+          data_liquidacao?: string
+          data_nota_fiscal?: string | null
+          empenho_id?: string
+          id?: string
+          medicao_id?: string | null
+          nota_fiscal?: string | null
+          numero_liquidacao?: string
+          observacao?: string | null
+          outras_retencoes?: number | null
+          retencao_inss?: number | null
+          retencao_irrf?: number | null
+          retencao_iss?: number | null
+          situacao?: string | null
+          updated_at?: string | null
+          valor_liquidado?: number
+          valor_liquido?: number | null
+          valor_retido?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liquidacoes_atestado_por_fkey"
+            columns: ["atestado_por"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidacoes_atestado_por_fkey"
+            columns: ["atestado_por"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidacoes_empenho_id_fkey"
+            columns: ["empenho_id"]
+            isOneToOne: false
+            referencedRelation: "empenhos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidacoes_medicao_id_fkey"
+            columns: ["medicao_id"]
+            isOneToOne: false
+            referencedRelation: "medicoes_contrato"
             referencedColumns: ["id"]
           },
         ]
@@ -5964,6 +6753,226 @@ export type Database = {
         }
         Relationships: []
       }
+      movimentacoes_bem: {
+        Row: {
+          bem_id: string
+          created_at: string | null
+          created_by: string | null
+          data_movimentacao: string
+          data_previsao_retorno: string | null
+          data_retorno: string | null
+          id: string
+          motivo: string | null
+          numero_termo: string | null
+          observacao: string | null
+          responsavel_destino_id: string | null
+          responsavel_origem_id: string | null
+          tipo: string
+          unidade_destino_id: string | null
+          unidade_origem_id: string | null
+          valor_anterior: number | null
+          valor_novo: number | null
+        }
+        Insert: {
+          bem_id: string
+          created_at?: string | null
+          created_by?: string | null
+          data_movimentacao: string
+          data_previsao_retorno?: string | null
+          data_retorno?: string | null
+          id?: string
+          motivo?: string | null
+          numero_termo?: string | null
+          observacao?: string | null
+          responsavel_destino_id?: string | null
+          responsavel_origem_id?: string | null
+          tipo: string
+          unidade_destino_id?: string | null
+          unidade_origem_id?: string | null
+          valor_anterior?: number | null
+          valor_novo?: number | null
+        }
+        Update: {
+          bem_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          data_movimentacao?: string
+          data_previsao_retorno?: string | null
+          data_retorno?: string | null
+          id?: string
+          motivo?: string | null
+          numero_termo?: string | null
+          observacao?: string | null
+          responsavel_destino_id?: string | null
+          responsavel_origem_id?: string | null
+          tipo?: string
+          unidade_destino_id?: string | null
+          unidade_origem_id?: string | null
+          valor_anterior?: number | null
+          valor_novo?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimentacoes_bem_bem_id_fkey"
+            columns: ["bem_id"]
+            isOneToOne: false
+            referencedRelation: "bens_patrimoniais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_bem_responsavel_destino_id_fkey"
+            columns: ["responsavel_destino_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_bem_responsavel_destino_id_fkey"
+            columns: ["responsavel_destino_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_bem_responsavel_origem_id_fkey"
+            columns: ["responsavel_origem_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_bem_responsavel_origem_id_fkey"
+            columns: ["responsavel_origem_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_bem_unidade_destino_id_fkey"
+            columns: ["unidade_destino_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_bem_unidade_origem_id_fkey"
+            columns: ["unidade_origem_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movimentacoes_estoque: {
+        Row: {
+          almoxarifado_destino_id: string | null
+          almoxarifado_id: string
+          created_at: string | null
+          created_by: string | null
+          empenho_id: string | null
+          id: string
+          item_id: string
+          nota_fiscal: string | null
+          observacao: string | null
+          quantidade: number
+          requisicao_id: string | null
+          servidor_responsavel_id: string | null
+          setor_destino_id: string | null
+          subtipo: string | null
+          tipo: string
+          valor_total: number | null
+          valor_unitario: number | null
+        }
+        Insert: {
+          almoxarifado_destino_id?: string | null
+          almoxarifado_id: string
+          created_at?: string | null
+          created_by?: string | null
+          empenho_id?: string | null
+          id?: string
+          item_id: string
+          nota_fiscal?: string | null
+          observacao?: string | null
+          quantidade: number
+          requisicao_id?: string | null
+          servidor_responsavel_id?: string | null
+          setor_destino_id?: string | null
+          subtipo?: string | null
+          tipo: string
+          valor_total?: number | null
+          valor_unitario?: number | null
+        }
+        Update: {
+          almoxarifado_destino_id?: string | null
+          almoxarifado_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          empenho_id?: string | null
+          id?: string
+          item_id?: string
+          nota_fiscal?: string | null
+          observacao?: string | null
+          quantidade?: number
+          requisicao_id?: string | null
+          servidor_responsavel_id?: string | null
+          setor_destino_id?: string | null
+          subtipo?: string | null
+          tipo?: string
+          valor_total?: number | null
+          valor_unitario?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimentacoes_estoque_almoxarifado_destino_id_fkey"
+            columns: ["almoxarifado_destino_id"]
+            isOneToOne: false
+            referencedRelation: "almoxarifados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_estoque_almoxarifado_id_fkey"
+            columns: ["almoxarifado_id"]
+            isOneToOne: false
+            referencedRelation: "almoxarifados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_estoque_empenho_id_fkey"
+            columns: ["empenho_id"]
+            isOneToOne: false
+            referencedRelation: "empenhos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_estoque_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens_material"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_estoque_servidor_responsavel_id_fkey"
+            columns: ["servidor_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_estoque_servidor_responsavel_id_fkey"
+            columns: ["servidor_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_estoque_setor_destino_id_fkey"
+            columns: ["setor_destino_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nomeacoes_chefe_unidade: {
         Row: {
           ato_data_publicacao: string
@@ -6121,6 +7130,75 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagamentos: {
+        Row: {
+          agencia: string | null
+          banco: string | null
+          conta: string | null
+          conta_autarquia_id: string | null
+          created_at: string | null
+          created_by: string | null
+          data_pagamento: string
+          forma_pagamento: string | null
+          id: string
+          liquidacao_id: string
+          numero_documento_bancario: string | null
+          numero_pagamento: string
+          observacao: string | null
+          situacao: string | null
+          valor_pago: number
+        }
+        Insert: {
+          agencia?: string | null
+          banco?: string | null
+          conta?: string | null
+          conta_autarquia_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_pagamento: string
+          forma_pagamento?: string | null
+          id?: string
+          liquidacao_id: string
+          numero_documento_bancario?: string | null
+          numero_pagamento: string
+          observacao?: string | null
+          situacao?: string | null
+          valor_pago: number
+        }
+        Update: {
+          agencia?: string | null
+          banco?: string | null
+          conta?: string | null
+          conta_autarquia_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_pagamento?: string
+          forma_pagamento?: string | null
+          id?: string
+          liquidacao_id?: string
+          numero_documento_bancario?: string | null
+          numero_pagamento?: string
+          observacao?: string | null
+          situacao?: string | null
+          valor_pago?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagamentos_conta_autarquia_id_fkey"
+            columns: ["conta_autarquia_id"]
+            isOneToOne: false
+            referencedRelation: "contas_autarquia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagamentos_liquidacao_id_fkey"
+            columns: ["liquidacao_id"]
+            isOneToOne: false
+            referencedRelation: "liquidacoes"
             referencedColumns: ["id"]
           },
         ]
@@ -7231,6 +8309,88 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      programas: {
+        Row: {
+          ano_fim: number | null
+          ano_inicio: number
+          codigo: string
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          id: string
+          meta_fisica_total: number | null
+          nome: string
+          objetivo: string | null
+          publico_alvo: string | null
+          servidor_responsavel_id: string | null
+          situacao: string | null
+          unidade_medida: string | null
+          unidade_responsavel_id: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          ano_fim?: number | null
+          ano_inicio: number
+          codigo: string
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          meta_fisica_total?: number | null
+          nome: string
+          objetivo?: string | null
+          publico_alvo?: string | null
+          servidor_responsavel_id?: string | null
+          situacao?: string | null
+          unidade_medida?: string | null
+          unidade_responsavel_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          ano_fim?: number | null
+          ano_inicio?: number
+          codigo?: string
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          meta_fisica_total?: number | null
+          nome?: string
+          objetivo?: string | null
+          publico_alvo?: string | null
+          servidor_responsavel_id?: string | null
+          situacao?: string | null
+          unidade_medida?: string | null
+          unidade_responsavel_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programas_servidor_responsavel_id_fkey"
+            columns: ["servidor_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programas_servidor_responsavel_id_fkey"
+            columns: ["servidor_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programas_unidade_responsavel_id_fkey"
+            columns: ["unidade_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
             referencedColumns: ["id"]
           },
         ]
