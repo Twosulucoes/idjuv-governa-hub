@@ -8,13 +8,6 @@ import { Badge } from "@/components/ui/badge";
 
 const transparenciaItems = [
   {
-    title: "Portal da Transparência",
-    description: "Acesso ao portal de transparência do Governo do Estado de Roraima",
-    icon: ExternalLink,
-    external: true,
-    href: "https://transparencia.rr.gov.br",
-  },
-  {
     title: "Cargos e Remuneração",
     description: "Quadro completo dos 98 cargos comissionados com valores e ocupantes",
     icon: Users,
@@ -22,28 +15,35 @@ const transparenciaItems = [
     highlight: true,
   },
   {
-    title: "Estrutura Organizacional",
-    description: "Organograma e estrutura hierárquica do IDJuv",
-    icon: Building2,
-    href: "/governanca/organograma",
-  },
-  {
-    title: "Relatórios de Gestão",
-    description: "Relatórios anuais de atividades e prestação de contas",
-    icon: BarChart3,
-    href: "/transparencia/relatorios",
-  },
-  {
     title: "Licitações e Contratos",
-    description: "Processos licitatórios e contratos administrativos",
+    description: "Processos licitatórios e contratos (apenas pessoa jurídica)",
     icon: FileText,
     href: "/transparencia/licitacoes",
   },
   {
     title: "Execução Orçamentária",
-    description: "Receitas, despesas e execução orçamentária",
+    description: "Dados agregados de receitas e despesas",
     icon: DollarSign,
     href: "/transparencia/orcamento",
+  },
+  {
+    title: "Patrimônio Público",
+    description: "Bens patrimoniais (dados institucionais)",
+    icon: Building2,
+    href: "/transparencia/patrimonio",
+  },
+  {
+    title: "e-SIC / LAI",
+    description: "Serviço de Informação ao Cidadão - Lei de Acesso à Informação",
+    icon: BarChart3,
+    href: "/transparencia/lai",
+  },
+  {
+    title: "Portal da Transparência",
+    description: "Acesso ao portal de transparência do Governo do Estado de Roraima",
+    icon: ExternalLink,
+    external: true,
+    href: "https://transparencia.rr.gov.br",
   },
 ];
 
