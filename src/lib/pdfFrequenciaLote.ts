@@ -325,6 +325,7 @@ function gerarCapaLote(doc: jsPDF, params: CapaParams) {
 
 // ============================================
 // PÁGINA INDIVIDUAL DO SERVIDOR
+// (Usando EXATAMENTE o mesmo modelo do gerador individual)
 // ============================================
 
 interface PaginaServidorParams {
@@ -342,6 +343,19 @@ interface PaginaServidorParams {
   paginaAtual: number;
   totalPaginas: number;
 }
+
+// Cores do tema institucional (mesmas do modelo individual)
+const CORES = {
+  primaria: { r: 0, g: 68, b: 68 },
+  secundaria: { r: 41, g: 128, b: 185 },
+  texto: { r: 30, g: 35, b: 40 },
+  textoSecundario: { r: 100, g: 105, b: 110 },
+  border: { r: 200, g: 205, b: 210 },
+  bgCinza: { r: 248, g: 250, b: 252 },
+  bgFeriado: { r: 252, g: 248, b: 245 },
+};
+
+const DIAS_SEMANA_SIGLA_PT = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
 
 function gerarPaginaServidor(doc: jsPDF, params: PaginaServidorParams) {
   const {
@@ -362,104 +376,109 @@ function gerarPaginaServidor(doc: jsPDF, params: PaginaServidorParams) {
 
   let y = margin;
 
-  // ===== CABEÇALHO COM LOGOS =====
-  const headerHeight = 24;
-  const logos = getLogosPDF(14); // 14mm para páginas internas
+  // ===== CABEÇALHO COM LOGOS - IGUAL AO INDIVIDUAL =====
+  const logoGovernoHeight = 14;
+  const logoGovernoWidth = logoGovernoHeight * 2.8;
+  const logoIdjuvHeight = 20;
+  const logoIdjuvWidth = logoIdjuvHeight * 1.1;
+  const maxLogoHeight = Math.max(logoGovernoHeight, logoIdjuvHeight);
+  const logoGovernoY = y + (maxLogoHeight - logoGovernoHeight) / 2;
+  const logoIdjuvY = y + (maxLogoHeight - logoIdjuvHeight) / 2;
 
   try {
-    doc.addImage(logoGoverno, 'JPEG', margin, y + 2, logos.governo.width, logos.governo.height);
-    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logos.idjuv.width, y + 2, logos.idjuv.width, logos.idjuv.height);
+    doc.addImage(logoGoverno, 'JPEG', margin + 2, logoGovernoY, logoGovernoWidth, logoGovernoHeight);
+    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth - 2, logoIdjuvY, logoIdjuvWidth, logoIdjuvHeight);
   } catch (e) {
     console.warn('Logos não carregados');
   }
 
-  doc.setTextColor(0, 68, 68);
+  // ===== CABEÇALHO INSTITUCIONAL =====
+  const textoY = y + maxLogoHeight / 2 - 6;
+
+  doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, textoY, { align: 'center' });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+  doc.text('Instituto de Desporto, Juventude e Lazer do Estado de Roraima', pageWidth / 2, textoY + 4.5, { align: 'center' });
+
+  doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  doc.text('FOLHA DE FREQUÊNCIA MENSAL', pageWidth / 2, y + 6, { align: 'center' });
+  doc.text('FOLHA DE FREQUÊNCIA MENSAL', pageWidth / 2, textoY + 11, { align: 'center' });
 
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(60, 65, 70);
-  doc.text(INSTITUICAO.nome, pageWidth / 2, y + 12, { align: 'center' });
-  doc.setFontSize(7);
-  doc.text(`CNPJ: ${INSTITUICAO.cnpj} | ${INSTITUICAO.endereco}`, pageWidth / 2, y + 17, { align: 'center' });
-
-  y += headerHeight;
+  y += maxLogoHeight + 12;
 
   // Linha divisória
-  doc.setDrawColor(0, 68, 68);
-  doc.setLineWidth(0.5);
+  doc.setDrawColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+  doc.setLineWidth(0.8);
   doc.line(margin, y, pageWidth - margin, y);
-  y += 4;
+  y += 6;
 
-  // ===== IDENTIFICAÇÃO DO SERVIDOR =====
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(margin, y, contentWidth, 18, 2, 2, 'F');
-  doc.setDrawColor(220, 225, 230);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, y, contentWidth, 18, 2, 2, 'S');
+  // ===== IDENTIFICAÇÃO DO SERVIDOR - IGUAL AO INDIVIDUAL =====
+  const boxPadding = 5;
+  const boxHeight = 26;
 
-  const col1 = margin + 4;
-  const col2 = margin + contentWidth / 2;
+  doc.setFillColor(CORES.bgCinza.r, CORES.bgCinza.g, CORES.bgCinza.b);
+  doc.roundedRect(margin, y, contentWidth, boxHeight, 3, 3, 'F');
+  doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(margin, y, contentWidth, boxHeight, 3, 3, 'S');
 
-  doc.setFontSize(8);
+  const infoY = y + boxPadding;
+  const col1X = margin + boxPadding;
+  const col2X = margin + contentWidth * 0.55;
+  const lineHeight = 5.5;
+
+  const drawInfoLine = (label: string, value: string, x: number, yPos: number, valueX?: number) => {
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    doc.text(label, x, yPos);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+    doc.setFontSize(8);
+    const valueOffset = valueX || (x + doc.getTextWidth(label) + 2);
+    doc.text(value, valueOffset, yPos);
+  };
+
+  // Linha 1: Servidor e Competência
+  drawInfoLine('SERVIDOR:', servidor.nome_completo || '-', col1X, infoY + 4);
+  
+  doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('SERVIDOR:', col1, y + 5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(servidor.nome_completo || '-', col1 + 22, y + 5);
-
+  doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+  doc.text('COMPETÊNCIA:', col2X, infoY + 4);
+  
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('COMPETÊNCIA:', col2, y + 5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(competenciaStr, col2 + 30, y + 5);
+  doc.setFontSize(9);
+  doc.setTextColor(CORES.secundaria.r, CORES.secundaria.g, CORES.secundaria.b);
+  doc.text(competenciaStr, col2X + doc.getTextWidth('COMPETÊNCIA: ') + 2, infoY + 4);
 
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Matrícula:', col1, y + 10);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(servidor.matricula || '-', col1 + 18, y + 10);
+  // Linha 2: Matrícula e Cargo
+  drawInfoLine('Matrícula:', servidor.matricula || '-', col1X, infoY + 4 + lineHeight);
+  drawInfoLine('Cargo:', servidor.cargo_nome || '-', col1X + 55, infoY + 4 + lineHeight);
 
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Cargo:', col1 + 45, y + 10);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(servidor.cargo_nome || '-', col1 + 58, y + 10);
+  // Linha 3: Unidade
+  const unidadeLabel = servidor.unidade_sigla 
+    ? `${servidor.unidade_sigla} - ${servidor.unidade_nome || ''}`
+    : servidor.unidade_nome || '-';
+  drawInfoLine('Unidade:', unidadeLabel.substring(0, 45), col1X, infoY + 4 + lineHeight * 2);
 
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Unidade:', col2, y + 10);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  const unidadeLabel = servidor.unidade_sigla ? `${servidor.unidade_sigla} - ${servidor.unidade_nome || ''}` : servidor.unidade_nome || '-';
-  doc.text(unidadeLabel.substring(0, 40), col2 + 17, y + 10);
+  // Linha 4: Regime e Jornada
+  drawInfoLine('Regime:', servidor.regime || 'Presencial', col1X, infoY + 4 + lineHeight * 3);
+  const jornada = `${servidor.carga_horaria_diaria || 8}h/dia • ${servidor.carga_horaria_semanal || 40}h/sem`;
+  drawInfoLine('Jornada:', jornada, col1X + 50, infoY + 4 + lineHeight * 3);
 
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Regime:', col1, y + 15);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(servidor.regime || 'Presencial', col1 + 15, y + 15);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 68, 68);
-  doc.text('Jornada:', col1 + 50, y + 15);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(30, 35, 40);
-  doc.text(`${servidor.carga_horaria_diaria || 8}h/dia | ${servidor.carga_horaria_semanal || 40}h/sem`, col1 + 66, y + 15);
-
-  y += 22;
+  y += boxHeight + 8;
 
   // ===== OBSERVAÇÃO AUTOMÁTICA (se dispensado) =====
-  let observacaoHeight = 0;
   if (servidor.observacao_automatica) {
-    observacaoHeight = 14;
+    const observacaoHeight = 14;
     
     doc.setFillColor(255, 250, 240);
     doc.setDrawColor(200, 160, 80);
@@ -479,206 +498,238 @@ function gerarPaginaServidor(doc: jsPDF, params: PaginaServidorParams) {
     y += observacaoHeight + 2;
   }
 
-  // ===== TABELA DE FREQUÊNCIA =====
-  const assinaturasHeight = 38;
-  const rodapeHeight = 10;
-  const espacoDisponivel = pageHeight - y - assinaturasHeight - rodapeHeight;
-  const headerTableHeight = 7;
-  const rowHeight = (espacoDisponivel - headerTableHeight) / ultimoDia;
+  // ===== TABELA DE FREQUÊNCIA - IGUAL AO INDIVIDUAL =====
+  const assinaturasHeight = 35;
+  const rodapeHeight = 12;
+  const espacoDisponivel = pageHeight - y - assinaturasHeight - rodapeHeight - 5;
+  
+  const headerTableHeight = 8;
+  const rowHeight = 5.8;
+  const maxRows = Math.floor((espacoDisponivel - headerTableHeight) / rowHeight);
 
   const colWidths = {
-    dia: 12,
-    diaSemana: 16,
-    tipo: 32,
-    entrada: 22,
-    saida: 22,
-    assinatura: contentWidth - 104,
+    dia: 13,
+    diaSemana: 18,
+    tipo: 36,
+    entrada: 24,
+    saida: 24,
+    assinatura: contentWidth - 115,
   };
 
   // Header da tabela
-  doc.setFillColor(0, 68, 68);
-  doc.rect(margin, y, contentWidth, headerTableHeight, 'F');
+  doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+  doc.roundedRect(margin, y, contentWidth, headerTableHeight, 2, 2, 'F');
 
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(7);
+  doc.setFontSize(7.5);
   doc.setFont('helvetica', 'bold');
 
   let colX = margin;
-  doc.text('DIA', colX + colWidths.dia / 2, y + 4.5, { align: 'center' });
+  const headerY = y + headerTableHeight / 2 + 1.5;
+  
+  doc.text('DIA', colX + colWidths.dia / 2, headerY, { align: 'center' });
   colX += colWidths.dia;
-  doc.text('SEMANA', colX + colWidths.diaSemana / 2, y + 4.5, { align: 'center' });
+  doc.text('SEMANA', colX + colWidths.diaSemana / 2, headerY, { align: 'center' });
   colX += colWidths.diaSemana;
-  doc.text('TIPO DO DIA', colX + colWidths.tipo / 2, y + 4.5, { align: 'center' });
+  doc.text('TIPO DO DIA', colX + colWidths.tipo / 2, headerY, { align: 'center' });
   colX += colWidths.tipo;
-  doc.text('ENTRADA', colX + colWidths.entrada / 2, y + 4.5, { align: 'center' });
+  doc.text('ENTRADA', colX + colWidths.entrada / 2, headerY, { align: 'center' });
   colX += colWidths.entrada;
-  doc.text('SAÍDA', colX + colWidths.saida / 2, y + 4.5, { align: 'center' });
+  doc.text('SAÍDA', colX + colWidths.saida / 2, headerY, { align: 'center' });
   colX += colWidths.saida;
-  doc.text('ASSINATURA DO SERVIDOR', colX + colWidths.assinatura / 2, y + 4.5, { align: 'center' });
+  doc.text('ASSINATURA', colX + colWidths.assinatura / 2, headerY, { align: 'center' });
 
   y += headerTableHeight;
 
   // Linhas de dados
-  for (let dia = 1; dia <= ultimoDia; dia++) {
+  for (let dia = 1; dia <= ultimoDia && dia <= maxRows; dia++) {
     const dataAtual = new Date(competencia.ano, competencia.mes - 1, dia);
     const dataStr = `${competencia.ano}-${String(competencia.mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-    const { situacao, label } = getSituacaoDia(dataAtual, diasNaoUteis);
-    const diaSemana = dataAtual.getDay();
+    const situacaoBase = getSituacaoDia(dataAtual, diasNaoUteis);
+    const { situacao, label } = situacaoBase;
     
     const isNaoUtil = situacao !== 'util';
-    const isWeekend = situacao === 'sabado' || situacao === 'domingo';
-    const isFeriado = situacao === 'feriado' || situacao === 'ponto_facultativo' || situacao === 'recesso';
+    const diaSemana = dataAtual.getDay();
+    const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
     
-    // Verificar se dia está dispensado por situação administrativa
+    // Verificar dispensa por situação administrativa
     const { dispensado, motivo } = isDiaDispensado(dataStr, servidor);
 
-    // Fundo
-    if (dispensado) {
-      doc.setFillColor(255, 240, 245); // Rosa claro para dispensado
-    } else if (isFeriado) {
-      doc.setFillColor(255, 245, 220);
-    } else if (isWeekend) {
-      doc.setFillColor(250, 248, 240);
-    } else if (dia % 2 === 0) {
-      doc.setFillColor(252, 253, 255);
-    } else {
-      doc.setFillColor(255, 255, 255);
-    }
+    // Cores diferentes para dias úteis e não úteis
+    const bgColor = dispensado
+      ? { r: 255, g: 240, b: 245 }
+      : isNaoUtil 
+        ? (situacao === 'feriado' ? CORES.bgFeriado : { r: 250, g: 250, b: 252 })
+        : (isFimDeSemana ? { r: 254, g: 254, b: 255 } : { r: 255, g: 255, b: 255 });
+    
+    const textColor = (isNaoUtil || dispensado)
+      ? { r: 140, g: 145, b: 150 } 
+      : CORES.texto;
+
+    // Background da linha
+    doc.setFillColor(bgColor.r, bgColor.g, bgColor.b);
     doc.rect(margin, y, contentWidth, rowHeight, 'F');
 
-    // Bordas
-    doc.setDrawColor(230, 232, 236);
-    doc.setLineWidth(0.1);
-    doc.rect(margin, y, contentWidth, rowHeight, 'S');
+    // Bordas horizontais
+    doc.setDrawColor(235, 238, 242);
+    doc.setLineWidth(0.15);
+    doc.line(margin, y + rowHeight, pageWidth - margin, y + rowHeight);
 
-    const centerY = y + rowHeight / 2 + 1;
+    // Colunas
     colX = margin;
+    doc.setTextColor(textColor.r, textColor.g, textColor.b);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+
+    const textY = y + rowHeight / 2 + 1.2;
 
     // Dia
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 68, 68);
-    doc.setFontSize(7);
-    doc.text(String(dia).padStart(2, '0'), colX + colWidths.dia / 2, centerY, { align: 'center' });
+    doc.text(String(dia).padStart(2, '0'), colX + colWidths.dia / 2, textY, { align: 'center' });
     colX += colWidths.dia;
 
-    // Dia semana
+    // Linhas verticais suaves
+    doc.setDrawColor(240, 242, 245);
+    doc.line(colX, y, colX, y + rowHeight);
+
+    // Dia da semana
     doc.setFont('helvetica', 'normal');
-    if (isWeekend) {
-      doc.setTextColor(140, 110, 60);
-    } else {
-      doc.setTextColor(70, 75, 80);
-    }
-    doc.text(DIAS_SEMANA_SIGLA[diaSemana], colX + colWidths.diaSemana / 2, centerY, { align: 'center' });
+    doc.setFontSize(6.5);
+    doc.text(DIAS_SEMANA_SIGLA_PT[diaSemana], colX + colWidths.diaSemana / 2, textY, { align: 'center' });
     colX += colWidths.diaSemana;
+    
+    doc.line(colX, y, colX, y + rowHeight);
 
     // Tipo do dia
     let tipoLabel = '';
     if (dispensado) {
       tipoLabel = motivo || 'Dispensado';
-      doc.setTextColor(180, 80, 120);
       doc.setFont('helvetica', 'italic');
-    } else if (isFeriado) {
+    } else if (situacao === 'feriado') {
       tipoLabel = label || 'Feriado';
-      doc.setTextColor(150, 120, 50);
       doc.setFont('helvetica', 'italic');
-    } else if (isWeekend) {
-      tipoLabel = situacao === 'sabado' ? 'Sábado' : 'Domingo';
-      doc.setTextColor(150, 120, 50);
+    } else if (situacao === 'domingo') {
+      tipoLabel = 'Domingo';
       doc.setFont('helvetica', 'italic');
-    } else {
-      doc.setTextColor(100, 105, 110);
-      doc.setFont('helvetica', 'normal');
+    } else if (situacao === 'sabado') {
+      tipoLabel = 'Sábado';
+      doc.setFont('helvetica', 'italic');
+    } else if (situacao === 'ponto_facultativo') {
+      tipoLabel = label || 'Ponto Facultativo';
+      doc.setFont('helvetica', 'italic');
+    } else if (situacao === 'recesso') {
+      tipoLabel = label || 'Recesso';
+      doc.setFont('helvetica', 'italic');
     }
-    doc.text(tipoLabel.substring(0, 15), colX + colWidths.tipo / 2, centerY, { align: 'center' });
-    colX += colWidths.tipo;
-
-    // Entrada e Saída
+    
+    doc.setFontSize(6.5);
+    doc.text(tipoLabel.substring(0, 20), colX + colWidths.tipo / 2, textY, { align: 'center' });
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(50, 55, 60);
+    colX += colWidths.tipo;
+    
+    doc.line(colX, y, colX, y + rowHeight);
 
-    if (dispensado || isNaoUtil) {
-      // Não mostrar campos para dias dispensados
-      doc.setTextColor(180, 180, 180);
-      doc.text('—', colX + colWidths.entrada / 2, centerY, { align: 'center' });
-      colX += colWidths.entrada;
-      doc.text('—', colX + colWidths.saida / 2, centerY, { align: 'center' });
-    } else {
-      // Linhas para preenchimento manual
+    // Entrada e Saída - linhas para preenchimento manual (se dia útil)
+    if (!isNaoUtil && !dispensado) {
       doc.setDrawColor(180, 185, 190);
       doc.setLineWidth(0.2);
-      doc.line(colX + 3, centerY, colX + colWidths.entrada - 3, centerY);
-      colX += colWidths.entrada;
-      doc.line(colX + 3, centerY, colX + colWidths.saida - 3, centerY);
+      doc.line(colX + 4, textY, colX + colWidths.entrada - 4, textY);
+    } else {
+      doc.setTextColor(180, 180, 180);
+      doc.text('—', colX + colWidths.entrada / 2, textY, { align: 'center' });
+    }
+    colX += colWidths.entrada;
+    
+    doc.line(colX, y, colX, y + rowHeight);
+
+    if (!isNaoUtil && !dispensado) {
+      doc.setDrawColor(180, 185, 190);
+      doc.setLineWidth(0.2);
+      doc.line(colX + 4, textY, colX + colWidths.saida - 4, textY);
+    } else {
+      doc.setTextColor(180, 180, 180);
+      doc.text('—', colX + colWidths.saida / 2, textY, { align: 'center' });
     }
     colX += colWidths.saida;
+    
+    // Linha vertical entre Saída e Assinatura
+    doc.setDrawColor(240, 242, 245);
+    doc.line(colX, y, colX, y + rowHeight);
 
-    // Linha de assinatura
-    if (!dispensado && !isNaoUtil) {
+    // Coluna de assinatura - linha para preenchimento (se dia útil)
+    if (!isNaoUtil && !dispensado) {
       doc.setDrawColor(200, 205, 210);
       doc.setLineWidth(0.15);
-      doc.line(colX + 8, centerY, colX + colWidths.assinatura - 8, centerY);
+      doc.line(colX + 8, textY, colX + colWidths.assinatura - 8, textY);
     }
 
     y += rowHeight;
   }
 
-  // ===== BLOCO DE ASSINATURAS =====
-  y += 3;
+  // Borda final da tabela
+  doc.setDrawColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+  doc.setLineWidth(0.6);
+  doc.line(margin, y, pageWidth - margin, y);
+
+  // ===== ÁREA DE ASSINATURAS - IGUAL AO INDIVIDUAL =====
+  y += 8;
 
   // Declaração
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(margin, y, contentWidth, 10, 1.5, 1.5, 'F');
-  doc.setDrawColor(210, 215, 220);
-  doc.setLineWidth(0.2);
-  doc.roundedRect(margin, y, contentWidth, 10, 1.5, 1.5, 'S');
-
-  doc.setTextColor(60, 65, 70);
-  doc.setFontSize(7);
+  doc.setFontSize(7.5);
+  doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
   doc.setFont('helvetica', 'italic');
-  doc.text(
-    configAssinatura.texto_declaracao || 'Declaro, para os devidos fins, que as informações constantes nesta folha correspondem à minha efetiva jornada de trabalho no período de referência.',
-    pageWidth / 2, y + 6, { align: 'center', maxWidth: contentWidth - 10 }
-  );
+  const textoDeclaracao = configAssinatura.texto_declaracao || 
+    'Declaro que as informações acima refletem fielmente a jornada de trabalho exercida no período.';
+  doc.text(textoDeclaracao, pageWidth / 2, y, { align: 'center', maxWidth: contentWidth - 20 });
 
-  y += 14;
+  y += 10;
 
-  // Assinaturas lado a lado
-  const assWidth = (contentWidth - 20) / 2;
-
-  // Servidor
-  doc.setDrawColor(0, 68, 68);
+  // Linhas de assinatura
+  const assinaturaWidth = (contentWidth - 30) / 2;
+  const assinaturaY = y;
+  
+  // Assinatura do servidor
+  doc.setDrawColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
   doc.setLineWidth(0.4);
-  doc.line(margin + 5, y + 10, margin + 5 + assWidth, y + 10);
-  doc.setTextColor(0, 68, 68);
-  doc.setFont('helvetica', 'bold');
+  doc.line(margin + 5, assinaturaY, margin + 5 + assinaturaWidth, assinaturaY);
+  
   doc.setFontSize(7);
-  doc.text('ASSINATURA DO SERVIDOR', margin + 5 + assWidth / 2, y + 14, { align: 'center' });
+  doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Assinatura do Servidor', margin + 5 + assinaturaWidth / 2, assinaturaY + 5, { align: 'center' });
+  
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6);
-  doc.setTextColor(100, 105, 110);
-  doc.text(servidor.nome_completo || '', margin + 5 + assWidth / 2, y + 18, { align: 'center' });
+  doc.setFontSize(6.5);
+  doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
+  doc.text(servidor.nome_completo || '', margin + 5 + assinaturaWidth / 2, assinaturaY + 9, { align: 'center' });
 
-  // Chefia
-  doc.setDrawColor(0, 68, 68);
-  doc.line(margin + 15 + assWidth, y + 10, margin + 15 + assWidth * 2, y + 10);
-  doc.setTextColor(0, 68, 68);
+  // Assinatura da chefia
+  const chefiaX = pageWidth - margin - assinaturaWidth - 5;
+  doc.setDrawColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
+  doc.line(chefiaX, assinaturaY, chefiaX + assinaturaWidth, assinaturaY);
+  
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
-  doc.text('ASSINATURA DA CHEFIA IMEDIATA', margin + 15 + assWidth + assWidth / 2, y + 14, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6);
-  doc.setTextColor(100, 105, 110);
-  doc.text(configAssinatura.nome_chefia || '', margin + 15 + assWidth + assWidth / 2, y + 18, { align: 'center' });
+  doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+  doc.text('Assinatura da Chefia Imediata', chefiaX + assinaturaWidth / 2, assinaturaY + 5, { align: 'center' });
+  
+  if (configAssinatura.nome_chefia) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
+    doc.text(configAssinatura.nome_chefia, chefiaX + assinaturaWidth / 2, assinaturaY + 9, { align: 'center' });
+  }
 
   // ===== RODAPÉ =====
-  doc.setDrawColor(220, 225, 230);
-  doc.setLineWidth(0.3);
-  doc.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
-
-  doc.setTextColor(130, 135, 140);
+  const rodapeY = pageHeight - 6;
+  doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
   doc.setFontSize(6);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Gerado em: ${dataGeracao}`, margin, pageHeight - 6);
-  doc.text(`${INSTITUICAO.sigla} - Sistema de Gestão de Pessoas`, pageWidth / 2, pageHeight - 6, { align: 'center' });
-  doc.text(`Página ${paginaAtual} de ${totalPaginas}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
+  
+  doc.text(`Gerado em ${dataGeracao}`, margin, rodapeY);
+  doc.text(`${INSTITUICAO.sigla} - Sistema de Gestão de Pessoas`, pageWidth / 2, rodapeY, { align: 'center' });
+  
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.5);
+  doc.text(`Página ${paginaAtual} de ${totalPaginas}`, pageWidth - margin, rodapeY, { align: 'right' });
 }
