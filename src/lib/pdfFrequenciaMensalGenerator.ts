@@ -207,43 +207,46 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
   let y = margin;
 
   // ===== CABEÇALHO COM LOGOS MELHORADO =====
-  // Logo do Governo menor e Logo IDJuv maior para ficarem visualmente iguais
-  const logoGovernoHeight = 12; // Governo reduzida
+  // Logos alinhadas verticalmente e com tamanhos proporcionais
+  const logoGovernoHeight = 14; // Governo 
   const logoGovernoWidth = logoGovernoHeight * 2.8; // Proporção horizontal
   
-  const logoIdjuvHeight = 18; // IDJuv aumentada
+  const logoIdjuvHeight = 20; // IDJuv maior
   const logoIdjuvWidth = logoIdjuvHeight * 1.1; // Proporção mais quadrada
+  
+  // Calcular Y para alinhar verticalmente (centralizar ambas)
+  const maxLogoHeight = Math.max(logoGovernoHeight, logoIdjuvHeight);
+  const logoGovernoY = y + (maxLogoHeight - logoGovernoHeight) / 2;
+  const logoIdjuvY = y + (maxLogoHeight - logoIdjuvHeight) / 2;
 
   try {
-    // Logo do governo (esquerda) - MENOR
-    doc.addImage(logoGoverno, 'JPEG', margin + 2, y, logoGovernoWidth, logoGovernoHeight);
+    // Logo do governo (esquerda) - alinhada
+    doc.addImage(logoGoverno, 'JPEG', margin + 2, logoGovernoY, logoGovernoWidth, logoGovernoHeight);
     
-    // Logo IDJuv (direita) - MAIOR
-    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth - 2, y, logoIdjuvWidth, logoIdjuvHeight);
+    // Logo IDJuv (direita) - alinhada
+    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth - 2, logoIdjuvY, logoIdjuvWidth, logoIdjuvHeight);
   } catch (e) {
     console.warn('Logos não carregados');
   }
 
   // Título centralizado - melhor espaçamento
-  const tituloY = y + 4;
+  const tituloY = y + maxLogoHeight / 2 - 3;
   doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
   doc.text('FOLHA DE FREQUÊNCIA MENSAL', pageWidth / 2, tituloY, { align: 'center' });
 
-  // Subtítulo - instituição
-  doc.setFontSize(9);
+  // Informações institucionais - simplificadas
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
-  doc.text(INSTITUICAO.sigla, pageWidth / 2, tituloY + 5.5, { align: 'center' });
-
-  // Informações institucionais
-  doc.setFontSize(7);
+  doc.text('Governo do Estado de Roraima', pageWidth / 2, tituloY + 5, { align: 'center' });
+  
+  doc.setFontSize(7.5);
   doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
-  doc.text(INSTITUICAO.nome, pageWidth / 2, tituloY + 10, { align: 'center' });
-  doc.text(`CNPJ: ${INSTITUICAO.cnpj}`, pageWidth / 2, tituloY + 14, { align: 'center' });
+  doc.text('Instituto de Desporto, Juventude e Lazer do Estado de Roraima', pageWidth / 2, tituloY + 9.5, { align: 'center' });
 
-  y += 32; // Espaço total do cabeçalho
+  y += maxLogoHeight + 12; // Espaço total do cabeçalho
 
   // Linha divisória mais elegante
   doc.setDrawColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
@@ -352,10 +355,11 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
   doc.text('SAÍDA', colX + colWidths.saida / 2, headerY, { align: 'center' });
   colX += colWidths.saida;
   
-  // Separador visual no cabeçalho (linha vertical dupla)
+  // Separador visual no cabeçalho (linhas duplas verticais)
   doc.setDrawColor(255, 255, 255);
-  doc.setLineWidth(2);
-  doc.line(colX + colWidths.separador / 2, y, colX + colWidths.separador / 2, y + headerTableHeight);
+  doc.setLineWidth(0.4);
+  doc.line(colX + 0.8, y, colX + 0.8, y + headerTableHeight);
+  doc.line(colX + 2.2, y, colX + 2.2, y + headerTableHeight);
   colX += colWidths.separador;
   
   doc.text('ASSINATURA', colX + colWidths.assinatura / 2, headerY, { align: 'center' });
@@ -473,19 +477,23 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
     }
     colX += colWidths.saida;
     
-    // SEPARADOR VISUAL entre Saída e Assinatura (linha vertical mais grossa)
+    // SEPARADOR VISUAL entre Saída e Assinatura (linha vertical dupla mais elegante)
     doc.setDrawColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
-    doc.setLineWidth(0.8);
-    doc.line(colX + colWidths.separador / 2, y, colX + colWidths.separador / 2, y + rowHeight);
+    doc.setLineWidth(0.5);
+    doc.line(colX + 0.8, y + 0.5, colX + 0.8, y + rowHeight - 0.5);
+    doc.line(colX + 2.2, y + 0.5, colX + 2.2, y + rowHeight - 0.5);
     colX += colWidths.separador;
 
     // Coluna de assinatura
-    // Se for dia não útil, desenhar risco diagonal para indicar que não precisa assinar
+    // Se for dia não útil, desenhar riscos diagonais duplos elegantes
     if (isNaoUtil) {
-      doc.setDrawColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
-      doc.setLineWidth(0.4);
-      // Linha diagonal do canto inferior esquerdo ao superior direito
-      doc.line(colX + 2, y + rowHeight - 1, colX + colWidths.assinatura - 2, y + 1);
+      doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
+      doc.setLineWidth(0.3);
+      
+      // Duas linhas diagonais paralelas para efeito mais elegante
+      const offset = 1;
+      doc.line(colX + 3, y + rowHeight - 1, colX + colWidths.assinatura - 3, y + 1);
+      doc.line(colX + 3 + offset, y + rowHeight - 1, colX + colWidths.assinatura - 3 + offset, y + 1);
     }
 
     y += rowHeight;
