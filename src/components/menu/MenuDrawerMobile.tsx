@@ -2,9 +2,9 @@
  * MENU DRAWER MOBILE
  * 
  * Drawer lateral para dispositivos móveis
- * Prioriza acesso rápido e favoritos
+ * Prioriza acesso rápido, favoritos e busca
  * 
- * @version 1.0.0
+ * @version 1.1.0 - Adicionada busca de menu e melhorias de UX
  */
 
 import { Link } from "react-router-dom";
@@ -27,6 +27,7 @@ import {
   CollapsibleContent,
 } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
+import { MenuSearch } from "./MenuSearch";
 
 export function MenuDrawerMobile() {
   const {
@@ -162,6 +163,13 @@ export function MenuDrawerMobile() {
 
         <ScrollArea className="h-[calc(100vh-5rem)]">
           <div className="p-4 space-y-4">
+            {/* Busca de Menu */}
+            <MenuSearch 
+              variant="mobile"
+              placeholder="Buscar no menu..."
+              onNavigate={() => setMobileDrawerOpen(false)}
+            />
+
             {/* Loading */}
             {isLoading && (
               <div className="flex items-center justify-center py-8">

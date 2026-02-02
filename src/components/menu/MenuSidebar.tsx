@@ -1,10 +1,10 @@
 /**
  * MENU SIDEBAR DESKTOP
  * 
- * Sidebar colapsável institucional com grupos e favoritos
+ * Sidebar colapsável institucional com grupos, favoritos e busca
  * Integração direta com MenuContext
  * 
- * @version 1.0.0
+ * @version 1.1.0 - Adicionada busca de menu
  */
 
 import { Link } from "react-router-dom";
@@ -41,6 +41,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { MenuSearch } from "./MenuSearch";
 
 export function MenuSidebar() {
   const { state, toggleSidebar } = useSidebar();
@@ -257,6 +258,16 @@ export function MenuSidebar() {
 
       <SidebarContent>
         <ScrollArea className="h-[calc(100vh-8rem)]">
+          {/* Busca de Menu (apenas quando expandido) */}
+          {!isCollapsed && (
+            <div className="px-3 py-2">
+              <MenuSearch 
+                variant="desktop" 
+                placeholder="Buscar..."
+              />
+            </div>
+          )}
+
           {/* Dashboard */}
           <SidebarGroup>
             <SidebarGroupContent>
