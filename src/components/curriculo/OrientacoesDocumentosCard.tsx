@@ -58,13 +58,13 @@ const DOCUMENTOS_NECESSARIOS = [
 export function OrientacoesDocumentosCard() {
   const [isOpen, setIsOpen] = useState(true);
 
-  const handleDownloadNaoAcumulacao = () => {
-    const doc = gerarDeclaracaoNaoAcumulacao();
+  const handleDownloadNaoAcumulacao = async () => {
+    const doc = await gerarDeclaracaoNaoAcumulacao();
     doc.save("declaracao-nao-acumulacao-cargos.pdf");
   };
 
-  const handleDownloadBensValores = () => {
-    const doc = gerarDeclaracaoBensValores();
+  const handleDownloadBensValores = async () => {
+    const doc = await gerarDeclaracaoBensValores();
     doc.save("declaracao-bens-valores.pdf");
   };
 
