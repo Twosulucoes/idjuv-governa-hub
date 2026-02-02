@@ -257,12 +257,27 @@ export const menuConfig: MenuSection[] = [
         priority: 3,
       },
       {
-        id: "frequencia",
+        id: "frequencia-submenu",
         label: "Frequência",
-        route: "/rh/frequencia",
         icon: CalendarDays,
-        permission: "rh.visualizar",
         priority: 4,
+        children: [
+          {
+            id: "frequencia",
+            label: "Gestão de Frequência",
+            route: "/rh/frequencia",
+            icon: CalendarDays,
+            permission: "rh.visualizar",
+          },
+          {
+            id: "frequencia-config",
+            label: "Parametrização",
+            labelShort: "Parâmetros",
+            route: "/rh/configuracao-frequencia",
+            icon: Settings,
+            permission: "rh.aprovar",
+          },
+        ],
       },
       {
         id: "ferias-licencas",
