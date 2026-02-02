@@ -12,11 +12,13 @@ import {
   PenLine,
   Lock,
   Briefcase,
-  Layers
+  Layers,
+  CalendarDays
 } from "lucide-react";
 import { JornadaTab } from "@/components/frequencia/config/JornadaTab";
 import { RegimesTab } from "@/components/frequencia/config/RegimesTab";
 import { DiasNaoUteisTab } from "@/components/frequencia/config/DiasNaoUteisTab";
+import { CalendarioOficialTab } from "@/components/frequencia/config/CalendarioOficialTab";
 import { TiposAbonoTab } from "@/components/frequencia/config/TiposAbonoTab";
 import { CompensacaoTab } from "@/components/frequencia/config/CompensacaoTab";
 import { FechamentoTab } from "@/components/frequencia/config/FechamentoTab";
@@ -24,12 +26,13 @@ import { AssinaturasTab } from "@/components/frequencia/config/AssinaturasTab";
 import { AgrupamentosUnidadesTab } from "@/components/frequencia/config/AgrupamentosUnidadesTab";
 
 export default function ConfiguracaoFrequenciaPage() {
-  const [activeTab, setActiveTab] = useState("jornada");
+  const [activeTab, setActiveTab] = useState("calendario");
 
   const tabs = [
+    { id: "calendario", label: "Calendário", icon: CalendarDays, description: "Visualização do calendário oficial" },
+    { id: "dias", label: "Dias Não Úteis", icon: Calendar, description: "Feriados, recessos e pontos facultativos" },
     { id: "jornada", label: "Jornada", icon: Clock, description: "Carga horária e horários" },
     { id: "regimes", label: "Regimes", icon: Briefcase, description: "Presencial, teletrabalho, etc." },
-    { id: "dias", label: "Dias Não Úteis", icon: Calendar, description: "Feriados, recessos, etc." },
     { id: "abonos", label: "Abonos", icon: FileCheck, description: "Tipos de justificativa" },
     { id: "compensacao", label: "Compensação", icon: Timer, description: "Banco de horas" },
     { id: "fechamento", label: "Fechamento", icon: Lock, description: "Prazos e consolidação" },
@@ -90,16 +93,20 @@ export default function ConfiguracaoFrequenciaPage() {
             </CardHeader>
           </Card>
 
+          <TabsContent value="calendario" className="mt-0">
+            <CalendarioOficialTab />
+          </TabsContent>
+
+          <TabsContent value="dias" className="mt-0">
+            <DiasNaoUteisTab />
+          </TabsContent>
+
           <TabsContent value="jornada" className="mt-0">
             <JornadaTab />
           </TabsContent>
 
           <TabsContent value="regimes" className="mt-0">
             <RegimesTab />
-          </TabsContent>
-
-          <TabsContent value="dias" className="mt-0">
-            <DiasNaoUteisTab />
           </TabsContent>
 
           <TabsContent value="abonos" className="mt-0">

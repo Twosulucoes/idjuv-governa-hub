@@ -2258,6 +2258,7 @@ export type Database = {
           entrada_manha: string | null
           entrada_tarde: string | null
           escopo: string | null
+          fundamentacao_legal: string | null
           id: string
           intervalo_maximo: number | null
           intervalo_minimo: number | null
@@ -2274,6 +2275,8 @@ export type Database = {
           unidade_id: string | null
           updated_at: string | null
           updated_by: string | null
+          vigencia_fim: string | null
+          vigencia_inicio: string | null
         }
         Insert: {
           ativo?: boolean | null
@@ -2288,6 +2291,7 @@ export type Database = {
           entrada_manha?: string | null
           entrada_tarde?: string | null
           escopo?: string | null
+          fundamentacao_legal?: string | null
           id?: string
           intervalo_maximo?: number | null
           intervalo_minimo?: number | null
@@ -2304,6 +2308,8 @@ export type Database = {
           unidade_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
         }
         Update: {
           ativo?: boolean | null
@@ -2318,6 +2324,7 @@ export type Database = {
           entrada_manha?: string | null
           entrada_tarde?: string | null
           escopo?: string | null
+          fundamentacao_legal?: string | null
           id?: string
           intervalo_maximo?: number | null
           intervalo_minimo?: number | null
@@ -2334,6 +2341,8 @@ export type Database = {
           unidade_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
         }
         Relationships: [
           {
@@ -3852,15 +3861,21 @@ export type Database = {
           created_by: string | null
           data: string
           dia_recorrente: number | null
+          esfera: string | null
           exige_compensacao: boolean | null
+          fundamentacao_legal: string | null
           horas_expediente: number | null
           id: string
           mes_recorrente: number | null
+          municipio: string | null
           nome: string
           observacao: string | null
           recorrente: boolean | null
           tipo: string
+          uf: string | null
           unidades_aplicaveis: string[] | null
+          updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           abrangencia?: string | null
@@ -3870,15 +3885,21 @@ export type Database = {
           created_by?: string | null
           data: string
           dia_recorrente?: number | null
+          esfera?: string | null
           exige_compensacao?: boolean | null
+          fundamentacao_legal?: string | null
           horas_expediente?: number | null
           id?: string
           mes_recorrente?: number | null
+          municipio?: string | null
           nome: string
           observacao?: string | null
           recorrente?: boolean | null
           tipo: string
+          uf?: string | null
           unidades_aplicaveis?: string[] | null
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           abrangencia?: string | null
@@ -3888,15 +3909,21 @@ export type Database = {
           created_by?: string | null
           data?: string
           dia_recorrente?: number | null
+          esfera?: string | null
           exige_compensacao?: boolean | null
+          fundamentacao_legal?: string | null
           horas_expediente?: number | null
           id?: string
           mes_recorrente?: number | null
+          municipio?: string | null
           nome?: string
           observacao?: string | null
           recorrente?: boolean | null
           tipo?: string
+          uf?: string | null
           unidades_aplicaveis?: string[] | null
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }
