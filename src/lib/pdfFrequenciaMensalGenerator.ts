@@ -256,11 +256,13 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
   // ===== CABEÇALHO INSTITUCIONAL LIMPO (SEM FAIXA ESCURA) =====
   const headerHeight = 22;
   
-  // Logos com proporções equilibradas
+  // Logos com PESO VISUAL EQUIVALENTE
+  // A logo do Governo é horizontal (3.69:1), a do IDJuv é mais compacta (1.55:1)
+  // Para equilíbrio visual, a logo IDJuv precisa ter altura maior
   const logoGovernoHeight = 14;
-  const logoGovernoWidth = logoGovernoHeight * 3.69; // Proporção original
-  const logoIdjuvHeight = 14;
-  const logoIdjuvWidth = logoIdjuvHeight * 1.55; // Proporção original
+  const logoGovernoWidth = logoGovernoHeight * 3.69; // Proporção original ~51.7mm
+  const logoIdjuvHeight = 18; // Altura maior para compensar formato compacto
+  const logoIdjuvWidth = logoIdjuvHeight * 1.55; // Proporção original ~27.9mm
   
   // Área central para textos
   const logoLeftEnd = margin + logoGovernoWidth + 4;
