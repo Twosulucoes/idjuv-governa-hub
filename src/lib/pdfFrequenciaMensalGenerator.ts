@@ -7,7 +7,7 @@
  * - ✅ Melhor uso do espaço vertical
  * - ✅ Tabela com altura fixa e consistente
  * - ✅ Tipografia melhorada
- * - ✅ Cores mais harmônicas
+ * - ✅ Cores mais harmônicas (atualizado)
  */
 import jsPDF from 'jspdf';
 import { DIAS_SEMANA_SIGLA, type DiaNaoUtil } from '@/types/frequencia';
@@ -477,15 +477,22 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
     }
     colX += colWidths.saida;
     
-   
+    // SEPARADOR VISUAL entre Saída e Assinatura (linha vertical mais grossa)
+    doc.setDrawColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    doc.setLineWidth(0.8);
+    doc.line(colX + colWidths.separador / 2, y, colX + colWidths.separador / 2, y + rowHeight);
+    colX += colWidths.separador;
 
     // Coluna de assinatura
-    // Se for dia não útil, desenhar riscos diagonais duplos elegantes
+    // Se for dia não útil, desenhar risco diagonal para indicar que não precisa assinar
     if (isNaoUtil) {
-      doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
-      doc.setLineWidth(0.3);
-      
-         y += rowHeight;
+      doc.setDrawColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
+      doc.setLineWidth(0.4);
+      // Linha diagonal do canto inferior esquerdo ao superior direito
+      doc.line(colX + 2, y + rowHeight - 1, colX + colWidths.assinatura - 2, y + 1);
+    }
+
+    y += rowHeight;
   }
 
   // Borda final da tabela

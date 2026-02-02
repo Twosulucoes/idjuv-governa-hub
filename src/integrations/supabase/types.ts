@@ -728,6 +728,149 @@ export type Database = {
           },
         ]
       }
+      avaliacoes_controle: {
+        Row: {
+          avaliador_id: string | null
+          conformidade_procedimento: boolean | null
+          controle_id: string
+          created_at: string
+          created_by: string | null
+          data_avaliacao: string
+          efetividade: string
+          id: string
+          periodo_referencia: string | null
+          pontos_atencao: string | null
+          recomendacoes: string | null
+          status_execucao: string
+          updated_at: string
+          valor_indicador: string | null
+        }
+        Insert: {
+          avaliador_id?: string | null
+          conformidade_procedimento?: boolean | null
+          controle_id: string
+          created_at?: string
+          created_by?: string | null
+          data_avaliacao?: string
+          efetividade: string
+          id?: string
+          periodo_referencia?: string | null
+          pontos_atencao?: string | null
+          recomendacoes?: string | null
+          status_execucao: string
+          updated_at?: string
+          valor_indicador?: string | null
+        }
+        Update: {
+          avaliador_id?: string | null
+          conformidade_procedimento?: boolean | null
+          controle_id?: string
+          created_at?: string
+          created_by?: string | null
+          data_avaliacao?: string
+          efetividade?: string
+          id?: string
+          periodo_referencia?: string | null
+          pontos_atencao?: string | null
+          recomendacoes?: string | null
+          status_execucao?: string
+          updated_at?: string
+          valor_indicador?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avaliacoes_controle_avaliador_id_fkey"
+            columns: ["avaliador_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avaliacoes_controle_avaliador_id_fkey"
+            columns: ["avaliador_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avaliacoes_controle_controle_id_fkey"
+            columns: ["controle_id"]
+            isOneToOne: false
+            referencedRelation: "controles_internos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      avaliacoes_risco: {
+        Row: {
+          avaliador_id: string | null
+          created_at: string
+          created_by: string | null
+          data_avaliacao: string
+          efetividade_controles: string | null
+          id: string
+          impacto_avaliado: Database["public"]["Enums"]["nivel_risco"]
+          nivel_risco_avaliado: Database["public"]["Enums"]["nivel_risco"]
+          observacoes: string | null
+          probabilidade_avaliada: Database["public"]["Enums"]["nivel_risco"]
+          recomendacoes: string | null
+          risco_id: string
+          updated_at: string
+        }
+        Insert: {
+          avaliador_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_avaliacao?: string
+          efetividade_controles?: string | null
+          id?: string
+          impacto_avaliado: Database["public"]["Enums"]["nivel_risco"]
+          nivel_risco_avaliado: Database["public"]["Enums"]["nivel_risco"]
+          observacoes?: string | null
+          probabilidade_avaliada: Database["public"]["Enums"]["nivel_risco"]
+          recomendacoes?: string | null
+          risco_id: string
+          updated_at?: string
+        }
+        Update: {
+          avaliador_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_avaliacao?: string
+          efetividade_controles?: string | null
+          id?: string
+          impacto_avaliado?: Database["public"]["Enums"]["nivel_risco"]
+          nivel_risco_avaliado?: Database["public"]["Enums"]["nivel_risco"]
+          observacoes?: string | null
+          probabilidade_avaliada?: Database["public"]["Enums"]["nivel_risco"]
+          recomendacoes?: string | null
+          risco_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avaliacoes_risco_avaliador_id_fkey"
+            columns: ["avaliador_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avaliacoes_risco_avaliador_id_fkey"
+            columns: ["avaliador_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avaliacoes_risco_risco_id_fkey"
+            columns: ["risco_id"]
+            isOneToOne: false
+            referencedRelation: "riscos_institucionais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       backup_config: {
         Row: {
           buckets_included: string[] | null
@@ -1565,6 +1708,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      checklists_conformidade: {
+        Row: {
+          ativo: boolean
+          base_legal: string | null
+          codigo: string
+          created_at: string
+          created_by: string | null
+          data_vigencia_fim: string | null
+          data_vigencia_inicio: string | null
+          descricao: string | null
+          exercicio: number
+          id: string
+          nome: string
+          orgao_fiscalizador: string
+          updated_at: string
+          updated_by: string | null
+          versao: number
+        }
+        Insert: {
+          ativo?: boolean
+          base_legal?: string | null
+          codigo: string
+          created_at?: string
+          created_by?: string | null
+          data_vigencia_fim?: string | null
+          data_vigencia_inicio?: string | null
+          descricao?: string | null
+          exercicio: number
+          id?: string
+          nome: string
+          orgao_fiscalizador: string
+          updated_at?: string
+          updated_by?: string | null
+          versao?: number
+        }
+        Update: {
+          ativo?: boolean
+          base_legal?: string | null
+          codigo?: string
+          created_at?: string
+          created_by?: string | null
+          data_vigencia_fim?: string | null
+          data_vigencia_inicio?: string | null
+          descricao?: string | null
+          exercicio?: number
+          id?: string
+          nome?: string
+          orgao_fiscalizador?: string
+          updated_at?: string
+          updated_by?: string | null
+          versao?: number
+        }
+        Relationships: []
       }
       composicao_cargos: {
         Row: {
@@ -2588,6 +2785,111 @@ export type Database = {
           },
         ]
       }
+      controles_internos: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          created_by: string | null
+          descricao: string
+          id: string
+          indicador_efetividade: string | null
+          meta_indicador: string | null
+          modulo_sistema: string | null
+          nome: string
+          objetivo: string | null
+          periodicidade: Database["public"]["Enums"]["periodicidade_controle"]
+          procedimento: string | null
+          processo_raci_id: string | null
+          responsavel_id: string | null
+          risco_id: string | null
+          tipo: Database["public"]["Enums"]["tipo_controle"]
+          unidade_responsavel_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          created_by?: string | null
+          descricao: string
+          id?: string
+          indicador_efetividade?: string | null
+          meta_indicador?: string | null
+          modulo_sistema?: string | null
+          nome: string
+          objetivo?: string | null
+          periodicidade: Database["public"]["Enums"]["periodicidade_controle"]
+          procedimento?: string | null
+          processo_raci_id?: string | null
+          responsavel_id?: string | null
+          risco_id?: string | null
+          tipo: Database["public"]["Enums"]["tipo_controle"]
+          unidade_responsavel_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string
+          id?: string
+          indicador_efetividade?: string | null
+          meta_indicador?: string | null
+          modulo_sistema?: string | null
+          nome?: string
+          objetivo?: string | null
+          periodicidade?: Database["public"]["Enums"]["periodicidade_controle"]
+          procedimento?: string | null
+          processo_raci_id?: string | null
+          responsavel_id?: string | null
+          risco_id?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_controle"]
+          unidade_responsavel_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "controles_internos_processo_raci_id_fkey"
+            columns: ["processo_raci_id"]
+            isOneToOne: false
+            referencedRelation: "matriz_raci_processos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "controles_internos_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "controles_internos_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "controles_internos_risco_id_fkey"
+            columns: ["risco_id"]
+            isOneToOne: false
+            referencedRelation: "riscos_institucionais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "controles_internos_unidade_responsavel_id_fkey"
+            columns: ["unidade_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creditos_adicionais: {
         Row: {
           created_at: string | null
@@ -2764,6 +3066,100 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      decisoes_administrativas: {
+        Row: {
+          ano: number
+          autoridade_id: string | null
+          created_at: string
+          created_by: string | null
+          data_decisao: string
+          data_publicacao: string | null
+          dispositivo: string
+          ementa: string
+          entidade_origem_id: string | null
+          entidade_origem_tipo: string | null
+          fundamentacao: string | null
+          id: string
+          modulo_origem: string | null
+          numero_decisao: string
+          processo_sei: string | null
+          publicado: boolean
+          tipo: Database["public"]["Enums"]["tipo_decisao"]
+          unidade_origem_id: string | null
+          updated_at: string
+          updated_by: string | null
+          veiculo_publicacao: string | null
+        }
+        Insert: {
+          ano: number
+          autoridade_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_decisao: string
+          data_publicacao?: string | null
+          dispositivo: string
+          ementa: string
+          entidade_origem_id?: string | null
+          entidade_origem_tipo?: string | null
+          fundamentacao?: string | null
+          id?: string
+          modulo_origem?: string | null
+          numero_decisao: string
+          processo_sei?: string | null
+          publicado?: boolean
+          tipo: Database["public"]["Enums"]["tipo_decisao"]
+          unidade_origem_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          veiculo_publicacao?: string | null
+        }
+        Update: {
+          ano?: number
+          autoridade_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_decisao?: string
+          data_publicacao?: string | null
+          dispositivo?: string
+          ementa?: string
+          entidade_origem_id?: string | null
+          entidade_origem_tipo?: string | null
+          fundamentacao?: string | null
+          id?: string
+          modulo_origem?: string | null
+          numero_decisao?: string
+          processo_sei?: string | null
+          publicado?: boolean
+          tipo?: Database["public"]["Enums"]["tipo_decisao"]
+          unidade_origem_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          veiculo_publicacao?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "decisoes_administrativas_autoridade_id_fkey"
+            columns: ["autoridade_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decisoes_administrativas_autoridade_id_fkey"
+            columns: ["autoridade_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decisoes_administrativas_unidade_origem_id_fkey"
+            columns: ["unidade_origem_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       demandas_ascom: {
         Row: {
@@ -3878,6 +4274,88 @@ export type Database = {
           },
         ]
       }
+      encaminhamentos: {
+        Row: {
+          assunto: string
+          created_at: string
+          created_by: string | null
+          data_encaminhamento: string
+          data_recebimento: string | null
+          despacho: string
+          id: string
+          numero_sequencial: number
+          origem_id: string
+          prazo_resposta: string | null
+          recebido_por: string | null
+          servidor_destino_id: string | null
+          status: string
+          tipo_origem: string
+          unidade_destino_id: string | null
+          updated_at: string
+          urgente: boolean
+        }
+        Insert: {
+          assunto: string
+          created_at?: string
+          created_by?: string | null
+          data_encaminhamento?: string
+          data_recebimento?: string | null
+          despacho: string
+          id?: string
+          numero_sequencial: number
+          origem_id: string
+          prazo_resposta?: string | null
+          recebido_por?: string | null
+          servidor_destino_id?: string | null
+          status?: string
+          tipo_origem: string
+          unidade_destino_id?: string | null
+          updated_at?: string
+          urgente?: boolean
+        }
+        Update: {
+          assunto?: string
+          created_at?: string
+          created_by?: string | null
+          data_encaminhamento?: string
+          data_recebimento?: string | null
+          despacho?: string
+          id?: string
+          numero_sequencial?: number
+          origem_id?: string
+          prazo_resposta?: string | null
+          recebido_por?: string | null
+          servidor_destino_id?: string | null
+          status?: string
+          tipo_origem?: string
+          unidade_destino_id?: string | null
+          updated_at?: string
+          urgente?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "encaminhamentos_servidor_destino_id_fkey"
+            columns: ["servidor_destino_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "encaminhamentos_servidor_destino_id_fkey"
+            columns: ["servidor_destino_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "encaminhamentos_unidade_destino_id_fkey"
+            columns: ["unidade_destino_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       estoque: {
         Row: {
           almoxarifado_id: string
@@ -4146,6 +4624,65 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidencias_controle: {
+        Row: {
+          arquivo_hash_sha512: string | null
+          arquivo_nome: string | null
+          arquivo_url: string | null
+          controle_id: string
+          created_at: string
+          created_by: string | null
+          data_evidencia: string
+          descricao: string | null
+          id: string
+          link_externo: string | null
+          observacoes: string | null
+          tipo_evidencia: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          arquivo_hash_sha512?: string | null
+          arquivo_nome?: string | null
+          arquivo_url?: string | null
+          controle_id: string
+          created_at?: string
+          created_by?: string | null
+          data_evidencia: string
+          descricao?: string | null
+          id?: string
+          link_externo?: string | null
+          observacoes?: string | null
+          tipo_evidencia: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          arquivo_hash_sha512?: string | null
+          arquivo_nome?: string | null
+          arquivo_url?: string | null
+          controle_id?: string
+          created_at?: string
+          created_by?: string | null
+          data_evidencia?: string
+          descricao?: string | null
+          id?: string
+          link_externo?: string | null
+          observacoes?: string | null
+          tipo_evidencia?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidencias_controle_controle_id_fkey"
+            columns: ["controle_id"]
+            isOneToOne: false
+            referencedRelation: "controles_internos"
             referencedColumns: ["id"]
           },
         ]
@@ -5738,6 +6275,62 @@ export type Database = {
           },
         ]
       }
+      itens_checklist: {
+        Row: {
+          ativo: boolean
+          categoria: string | null
+          checklist_id: string
+          created_at: string
+          created_by: string | null
+          descricao: string
+          fundamentacao_legal: string | null
+          id: string
+          numero_item: string
+          obrigatorio: boolean
+          ordem: number
+          peso: number | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          categoria?: string | null
+          checklist_id: string
+          created_at?: string
+          created_by?: string | null
+          descricao: string
+          fundamentacao_legal?: string | null
+          id?: string
+          numero_item: string
+          obrigatorio?: boolean
+          ordem?: number
+          peso?: number | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string | null
+          checklist_id?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string
+          fundamentacao_legal?: string | null
+          id?: string
+          numero_item?: string
+          obrigatorio?: boolean
+          ordem?: number
+          peso?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itens_checklist_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "checklists_conformidade"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       itens_contrato: {
         Row: {
           contrato_id: string
@@ -6586,6 +7179,165 @@ export type Database = {
           },
         ]
       }
+      matriz_raci_atribuicoes: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          etapa_processo: string | null
+          id: string
+          observacoes: string | null
+          papel_id: string
+          processo_id: string
+          tipo_papel: Database["public"]["Enums"]["tipo_papel_raci"]
+          updated_at: string
+          updated_by: string | null
+          versao: number
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          etapa_processo?: string | null
+          id?: string
+          observacoes?: string | null
+          papel_id: string
+          processo_id: string
+          tipo_papel: Database["public"]["Enums"]["tipo_papel_raci"]
+          updated_at?: string
+          updated_by?: string | null
+          versao?: number
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          etapa_processo?: string | null
+          id?: string
+          observacoes?: string | null
+          papel_id?: string
+          processo_id?: string
+          tipo_papel?: Database["public"]["Enums"]["tipo_papel_raci"]
+          updated_at?: string
+          updated_by?: string | null
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matriz_raci_atribuicoes_papel_id_fkey"
+            columns: ["papel_id"]
+            isOneToOne: false
+            referencedRelation: "matriz_raci_papeis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matriz_raci_atribuicoes_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "matriz_raci_processos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      matriz_raci_papeis: {
+        Row: {
+          ativo: boolean
+          cargo_id: string | null
+          codigo: string
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          unidade_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          cargo_id?: string | null
+          codigo: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          unidade_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          cargo_id?: string | null
+          codigo?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          unidade_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matriz_raci_papeis_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matriz_raci_papeis_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      matriz_raci_processos: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          id: string
+          modulo_sistema: string | null
+          nome: string
+          updated_at: string
+          updated_by: string | null
+          versao: number
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          modulo_sistema?: string | null
+          nome: string
+          updated_at?: string
+          updated_by?: string | null
+          versao?: number
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          modulo_sistema?: string | null
+          nome?: string
+          updated_at?: string
+          updated_by?: string | null
+          versao?: number
+        }
+        Relationships: []
+      }
       medicoes_contrato: {
         Row: {
           aprovado_por: string | null
@@ -7420,6 +8172,104 @@ export type Database = {
           },
         ]
       }
+      pareceres_tecnicos: {
+        Row: {
+          analise: string
+          ano: number
+          assunto: string
+          autor_id: string | null
+          conclusao: string
+          created_at: string
+          created_by: string | null
+          data_parecer: string
+          decisao_vinculada_id: string | null
+          entidade_origem_id: string | null
+          entidade_origem_tipo: string | null
+          fundamentacao: string | null
+          id: string
+          modulo_origem: string | null
+          numero_parecer: string
+          processo_sei: string | null
+          recomendacoes: string | null
+          tipo: Database["public"]["Enums"]["tipo_parecer"]
+          unidade_origem_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          analise: string
+          ano: number
+          assunto: string
+          autor_id?: string | null
+          conclusao: string
+          created_at?: string
+          created_by?: string | null
+          data_parecer: string
+          decisao_vinculada_id?: string | null
+          entidade_origem_id?: string | null
+          entidade_origem_tipo?: string | null
+          fundamentacao?: string | null
+          id?: string
+          modulo_origem?: string | null
+          numero_parecer: string
+          processo_sei?: string | null
+          recomendacoes?: string | null
+          tipo: Database["public"]["Enums"]["tipo_parecer"]
+          unidade_origem_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          analise?: string
+          ano?: number
+          assunto?: string
+          autor_id?: string | null
+          conclusao?: string
+          created_at?: string
+          created_by?: string | null
+          data_parecer?: string
+          decisao_vinculada_id?: string | null
+          entidade_origem_id?: string | null
+          entidade_origem_tipo?: string | null
+          fundamentacao?: string | null
+          id?: string
+          modulo_origem?: string | null
+          numero_parecer?: string
+          processo_sei?: string | null
+          recomendacoes?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_parecer"]
+          unidade_origem_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pareceres_tecnicos_autor_id_fkey"
+            columns: ["autor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pareceres_tecnicos_autor_id_fkey"
+            columns: ["autor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pareceres_tecnicos_decisao_vinculada_id_fkey"
+            columns: ["decisao_vinculada_id"]
+            isOneToOne: false
+            referencedRelation: "decisoes_administrativas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pareceres_tecnicos_unidade_origem_id_fkey"
+            columns: ["unidade_origem_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       participantes_reuniao: {
         Row: {
           assinatura_presenca: boolean | null
@@ -7847,6 +8697,94 @@ export type Database = {
             columns: ["perfil_pai_id"]
             isOneToOne: false
             referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      planos_tratamento_risco: {
+        Row: {
+          acao_proposta: string
+          ativo: boolean
+          codigo: string
+          created_at: string
+          created_by: string | null
+          descricao: string
+          id: string
+          percentual_execucao: number | null
+          prazo_conclusao: string | null
+          prazo_inicio: string | null
+          recursos_necessarios: string | null
+          responsavel_id: string | null
+          resultado_obtido: string | null
+          risco_id: string
+          status: string
+          tipo_resposta: string
+          titulo: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          acao_proposta: string
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          created_by?: string | null
+          descricao: string
+          id?: string
+          percentual_execucao?: number | null
+          prazo_conclusao?: string | null
+          prazo_inicio?: string | null
+          recursos_necessarios?: string | null
+          responsavel_id?: string | null
+          resultado_obtido?: string | null
+          risco_id: string
+          status?: string
+          tipo_resposta: string
+          titulo: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          acao_proposta?: string
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string
+          id?: string
+          percentual_execucao?: number | null
+          prazo_conclusao?: string | null
+          prazo_inicio?: string | null
+          recursos_necessarios?: string | null
+          responsavel_id?: string | null
+          resultado_obtido?: string | null
+          risco_id?: string
+          status?: string
+          tipo_resposta?: string
+          titulo?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planos_tratamento_risco_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planos_tratamento_risco_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planos_tratamento_risco_risco_id_fkey"
+            columns: ["risco_id"]
+            isOneToOne: false
+            referencedRelation: "riscos_institucionais"
             referencedColumns: ["id"]
           },
         ]
@@ -9283,6 +10221,85 @@ export type Database = {
           },
         ]
       }
+      respostas_checklist: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_resposta: string | null
+          evidencia_descricao: string | null
+          evidencia_url: string | null
+          exercicio: number
+          id: string
+          item_id: string
+          justificativa: string | null
+          observacoes: string | null
+          plano_acao: string | null
+          prazo_regularizacao: string | null
+          responsavel_id: string | null
+          status: Database["public"]["Enums"]["status_conformidade"]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_resposta?: string | null
+          evidencia_descricao?: string | null
+          evidencia_url?: string | null
+          exercicio: number
+          id?: string
+          item_id: string
+          justificativa?: string | null
+          observacoes?: string | null
+          plano_acao?: string | null
+          prazo_regularizacao?: string | null
+          responsavel_id?: string | null
+          status?: Database["public"]["Enums"]["status_conformidade"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_resposta?: string | null
+          evidencia_descricao?: string | null
+          evidencia_url?: string | null
+          exercicio?: number
+          id?: string
+          item_id?: string
+          justificativa?: string | null
+          observacoes?: string | null
+          plano_acao?: string | null
+          prazo_regularizacao?: string | null
+          responsavel_id?: string | null
+          status?: Database["public"]["Enums"]["status_conformidade"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "respostas_checklist_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens_checklist"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "respostas_checklist_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "respostas_checklist_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       retornos_bancarios: {
         Row: {
           arquivo_nome: string | null
@@ -9440,6 +10457,134 @@ export type Database = {
           },
           {
             foreignKeyName: "reunioes_unidade_responsavel_id_fkey"
+            columns: ["unidade_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      riscos_institucionais: {
+        Row: {
+          ativo: boolean
+          causa: string | null
+          codigo: string
+          consequencia: string | null
+          controle_existente: string | null
+          created_at: string
+          created_by: string | null
+          data_identificacao: string
+          data_ultima_avaliacao: string | null
+          descricao: string
+          id: string
+          impacto_inerente: Database["public"]["Enums"]["nivel_risco"]
+          impacto_residual: Database["public"]["Enums"]["nivel_risco"] | null
+          modulo_afetado: string | null
+          nivel_risco_inerente: Database["public"]["Enums"]["nivel_risco"]
+          nivel_risco_residual:
+            | Database["public"]["Enums"]["nivel_risco"]
+            | null
+          probabilidade_inerente: Database["public"]["Enums"]["nivel_risco"]
+          probabilidade_residual:
+            | Database["public"]["Enums"]["nivel_risco"]
+            | null
+          processo_raci_id: string | null
+          proxima_revisao: string | null
+          responsavel_id: string | null
+          status: Database["public"]["Enums"]["status_risco"]
+          titulo: string
+          unidade_responsavel_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          causa?: string | null
+          codigo: string
+          consequencia?: string | null
+          controle_existente?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_identificacao?: string
+          data_ultima_avaliacao?: string | null
+          descricao: string
+          id?: string
+          impacto_inerente: Database["public"]["Enums"]["nivel_risco"]
+          impacto_residual?: Database["public"]["Enums"]["nivel_risco"] | null
+          modulo_afetado?: string | null
+          nivel_risco_inerente: Database["public"]["Enums"]["nivel_risco"]
+          nivel_risco_residual?:
+            | Database["public"]["Enums"]["nivel_risco"]
+            | null
+          probabilidade_inerente: Database["public"]["Enums"]["nivel_risco"]
+          probabilidade_residual?:
+            | Database["public"]["Enums"]["nivel_risco"]
+            | null
+          processo_raci_id?: string | null
+          proxima_revisao?: string | null
+          responsavel_id?: string | null
+          status?: Database["public"]["Enums"]["status_risco"]
+          titulo: string
+          unidade_responsavel_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          causa?: string | null
+          codigo?: string
+          consequencia?: string | null
+          controle_existente?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_identificacao?: string
+          data_ultima_avaliacao?: string | null
+          descricao?: string
+          id?: string
+          impacto_inerente?: Database["public"]["Enums"]["nivel_risco"]
+          impacto_residual?: Database["public"]["Enums"]["nivel_risco"] | null
+          modulo_afetado?: string | null
+          nivel_risco_inerente?: Database["public"]["Enums"]["nivel_risco"]
+          nivel_risco_residual?:
+            | Database["public"]["Enums"]["nivel_risco"]
+            | null
+          probabilidade_inerente?: Database["public"]["Enums"]["nivel_risco"]
+          probabilidade_residual?:
+            | Database["public"]["Enums"]["nivel_risco"]
+            | null
+          processo_raci_id?: string | null
+          proxima_revisao?: string | null
+          responsavel_id?: string | null
+          status?: Database["public"]["Enums"]["status_risco"]
+          titulo?: string
+          unidade_responsavel_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "riscos_institucionais_processo_raci_id_fkey"
+            columns: ["processo_raci_id"]
+            isOneToOne: false
+            referencedRelation: "matriz_raci_processos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "riscos_institucionais_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "riscos_institucionais_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "riscos_institucionais_unidade_responsavel_id_fkey"
             columns: ["unidade_responsavel_id"]
             isOneToOne: false
             referencedRelation: "estrutura_organizacional"
@@ -11719,7 +12864,18 @@ export type Database = {
       natureza_cargo: "efetivo" | "comissionado"
       natureza_rubrica: "remuneratorio" | "indenizatorio" | "informativo"
       nivel_perfil: "sistema" | "organizacional" | "operacional"
+      nivel_risco: "muito_baixo" | "baixo" | "medio" | "alto" | "muito_alto"
       origem_lancamento: "automatico" | "manual" | "importado" | "retroativo"
+      periodicidade_controle:
+        | "diario"
+        | "semanal"
+        | "quinzenal"
+        | "mensal"
+        | "bimestral"
+        | "trimestral"
+        | "semestral"
+        | "anual"
+        | "eventual"
       prioridade_debito: "critica" | "alta" | "media" | "baixa"
       prioridade_demanda_ascom: "baixa" | "normal" | "alta" | "urgente"
       situacao_funcional:
@@ -11744,6 +12900,12 @@ export type Database = {
         | "rejeitado"
         | "cancelado"
         | "concluido"
+      status_conformidade:
+        | "conforme"
+        | "parcialmente_conforme"
+        | "nao_conforme"
+        | "nao_aplicavel"
+        | "pendente"
       status_conteudo:
         | "rascunho"
         | "em_revisao"
@@ -11821,6 +12983,12 @@ export type Database = {
         | "realizada"
         | "cancelada"
         | "adiada"
+      status_risco:
+        | "identificado"
+        | "em_analise"
+        | "em_tratamento"
+        | "monitorado"
+        | "encerrado"
       status_solicitacao: "pendente" | "aprovada" | "rejeitada" | "cancelada"
       status_termo_cessao: "pendente" | "emitido" | "assinado" | "cancelado"
       status_unidade_local: "ativa" | "inativa" | "manutencao" | "interditada"
@@ -11850,6 +13018,13 @@ export type Database = {
         | "slogan"
         | "narrativa_institucional"
         | "identidade_visual"
+      tipo_controle: "preventivo" | "detectivo" | "corretivo"
+      tipo_decisao:
+        | "despacho"
+        | "deliberacao"
+        | "resolucao"
+        | "determinacao"
+        | "recomendacao"
       tipo_demanda_ascom:
         | "cobertura_fotografica"
         | "cobertura_audiovisual"
@@ -11959,6 +13134,13 @@ export type Database = {
         | "retorno"
         | "aposentadoria"
         | "vacancia"
+      tipo_papel_raci: "responsavel" | "aprovador" | "consultado" | "informado"
+      tipo_parecer:
+        | "juridico"
+        | "tecnico"
+        | "contabil"
+        | "controle_interno"
+        | "outro"
       tipo_portaria_rh:
         | "nomeacao"
         | "exoneracao"
@@ -12298,7 +13480,19 @@ export const Constants = {
       natureza_cargo: ["efetivo", "comissionado"],
       natureza_rubrica: ["remuneratorio", "indenizatorio", "informativo"],
       nivel_perfil: ["sistema", "organizacional", "operacional"],
+      nivel_risco: ["muito_baixo", "baixo", "medio", "alto", "muito_alto"],
       origem_lancamento: ["automatico", "manual", "importado", "retroativo"],
+      periodicidade_controle: [
+        "diario",
+        "semanal",
+        "quinzenal",
+        "mensal",
+        "bimestral",
+        "trimestral",
+        "semestral",
+        "anual",
+        "eventual",
+      ],
       prioridade_debito: ["critica", "alta", "media", "baixa"],
       prioridade_demanda_ascom: ["baixa", "normal", "alta", "urgente"],
       situacao_funcional: [
@@ -12325,6 +13519,13 @@ export const Constants = {
         "rejeitado",
         "cancelado",
         "concluido",
+      ],
+      status_conformidade: [
+        "conforme",
+        "parcialmente_conforme",
+        "nao_conforme",
+        "nao_aplicavel",
+        "pendente",
       ],
       status_conteudo: [
         "rascunho",
@@ -12413,6 +13614,13 @@ export const Constants = {
         "cancelada",
         "adiada",
       ],
+      status_risco: [
+        "identificado",
+        "em_analise",
+        "em_tratamento",
+        "monitorado",
+        "encerrado",
+      ],
       status_solicitacao: ["pendente", "aprovada", "rejeitada", "cancelada"],
       status_termo_cessao: ["pendente", "emitido", "assinado", "cancelado"],
       status_unidade_local: ["ativa", "inativa", "manutencao", "interditada"],
@@ -12444,6 +13652,14 @@ export const Constants = {
         "slogan",
         "narrativa_institucional",
         "identidade_visual",
+      ],
+      tipo_controle: ["preventivo", "detectivo", "corretivo"],
+      tipo_decisao: [
+        "despacho",
+        "deliberacao",
+        "resolucao",
+        "determinacao",
+        "recomendacao",
       ],
       tipo_demanda_ascom: [
         "cobertura_fotografica",
@@ -12562,6 +13778,14 @@ export const Constants = {
         "retorno",
         "aposentadoria",
         "vacancia",
+      ],
+      tipo_papel_raci: ["responsavel", "aprovador", "consultado", "informado"],
+      tipo_parecer: [
+        "juridico",
+        "tecnico",
+        "contabil",
+        "controle_interno",
+        "outro",
       ],
       tipo_portaria_rh: [
         "nomeacao",
