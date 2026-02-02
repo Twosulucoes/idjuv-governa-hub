@@ -3,6 +3,7 @@
 export type TipoRubrica = 'provento' | 'desconto' | 'encargo' | 'informativo';
 export type TipoCalculoRubrica = 'fixo' | 'percentual' | 'formula' | 'referencia' | 'manual' | 'tabela';
 export type StatusFolha = 'previa' | 'aberta' | 'processando' | 'fechada' | 'reaberta';
+export type TipoFolha = 'mensal' | 'complementar' | 'decimo_terceiro' | 'ferias' | 'rescisao';
 
 export interface Rubrica {
   id: string;
@@ -90,12 +91,18 @@ export interface FolhaPagamento {
   id: string;
   competencia_ano: number;
   competencia_mes: number;
+  tipo_folha?: TipoFolha;
   status: StatusFolha;
   data_processamento?: string;
   data_fechamento?: string;
   total_bruto?: number;
   total_descontos?: number;
   total_liquido?: number;
+  total_inss_servidor?: number;
+  total_inss_patronal?: number;
+  total_irrf?: number;
+  total_encargos_patronais?: number;
+  quantidade_servidores?: number;
   quantidade_fichas?: number;
   observacoes?: string;
   created_at?: string;
@@ -107,9 +114,19 @@ export interface FichaFinanceira {
   folha_id: string;
   servidor_id: string;
   servidor?: {
+    id?: string;
     nome_completo: string;
     matricula: string;
+    cpf?: string;
   };
+  cargo_id?: string;
+  cargo_nome?: string;
+  cargo_vencimento?: number;
+  centro_custo_id?: string;
+  centro_custo_codigo?: string;
+  lotacao_id?: string;
+  unidade_id?: string;
+  unidade_nome?: string;
   total_proventos?: number;
   total_descontos?: number;
   valor_liquido?: number;
@@ -117,8 +134,42 @@ export interface FichaFinanceira {
   valor_inss?: number;
   base_irrf?: number;
   valor_irrf?: number;
+  base_consignavel?: number;
+  margem_consignavel_usada?: number;
+  inss_patronal?: number;
+  rat?: number;
+  outras_entidades?: number;
+  total_encargos?: number;
+  banco_codigo?: string;
+  banco_nome?: string;
+  banco_agencia?: string;
+  banco_conta?: string;
+  banco_tipo_conta?: string;
+  quantidade_dependentes?: number;
+  valor_deducao_dependentes?: number;
+  processado?: boolean;
+  data_processamento?: string;
+  tem_inconsistencia?: boolean;
+  inconsistencias?: Record<string, unknown>;
+  competencia_ano?: number;
+  competencia_mes?: number;
+  tipo_folha?: string;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface ItemFichaFinanceira {
+  id: string;
+  ficha_id: string;
+  rubrica_id?: string;
+  rubrica_codigo: string;
+  rubrica_descricao: string;
+  tipo: TipoRubrica;
+  referencia?: number;
+  valor: number;
+  origem?: string;
+  observacao?: string;
+  created_at?: string;
 }
 
 export interface Consignacao {
@@ -193,6 +244,41 @@ export interface ConfigAutarquia {
   updated_at?: string;
 }
 
+export interface RemessaBancaria {
+  id: string;
+  folha_id: string;
+  conta_id?: string;
+  conta?: {
+    descricao: string;
+    banco?: { nome: string };
+  };
+  numero_remessa: number;
+  data_geracao: string;
+  data_credito?: string;
+  quantidade_registros: number;
+  valor_total: number;
+  nome_arquivo: string;
+  conteudo_arquivo?: string;
+  status: string;
+  observacoes?: string;
+  created_at?: string;
+}
+
+export interface EventoESocial {
+  id: string;
+  folha_id?: string;
+  servidor_id?: string;
+  servidor?: { nome_completo: string };
+  tipo_evento: string;
+  numero_recibo?: string;
+  data_envio?: string;
+  status: string;
+  conteudo_xml?: string;
+  resposta_xml?: string;
+  erro_mensagem?: string;
+  created_at?: string;
+}
+
 // Labels para exibição
 export const TIPO_RUBRICA_LABELS: Record<TipoRubrica, string> = {
   provento: 'Provento',
@@ -215,6 +301,14 @@ export const STATUS_FOLHA_COLORS: Record<StatusFolha, string> = {
   processando: 'bg-yellow-100 text-yellow-800',
   fechada: 'bg-green-100 text-green-800',
   reaberta: 'bg-purple-100 text-purple-800',
+};
+
+export const TIPO_FOLHA_LABELS: Record<TipoFolha, string> = {
+  mensal: 'Mensal',
+  complementar: 'Complementar',
+  decimo_terceiro: '13º Salário',
+  ferias: 'Férias',
+  rescisao: 'Rescisão',
 };
 
 export const MESES = [

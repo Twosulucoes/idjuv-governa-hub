@@ -40,6 +40,7 @@ import { ProcessarFolhaDialog } from "@/components/folha/ProcessarFolhaDialog";
 import { PendenciasServidoresDialog } from "@/components/folha/PendenciasServidoresDialog";
 import { GerarRemessaDialog } from "@/components/folha/GerarRemessaDialog";
 import { GerarESocialDialog } from "@/components/folha/GerarESocialDialog";
+import { FichaFinanceiraDialog } from "@/components/folha/FichaFinanceiraDialog";
 import { format } from "date-fns";
 import { generateContracheque } from "@/lib/pdfContracheque";
 
@@ -53,6 +54,7 @@ export default function FolhaDetalhePage() {
   const [showPendencias, setShowPendencias] = useState(false);
   const [showRemessa, setShowRemessa] = useState(false);
   const [showESocial, setShowESocial] = useState(false);
+  const [fichaDetalheId, setFichaDetalheId] = useState<string | null>(null);
   
   // Estado de busca
   const [busca, setBusca] = useState("");
@@ -525,6 +527,14 @@ export default function FolhaDetalhePage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  onClick={() => setFichaDetalheId(ficha.id)}
+                                  title="Ver detalhes da ficha"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   onClick={() => navigate(`/rh/servidores/${ficha.servidor?.id}`)}
                                   title="Ver servidor"
                                 >
@@ -804,6 +814,14 @@ export default function FolhaDetalhePage() {
         mes={folha.competencia_mes}
         ano={folha.competencia_ano}
       />
+      
+      {fichaDetalheId && (
+        <FichaFinanceiraDialog
+          open={!!fichaDetalheId}
+          onOpenChange={(open) => !open && setFichaDetalheId(null)}
+          fichaId={fichaDetalheId}
+        />
+      )}
     </AdminLayout>
   );
 }
