@@ -8,6 +8,7 @@
  * - ✅ Tabela com altura fixa e consistente
  * - ✅ Tipografia melhorada
  * - ✅ Cores mais harmônicas (atualizado)
+ * - ✅ Função de renderização exportada para uso em lote
  */
 import jsPDF from 'jspdf';
 import { DIAS_SEMANA_SIGLA, type DiaNaoUtil } from '@/types/frequencia';
@@ -80,23 +81,23 @@ export interface FrequenciaMensalPDFData {
 }
 
 // ============================================
-// CONSTANTES
+// CONSTANTES (exportadas para uso em lote)
 // ============================================
 
-const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+export const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 const DIAS_SEMANA_SIGLA_PT = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
 
-const INSTITUICAO = {
+export const INSTITUICAO = {
   nome: 'Instituto de Desporto, Juventude e Lazer do Estado de Roraima',
   sigla: 'IDJuv',
   cnpj: '64.689.510/0001-09',
   endereco: 'Rua Cel. Pinto, 588, Centro, Boa Vista/RR, CEP 69.301-150',
 };
 
-// Cores do tema institucional
-const CORES = {
+// Cores do tema institucional (exportadas para uso em lote)
+export const CORES = {
   primaria: { r: 0, g: 68, b: 68 },        // Verde escuro institucional
   secundaria: { r: 41, g: 128, b: 185 },   // Azul institucional
   texto: { r: 30, g: 35, b: 40 },          // Texto principal
@@ -182,48 +183,45 @@ export function calcularResumoMensal(registros: RegistroDiario[], cargaHorariaDi
 }
 
 // ============================================
-// GERADOR PRINCIPAL DO PDF - MELHORADO
+// FUNÇÃO PRINCIPAL DE RENDERIZAÇÃO
+// (Usada tanto para individual quanto para lote)
 // ============================================
 
-export interface FrequenciaMensalPDFResult {
+export interface RenderizarPaginaParams {
   doc: jsPDF;
-  nomeArquivo: string;
+  data: FrequenciaMensalPDFData;
+  rodapePersonalizado?: string; // Para mostrar "Página X de Y" no lote
 }
 
 /**
- * Gera o PDF de frequência mensal individual com layout melhorado
+ * Renderiza uma página de frequência num documento jsPDF existente
+ * Esta função é usada tanto pelo gerador individual quanto pelo lote
  */
-export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData): Promise<FrequenciaMensalPDFResult> {
-  const doc = new jsPDF('portrait', 'mm', 'a4');
+export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void {
+  const { doc, data, rodapePersonalizado } = params;
+  
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 15; // Margem aumentada para melhor respiro
+  const margin = 15;
   const contentWidth = pageWidth - margin * 2;
 
-  const { tipo, competencia, servidor, registros, diasNaoUteis, configAssinatura, dataGeracao, usuarioGeracao } = data;
+  const { tipo, competencia, servidor, registros, diasNaoUteis, configAssinatura, dataGeracao } = data;
   const competenciaStr = `${MESES[competencia.mes - 1]}/${competencia.ano}`;
   const ultimoDia = getUltimoDiaMes(competencia.ano, competencia.mes);
 
   let y = margin;
 
-  // ===== CABEÇALHO COM LOGOS MELHORADO =====
-  // Logos alinhadas verticalmente e com tamanhos proporcionais
-  const logoGovernoHeight = 14; // Governo 
-  const logoGovernoWidth = logoGovernoHeight * 2.8; // Proporção horizontal
-  
-  const logoIdjuvHeight = 20; // IDJuv maior
-  const logoIdjuvWidth = logoIdjuvHeight * 1.1; // Proporção mais quadrada
-  
-  // Calcular Y para alinhar verticalmente (centralizar ambas)
+  // ===== CABEÇALHO COM LOGOS =====
+  const logoGovernoHeight = 14;
+  const logoGovernoWidth = logoGovernoHeight * 2.8;
+  const logoIdjuvHeight = 20;
+  const logoIdjuvWidth = logoIdjuvHeight * 1.1;
   const maxLogoHeight = Math.max(logoGovernoHeight, logoIdjuvHeight);
   const logoGovernoY = y + (maxLogoHeight - logoGovernoHeight) / 2;
   const logoIdjuvY = y + (maxLogoHeight - logoIdjuvHeight) / 2;
 
   try {
-    // Logo do governo (esquerda) - alinhada
     doc.addImage(logoGoverno, 'JPEG', margin + 2, logoGovernoY, logoGovernoWidth, logoGovernoHeight);
-    
-    // Logo IDJuv (direita) - alinhada
     doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth - 2, logoIdjuvY, logoIdjuvWidth, logoIdjuvHeight);
   } catch (e) {
     console.warn('Logos não carregados');
@@ -232,41 +230,35 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
   // ===== CABEÇALHO INSTITUCIONAL =====
   const textoY = y + maxLogoHeight / 2 - 6;
 
-  // Linha 1: Governo do Estado de Roraima (destacado)
   doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, textoY, { align: 'center' });
 
-  // Linha 2: Nome do Instituto (destacado)
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
   doc.text('Instituto de Desporto, Juventude e Lazer do Estado de Roraima', pageWidth / 2, textoY + 4.5, { align: 'center' });
 
-  // Linha 3: Título do documento
   doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
   doc.text('FOLHA DE FREQUÊNCIA MENSAL', pageWidth / 2, textoY + 11, { align: 'center' });
 
+  y += maxLogoHeight + 12;
 
-  y += maxLogoHeight + 12; // Espaço total do cabeçalho
-
-  // Linha divisória mais elegante
+  // Linha divisória
   doc.setDrawColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
   doc.setLineWidth(0.8);
   doc.line(margin, y, pageWidth - margin, y);
   y += 6;
 
-  // ===== IDENTIFICAÇÃO DO SERVIDOR - REDESENHADA =====
+  // ===== IDENTIFICAÇÃO DO SERVIDOR =====
   const boxPadding = 5;
   const boxHeight = 26;
   
-  // Box com sombra suave
   doc.setFillColor(CORES.bgCinza.r, CORES.bgCinza.g, CORES.bgCinza.b);
   doc.roundedRect(margin, y, contentWidth, boxHeight, 3, 3, 'F');
-  
   doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
   doc.setLineWidth(0.4);
   doc.roundedRect(margin, y, contentWidth, boxHeight, 3, 3, 'S');
@@ -276,7 +268,6 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
   const col2X = margin + contentWidth * 0.55;
   const lineHeight = 5.5;
 
-  // Função auxiliar para labels e valores
   const drawInfoLine = (label: string, value: string, x: number, yPos: number, valueX?: number) => {
     doc.setFontSize(7);
     doc.setFont('helvetica', 'bold');
@@ -312,20 +303,18 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
 
   // Linha 4: Regime e Jornada
   drawInfoLine('Regime:', servidor.regime || 'Presencial', col1X, infoY + 4 + lineHeight * 3);
-  
   const jornada = `${servidor.carga_horaria_diaria || 8}h/dia • ${servidor.carga_horaria_semanal || 40}h/sem`;
   drawInfoLine('Jornada:', jornada, col1X + 50, infoY + 4 + lineHeight * 3);
 
   y += boxHeight + 8;
 
-  // ===== TABELA DE FREQUÊNCIA - ALTURA FIXA =====
-  const tabelaStartY = y;
+  // ===== TABELA DE FREQUÊNCIA =====
   const assinaturasHeight = 35;
   const rodapeHeight = 12;
   const espacoDisponivel = pageHeight - y - assinaturasHeight - rodapeHeight - 5;
   
   const headerTableHeight = 8;
-  const rowHeight = 5.8; // Altura fixa para melhor consistência
+  const rowHeight = 5.8;
   const maxRows = Math.floor((espacoDisponivel - headerTableHeight) / rowHeight);
 
   const colWidths = {
@@ -334,10 +323,10 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
     tipo: 36,
     entrada: 24,
     saida: 24,
-    assinatura: contentWidth - 115, // Espaço maior sem separador
+    assinatura: contentWidth - 115,
   };
 
-  // Header da tabela com gradiente simulado
+  // Header da tabela
   doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
   doc.roundedRect(margin, y, contentWidth, headerTableHeight, 2, 2, 'F');
 
@@ -389,7 +378,6 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
     const diaSemana = dataAtual.getDay();
     const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
     
-    // Cores diferentes para dias úteis e não úteis
     const bgColor = isNaoUtil 
       ? (situacao === 'feriado' ? CORES.bgFeriado : { r: 250, g: 250, b: 252 })
       : (isFimDeSemana ? { r: 254, g: 254, b: 255 } : { r: 255, g: 255, b: 255 });
@@ -398,19 +386,13 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
       ? { r: 140, g: 145, b: 150 } 
       : CORES.texto;
 
-    // Background da linha
     doc.setFillColor(bgColor.r, bgColor.g, bgColor.b);
     doc.rect(margin, y, contentWidth, rowHeight, 'F');
 
-    // Bordas verticais entre colunas
-    doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
-    doc.setLineWidth(0.15);
-    
-    // Bordas horizontais
     doc.setDrawColor(235, 238, 242);
+    doc.setLineWidth(0.15);
     doc.line(margin, y + rowHeight, pageWidth - margin, y + rowHeight);
 
-    // Colunas
     colX = margin;
     doc.setTextColor(textColor.r, textColor.g, textColor.b);
     doc.setFontSize(7);
@@ -423,7 +405,6 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
     doc.text(String(dia).padStart(2, '0'), colX + colWidths.dia / 2, textY, { align: 'center' });
     colX += colWidths.dia;
 
-    // Linhas verticais suaves
     doc.setDrawColor(240, 242, 245);
     doc.line(colX, y, colX, y + rowHeight);
 
@@ -436,12 +417,12 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
     doc.line(colX, y, colX, y + rowHeight);
 
     // Tipo do dia
-    let tipoLabel = 'Dia Útil';
+    let tipoLabel = '';
     if (situacao === 'feriado') tipoLabel = label || 'Feriado';
     else if (situacao === 'domingo') tipoLabel = 'Domingo';
     else if (situacao === 'sabado') tipoLabel = 'Sábado';
-    else if (situacao === 'ponto_facultativo') tipoLabel = 'Ponto Facultativo';
-    else if (situacao === 'recesso') tipoLabel = 'Recesso';
+    else if (situacao === 'ponto_facultativo') tipoLabel = label || 'Ponto Facultativo';
+    else if (situacao === 'recesso') tipoLabel = label || 'Recesso';
     
     doc.setFontSize(6.5);
     if (isNaoUtil) {
@@ -473,11 +454,9 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
     }
     colX += colWidths.saida;
     
-    // Linha vertical entre Saída e Assinatura
     doc.setDrawColor(240, 242, 245);
     doc.line(colX, y, colX, y + rowHeight);
 
-    // Coluna de assinatura - dias não úteis já têm fundo diferenciado
     y += rowHeight;
   }
 
@@ -486,10 +465,9 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
   doc.setLineWidth(0.6);
   doc.line(margin, y, pageWidth - margin, y);
 
-  // ===== ÁREA DE ASSINATURAS - MELHORADA =====
+  // ===== ÁREA DE ASSINATURAS =====
   y += 8;
 
-  // Declaração
   doc.setFontSize(7.5);
   doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
   doc.setFont('helvetica', 'italic');
@@ -499,7 +477,6 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
 
   y += 10;
 
-  // Linhas de assinatura com melhor espaçamento
   const assinaturaWidth = (contentWidth - 30) / 2;
   const assinaturaY = y;
   
@@ -539,7 +516,7 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
     }
   }
 
-  // ===== RODAPÉ - MELHORADO =====
+  // ===== RODAPÉ =====
   const rodapeY = pageHeight - 6;
   doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
   doc.setFontSize(6);
@@ -550,11 +527,35 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
   
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(6.5);
-  const tipoTexto = tipo === 'preenchida' ? 'PREENCHIDA' : 'EM BRANCO';
-  doc.text(tipoTexto, pageWidth - margin, rodapeY, { align: 'right' });
+  
+  // Usar rodapé personalizado (para lote) ou padrão (para individual)
+  if (rodapePersonalizado) {
+    doc.text(rodapePersonalizado, pageWidth - margin, rodapeY, { align: 'right' });
+  } else {
+    const tipoTexto = tipo === 'preenchida' ? 'PREENCHIDA' : 'EM BRANCO';
+    doc.text(tipoTexto, pageWidth - margin, rodapeY, { align: 'right' });
+  }
+}
 
-  // Nome do arquivo
-  const nomeArquivo = `Frequencia_${servidor.nome_completo.replace(/\s+/g, '_')}_${MESES[competencia.mes - 1]}_${competencia.ano}_${tipo}.pdf`;
+// ============================================
+// GERADOR PRINCIPAL DO PDF INDIVIDUAL
+// ============================================
+
+export interface FrequenciaMensalPDFResult {
+  doc: jsPDF;
+  nomeArquivo: string;
+}
+
+/**
+ * Gera o PDF de frequência mensal individual
+ */
+export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData): Promise<FrequenciaMensalPDFResult> {
+  const doc = new jsPDF('portrait', 'mm', 'a4');
+  
+  // Usar a função de renderização compartilhada
+  renderizarPaginaFrequencia({ doc, data });
+
+  const nomeArquivo = `Frequencia_${data.servidor.nome_completo.replace(/\s+/g, '_')}_${MESES[data.competencia.mes - 1]}_${data.competencia.ano}_${data.tipo}.pdf`;
 
   return { doc, nomeArquivo };
 }
