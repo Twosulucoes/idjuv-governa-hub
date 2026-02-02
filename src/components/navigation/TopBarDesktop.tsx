@@ -17,6 +17,7 @@ import {
   Sun, 
   AlertTriangle,
   Clock,
+  Home,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
@@ -42,7 +43,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Link } from "react-router-dom";
-import { getBreadcrumbForPath } from "@/config/navigation.config";
 import { useEffect } from "react";
 
 interface TopBarDesktopProps {
@@ -54,6 +54,50 @@ interface TopBarDesktopProps {
     mensagem: string;
     link?: string;
   }>;
+}
+
+/**
+ * Gera breadcrumbs baseado na rota atual
+ */
+function getBreadcrumbForPath(pathname: string): Array<{ label: string; href?: string }> {
+  const parts = pathname.split('/').filter(Boolean);
+  const crumbs: Array<{ label: string; href?: string }> = [
+    { label: 'Início', href: '/admin' }
+  ];
+
+  const labelMap: Record<string, string> = {
+    'admin': 'Admin',
+    'rh': 'RH',
+    'servidores': 'Servidores',
+    'workflow': 'Processos',
+    'processos': 'Processos',
+    'compras': 'Compras',
+    'patrimonio': 'Patrimônio',
+    'transparencia': 'Transparência',
+    'governanca': 'Governança',
+    'usuarios': 'Usuários',
+    'perfis': 'Perfis',
+    'auditoria': 'Auditoria',
+    'configuracoes': 'Configurações',
+    'ferias': 'Férias',
+    'licencas': 'Licenças',
+    'frequencia': 'Frequência',
+    'portarias': 'Portarias',
+    'designacoes': 'Designações',
+  };
+
+  let currentPath = '';
+  parts.forEach((part, index) => {
+    currentPath += `/${part}`;
+    if (part !== 'admin' || index > 0) {
+      crumbs.push({
+        label: labelMap[part] || part.charAt(0).toUpperCase() + part.slice(1),
+        href: index < parts.length - 1 ? currentPath : undefined
+      });
+    }
+  });
+
+  return crumbs;
 }
 
 export function TopBarDesktop({ 
@@ -92,7 +136,6 @@ export function TopBarDesktop({
   };
 
   const alertasUrgentes = alertas.filter(a => a.tipo === 'urgente');
-  const alertasPrazo = alertas.filter(a => a.tipo === 'prazo');
 
   return (
     <header className="sticky top-0 z-50 flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
@@ -121,7 +164,7 @@ export function TopBarDesktop({
                 {item.href && index < breadcrumbs.length - 1 ? (
                   <BreadcrumbLink asChild>
                     <Link to={item.href} className="hover:text-foreground transition-colors">
-                      {item.label}
+                      {index === 0 ? <Home className="h-4 w-4" /> : item.label}
                     </Link>
                   </BreadcrumbLink>
                 ) : (
