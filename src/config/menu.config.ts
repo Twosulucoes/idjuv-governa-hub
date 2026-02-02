@@ -35,6 +35,13 @@ import {
   Send,
   TrendingUp,
   User,
+  MapPin,
+  Trophy,
+  Megaphone,
+  Calendar,
+  CalendarDays,
+  Plane,
+  ClipboardList,
   type LucideIcon,
 } from "lucide-react";
 
@@ -250,12 +257,55 @@ export const menuConfig: MenuSection[] = [
         priority: 3,
       },
       {
+        id: "frequencia",
+        label: "Frequência",
+        route: "/rh/frequencia",
+        icon: CalendarDays,
+        permission: "rh.visualizar",
+        priority: 4,
+      },
+      {
+        id: "ferias-licencas",
+        label: "Férias e Licenças",
+        icon: Calendar,
+        children: [
+          {
+            id: "ferias",
+            label: "Férias",
+            route: "/rh/ferias",
+            icon: Calendar,
+            permission: "rh.visualizar",
+          },
+          {
+            id: "licencas",
+            label: "Licenças",
+            route: "/rh/licencas",
+            icon: FileText,
+            permission: "rh.visualizar",
+          },
+        ],
+      },
+      {
+        id: "viagens",
+        label: "Viagens",
+        route: "/rh/viagens",
+        icon: Plane,
+        permission: "rh.visualizar",
+      },
+      {
+        id: "relatorios-rh",
+        label: "Relatórios",
+        route: "/rh/relatorios",
+        icon: BarChart3,
+        permission: "rh.visualizar",
+      },
+      {
         id: "meus-dados",
         label: "Meus Dados",
         route: "/rh/meus-dados",
         icon: User,
         permission: "rh.self",
-        priority: 4,
+        priority: 10,
       },
     ],
   },
@@ -395,14 +445,62 @@ export const menuConfig: MenuSection[] = [
     ],
   },
 
-  // ========== 8. ADMINISTRAÇÃO (RESTRITO) ==========
+  // ========== 8. ESPAÇOS E FEDERAÇÕES ==========
+  {
+    id: "espacos-federacoes",
+    label: "Espaços e Federações",
+    labelShort: "Espaços",
+    icon: MapPin,
+    priority: 8,
+    items: [
+      {
+        id: "unidades-locais",
+        label: "Unidades Locais",
+        route: "/unidades",
+        icon: MapPin,
+        permission: "patrimonio.visualizar",
+      },
+      {
+        id: "federacoes",
+        label: "Federações Esportivas",
+        route: "/admin/federacoes",
+        icon: Trophy,
+      },
+    ],
+  },
+
+  // ========== 9. COMUNICAÇÃO (ASCOM) ==========
+  {
+    id: "ascom",
+    label: "Comunicação",
+    labelShort: "ASCOM",
+    icon: Megaphone,
+    priority: 9,
+    items: [
+      {
+        id: "demandas-ascom",
+        label: "Demandas",
+        route: "/admin/ascom/demandas",
+        icon: ClipboardList,
+      },
+    ],
+  },
+
+  // ========== 10. ADMINISTRAÇÃO (RESTRITO) ==========
   {
     id: "admin",
     label: "Administração",
     labelShort: "Admin",
     icon: Settings,
-    priority: 8,
+    priority: 10,
     items: [
+      {
+        id: "central-relatorios",
+        label: "Central de Relatórios",
+        route: "/admin/central-relatorios",
+        icon: BarChart3,
+        priority: 1,
+      },
       {
         id: "usuarios",
         label: "Usuários",
@@ -416,6 +514,13 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/perfis",
         icon: Shield,
         permission: "admin.perfis",
+      },
+      {
+        id: "reunioes",
+        label: "Reuniões",
+        route: "/admin/reunioes",
+        icon: Calendar,
+        permission: "admin.config",
       },
       {
         id: "auditoria",
