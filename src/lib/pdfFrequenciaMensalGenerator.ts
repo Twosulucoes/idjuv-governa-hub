@@ -229,22 +229,27 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
     console.warn('Logos não carregados');
   }
 
-  // Título centralizado - melhor espaçamento
-  const tituloY = y + maxLogoHeight / 2 - 3;
+  // ===== CABEÇALHO INSTITUCIONAL =====
+  const textoY = y + maxLogoHeight / 2 - 6;
+
+  // Linha 1: Governo do Estado de Roraima (destacado)
   doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.text('FOLHA DE FREQUÊNCIA MENSAL', pageWidth / 2, tituloY, { align: 'center' });
+  doc.setFontSize(10);
+  doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, textoY, { align: 'center' });
 
-  // Informações institucionais - simplificadas
+  // Linha 2: Nome do Instituto (destacado)
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
   doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
-  doc.text('Governo do Estado de Roraima', pageWidth / 2, tituloY + 5, { align: 'center' });
-  
-  doc.setFontSize(7.5);
-  doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
-  doc.text('Instituto de Desporto, Juventude e Lazer do Estado de Roraima', pageWidth / 2, tituloY + 9.5, { align: 'center' });
+  doc.text('Instituto de Desporto, Juventude e Lazer do Estado de Roraima', pageWidth / 2, textoY + 4.5, { align: 'center' });
+
+  // Linha 3: Título do documento
+  doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text('FOLHA DE FREQUÊNCIA MENSAL', pageWidth / 2, textoY + 11, { align: 'center' });
+
 
   y += maxLogoHeight + 12; // Espaço total do cabeçalho
 
@@ -329,8 +334,7 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
     tipo: 36,
     entrada: 24,
     saida: 24,
-    separador: 3, // Espaço extra para separação visual
-    assinatura: contentWidth - 118, // Ajustado para compensar o separador
+    assinatura: contentWidth - 115, // Espaço maior sem separador
   };
 
   // Header da tabela com gradiente simulado
@@ -354,14 +358,6 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
   colX += colWidths.entrada;
   doc.text('SAÍDA', colX + colWidths.saida / 2, headerY, { align: 'center' });
   colX += colWidths.saida;
-  
-  // Separador visual no cabeçalho (linhas duplas verticais)
-  doc.setDrawColor(255, 255, 255);
-  doc.setLineWidth(0.4);
-  doc.line(colX + 0.8, y, colX + 0.8, y + headerTableHeight);
-  doc.line(colX + 2.2, y, colX + 2.2, y + headerTableHeight);
-  colX += colWidths.separador;
-  
   doc.text('ASSINATURA', colX + colWidths.assinatura / 2, headerY, { align: 'center' });
 
   y += headerTableHeight;
@@ -477,21 +473,11 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
     }
     colX += colWidths.saida;
     
-    // SEPARADOR VISUAL entre Saída e Assinatura (linha vertical mais grossa)
-    doc.setDrawColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
-    doc.setLineWidth(0.8);
-    doc.line(colX + colWidths.separador / 2, y, colX + colWidths.separador / 2, y + rowHeight);
-    colX += colWidths.separador;
+    // Linha vertical entre Saída e Assinatura
+    doc.setDrawColor(240, 242, 245);
+    doc.line(colX, y, colX, y + rowHeight);
 
-    // Coluna de assinatura
-    // Se for dia não útil, desenhar risco diagonal para indicar que não precisa assinar
-    if (isNaoUtil) {
-      doc.setDrawColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
-      doc.setLineWidth(0.4);
-      // Linha diagonal do canto inferior esquerdo ao superior direito
-      doc.line(colX + 2, y + rowHeight - 1, colX + colWidths.assinatura - 2, y + 1);
-    }
-
+    // Coluna de assinatura - dias não úteis já têm fundo diferenciado
     y += rowHeight;
   }
 
