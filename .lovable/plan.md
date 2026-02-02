@@ -1,157 +1,155 @@
 
-# Refatoração do PDF de Frequência Mensal
 
-## Problemas Identificados
+# Ajuste Pontual no Plano RBAC — Remoção de `admin.super`
 
-1. **Linha diagonal feia na coluna de assinatura** (linhas 488-493) - Quando é sábado, domingo ou feriado, uma linha diagonal cruza toda a coluna de assinatura, causando poluição visual
+## Resumo do Ajuste
 
-2. **Separador desnecessário entre Saída e Assinatura** (linhas 358-363 e 480-484) - Há uma coluna "separador" de 3mm com linhas duplas verticais que ocupa espaço e não agrega valor visual
+O plano de refatoração RBAC aprovado será implementado **integralmente**, com uma única correção conceitual:
 
-3. **Ordem do cabeçalho invertida** (linhas 232-247) - Atualmente:
-   - Título: "FOLHA DE FREQUÊNCIA MENSAL" (primeiro)
-   - "Governo do Estado de Roraima" (segundo)
-   - "Instituto de Desporto..." (terceiro)
-   
-   **Deve ser:**
-   - "Governo do Estado de Roraima" (destacado - primeiro)
-   - "Instituto de Desporto, Juventude e Lazer..." (destacado - segundo)  
-   - Título: "FOLHA DE FREQUÊNCIA MENSAL" (terceiro)
+| Item | Antes | Depois |
+|------|-------|--------|
+| Total de permissões | 48 | **47** |
+| `admin.super` | Incluída como permissão | **Removida** |
+| Bypass super_admin | Via função `usuario_eh_super_admin()` | **Mantido (sem alteração)** |
 
 ---
 
-## Solução Proposta
+## Justificativa Técnica
 
-### 1. Remover a Linha Diagonal na Coluna de Assinatura
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  PROBLEMA: admin.super como permissão                          │
+├─────────────────────────────────────────────────────────────────┤
+│  • Redundante: super_admin já tem bypass via função            │
+│  • Risco: poderia ser concedida a outros perfis por engano     │
+│  • Anti-pattern: bypass não deve ser permissionável            │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  SOLUÇÃO: Manter bypass exclusivamente via função              │
+├─────────────────────────────────────────────────────────────────┤
+│  • usuario_eh_super_admin(_user_id) → único ponto de bypass    │
+│  • Não existe permissão que conceda acesso total               │
+│  • super_admin = perfil especial, não permissão especial       │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-**De:**
+---
+
+## Lista Final de Permissões (47)
+
+### Domínio ADMIN (6 permissões, não 7)
+
+| Código | Descrição |
+|--------|-----------|
+| `admin.visualizar` | Visualizar painel administrativo |
+| `admin.usuarios` | Gerenciar usuários |
+| `admin.perfis` | Gerenciar perfis e permissões |
+| `admin.auditoria` | Visualizar logs de auditoria |
+| `admin.backup` | Gerenciar backups |
+| `admin.config` | Configurações do sistema |
+| ~~`admin.super`~~ | ~~Bypass total~~ **REMOVIDA** |
+
+### Demais Domínios (41 permissões — sem alteração)
+
+| Domínio | Quantidade | Permissões |
+|---------|------------|------------|
+| workflow | 8 | visualizar, criar, tramitar, despachar, aprovar, arquivar, responder, admin |
+| compras | 5 | visualizar, criar, tramitar, aprovar, admin |
+| contratos | 5 | visualizar, criar, tramitar, aprovar, admin |
+| rh | 6 | visualizar, criar, tramitar, aprovar, self, admin |
+| orcamento | 4 | visualizar, criar, aprovar, admin |
+| patrimonio | 4 | visualizar, criar, tramitar, admin |
+| governanca | 5 | visualizar, criar, aprovar, avaliar, admin |
+| transparencia | 4 | visualizar, publicar, responder, admin |
+
+---
+
+## Alteração no SQL de Migração
+
+### INSERT de Permissões (Ajustado)
+
+O bloco de INSERT na tabela `permissoes` **não incluirá** a linha:
+
+```sql
+-- ❌ ESTA LINHA NÃO SERÁ INSERIDA:
+-- ('admin.super', 'Bypass total do sistema', 'admin', 'administrar', 7)
+```
+
+### Atribuição ao super_admin (Sem Alteração)
+
+O super_admin receberá as **47 permissões** automaticamente:
+
+```sql
+INSERT INTO perfil_permissoes (perfil_id, permissao_id, concedido)
+SELECT 
+  (SELECT id FROM perfis WHERE codigo = 'super_admin'),
+  p.id,
+  true
+FROM permissoes p
+ON CONFLICT (perfil_id, permissao_id) DO NOTHING;
+```
+
+O bypass total continua garantido via função, não via permissão.
+
+---
+
+## Validação de Não-Dependência
+
+### Nenhuma RLS depende de `admin.super`
+
+As políticas RLS usam:
+- `usuario_eh_super_admin(auth.uid())` para bypass
+- `usuario_tem_permissao(auth.uid(), 'codigo.especifico')` para permissões granulares
+
+### Nenhuma rota/menu depende de `admin.super`
+
+O mapeamento `NAV_PERMISSAO_MAP` não referencia `admin.super`:
+
 ```typescript
-if (isNaoUtil) {
-  doc.setDrawColor(CORES.textoSecundario.r, ...);
-  doc.setLineWidth(0.4);
-  doc.line(colX + 2, y + rowHeight - 1, colX + colWidths.assinatura - 2, y + 1);
-}
+// Mapeamento final para domínio admin
+'usuarios': 'admin.usuarios',
+'perfis': 'admin.perfis',
+'parametros': 'admin.config',
+'debitos-tecnicos': 'admin.config',
+'auditoria': 'admin.auditoria',
+'backup': 'admin.backup',
+'database': 'admin.config',
+// NÃO existe referência a admin.super
 ```
 
-**Para:** Substituir por um preenchimento suave em cinza (hachura leve) indicando que o campo não precisa de assinatura, usando apenas a cor de fundo já existente — sem nenhum desenho adicional.
+### Nenhum hook/componente depende de `admin.super`
 
-### 2. Remover o Separador entre Saída e Assinatura
-
-**Mudanças:**
-- Remover `separador: 3` do objeto `colWidths`
-- Recalcular `assinatura` para ocupar o espaço liberado: `contentWidth - 115`
-- Remover as linhas duplas verticais no header (linhas 358-363)
-- Remover a linha grossa verde no corpo da tabela (linhas 480-484)
-- Adicionar apenas uma linha vertical fina padrão entre Saída e Assinatura
-
-### 3. Inverter a Ordem do Cabeçalho
-
-**Nova ordem:**
-```
-┌─────────────────────────────────────────────────────────────┐
-│ [Logo Gov]   GOVERNO DO ESTADO DE RORAIMA      [Logo IDJuv] │
-│              Instituto de Desporto, Juventude...            │
-│              ─────────────────────────────────              │
-│              FOLHA DE FREQUÊNCIA MENSAL                     │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Implementação:**
-- Linha 1: "GOVERNO DO ESTADO DE RORAIMA" — fonte bold, tamanho 10, cor primária
-- Linha 2: "Instituto de Desporto, Juventude e Lazer do Estado de Roraima" — fonte normal, tamanho 8, cor texto
-- Linha 3: "FOLHA DE FREQUÊNCIA MENSAL" — fonte bold, tamanho 12, cor primária (título destacado)
+Os componentes `PermissionGate`, `ProtectedRoute` e `DisabledWithPermission` usam:
+- `isSuperAdmin` (via AuthContext) para bypass
+- Códigos de permissão granulares para verificação específica
 
 ---
 
-## Detalhamento Técnico
+## Checklist de Validação Final
 
-### Arquivo: `src/lib/pdfFrequenciaMensalGenerator.ts`
-
-#### Mudança 1: Redefinir `colWidths` (linha 326-334)
-```typescript
-const colWidths = {
-  dia: 13,
-  diaSemana: 18,
-  tipo: 36,
-  entrada: 24,
-  saida: 24,
-  assinatura: contentWidth - 115, // Espaço maior sem separador
-};
-```
-
-#### Mudança 2: Cabeçalho da tabela — Remover separador (linhas 344-365)
-- Desenhar colunas: DIA, SEMANA, TIPO DO DIA, ENTRADA, SAÍDA, ASSINATURA
-- Sem linhas duplas verticais entre Saída e Assinatura
-
-#### Mudança 3: Corpo da tabela — Simplificar transição Saída→Assinatura (linhas 471-484)
-- Após desenhar Saída, adicionar apenas linha vertical fina padrão
-- Pular direto para a coluna Assinatura (sem separador intermediário)
-
-#### Mudança 4: Remover linha diagonal nos dias não úteis (linhas 486-493)
-- Remover completamente o bloco `if (isNaoUtil) { ... }` que desenha a diagonal
-- O fundo diferenciado (bgFeriado ou bgCinza) já indica visualmente que é um dia sem registro
-
-#### Mudança 5: Inverter cabeçalho institucional (linhas 232-247)
-```typescript
-// ===== CABEÇALHO INSTITUCIONAL =====
-const textoY = y + maxLogoHeight / 2 - 6;
-
-// Linha 1: Governo do Estado de Roraima (destacado)
-doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
-doc.setFont('helvetica', 'bold');
-doc.setFontSize(10);
-doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, textoY, { align: 'center' });
-
-// Linha 2: Nome do Instituto (destacado)
-doc.setFont('helvetica', 'bold');
-doc.setFontSize(8);
-doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
-doc.text('Instituto de Desporto, Juventude e Lazer do Estado de Roraima', pageWidth / 2, textoY + 4.5, { align: 'center' });
-
-// Linha 3: Título do documento
-doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
-doc.setFont('helvetica', 'bold');
-doc.setFontSize(12);
-doc.text('FOLHA DE FREQUÊNCIA MENSAL', pageWidth / 2, textoY + 11, { align: 'center' });
-```
+| Item | Status |
+|------|--------|
+| `admin.super` não existe em `permissoes` | Confirmado |
+| `super_admin` acessa tudo via `usuario_eh_super_admin()` | Confirmado |
+| Nenhuma RLS depende de `admin.super` | Confirmado |
+| Nenhuma rota/menu depende de `admin.super` | Confirmado |
+| Total de permissões = 47 | Confirmado |
+| Restante do plano inalterado | Confirmado |
 
 ---
 
-## Resultado Visual Esperado
+## Resumo Executivo
 
-### Antes (problemático):
-```
-      FOLHA DE FREQUÊNCIA MENSAL
-      Governo do Estado de Roraima
-      Instituto de Desporto...
-┌─────┬─────┬────────┬────────┬───────┬───║───┬────────────────┐
-│ DIA │ SEM │  TIPO  │ENTRADA │ SAÍDA │   ║   │  ASSINATURA    │
-├─────┼─────┼────────┼────────┼───────┼───║───┼────────────────┤
-│ 01  │ SÁB │ Sábado │        │       │   ║   │  ╱╱╱╱╱╱╱╱╱╱╱   │  ← Diagonal feia
-│ 02  │ DOM │Domingo │        │       │   ║   │  ╱╱╱╱╱╱╱╱╱╱╱   │  ← Diagonal feia
-```
+| Aspecto | Decisão |
+|---------|---------|
+| Tabelas | `permissoes` e `perfil_permissoes` — sem alteração |
+| Funções RPC | `usuario_tem_permissao()`, `listar_permissoes_usuario()` — sem alteração |
+| Bypass | Exclusivamente via `usuario_eh_super_admin()` — sem alteração |
+| Permissões | 47 (removida `admin.super`) |
+| Frontend | Sem alteração |
+| Políticas RLS | Sem alteração |
+| Navegação | Sem alteração |
 
-### Depois (limpo):
-```
-      GOVERNO DO ESTADO DE RORAIMA
-      Instituto de Desporto, Juventude e Lazer do Estado de Roraima
-      FOLHA DE FREQUÊNCIA MENSAL
-┌─────┬─────┬────────┬────────┬───────┬────────────────────────┐
-│ DIA │ SEM │  TIPO  │ENTRADA │ SAÍDA │      ASSINATURA        │
-├─────┼─────┼────────┼────────┼───────┼────────────────────────┤
-│ 01  │ SÁB │ Sábado │        │       │  (fundo cinza suave)   │  ← Limpo
-│ 02  │ DOM │Domingo │        │       │  (fundo cinza suave)   │  ← Limpo
-```
+O plano será executado **integralmente** com este único ajuste conceitual.
 
----
-
-## Arquivos Afetados
-
-| Arquivo | Ação |
-|---------|------|
-| `src/lib/pdfFrequenciaMensalGenerator.ts` | Refatorar cabeçalho, remover separador e diagonal |
-
-## Estimativa
-
-- **Complexidade:** Baixa
-- **Linhas afetadas:** ~40 linhas
-- **Risco:** Baixo (mudanças visuais apenas)
