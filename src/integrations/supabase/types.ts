@@ -8943,6 +8943,48 @@ export type Database = {
           },
         ]
       }
+      perfil_permissoes: {
+        Row: {
+          concedido: boolean | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          perfil_id: string
+          permissao_id: string
+        }
+        Insert: {
+          concedido?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          perfil_id: string
+          permissao_id: string
+        }
+        Update: {
+          concedido?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          perfil_id?: string
+          permissao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "perfil_permissoes_perfil_id_fkey"
+            columns: ["perfil_id"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "perfil_permissoes_permissao_id_fkey"
+            columns: ["permissao_id"]
+            isOneToOne: false
+            referencedRelation: "permissoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       perfis: {
         Row: {
           ativo: boolean
@@ -9004,6 +9046,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      permissoes: {
+        Row: {
+          ativo: boolean | null
+          capacidade: string
+          codigo: string
+          created_at: string | null
+          descricao: string | null
+          dominio: string
+          id: string
+          nome: string
+          ordem: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          capacidade: string
+          codigo: string
+          created_at?: string | null
+          descricao?: string | null
+          dominio: string
+          id?: string
+          nome: string
+          ordem?: number | null
+        }
+        Update: {
+          ativo?: boolean | null
+          capacidade?: string
+          codigo?: string
+          created_at?: string | null
+          descricao?: string | null
+          dominio?: string
+          id?: string
+          nome?: string
+          ordem?: number | null
+        }
+        Relationships: []
       }
       planos_tratamento_risco: {
         Row: {
@@ -12784,6 +12862,18 @@ export type Database = {
           status: Database["public"]["Enums"]["status_agenda"] | null
           titulo: string | null
           unidade_id: string | null
+        }
+        Relationships: []
+      }
+      v_permissoes_admin: {
+        Row: {
+          capacidade: string | null
+          codigo: string | null
+          concedido: boolean | null
+          dominio: string | null
+          nome: string | null
+          perfil_codigo: string | null
+          perfil_nome: string | null
         }
         Relationships: []
       }
