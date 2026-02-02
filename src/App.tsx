@@ -85,7 +85,7 @@ import NoticiasPage from "./pages/NoticiasPage";
 // Auth Pages
 import AuthPage from "./pages/AuthPage";
 import AccessDeniedPage from "./pages/AccessDeniedPage";
-import GerenciamentoUsuariosPage from "./pages/admin/GerenciamentoUsuariosPage";
+import UsuariosAdminPage from "./pages/admin/UsuariosAdminPage";
 import GestaoDocumentosPage from "./pages/admin/GestaoDocumentosPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminHelpPage from "./pages/admin/AdminHelpPage";
@@ -93,6 +93,7 @@ import ControleAcessoAdminPage from "./pages/admin/ControleAcessoAdminPage";
 import CentralAprovacoesPage from "./pages/admin/CentralAprovacoesPage";
 import AuditoriaPage from "./pages/admin/AuditoriaPage";
 import GestaoPerfilPage from "./pages/admin/GestaoPerfilPage";
+import PerfilPermissoesPage from "./pages/admin/PerfilPermissoesPage";
 import BackupOffsitePage from "./pages/admin/BackupOffsitePage";
 import DisasterRecoveryPage from "./pages/admin/DisasterRecoveryPage";
 import UsuariosTecnicosPage from "./pages/admin/UsuariosTecnicosPage";
@@ -170,9 +171,9 @@ const App = () => (
               <Route path="/acesso" element={<ProtectedRoute><ControleAcessoAdminPage /></ProtectedRoute>} />
               
               {/* Com permissões mapeadas em ROUTE_PERMISSIONS */}
-              <Route path="/admin/usuarios" element={
+<Route path="/admin/usuarios" element={
                 <ProtectedRoute requiredPermissions="admin.usuarios">
-                  <GerenciamentoUsuariosPage />
+                  <UsuariosAdminPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/usuarios-tecnicos" element={
@@ -193,6 +194,11 @@ const App = () => (
               <Route path="/admin/perfis" element={
                 <ProtectedRoute requiredPermissions="admin.perfis">
                   <GestaoPerfilPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/perfis/:id/permissoes" element={
+                <ProtectedRoute requiredPermissions="admin.perfis">
+                  <PerfilPermissoesPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/backup" element={
