@@ -210,80 +210,103 @@ interface CapaParams {
 function gerarCapaLote(doc: jsPDF, params: CapaParams) {
   const { unidade, competenciaStr, totalServidores, dataGeracao, usuarioGeracao, pageWidth, pageHeight, margin, contentWidth } = params;
 
-  // Logos no topo - mesma altura para ambos
-  const logos = getLogosPDF(18); // 18mm para capa (maior destaque)
+  // ===== CABEÇALHO INSTITUCIONAL PADRÃO =====
+  // Seguindo o padrão hierárquico: Governo -> IDJuv -> Título
+  const logos = getLogosPDF(20); // 20mm para capa (maior destaque)
   
+  let y = margin;
+
   try {
-    doc.addImage(logoGoverno, 'JPEG', margin, margin, logos.governo.width, logos.governo.height);
-    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logos.idjuv.width, margin, logos.idjuv.width, logos.idjuv.height);
+    // Logos nas laterais
+    doc.addImage(logoGoverno, 'JPEG', margin, y, logos.governo.width, logos.governo.height);
+    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logos.idjuv.width, y, logos.idjuv.width, logos.idjuv.height);
   } catch (e) {
     console.warn('Logos não carregados');
   }
 
-  let y = margin + logos.altura + 15;
-
-  // Instituição
-  doc.setTextColor(0, 68, 68);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.text(INSTITUICAO.nome, pageWidth / 2, y, { align: 'center' });
+  // Texto centralizado entre as logos
+  const textCenterY = y + logos.altura / 2;
   
-  y += 8;
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(80, 85, 90);
-  doc.text(`CNPJ: ${INSTITUICAO.cnpj}`, pageWidth / 2, y, { align: 'center' });
-
-  // Título principal
-  y += 30;
+  // Governo (primeira linha)
   doc.setTextColor(0, 68, 68);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
+  doc.setFontSize(11);
+  doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, textCenterY - 4, { align: 'center' });
+  
+  // Instituto (segunda linha)
+  doc.setFontSize(9);
+  doc.setTextColor(40, 45, 50);
+  doc.text(INSTITUICAO.nome, pageWidth / 2, textCenterY + 3, { align: 'center' });
+  
+  // CNPJ (terceira linha)
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(100, 105, 110);
+  doc.text(`CNPJ: ${INSTITUICAO.cnpj}`, pageWidth / 2, textCenterY + 9, { align: 'center' });
+
+  y = margin + logos.altura + 8;
+
+  // Linha divisória elegante
+  doc.setDrawColor(0, 68, 68);
+  doc.setLineWidth(0.8);
+  doc.line(margin + 20, y, pageWidth - margin - 20, y);
+
+  // ===== TÍTULO PRINCIPAL =====
+  y += 25;
+  doc.setTextColor(0, 68, 68);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(24);
   doc.text('FOLHAS DE FREQUÊNCIA MENSAL', pageWidth / 2, y, { align: 'center' });
 
-  y += 10;
+  y += 12;
   doc.setFontSize(16);
+  doc.setTextColor(60, 65, 70);
   doc.text('LOTE POR UNIDADE ADMINISTRATIVA', pageWidth / 2, y, { align: 'center' });
 
-  // Caixa de informações
-  y += 25;
-  const boxHeight = 70;
+  // ===== CAIXA DE INFORMAÇÕES =====
+  y += 30;
+  const boxHeight = 75;
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(0, 68, 68);
   doc.setLineWidth(0.5);
-  doc.roundedRect(margin + 20, y, contentWidth - 40, boxHeight, 3, 3, 'FD');
+  doc.roundedRect(margin + 20, y, contentWidth - 40, boxHeight, 4, 4, 'FD');
 
-  y += 15;
-  doc.setFontSize(12);
+  const labelX = margin + 35;
+  const valueX = margin + 95;
+  let infoY = y + 18;
+  
+  doc.setFontSize(11);
   doc.setTextColor(60, 65, 70);
   
   // Unidade
   doc.setFont('helvetica', 'bold');
-  doc.text('UNIDADE:', margin + 30, y);
+  doc.text('UNIDADE:', labelX, infoY);
   doc.setFont('helvetica', 'normal');
   const unidadeText = unidade.sigla ? `${unidade.sigla} - ${unidade.nome}` : unidade.nome;
-  doc.text(unidadeText, margin + 60, y);
+  // Truncar se muito longo
+  const unidadeDisplay = unidadeText.length > 55 ? unidadeText.substring(0, 52) + '...' : unidadeText;
+  doc.text(unidadeDisplay, valueX, infoY);
 
-  y += 12;
+  infoY += 14;
   doc.setFont('helvetica', 'bold');
-  doc.text('COMPETÊNCIA:', margin + 30, y);
+  doc.text('COMPETÊNCIA:', labelX, infoY);
   doc.setFont('helvetica', 'normal');
-  doc.text(competenciaStr, margin + 75, y);
+  doc.text(competenciaStr, valueX, infoY);
 
-  y += 12;
+  infoY += 14;
   doc.setFont('helvetica', 'bold');
-  doc.text('SERVIDORES:', margin + 30, y);
+  doc.text('SERVIDORES:', labelX, infoY);
   doc.setFont('helvetica', 'normal');
-  doc.text(`${totalServidores} folha${totalServidores !== 1 ? 's' : ''} de frequência`, margin + 73, y);
+  doc.text(`${totalServidores} folha${totalServidores !== 1 ? 's' : ''} de frequência`, valueX, infoY);
 
-  y += 12;
+  infoY += 14;
   doc.setFont('helvetica', 'bold');
-  doc.text('EMISSÃO:', margin + 30, y);
+  doc.text('EMISSÃO:', labelX, infoY);
   doc.setFont('helvetica', 'normal');
-  doc.text(dataGeracao, margin + 60, y);
+  doc.text(dataGeracao, valueX, infoY);
 
-  // Instruções
-  y += 40;
+  // ===== INSTRUÇÕES =====
+  y += boxHeight + 25;
   doc.setFontSize(10);
   doc.setTextColor(100, 105, 110);
   doc.setFont('helvetica', 'italic');
@@ -291,7 +314,7 @@ function gerarCapaLote(doc: jsPDF, params: CapaParams) {
   y += 6;
   doc.text('Cada servidor ocupa exatamente uma página para fins de arquivo e auditoria.', pageWidth / 2, y, { align: 'center' });
 
-  // Rodapé da capa
+  // ===== RODAPÉ DA CAPA =====
   doc.setTextColor(130, 135, 140);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
