@@ -1,8 +1,8 @@
 // ============================================
-// EXPORTAÇÕES DOS COMPONENTES DE PERFIS
+// COMPONENTES DE PERFIS (LEGADO REMOVIDO)
 // ============================================
 
-export { GestaoPerfilLista } from './GestaoPerfilLista';
-export { ArvoreFuncoes } from './ArvoreFuncoes';
-export { MatrizPermissoes } from './MatrizPermissoes';
-export { UsuarioPerfilAssociacao } from './UsuarioPerfilAssociacao';
+// Os componentes antigos foram removidos na refatoração RBAC.
+// A nova UI está em src/pages/admin/ com páginas dedicadas.
+
+export {};
