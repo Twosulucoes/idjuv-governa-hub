@@ -2447,6 +2447,74 @@ export type Database = {
           },
         ]
       }
+      config_motivos_desligamento: {
+        Row: {
+          aplica_cedido: boolean
+          aplica_comissionado: boolean
+          aplica_efetivo: boolean
+          ativo: boolean
+          codigo: string
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          gera_vacancia: boolean
+          id: string
+          instituicao_id: string
+          nome: string
+          ordem: number | null
+          requer_doe: boolean
+          requer_portaria: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          aplica_cedido?: boolean
+          aplica_comissionado?: boolean
+          aplica_efetivo?: boolean
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          gera_vacancia?: boolean
+          id?: string
+          instituicao_id: string
+          nome: string
+          ordem?: number | null
+          requer_doe?: boolean
+          requer_portaria?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          aplica_cedido?: boolean
+          aplica_comissionado?: boolean
+          aplica_efetivo?: boolean
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          gera_vacancia?: boolean
+          id?: string
+          instituicao_id?: string
+          nome?: string
+          ordem?: number | null
+          requer_doe?: boolean
+          requer_portaria?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_motivos_desligamento_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       config_parametros_meta: {
         Row: {
           ativo: boolean | null
@@ -2612,6 +2680,269 @@ export type Database = {
             columns: ["versao_anterior_id"]
             isOneToOne: false
             referencedRelation: "config_parametros_valores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      config_situacoes_funcionais: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          cor_classe: string | null
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          exige_documento: boolean
+          icone: string | null
+          id: string
+          instituicao_id: string
+          nome: string
+          ordem: number | null
+          permite_remuneracao: boolean
+          permite_trabalho: boolean
+          situacao_final: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          cor_classe?: string | null
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          exige_documento?: boolean
+          icone?: string | null
+          id?: string
+          instituicao_id: string
+          nome: string
+          ordem?: number | null
+          permite_remuneracao?: boolean
+          permite_trabalho?: boolean
+          situacao_final?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          cor_classe?: string | null
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          exige_documento?: boolean
+          icone?: string | null
+          id?: string
+          instituicao_id?: string
+          nome?: string
+          ordem?: number | null
+          permite_remuneracao?: boolean
+          permite_trabalho?: boolean
+          situacao_final?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_situacoes_funcionais_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      config_tipos_ato: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          id: string
+          instituicao_id: string
+          nome: string
+          ordem: number | null
+          requer_assinatura: boolean
+          requer_doe: boolean
+          sigla: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          instituicao_id: string
+          nome: string
+          ordem?: number | null
+          requer_assinatura?: boolean
+          requer_doe?: boolean
+          sigla?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          instituicao_id?: string
+          nome?: string
+          ordem?: number | null
+          requer_assinatura?: boolean
+          requer_doe?: boolean
+          sigla?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_tipos_ato_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      config_tipos_onus: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          id: string
+          instituicao_id: string
+          nome: string
+          ordem: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          instituicao_id: string
+          nome: string
+          ordem?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          instituicao_id?: string
+          nome?: string
+          ordem?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_tipos_onus_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      config_tipos_servidor: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          cor_classe: string | null
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          gera_matricula: boolean
+          icone: string | null
+          id: string
+          impacta_folha: boolean
+          impacta_frequencia: boolean
+          instituicao_id: string
+          nome: string
+          ordem: number | null
+          permite_cargo: boolean
+          permite_lotacao_externa: boolean
+          permite_lotacao_interna: boolean
+          requer_orgao_destino: boolean
+          requer_orgao_origem: boolean
+          requer_provimento: boolean
+          tipos_cargo_permitidos: string[] | null
+          updated_at: string
+          updated_by: string | null
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          cor_classe?: string | null
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          gera_matricula?: boolean
+          icone?: string | null
+          id?: string
+          impacta_folha?: boolean
+          impacta_frequencia?: boolean
+          instituicao_id: string
+          nome: string
+          ordem?: number | null
+          permite_cargo?: boolean
+          permite_lotacao_externa?: boolean
+          permite_lotacao_interna?: boolean
+          requer_orgao_destino?: boolean
+          requer_orgao_origem?: boolean
+          requer_provimento?: boolean
+          tipos_cargo_permitidos?: string[] | null
+          updated_at?: string
+          updated_by?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          cor_classe?: string | null
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          gera_matricula?: boolean
+          icone?: string | null
+          id?: string
+          impacta_folha?: boolean
+          impacta_frequencia?: boolean
+          instituicao_id?: string
+          nome?: string
+          ordem?: number | null
+          permite_cargo?: boolean
+          permite_lotacao_externa?: boolean
+          permite_lotacao_interna?: boolean
+          requer_orgao_destino?: boolean
+          requer_orgao_origem?: boolean
+          requer_provimento?: boolean
+          tipos_cargo_permitidos?: string[] | null
+          updated_at?: string
+          updated_by?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_tipos_servidor_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
             referencedColumns: ["id"]
           },
         ]
