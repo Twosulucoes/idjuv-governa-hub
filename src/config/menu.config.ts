@@ -273,7 +273,7 @@ export const menuConfig: MenuSection[] = [
             id: "frequencia-config",
             label: "Parametrização",
             labelShort: "Parâmetros",
-            route: "/rh/configuracao-frequencia",
+            route: "/rh/frequencia/configuracao",
             icon: Settings,
             permission: "rh.aprovar",
           },
