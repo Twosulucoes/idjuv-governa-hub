@@ -238,7 +238,7 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
   
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 12;
+  const margin = 8; // REDUZIDO de 12 para 8 - melhor aproveitamento
   const contentWidth = pageWidth - margin * 2;
 
   const { tipo, competencia, servidor, registros, diasNaoUteis, configAssinatura, dataGeracao, usuarioGeracao } = data;
@@ -253,14 +253,14 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
 
   let y = margin;
 
-  // ===== CABEÇALHO INSTITUCIONAL LIMPO (SEM FAIXA ESCURA) =====
-  const headerHeight = 24;
+  // ===== CABEÇALHO INSTITUCIONAL COMPACTO =====
+  const headerHeight = 20; // REDUZIDO de 24 para 20
   
-  // Logos com proporções MENORES e equilibradas para dar destaque aos TEXTOS
-  const logoGovernoHeight = 11; // REDUZIDO para dar espaço ao texto institucional
-  const logoGovernoWidth = logoGovernoHeight * 3.69; // Proporção original ~40.6mm
-  const logoIdjuvHeight = 14; // Proporcional ao governo
-  const logoIdjuvWidth = logoIdjuvHeight * 1.55; // Proporção original ~21.7mm
+  // Logos compactas e equilibradas
+  const logoGovernoHeight = 10; // REDUZIDO de 11 para 10
+  const logoGovernoWidth = logoGovernoHeight * 3.69;
+  const logoIdjuvHeight = 12; // REDUZIDO de 14 para 12
+  const logoIdjuvWidth = logoIdjuvHeight * 1.55;
   
   const textCenterX = pageWidth / 2;
   
@@ -273,83 +273,83 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
     console.warn('Logos não carregados');
   }
 
-  // Textos institucionais COM DESTAQUE (fontes MAIORES)
+  // Textos institucionais compactos
   doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9); // AUMENTADO de 7 para 9
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', textCenterX, y + 6, { align: 'center' });
+  doc.setFontSize(8);
+  doc.text('GOVERNO DO ESTADO DE RORAIMA', textCenterX, y + 5, { align: 'center' });
   
-  doc.setFontSize(7.5); // AUMENTADO de 6 para 7.5
+  doc.setFontSize(6.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
-  doc.text('Instituto de Desporto, Juventude e Lazer / iDJUV', textCenterX, y + 11.5, { align: 'center' });
+  doc.text('Instituto de Desporto, Juventude e Lazer / iDJUV', textCenterX, y + 9.5, { align: 'center' });
   
-  // Título principal com destaque
+  // Título principal
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11); // AUMENTADO de 10 para 11
+  doc.setFontSize(10);
   doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
-  doc.text('FOLHA INDIVIDUAL DE PRESENÇA', textCenterX, y + 19, { align: 'center' });
+  doc.text('FOLHA INDIVIDUAL DE PRESENÇA', textCenterX, y + 16, { align: 'center' });
 
-  // Linha divisória sutil abaixo do cabeçalho
+  // Linha divisória sutil
   doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
-  doc.setLineWidth(0.4);
-  doc.line(margin, y + headerHeight + 1, pageWidth - margin, y + headerHeight + 1);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y + headerHeight, pageWidth - margin, y + headerHeight);
 
-  y += headerHeight + 5;
+  y += headerHeight + 2; // REDUZIDO espaçamento de 5 para 2
 
-  // ===== CARD DE IDENTIFICAÇÃO DO SERVIDOR =====
-  const identificacaoHeight = 28;
+  // ===== CARD DE IDENTIFICAÇÃO DO SERVIDOR (COMPACTO) =====
+  const identificacaoHeight = 24; // REDUZIDO de 28 para 24
   
-  // Fundo branco com sombra simulada (borda suave)
+  // Fundo branco com borda suave
   doc.setFillColor(CORES.bgCard.r, CORES.bgCard.g, CORES.bgCard.b);
   doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
-  doc.setLineWidth(0.4);
-  doc.roundedRect(margin, y, contentWidth, identificacaoHeight, 2, 2, 'FD');
+  doc.setLineWidth(0.3);
+  doc.roundedRect(margin, y, contentWidth, identificacaoHeight, 1.5, 1.5, 'FD');
 
-  // Barra lateral colorida (indicador visual)
+  // Barra lateral colorida
   doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
-  doc.rect(margin, y, 2.5, identificacaoHeight, 'F');
+  doc.rect(margin, y, 2, identificacaoHeight, 'F');
 
-  const cardPadding = 6;
-  let infoY = y + 5;
+  const cardPadding = 5;
+  let infoY = y + 4;
   const col1 = margin + cardPadding;
-  const col2 = margin + contentWidth * 0.38;
-  const col3 = margin + contentWidth * 0.7;
+  const col2 = margin + contentWidth * 0.35;
+  const col3 = margin + contentWidth * 0.68;
 
   // === LINHA 1: Nome do Servidor (destaque principal) ===
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+  doc.setFontSize(9);
+  doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
   doc.text((servidor.nome_completo || '').toUpperCase(), col1, infoY);
   
   // Badge de jornada (canto direito)
-  const badgeWidth = 22;
-  const badgeX = margin + contentWidth - badgeWidth - 4;
+  const badgeWidth = 20;
+  const badgeX = margin + contentWidth - badgeWidth - 3;
   doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
-  doc.roundedRect(badgeX, infoY - 3.5, badgeWidth, 6, 1.5, 1.5, 'F');
+  doc.roundedRect(badgeX, infoY - 3, badgeWidth, 5.5, 1.2, 1.2, 'F');
   doc.setTextColor(CORES.branco.r, CORES.branco.g, CORES.branco.b);
-  doc.setFontSize(6.5);
+  doc.setFontSize(6);
   doc.text(`${cargaHorariaDiaria}h/dia`, badgeX + badgeWidth / 2, infoY + 0.5, { align: 'center' });
   
-  infoY += 8;
+  infoY += 7;
 
   // === LINHA 2: Dados Administrativos ===
   const labelStyle = () => {
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(5.5);
+    doc.setFontSize(5);
     doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
   };
   const valueStyle = () => {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+    doc.setFontSize(6.5);
+    doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
   };
 
   // Matrícula
   labelStyle();
   doc.text('MATRÍCULA', col1, infoY);
   valueStyle();
-  doc.text(servidor.matricula || '—', col1, infoY + 4);
+  doc.text(servidor.matricula || '—', col1, infoY + 3.5);
 
   // Cargo
   labelStyle();
@@ -358,34 +358,34 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
   const cargoFuncao = servidor.funcao 
     ? `${servidor.cargo || ''} / ${servidor.funcao}` 
     : (servidor.cargo || '—');
-  const cargoDisplay = cargoFuncao.length > 35 ? cargoFuncao.substring(0, 32) + '...' : cargoFuncao;
-  doc.text(cargoDisplay, col2, infoY + 4);
+  const cargoDisplay = cargoFuncao.length > 40 ? cargoFuncao.substring(0, 37) + '...' : cargoFuncao;
+  doc.text(cargoDisplay, col2, infoY + 3.5);
 
   // Competência
   labelStyle();
   doc.text('COMPETÊNCIA', col3, infoY);
   valueStyle();
-  doc.text(`${MESES[competencia.mes - 1].toUpperCase()} / ${competencia.ano}`, col3, infoY + 4);
+  doc.text(`${MESES[competencia.mes - 1].toUpperCase()} / ${competencia.ano}`, col3, infoY + 3.5);
   
-  infoY += 10;
+  infoY += 8;
 
   // === LINHA 3: Unidade e Carga Semanal ===
   labelStyle();
   doc.text('UNIDADE DE LOTAÇÃO', col1, infoY);
   valueStyle();
-  doc.setFontSize(6.5);
-  const unidadeText = (servidor.unidade || '—').length > 70 
-    ? (servidor.unidade || '').substring(0, 67) + '...' 
+  doc.setFontSize(6);
+  const unidadeText = (servidor.unidade || '—').length > 80 
+    ? (servidor.unidade || '').substring(0, 77) + '...' 
     : (servidor.unidade || '—');
-  doc.text(unidadeText, col1, infoY + 4);
+  doc.text(unidadeText, col1, infoY + 3.5);
 
   labelStyle();
   doc.text('CARGA SEMANAL', col3, infoY);
   valueStyle();
-  doc.setFontSize(7);
-  doc.text(`${servidor.carga_horaria_semanal || 40}h`, col3, infoY + 4);
+  doc.setFontSize(6.5);
+  doc.text(`${servidor.carga_horaria_semanal || 40}h`, col3, infoY + 3.5);
 
-  y += identificacaoHeight + 4;
+  y += identificacaoHeight + 2; // REDUZIDO espaçamento de 4 para 2
 
   // ===== TABELA DE FREQUÊNCIA =====
   
@@ -429,9 +429,9 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
     ];
   }
 
-  // Header da tabela - estilo moderno e limpo (FONTES AUMENTADAS + COR PRETA)
-  const headerHeight2 = usaDoisTurnos ? 14 : 12; // AUMENTADO para caber fontes maiores
-  const rowHeight = 6.2; // AUMENTADO para alta legibilidade
+  // Header da tabela - OTIMIZADO PARA APROVEITAMENTO MÁXIMO
+  const headerHeight2 = usaDoisTurnos ? 12 : 10; // REDUZIDO para mais espaço nas linhas
+  const rowHeight = 6.8; // AUMENTADO para maior área de escrita/assinatura
   
   // Fundo do header (cinza claro em vez de verde)
   doc.setFillColor(CORES.headerTabela.r, CORES.headerTabela.g, CORES.headerTabela.b);
@@ -666,15 +666,15 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
     y += rowHeight;
   }
 
-  // ===== RODAPÉ - LOCAL E DATA - PRETO E MAIOR =====
-  y += 4;
+  // ===== RODAPÉ - LOCAL E DATA =====
+  y += 2; // REDUZIDO de 4 para 2
   
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5); // AUMENTADO de 7.5 para 8.5
+  doc.setFontSize(8);
   doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
   doc.text('Boa Vista - RR, _______ de ________________________ de ________.', margin, y);
 
-  y += 10;
+  y += 8; // REDUZIDO de 10 para 8
 
   // ===== ÁREA DE ASSINATURAS FINAIS =====
   const assinaturaBoxWidth = contentWidth / 2 - 8;
