@@ -121,12 +121,16 @@ export const generateFrequenciaLotePDFInternal = async (config: LoteFrequenciaPD
         matricula: servidor.matricula || '',
         cpf: servidor.cpf,
         cargo: servidor.cargo_nome,
+        funcao: '', // Campo opcional
+        categoria: '', // Campo opcional
+        telefone: '', // Campo opcional
         unidade: servidor.unidade_sigla 
           ? `${servidor.unidade_sigla} - ${servidor.unidade_nome || ''}`
           : servidor.unidade_nome,
         regime: servidor.regime || 'Presencial',
         carga_horaria_diaria: servidor.carga_horaria_diaria || 8,
         carga_horaria_semanal: servidor.carga_horaria_semanal || 40,
+        frequencia_integral: true,
       },
       registros: gerarRegistrosDiariosBranco(competencia.ano, competencia.mes, diasNaoUteis),
       diasNaoUteis,
