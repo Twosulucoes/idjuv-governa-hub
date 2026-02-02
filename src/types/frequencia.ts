@@ -19,6 +19,9 @@ export type TipoDiaNaoUtil =
   | 'suspensao_expediente' 
   | 'expediente_reduzido';
 
+// Esfera do feriado/dia não útil
+export type EsferaDiaNaoUtil = 'nacional' | 'estadual' | 'municipal' | 'institucional';
+
 // Impacto nas horas
 export type ImpactoHoras = 'neutro' | 'reduz' | 'compensa';
 
@@ -108,12 +111,15 @@ export interface RegimeTrabalho {
   updated_at?: string;
 }
 
-// 3. Dia Não Útil
+// 3. Dia Não Útil / Calendário Oficial
 export interface DiaNaoUtil {
   id: string;
   data: string;
   nome: string;
   tipo: TipoDiaNaoUtil;
+  esfera?: EsferaDiaNaoUtil;
+  uf?: string;
+  municipio?: string;
   conta_frequencia: boolean;
   exige_compensacao: boolean;
   horas_expediente?: number;
@@ -122,8 +128,12 @@ export interface DiaNaoUtil {
   dia_recorrente?: number;
   abrangencia: 'todas' | 'especifica';
   unidades_aplicaveis?: string[];
+  fundamentacao_legal?: string;
   ativo: boolean;
   created_at?: string;
+  updated_at?: string;
+  created_by?: string;
+  updated_by?: string;
   observacao?: string;
 }
 
@@ -294,6 +304,13 @@ export const TIPO_DIA_NAO_UTIL_LABELS: Record<TipoDiaNaoUtil, string> = {
   recesso: 'Recesso Administrativo',
   suspensao_expediente: 'Suspensão de Expediente',
   expediente_reduzido: 'Expediente Reduzido',
+};
+
+export const ESFERA_DIA_NAO_UTIL_LABELS: Record<EsferaDiaNaoUtil, string> = {
+  nacional: 'Nacional',
+  estadual: 'Estadual',
+  municipal: 'Municipal',
+  institucional: 'Institucional',
 };
 
 export const TIPO_REGIME_LABELS: Record<TipoRegime, string> = {
