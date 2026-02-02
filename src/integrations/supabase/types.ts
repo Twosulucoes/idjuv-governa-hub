@@ -13102,6 +13102,26 @@ export type Database = {
         Args: { p_servidor_id: string }
         Returns: undefined
       }
+      fn_calcular_sla_processo: {
+        Args: { p_processo_id: string }
+        Returns: {
+          dias_aberto: number
+          dias_ultima_movimentacao: number
+          status_sla: string
+        }[]
+      }
+      fn_contar_processos_por_status: {
+        Args: never
+        Returns: {
+          quantidade: number
+          status: string
+        }[]
+      }
+      fn_pode_arquivar_processo: {
+        Args: { p_processo_id: string }
+        Returns: boolean
+      }
+      fn_proximo_numero_processo: { Args: { p_ano?: number }; Returns: string }
       gerar_codigo_pre_cadastro: { Args: never; Returns: string }
       gerar_link_frequencia: { Args: never; Returns: string }
       gerar_numero_portaria: { Args: { p_ano?: number }; Returns: string }
