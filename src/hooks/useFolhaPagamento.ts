@@ -322,6 +322,270 @@ export function useEventosESocialFolha(folhaId?: string) {
   });
 }
 
+// ============== FICHAS FINANCEIRAS ==============
+export function useFichasFinanceiras(folhaId?: string) {
+  return useQuery({
+    queryKey: ['fichas-financeiras', folhaId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('fichas_financeiras')
+        .select(`
+          *,
+          servidor:servidores(id, nome_completo, cpf, matricula)
+        `)
+        .eq('folha_id', folhaId)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!folhaId,
+  });
+}
+
+export function useFichaFinanceiraDetalhe(fichaId?: string) {
+  return useQuery({
+    queryKey: ['ficha-financeira-detalhe', fichaId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('fichas_financeiras')
+        .select(`
+          *,
+          servidor:servidores(id, nome_completo, cpf, matricula, pis_pasep, data_nascimento),
+          folha:folhas_pagamento(competencia_ano, competencia_mes, tipo_folha, status)
+        `)
+        .eq('id', fichaId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!fichaId,
+  });
+}
+
+// ============== ITENS DA FICHA ==============
+export function useItensFichaFinanceira(fichaId?: string) {
+  return useQuery({
+    queryKey: ['itens-ficha-financeira', fichaId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('itens_ficha_financeira')
+        .select('*')
+        .eq('ficha_id', fichaId)
+        .order('tipo', { ascending: true })
+        .order('rubrica_codigo', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!fichaId,
+  });
+}
+
+export function useSaveItemFicha() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (item: { id?: string; ficha_id: string; rubrica_id?: string; descricao: string; tipo: string; referencia?: string; valor: number; base_calculo?: number; percentual?: number; ordem?: number }) => {
+      if (item.id) {
+        const { id, ...rest } = item;
+        const { data, error } = await supabase.from('itens_ficha_financeira').update(rest).eq('id', id).select().single();
+        if (error) throw error;
+        return data;
+      } else {
+        const { data, error } = await supabase.from('itens_ficha_financeira').insert(item).select().single();
+        if (error) throw error;
+        return data;
+      }
+    },
+    onSuccess: (_, variables) => { 
+      queryClient.invalidateQueries({ queryKey: ['itens-ficha-financeira', variables.ficha_id] }); 
+      toast.success('Item salvo!'); 
+    },
+    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
+  });
+}
+
+export function useDeleteItemFicha() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, fichaId }: { id: string; fichaId: string }) => {
+      const { error } = await supabase.from('itens_ficha_financeira').delete().eq('id', id);
+      if (error) throw error;
+      return fichaId;
+    },
+    onSuccess: (fichaId) => { 
+      queryClient.invalidateQueries({ queryKey: ['itens-ficha-financeira', fichaId] }); 
+      toast.success('Item excluído!'); 
+    },
+    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
+  });
+}
+
+// ============== CONSIGNAÇÕES ==============
+export function useConsignacoesAtivas(servidorId?: string) {
+  return useQuery({
+    queryKey: ['consignacoes-ativas', servidorId],
+    queryFn: async () => {
+      let query = supabase
+        .from('consignacoes')
+        .select(`*, servidor:servidores(nome_completo, matricula)`)
+        .eq('ativo', true)
+        .eq('quitado', false)
+        .order('data_inicio', { ascending: false });
+      
+      if (servidorId) {
+        query = query.eq('servidor_id', servidorId);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+    enabled: servidorId ? !!servidorId : true,
+  });
+}
+
+export function useSaveConsignacao() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (consig: Partial<Database['public']['Tables']['consignacoes']['Insert']> & { id?: string }) => {
+      if (consig.id) {
+        const { id, ...rest } = consig;
+        const { data, error } = await supabase.from('consignacoes').update(rest).eq('id', id).select().single();
+        if (error) throw error;
+        return data;
+      } else {
+        const { data, error } = await supabase.from('consignacoes').insert(consig as Database['public']['Tables']['consignacoes']['Insert']).select().single();
+        if (error) throw error;
+        return data;
+      }
+    },
+    onSuccess: () => { 
+      queryClient.invalidateQueries({ queryKey: ['consignacoes-ativas'] }); 
+      toast.success('Consignação salva!'); 
+    },
+    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
+  });
+}
+
+// ============== DEPENDENTES IRRF ==============
+export function useDependentesIRRF(servidorId?: string) {
+  return useQuery({
+    queryKey: ['dependentes-irrf', servidorId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('dependentes_irrf')
+        .select('*')
+        .eq('servidor_id', servidorId)
+        .eq('ativo', true)
+        .eq('deduz_irrf', true)
+        .order('nome', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!servidorId,
+  });
+}
+
+export function useSaveDependenteIRRF() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (dep: Partial<Database['public']['Tables']['dependentes_irrf']['Insert']> & { id?: string }) => {
+      if (dep.id) {
+        const { id, ...rest } = dep;
+        const { data, error } = await supabase.from('dependentes_irrf').update(rest).eq('id', id).select().single();
+        if (error) throw error;
+        return data;
+      } else {
+        const { data, error } = await supabase.from('dependentes_irrf').insert(dep as Database['public']['Tables']['dependentes_irrf']['Insert']).select().single();
+        if (error) throw error;
+        return data;
+      }
+    },
+    onSuccess: (_, variables) => { 
+      queryClient.invalidateQueries({ queryKey: ['dependentes-irrf', variables.servidor_id] }); 
+      toast.success('Dependente salvo!'); 
+    },
+    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
+  });
+}
+
+// ============== CRIAR REMESSA BANCÁRIA ==============
+export function useCreateRemessaBancaria() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (remessa: {
+      folha_id: string;
+      conta_autarquia_id: string;
+      numero_remessa: number;
+      quantidade_registros: number;
+      valor_total: number;
+      nome_arquivo: string;
+      layout?: string;
+      status?: string;
+    }) => {
+      const { data, error } = await supabase
+        .from('remessas_bancarias')
+        .insert({
+          folha_id: remessa.folha_id,
+          conta_autarquia_id: remessa.conta_autarquia_id,
+          numero_remessa: remessa.numero_remessa,
+          quantidade_registros: remessa.quantidade_registros,
+          valor_total: remessa.valor_total,
+          nome_arquivo: remessa.nome_arquivo,
+          layout: remessa.layout || 'cnab240',
+          status: remessa.status || 'gerada',
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['remessas-bancarias', variables.folha_id] });
+      toast.success('Remessa bancária gerada!');
+    },
+    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
+  });
+}
+
+// ============== CRIAR EVENTO ESOCIAL ==============
+export function useCreateEventoESocial() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (evento: {
+      folha_id?: string;
+      servidor_id?: string;
+      tipo_evento: string;
+      payload_xml?: string;
+      competencia_ano?: number;
+      competencia_mes?: number;
+    }) => {
+      const insertData = {
+        folha_id: evento.folha_id,
+        servidor_id: evento.servidor_id,
+        tipo_evento: evento.tipo_evento,
+        payload_xml: evento.payload_xml,
+        competencia_ano: evento.competencia_ano,
+        competencia_mes: evento.competencia_mes,
+        status: 'pendente' as const,
+      };
+      const { data, error } = await supabase
+        .from('eventos_esocial')
+        .insert(insertData as any)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      if (variables.folha_id) {
+        queryClient.invalidateQueries({ queryKey: ['eventos-esocial', variables.folha_id] });
+      }
+      toast.success('Evento eSocial gerado!');
+    },
+    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
+  });
+}
+
 // ============== CONFIG AUTARQUIA ==============
 export function useConfigAutarquia() {
   return useQuery({
