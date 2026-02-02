@@ -576,7 +576,9 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
 /**
  * Gera o PDF e retorna como Blob para upload
  */
-export async function generateFrequenciaMensalBlob(data: FrequenciaMensalPDFData): Promise<{ blob: Blob; nomeArquivo: string }> {
+export async function generateFrequenciaMensalBlob(
+  data: FrequenciaMensalPDFData
+): Promise<{ blob: Blob; nomeArquivo: string }> {
   const { doc, nomeArquivo } = await generateFrequenciaMensalPDF(data);
   const blob = doc.output('blob');
   return { blob, nomeArquivo };
