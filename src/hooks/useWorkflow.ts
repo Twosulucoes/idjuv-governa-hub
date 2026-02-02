@@ -426,3 +426,127 @@ export function useMarcarPrazoCumprido() {
     },
   });
 }
+
+// ========================
+// ARQUIVAR PROCESSO
+// ========================
+
+export function useArquivarProcesso() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ processoId, despachoTexto }: { processoId: string; despachoTexto: string }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      
+      // Primeiro cria o despacho conclusivo
+      const { error: despachoError } = await supabase
+        .from('despachos')
+        .insert({
+          processo_id: processoId,
+          texto_despacho: despachoTexto,
+          tipo_despacho: 'conclusivo',
+          decisao: 'arquivar',
+          created_by: userData.user?.id,
+        } as any);
+      
+      if (despachoError) throw despachoError;
+      
+      // Depois atualiza o processo para arquivado (o trigger validará)
+      const { data, error } = await supabase
+        .from('processos_administrativos')
+        .update({ 
+          status: 'arquivado',
+          data_encerramento: new Date().toISOString().split('T')[0]
+        } as any)
+        .eq('id', processoId)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['processos-administrativos'] });
+      queryClient.invalidateQueries({ queryKey: ['processo-administrativo', variables.processoId] });
+      queryClient.invalidateQueries({ queryKey: ['despachos-processo', variables.processoId] });
+      toast.success('Processo arquivado com sucesso!');
+    },
+    onError: (error: Error) => {
+      toast.error(`Erro ao arquivar: ${error.message}`);
+    },
+  });
+}
+
+// ========================
+// CONCLUIR PROCESSO
+// ========================
+
+export function useConcluirProcesso() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ processoId, despachoTexto, decisao }: { 
+      processoId: string; 
+      despachoTexto: string;
+      decisao: 'deferido' | 'indeferido' | 'parcialmente_deferido';
+    }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      
+      // Cria o despacho conclusivo
+      const { error: despachoError } = await supabase
+        .from('despachos')
+        .insert({
+          processo_id: processoId,
+          texto_despacho: despachoTexto,
+          tipo_despacho: 'conclusivo',
+          decisao: decisao,
+          created_by: userData.user?.id,
+        } as any);
+      
+      if (despachoError) throw despachoError;
+      
+      // Atualiza status para concluído
+      const { data, error } = await supabase
+        .from('processos_administrativos')
+        .update({ 
+          status: 'concluido',
+          data_encerramento: new Date().toISOString().split('T')[0]
+        } as any)
+        .eq('id', processoId)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['processos-administrativos'] });
+      queryClient.invalidateQueries({ queryKey: ['processo-administrativo', variables.processoId] });
+      queryClient.invalidateQueries({ queryKey: ['despachos-processo', variables.processoId] });
+      toast.success('Processo concluído com sucesso!');
+    },
+    onError: (error: Error) => {
+      toast.error(`Erro ao concluir: ${error.message}`);
+    },
+  });
+}
+
+// ========================
+// RESUMO PROCESSOS (DASHBOARD)
+// ========================
+
+export function useProcessosResumo() {
+  return useQuery({
+    queryKey: ['processos-resumo'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('v_processos_resumo')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+}

@@ -3730,13 +3730,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "designacoes_lotacao_id_fkey"
-            columns: ["lotacao_id"]
-            isOneToOne: false
-            referencedRelation: "v_servidores_situacao"
-            referencedColumns: ["lotacao_id"]
-          },
-          {
             foreignKeyName: "designacoes_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
@@ -4024,13 +4017,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "documentos_provimento_id_fkey"
-            columns: ["provimento_id"]
-            isOneToOne: false
-            referencedRelation: "v_servidores_situacao"
-            referencedColumns: ["provimento_id"]
-          },
-          {
             foreignKeyName: "documentos_unidade_id_fkey"
             columns: ["unidade_id"]
             isOneToOne: false
@@ -4101,6 +4087,13 @@ export type Database = {
             columns: ["agenda_id"]
             isOneToOne: false
             referencedRelation: "v_cedencias_a_vencer"
+            referencedColumns: ["agenda_id"]
+          },
+          {
+            foreignKeyName: "documentos_cedencia_agenda_id_fkey"
+            columns: ["agenda_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_uso_unidades"
             referencedColumns: ["agenda_id"]
           },
         ]
@@ -5383,13 +5376,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "lotacoes"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fichas_financeiras_lotacao_id_fkey"
-            columns: ["lotacao_id"]
-            isOneToOne: false
-            referencedRelation: "v_servidores_situacao"
-            referencedColumns: ["lotacao_id"]
           },
           {
             foreignKeyName: "fichas_financeiras_servidor_id_fkey"
@@ -7737,13 +7723,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "lotacoes"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "memorandos_lotacao_lotacao_id_fkey"
-            columns: ["lotacao_id"]
-            isOneToOne: false
-            referencedRelation: "v_servidores_situacao"
-            referencedColumns: ["lotacao_id"]
           },
           {
             foreignKeyName: "memorandos_lotacao_servidor_id_fkey"
@@ -12219,6 +12198,13 @@ export type Database = {
             referencedColumns: ["agenda_id"]
           },
           {
+            foreignKeyName: "termos_cessao_agenda_id_fkey"
+            columns: ["agenda_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_uso_unidades"
+            referencedColumns: ["agenda_id"]
+          },
+          {
             foreignKeyName: "termos_cessao_chefe_responsavel_id_fkey"
             columns: ["chefe_responsavel_id"]
             isOneToOne: false
@@ -12903,101 +12889,65 @@ export type Database = {
       }
       v_relatorio_uso_unidades: {
         Row: {
-          ano_referencia: number | null
+          agenda_id: string | null
+          data_fim: string | null
+          data_inicio: string | null
+          dias_uso: number | null
           municipio: string | null
           nome_unidade: string | null
-          status_unidade:
-            | Database["public"]["Enums"]["status_unidade_local"]
-            | null
+          publico_estimado: number | null
+          solicitante_nome: string | null
+          status_agenda: Database["public"]["Enums"]["status_agenda"] | null
           tipo_unidade: Database["public"]["Enums"]["tipo_unidade_local"] | null
-          total_aprovadas: number | null
-          total_canceladas: number | null
-          total_concluidas: number | null
-          total_rejeitadas: number | null
-          total_solicitacoes: number | null
-          total_termos: number | null
+          tipo_uso: string | null
+          titulo: string | null
           unidade_id: string | null
         }
         Relationships: []
       }
       v_servidores_situacao: {
         Row: {
-          cargo_id: string | null
-          cargo_natureza: Database["public"]["Enums"]["natureza_cargo"] | null
+          ativo: boolean | null
           cargo_nome: string | null
           cargo_sigla: string | null
-          cessao_id: string | null
-          cessao_inicio: string | null
-          cessao_onus: string | null
-          cessao_orgao_destino: string | null
-          cessao_orgao_origem: string | null
-          cessao_tipo: string | null
           cpf: string | null
+          data_exercicio: string | null
           data_nomeacao: string | null
           data_posse: string | null
-          email_institucional: string | null
-          foto_url: string | null
           id: string | null
-          lotacao_funcao: string | null
-          lotacao_id: string | null
-          lotacao_inicio: string | null
           matricula: string | null
           nome_completo: string | null
-          provimento_id: string | null
-          provimento_status:
-            | Database["public"]["Enums"]["status_provimento"]
-            | null
           situacao: Database["public"]["Enums"]["situacao_funcional"] | null
-          telefone_celular: string | null
-          tipo_lotacao: Database["public"]["Enums"]["tipo_lotacao"] | null
           tipo_servidor: Database["public"]["Enums"]["tipo_servidor"] | null
-          unidade_id: string | null
           unidade_nome: string | null
           unidade_sigla: string | null
+          vinculo: Database["public"]["Enums"]["vinculo_funcional"] | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "lotacoes_unidade_id_fkey"
-            columns: ["unidade_id"]
-            isOneToOne: false
-            referencedRelation: "estrutura_organizacional"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "provimentos_cargo_id_fkey"
-            columns: ["cargo_id"]
-            isOneToOne: false
-            referencedRelation: "cargos"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       v_sic_consulta_publica: {
         Row: {
-          data_resposta: string | null
-          data_solicitacao: string | null
           dias_restantes: number | null
           prazo_resposta: string | null
           protocolo: string | null
-          respondido_no_prazo: boolean | null
+          respondido_em: string | null
+          resposta: string | null
           status: string | null
         }
         Insert: {
-          data_resposta?: string | null
-          data_solicitacao?: string | null
           dias_restantes?: never
           prazo_resposta?: string | null
           protocolo?: string | null
-          respondido_no_prazo?: never
+          respondido_em?: string | null
+          resposta?: never
           status?: string | null
         }
         Update: {
-          data_resposta?: string | null
-          data_solicitacao?: string | null
           dias_restantes?: never
           prazo_resposta?: string | null
           protocolo?: string | null
-          respondido_no_prazo?: never
+          respondido_em?: string | null
+          resposta?: never
           status?: string | null
         }
         Relationships: []
@@ -13005,42 +12955,29 @@ export type Database = {
       v_usuarios_sistema: {
         Row: {
           avatar_url: string | null
-          blocked_at: string | null
-          blocked_reason: string | null
-          cargo_nome: string | null
-          cpf: string | null
           created_at: string | null
-          email: string | null
           full_name: string | null
           id: string | null
-          is_active: boolean | null
-          servidor_id: string | null
-          servidor_matricula: string | null
-          servidor_nome: string | null
-          servidor_situacao:
-            | Database["public"]["Enums"]["situacao_funcional"]
-            | null
-          servidor_tipo: Database["public"]["Enums"]["tipo_servidor"] | null
-          tipo_usuario: Database["public"]["Enums"]["tipo_usuario"] | null
-          unidade_nome: string | null
-          user_role: Database["public"]["Enums"]["app_role"] | null
+          perfis: string[] | null
+          updated_at: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_servidor_id_fkey"
-            columns: ["servidor_id"]
-            isOneToOne: false
-            referencedRelation: "servidores"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "profiles_servidor_id_fkey"
-            columns: ["servidor_id"]
-            isOneToOne: false
-            referencedRelation: "v_servidores_situacao"
-            referencedColumns: ["id"]
-          },
-        ]
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string | null
+          perfis?: never
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string | null
+          perfis?: never
+          updated_at?: string | null
+        }
+        Relationships: []
       }
     }
     Functions: {
