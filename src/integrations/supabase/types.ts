@@ -4966,6 +4966,72 @@ export type Database = {
           },
         ]
       }
+      itens_contrato: {
+        Row: {
+          contrato_id: string
+          created_at: string | null
+          descricao: string
+          id: string
+          item_ata_id: string | null
+          numero_item: number
+          quantidade: number
+          quantidade_entregue: number | null
+          saldo_quantidade: number | null
+          situacao: string | null
+          unidade_medida: string
+          updated_at: string | null
+          valor_total: number | null
+          valor_unitario: number
+        }
+        Insert: {
+          contrato_id: string
+          created_at?: string | null
+          descricao: string
+          id?: string
+          item_ata_id?: string | null
+          numero_item: number
+          quantidade: number
+          quantidade_entregue?: number | null
+          saldo_quantidade?: number | null
+          situacao?: string | null
+          unidade_medida: string
+          updated_at?: string | null
+          valor_total?: number | null
+          valor_unitario: number
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string | null
+          descricao?: string
+          id?: string
+          item_ata_id?: string | null
+          numero_item?: number
+          quantidade?: number
+          quantidade_entregue?: number | null
+          saldo_quantidade?: number | null
+          situacao?: string | null
+          unidade_medida?: string
+          updated_at?: string | null
+          valor_total?: number | null
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itens_contrato_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itens_contrato_item_ata_id_fkey"
+            columns: ["item_ata_id"]
+            isOneToOne: false
+            referencedRelation: "itens_ata_registro_preco"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       itens_ficha_financeira: {
         Row: {
           base_calculo: number | null
