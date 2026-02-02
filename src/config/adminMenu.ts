@@ -34,6 +34,9 @@ import {
   Database,
   Megaphone,
   Image,
+  Workflow,
+  Send,
+  MessageSquare,
   type LucideIcon,
 } from "lucide-react";
 
@@ -318,6 +321,34 @@ export const adminMenuConfig: AdminMenuSection[] = [
     label: "Processos",
     icon: ClipboardList,
     items: [
+      {
+        id: "workflow",
+        label: "Workflow",
+        icon: Workflow,
+        children: [
+          {
+            id: "gestao-processos",
+            label: "Gestão de Processos",
+            href: "/workflow/processos",
+            icon: ClipboardList,
+            keywords: ["workflow", "processos", "sei", "tramitação", "administrativo"],
+          },
+          {
+            id: "tramitacao",
+            label: "Tramitação",
+            href: "/workflow/processos",
+            icon: Send,
+            keywords: ["tramitação", "movimentação", "enviar", "encaminhar"],
+          },
+          {
+            id: "despachos",
+            label: "Despachos",
+            href: "/workflow/processos",
+            icon: MessageSquare,
+            keywords: ["despachos", "decisão", "parecer", "análise"],
+          },
+        ],
+      },
       {
         id: "compras",
         label: "Compras e Contratos",
