@@ -96,35 +96,42 @@ export const INSTITUICAO = {
   endereco: 'Rua Cel. Pinto, 588, Centro, Boa Vista/RR, CEP 69.301-150',
 };
 
-// Paleta de cores institucional moderna
+// Paleta de cores institucional moderna - refinada
 export const CORES = {
   // Cores primárias institucionais
-  primaria: { r: 0, g: 68, b: 68 },      // Verde institucional
-  secundaria: { r: 41, g: 98, b: 135 },  // Azul moderno
-  accent: { r: 180, g: 145, b: 75 },     // Dourado sutil
+  primaria: { r: 0, g: 68, b: 68 },       // Verde institucional
+  primariaSuave: { r: 0, g: 85, b: 85 },  // Verde mais claro
+  secundaria: { r: 41, g: 98, b: 135 },   // Azul moderno
+  accent: { r: 180, g: 145, b: 75 },      // Dourado sutil
   
   // Textos
   preto: { r: 0, g: 0, b: 0 },
-  texto: { r: 30, g: 35, b: 45 },
-  textoSecundario: { r: 90, g: 95, b: 100 },
+  texto: { r: 35, g: 40, b: 50 },
+  textoSecundario: { r: 100, g: 105, b: 115 },
+  textoSutil: { r: 140, g: 145, b: 155 },
   branco: { r: 255, g: 255, b: 255 },
   
   // Backgrounds
-  bgClaro: { r: 250, g: 252, b: 254 },
-  bgCinza: { r: 245, g: 247, b: 250 },
+  bgClaro: { r: 252, g: 253, b: 255 },
+  bgCinza: { r: 248, g: 250, b: 252 },
   bgHeader: { r: 0, g: 68, b: 68 },
+  bgCard: { r: 255, g: 255, b: 255 },
   
   // Bordas e linhas
-  border: { r: 200, g: 210, b: 220 },
+  border: { r: 220, g: 225, b: 232 },
+  borderLight: { r: 235, g: 238, b: 242 },
   borderStrong: { r: 0, g: 68, b: 68 },
   
   // Status
-  vermelho: { r: 200, g: 50, b: 50 },
+  vermelho: { r: 185, g: 60, b: 60 },
   verde: { r: 34, g: 139, b: 34 },
   
   // Dias especiais
-  bgFeriado: { r: 255, g: 245, b: 235 },
-  bgFimSemana: { r: 248, g: 250, b: 252 },
+  bgFeriado: { r: 255, g: 248, b: 240 },
+  bgFimSemana: { r: 250, g: 251, b: 253 },
+  
+  // Tabela
+  headerTabela: { r: 245, g: 247, b: 250 },
 };
 
 // ============================================
@@ -231,7 +238,7 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
   
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 10;
+  const margin = 12;
   const contentWidth = pageWidth - margin * 2;
 
   const { tipo, competencia, servidor, registros, diasNaoUteis, configAssinatura, dataGeracao, usuarioGeracao } = data;
@@ -247,22 +254,22 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
   let y = margin;
 
   // ===== CABEÇALHO INSTITUCIONAL MODERNO =====
-  const headerHeight = 22;
+  const headerHeight = 18;
   
-  // Fundo do cabeçalho com gradiente visual (cor sólida moderna)
+  // Fundo do cabeçalho com cor sólida institucional
   doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
   doc.rect(margin, y, contentWidth, headerHeight, 'F');
   
   // Logos no cabeçalho
-  const logoHeight = 16;
-  const logoGovernoWidth = logoHeight * 2.8;
-  const logoIdjuvWidth = logoHeight * 1.5;
+  const logoHeight = 12;
+  const logoGovernoWidth = logoHeight * 2.6;
+  const logoIdjuvWidth = logoHeight * 1.4;
   
   try {
     // Logo Governo (esquerda)
-    doc.addImage(logoGoverno, 'JPEG', margin + 3, y + 3, logoGovernoWidth, logoHeight);
+    doc.addImage(logoGoverno, 'JPEG', margin + 4, y + 3, logoGovernoWidth, logoHeight);
     // Logo IDJuv (direita)
-    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth - 3, y + 3, logoIdjuvWidth, logoHeight);
+    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth - 4, y + 3, logoIdjuvWidth, logoHeight);
   } catch (e) {
     console.warn('Logos não carregados');
   }
@@ -270,98 +277,108 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
   // Textos centralizados no cabeçalho
   doc.setTextColor(CORES.branco.r, CORES.branco.g, CORES.branco.b);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, y + 7, { align: 'center' });
+  doc.setFontSize(7.5);
+  doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, y + 6, { align: 'center' });
   
-  doc.setFontSize(7);
+  doc.setFontSize(6);
   doc.setFont('helvetica', 'normal');
-  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER', pageWidth / 2, y + 12, { align: 'center' });
+  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER', pageWidth / 2, y + 10.5, { align: 'center' });
   
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.text('FOLHA INDIVIDUAL DE PRESENÇA', pageWidth / 2, y + 18, { align: 'center' });
+  doc.setFontSize(7);
+  doc.text('FOLHA INDIVIDUAL DE PRESENÇA', pageWidth / 2, y + 15, { align: 'center' });
 
-  y += headerHeight + 4;
+  y += headerHeight + 5;
 
-  // ===== CARD DE IDENTIFICAÇÃO =====
-  const cardPadding = 3;
-  const identificacaoHeight = 32;
+  // ===== CARD DE IDENTIFICAÇÃO DO SERVIDOR =====
+  const identificacaoHeight = 28;
   
-  // Fundo do card
-  doc.setFillColor(CORES.bgClaro.r, CORES.bgClaro.g, CORES.bgClaro.b);
+  // Fundo branco com sombra simulada (borda suave)
+  doc.setFillColor(CORES.bgCard.r, CORES.bgCard.g, CORES.bgCard.b);
   doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, y, contentWidth, identificacaoHeight, 1.5, 1.5, 'FD');
+  doc.setLineWidth(0.4);
+  doc.roundedRect(margin, y, contentWidth, identificacaoHeight, 2, 2, 'FD');
 
-  // Linha de destaque superior
+  // Barra lateral colorida (indicador visual)
   doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
-  doc.rect(margin, y, contentWidth, 1.5, 'F');
+  doc.rect(margin, y, 2.5, identificacaoHeight, 'F');
 
-  let infoY = y + 6;
+  const cardPadding = 6;
+  let infoY = y + 5;
   const col1 = margin + cardPadding;
-  const col2 = margin + contentWidth * 0.5;
+  const col2 = margin + contentWidth * 0.38;
+  const col3 = margin + contentWidth * 0.7;
+
+  // === LINHA 1: Nome do Servidor (destaque principal) ===
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
+  doc.text((servidor.nome_completo || '').toUpperCase(), col1, infoY);
+  
+  // Badge de jornada (canto direito)
+  const badgeWidth = 22;
+  const badgeX = margin + contentWidth - badgeWidth - 4;
+  doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+  doc.roundedRect(badgeX, infoY - 3.5, badgeWidth, 6, 1.5, 1.5, 'F');
+  doc.setTextColor(CORES.branco.r, CORES.branco.g, CORES.branco.b);
+  doc.setFontSize(6.5);
+  doc.text(`${cargaHorariaDiaria}h/dia`, badgeX + badgeWidth / 2, infoY + 0.5, { align: 'center' });
+  
+  infoY += 8;
+
+  // === LINHA 2: Dados Administrativos ===
   const labelStyle = () => {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(5.5);
     doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
   };
   const valueStyle = () => {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
   };
 
-  // Linha 1: Servidor e Matrícula
+  // Matrícula
   labelStyle();
-  doc.text('SERVIDOR(A)', col1, infoY);
-  doc.text('MATRÍCULA', col2, infoY);
-  infoY += 4;
+  doc.text('MATRÍCULA', col1, infoY);
   valueStyle();
-  doc.text((servidor.nome_completo || '').toUpperCase(), col1, infoY);
-  doc.text(servidor.matricula || '', col2, infoY);
-  
-  infoY += 6;
-  
-  // Linha 2: Unidade e Cargo
+  doc.text(servidor.matricula || '—', col1, infoY + 4);
+
+  // Cargo
   labelStyle();
-  doc.text('UNIDADE', col1, infoY);
   doc.text('CARGO / FUNÇÃO', col2, infoY);
-  infoY += 4;
   valueStyle();
-  doc.setFontSize(7);
-  const unidadeText = (servidor.unidade || '').length > 50 
-    ? (servidor.unidade || '').substring(0, 47) + '...' 
-    : (servidor.unidade || '');
-  doc.text(unidadeText, col1, infoY);
   const cargoFuncao = servidor.funcao 
     ? `${servidor.cargo || ''} / ${servidor.funcao}` 
-    : (servidor.cargo || '');
-  doc.text(cargoFuncao, col2, infoY);
-  
-  infoY += 6;
-  
-  // Linha 3: Competência, Carga Horária, Jornada
-  labelStyle();
-  doc.text('COMPETÊNCIA', col1, infoY);
-  doc.text('JORNADA', col1 + 50, infoY);
-  doc.text('CARGA SEMANAL', col2, infoY);
-  infoY += 4;
-  valueStyle();
-  doc.setFontSize(8);
-  doc.text(`${MESES[competencia.mes - 1].toUpperCase()} / ${competencia.ano}`, col1, infoY);
-  
-  // Destaque visual para a jornada
-  doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
-  doc.roundedRect(col1 + 48, infoY - 3.5, 18, 5, 1, 1, 'F');
-  doc.setTextColor(CORES.branco.r, CORES.branco.g, CORES.branco.b);
-  doc.setFontSize(7);
-  doc.text(`${cargaHorariaDiaria}h/dia`, col1 + 57, infoY, { align: 'center' });
-  
-  doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
-  doc.setFontSize(8);
-  doc.text(`${servidor.carga_horaria_semanal || 40}h semanais`, col2, infoY);
+    : (servidor.cargo || '—');
+  const cargoDisplay = cargoFuncao.length > 35 ? cargoFuncao.substring(0, 32) + '...' : cargoFuncao;
+  doc.text(cargoDisplay, col2, infoY + 4);
 
-  y += identificacaoHeight + 3;
+  // Competência
+  labelStyle();
+  doc.text('COMPETÊNCIA', col3, infoY);
+  valueStyle();
+  doc.text(`${MESES[competencia.mes - 1].toUpperCase()} / ${competencia.ano}`, col3, infoY + 4);
+  
+  infoY += 10;
+
+  // === LINHA 3: Unidade e Carga Semanal ===
+  labelStyle();
+  doc.text('UNIDADE DE LOTAÇÃO', col1, infoY);
+  valueStyle();
+  doc.setFontSize(6.5);
+  const unidadeText = (servidor.unidade || '—').length > 70 
+    ? (servidor.unidade || '').substring(0, 67) + '...' 
+    : (servidor.unidade || '—');
+  doc.text(unidadeText, col1, infoY + 4);
+
+  labelStyle();
+  doc.text('CARGA SEMANAL', col3, infoY);
+  valueStyle();
+  doc.setFontSize(7);
+  doc.text(`${servidor.carga_horaria_semanal || 40}h`, col3, infoY + 4);
+
+  y += identificacaoHeight + 4;
 
   // ===== TABELA DE FREQUÊNCIA =====
   
@@ -378,76 +395,75 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
   
   if (usaDoisTurnos) {
     // JORNADA >= 8H: 2 TURNOS, 2 ASSINATURAS
-    const turnoWidth = (contentWidth - 12) / 2;
+    const turnoWidth = (contentWidth - 14) / 2;
     const colWidth = turnoWidth / 4;
     
     colunas = [
-      { key: 'dia', label: 'DIA', width: 12, align: 'center' },
+      { key: 'dia', label: 'DIA', width: 14, align: 'center' },
       // 1º TURNO
-      { key: 'ent1', label: 'ENTRADA', label2: '1º TURNO', width: colWidth, align: 'center' },
-      { key: 'sai1', label: 'SAÍDA', label2: '1º TURNO', width: colWidth, align: 'center' },
-      { key: 'ass1', label: 'ASSINATURA', label2: 'SERVIDOR', width: colWidth + 4, align: 'center' },
-      { key: 'abo1', label: 'ABONO', label2: 'CHEFIA', width: colWidth - 4, align: 'center' },
+      { key: 'ent1', label: 'ENT.', label2: '1º', width: colWidth, align: 'center' },
+      { key: 'sai1', label: 'SAÍ.', label2: '1º', width: colWidth, align: 'center' },
+      { key: 'ass1', label: 'ASSIN.', label2: '1º', width: colWidth + 5, align: 'center' },
+      { key: 'abo1', label: 'ABONO', label2: '1º', width: colWidth - 5, align: 'center' },
       // 2º TURNO
-      { key: 'ent2', label: 'ENTRADA', label2: '2º TURNO', width: colWidth, align: 'center' },
-      { key: 'sai2', label: 'SAÍDA', label2: '2º TURNO', width: colWidth, align: 'center' },
-      { key: 'ass2', label: 'ASSINATURA', label2: 'SERVIDOR', width: colWidth + 4, align: 'center' },
-      { key: 'abo2', label: 'ABONO', label2: 'CHEFIA', width: colWidth - 4, align: 'center' },
+      { key: 'ent2', label: 'ENT.', label2: '2º', width: colWidth, align: 'center' },
+      { key: 'sai2', label: 'SAÍ.', label2: '2º', width: colWidth, align: 'center' },
+      { key: 'ass2', label: 'ASSIN.', label2: '2º', width: colWidth + 5, align: 'center' },
+      { key: 'abo2', label: 'ABONO', label2: '2º', width: colWidth - 5, align: 'center' },
     ];
   } else {
     // JORNADA <= 6H: 1 TURNO, 1 ASSINATURA
     colunas = [
-      { key: 'dia', label: 'DIA', width: 14, align: 'center' },
-      { key: 'ent1', label: 'HORA', label2: 'ENTRADA', width: 28, align: 'center' },
-      { key: 'sai1', label: 'HORA', label2: 'SAÍDA', width: 28, align: 'center' },
-      { key: 'ass1', label: 'ASSINATURA', label2: 'DO SERVIDOR', width: (contentWidth - 70) / 2 + 8, align: 'center' },
-      { key: 'abo1', label: 'ABONO', label2: 'DO CHEFE', width: (contentWidth - 70) / 2 - 8, align: 'center' },
+      { key: 'dia', label: 'DIA', width: 16, align: 'center' },
+      { key: 'ent1', label: 'ENTRADA', width: 30, align: 'center' },
+      { key: 'sai1', label: 'SAÍDA', width: 30, align: 'center' },
+      { key: 'ass1', label: 'ASSINATURA DO SERVIDOR', width: (contentWidth - 76) / 2 + 10, align: 'center' },
+      { key: 'abo1', label: 'ABONO CHEFIA', width: (contentWidth - 76) / 2 - 10, align: 'center' },
     ];
   }
 
-  // Header da tabela
-  const headerHeight2 = usaDoisTurnos ? 11 : 9;
-  const rowHeight = 5.0;
+  // Header da tabela - estilo moderno e limpo
+  const headerHeight2 = usaDoisTurnos ? 10 : 8;
+  const rowHeight = 4.8;
   
-  // Fundo do header
-  doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+  // Fundo do header (cinza claro em vez de verde)
+  doc.setFillColor(CORES.headerTabela.r, CORES.headerTabela.g, CORES.headerTabela.b);
   doc.rect(margin, y, contentWidth, headerHeight2, 'F');
   
-  // Bordas
-  doc.setDrawColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
-  doc.setLineWidth(0.4);
+  // Borda do header
+  doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
+  doc.setLineWidth(0.3);
   doc.rect(margin, y, contentWidth, headerHeight2);
   
   // Textos do header
-  doc.setTextColor(CORES.branco.r, CORES.branco.g, CORES.branco.b);
+  doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
   doc.setFont('helvetica', 'bold');
   
   let colX = margin;
   
   if (usaDoisTurnos) {
     // Header com indicadores de turno
-    doc.setFontSize(5.5);
+    doc.setFontSize(5);
     
     for (const col of colunas) {
       const centerX = colX + col.width / 2;
       
       if (col.key === 'dia') {
-        doc.setFontSize(6.5);
-        doc.text(col.label, centerX, y + 6, { align: 'center' });
+        doc.setFontSize(6);
+        doc.text(col.label, centerX, y + 5.5, { align: 'center' });
       } else if (col.label2) {
-        const isTurno1 = ['ent1', 'sai1', 'ass1', 'abo1'].includes(col.key);
-        const turnoLabel = isTurno1 ? '1º' : '2º';
-        
         doc.setFontSize(5);
-        doc.text(col.label, centerX, y + 4.5, { align: 'center' });
+        doc.text(col.label, centerX, y + 4, { align: 'center' });
         doc.setFontSize(4.5);
-        doc.text(`(${turnoLabel})`, centerX, y + 8, { align: 'center' });
+        doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
+        doc.text(`(${col.label2})`, centerX, y + 7.5, { align: 'center' });
+        doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
       }
       
-      // Separador vertical
+      // Separador vertical sutil
       if (col.key !== 'abo2') {
-        doc.setDrawColor(CORES.branco.r, CORES.branco.g, CORES.branco.b);
-        doc.setLineWidth(0.2);
+        doc.setDrawColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
+        doc.setLineWidth(0.15);
         doc.line(colX + col.width, y + 1, colX + col.width, y + headerHeight2 - 1);
       }
       
@@ -459,20 +475,12 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
     
     for (const col of colunas) {
       const centerX = colX + col.width / 2;
+      doc.text(col.label, centerX, y + 5, { align: 'center' });
       
-      if (col.label2) {
-        doc.text(col.label, centerX, y + 3.5, { align: 'center' });
-        doc.setFontSize(5);
-        doc.text(col.label2, centerX, y + 7, { align: 'center' });
-        doc.setFontSize(6);
-      } else {
-        doc.text(col.label, centerX, y + 5.5, { align: 'center' });
-      }
-      
-      // Separador vertical
+      // Separador vertical sutil
       if (col.key !== 'abo1') {
-        doc.setDrawColor(CORES.branco.r, CORES.branco.g, CORES.branco.b);
-        doc.setLineWidth(0.2);
+        doc.setDrawColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
+        doc.setLineWidth(0.15);
         doc.line(colX + col.width, y + 1, colX + col.width, y + headerHeight2 - 1);
       }
       
@@ -533,20 +541,21 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
       doc.rect(margin, y, contentWidth, rowHeight, 'F');
     }
 
-    // Borda da linha
-    doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
-    doc.setLineWidth(0.15);
+    // Borda da linha - mais suave
+    doc.setDrawColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
+    doc.setLineWidth(0.1);
     doc.rect(margin, y, contentWidth, rowHeight);
 
-    // Separadores verticais
+    // Separadores verticais sutis
     colX = margin;
     for (let i = 0; i < colunas.length - 1; i++) {
       colX += colunas[i].width;
+      doc.setDrawColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
       doc.line(colX, y, colX, y + rowHeight);
     }
 
     // Conteúdo
-    const textY = y + rowHeight / 2 + 1.3;
+    const textY = y + rowHeight / 2 + 1.2;
     colX = margin;
     
     for (const col of colunas) {
@@ -559,24 +568,25 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
           const diaSemana = DIAS_SEMANA_ABREV[dataAtual.getDay()];
           
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7);
+          doc.setFontSize(6.5);
           doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
-          doc.text(String(dia).padStart(2, '0'), colX + 4, textY);
+          doc.text(String(dia).padStart(2, '0'), colX + 4.5, textY);
           
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(5);
-          doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
-          doc.text(diaSemana, colX + 9, textY);
+          doc.setFontSize(4.5);
+          doc.setTextColor(CORES.textoSutil.r, CORES.textoSutil.g, CORES.textoSutil.b);
+          doc.text(diaSemana, colX + 10, textY);
         } else {
+          // Linha vazia (dia inexistente)
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(6);
-          doc.setTextColor(CORES.border.r, CORES.border.g, CORES.border.b);
+          doc.setFontSize(5);
+          doc.setTextColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
           doc.text('—', centerX, textY, { align: 'center' });
         }
       } else if (isLinhaVazia) {
-        // Linha vazia (dia inexistente)
-        doc.setTextColor(CORES.border.r, CORES.border.g, CORES.border.b);
-        doc.setFontSize(6);
+        // Linha vazia (dia inexistente) - minimalista
+        doc.setTextColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
+        doc.setFontSize(5);
         doc.text('—', centerX, textY, { align: 'center' });
       } else if (isNaoUtil) {
         // Dia não útil
@@ -592,29 +602,27 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
           else displayLabel = label || situacao.toUpperCase();
           
           // Truncar se muito longo
-          if (displayLabel.length > 15) {
-            displayLabel = displayLabel.substring(0, 14) + '…';
+          if (displayLabel.length > 16) {
+            displayLabel = displayLabel.substring(0, 15) + '…';
           }
           
           if (isFeriado || isFerias || isLicenca) {
             doc.setTextColor(CORES.vermelho.r, CORES.vermelho.g, CORES.vermelho.b);
           } else {
-            doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
+            doc.setTextColor(CORES.textoSutil.r, CORES.textoSutil.g, CORES.textoSutil.b);
           }
           doc.setFont('helvetica', 'italic');
-          doc.setFontSize(5.5);
+          doc.setFontSize(5);
           doc.text(displayLabel, centerX, textY, { align: 'center' });
         } else {
-          // Outras colunas vazias para dias não úteis
-          doc.setTextColor(CORES.border.r, CORES.border.g, CORES.border.b);
-          doc.setFontSize(6);
-          doc.text('—', centerX, textY, { align: 'center' });
+          // Outras colunas em branco para dias não úteis - sem tracinho
+          // Deixa vazio para visual mais limpo
         }
       } else if (tipo === 'preenchida' && registro) {
         // Dia útil preenchido
         doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(6.5);
+        doc.setFontSize(6);
         
         let valor = '';
         if (col.key === 'ent1') valor = registro.entrada_manha || '';
@@ -635,37 +643,39 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
   }
 
   // ===== RODAPÉ - LOCAL E DATA =====
-  y += 3;
+  y += 4;
   
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
   doc.text('Boa Vista - RR, _______ de ________________________ de ________.', margin, y);
 
-  y += 8;
+  y += 10;
 
   // ===== ÁREA DE ASSINATURAS FINAIS =====
-  const assinaturaBoxWidth = contentWidth / 2 - 5;
+  const assinaturaBoxWidth = contentWidth / 2 - 8;
   
-  // Box Assinatura do Servidor
+  // Estilo de linha mais elegante
   doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
-  doc.setLineWidth(0.3);
+  doc.setLineWidth(0.4);
   
   // Linha de assinatura do servidor
   doc.line(margin, y, margin + assinaturaBoxWidth, y);
-  doc.setFontSize(7);
+  doc.setFontSize(6.5);
+  doc.setFont('helvetica', 'normal');
   doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
   doc.text('Assinatura do(a) Servidor(a)', margin + assinaturaBoxWidth / 2, y + 4, { align: 'center' });
   
   // Linha de assinatura da chefia
-  doc.line(margin + assinaturaBoxWidth + 10, y, margin + contentWidth, y);
-  doc.text('Visto do(a) Chefe Imediato', margin + assinaturaBoxWidth + 10 + assinaturaBoxWidth / 2, y + 4, { align: 'center' });
+  const chefiaX = margin + assinaturaBoxWidth + 16;
+  doc.line(chefiaX, y, margin + contentWidth, y);
+  doc.text('Visto do(a) Chefe Imediato', chefiaX + assinaturaBoxWidth / 2, y + 4, { align: 'center' });
 
   // ===== RODAPÉ DO SISTEMA =====
-  const rodapeY = pageHeight - 5;
+  const rodapeY = pageHeight - 6;
   
-  doc.setFontSize(5.5);
-  doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
+  doc.setFontSize(5);
+  doc.setTextColor(CORES.textoSutil.r, CORES.textoSutil.g, CORES.textoSutil.b);
   doc.setFont('helvetica', 'normal');
   
   doc.text(`Gerado em ${dataGeracao}${usuarioGeracao ? ` por ${usuarioGeracao}` : ''}`, margin, rodapeY);
