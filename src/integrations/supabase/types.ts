@@ -404,6 +404,90 @@ export type Database = {
           },
         ]
       }
+      atas_registro_preco: {
+        Row: {
+          ano: number
+          created_at: string | null
+          created_by: string | null
+          data_assinatura: string
+          data_publicacao_doe: string | null
+          data_vigencia_fim: string
+          data_vigencia_inicio: string
+          fornecedor_id: string
+          fundamentacao_legal: string | null
+          id: string
+          numero_ata: string
+          numero_doe: string | null
+          objeto: string
+          observacoes: string | null
+          orgao_gerenciador: string | null
+          processo_id: string
+          saldo_disponivel: number | null
+          situacao: string | null
+          updated_at: string | null
+          valor_total_registrado: number
+        }
+        Insert: {
+          ano: number
+          created_at?: string | null
+          created_by?: string | null
+          data_assinatura: string
+          data_publicacao_doe?: string | null
+          data_vigencia_fim: string
+          data_vigencia_inicio: string
+          fornecedor_id: string
+          fundamentacao_legal?: string | null
+          id?: string
+          numero_ata: string
+          numero_doe?: string | null
+          objeto: string
+          observacoes?: string | null
+          orgao_gerenciador?: string | null
+          processo_id: string
+          saldo_disponivel?: number | null
+          situacao?: string | null
+          updated_at?: string | null
+          valor_total_registrado: number
+        }
+        Update: {
+          ano?: number
+          created_at?: string | null
+          created_by?: string | null
+          data_assinatura?: string
+          data_publicacao_doe?: string | null
+          data_vigencia_fim?: string
+          data_vigencia_inicio?: string
+          fornecedor_id?: string
+          fundamentacao_legal?: string | null
+          id?: string
+          numero_ata?: string
+          numero_doe?: string | null
+          objeto?: string
+          observacoes?: string | null
+          orgao_gerenciador?: string | null
+          processo_id?: string
+          saldo_disponivel?: number | null
+          situacao?: string | null
+          updated_at?: string | null
+          valor_total_registrado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "atas_registro_preco_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atas_registro_preco_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log_licitacoes: {
         Row: {
           acao: string
@@ -4806,6 +4890,78 @@ export type Database = {
             columns: ["configuracao_id"]
             isOneToOne: false
             referencedRelation: "configuracao_jornada"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itens_ata_registro_preco: {
+        Row: {
+          ata_id: string
+          created_at: string | null
+          descricao: string
+          id: string
+          item_licitatorio_id: string | null
+          marca: string | null
+          modelo: string | null
+          numero_item: number
+          quantidade_consumida: number | null
+          quantidade_registrada: number
+          saldo_quantidade: number | null
+          situacao: string | null
+          unidade_medida: string
+          updated_at: string | null
+          valor_total: number | null
+          valor_unitario: number
+        }
+        Insert: {
+          ata_id: string
+          created_at?: string | null
+          descricao: string
+          id?: string
+          item_licitatorio_id?: string | null
+          marca?: string | null
+          modelo?: string | null
+          numero_item: number
+          quantidade_consumida?: number | null
+          quantidade_registrada: number
+          saldo_quantidade?: number | null
+          situacao?: string | null
+          unidade_medida: string
+          updated_at?: string | null
+          valor_total?: number | null
+          valor_unitario: number
+        }
+        Update: {
+          ata_id?: string
+          created_at?: string | null
+          descricao?: string
+          id?: string
+          item_licitatorio_id?: string | null
+          marca?: string | null
+          modelo?: string | null
+          numero_item?: number
+          quantidade_consumida?: number | null
+          quantidade_registrada?: number
+          saldo_quantidade?: number | null
+          situacao?: string | null
+          unidade_medida?: string
+          updated_at?: string | null
+          valor_total?: number | null
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itens_ata_registro_preco_ata_id_fkey"
+            columns: ["ata_id"]
+            isOneToOne: false
+            referencedRelation: "atas_registro_preco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itens_ata_registro_preco_item_licitatorio_id_fkey"
+            columns: ["item_licitatorio_id"]
+            isOneToOne: false
+            referencedRelation: "itens_processo_licitatorio"
             referencedColumns: ["id"]
           },
         ]
