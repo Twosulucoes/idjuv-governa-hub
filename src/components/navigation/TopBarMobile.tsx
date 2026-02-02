@@ -11,13 +11,43 @@ import { useLocation } from "react-router-dom";
 import { Menu, Bell, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { getBreadcrumbForPath } from "@/config/navigation.config";
 
 interface TopBarMobileProps {
   onOpenMenu: () => void;
   alertas?: number;
   hasUrgent?: boolean;
+}
+
+/**
+ * Extrai título da página baseado na rota
+ */
+function getPageTitle(pathname: string): string {
+  const labelMap: Record<string, string> = {
+    '/admin': 'Painel',
+    '/admin/usuarios': 'Usuários',
+    '/admin/perfis': 'Perfis',
+    '/admin/auditoria': 'Auditoria',
+    '/rh/servidores': 'Servidores',
+    '/rh/portarias': 'Portarias',
+    '/rh/designacoes': 'Designações',
+    '/workflow/processos': 'Processos',
+    '/processos/compras': 'Compras',
+    '/processos/patrimonio': 'Patrimônio',
+    '/transparencia': 'Transparência',
+    '/governanca': 'Governança',
+  };
+
+  // Busca match exato ou parcial
+  for (const [route, label] of Object.entries(labelMap)) {
+    if (pathname === route || pathname.startsWith(route + '/')) {
+      return label;
+    }
+  }
+
+  // Fallback: última parte da rota
+  const parts = pathname.split('/').filter(Boolean);
+  const lastPart = parts[parts.length - 1] || 'Sistema';
+  return lastPart.charAt(0).toUpperCase() + lastPart.slice(1);
 }
 
 export function TopBarMobile({ 
@@ -26,8 +56,7 @@ export function TopBarMobile({
   hasUrgent = false,
 }: TopBarMobileProps) {
   const location = useLocation();
-  const breadcrumbs = getBreadcrumbForPath(location.pathname);
-  const currentPage = breadcrumbs[breadcrumbs.length - 1]?.label || "Sistema";
+  const currentPage = getPageTitle(location.pathname);
 
   return (
     <header className="sticky top-0 z-50 flex h-12 items-center gap-3 border-b bg-background px-3 md:hidden">

@@ -1,12 +1,13 @@
 /**
- * Menu Lateral Desktop — Componente Institucional
+ * MENU SIDEBAR DESKTOP
  * 
- * Sidebar colapsável com grupos claros, inspirado em SEI/e-Processo
- * Integração RBAC para exibir apenas itens autorizados
+ * Sidebar colapsável institucional com grupos e favoritos
+ * Integração direta com MenuContext
+ * 
+ * @version 1.0.0
  */
 
-import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { 
   ChevronDown, 
   ChevronRight,
@@ -16,7 +17,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useNavigacaoPermissoes, type NavItemFiltrado, type NavSectionFiltrada } from "@/hooks/useNavigacaoPermissoes";
+import { useMenu, type MenuItemFiltered, type MenuSectionFiltered } from "@/contexts/MenuContext";
 import {
   Sidebar,
   SidebarContent,
@@ -41,88 +42,26 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
-const FAVORITES_KEY = "nav-favorites-v2";
-
-export function MenuLateralDesktop() {
-  const location = useLocation();
+export function MenuSidebar() {
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
-  const { secoesFiltradas, loading, error } = useNavigacaoPermissoes();
   
-  const [favorites, setFavorites] = useState<string[]>([]);
-  const [openSections, setOpenSections] = useState<string[]>([]);
-  const [openItems, setOpenItems] = useState<string[]>([]);
-
-  // Carrega favoritos
-  useEffect(() => {
-    const saved = localStorage.getItem(FAVORITES_KEY);
-    if (saved) {
-      try {
-        setFavorites(JSON.parse(saved));
-      } catch {}
-    }
-  }, []);
-
-  // Auto-expande seção com rota ativa
-  useEffect(() => {
-    const currentPath = location.pathname;
-    
-    secoesFiltradas.forEach((section) => {
-      const hasActiveItem = section.items.some((item) => {
-        if (item.href?.split('?')[0] === currentPath) return true;
-        if (item.children?.some((child) => child.href?.split('?')[0] === currentPath)) return true;
-        return false;
-      });
-      
-      if (hasActiveItem && !openSections.includes(section.id)) {
-        setOpenSections((prev) => [...prev, section.id]);
-      }
-
-      // Expande submenus com item ativo
-      section.items.forEach(item => {
-        if (item.children?.some(child => child.href?.split('?')[0] === currentPath)) {
-          if (!openItems.includes(item.id)) {
-            setOpenItems(prev => [...prev, item.id]);
-          }
-        }
-      });
-    });
-  }, [location.pathname, secoesFiltradas]);
-
-  const isActive = (href?: string) => {
-    if (!href) return false;
-    const cleanHref = href.split('?')[0];
-    return location.pathname === cleanHref || location.pathname.startsWith(cleanHref + "/");
-  };
-
-  const toggleSection = (sectionId: string) => {
-    setOpenSections((prev) =>
-      prev.includes(sectionId)
-        ? prev.filter((id) => id !== sectionId)
-        : [...prev, sectionId]
-    );
-  };
-
-  const toggleItem = (itemId: string) => {
-    setOpenItems((prev) =>
-      prev.includes(itemId)
-        ? prev.filter((id) => id !== itemId)
-        : [...prev, itemId]
-    );
-  };
-
-  const toggleFavorite = (itemId: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const newFavorites = favorites.includes(itemId)
-      ? favorites.filter((id) => id !== itemId)
-      : [...favorites, itemId];
-    setFavorites(newFavorites);
-    localStorage.setItem(FAVORITES_KEY, JSON.stringify(newFavorites));
-  };
+  const {
+    sections,
+    dashboard,
+    isLoading,
+    openSections,
+    openItems,
+    favorites,
+    toggleSection,
+    toggleItem,
+    toggleFavorite,
+    isActive,
+    getFavoriteItems,
+  } = useMenu();
 
   // Loading
-  if (loading) {
+  if (isLoading) {
     return (
       <Sidebar collapsible="icon" className="border-r">
         <SidebarHeader className="border-b p-4">
@@ -134,22 +73,12 @@ export function MenuLateralDesktop() {
     );
   }
 
-  // Error
-  if (error) {
-    return (
-      <Sidebar collapsible="icon" className="border-r">
-        <SidebarContent className="flex items-center justify-center p-4">
-          <span className="text-sm text-destructive">Erro ao carregar menu</span>
-        </SidebarContent>
-      </Sidebar>
-    );
-  }
-
-  const renderMenuItem = (item: NavItemFiltrado, depth = 0) => {
+  const renderMenuItem = (item: MenuItemFiltered, depth = 0) => {
     const hasChildren = item.children && item.children.length > 0;
-    const isItemActive = isActive(item.href);
+    const isItemActive = isActive(item.route);
     const isFavorite = favorites.includes(item.id);
     const isOpen = openItems.includes(item.id);
+    const Icon = item.icon;
 
     // Item com filhos (submenu)
     if (hasChildren) {
@@ -168,7 +97,7 @@ export function MenuLateralDesktop() {
                 )}
               >
                 <span className="flex items-center gap-2">
-                  <item.icon className="h-4 w-4 shrink-0" />
+                  <Icon className="h-4 w-4 shrink-0" />
                   {!isCollapsed && <span className="truncate">{item.label}</span>}
                 </span>
                 {!isCollapsed && (
@@ -190,7 +119,7 @@ export function MenuLateralDesktop() {
     }
 
     // Item simples (link)
-    if (!item.href) return null;
+    if (!item.route) return null;
 
     const menuButton = (
       <SidebarMenuButton
@@ -198,9 +127,9 @@ export function MenuLateralDesktop() {
         isActive={isItemActive}
         className={cn(depth > 0 && "pl-6")}
       >
-        <Link to={item.href} className="flex items-center justify-between w-full group/item">
+        <Link to={item.route} className="flex items-center justify-between w-full group/item">
           <span className="flex items-center gap-2 min-w-0">
-            <item.icon className="h-4 w-4 shrink-0" />
+            <Icon className="h-4 w-4 shrink-0" />
             {!isCollapsed && (
               <>
                 <span className="truncate">{item.label}</span>
@@ -217,7 +146,11 @@ export function MenuLateralDesktop() {
               variant="ghost"
               size="icon"
               className="h-5 w-5 opacity-0 group-hover/item:opacity-100 transition-opacity shrink-0"
-              onClick={(e) => toggleFavorite(item.id, e)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleFavorite(item.id);
+              }}
             >
               <Star className={cn(
                 "h-3 w-3",
@@ -246,12 +179,12 @@ export function MenuLateralDesktop() {
     return <SidebarMenuItem key={item.id}>{menuButton}</SidebarMenuItem>;
   };
 
-  const renderSection = (section: NavSectionFiltrada) => {
+  const renderSection = (section: MenuSectionFiltered) => {
     const isOpen = openSections.includes(section.id);
+    const SectionIcon = section.icon;
     const hasActiveChild = section.items.some((item) => {
-      if (isActive(item.href)) return true;
-      if (item.children?.some((child) => isActive(child.href))) return true;
-      return false;
+      if (isActive(item.route)) return true;
+      return item.children?.some((child) => isActive(child.route));
     });
 
     return (
@@ -269,7 +202,7 @@ export function MenuLateralDesktop() {
               )}
             >
               <span className="flex items-center gap-2">
-                <section.icon className="h-4 w-4" />
+                <SectionIcon className="h-4 w-4" />
                 {!isCollapsed && <span>{isCollapsed ? section.labelShort : section.label}</span>}
               </span>
               {!isCollapsed && (
@@ -294,16 +227,8 @@ export function MenuLateralDesktop() {
     );
   };
 
-  // Favoritos
-  const favoriteItems = secoesFiltradas.flatMap((section) =>
-    section.items.flatMap((item) => {
-      if (favorites.includes(item.id) && item.href) return [item];
-      if (item.children) {
-        return item.children.filter((child) => favorites.includes(child.id) && child.href);
-      }
-      return [];
-    })
-  );
+  const favoriteItems = getFavoriteItems();
+  const DashboardIcon = dashboard.icon;
 
   return (
     <Sidebar collapsible="icon" className="border-r">
@@ -332,6 +257,22 @@ export function MenuLateralDesktop() {
 
       <SidebarContent>
         <ScrollArea className="h-[calc(100vh-8rem)]">
+          {/* Dashboard */}
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive(dashboard.route)}>
+                    <Link to={dashboard.route!} className="flex items-center gap-2">
+                      <DashboardIcon className="h-4 w-4" />
+                      {!isCollapsed && <span>{dashboard.label}</span>}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
           {/* Favoritos */}
           {favoriteItems.length > 0 && !isCollapsed && (
             <SidebarGroup>
@@ -341,23 +282,26 @@ export function MenuLateralDesktop() {
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {favoriteItems.map((item) => (
-                    <SidebarMenuItem key={`fav-${item.id}`}>
-                      <SidebarMenuButton asChild isActive={isActive(item.href)}>
-                        <Link to={item.href!} className="flex items-center gap-2">
-                          <item.icon className="h-4 w-4" />
-                          <span className="truncate">{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {favoriteItems.map((item) => {
+                    const FavIcon = item.icon;
+                    return (
+                      <SidebarMenuItem key={`fav-${item.id}`}>
+                        <SidebarMenuButton asChild isActive={isActive(item.route)}>
+                          <Link to={item.route!} className="flex items-center gap-2">
+                            <FavIcon className="h-4 w-4" />
+                            <span className="truncate">{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
           )}
 
           {/* Seções */}
-          {secoesFiltradas.map(renderSection)}
+          {sections.map(renderSection)}
         </ScrollArea>
       </SidebarContent>
 

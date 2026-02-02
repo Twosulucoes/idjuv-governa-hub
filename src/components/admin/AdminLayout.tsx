@@ -6,17 +6,17 @@
  * - Drawer hamburger (mobile)
  * - TopBar com breadcrumb e alertas
  * 
- * @version 2.0.0
+ * @version 3.0.0 - Novo sistema de menu RBAC institucional
  */
 
 import { useState } from "react";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { MenuLateralDesktop } from "@/components/navigation/MenuLateralDesktop";
-import { MenuDrawerMobile } from "@/components/navigation/MenuDrawerMobile";
+import { MenuSidebar, MenuDrawerMobile, MenuProvider } from "@/components/menu";
 import { TopBarDesktop } from "@/components/navigation/TopBarDesktop";
 import { TopBarMobile } from "@/components/navigation/TopBarMobile";
 import { AdminSearch } from "./AdminSearch";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useMenu } from "@/contexts/MenuContext";
 
 export interface AdminLayoutProps {
   children: React.ReactNode;
@@ -24,10 +24,10 @@ export interface AdminLayoutProps {
   description?: string;
 }
 
-export function AdminLayout({ children, title, description }: AdminLayoutProps) {
+function AdminLayoutContent({ children, title, description }: AdminLayoutProps) {
   const [searchOpen, setSearchOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isMobile = useIsMobile();
+  const { setMobileDrawerOpen } = useMenu();
 
   // TODO: Integrar com hook real de pendências
   const pendencias = 0;
@@ -42,19 +42,16 @@ export function AdminLayout({ children, title, description }: AdminLayoutProps) 
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         {/* Menu Lateral Desktop */}
-        {!isMobile && <MenuLateralDesktop />}
+        {!isMobile && <MenuSidebar />}
 
         {/* Drawer Mobile */}
-        <MenuDrawerMobile 
-          open={mobileMenuOpen} 
-          onOpenChange={setMobileMenuOpen} 
-        />
+        <MenuDrawerMobile />
 
         <SidebarInset className="flex flex-col flex-1">
           {/* TopBar Mobile */}
           {isMobile && (
             <TopBarMobile 
-              onOpenMenu={() => setMobileMenuOpen(true)}
+              onOpenMenu={() => setMobileDrawerOpen(true)}
               alertas={alertas.length}
               hasUrgent={alertas.some(a => a.tipo === 'urgente')}
             />
@@ -89,5 +86,13 @@ export function AdminLayout({ children, title, description }: AdminLayoutProps) 
       {/* Modal de Busca */}
       <AdminSearch open={searchOpen} onOpenChange={setSearchOpen} />
     </SidebarProvider>
+  );
+}
+
+export function AdminLayout(props: AdminLayoutProps) {
+  return (
+    <MenuProvider>
+      <AdminLayoutContent {...props} />
+    </MenuProvider>
   );
 }

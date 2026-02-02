@@ -10,11 +10,20 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { getAllSearchableItems } from "@/config/navigation.config";
+import { getAllRouteItems } from "@/config/menu.config";
 import { Badge } from "@/components/ui/badge";
 
 const RECENT_PAGES_KEY = "admin-recent-pages";
 const MAX_RECENT = 5;
+
+interface SearchableItem {
+  id: string;
+  label: string;
+  href: string;
+  section: string;
+  icon: React.ComponentType<{ className?: string }>;
+  keywords: string[];
+}
 
 interface AdminSearchProps {
   open: boolean;
@@ -26,7 +35,20 @@ export function AdminSearch({ open, onOpenChange }: AdminSearchProps) {
   const [search, setSearch] = useState("");
   const [recentPages, setRecentPages] = useState<string[]>([]);
 
-  const allItems = useMemo(() => getAllSearchableItems(), []);
+  // Converte itens do menu para formato de busca
+  const allItems = useMemo((): SearchableItem[] => {
+    const routeItems = getAllRouteItems();
+    return routeItems
+      .filter(item => item.route)
+      .map(item => ({
+        id: item.id,
+        label: item.label,
+        href: item.route!,
+        section: 'Sistema',
+        icon: item.icon,
+        keywords: [item.label.toLowerCase(), item.labelShort?.toLowerCase() || ''].filter(Boolean),
+      }));
+  }, []);
 
   // Load recent pages
   useEffect(() => {
@@ -63,12 +85,12 @@ export function AdminSearch({ open, onOpenChange }: AdminSearchProps) {
   const recentItems = useMemo(() => {
     return recentPages
       .map((href) => allItems.find((item) => item.href === href))
-      .filter(Boolean);
+      .filter(Boolean) as SearchableItem[];
   }, [recentPages, allItems]);
 
   // Get favorites
   const favoriteIds = useMemo(() => {
-    const saved = localStorage.getItem("admin-favorites");
+    const saved = localStorage.getItem("menu-favorites-v3");
     return saved ? JSON.parse(saved) : [];
   }, []);
 
@@ -140,18 +162,18 @@ export function AdminSearch({ open, onOpenChange }: AdminSearchProps) {
               <CommandGroup heading="Acessos Recentes">
                 {recentItems.map((item) => (
                   <CommandItem
-                    key={`recent-${item!.id}`}
-                    value={item!.href}
-                    onSelect={() => handleSelect(item!.href)}
+                    key={`recent-${item.id}`}
+                    value={item.href}
+                    onSelect={() => handleSelect(item.href)}
                     className="flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <item.icon className="h-4 w-4 text-muted-foreground" />
-                      <span>{item!.label}</span>
+                      <span>{item.label}</span>
                     </div>
                     <Badge variant="secondary" className="text-xs">
-                      {item!.section}
+                      {item.section}
                     </Badge>
                   </CommandItem>
                 ))}

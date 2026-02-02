@@ -19,12 +19,11 @@ import {
 } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { adminMenuConfig, getAllSearchableItems } from "@/config/adminMenu";
+import { menuConfig, getAllRouteItems } from "@/config/menu.config";
 
 const RECENT_PAGES_KEY = "admin-recent-pages";
-const FAVORITES_KEY = "admin-favorites";
+const FAVORITES_KEY = "menu-favorites-v3";
 
 interface QuickStat {
   label: string;
@@ -100,10 +99,31 @@ const quickLinks: QuickLink[] = [
   },
 ];
 
+interface SearchableItem {
+  id: string;
+  label: string;
+  href: string;
+  section: string;
+  icon: LucideIcon;
+}
+
 export default function AdminDashboardPage() {
   const [recentPages, setRecentPages] = useState<string[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
-  const allItems = useMemo(() => getAllSearchableItems(), []);
+  
+  // Converte itens do menu para formato de busca
+  const allItems = useMemo((): SearchableItem[] => {
+    const routeItems = getAllRouteItems();
+    return routeItems
+      .filter(item => item.route)
+      .map(item => ({
+        id: item.id,
+        label: item.label,
+        href: item.route!,
+        section: 'Sistema',
+        icon: item.icon,
+      }));
+  }, []);
 
   useEffect(() => {
     const savedRecent = localStorage.getItem(RECENT_PAGES_KEY);
@@ -116,7 +136,7 @@ export default function AdminDashboardPage() {
     return recentPages
       .slice(0, 5)
       .map((href) => allItems.find((item) => item.href === href))
-      .filter(Boolean);
+      .filter(Boolean) as SearchableItem[];
   }, [recentPages, allItems]);
 
   const favoriteItems = useMemo(() => {
@@ -182,13 +202,13 @@ export default function AdminDashboardPage() {
                 <div className="space-y-2">
                   {recentItems.map((item) => (
                     <Link
-                      key={item!.id}
-                      to={item!.href}
+                      key={item.id}
+                      to={item.href}
                       className="flex items-center justify-between p-2 rounded-lg hover:bg-accent transition-colors"
                     >
                       <div className="flex items-center gap-2">
                         <item.icon className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{item!.label}</span>
+                        <span className="text-sm">{item.label}</span>
                       </div>
                       <ArrowRight className="h-4 w-4 text-muted-foreground" />
                     </Link>
@@ -408,7 +428,7 @@ export default function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {adminMenuConfig.map((section) => (
+              {menuConfig.map((section) => (
                 <div
                   key={section.id}
                   className="p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
@@ -422,9 +442,9 @@ export default function AdminDashboardPage() {
                   <div className="space-y-1">
                     {section.items.slice(0, 4).map((item) => (
                       <div key={item.id}>
-                        {item.href ? (
+                        {item.route ? (
                           <Link
-                            to={item.href}
+                            to={item.route}
                             className="text-sm text-muted-foreground hover:text-foreground transition-colors block py-0.5"
                           >
                             {item.label}
