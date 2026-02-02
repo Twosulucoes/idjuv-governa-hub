@@ -2244,6 +2244,78 @@ export type Database = {
         }
         Relationships: []
       }
+      config_institucional: {
+        Row: {
+          ativo: boolean | null
+          brasao_url: string | null
+          cargo_responsavel: string | null
+          cnpj: string
+          codigo: string
+          contato: Json | null
+          cores: Json | null
+          cpf_responsavel: string | null
+          created_at: string | null
+          created_by: string | null
+          endereco: Json | null
+          expediente: Json | null
+          id: string
+          logo_url: string | null
+          natureza_juridica: string | null
+          nome: string
+          nome_fantasia: string | null
+          politicas: Json | null
+          responsavel_legal: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          brasao_url?: string | null
+          cargo_responsavel?: string | null
+          cnpj: string
+          codigo: string
+          contato?: Json | null
+          cores?: Json | null
+          cpf_responsavel?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          endereco?: Json | null
+          expediente?: Json | null
+          id?: string
+          logo_url?: string | null
+          natureza_juridica?: string | null
+          nome: string
+          nome_fantasia?: string | null
+          politicas?: Json | null
+          responsavel_legal?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          brasao_url?: string | null
+          cargo_responsavel?: string | null
+          cnpj?: string
+          codigo?: string
+          contato?: Json | null
+          cores?: Json | null
+          cpf_responsavel?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          endereco?: Json | null
+          expediente?: Json | null
+          id?: string
+          logo_url?: string | null
+          natureza_juridica?: string | null
+          nome?: string
+          nome_fantasia?: string | null
+          politicas?: Json | null
+          responsavel_legal?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       config_jornada_padrao: {
         Row: {
           ativo: boolean | null
@@ -2371,6 +2443,175 @@ export type Database = {
             columns: ["unidade_id"]
             isOneToOne: false
             referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      config_parametros_meta: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          dominio: string
+          editavel_producao: boolean | null
+          id: string
+          nome: string
+          ordem: number | null
+          permite_nivel_instituicao: boolean | null
+          permite_nivel_servidor: boolean | null
+          permite_nivel_tipo_servidor: boolean | null
+          permite_nivel_unidade: boolean | null
+          requer_aprovacao: boolean | null
+          requer_vigencia: boolean | null
+          tipo_dado: string
+          tipo_valor: string
+          valor_padrao: Json | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          dominio: string
+          editavel_producao?: boolean | null
+          id?: string
+          nome: string
+          ordem?: number | null
+          permite_nivel_instituicao?: boolean | null
+          permite_nivel_servidor?: boolean | null
+          permite_nivel_tipo_servidor?: boolean | null
+          permite_nivel_unidade?: boolean | null
+          requer_aprovacao?: boolean | null
+          requer_vigencia?: boolean | null
+          tipo_dado: string
+          tipo_valor: string
+          valor_padrao?: Json | null
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          dominio?: string
+          editavel_producao?: boolean | null
+          id?: string
+          nome?: string
+          ordem?: number | null
+          permite_nivel_instituicao?: boolean | null
+          permite_nivel_servidor?: boolean | null
+          permite_nivel_tipo_servidor?: boolean | null
+          permite_nivel_unidade?: boolean | null
+          requer_aprovacao?: boolean | null
+          requer_vigencia?: boolean | null
+          tipo_dado?: string
+          tipo_valor?: string
+          valor_padrao?: Json | null
+        }
+        Relationships: []
+      }
+      config_parametros_valores: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          instituicao_id: string
+          justificativa: string | null
+          parametro_codigo: string
+          servidor_id: string | null
+          tipo_servidor: string | null
+          unidade_id: string | null
+          updated_at: string | null
+          updated_by: string | null
+          valor: Json
+          versao: number | null
+          versao_anterior_id: string | null
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          instituicao_id: string
+          justificativa?: string | null
+          parametro_codigo: string
+          servidor_id?: string | null
+          tipo_servidor?: string | null
+          unidade_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          valor: Json
+          versao?: number | null
+          versao_anterior_id?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          instituicao_id?: string
+          justificativa?: string | null
+          parametro_codigo?: string
+          servidor_id?: string | null
+          tipo_servidor?: string | null
+          unidade_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          valor?: Json
+          versao?: number | null
+          versao_anterior_id?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_parametros_valores_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_parametros_valores_parametro_codigo_fkey"
+            columns: ["parametro_codigo"]
+            isOneToOne: false
+            referencedRelation: "config_parametros_meta"
+            referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "config_parametros_valores_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_parametros_valores_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_parametros_valores_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_parametros_valores_versao_anterior_id_fkey"
+            columns: ["versao_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "config_parametros_valores"
             referencedColumns: ["id"]
           },
         ]
@@ -13182,6 +13423,14 @@ export type Database = {
         Args: { p_servidor_id: string }
         Returns: undefined
       }
+      fn_calcular_nivel_parametro: {
+        Args: {
+          p_servidor_id: string
+          p_tipo_servidor: string
+          p_unidade_id: string
+        }
+        Returns: number
+      }
       fn_calcular_sla_processo: {
         Args: { p_processo_id: string }
         Returns: {
@@ -13306,6 +13555,28 @@ export type Database = {
         Returns: string
       }
       obter_dado_oficial: { Args: { p_chave: string }; Returns: string }
+      obter_parametro_simples: {
+        Args: {
+          p_data_referencia?: string
+          p_instituicao_id: string
+          p_parametro_codigo: string
+          p_servidor_id?: string
+          p_tipo_servidor?: string
+          p_unidade_id?: string
+        }
+        Returns: string
+      }
+      obter_parametro_vigente: {
+        Args: {
+          p_data_referencia?: string
+          p_instituicao_id: string
+          p_parametro_codigo: string
+          p_servidor_id?: string
+          p_tipo_servidor?: string
+          p_unidade_id?: string
+        }
+        Returns: Json
+      }
       processar_folha_pagamento: { Args: { p_folha_id: string }; Returns: Json }
       promover_rascunho: {
         Args: { p_justificativa?: string; p_rascunho_id: string }
