@@ -47,6 +47,10 @@ import EsporteComunidadePage from "./pages/programas/EsporteComunidadePage";
 import JovemEmpreendedorPage from "./pages/programas/JovemEmpreendedorPage";
 import JogosEscolaresPage from "./pages/programas/JogosEscolaresPage";
 import CargosRemuneracaoPage from "./pages/transparencia/CargosRemuneracaoPage";
+import LicitacoesPublicasPage from "./pages/transparencia/LicitacoesPublicasPage";
+import ExecucaoOrcamentariaPage from "./pages/transparencia/ExecucaoOrcamentariaPage";
+import PatrimonioPublicoPage from "./pages/transparencia/PatrimonioPublicoPage";
+import PortalLAIPage from "./pages/transparencia/PortalLAIPage";
 import EstruturaOrganizacionalPage from "./pages/governanca/EstruturaOrganizacionalPage";
 
 // RH Pages
@@ -488,14 +492,17 @@ const App = () => (
               <Route path="/integridade/politica" element={<ProtectedRoute><IntegridadePage /></ProtectedRoute>} />
               
               {/* ============================================ */}
-              {/* TRANSPARÊNCIA - Apenas autenticação */}
+              {/* TRANSPARÊNCIA - Rotas PÚBLICAS (LGPD-Safe) */}
+              {/* Portal de Transparência: acesso público, sem login */}
               {/* ============================================ */}
-              <Route path="/transparencia" element={<ProtectedRoute><TransparenciaPage /></ProtectedRoute>} />
-              <Route path="/transparencia/cargos" element={<ProtectedRoute><CargosRemuneracaoPage /></ProtectedRoute>} />
+              <Route path="/transparencia" element={<TransparenciaPage />} />
+              <Route path="/transparencia/cargos" element={<CargosRemuneracaoPage />} />
+              <Route path="/transparencia/licitacoes" element={<LicitacoesPublicasPage />} />
+              <Route path="/transparencia/contratos" element={<LicitacoesPublicasPage />} />
+              <Route path="/transparencia/orcamento" element={<ExecucaoOrcamentariaPage />} />
+              <Route path="/transparencia/patrimonio" element={<PatrimonioPublicoPage />} />
+              <Route path="/transparencia/lai" element={<PortalLAIPage />} />
               <Route path="/transparencia/relatorios" element={<ProtectedRoute><TransparenciaPage /></ProtectedRoute>} />
-              <Route path="/transparencia/pessoal" element={<ProtectedRoute><TransparenciaPage /></ProtectedRoute>} />
-              <Route path="/transparencia/licitacoes" element={<ProtectedRoute><TransparenciaPage /></ProtectedRoute>} />
-              <Route path="/transparencia/orcamento" element={<ProtectedRoute><TransparenciaPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* PROGRAMAS - Apenas autenticação */}
