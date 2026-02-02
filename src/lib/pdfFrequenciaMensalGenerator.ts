@@ -431,7 +431,24 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
 
   // Header da tabela - OTIMIZADO PARA APROVEITAMENTO MÁXIMO
   const headerHeight2 = usaDoisTurnos ? 12 : 10; // REDUZIDO para mais espaço nas linhas
-  const rowHeight = 6.8; // AUMENTADO para maior área de escrita/assinatura
+  
+  // =====================================================
+  // CÁLCULO DINÂMICO DO ROWHEIGHT PARA PROTEGER O RODAPÉ
+  // =====================================================
+  // Zonas fixas após a tabela:
+  // - Espaço após tabela: 2mm
+  // - Linha de data: 8mm (y += 8 no código)
+  // - Área de assinaturas finais: 10mm (linha + texto)
+  // - Rodapé do sistema: 6mm (pageHeight - 6)
+  const ZONA_RODAPE = 28; // 2 + 8 + 10 + 8 = 28mm de proteção
+  
+  // Calcular altura disponível para a tabela (31 linhas fixas)
+  const alturaDisponivelTabela = pageHeight - y - headerHeight2 - ZONA_RODAPE;
+  const totalLinhasTabela = 31;
+  
+  // Calcular rowHeight dinamicamente, com mínimo de 5.5mm para legibilidade
+  const rowHeightCalculado = alturaDisponivelTabela / totalLinhasTabela;
+  const rowHeight = Math.max(5.5, Math.min(rowHeightCalculado, 7.0)); // Entre 5.5 e 7.0mm
   
   // Fundo do header (cinza claro em vez de verde)
   doc.setFillColor(CORES.headerTabela.r, CORES.headerTabela.g, CORES.headerTabela.b);
