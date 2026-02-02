@@ -460,10 +460,16 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
         doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
       }
       
-      // Separador vertical sutil
+      // Separador vertical entre colunas
       if (col.key !== 'abo2') {
-        doc.setDrawColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
-        doc.setLineWidth(0.15);
+        // Linha divisória MAIS FORTE entre 1º e 2º turno (após coluna ABONO 1º)
+        if (col.key === 'abo1') {
+          doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
+          doc.setLineWidth(0.5);
+        } else {
+          doc.setDrawColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
+          doc.setLineWidth(0.15);
+        }
         doc.line(colX + col.width, y + 1, colX + col.width, y + headerHeight2 - 1);
       }
       
@@ -550,7 +556,15 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
     colX = margin;
     for (let i = 0; i < colunas.length - 1; i++) {
       colX += colunas[i].width;
-      doc.setDrawColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
+      
+      // Linha divisória MAIS FORTE entre 1º e 2º turno (após coluna abo1, índice 4 em jornada 8h)
+      if (usaDoisTurnos && colunas[i].key === 'abo1') {
+        doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
+        doc.setLineWidth(0.5);
+      } else {
+        doc.setDrawColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
+        doc.setLineWidth(0.1);
+      }
       doc.line(colX, y, colX, y + rowHeight);
     }
 
