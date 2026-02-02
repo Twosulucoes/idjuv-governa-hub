@@ -207,16 +207,19 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
   let y = margin;
 
   // ===== CABEÇALHO COM LOGOS MELHORADO =====
-  const logoHeight = 16; // Altura fixa para ambos os logos
-  const logoGovernoWidth = logoHeight * 3; // Proporção 3:1 (mais largo)
-  const logoIdjuvWidth = logoHeight * 1.2; // Proporção mais quadrada
+  // Logo do Governo menor e Logo IDJuv maior para ficarem visualmente iguais
+  const logoGovernoHeight = 12; // Governo reduzida
+  const logoGovernoWidth = logoGovernoHeight * 2.8; // Proporção horizontal
+  
+  const logoIdjuvHeight = 18; // IDJuv aumentada
+  const logoIdjuvWidth = logoIdjuvHeight * 1.1; // Proporção mais quadrada
 
   try {
-    // Logo do governo (esquerda) - mais espaçado da margem
-    doc.addImage(logoGoverno, 'JPEG', margin + 2, y, logoGovernoWidth, logoHeight);
+    // Logo do governo (esquerda) - MENOR
+    doc.addImage(logoGoverno, 'JPEG', margin + 2, y, logoGovernoWidth, logoGovernoHeight);
     
-    // Logo IDJuv (direita) - mais espaçado da margem
-    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth - 2, y, logoIdjuvWidth, logoHeight);
+    // Logo IDJuv (direita) - MAIOR
+    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth - 2, y, logoIdjuvWidth, logoIdjuvHeight);
   } catch (e) {
     console.warn('Logos não carregados');
   }
@@ -323,7 +326,8 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
     tipo: 36,
     entrada: 24,
     saida: 24,
-    assinatura: contentWidth - 115,
+    separador: 3, // Espaço extra para separação visual
+    assinatura: contentWidth - 118, // Ajustado para compensar o separador
   };
 
   // Header da tabela com gradiente simulado
@@ -347,6 +351,13 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
   colX += colWidths.entrada;
   doc.text('SAÍDA', colX + colWidths.saida / 2, headerY, { align: 'center' });
   colX += colWidths.saida;
+  
+  // Separador visual no cabeçalho (linha vertical dupla)
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(2);
+  doc.line(colX + colWidths.separador / 2, y, colX + colWidths.separador / 2, y + headerTableHeight);
+  colX += colWidths.separador;
+  
   doc.text('ASSINATURA', colX + colWidths.assinatura / 2, headerY, { align: 'center' });
 
   y += headerTableHeight;
@@ -462,7 +473,20 @@ export async function generateFrequenciaMensalPDF(data: FrequenciaMensalPDFData)
     }
     colX += colWidths.saida;
     
-    doc.line(colX, y, colX, y + rowHeight);
+    // SEPARADOR VISUAL entre Saída e Assinatura (linha vertical mais grossa)
+    doc.setDrawColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+    doc.setLineWidth(0.8);
+    doc.line(colX + colWidths.separador / 2, y, colX + colWidths.separador / 2, y + rowHeight);
+    colX += colWidths.separador;
+
+    // Coluna de assinatura
+    // Se for dia não útil, desenhar risco diagonal para indicar que não precisa assinar
+    if (isNaoUtil) {
+      doc.setDrawColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
+      doc.setLineWidth(0.4);
+      // Linha diagonal do canto inferior esquerdo ao superior direito
+      doc.line(colX + 2, y + rowHeight - 1, colX + colWidths.assinatura - 2, y + 1);
+    }
 
     y += rowHeight;
   }
