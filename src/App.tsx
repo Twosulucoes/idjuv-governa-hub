@@ -120,6 +120,10 @@ import MiniCurriculoSucessoPage from "./pages/curriculo/MiniCurriculoSucessoPage
 import GestaoPreCadastrosPage from "./pages/curriculo/GestaoPreCadastrosPage";
 import DiagnosticoPendenciasPage from "./pages/curriculo/DiagnosticoPendenciasPage";
 
+// Workflow (SEI-like)
+import GestaoProcessosPage from "./pages/workflow/GestaoProcessosPage";
+import ProcessoDetalhePage from "./pages/workflow/ProcessoDetalhePage";
+
 const queryClient = new QueryClient();
 
 const App = () => (
