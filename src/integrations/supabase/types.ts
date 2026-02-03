@@ -6518,17 +6518,65 @@ export type Database = {
           },
         ]
       }
+      folha_historico_status: {
+        Row: {
+          created_at: string | null
+          folha_id: string
+          id: string
+          ip_address: unknown
+          justificativa: string | null
+          status_anterior: string | null
+          status_novo: string
+          usuario_id: string | null
+          usuario_nome: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          folha_id: string
+          id?: string
+          ip_address?: unknown
+          justificativa?: string | null
+          status_anterior?: string | null
+          status_novo: string
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          folha_id?: string
+          id?: string
+          ip_address?: unknown
+          justificativa?: string | null
+          status_anterior?: string | null
+          status_novo?: string
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folha_historico_status_folha_id_fkey"
+            columns: ["folha_id"]
+            isOneToOne: false
+            referencedRelation: "folhas_pagamento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       folhas_pagamento: {
         Row: {
           competencia_ano: number
           competencia_mes: number
+          conferido_em: string | null
+          conferido_por: string | null
           created_at: string | null
           created_by: string | null
           data_fechamento: string | null
           data_processamento: string | null
+          fechado_em: string | null
           fechado_por: string | null
           hash_fechamento: string | null
           id: string
+          justificativa_fechamento: string | null
           justificativa_reabertura: string | null
           observacoes: string | null
           processado_por: string | null
@@ -6552,13 +6600,17 @@ export type Database = {
         Insert: {
           competencia_ano: number
           competencia_mes: number
+          conferido_em?: string | null
+          conferido_por?: string | null
           created_at?: string | null
           created_by?: string | null
           data_fechamento?: string | null
           data_processamento?: string | null
+          fechado_em?: string | null
           fechado_por?: string | null
           hash_fechamento?: string | null
           id?: string
+          justificativa_fechamento?: string | null
           justificativa_reabertura?: string | null
           observacoes?: string | null
           processado_por?: string | null
@@ -6582,13 +6634,17 @@ export type Database = {
         Update: {
           competencia_ano?: number
           competencia_mes?: number
+          conferido_em?: string | null
+          conferido_por?: string | null
           created_at?: string | null
           created_by?: string | null
           data_fechamento?: string | null
           data_processamento?: string | null
+          fechado_em?: string | null
           fechado_por?: string | null
           hash_fechamento?: string | null
           id?: string
+          justificativa_fechamento?: string | null
           justificativa_reabertura?: string | null
           observacoes?: string | null
           processado_por?: string | null
@@ -14284,6 +14340,11 @@ export type Database = {
         }
         Returns: string
       }
+      enviar_folha_conferencia: { Args: { p_folha_id: string }; Returns: Json }
+      fechar_folha: {
+        Args: { p_folha_id: string; p_justificativa?: string }
+        Returns: Json
+      }
       fn_atualizar_situacao_servidor: {
         Args: { p_servidor_id: string }
         Returns: undefined
@@ -14316,6 +14377,7 @@ export type Database = {
         Returns: boolean
       }
       fn_proximo_numero_processo: { Args: { p_ano?: number }; Returns: string }
+      folha_esta_bloqueada: { Args: { p_folha_id: string }; Returns: boolean }
       gerar_codigo_pre_cadastro: { Args: never; Returns: string }
       gerar_link_frequencia: { Args: never; Returns: string }
       gerar_numero_portaria: { Args: { p_ano?: number }; Returns: string }
@@ -14447,6 +14509,10 @@ export type Database = {
         Args: { p_justificativa?: string; p_rascunho_id: string }
         Returns: boolean
       }
+      reabrir_folha: {
+        Args: { p_folha_id: string; p_justificativa: string }
+        Returns: Json
+      }
       user_has_unit_access: {
         Args: { _unidade_id: string; _user_id: string }
         Returns: boolean
@@ -14454,6 +14520,14 @@ export type Database = {
       usuario_eh_admin: { Args: { check_user_id: string }; Returns: boolean }
       usuario_eh_super_admin: {
         Args: { check_user_id: string }
+        Returns: boolean
+      }
+      usuario_pode_fechar_folha: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
+      usuario_pode_reabrir_folha: {
+        Args: { p_user_id: string }
         Returns: boolean
       }
       usuario_tem_permissao: {
