@@ -101,6 +101,18 @@ export const toUpperCase = (value: string): string => {
 };
 
 // ========================================
+// FORMATAÇÃO DE MOEDA
+// ========================================
+
+export const formatCurrency = (value: number | null | undefined): string => {
+  if (value === null || value === undefined) return "R$ 0,00";
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+};
+
+// ========================================
 // FORMATAÇÃO DE DATAS
 // ========================================
 
