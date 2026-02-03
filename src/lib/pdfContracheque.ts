@@ -1,6 +1,11 @@
 /**
  * Geração de Contracheque (Holerite) - IDJUV
- * Utiliza template institucional unificado
+ * 
+ * Documento oficial de remuneração seguindo padrão institucional.
+ * Inclui: identificação do servidor, rubricas de proventos/descontos,
+ * bases de cálculo tributárias e assinaturas configuráveis.
+ * 
+ * @version 2.0.0 - Refatorado para padrão institucional
  */
 import jsPDF from 'jspdf';
 import {
@@ -19,6 +24,10 @@ import {
   checkPageBreak,
 } from './pdfTemplate';
 
+// ============================================
+// TIPOS DO CONTRACHEQUE
+// ============================================
+
 interface RubricaItem {
   codigo: string;
   descricao: string;
@@ -27,26 +36,28 @@ interface RubricaItem {
   valor: number;
 }
 
+interface ServidorDados {
+  nome_completo: string;
+  cpf: string;
+  matricula?: string | null;
+  pis_pasep?: string | null;
+}
+
 interface FichaFinanceira {
   id: string;
   servidor_id: string;
-  cargo_nome?: string;
-  unidade_nome?: string;
+  cargo_nome?: string | null;
+  unidade_nome?: string | null;
   total_proventos: number;
   total_descontos: number;
   valor_liquido: number;
-  base_inss?: number;
-  valor_inss?: number;
-  base_irrf?: number;
-  valor_irrf?: number;
-  quantidade_dependentes?: number;
+  base_inss?: number | null;
+  valor_inss?: number | null;
+  base_irrf?: number | null;
+  valor_irrf?: number | null;
+  quantidade_dependentes?: number | null;
   rubricas?: RubricaItem[];
-  servidor?: {
-    nome_completo: string;
-    cpf: string;
-    matricula?: string;
-    pis_pasep?: string;
-  };
+  servidor?: ServidorDados;
 }
 
 interface DadosContracheque {
@@ -55,6 +66,28 @@ interface DadosContracheque {
   competenciaAno: number;
   competenciaMes: number;
 }
+
+// ============================================
+// FUNÇÕES AUXILIARES
+// ============================================
+
+/**
+ * Formata valor monetário para exibição
+ */
+const formatarMoeda = (valor: number | null | undefined): string => {
+  return formatCurrency(valor || 0);
+};
+
+/**
+ * Formata valor monetário sem símbolo R$
+ */
+const formatarValorSemSimbolo = (valor: number): string => {
+  return formatCurrency(valor).replace('R$', '').trim();
+};
+
+// ============================================
+// GERAÇÃO DO CONTRACHEQUE INDIVIDUAL
+// ============================================
 
 /**
  * Gera o contracheque individual de um servidor
@@ -65,11 +98,11 @@ export const generateContracheque = async (dados: DadosContracheque): Promise<vo
   const { width, contentWidth } = getPageDimensions(doc);
   const { ficha, competencia } = dados;
   
-  // Header institucional
+  // Header institucional (fundo branco para contracheque)
   let y = await generateInstitutionalHeader(doc, {
     titulo: 'CONTRACHEQUE',
     subtitulo: `Competência: ${competencia}`,
-    fundoEscuro: true,
+    fundoEscuro: false, // Fundo branco para melhor legibilidade
   }, logos);
   
   // Dados do servidor
@@ -198,7 +231,7 @@ export const generateContracheque = async (dados: DadosContracheque): Promise<vo
       doc.text(p.codigo.substring(0, 4), proventosX + 2, y);
       doc.text(p.descricao.substring(0, 20), proventosX + 15, y);
       doc.text(p.referencia ? String(p.referencia) : '', proventosX + tableWidth - 25, y);
-      doc.text(formatCurrency(p.valor).replace('R$', '').trim(), proventosX + tableWidth - 5, y, { align: 'right' });
+      doc.text(formatarValorSemSimbolo(p.valor), proventosX + tableWidth - 5, y, { align: 'right' });
     }
     
     // Desconto
@@ -207,7 +240,7 @@ export const generateContracheque = async (dados: DadosContracheque): Promise<vo
       doc.text(d.codigo.substring(0, 4), descontosX + 2, y);
       doc.text(d.descricao.substring(0, 20), descontosX + 15, y);
       doc.text(d.referencia ? String(d.referencia) : '', descontosX + tableWidth - 25, y);
-      doc.text(formatCurrency(d.valor).replace('R$', '').trim(), descontosX + tableWidth - 5, y, { align: 'right' });
+      doc.text(formatarValorSemSimbolo(d.valor), descontosX + tableWidth - 5, y, { align: 'right' });
     }
     
     y += 5;
@@ -224,10 +257,10 @@ export const generateContracheque = async (dados: DadosContracheque): Promise<vo
   doc.setFontSize(8);
   
   doc.text('TOTAL PROVENTOS:', proventosX + 2, y);
-  doc.text(formatCurrency(ficha.total_proventos), proventosX + tableWidth - 5, y, { align: 'right' });
+  doc.text(formatarMoeda(ficha.total_proventos), proventosX + tableWidth - 5, y, { align: 'right' });
   
   doc.text('TOTAL DESCONTOS:', descontosX + 2, y);
-  doc.text(formatCurrency(ficha.total_descontos), descontosX + tableWidth - 5, y, { align: 'right' });
+  doc.text(formatarMoeda(ficha.total_descontos), descontosX + tableWidth - 5, y, { align: 'right' });
   y += 10;
   
   // Valor Líquido - destaque
@@ -238,7 +271,7 @@ export const generateContracheque = async (dados: DadosContracheque): Promise<vo
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.text('VALOR LÍQUIDO:', PAGINA.margemEsquerda + 10, y + 2);
-  doc.text(formatCurrency(ficha.valor_liquido), width - PAGINA.margemDireita - 10, y + 2, { align: 'right' });
+  doc.text(formatarMoeda(ficha.valor_liquido), width - PAGINA.margemDireita - 10, y + 2, { align: 'right' });
   y += 15;
   
   // Informações adicionais
@@ -252,10 +285,10 @@ export const generateContracheque = async (dados: DadosContracheque): Promise<vo
   doc.setFont('helvetica', 'normal');
   
   y += 2;
-  doc.text(`Base INSS: ${formatCurrency(ficha.base_inss || 0)}`, PAGINA.margemEsquerda + 5, y);
-  doc.text(`INSS: ${formatCurrency(ficha.valor_inss || 0)}`, PAGINA.margemEsquerda + 55, y);
-  doc.text(`Base IRRF: ${formatCurrency(ficha.base_irrf || 0)}`, PAGINA.margemEsquerda + 105, y);
-  doc.text(`IRRF: ${formatCurrency(ficha.valor_irrf || 0)}`, PAGINA.margemEsquerda + 155, y);
+  doc.text(`Base INSS: ${formatarMoeda(ficha.base_inss)}`, PAGINA.margemEsquerda + 5, y);
+  doc.text(`INSS: ${formatarMoeda(ficha.valor_inss)}`, PAGINA.margemEsquerda + 55, y);
+  doc.text(`Base IRRF: ${formatarMoeda(ficha.base_irrf)}`, PAGINA.margemEsquerda + 105, y);
+  doc.text(`IRRF: ${formatarMoeda(ficha.valor_irrf)}`, PAGINA.margemEsquerda + 155, y);
   y += 6;
   doc.text(`Dependentes IRRF: ${ficha.quantidade_dependentes || 0}`, PAGINA.margemEsquerda + 5, y);
   
@@ -368,13 +401,13 @@ export const generateContrachequeEmLote = async (fichas: FichaFinanceira[], comp
       if (j < proventos.length) {
         const p = proventos[j];
         doc.text(p.descricao.substring(0, 18), proventosX + 2, y);
-        doc.text(formatCurrency(p.valor).replace('R$', '').trim(), proventosX + tableWidth - 5, y, { align: 'right' });
+        doc.text(formatarValorSemSimbolo(p.valor), proventosX + tableWidth - 5, y, { align: 'right' });
       }
       
       if (j < descontos.length) {
         const d = descontos[j];
         doc.text(d.descricao.substring(0, 18), descontosX + 2, y);
-        doc.text(formatCurrency(d.valor).replace('R$', '').trim(), descontosX + tableWidth - 5, y, { align: 'right' });
+        doc.text(formatarValorSemSimbolo(d.valor), descontosX + tableWidth - 5, y, { align: 'right' });
       }
       
       y += 5;
@@ -391,9 +424,9 @@ export const generateContrachequeEmLote = async (fichas: FichaFinanceira[], comp
     doc.setFontSize(8);
     
     doc.text('TOTAL:', proventosX + 2, y);
-    doc.text(formatCurrency(ficha.total_proventos), proventosX + tableWidth - 5, y, { align: 'right' });
+    doc.text(formatarMoeda(ficha.total_proventos), proventosX + tableWidth - 5, y, { align: 'right' });
     doc.text('TOTAL:', descontosX + 2, y);
-    doc.text(formatCurrency(ficha.total_descontos), descontosX + tableWidth - 5, y, { align: 'right' });
+    doc.text(formatarMoeda(ficha.total_descontos), descontosX + tableWidth - 5, y, { align: 'right' });
     y += 10;
     
     // Líquido
@@ -402,7 +435,7 @@ export const generateContrachequeEmLote = async (fichas: FichaFinanceira[], comp
     setColor(doc, { r: 255, g: 255, b: 255 });
     doc.setFontSize(11);
     doc.text('VALOR LÍQUIDO:', PAGINA.margemEsquerda + 10, y + 2);
-    doc.text(formatCurrency(ficha.valor_liquido), width - PAGINA.margemDireita - 10, y + 2, { align: 'right' });
+    doc.text(formatarMoeda(ficha.valor_liquido), width - PAGINA.margemDireita - 10, y + 2, { align: 'right' });
     
     generateInstitutionalFooter(doc, { sistema: 'Sistema de Folha de Pagamento - IDJUV' });
   }

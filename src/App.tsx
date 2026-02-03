@@ -70,6 +70,8 @@ import DiagnosticoPendenciasServidoresPage from "./pages/rh/DiagnosticoPendencia
 import ExportacaoPlanilhaPage from "./pages/rh/ExportacaoPlanilhaPage";
 import AniversariantesPage from "./pages/rh/AniversariantesPage";
 import ControlePacotesFrequenciaPage from "./pages/rh/ControlePacotesFrequenciaPage";
+import MeuContrachequePage from "./pages/rh/MeuContrachequePage";
+import ConsultaContrachequesPage from "./pages/rh/ConsultaContrachequesPage";
 
 // Folha de Pagamento (FASE FUTURA - Bloqueado)
 import FolhaBloqueadaPage from "./pages/folha/FolhaBloqueadaPage";
@@ -424,6 +426,20 @@ const App = () => (
               <Route path="/rh/frequencia/pacotes" element={
                 <ProtectedRoute requiredPermissions="rh.frequencia.visualizar">
                   <ControlePacotesFrequenciaPage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
+              {/* CONTRACHEQUES */}
+              {/* ============================================ */}
+              <Route path="/rh/meu-contracheque" element={
+                <ProtectedRoute>
+                  <MeuContrachequePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/contracheques" element={
+                <ProtectedRoute requiredPermissions="rh.servidores.visualizar">
+                  <ConsultaContrachequesPage />
                 </ProtectedRoute>
               } />
               
