@@ -88,6 +88,7 @@ async function buscarDadosPortarias(filtros: Record<string, unknown>): Promise<D
 }
 
 async function buscarDadosServidores(filtros: Record<string, unknown>): Promise<DadosRelatorio> {
+  // Buscar dados da view v_servidores_situacao
   let query = supabase
     .from('v_servidores_situacao')
     .select('*')
@@ -104,11 +105,50 @@ async function buscarDadosServidores(filtros: Record<string, unknown>): Promise<
     query = query.eq('unidade_id', filtros.unidade);
   }
 
-  const { data, error } = await query;
+  const { data: viewData, error } = await query;
   if (error) throw error;
 
+  // Buscar dados adicionais (rg, data_nascimento, etc.) diretamente da tabela servidores
+  const servidorIds = (viewData || []).map((s) => s.id);
+  
+  let servidoresExtras: Record<string, { 
+    rg: string | null; 
+    data_nascimento: string | null;
+    rg_orgao_expedidor: string | null;
+    rg_uf: string | null;
+    sexo: string | null;
+    estado_civil: string | null;
+    email_institucional: string | null;
+    email_pessoal: string | null;
+    telefone_celular: string | null;
+  }> = {};
+  
+  if (servidorIds.length > 0) {
+    const { data: servidoresData } = await supabase
+      .from('servidores')
+      .select('id, rg, data_nascimento, rg_orgao_expedidor, rg_uf, sexo, estado_civil, email_institucional, email_pessoal, telefone_celular')
+      .in('id', servidorIds);
+    
+    if (servidoresData) {
+      servidoresExtras = servidoresData.reduce((acc, s) => {
+        acc[s.id] = {
+          rg: s.rg,
+          data_nascimento: s.data_nascimento,
+          rg_orgao_expedidor: s.rg_orgao_expedidor,
+          rg_uf: s.rg_uf,
+          sexo: s.sexo,
+          estado_civil: s.estado_civil,
+          email_institucional: s.email_institucional,
+          email_pessoal: s.email_pessoal,
+          telefone_celular: s.telefone_celular,
+        };
+        return acc;
+      }, {} as typeof servidoresExtras);
+    }
+  }
+
   // Buscar vencimento_base dos cargos para enriquecer os dados
-  const cargoIds = [...new Set((data || []).map((s) => s.cargo_id).filter(Boolean))];
+  const cargoIds = [...new Set((viewData || []).map((s) => s.cargo_id).filter(Boolean))];
   
   let cargosMap: Record<string, { vencimento_base: number | null; sigla: string | null }> = {};
   
@@ -126,12 +166,60 @@ async function buscarDadosServidores(filtros: Record<string, unknown>): Promise<
     }
   }
 
-  // Enriquecer dados com vencimento_base
-  const dadosEnriquecidos = (data || []).map((servidor) => ({
-    ...servidor,
-    vencimento_base: servidor.cargo_id ? cargosMap[servidor.cargo_id]?.vencimento_base || 0 : 0,
-    cargo_sigla: servidor.cargo_sigla || (servidor.cargo_id ? cargosMap[servidor.cargo_id]?.sigla : null),
-  }));
+  // Tipo para os dados extras
+  type ServidorExtras = {
+    rg: string | null;
+    data_nascimento: string | null;
+    rg_orgao_expedidor: string | null;
+    rg_uf: string | null;
+    sexo: string | null;
+    estado_civil: string | null;
+    email_institucional: string | null;
+    email_pessoal: string | null;
+    telefone_celular: string | null;
+  };
+
+  const defaultExtras: ServidorExtras = {
+    rg: null,
+    data_nascimento: null,
+    rg_orgao_expedidor: null,
+    rg_uf: null,
+    sexo: null,
+    estado_civil: null,
+    email_institucional: null,
+    email_pessoal: null,
+    telefone_celular: null,
+  };
+
+  // Enriquecer dados com vencimento_base, rg, data_nascimento e demais campos
+  const dadosEnriquecidos = (viewData || []).map((servidor) => {
+    const extras: ServidorExtras = servidoresExtras[servidor.id] || defaultExtras;
+    
+    // Formatar data de nascimento corretamente (sem ajuste de fuso - é apenas DATE no banco)
+    let dataNascimentoFormatada: string | null = extras.data_nascimento;
+    if (extras.data_nascimento) {
+      // A data vem como "YYYY-MM-DD", tratamos como data local (não UTC)
+      const [ano, mes, dia] = extras.data_nascimento.split('-').map(Number);
+      if (ano && mes && dia) {
+        dataNascimentoFormatada = `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}/${ano}`;
+      }
+    }
+    
+    return {
+      ...servidor,
+      vencimento_base: servidor.cargo_id ? cargosMap[servidor.cargo_id]?.vencimento_base || 0 : 0,
+      cargo_sigla: servidor.cargo_sigla || (servidor.cargo_id ? cargosMap[servidor.cargo_id]?.sigla : null),
+      rg: extras.rg,
+      rg_orgao_expedidor: extras.rg_orgao_expedidor,
+      rg_uf: extras.rg_uf,
+      data_nascimento: dataNascimentoFormatada,
+      sexo: extras.sexo,
+      estado_civil: extras.estado_civil,
+      email_institucional: extras.email_institucional,
+      email_pessoal: extras.email_pessoal,
+      telefone_celular: extras.telefone_celular,
+    };
+  });
 
   return { dados: dadosEnriquecidos, total: dadosEnriquecidos.length };
 }
