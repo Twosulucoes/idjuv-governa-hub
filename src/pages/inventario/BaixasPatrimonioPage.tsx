@@ -92,7 +92,7 @@ export default function BaixasPatrimonioPage() {
               </div>
             </div>
             <Button asChild>
-              <Link to="/inventario/baixas/nova">
+              <Link to="/inventario/baixas?acao=nova">
                 <Plus className="w-4 h-4 mr-2" />
                 Nova Baixa
               </Link>

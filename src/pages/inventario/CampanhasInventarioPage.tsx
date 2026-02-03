@@ -79,7 +79,7 @@ export default function CampanhasInventarioPage() {
               </div>
             </div>
             <Button asChild>
-              <Link to="/inventario/campanhas/nova">
+              <Link to="/inventario/campanhas?acao=nova">
                 <Plus className="w-4 h-4 mr-2" />
                 Nova Campanha
               </Link>
@@ -130,7 +130,7 @@ export default function CampanhasInventarioPage() {
                 <ClipboardCheck className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>Nenhuma campanha encontrada para este período</p>
                 <Button asChild className="mt-4">
-                  <Link to="/inventario/campanhas/nova">
+                  <Link to="/inventario/campanhas?acao=nova">
                     <Plus className="w-4 h-4 mr-2" />
                     Criar Nova Campanha
                   </Link>

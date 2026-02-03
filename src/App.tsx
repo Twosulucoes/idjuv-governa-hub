@@ -140,18 +140,21 @@ import {
   ContasBancariasPage,
   OrcamentoPage,
   RelatoriosFinanceiroPage,
+  PlaceholderDetalheFinanceiroPage,
 } from "./pages/financeiro";
 
 // Inventário e Patrimônio
 import {
   DashboardInventarioPage,
   BensPatrimoniaisPage,
+  BemDetalhePage,
   MovimentacoesPatrimonioPage,
   CampanhasInventarioPage,
   AlmoxarifadoEstoquePage,
   RequisicoesMaterialPage,
   ManutencoesBensPage,
   BaixasPatrimonioPage,
+  PlaceholderDetalhePage,
 } from "./pages/inventario";
 
 const queryClient = new QueryClient();
@@ -575,6 +578,58 @@ const App = () => (
                 </ProtectedRoute>
               } />
               
+              {/* Rotas de detalhe do inventário */}
+              <Route path="/inventario/bens/:id" element={
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
+                  <BemDetalhePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/bens/:id/editar" element={
+                <ProtectedRoute requiredPermissions="patrimonio.criar">
+                  <PlaceholderDetalhePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/campanhas/:id" element={
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
+                  <PlaceholderDetalhePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/campanhas/:id/coleta" element={
+                <ProtectedRoute requiredPermissions="patrimonio.tramitar">
+                  <PlaceholderDetalhePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/movimentacoes/:id" element={
+                <ProtectedRoute requiredPermissions="patrimonio.tramitar">
+                  <PlaceholderDetalhePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/manutencoes/:id" element={
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
+                  <PlaceholderDetalhePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/requisicoes/:id" element={
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
+                  <PlaceholderDetalhePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/almoxarifado/:id" element={
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
+                  <PlaceholderDetalhePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/almoxarifado/:id/editar" element={
+                <ProtectedRoute requiredPermissions="patrimonio.criar">
+                  <PlaceholderDetalhePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/baixas/:id" element={
+                <ProtectedRoute requiredPermissions="patrimonio.criar">
+                  <PlaceholderDetalhePage />
+                </ProtectedRoute>
+              } />
+              
               {/* ============================================ */}
               {/* FORMULÁRIOS - Apenas autenticação */}
               {/* (permissão genérica removida) */}
@@ -663,6 +718,23 @@ const App = () => (
               <Route path="/financeiro/relatorios" element={
                 <ProtectedRoute requiredPermissions="orcamento.visualizar">
                   <RelatoriosFinanceiroPage />
+                </ProtectedRoute>
+              } />
+              
+              {/* Rotas de detalhe do financeiro */}
+              <Route path="/financeiro/solicitacoes/:id" element={
+                <ProtectedRoute requiredPermissions="orcamento.visualizar">
+                  <PlaceholderDetalheFinanceiroPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/empenhos/:id" element={
+                <ProtectedRoute requiredPermissions="orcamento.criar">
+                  <PlaceholderDetalheFinanceiroPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/pagamentos/:id" element={
+                <ProtectedRoute requiredPermissions="orcamento.aprovar">
+                  <PlaceholderDetalheFinanceiroPage />
                 </ProtectedRoute>
               } />
 

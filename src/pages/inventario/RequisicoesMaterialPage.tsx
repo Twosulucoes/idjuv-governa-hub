@@ -77,7 +77,7 @@ export default function RequisicoesMaterialPage() {
               </div>
             </div>
             <Button asChild>
-              <Link to="/inventario/requisicoes/nova">
+              <Link to="/inventario/requisicoes?acao=nova">
                 <Plus className="w-4 h-4 mr-2" />
                 Nova Requisição
               </Link>

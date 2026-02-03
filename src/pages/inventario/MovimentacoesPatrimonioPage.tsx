@@ -88,7 +88,7 @@ export default function MovimentacoesPatrimonioPage() {
               </div>
             </div>
             <Button asChild>
-              <Link to="/inventario/movimentacoes/nova">
+              <Link to="/inventario/movimentacoes?acao=nova">
                 <Plus className="w-4 h-4 mr-2" />
                 Nova Movimentação
               </Link>

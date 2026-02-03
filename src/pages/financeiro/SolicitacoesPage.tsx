@@ -77,7 +77,7 @@ export default function SolicitacoesPage() {
             </p>
           </div>
           <Button asChild>
-            <Link to="/financeiro/solicitacoes/nova">
+            <Link to="/financeiro/solicitacoes?acao=nova">
               <Plus className="h-4 w-4 mr-2" />
               Nova Solicitação
             </Link>
