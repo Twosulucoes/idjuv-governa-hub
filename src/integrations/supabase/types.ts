@@ -1889,8 +1889,10 @@ export type Database = {
           assinatura_rh_obrigatoria: boolean | null
           assinatura_servidor_obrigatoria: boolean | null
           ativo: boolean | null
+          codigo: string | null
           created_at: string | null
           id: string
+          instituicao_id: string | null
           nome: string
           ordem_assinaturas: string[] | null
           padrao: boolean | null
@@ -1904,8 +1906,10 @@ export type Database = {
           assinatura_rh_obrigatoria?: boolean | null
           assinatura_servidor_obrigatoria?: boolean | null
           ativo?: boolean | null
+          codigo?: string | null
           created_at?: string | null
           id?: string
+          instituicao_id?: string | null
           nome: string
           ordem_assinaturas?: string[] | null
           padrao?: boolean | null
@@ -1919,8 +1923,10 @@ export type Database = {
           assinatura_rh_obrigatoria?: boolean | null
           assinatura_servidor_obrigatoria?: boolean | null
           ativo?: boolean | null
+          codigo?: string | null
           created_at?: string | null
           id?: string
+          instituicao_id?: string | null
           nome?: string
           ordem_assinaturas?: string[] | null
           padrao?: boolean | null
@@ -1929,7 +1935,15 @@ export type Database = {
           tipo_assinatura?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "config_assinatura_frequencia_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       config_assinatura_reuniao: {
         Row: {
@@ -2108,6 +2122,7 @@ export type Database = {
         Row: {
           aplicar_a_todos: boolean | null
           ativo: boolean | null
+          codigo: string | null
           compensacao_automatica: boolean | null
           compensacao_manual: boolean | null
           created_at: string | null
@@ -2115,6 +2130,7 @@ export type Database = {
           exibe_na_frequencia: boolean | null
           exibe_na_impressao: boolean | null
           id: string
+          instituicao_id: string | null
           limite_acumulo_horas: number | null
           limite_horas_extras_dia: number | null
           limite_horas_extras_mes: number | null
@@ -2129,6 +2145,7 @@ export type Database = {
         Insert: {
           aplicar_a_todos?: boolean | null
           ativo?: boolean | null
+          codigo?: string | null
           compensacao_automatica?: boolean | null
           compensacao_manual?: boolean | null
           created_at?: string | null
@@ -2136,6 +2153,7 @@ export type Database = {
           exibe_na_frequencia?: boolean | null
           exibe_na_impressao?: boolean | null
           id?: string
+          instituicao_id?: string | null
           limite_acumulo_horas?: number | null
           limite_horas_extras_dia?: number | null
           limite_horas_extras_mes?: number | null
@@ -2150,6 +2168,7 @@ export type Database = {
         Update: {
           aplicar_a_todos?: boolean | null
           ativo?: boolean | null
+          codigo?: string | null
           compensacao_automatica?: boolean | null
           compensacao_manual?: boolean | null
           created_at?: string | null
@@ -2157,6 +2176,7 @@ export type Database = {
           exibe_na_frequencia?: boolean | null
           exibe_na_impressao?: boolean | null
           id?: string
+          instituicao_id?: string | null
           limite_acumulo_horas?: number | null
           limite_horas_extras_dia?: number | null
           limite_horas_extras_mes?: number | null
@@ -2169,6 +2189,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "config_compensacao_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "config_compensacao_unidade_id_fkey"
             columns: ["unidade_id"]
@@ -2191,6 +2218,7 @@ export type Database = {
           fechado_em: string | null
           fechado_por: string | null
           id: string
+          instituicao_id: string | null
           mes: number
           permite_reabertura: boolean | null
           prazo_reabertura_dias: number | null
@@ -2212,6 +2240,7 @@ export type Database = {
           fechado_em?: string | null
           fechado_por?: string | null
           id?: string
+          instituicao_id?: string | null
           mes: number
           permite_reabertura?: boolean | null
           prazo_reabertura_dias?: number | null
@@ -2233,6 +2262,7 @@ export type Database = {
           fechado_em?: string | null
           fechado_por?: string | null
           id?: string
+          instituicao_id?: string | null
           mes?: number
           permite_reabertura?: boolean | null
           prazo_reabertura_dias?: number | null
@@ -2242,7 +2272,15 @@ export type Database = {
           status?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "config_fechamento_frequencia_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       config_institucional: {
         Row: {
@@ -2332,6 +2370,7 @@ export type Database = {
           escopo: string | null
           fundamentacao_legal: string | null
           id: string
+          instituicao_id: string | null
           intervalo_maximo: number | null
           intervalo_minimo: number | null
           intervalo_obrigatorio: boolean | null
@@ -2365,6 +2404,7 @@ export type Database = {
           escopo?: string | null
           fundamentacao_legal?: string | null
           id?: string
+          instituicao_id?: string | null
           intervalo_maximo?: number | null
           intervalo_minimo?: number | null
           intervalo_obrigatorio?: boolean | null
@@ -2398,6 +2438,7 @@ export type Database = {
           escopo?: string | null
           fundamentacao_legal?: string | null
           id?: string
+          instituicao_id?: string | null
           intervalo_maximo?: number | null
           intervalo_minimo?: number | null
           intervalo_obrigatorio?: boolean | null
@@ -2422,6 +2463,13 @@ export type Database = {
             columns: ["cargo_id"]
             isOneToOne: false
             referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_jornada_padrao_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
             referencedColumns: ["id"]
           },
           {
@@ -4438,6 +4486,7 @@ export type Database = {
           fundamentacao_legal: string | null
           horas_expediente: number | null
           id: string
+          instituicao_id: string | null
           mes_recorrente: number | null
           municipio: string | null
           nome: string
@@ -4462,6 +4511,7 @@ export type Database = {
           fundamentacao_legal?: string | null
           horas_expediente?: number | null
           id?: string
+          instituicao_id?: string | null
           mes_recorrente?: number | null
           municipio?: string | null
           nome: string
@@ -4486,6 +4536,7 @@ export type Database = {
           fundamentacao_legal?: string | null
           horas_expediente?: number | null
           id?: string
+          instituicao_id?: string | null
           mes_recorrente?: number | null
           municipio?: string | null
           nome?: string
@@ -4497,7 +4548,15 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "dias_nao_uteis_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       documentos: {
         Row: {
@@ -11108,6 +11167,7 @@ export type Database = {
           exige_registro_ponto: boolean | null
           exige_validacao_chefia: boolean | null
           id: string
+          instituicao_id: string | null
           nome: string
           padrao_escala: string | null
           permite_ponto_remoto: boolean | null
@@ -11127,6 +11187,7 @@ export type Database = {
           exige_registro_ponto?: boolean | null
           exige_validacao_chefia?: boolean | null
           id?: string
+          instituicao_id?: string | null
           nome: string
           padrao_escala?: string | null
           permite_ponto_remoto?: boolean | null
@@ -11146,13 +11207,22 @@ export type Database = {
           exige_registro_ponto?: boolean | null
           exige_validacao_chefia?: boolean | null
           id?: string
+          instituicao_id?: string | null
           nome?: string
           padrao_escala?: string | null
           permite_ponto_remoto?: boolean | null
           tipo?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "regimes_trabalho_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       registros_ponto: {
         Row: {
@@ -12944,6 +13014,7 @@ export type Database = {
           exige_documento: boolean | null
           id: string
           impacto_horas: string | null
+          instituicao_id: string | null
           max_horas_dia: number | null
           max_ocorrencias_mes: number | null
           nome: string
@@ -12962,6 +13033,7 @@ export type Database = {
           exige_documento?: boolean | null
           id?: string
           impacto_horas?: string | null
+          instituicao_id?: string | null
           max_horas_dia?: number | null
           max_ocorrencias_mes?: number | null
           nome: string
@@ -12980,6 +13052,7 @@ export type Database = {
           exige_documento?: boolean | null
           id?: string
           impacto_horas?: string | null
+          instituicao_id?: string | null
           max_horas_dia?: number | null
           max_ocorrencias_mes?: number | null
           nome?: string
@@ -12987,7 +13060,15 @@ export type Database = {
           tipos_documento_aceitos?: string[] | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tipos_abono_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       unidades_locais: {
         Row: {
