@@ -1095,6 +1095,77 @@ export type Database = {
           },
         ]
       }
+      baixas_patrimonio: {
+        Row: {
+          aprovado_por: string | null
+          autorizacao_url: string | null
+          bem_id: string
+          comissao_responsavel: string | null
+          created_at: string | null
+          created_by: string | null
+          dados_bem_snapshot: Json | null
+          data_aprovacao: string | null
+          data_solicitacao: string
+          id: string
+          justificativa: string
+          laudo_tecnico_url: string | null
+          motivo: Database["public"]["Enums"]["motivo_baixa_patrimonio"]
+          motivo_rejeicao: string | null
+          status: string | null
+          termo_baixa_url: string | null
+          updated_at: string | null
+          valor_residual: number | null
+        }
+        Insert: {
+          aprovado_por?: string | null
+          autorizacao_url?: string | null
+          bem_id: string
+          comissao_responsavel?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          dados_bem_snapshot?: Json | null
+          data_aprovacao?: string | null
+          data_solicitacao?: string
+          id?: string
+          justificativa: string
+          laudo_tecnico_url?: string | null
+          motivo: Database["public"]["Enums"]["motivo_baixa_patrimonio"]
+          motivo_rejeicao?: string | null
+          status?: string | null
+          termo_baixa_url?: string | null
+          updated_at?: string | null
+          valor_residual?: number | null
+        }
+        Update: {
+          aprovado_por?: string | null
+          autorizacao_url?: string | null
+          bem_id?: string
+          comissao_responsavel?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          dados_bem_snapshot?: Json | null
+          data_aprovacao?: string | null
+          data_solicitacao?: string
+          id?: string
+          justificativa?: string
+          laudo_tecnico_url?: string | null
+          motivo?: Database["public"]["Enums"]["motivo_baixa_patrimonio"]
+          motivo_rejeicao?: string | null
+          status?: string | null
+          termo_baixa_url?: string | null
+          updated_at?: string | null
+          valor_residual?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "baixas_patrimonio_bem_id_fkey"
+            columns: ["bem_id"]
+            isOneToOne: false
+            referencedRelation: "bens_patrimoniais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       banco_horas: {
         Row: {
           ano: number
@@ -1193,15 +1264,31 @@ export type Database = {
       }
       bens_patrimoniais: {
         Row: {
+          andar: string | null
+          cargo_responsavel: string | null
+          categoria_bem: Database["public"]["Enums"]["categoria_bem"] | null
+          centro_custo_id: string | null
+          codigo_qr: string | null
           created_at: string | null
           created_by: string | null
           data_aquisicao: string
+          data_atribuicao_responsabilidade: string | null
+          data_nota_fiscal: string | null
+          data_ultima_avaliacao: string | null
           depreciacao_acumulada: number | null
           descricao: string
           empenho_id: string | null
           especificacao: string | null
           estado_conservacao: string | null
+          estado_conservacao_inventario:
+            | Database["public"]["Enums"]["estado_conservacao_inventario"]
+            | null
+          fonte_recurso_id: string | null
+          forma_aquisicao: Database["public"]["Enums"]["forma_aquisicao"] | null
+          fornecedor_cnpj_cpf: string | null
           fornecedor_id: string | null
+          foto_bem_url: string | null
+          foto_etiqueta_qr_url: string | null
           garantia_ate: string | null
           id: string
           item_id: string | null
@@ -1212,25 +1299,56 @@ export type Database = {
           numero_patrimonio: string
           numero_serie: string | null
           observacao: string | null
+          patrimonio_anterior: string | null
+          pendencias: Json | null
+          ponto_especifico: string | null
+          predio: string | null
+          processo_sei: string | null
           responsavel_id: string | null
+          sala: string | null
+          setor_responsavel_id: string | null
           situacao: string | null
+          situacao_inventario:
+            | Database["public"]["Enums"]["situacao_bem_patrimonio"]
+            | null
+          subcategoria: string | null
+          termo_responsabilidade_url: string | null
           unidade_id: string | null
           unidade_local_id: string | null
           updated_at: string | null
           valor_aquisicao: number
           valor_liquido: number | null
           valor_residual: number | null
+          vida_util_anos: number | null
         }
         Insert: {
+          andar?: string | null
+          cargo_responsavel?: string | null
+          categoria_bem?: Database["public"]["Enums"]["categoria_bem"] | null
+          centro_custo_id?: string | null
+          codigo_qr?: string | null
           created_at?: string | null
           created_by?: string | null
           data_aquisicao: string
+          data_atribuicao_responsabilidade?: string | null
+          data_nota_fiscal?: string | null
+          data_ultima_avaliacao?: string | null
           depreciacao_acumulada?: number | null
           descricao: string
           empenho_id?: string | null
           especificacao?: string | null
           estado_conservacao?: string | null
+          estado_conservacao_inventario?:
+            | Database["public"]["Enums"]["estado_conservacao_inventario"]
+            | null
+          fonte_recurso_id?: string | null
+          forma_aquisicao?:
+            | Database["public"]["Enums"]["forma_aquisicao"]
+            | null
+          fornecedor_cnpj_cpf?: string | null
           fornecedor_id?: string | null
+          foto_bem_url?: string | null
+          foto_etiqueta_qr_url?: string | null
           garantia_ate?: string | null
           id?: string
           item_id?: string | null
@@ -1241,25 +1359,56 @@ export type Database = {
           numero_patrimonio: string
           numero_serie?: string | null
           observacao?: string | null
+          patrimonio_anterior?: string | null
+          pendencias?: Json | null
+          ponto_especifico?: string | null
+          predio?: string | null
+          processo_sei?: string | null
           responsavel_id?: string | null
+          sala?: string | null
+          setor_responsavel_id?: string | null
           situacao?: string | null
+          situacao_inventario?:
+            | Database["public"]["Enums"]["situacao_bem_patrimonio"]
+            | null
+          subcategoria?: string | null
+          termo_responsabilidade_url?: string | null
           unidade_id?: string | null
           unidade_local_id?: string | null
           updated_at?: string | null
           valor_aquisicao: number
           valor_liquido?: number | null
           valor_residual?: number | null
+          vida_util_anos?: number | null
         }
         Update: {
+          andar?: string | null
+          cargo_responsavel?: string | null
+          categoria_bem?: Database["public"]["Enums"]["categoria_bem"] | null
+          centro_custo_id?: string | null
+          codigo_qr?: string | null
           created_at?: string | null
           created_by?: string | null
           data_aquisicao?: string
+          data_atribuicao_responsabilidade?: string | null
+          data_nota_fiscal?: string | null
+          data_ultima_avaliacao?: string | null
           depreciacao_acumulada?: number | null
           descricao?: string
           empenho_id?: string | null
           especificacao?: string | null
           estado_conservacao?: string | null
+          estado_conservacao_inventario?:
+            | Database["public"]["Enums"]["estado_conservacao_inventario"]
+            | null
+          fonte_recurso_id?: string | null
+          forma_aquisicao?:
+            | Database["public"]["Enums"]["forma_aquisicao"]
+            | null
+          fornecedor_cnpj_cpf?: string | null
           fornecedor_id?: string | null
+          foto_bem_url?: string | null
+          foto_etiqueta_qr_url?: string | null
           garantia_ate?: string | null
           id?: string
           item_id?: string | null
@@ -1270,14 +1419,27 @@ export type Database = {
           numero_patrimonio?: string
           numero_serie?: string | null
           observacao?: string | null
+          patrimonio_anterior?: string | null
+          pendencias?: Json | null
+          ponto_especifico?: string | null
+          predio?: string | null
+          processo_sei?: string | null
           responsavel_id?: string | null
+          sala?: string | null
+          setor_responsavel_id?: string | null
           situacao?: string | null
+          situacao_inventario?:
+            | Database["public"]["Enums"]["situacao_bem_patrimonio"]
+            | null
+          subcategoria?: string | null
+          termo_responsabilidade_url?: string | null
           unidade_id?: string | null
           unidade_local_id?: string | null
           updated_at?: string | null
           valor_aquisicao?: number
           valor_liquido?: number | null
           valor_residual?: number | null
+          vida_util_anos?: number | null
         }
         Relationships: [
           {
@@ -1420,6 +1582,84 @@ export type Database = {
             columns: ["federacao_id"]
             isOneToOne: false
             referencedRelation: "federacoes_esportivas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campanhas_inventario: {
+        Row: {
+          ano: number
+          created_at: string | null
+          created_by: string | null
+          data_fim: string
+          data_inicio: string
+          equipe_coleta: string[] | null
+          id: string
+          nome: string
+          observacoes: string | null
+          percentual_conclusao: number | null
+          responsavel_geral_id: string | null
+          status: string | null
+          tipo: Database["public"]["Enums"]["tipo_campanha_inventario"]
+          total_bens_esperados: number | null
+          total_conferidos: number | null
+          total_divergencias: number | null
+          unidades_abrangidas: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          ano: number
+          created_at?: string | null
+          created_by?: string | null
+          data_fim: string
+          data_inicio: string
+          equipe_coleta?: string[] | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          percentual_conclusao?: number | null
+          responsavel_geral_id?: string | null
+          status?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_campanha_inventario"]
+          total_bens_esperados?: number | null
+          total_conferidos?: number | null
+          total_divergencias?: number | null
+          unidades_abrangidas?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          ano?: number
+          created_at?: string | null
+          created_by?: string | null
+          data_fim?: string
+          data_inicio?: string
+          equipe_coleta?: string[] | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          percentual_conclusao?: number | null
+          responsavel_geral_id?: string | null
+          status?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_campanha_inventario"]
+          total_bens_esperados?: number | null
+          total_conferidos?: number | null
+          total_divergencias?: number | null
+          unidades_abrangidas?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campanhas_inventario_responsavel_geral_id_fkey"
+            columns: ["responsavel_geral_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campanhas_inventario_responsavel_geral_id_fkey"
+            columns: ["responsavel_geral_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
         ]
@@ -1808,6 +2048,96 @@ export type Database = {
         }
         Relationships: []
       }
+      coletas_inventario: {
+        Row: {
+          bem_id: string
+          campanha_id: string
+          coordenadas_gps: Json | null
+          created_at: string | null
+          data_coleta: string
+          dispositivo_info: Json | null
+          foto_url: string | null
+          id: string
+          localizacao_encontrada_detalhe: string | null
+          localizacao_encontrada_sala: string | null
+          localizacao_encontrada_unidade_id: string | null
+          observacoes: string | null
+          responsavel_encontrado_id: string | null
+          status_coleta: Database["public"]["Enums"]["status_coleta_inventario"]
+          usuario_coletor_id: string | null
+        }
+        Insert: {
+          bem_id: string
+          campanha_id: string
+          coordenadas_gps?: Json | null
+          created_at?: string | null
+          data_coleta?: string
+          dispositivo_info?: Json | null
+          foto_url?: string | null
+          id?: string
+          localizacao_encontrada_detalhe?: string | null
+          localizacao_encontrada_sala?: string | null
+          localizacao_encontrada_unidade_id?: string | null
+          observacoes?: string | null
+          responsavel_encontrado_id?: string | null
+          status_coleta?: Database["public"]["Enums"]["status_coleta_inventario"]
+          usuario_coletor_id?: string | null
+        }
+        Update: {
+          bem_id?: string
+          campanha_id?: string
+          coordenadas_gps?: Json | null
+          created_at?: string | null
+          data_coleta?: string
+          dispositivo_info?: Json | null
+          foto_url?: string | null
+          id?: string
+          localizacao_encontrada_detalhe?: string | null
+          localizacao_encontrada_sala?: string | null
+          localizacao_encontrada_unidade_id?: string | null
+          observacoes?: string | null
+          responsavel_encontrado_id?: string | null
+          status_coleta?: Database["public"]["Enums"]["status_coleta_inventario"]
+          usuario_coletor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coletas_inventario_bem_id_fkey"
+            columns: ["bem_id"]
+            isOneToOne: false
+            referencedRelation: "bens_patrimoniais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coletas_inventario_campanha_id_fkey"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "campanhas_inventario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coletas_inventario_localizacao_encontrada_unidade_id_fkey"
+            columns: ["localizacao_encontrada_unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coletas_inventario_responsavel_encontrado_id_fkey"
+            columns: ["responsavel_encontrado_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coletas_inventario_responsavel_encontrado_id_fkey"
+            columns: ["responsavel_encontrado_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       composicao_cargos: {
         Row: {
           cargo_id: string
@@ -1843,6 +2173,82 @@ export type Database = {
             columns: ["unidade_id"]
             isOneToOne: false
             referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conciliacoes_inventario: {
+        Row: {
+          ajuste_proposto: string
+          aprovador_id: string | null
+          bem_id: string
+          campanha_id: string
+          coleta_id: string
+          created_at: string | null
+          created_by: string | null
+          data_aprovacao: string | null
+          descricao_divergencia: string
+          id: string
+          necessita_aprovacao: boolean | null
+          observacoes: string | null
+          status: string | null
+          tipo_divergencia: string
+          updated_at: string | null
+        }
+        Insert: {
+          ajuste_proposto: string
+          aprovador_id?: string | null
+          bem_id: string
+          campanha_id: string
+          coleta_id: string
+          created_at?: string | null
+          created_by?: string | null
+          data_aprovacao?: string | null
+          descricao_divergencia: string
+          id?: string
+          necessita_aprovacao?: boolean | null
+          observacoes?: string | null
+          status?: string | null
+          tipo_divergencia: string
+          updated_at?: string | null
+        }
+        Update: {
+          ajuste_proposto?: string
+          aprovador_id?: string | null
+          bem_id?: string
+          campanha_id?: string
+          coleta_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          data_aprovacao?: string | null
+          descricao_divergencia?: string
+          id?: string
+          necessita_aprovacao?: boolean | null
+          observacoes?: string | null
+          status?: string | null
+          tipo_divergencia?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conciliacoes_inventario_bem_id_fkey"
+            columns: ["bem_id"]
+            isOneToOne: false
+            referencedRelation: "bens_patrimoniais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacoes_inventario_campanha_id_fkey"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "campanhas_inventario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacoes_inventario_coleta_id_fkey"
+            columns: ["coleta_id"]
+            isOneToOne: false
+            referencedRelation: "coletas_inventario"
             referencedColumns: ["id"]
           },
         ]
@@ -9806,48 +10212,57 @@ export type Database = {
           ativo: boolean | null
           categoria_id: string | null
           codigo: string
+          codigo_sku: string | null
           created_at: string | null
           descricao: string
           especificacao: string | null
           estoque_maximo: number | null
           estoque_minimo: number | null
           id: string
+          lote: string | null
           ponto_reposicao: number | null
           ultimo_valor_compra: number | null
           unidade_medida: string
           updated_at: string | null
+          validade: string | null
           valor_unitario_medio: number | null
         }
         Insert: {
           ativo?: boolean | null
           categoria_id?: string | null
           codigo: string
+          codigo_sku?: string | null
           created_at?: string | null
           descricao: string
           especificacao?: string | null
           estoque_maximo?: number | null
           estoque_minimo?: number | null
           id?: string
+          lote?: string | null
           ponto_reposicao?: number | null
           ultimo_valor_compra?: number | null
           unidade_medida: string
           updated_at?: string | null
+          validade?: string | null
           valor_unitario_medio?: number | null
         }
         Update: {
           ativo?: boolean | null
           categoria_id?: string | null
           codigo?: string
+          codigo_sku?: string | null
           created_at?: string | null
           descricao?: string
           especificacao?: string | null
           estoque_maximo?: number | null
           estoque_minimo?: number | null
           id?: string
+          lote?: string | null
           ponto_reposicao?: number | null
           ultimo_valor_compra?: number | null
           unidade_medida?: string
           updated_at?: string | null
+          validade?: string | null
           valor_unitario_medio?: number | null
         }
         Relationships: [
@@ -10456,6 +10871,87 @@ export type Database = {
             columns: ["unidade_id"]
             isOneToOne: false
             referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manutencoes_patrimonio: {
+        Row: {
+          bem_id: string
+          created_at: string | null
+          created_by: string | null
+          custo_estimado: number | null
+          custo_final: number | null
+          data_abertura: string
+          data_conclusao: string | null
+          data_inicio: string | null
+          descricao_problema: string
+          fornecedor_externo: string | null
+          fornecedor_id: string | null
+          fotos_urls: Json | null
+          id: string
+          laudo_url: string | null
+          nota_fiscal_url: string | null
+          observacoes: string | null
+          status: string | null
+          tipo: Database["public"]["Enums"]["tipo_manutencao"]
+          updated_at: string | null
+        }
+        Insert: {
+          bem_id: string
+          created_at?: string | null
+          created_by?: string | null
+          custo_estimado?: number | null
+          custo_final?: number | null
+          data_abertura?: string
+          data_conclusao?: string | null
+          data_inicio?: string | null
+          descricao_problema: string
+          fornecedor_externo?: string | null
+          fornecedor_id?: string | null
+          fotos_urls?: Json | null
+          id?: string
+          laudo_url?: string | null
+          nota_fiscal_url?: string | null
+          observacoes?: string | null
+          status?: string | null
+          tipo: Database["public"]["Enums"]["tipo_manutencao"]
+          updated_at?: string | null
+        }
+        Update: {
+          bem_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          custo_estimado?: number | null
+          custo_final?: number | null
+          data_abertura?: string
+          data_conclusao?: string | null
+          data_inicio?: string | null
+          descricao_problema?: string
+          fornecedor_externo?: string | null
+          fornecedor_id?: string | null
+          fotos_urls?: Json | null
+          id?: string
+          laudo_url?: string | null
+          nota_fiscal_url?: string | null
+          observacoes?: string | null
+          status?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_manutencao"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manutencoes_patrimonio_bem_id_fkey"
+            columns: ["bem_id"]
+            isOneToOne: false
+            referencedRelation: "bens_patrimoniais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manutencoes_patrimonio_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
             referencedColumns: ["id"]
           },
         ]
@@ -11142,6 +11638,149 @@ export type Database = {
           },
         ]
       }
+      movimentacoes_patrimonio: {
+        Row: {
+          aceite_responsavel: boolean | null
+          aprovado_por: string | null
+          bem_id: string
+          created_at: string | null
+          created_by: string | null
+          data_aceite: string | null
+          data_aprovacao: string | null
+          data_movimentacao: string
+          data_solicitacao: string | null
+          id: string
+          motivo: string
+          motivo_rejeicao: string | null
+          observacoes: string | null
+          responsavel_destino_id: string | null
+          responsavel_origem_id: string | null
+          sala_destino: string | null
+          sala_origem: string | null
+          setor_destino: string | null
+          setor_origem: string | null
+          solicitado_por: string | null
+          status:
+            | Database["public"]["Enums"]["status_movimentacao_patrimonio"]
+            | null
+          termo_transferencia_url: string | null
+          tipo: Database["public"]["Enums"]["tipo_movimentacao_patrimonio"]
+          unidade_destino_id: string | null
+          unidade_origem_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          aceite_responsavel?: boolean | null
+          aprovado_por?: string | null
+          bem_id: string
+          created_at?: string | null
+          created_by?: string | null
+          data_aceite?: string | null
+          data_aprovacao?: string | null
+          data_movimentacao?: string
+          data_solicitacao?: string | null
+          id?: string
+          motivo: string
+          motivo_rejeicao?: string | null
+          observacoes?: string | null
+          responsavel_destino_id?: string | null
+          responsavel_origem_id?: string | null
+          sala_destino?: string | null
+          sala_origem?: string | null
+          setor_destino?: string | null
+          setor_origem?: string | null
+          solicitado_por?: string | null
+          status?:
+            | Database["public"]["Enums"]["status_movimentacao_patrimonio"]
+            | null
+          termo_transferencia_url?: string | null
+          tipo: Database["public"]["Enums"]["tipo_movimentacao_patrimonio"]
+          unidade_destino_id?: string | null
+          unidade_origem_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          aceite_responsavel?: boolean | null
+          aprovado_por?: string | null
+          bem_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          data_aceite?: string | null
+          data_aprovacao?: string | null
+          data_movimentacao?: string
+          data_solicitacao?: string | null
+          id?: string
+          motivo?: string
+          motivo_rejeicao?: string | null
+          observacoes?: string | null
+          responsavel_destino_id?: string | null
+          responsavel_origem_id?: string | null
+          sala_destino?: string | null
+          sala_origem?: string | null
+          setor_destino?: string | null
+          setor_origem?: string | null
+          solicitado_por?: string | null
+          status?:
+            | Database["public"]["Enums"]["status_movimentacao_patrimonio"]
+            | null
+          termo_transferencia_url?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_movimentacao_patrimonio"]
+          unidade_destino_id?: string | null
+          unidade_origem_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimentacoes_patrimonio_bem_id_fkey"
+            columns: ["bem_id"]
+            isOneToOne: false
+            referencedRelation: "bens_patrimoniais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_patrimonio_responsavel_destino_id_fkey"
+            columns: ["responsavel_destino_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_patrimonio_responsavel_destino_id_fkey"
+            columns: ["responsavel_destino_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_patrimonio_responsavel_origem_id_fkey"
+            columns: ["responsavel_origem_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_patrimonio_responsavel_origem_id_fkey"
+            columns: ["responsavel_origem_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_patrimonio_unidade_destino_id_fkey"
+            columns: ["unidade_destino_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_patrimonio_unidade_origem_id_fkey"
+            columns: ["unidade_origem_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       movimentacoes_processo: {
         Row: {
           created_at: string
@@ -11372,6 +12011,73 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_relatorio_uso_unidades"
             referencedColumns: ["unidade_id"]
+          },
+        ]
+      }
+      ocorrencias_patrimonio: {
+        Row: {
+          anexos_urls: Json | null
+          bem_id: string
+          created_at: string | null
+          created_by: string | null
+          data_fato: string
+          encaminhamento: string | null
+          id: string
+          providencias_adotadas: string | null
+          relato_detalhado: string
+          responsavel_relato_id: string | null
+          tipo: Database["public"]["Enums"]["tipo_ocorrencia_patrimonio"]
+          updated_at: string | null
+        }
+        Insert: {
+          anexos_urls?: Json | null
+          bem_id: string
+          created_at?: string | null
+          created_by?: string | null
+          data_fato: string
+          encaminhamento?: string | null
+          id?: string
+          providencias_adotadas?: string | null
+          relato_detalhado: string
+          responsavel_relato_id?: string | null
+          tipo: Database["public"]["Enums"]["tipo_ocorrencia_patrimonio"]
+          updated_at?: string | null
+        }
+        Update: {
+          anexos_urls?: Json | null
+          bem_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          data_fato?: string
+          encaminhamento?: string | null
+          id?: string
+          providencias_adotadas?: string | null
+          relato_detalhado?: string
+          responsavel_relato_id?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_ocorrencia_patrimonio"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ocorrencias_patrimonio_bem_id_fkey"
+            columns: ["bem_id"]
+            isOneToOne: false
+            referencedRelation: "bens_patrimoniais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencias_patrimonio_responsavel_relato_id_fkey"
+            columns: ["responsavel_relato_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencias_patrimonio_responsavel_relato_id_fkey"
+            columns: ["responsavel_relato_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -13875,6 +14581,151 @@ export type Database = {
           },
         ]
       }
+      requisicao_itens: {
+        Row: {
+          created_at: string | null
+          id: string
+          item_id: string
+          observacoes: string | null
+          quantidade_atendida: number | null
+          quantidade_solicitada: number
+          requisicao_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          item_id: string
+          observacoes?: string | null
+          quantidade_atendida?: number | null
+          quantidade_solicitada: number
+          requisicao_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          item_id?: string
+          observacoes?: string | null
+          quantidade_atendida?: number | null
+          quantidade_solicitada?: number
+          requisicao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requisicao_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens_material"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisicao_itens_requisicao_id_fkey"
+            columns: ["requisicao_id"]
+            isOneToOne: false
+            referencedRelation: "requisicoes_material"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requisicoes_material: {
+        Row: {
+          almoxarifado_id: string | null
+          anexos_urls: Json | null
+          assinatura_eletronica_aceite: string | null
+          created_at: string | null
+          created_by: string | null
+          data_entrega: string | null
+          data_solicitacao: string
+          finalidade: string | null
+          id: string
+          numero: string
+          observacoes: string | null
+          responsavel_entrega_id: string | null
+          setor_solicitante_id: string | null
+          solicitante_id: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          almoxarifado_id?: string | null
+          anexos_urls?: Json | null
+          assinatura_eletronica_aceite?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_entrega?: string | null
+          data_solicitacao?: string
+          finalidade?: string | null
+          id?: string
+          numero: string
+          observacoes?: string | null
+          responsavel_entrega_id?: string | null
+          setor_solicitante_id?: string | null
+          solicitante_id: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          almoxarifado_id?: string | null
+          anexos_urls?: Json | null
+          assinatura_eletronica_aceite?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_entrega?: string | null
+          data_solicitacao?: string
+          finalidade?: string | null
+          id?: string
+          numero?: string
+          observacoes?: string | null
+          responsavel_entrega_id?: string | null
+          setor_solicitante_id?: string | null
+          solicitante_id?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requisicoes_material_almoxarifado_id_fkey"
+            columns: ["almoxarifado_id"]
+            isOneToOne: false
+            referencedRelation: "almoxarifados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisicoes_material_responsavel_entrega_id_fkey"
+            columns: ["responsavel_entrega_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisicoes_material_responsavel_entrega_id_fkey"
+            columns: ["responsavel_entrega_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisicoes_material_setor_solicitante_id_fkey"
+            columns: ["setor_solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisicoes_material_solicitante_id_fkey"
+            columns: ["solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisicoes_material_solicitante_id_fkey"
+            columns: ["solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       respostas_checklist: {
         Row: {
           created_at: string
@@ -16114,6 +16965,19 @@ export type Database = {
         }
         Relationships: []
       }
+      v_resumo_patrimonio: {
+        Row: {
+          bens_alocados: number | null
+          bens_atencao: number | null
+          bens_baixados: number | null
+          bens_bom_estado: number | null
+          bens_manutencao: number | null
+          total_bens: number | null
+          valor_total_aquisicao: number | null
+          valor_total_liquido: number | null
+        }
+        Relationships: []
+      }
       v_servidores_situacao: {
         Row: {
           ativo: boolean | null
@@ -16555,6 +17419,13 @@ export type Database = {
         | "submit"
       backup_status: "pending" | "running" | "success" | "failed" | "partial"
       backup_type: "daily" | "weekly" | "monthly" | "manual"
+      categoria_bem:
+        | "mobiliario"
+        | "informatica"
+        | "equipamento_esportivo"
+        | "veiculo"
+        | "eletrodomestico"
+        | "outros"
       categoria_cargo:
         | "efetivo"
         | "comissionado"
@@ -16589,6 +17460,12 @@ export type Database = {
         | "suspender"
         | "informar"
       estado_conservacao: "otimo" | "bom" | "regular" | "ruim" | "inservivel"
+      estado_conservacao_inventario:
+        | "novo"
+        | "bom"
+        | "regular"
+        | "ruim"
+        | "inservivel"
       fase_licitacao:
         | "planejamento"
         | "elaboracao"
@@ -16605,6 +17482,7 @@ export type Database = {
         | "anulado"
         | "deserto"
         | "fracassado"
+      forma_aquisicao: "compra" | "doacao" | "cessao" | "transferencia"
       formula_tipo:
         | "valor_fixo"
         | "percentual_base"
@@ -16621,6 +17499,12 @@ export type Database = {
         | "dialogo_competitivo"
         | "dispensa"
         | "inexigibilidade"
+      motivo_baixa_patrimonio:
+        | "inservivel"
+        | "obsoleto"
+        | "doacao"
+        | "alienacao"
+        | "perda"
       natureza_cargo: "efetivo" | "comissionado"
       natureza_conta:
         | "ativo"
@@ -16652,6 +17536,13 @@ export type Database = {
         | "judicial"
         | "contratual"
         | "regulamentar"
+      situacao_bem_patrimonio:
+        | "cadastrado"
+        | "tombado"
+        | "alocado"
+        | "em_manutencao"
+        | "baixado"
+        | "extraviado"
       situacao_funcional:
         | "ativo"
         | "afastado"
@@ -16684,6 +17575,12 @@ export type Database = {
         | "rejeitado"
         | "cancelado"
         | "concluido"
+      status_coleta_inventario:
+        | "conferido"
+        | "nao_localizado"
+        | "divergente"
+        | "avariado"
+        | "em_manutencao"
       status_conciliacao:
         | "pendente"
         | "conciliado"
@@ -16756,6 +17653,11 @@ export type Database = {
         | "rejeitada"
         | "cancelada"
       status_medicao: "rascunho" | "enviada" | "aprovada" | "rejeitada" | "paga"
+      status_movimentacao_patrimonio:
+        | "pendente"
+        | "aprovado"
+        | "rejeitado"
+        | "concluido"
       status_movimentacao_processo:
         | "pendente"
         | "recebido"
@@ -16847,6 +17749,7 @@ export type Database = {
         | "credito_especial"
         | "credito_extraordinario"
       tipo_ato_nomeacao: "portaria" | "decreto" | "ato" | "outro"
+      tipo_campanha_inventario: "geral" | "setorial" | "rotativo"
       tipo_conta_bancaria: "corrente" | "poupanca" | "aplicacao" | "vinculada"
       tipo_conteudo_institucional:
         | "missao"
@@ -16970,6 +17873,7 @@ export type Database = {
         | "designacao"
         | "cessao_interna"
         | "lotacao_externa"
+      tipo_manutencao: "preventiva" | "corretiva"
       tipo_movimentacao_funcional:
         | "nomeacao"
         | "exoneracao"
@@ -16985,6 +17889,11 @@ export type Database = {
         | "retorno"
         | "aposentadoria"
         | "vacancia"
+      tipo_movimentacao_patrimonio:
+        | "transferencia_interna"
+        | "cessao"
+        | "emprestimo"
+        | "recolhimento"
       tipo_movimentacao_processo:
         | "despacho"
         | "encaminhamento"
@@ -16993,6 +17902,7 @@ export type Database = {
         | "informacao"
         | "ciencia"
         | "devolucao"
+      tipo_ocorrencia_patrimonio: "dano" | "extravio" | "sinistro"
       tipo_papel_raci: "responsavel" | "aprovador" | "consultado" | "informado"
       tipo_parecer:
         | "juridico"
@@ -17293,6 +18203,14 @@ export const Constants = {
       ],
       backup_status: ["pending", "running", "success", "failed", "partial"],
       backup_type: ["daily", "weekly", "monthly", "manual"],
+      categoria_bem: [
+        "mobiliario",
+        "informatica",
+        "equipamento_esportivo",
+        "veiculo",
+        "eletrodomestico",
+        "outros",
+      ],
       categoria_cargo: [
         "efetivo",
         "comissionado",
@@ -17331,6 +18249,13 @@ export const Constants = {
         "informar",
       ],
       estado_conservacao: ["otimo", "bom", "regular", "ruim", "inservivel"],
+      estado_conservacao_inventario: [
+        "novo",
+        "bom",
+        "regular",
+        "ruim",
+        "inservivel",
+      ],
       fase_licitacao: [
         "planejamento",
         "elaboracao",
@@ -17348,6 +18273,7 @@ export const Constants = {
         "deserto",
         "fracassado",
       ],
+      forma_aquisicao: ["compra", "doacao", "cessao", "transferencia"],
       formula_tipo: [
         "valor_fixo",
         "percentual_base",
@@ -17365,6 +18291,13 @@ export const Constants = {
         "dialogo_competitivo",
         "dispensa",
         "inexigibilidade",
+      ],
+      motivo_baixa_patrimonio: [
+        "inservivel",
+        "obsoleto",
+        "doacao",
+        "alienacao",
+        "perda",
       ],
       natureza_cargo: ["efetivo", "comissionado"],
       natureza_conta: [
@@ -17399,6 +18332,14 @@ export const Constants = {
         "judicial",
         "contratual",
         "regulamentar",
+      ],
+      situacao_bem_patrimonio: [
+        "cadastrado",
+        "tombado",
+        "alocado",
+        "em_manutencao",
+        "baixado",
+        "extraviado",
       ],
       situacao_funcional: [
         "ativo",
@@ -17435,6 +18376,13 @@ export const Constants = {
         "rejeitado",
         "cancelado",
         "concluido",
+      ],
+      status_coleta_inventario: [
+        "conferido",
+        "nao_localizado",
+        "divergente",
+        "avariado",
+        "em_manutencao",
       ],
       status_conciliacao: [
         "pendente",
@@ -17518,6 +18466,12 @@ export const Constants = {
         "cancelada",
       ],
       status_medicao: ["rascunho", "enviada", "aprovada", "rejeitada", "paga"],
+      status_movimentacao_patrimonio: [
+        "pendente",
+        "aprovado",
+        "rejeitado",
+        "concluido",
+      ],
       status_movimentacao_processo: [
         "pendente",
         "recebido",
@@ -17621,6 +18575,7 @@ export const Constants = {
         "credito_extraordinario",
       ],
       tipo_ato_nomeacao: ["portaria", "decreto", "ato", "outro"],
+      tipo_campanha_inventario: ["geral", "setorial", "rotativo"],
       tipo_conta_bancaria: ["corrente", "poupanca", "aplicacao", "vinculada"],
       tipo_conteudo_institucional: [
         "missao",
@@ -17755,6 +18710,7 @@ export const Constants = {
         "cessao_interna",
         "lotacao_externa",
       ],
+      tipo_manutencao: ["preventiva", "corretiva"],
       tipo_movimentacao_funcional: [
         "nomeacao",
         "exoneracao",
@@ -17771,6 +18727,12 @@ export const Constants = {
         "aposentadoria",
         "vacancia",
       ],
+      tipo_movimentacao_patrimonio: [
+        "transferencia_interna",
+        "cessao",
+        "emprestimo",
+        "recolhimento",
+      ],
       tipo_movimentacao_processo: [
         "despacho",
         "encaminhamento",
@@ -17780,6 +18742,7 @@ export const Constants = {
         "ciencia",
         "devolucao",
       ],
+      tipo_ocorrencia_patrimonio: ["dano", "extravio", "sinistro"],
       tipo_papel_raci: ["responsavel", "aprovador", "consultado", "informado"],
       tipo_parecer: [
         "juridico",
