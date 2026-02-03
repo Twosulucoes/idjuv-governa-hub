@@ -51,7 +51,7 @@ export default function SolicitacoesPage() {
   const [busca, setBusca] = useState("");
   
   const { data: solicitacoes, isLoading } = useSolicitacoes({ 
-    status: filtroStatus || undefined 
+    status: filtroStatus && filtroStatus !== "todos" ? filtroStatus : undefined 
   });
   
   const solicitacoesFiltradas = solicitacoes?.filter((s) => {
@@ -108,7 +108,7 @@ export default function SolicitacoesPage() {
                   <SelectValue placeholder="Todos os status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os status</SelectItem>
+                  <SelectItem value="todos">Todos os status</SelectItem>
                   <SelectItem value="rascunho">Rascunho</SelectItem>
                   <SelectItem value="pendente_analise">Pendente de Análise</SelectItem>
                   <SelectItem value="em_analise">Em Análise</SelectItem>

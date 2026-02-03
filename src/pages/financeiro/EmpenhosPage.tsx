@@ -49,7 +49,7 @@ export default function EmpenhosPage() {
   const [busca, setBusca] = useState("");
   
   const { data: empenhos, isLoading } = useEmpenhos({ 
-    status: filtroStatus || undefined 
+    status: filtroStatus && filtroStatus !== "todos" ? filtroStatus : undefined 
   });
   
   const empenhosFiltrados = empenhos?.filter((e) => {
@@ -105,7 +105,7 @@ export default function EmpenhosPage() {
                   <SelectValue placeholder="Todos os status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os status</SelectItem>
+                  <SelectItem value="todos">Todos os status</SelectItem>
                   <SelectItem value="emitido">Emitido</SelectItem>
                   <SelectItem value="parcialmente_liquidado">Parc. Liquidado</SelectItem>
                   <SelectItem value="liquidado">Liquidado</SelectItem>

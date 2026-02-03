@@ -49,7 +49,7 @@ export default function PagamentosPage() {
   const [busca, setBusca] = useState("");
   
   const { data: pagamentos, isLoading } = usePagamentos({ 
-    status: filtroStatus || undefined 
+    status: filtroStatus && filtroStatus !== "todos" ? filtroStatus : undefined 
   });
   
   const pagamentosFiltrados = pagamentos?.filter((p) => {
@@ -139,7 +139,7 @@ export default function PagamentosPage() {
                   <SelectValue placeholder="Todos os status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os status</SelectItem>
+                  <SelectItem value="todos">Todos os status</SelectItem>
                   <SelectItem value="programado">Programado</SelectItem>
                   <SelectItem value="autorizado">Autorizado</SelectItem>
                   <SelectItem value="pago">Pago</SelectItem>

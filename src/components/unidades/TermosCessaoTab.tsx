@@ -296,7 +296,7 @@ export function TermosCessaoTab({ unidadeId, chefeNomeacaoId }: TermosCessaoTabP
                 </SelectTrigger>
                 <SelectContent>
                   {reservasAprovadas.length === 0 ? (
-                    <SelectItem value="" disabled>
+                    <SelectItem value="none" disabled>
                       Nenhuma reserva aprovada disponível
                     </SelectItem>
                   ) : (

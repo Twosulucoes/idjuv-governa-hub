@@ -115,7 +115,7 @@ export function FiltrosReuniaoDialog({
                 <SelectValue placeholder="Todos os status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="todos">Todos</SelectItem>
                 <SelectItem value="agendada">Agendada</SelectItem>
                 <SelectItem value="confirmada">Confirmada</SelectItem>
                 <SelectItem value="em_andamento">Em Andamento</SelectItem>
@@ -139,7 +139,7 @@ export function FiltrosReuniaoDialog({
                 <SelectValue placeholder="Todos os tipos" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="todos">Todos</SelectItem>
                 <SelectItem value="ordinaria">Ordinária</SelectItem>
                 <SelectItem value="extraordinaria">Extraordinária</SelectItem>
                 <SelectItem value="reuniao_trabalho">Reunião de Trabalho</SelectItem>
