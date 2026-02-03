@@ -108,11 +108,63 @@ export default function ExportacaoPlanilhaPage() {
       const { data, error } = await query.order("nome_completo");
       if (error) throw error;
       
-      // Adicionar labels
+      const servidorIds = (data || []).map(s => s.id);
+      
+      // Buscar provimentos ativos
+      let provimentosMap: Record<string, { data_nomeacao: string | null; data_posse: string | null; data_exercicio: string | null }> = {};
+      if (servidorIds.length > 0) {
+        const { data: provimentos } = await supabase
+          .from("provimentos")
+          .select("servidor_id, data_nomeacao, data_posse, data_exercicio")
+          .in("servidor_id", servidorIds)
+          .eq("status", "ativo");
+        
+        if (provimentos) {
+          provimentosMap = provimentos.reduce((acc, p) => {
+            acc[p.servidor_id] = {
+              data_nomeacao: p.data_nomeacao,
+              data_posse: p.data_posse,
+              data_exercicio: p.data_exercicio,
+            };
+            return acc;
+          }, {} as typeof provimentosMap);
+        }
+      }
+      
+      // Buscar portarias de nomeação vinculadas aos servidores
+      let portariasMap: Record<string, { numero: string; data_documento: string }> = {};
+      if (servidorIds.length > 0) {
+        const { data: portarias } = await supabase
+          .from("documentos")
+          .select("numero, data_documento, servidores_ids")
+          .eq("tipo", "portaria")
+          .eq("categoria", "nomeacao")
+          .not("servidores_ids", "is", null);
+        
+        if (portarias) {
+          portarias.forEach(p => {
+            if (p.servidores_ids && Array.isArray(p.servidores_ids)) {
+              p.servidores_ids.forEach((servId: string) => {
+                // Pegar a portaria mais recente para cada servidor
+                if (!portariasMap[servId] || p.data_documento > portariasMap[servId].data_documento) {
+                  portariasMap[servId] = {
+                    numero: p.numero,
+                    data_documento: p.data_documento,
+                  };
+                }
+              });
+            }
+          });
+        }
+      }
+      
+      // Adicionar labels, provimentos e portarias
       return (data || []).map(s => ({
         ...s,
         vinculo_label: s.vinculo ? (VINCULO_LABELS[s.vinculo as VinculoFuncional] || s.vinculo) : '',
         situacao_label: s.situacao ? (SITUACAO_LABELS[s.situacao as SituacaoFuncional] || s.situacao) : '',
+        provimento: provimentosMap[s.id] || null,
+        portaria_nomeacao: portariasMap[s.id] || null,
       }));
     },
   });
