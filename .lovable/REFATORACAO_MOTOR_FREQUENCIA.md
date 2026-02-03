@@ -1,6 +1,6 @@
 # REFATORAÇÃO DO MOTOR DE CÁLCULO DE FREQUÊNCIA
-## Status: ✅ IMPLEMENTADO
-### Data: 02/02/2026 | Versão 1.0.0
+## Status: ✅ FASE 1 E FASE 2 IMPLEMENTADAS
+### Data: 03/02/2026 | Versão 2.0.0
 
 ---
 
@@ -136,29 +136,46 @@ Configure os parâmetros no banco de dados.
 
 ---
 
-## ⚠️ O QUE NÃO FOI ALTERADO
+## ✅ FASE 2: INTEGRAÇÃO COM PDF (IMPLEMENTADO)
 
-- ❌ Layout de PDFs (`pdfFrequenciaMensalGenerator.ts`)
-- ❌ Estrutura de tabelas de frequência (`frequencia_mensal`, `registros_ponto`)
-- ❌ Regras de fechamento
-- ❌ Folha de pagamento
-- ❌ Componentes de UI
+O `pdfFrequenciaMensalGenerator.ts` foi refatorado para consumir o motor parametrizado:
+
+### Alterações Realizadas
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `src/lib/pdfFrequenciaMensalGenerator.ts` | Importa `verificarDoisTurnos` do motor |
+| `src/lib/pdfFrequenciaLote.ts` | Documentação de consumo do motor |
+| `src/hooks/useGerarFrequenciaPDF.ts` | Refatorado para usar `buscarConfigFrequenciaServidor` |
+
+### Fluxo de Dados
+
+```text
+useGerarFrequenciaPDF
+    ↓
+buscarConfigFrequenciaServidor (motor)
+    ↓
+    ├── jornada (banco ou fallback)
+    ├── regime (banco ou fallback)
+    ├── diasNaoUteis (banco)
+    └── compensação (banco ou fallback)
+    ↓
+generateFrequenciaMensalPDF
+    ↓
+renderizarPaginaFrequencia
+    ↓
+verificarDoisTurnos (motor) → Layout 1 ou 2 turnos
+```
+
+### Regra de Turnos
+
+A função `verificarDoisTurnos()` do motor define o layout:
+- `carga_horaria_diaria >= 8` → 2 turnos, 2 campos de assinatura
+- `carga_horaria_diaria <= 6` → 1 turno, 1 campo de assinatura
 
 ---
 
 ## 🔌 INTEGRAÇÃO FUTURA
-
-### Fase 2: Integração com PDF
-
-O `pdfFrequenciaMensalGenerator.ts` pode ser atualizado para usar:
-
-```typescript
-import { buscarConfigFrequenciaServidor } from '@/lib/frequenciaCalculoService';
-
-// Buscar config do servidor para determinar layout
-const config = await buscarConfigFrequenciaServidor(servidor.id, ano, mes);
-const usaDoisTurnos = verificarDoisTurnos(config.jornada);
-```
 
 ### Fase 3: Integração com Folha
 
@@ -179,6 +196,9 @@ const valorDesconto = faltasSemAbono * (salarioBase / resultado.diasUteis);
 | `src/hooks/useConfigFrequencia.ts` | ✨ Criado | Hook de configurações com fallback |
 | `src/lib/frequenciaCalculoService.ts` | ✨ Criado | Serviço de cálculo parametrizado |
 | `src/hooks/useFrequencia.ts` | 🔧 Modificado | Refatorado para usar serviço |
+| `src/lib/pdfFrequenciaMensalGenerator.ts` | 🔧 Modificado | Consome motor via `verificarDoisTurnos` |
+| `src/lib/pdfFrequenciaLote.ts` | 🔧 Modificado | Documentação de consumo do motor |
+| `src/hooks/useGerarFrequenciaPDF.ts` | 🔧 Modificado | Usa `buscarConfigFrequenciaServidor` |
 
 ---
 

@@ -1,10 +1,26 @@
 /**
- * Geração de PDF em Lote de Frequência por Unidade Administrativa
+ * ============================================
+ * GERAÇÃO DE PDF EM LOTE DE FREQUÊNCIA - MODELO OFICIAL
+ * ============================================
  * 
- * REGRA DE OURO: USA EXATAMENTE O MESMO GERADOR INDIVIDUAL
- * - Capa opcional do lote
- * - Cada servidor = página gerada pela mesma função do individual
- * - ZERO código duplicado - 100% reutilização
+ * CAMADA DE APRESENTAÇÃO - REUTILIZA GERADOR INDIVIDUAL
+ * 
+ * Este módulo NÃO contém lógica de cálculo própria.
+ * Usa EXATAMENTE o mesmo gerador individual (renderizarPaginaFrequencia)
+ * que consome dados do motor parametrizado.
+ * 
+ * Fluxo:
+ * 1. Recebe lista de servidores com dados já calculados
+ * 2. Para cada servidor, monta FrequenciaMensalPDFData
+ * 3. Usa renderizarPaginaFrequencia (mesma do individual)
+ * 4. ZERO código duplicado - 100% reutilização
+ * 
+ * A lógica de cálculo de jornada/turnos está em:
+ * - src/lib/frequenciaCalculoService.ts
+ * 
+ * @author Sistema IDJUV
+ * @version 2.0.0 - Refatorado para consumir motor parametrizado
+ * @date 03/02/2026
  */
 import jsPDF from 'jspdf';
 import type { DiaNaoUtil } from '@/types/frequencia';
@@ -62,6 +78,10 @@ export interface FrequenciaLotePDFResult {
 
 /**
  * Gera o PDF em lote USANDO EXATAMENTE a mesma função do individual
+ * 
+ * IMPORTANTE: Este método não faz cálculos próprios.
+ * Os dados de jornada/turnos vêm dos dados do servidor,
+ * que devem ser calculados previamente pelo motor parametrizado.
  */
 export const generateFrequenciaLotePDFInternal = async (config: LoteFrequenciaPDFConfig): Promise<FrequenciaLotePDFResult> => {
   const { unidade, competencia, servidores, diasNaoUteis, configAssinatura, opcoes, dataGeracao, usuarioGeracao } = config;
@@ -112,6 +132,9 @@ export const generateFrequenciaLotePDFInternal = async (config: LoteFrequenciaPD
     };
 
     // Preparar dados no formato EXATO do gerador individual
+    // NOTA: carga_horaria_diaria vem do cadastro do servidor
+    // A decisão de 1 ou 2 turnos será feita pelo renderizarPaginaFrequencia
+    // usando verificarDoisTurnos() do motor parametrizado
     const dadosIndividual: FrequenciaMensalPDFData = {
       tipo: 'em_branco',
       competencia,
@@ -140,6 +163,8 @@ export const generateFrequenciaLotePDFInternal = async (config: LoteFrequenciaPD
     };
 
     // Usar a MESMA função de renderização do individual
+    // Toda a lógica de turnos/layout é delegada para renderizarPaginaFrequencia
+    // que consome o motor parametrizado (frequenciaCalculoService)
     renderizarPaginaFrequencia({
       doc,
       data: dadosIndividual,
