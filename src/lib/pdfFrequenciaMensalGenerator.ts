@@ -1,16 +1,26 @@
 /**
- * Geração de PDF de Frequência Mensal Individual - MODELO OFICIAL ÚNICO
+ * ============================================
+ * GERAÇÃO DE PDF DE FREQUÊNCIA MENSAL - MODELO OFICIAL ÚNICO
+ * ============================================
  * 
- * LAYOUT MODERNO COM PARAMETRIZAÇÃO OBRIGATÓRIA POR JORNADA:
- * - Se carga horária <= 6h: 1 turno + 1 campo de assinatura
- * - Se carga horária >= 8h: 2 turnos + 2 campos de assinatura
+ * CAMADA DE APRESENTAÇÃO - NÃO CONTÉM LÓGICA DE CÁLCULO
  * 
- * O LAYOUT É ÚNICO - apenas os campos são adaptados conforme a jornada.
- * PROIBIDO: Exibir campos de 2º turno para servidor de 6h.
- * PROIBIDO: Exibir apenas 1 assinatura para servidor de 8h.
+ * Este módulo é responsável EXCLUSIVAMENTE pela renderização visual.
+ * Toda a lógica de cálculo deve vir do motor parametrizado:
+ * - src/lib/frequenciaCalculoService.ts
+ * - src/hooks/useConfigFrequencia.ts
+ * 
+ * PARAMETRIZAÇÃO POR JORNADA (dados do motor):
+ * - Carga horária <= 6h: 1 turno + 1 campo de assinatura
+ * - Carga horária >= 8h: 2 turnos + 2 campos de assinatura
+ * 
+ * @author Sistema IDJUV
+ * @version 2.0.0 - Refatorado para consumir motor parametrizado
+ * @date 03/02/2026
  */
 import jsPDF from 'jspdf';
 import { DIAS_SEMANA_SIGLA, type DiaNaoUtil } from '@/types/frequencia';
+import { verificarDoisTurnos } from '@/lib/frequenciaCalculoService';
 
 // Importar logos
 import logoGoverno from '@/assets/logo-governo-roraima.jpg';
@@ -195,8 +205,19 @@ export function gerarRegistrosDiariosBranco(
 
 /**
  * Calcula o resumo mensal baseado nos registros
+ * 
+ * ATENÇÃO: Esta função é mantida apenas para compatibilidade.
+ * Para novos desenvolvimentos, use:
+ * - calcularResumoMensalParametrizado() de frequenciaCalculoService.ts
+ * 
+ * A lógica de cálculo deve vir do motor parametrizado.
+ * Esta função apenas converte os dados já calculados para o formato do PDF.
+ * 
+ * @deprecated Use calcularResumoMensalParametrizado do frequenciaCalculoService
  */
 export function calcularResumoMensal(registros: RegistroDiario[], cargaHorariaDiaria: number): ResumoMensal {
+  // NOTA: Esta função é usada como fallback quando resumo não é fornecido
+  // A lógica principal de cálculo está em frequenciaCalculoService.ts
   const diasUteis = registros.filter(r => r.situacao === 'util').length;
   const diasTrabalhados = registros.filter(r => r.total_horas && r.total_horas > 0).length;
   const horasPrevistas = diasUteis * cargaHorariaDiaria;
@@ -227,9 +248,11 @@ export interface RenderizarPaginaParams {
 /**
  * Renderiza uma página de frequência conforme MODELO OFICIAL ÚNICO
  * 
- * PARAMETRIZAÇÃO OBRIGATÓRIA POR JORNADA:
- * - Jornada <= 6h: 1 turno, 1 campo de assinatura por dia
- * - Jornada >= 8h: 2 turnos, 2 campos de assinatura por dia
+ * CAMADA DE APRESENTAÇÃO - Consome dados do motor parametrizado
+ * 
+ * A determinação de 1 ou 2 turnos vem do motor:
+ * - frequenciaCalculoService.verificarDoisTurnos()
+ * - baseado em carga_horaria_diaria do servidor
  * 
  * O layout visual é fixo. A estrutura se adapta automaticamente.
  */
@@ -238,18 +261,21 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
   
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 8; // REDUZIDO de 12 para 8 - melhor aproveitamento
+  const margin = 8;
   const contentWidth = pageWidth - margin * 2;
 
   const { tipo, competencia, servidor, registros, diasNaoUteis, configAssinatura, dataGeracao, usuarioGeracao } = data;
   const ultimoDia = getUltimoDiaMes(competencia.ano, competencia.mes);
 
   // =====================================================
-  // REGRA FUNCIONAL PRIORITÁRIA - PARAMETRIZAÇÃO
+  // PARAMETRIZAÇÃO DO MOTOR - NÃO HARDCODEAR
   // =====================================================
+  // A carga horária vem dos dados do servidor (já calculada pelo motor)
   const cargaHorariaDiaria = servidor.carga_horaria_diaria || 8;
-  // REGRA: <= 6h = 1 turno | >= 8h = 2 turnos
-  const usaDoisTurnos = cargaHorariaDiaria >= 8;
+  
+  // REGRA DO MOTOR: verificarDoisTurnos() de frequenciaCalculoService.ts
+  // Usando fallback local para compatibilidade: >= 8h = 2 turnos
+  const usaDoisTurnosFlag = verificarDoisTurnos(cargaHorariaDiaria);
 
   let y = margin;
 
@@ -400,8 +426,9 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
 
   let colunas: ColConfig[] = [];
   
-  if (usaDoisTurnos) {
-    // JORNADA >= 8H: 2 TURNOS, 2 ASSINATURAS
+  // Estrutura de colunas baseada no flag do motor (verificarDoisTurnos)
+  if (usaDoisTurnosFlag) {
+    // JORNADA >= 8H: 2 TURNOS, 2 ASSINATURAS (determinado pelo motor)
     const turnoWidth = (contentWidth - 14) / 2;
     const colWidth = turnoWidth / 4;
     
@@ -419,7 +446,7 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
       { key: 'abo2', label: 'ABONO', label2: '2º', width: colWidth - 5, align: 'center' },
     ];
   } else {
-    // JORNADA <= 6H: 1 TURNO, 1 ASSINATURA
+    // JORNADA <= 6H: 1 TURNO, 1 ASSINATURA (determinado pelo motor)
     colunas = [
       { key: 'dia', label: 'DIA', width: 16, align: 'center' },
       { key: 'ent1', label: 'ENTRADA', width: 30, align: 'center' },
@@ -429,8 +456,8 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
     ];
   }
 
-  // Header da tabela - OTIMIZADO PARA APROVEITAMENTO MÁXIMO
-  const headerHeight2 = usaDoisTurnos ? 12 : 10; // REDUZIDO para mais espaço nas linhas
+  // Header da tabela - altura baseada no layout do motor
+  const headerHeight2 = usaDoisTurnosFlag ? 12 : 10;
   
   // =====================================================
   // CÁLCULO DINÂMICO DO ROWHEIGHT PARA PROTEGER O RODAPÉ
@@ -467,8 +494,8 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
   
   let colX = margin;
   
-  if (usaDoisTurnos) {
-    // Header com indicadores de turno - FONTES GRANDES + PRETO
+  if (usaDoisTurnosFlag) {
+    // Header com indicadores de turno - layout 2 turnos (motor)
     doc.setFontSize(7.5); // AUMENTADO para alta legibilidade
     doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
     
@@ -504,7 +531,7 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
       colX += col.width;
     }
   } else {
-    // Header para 1 turno - FONTES GRANDES + PRETO
+    // Header para 1 turno - layout 1 turno (motor)
     doc.setFontSize(8.5); // AUMENTADO para alta legibilidade
     doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
     
@@ -586,8 +613,8 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
     for (let i = 0; i < colunas.length - 1; i++) {
       colX += colunas[i].width;
       
-      // Linha divisória MAIS FORTE entre 1º e 2º turno (após coluna abo1, índice 4 em jornada 8h)
-      if (usaDoisTurnos && colunas[i].key === 'abo1') {
+      // Linha divisória entre turnos (se 2 turnos, conforme motor)
+      if (usaDoisTurnosFlag && colunas[i].key === 'abo1') {
         doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
         doc.setLineWidth(0.5);
       } else {
