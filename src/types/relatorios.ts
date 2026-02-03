@@ -121,6 +121,10 @@ export const CAMPOS_SERVIDORES: CampoRelatorio[] = [
   { id: 'unidade_tipo', label: 'Tipo Unidade', tipo: 'badge', agrupavel: true, largura: 'pequena' },
   { id: 'lotacao_inicio', label: 'Lotação Desde', tipo: 'data', largura: 'pequena' },
   
+  // Portaria de Nomeação
+  { id: 'portaria_nomeacao_numero', label: 'Portaria Nomeação Nº', tipo: 'texto', largura: 'pequena' },
+  { id: 'portaria_nomeacao_data', label: 'Data Portaria Nomeação', tipo: 'data', largura: 'pequena' },
+  
   // Datas Funcionais
   { id: 'data_nomeacao', label: 'Data Nomeação', tipo: 'data', largura: 'pequena' },
   { id: 'data_posse', label: 'Data Posse', tipo: 'data', largura: 'pequena' },

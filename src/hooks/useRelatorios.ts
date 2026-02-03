@@ -123,7 +123,14 @@ async function buscarDadosServidores(filtros: Record<string, unknown>): Promise<
     telefone_celular: string | null;
   }> = {};
   
+  // Mapa para portarias de nomeação
+  let portariasNomeacao: Record<string, { numero: string | null; data_documento: string | null }> = {};
+  
+  // Mapa para provimentos (datas funcionais)
+  let provimentosMap: Record<string, { data_nomeacao: string | null; data_posse: string | null; data_exercicio: string | null }> = {};
+  
   if (servidorIds.length > 0) {
+    // Buscar dados extras do servidor
     const { data: servidoresData } = await supabase
       .from('servidores')
       .select('id, rg, data_nascimento, rg_orgao_expedidor, rg_uf, sexo, estado_civil, email_institucional, email_pessoal, telefone_celular')
@@ -144,6 +151,48 @@ async function buscarDadosServidores(filtros: Record<string, unknown>): Promise<
         };
         return acc;
       }, {} as typeof servidoresExtras);
+    }
+    
+    // Buscar portarias de nomeação vinculadas aos servidores
+    const { data: portarias } = await supabase
+      .from('documentos')
+      .select('numero, data_documento, servidores_ids')
+      .eq('tipo', 'portaria')
+      .eq('categoria', 'nomeacao');
+    
+    if (portarias) {
+      // Para cada servidor, encontrar a portaria de nomeação correspondente
+      for (const servidorId of servidorIds) {
+        const portaria = portarias.find((p) => 
+          p.servidores_ids && Array.isArray(p.servidores_ids) && p.servidores_ids.includes(servidorId)
+        );
+        if (portaria) {
+          portariasNomeacao[servidorId] = {
+            numero: portaria.numero,
+            data_documento: portaria.data_documento,
+          };
+        }
+      }
+    }
+    
+    // Buscar dados de provimento (datas funcionais)
+    const { data: provimentos } = await supabase
+      .from('provimentos')
+      .select('servidor_id, data_nomeacao, data_posse, data_exercicio')
+      .in('servidor_id', servidorIds)
+      .eq('status', 'ativo');
+    
+    if (provimentos) {
+      provimentosMap = provimentos.reduce((acc, p) => {
+        if (p.servidor_id) {
+          acc[p.servidor_id] = {
+            data_nomeacao: p.data_nomeacao,
+            data_posse: p.data_posse,
+            data_exercicio: p.data_exercicio,
+          };
+        }
+        return acc;
+      }, {} as typeof provimentosMap);
     }
   }
 
@@ -191,19 +240,21 @@ async function buscarDadosServidores(filtros: Record<string, unknown>): Promise<
     telefone_celular: null,
   };
 
-  // Enriquecer dados com vencimento_base, rg, data_nascimento e demais campos
+  // Função auxiliar para formatar datas YYYY-MM-DD sem fuso
+  const formatarDataLocal = (dataStr: string | null): string | null => {
+    if (!dataStr) return null;
+    const [ano, mes, dia] = dataStr.split('-').map(Number);
+    if (ano && mes && dia) {
+      return `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}/${ano}`;
+    }
+    return dataStr;
+  };
+
+  // Enriquecer dados com vencimento_base, rg, data_nascimento, portaria e demais campos
   const dadosEnriquecidos = (viewData || []).map((servidor) => {
     const extras: ServidorExtras = servidoresExtras[servidor.id] || defaultExtras;
-    
-    // Formatar data de nascimento corretamente (sem ajuste de fuso - é apenas DATE no banco)
-    let dataNascimentoFormatada: string | null = extras.data_nascimento;
-    if (extras.data_nascimento) {
-      // A data vem como "YYYY-MM-DD", tratamos como data local (não UTC)
-      const [ano, mes, dia] = extras.data_nascimento.split('-').map(Number);
-      if (ano && mes && dia) {
-        dataNascimentoFormatada = `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}/${ano}`;
-      }
-    }
+    const portaria = portariasNomeacao[servidor.id];
+    const provimento = provimentosMap[servidor.id];
     
     return {
       ...servidor,
@@ -212,12 +263,19 @@ async function buscarDadosServidores(filtros: Record<string, unknown>): Promise<
       rg: extras.rg,
       rg_orgao_expedidor: extras.rg_orgao_expedidor,
       rg_uf: extras.rg_uf,
-      data_nascimento: dataNascimentoFormatada,
+      data_nascimento: formatarDataLocal(extras.data_nascimento),
       sexo: extras.sexo,
       estado_civil: extras.estado_civil,
       email_institucional: extras.email_institucional,
       email_pessoal: extras.email_pessoal,
       telefone_celular: extras.telefone_celular,
+      // Portaria de nomeação
+      portaria_nomeacao_numero: portaria?.numero || null,
+      portaria_nomeacao_data: formatarDataLocal(portaria?.data_documento || null),
+      // Datas funcionais do provimento
+      data_nomeacao: formatarDataLocal(provimento?.data_nomeacao || null),
+      data_posse: formatarDataLocal(provimento?.data_posse || null),
+      data_exercicio: formatarDataLocal(provimento?.data_exercicio || null),
     };
   });
 
