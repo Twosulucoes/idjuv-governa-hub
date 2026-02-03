@@ -1,6 +1,33 @@
+/**
+ * ============================================
+ * HOOK DE FREQUÊNCIA - VERSÃO PARAMETRIZADA
+ * ============================================
+ * 
+ * Gerencia registros de ponto e frequência mensal.
+ * Agora consome configurações do banco de dados via
+ * frequenciaCalculoService.
+ * 
+ * COMPATIBILIDADE:
+ * - Mantém todas as interfaces públicas existentes
+ * - Cálculos agora usam configurações parametrizadas
+ * - Fallback automático para valores legados
+ * 
+ * @author Sistema IDJUV
+ * @version 2.0.0 - Refatorado para parametrização
+ * @date 02/02/2026
+ */
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import {
+  calcularResumoMensalParametrizado,
+  calcularDiasUteisParametrizado,
+} from "@/lib/frequenciaCalculoService";
+
+// ============================================
+// INTERFACES (mantidas para compatibilidade)
+// ============================================
 
 export interface RegistroPonto {
   id: string;
@@ -55,7 +82,14 @@ export interface FrequenciaServidorResumo {
   percentual_presenca: number;
 }
 
-// Buscar resumo de frequência de todos os servidores para uma competência
+// ============================================
+// HOOKS DE CONSULTA
+// ============================================
+
+/**
+ * Busca resumo de frequência de todos os servidores para uma competência.
+ * REFATORADO: Agora usa calcularDiasUteisParametrizado com dias não úteis do banco.
+ */
 export function useFrequenciaResumo(ano: number, mes: number) {
   return useQuery({
     queryKey: ["frequencia-resumo", ano, mes],
@@ -87,8 +121,28 @@ export function useFrequenciaResumo(ano: number, mes: number) {
 
       if (errFreq) throw errFreq;
 
-      // Calcular dias úteis do mês
-      const diasUteisMes = calcularDiasUteis(ano, mes);
+      // PARAMETRIZADO: Buscar dias não úteis do banco
+      const dataInicio = `${ano}-${String(mes).padStart(2, "0")}-01`;
+      const ultimoDia = new Date(ano, mes, 0).getDate();
+      const dataFim = `${ano}-${String(mes).padStart(2, "0")}-${ultimoDia}`;
+
+      const { data: diasNaoUteis } = await supabase
+        .from("dias_nao_uteis")
+        .select("*")
+        .gte("data", dataInicio)
+        .lte("data", dataFim)
+        .eq("ativo", true);
+
+      // PARAMETRIZADO: Calcular dias úteis usando função parametrizada
+      // Cast para DiaNaoUtil[] - necessário pois o banco retorna strings para enums
+      const diasNaoUteisTipados = (diasNaoUteis || []) as unknown as import("@/types/frequencia").DiaNaoUtil[];
+
+      const diasUteisMes = calcularDiasUteisParametrizado(
+        ano, 
+        mes, 
+        diasNaoUteisTipados,
+        [1, 2, 3, 4, 5] // Dias de trabalho padrão (seg-sex)
+      );
 
       // Montar resumo por servidor
       const resumos: FrequenciaServidorResumo[] = (servidores || []).map((s) => {
@@ -121,7 +175,9 @@ export function useFrequenciaResumo(ano: number, mes: number) {
   });
 }
 
-// Buscar registros de ponto de um servidor para uma competência
+/**
+ * Busca registros de ponto de um servidor para uma competência.
+ */
 export function useRegistrosPonto(servidorId: string | undefined, ano: number, mes: number) {
   return useQuery({
     queryKey: ["registros-ponto", servidorId, ano, mes],
@@ -147,7 +203,9 @@ export function useRegistrosPonto(servidorId: string | undefined, ano: number, m
   });
 }
 
-// Buscar frequência mensal de um servidor
+/**
+ * Busca frequência mensal de um servidor.
+ */
 export function useFrequenciaMensal(servidorId: string | undefined, ano: number, mes: number) {
   return useQuery({
     queryKey: ["frequencia-mensal", servidorId, ano, mes],
@@ -169,7 +227,13 @@ export function useFrequenciaMensal(servidorId: string | undefined, ano: number,
   });
 }
 
-// Lançar registro de ponto (falta, atestado, etc.)
+// ============================================
+// MUTATIONS
+// ============================================
+
+/**
+ * Lança registro de ponto (falta, atestado, etc.).
+ */
 export function useLancarRegistroPonto() {
   const queryClient = useQueryClient();
 
@@ -213,7 +277,9 @@ export function useLancarRegistroPonto() {
   });
 }
 
-// Lançar falta em lote
+/**
+ * Lança falta em lote.
+ */
 export function useLancarFaltaEmLote() {
   const queryClient = useQueryClient();
 
@@ -257,7 +323,10 @@ export function useLancarFaltaEmLote() {
   });
 }
 
-// Recalcular frequência mensal de um servidor
+/**
+ * Recalcula frequência mensal de um servidor.
+ * REFATORADO: Agora usa calcularResumoMensalParametrizado com configurações do banco.
+ */
 export function useRecalcularFrequencia() {
   const queryClient = useQueryClient();
 
@@ -285,47 +354,31 @@ export function useRecalcularFrequencia() {
 
       if (errReg) throw errReg;
 
-      // Calcular totais
-      const diasUteis = calcularDiasUteis(ano, mes);
-      let diasTrabalhados = 0;
-      let faltas = 0;
-      let atestados = 0;
-      let ferias = 0;
-      let licencas = 0;
-      let abonos = 0;
+      // PARAMETRIZADO: Usar serviço de cálculo parametrizado
+      const resultado = await calcularResumoMensalParametrizado(
+        servidor_id,
+        ano,
+        mes,
+        (registros || []).map(r => ({
+          data: r.data,
+          tipo: r.tipo,
+          entrada1: r.entrada1 || undefined,
+          saida1: r.saida1 || undefined,
+          entrada2: r.entrada2 || undefined,
+          saida2: r.saida2 || undefined,
+          observacao: r.observacao || undefined,
+        }))
+      );
 
-      (registros || []).forEach((r) => {
-        switch (r.tipo) {
-          case "normal":
-            diasTrabalhados++;
-            break;
-          case "falta":
-            faltas++;
-            break;
-          case "atestado":
-            atestados++;
-            break;
-          case "ferias":
-            ferias++;
-            break;
-          case "licenca":
-            licencas++;
-            break;
-          case "folga":
-            abonos++;
-            diasTrabalhados++;
-            break;
-          default:
-            break;
-        }
-      });
+      // Log técnico se usou fallback
+      if (resultado.config.usouFallback) {
+        console.warn(
+          '[FREQUENCIA] Cálculo usou fallback para:',
+          resultado.config.fallbackDetalhes.join(', ')
+        );
+      }
 
-      const percentualPresenca =
-        diasUteis > 0
-          ? ((diasTrabalhados + atestados + ferias + licencas + abonos) / diasUteis) * 100
-          : 0;
-
-      // Upsert na tabela frequencia_mensal - usando nomes corretos das colunas
+      // Upsert na tabela frequencia_mensal
       const { data, error } = await supabase
         .from("frequencia_mensal")
         .upsert(
@@ -333,13 +386,13 @@ export function useRecalcularFrequencia() {
             servidor_id,
             ano,
             mes,
-            dias_trabalhados: diasTrabalhados,
-            dias_falta: faltas,
-            dias_atestado: atestados,
-            dias_ferias: ferias,
-            dias_licenca: licencas,
-            dias_folga: abonos,
-            percentual_presenca: Math.round(percentualPresenca * 10) / 10,
+            dias_trabalhados: resultado.diasTrabalhados,
+            dias_falta: resultado.faltas,
+            dias_atestado: resultado.abonos['ATESTADO'] || resultado.abonos['atestado'] || 0,
+            dias_ferias: resultado.abonos['FERIAS'] || resultado.abonos['ferias'] || 0,
+            dias_licenca: resultado.abonos['LICENCA_MEDICA'] || resultado.abonos['licenca'] || 0,
+            dias_folga: resultado.abonos['DISPENSA_HORARIO'] || resultado.abonos['folga'] || 0,
+            percentual_presenca: resultado.percentualPresenca,
             updated_at: new Date().toISOString(),
           },
           { onConflict: "servidor_id,ano,mes" }
@@ -364,7 +417,15 @@ export function useRecalcularFrequencia() {
   });
 }
 
-// Helper: calcular dias úteis de um mês
+// ============================================
+// HELPERS LEGADOS (mantidos para compatibilidade)
+// ============================================
+
+/**
+ * Calcula dias úteis de um mês (versão legada sem feriados).
+ * 
+ * @deprecated Use calcularDiasUteisParametrizado para incluir feriados
+ */
 function calcularDiasUteis(ano: number, mes: number): number {
   let diasUteis = 0;
   const ultimoDia = new Date(ano, mes, 0).getDate();
@@ -381,5 +442,8 @@ function calcularDiasUteis(ano: number, mes: number): number {
   return diasUteis;
 }
 
-// Exportar helper
+// Exportar helper legado para compatibilidade
 export { calcularDiasUteis };
+
+// Exportar nova função parametrizada
+export { calcularDiasUteisParametrizado };
