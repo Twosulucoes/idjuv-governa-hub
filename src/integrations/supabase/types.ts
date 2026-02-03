@@ -6518,6 +6518,1929 @@ export type Database = {
           },
         ]
       }
+      fin_acoes_orcamentarias: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          created_at: string | null
+          descricao: string | null
+          id: string
+          meta_fisica: number | null
+          nome: string
+          produto: string | null
+          programa_id: string
+          tipo: string | null
+          unidade_medida: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          meta_fisica?: number | null
+          nome: string
+          produto?: string | null
+          programa_id: string
+          tipo?: string | null
+          unidade_medida?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          meta_fisica?: number | null
+          nome?: string
+          produto?: string | null
+          programa_id?: string
+          tipo?: string | null
+          unidade_medida?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_acoes_orcamentarias_programa_id_fkey"
+            columns: ["programa_id"]
+            isOneToOne: false
+            referencedRelation: "fin_programas_orcamentarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_adiantamento_itens: {
+        Row: {
+          adiantamento_id: string
+          cnpj_cpf_fornecedor: string | null
+          created_at: string | null
+          data_documento: string
+          descricao: string
+          documento_id: string | null
+          id: string
+          item_numero: number
+          motivo_invalido: string | null
+          nome_fornecedor: string | null
+          numero_documento: string | null
+          tipo_documento: string
+          validado_em: string | null
+          validado_por: string | null
+          valido: boolean | null
+          valor: number
+        }
+        Insert: {
+          adiantamento_id: string
+          cnpj_cpf_fornecedor?: string | null
+          created_at?: string | null
+          data_documento: string
+          descricao: string
+          documento_id?: string | null
+          id?: string
+          item_numero: number
+          motivo_invalido?: string | null
+          nome_fornecedor?: string | null
+          numero_documento?: string | null
+          tipo_documento: string
+          validado_em?: string | null
+          validado_por?: string | null
+          valido?: boolean | null
+          valor: number
+        }
+        Update: {
+          adiantamento_id?: string
+          cnpj_cpf_fornecedor?: string | null
+          created_at?: string | null
+          data_documento?: string
+          descricao?: string
+          documento_id?: string | null
+          id?: string
+          item_numero?: number
+          motivo_invalido?: string | null
+          nome_fornecedor?: string | null
+          numero_documento?: string | null
+          tipo_documento?: string
+          validado_em?: string | null
+          validado_por?: string | null
+          valido?: boolean | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_adiantamento_itens_adiantamento_id_fkey"
+            columns: ["adiantamento_id"]
+            isOneToOne: false
+            referencedRelation: "fin_adiantamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_adiantamentos: {
+        Row: {
+          autorizado_em: string | null
+          autorizado_por: string | null
+          bloqueado: boolean | null
+          conta_bancaria_id: string | null
+          conta_suprido_agencia: string | null
+          conta_suprido_banco: string | null
+          conta_suprido_numero: string | null
+          created_at: string | null
+          created_by: string | null
+          data_bloqueio: string | null
+          data_liberacao: string | null
+          data_prestacao: string | null
+          data_solicitacao: string
+          dotacao_id: string | null
+          empenho_id: string | null
+          exercicio: number
+          finalidade: string
+          historico_status: Json | null
+          id: string
+          liberado_em: string | null
+          liberado_por: string | null
+          motivo_bloqueio: string | null
+          numero: string
+          observacoes: string | null
+          parecer_prestacao: string | null
+          periodo_utilizacao_fim: string | null
+          periodo_utilizacao_inicio: string | null
+          prazo_prestacao_contas: string | null
+          prestacao_aprovada_em: string | null
+          prestacao_aprovada_por: string | null
+          servidor_suprido_id: string
+          status: Database["public"]["Enums"]["status_adiantamento"] | null
+          unidade_id: string
+          updated_at: string | null
+          valor_aprovado: number | null
+          valor_devolvido: number | null
+          valor_solicitado: number
+          valor_utilizado: number | null
+        }
+        Insert: {
+          autorizado_em?: string | null
+          autorizado_por?: string | null
+          bloqueado?: boolean | null
+          conta_bancaria_id?: string | null
+          conta_suprido_agencia?: string | null
+          conta_suprido_banco?: string | null
+          conta_suprido_numero?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_bloqueio?: string | null
+          data_liberacao?: string | null
+          data_prestacao?: string | null
+          data_solicitacao?: string
+          dotacao_id?: string | null
+          empenho_id?: string | null
+          exercicio: number
+          finalidade: string
+          historico_status?: Json | null
+          id?: string
+          liberado_em?: string | null
+          liberado_por?: string | null
+          motivo_bloqueio?: string | null
+          numero: string
+          observacoes?: string | null
+          parecer_prestacao?: string | null
+          periodo_utilizacao_fim?: string | null
+          periodo_utilizacao_inicio?: string | null
+          prazo_prestacao_contas?: string | null
+          prestacao_aprovada_em?: string | null
+          prestacao_aprovada_por?: string | null
+          servidor_suprido_id: string
+          status?: Database["public"]["Enums"]["status_adiantamento"] | null
+          unidade_id: string
+          updated_at?: string | null
+          valor_aprovado?: number | null
+          valor_devolvido?: number | null
+          valor_solicitado: number
+          valor_utilizado?: number | null
+        }
+        Update: {
+          autorizado_em?: string | null
+          autorizado_por?: string | null
+          bloqueado?: boolean | null
+          conta_bancaria_id?: string | null
+          conta_suprido_agencia?: string | null
+          conta_suprido_banco?: string | null
+          conta_suprido_numero?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_bloqueio?: string | null
+          data_liberacao?: string | null
+          data_prestacao?: string | null
+          data_solicitacao?: string
+          dotacao_id?: string | null
+          empenho_id?: string | null
+          exercicio?: number
+          finalidade?: string
+          historico_status?: Json | null
+          id?: string
+          liberado_em?: string | null
+          liberado_por?: string | null
+          motivo_bloqueio?: string | null
+          numero?: string
+          observacoes?: string | null
+          parecer_prestacao?: string | null
+          periodo_utilizacao_fim?: string | null
+          periodo_utilizacao_inicio?: string | null
+          prazo_prestacao_contas?: string | null
+          prestacao_aprovada_em?: string | null
+          prestacao_aprovada_por?: string | null
+          servidor_suprido_id?: string
+          status?: Database["public"]["Enums"]["status_adiantamento"] | null
+          unidade_id?: string
+          updated_at?: string | null
+          valor_aprovado?: number | null
+          valor_devolvido?: number | null
+          valor_solicitado?: number
+          valor_utilizado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_adiantamentos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "fin_contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_adiantamentos_dotacao_id_fkey"
+            columns: ["dotacao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_dotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_adiantamentos_empenho_id_fkey"
+            columns: ["empenho_id"]
+            isOneToOne: false
+            referencedRelation: "fin_empenhos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_adiantamentos_servidor_suprido_id_fkey"
+            columns: ["servidor_suprido_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_adiantamentos_servidor_suprido_id_fkey"
+            columns: ["servidor_suprido_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_adiantamentos_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_alteracoes_orcamentarias: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          created_at: string | null
+          created_by: string | null
+          data_alteracao: string
+          dotacao_destino_id: string | null
+          dotacao_origem_id: string | null
+          exercicio: number
+          fundamentacao_legal: string | null
+          id: string
+          justificativa: string
+          numero: string
+          observacoes: string | null
+          status:
+            | Database["public"]["Enums"]["status_workflow_financeiro"]
+            | null
+          tipo: Database["public"]["Enums"]["tipo_alteracao_orcamentaria"]
+          updated_at: string | null
+          valor: number
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_alteracao?: string
+          dotacao_destino_id?: string | null
+          dotacao_origem_id?: string | null
+          exercicio: number
+          fundamentacao_legal?: string | null
+          id?: string
+          justificativa: string
+          numero: string
+          observacoes?: string | null
+          status?:
+            | Database["public"]["Enums"]["status_workflow_financeiro"]
+            | null
+          tipo: Database["public"]["Enums"]["tipo_alteracao_orcamentaria"]
+          updated_at?: string | null
+          valor: number
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_alteracao?: string
+          dotacao_destino_id?: string | null
+          dotacao_origem_id?: string | null
+          exercicio?: number
+          fundamentacao_legal?: string | null
+          id?: string
+          justificativa?: string
+          numero?: string
+          observacoes?: string | null
+          status?:
+            | Database["public"]["Enums"]["status_workflow_financeiro"]
+            | null
+          tipo?: Database["public"]["Enums"]["tipo_alteracao_orcamentaria"]
+          updated_at?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_alteracoes_orcamentarias_dotacao_destino_id_fkey"
+            columns: ["dotacao_destino_id"]
+            isOneToOne: false
+            referencedRelation: "fin_dotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_alteracoes_orcamentarias_dotacao_origem_id_fkey"
+            columns: ["dotacao_origem_id"]
+            isOneToOne: false
+            referencedRelation: "fin_dotacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_audit_log: {
+        Row: {
+          acao: string
+          campos_alterados: string[] | null
+          created_at: string | null
+          dados_anteriores: Json | null
+          dados_novos: Json | null
+          id: string
+          ip_address: unknown
+          registro_id: string
+          tabela_origem: string
+          user_agent: string | null
+          usuario_id: string | null
+          usuario_nome: string | null
+        }
+        Insert: {
+          acao: string
+          campos_alterados?: string[] | null
+          created_at?: string | null
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          id?: string
+          ip_address?: unknown
+          registro_id: string
+          tabela_origem: string
+          user_agent?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Update: {
+          acao?: string
+          campos_alterados?: string[] | null
+          created_at?: string | null
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          id?: string
+          ip_address?: unknown
+          registro_id?: string
+          tabela_origem?: string
+          user_agent?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Relationships: []
+      }
+      fin_checklist_ci: {
+        Row: {
+          conforme: boolean | null
+          created_at: string | null
+          id: string
+          item_verificacao: string
+          obrigatorio: boolean | null
+          observacao: string | null
+          solicitacao_id: string
+          verificado_em: string | null
+          verificado_por: string | null
+        }
+        Insert: {
+          conforme?: boolean | null
+          created_at?: string | null
+          id?: string
+          item_verificacao: string
+          obrigatorio?: boolean | null
+          observacao?: string | null
+          solicitacao_id: string
+          verificado_em?: string | null
+          verificado_por?: string | null
+        }
+        Update: {
+          conforme?: boolean | null
+          created_at?: string | null
+          id?: string
+          item_verificacao?: string
+          obrigatorio?: boolean | null
+          observacao?: string | null
+          solicitacao_id?: string
+          verificado_em?: string | null
+          verificado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_checklist_ci_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_contas_bancarias: {
+        Row: {
+          agencia: string
+          agencia_digito: string | null
+          ativo: boolean | null
+          banco_codigo: string
+          banco_nome: string
+          conta: string
+          conta_digito: string | null
+          created_at: string | null
+          created_by: string | null
+          data_ultimo_saldo: string | null
+          finalidade: string | null
+          fonte_recurso_id: string | null
+          id: string
+          nome_conta: string
+          responsavel_id: string | null
+          saldo_atual: number | null
+          tipo: Database["public"]["Enums"]["tipo_conta_bancaria"]
+          updated_at: string | null
+        }
+        Insert: {
+          agencia: string
+          agencia_digito?: string | null
+          ativo?: boolean | null
+          banco_codigo: string
+          banco_nome: string
+          conta: string
+          conta_digito?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_ultimo_saldo?: string | null
+          finalidade?: string | null
+          fonte_recurso_id?: string | null
+          id?: string
+          nome_conta: string
+          responsavel_id?: string | null
+          saldo_atual?: number | null
+          tipo?: Database["public"]["Enums"]["tipo_conta_bancaria"]
+          updated_at?: string | null
+        }
+        Update: {
+          agencia?: string
+          agencia_digito?: string | null
+          ativo?: boolean | null
+          banco_codigo?: string
+          banco_nome?: string
+          conta?: string
+          conta_digito?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_ultimo_saldo?: string | null
+          finalidade?: string | null
+          fonte_recurso_id?: string | null
+          id?: string
+          nome_conta?: string
+          responsavel_id?: string | null
+          saldo_atual?: number | null
+          tipo?: Database["public"]["Enums"]["tipo_conta_bancaria"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_contas_bancarias_fonte_recurso_id_fkey"
+            columns: ["fonte_recurso_id"]
+            isOneToOne: false
+            referencedRelation: "fin_fontes_recurso"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_contas_bancarias_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_contas_bancarias_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_documentos: {
+        Row: {
+          ativo: boolean | null
+          categoria: string
+          created_at: string | null
+          data_documento: string | null
+          documento_anterior_id: string | null
+          entidade_id: string
+          entidade_tipo: string
+          excluido_em: string | null
+          excluido_por: string | null
+          hash_arquivo: string | null
+          id: string
+          ip_address: unknown
+          motivo_exclusao: string | null
+          nome_arquivo: string
+          numero_documento: string | null
+          obrigatorio: boolean | null
+          storage_path: string
+          tamanho_bytes: number | null
+          tipo_arquivo: string | null
+          uploaded_at: string | null
+          uploaded_by: string | null
+          valor_documento: number | null
+          versao: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          categoria: string
+          created_at?: string | null
+          data_documento?: string | null
+          documento_anterior_id?: string | null
+          entidade_id: string
+          entidade_tipo: string
+          excluido_em?: string | null
+          excluido_por?: string | null
+          hash_arquivo?: string | null
+          id?: string
+          ip_address?: unknown
+          motivo_exclusao?: string | null
+          nome_arquivo: string
+          numero_documento?: string | null
+          obrigatorio?: boolean | null
+          storage_path: string
+          tamanho_bytes?: number | null
+          tipo_arquivo?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+          valor_documento?: number | null
+          versao?: number | null
+        }
+        Update: {
+          ativo?: boolean | null
+          categoria?: string
+          created_at?: string | null
+          data_documento?: string | null
+          documento_anterior_id?: string | null
+          entidade_id?: string
+          entidade_tipo?: string
+          excluido_em?: string | null
+          excluido_por?: string | null
+          hash_arquivo?: string | null
+          id?: string
+          ip_address?: unknown
+          motivo_exclusao?: string | null
+          nome_arquivo?: string
+          numero_documento?: string | null
+          obrigatorio?: boolean | null
+          storage_path?: string
+          tamanho_bytes?: number | null
+          tipo_arquivo?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+          valor_documento?: number | null
+          versao?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_documentos_documento_anterior_id_fkey"
+            columns: ["documento_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "fin_documentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_dotacoes: {
+        Row: {
+          acao_id: string | null
+          ativo: boolean | null
+          bloqueado: boolean | null
+          codigo_dotacao: string
+          created_at: string | null
+          created_by: string | null
+          exercicio: number
+          fonte_recurso_id: string | null
+          id: string
+          motivo_bloqueio: string | null
+          natureza_despesa_id: string | null
+          programa_id: string | null
+          saldo_disponivel: number | null
+          unidade_orcamentaria_id: string | null
+          updated_at: string | null
+          valor_atual: number | null
+          valor_empenhado: number | null
+          valor_inicial: number
+          valor_liquidado: number | null
+          valor_pago: number | null
+          valor_reduzido: number | null
+          valor_suplementado: number | null
+        }
+        Insert: {
+          acao_id?: string | null
+          ativo?: boolean | null
+          bloqueado?: boolean | null
+          codigo_dotacao: string
+          created_at?: string | null
+          created_by?: string | null
+          exercicio: number
+          fonte_recurso_id?: string | null
+          id?: string
+          motivo_bloqueio?: string | null
+          natureza_despesa_id?: string | null
+          programa_id?: string | null
+          saldo_disponivel?: number | null
+          unidade_orcamentaria_id?: string | null
+          updated_at?: string | null
+          valor_atual?: number | null
+          valor_empenhado?: number | null
+          valor_inicial?: number
+          valor_liquidado?: number | null
+          valor_pago?: number | null
+          valor_reduzido?: number | null
+          valor_suplementado?: number | null
+        }
+        Update: {
+          acao_id?: string | null
+          ativo?: boolean | null
+          bloqueado?: boolean | null
+          codigo_dotacao?: string
+          created_at?: string | null
+          created_by?: string | null
+          exercicio?: number
+          fonte_recurso_id?: string | null
+          id?: string
+          motivo_bloqueio?: string | null
+          natureza_despesa_id?: string | null
+          programa_id?: string | null
+          saldo_disponivel?: number | null
+          unidade_orcamentaria_id?: string | null
+          updated_at?: string | null
+          valor_atual?: number | null
+          valor_empenhado?: number | null
+          valor_inicial?: number
+          valor_liquidado?: number | null
+          valor_pago?: number | null
+          valor_reduzido?: number | null
+          valor_suplementado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_dotacoes_acao_id_fkey"
+            columns: ["acao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_acoes_orcamentarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_dotacoes_fonte_recurso_id_fkey"
+            columns: ["fonte_recurso_id"]
+            isOneToOne: false
+            referencedRelation: "fin_fontes_recurso"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_dotacoes_natureza_despesa_id_fkey"
+            columns: ["natureza_despesa_id"]
+            isOneToOne: false
+            referencedRelation: "fin_naturezas_despesa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_dotacoes_programa_id_fkey"
+            columns: ["programa_id"]
+            isOneToOne: false
+            referencedRelation: "fin_programas_orcamentarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_dotacoes_unidade_orcamentaria_id_fkey"
+            columns: ["unidade_orcamentaria_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_empenho_anulacoes: {
+        Row: {
+          anulado_por: string | null
+          created_at: string | null
+          data_anulacao: string
+          empenho_id: string
+          id: string
+          motivo: string
+          numero: string
+          valor: number
+        }
+        Insert: {
+          anulado_por?: string | null
+          created_at?: string | null
+          data_anulacao?: string
+          empenho_id: string
+          id?: string
+          motivo: string
+          numero: string
+          valor: number
+        }
+        Update: {
+          anulado_por?: string | null
+          created_at?: string | null
+          data_anulacao?: string
+          empenho_id?: string
+          id?: string
+          motivo?: string
+          numero?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_empenho_anulacoes_empenho_id_fkey"
+            columns: ["empenho_id"]
+            isOneToOne: false
+            referencedRelation: "fin_empenhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_empenhos: {
+        Row: {
+          contrato_id: string | null
+          created_at: string | null
+          created_by: string | null
+          data_empenho: string
+          data_inscricao_rp: string | null
+          dotacao_id: string
+          emitido_por: string | null
+          exercicio: number
+          fonte_recurso_id: string | null
+          fornecedor_id: string
+          historico_status: Json | null
+          id: string
+          inscrito_rp: boolean | null
+          natureza_despesa_id: string | null
+          numero: string
+          objeto: string
+          observacoes: string | null
+          processo_sei: string | null
+          saldo_liquidar: number | null
+          saldo_pagar: number | null
+          solicitacao_id: string | null
+          status: Database["public"]["Enums"]["status_empenho"] | null
+          tipo: Database["public"]["Enums"]["tipo_empenho"]
+          tipo_rp: string | null
+          updated_at: string | null
+          valor_anulado: number | null
+          valor_empenhado: number
+          valor_liquidado: number | null
+          valor_pago: number | null
+        }
+        Insert: {
+          contrato_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_empenho?: string
+          data_inscricao_rp?: string | null
+          dotacao_id: string
+          emitido_por?: string | null
+          exercicio: number
+          fonte_recurso_id?: string | null
+          fornecedor_id: string
+          historico_status?: Json | null
+          id?: string
+          inscrito_rp?: boolean | null
+          natureza_despesa_id?: string | null
+          numero: string
+          objeto: string
+          observacoes?: string | null
+          processo_sei?: string | null
+          saldo_liquidar?: number | null
+          saldo_pagar?: number | null
+          solicitacao_id?: string | null
+          status?: Database["public"]["Enums"]["status_empenho"] | null
+          tipo?: Database["public"]["Enums"]["tipo_empenho"]
+          tipo_rp?: string | null
+          updated_at?: string | null
+          valor_anulado?: number | null
+          valor_empenhado: number
+          valor_liquidado?: number | null
+          valor_pago?: number | null
+        }
+        Update: {
+          contrato_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_empenho?: string
+          data_inscricao_rp?: string | null
+          dotacao_id?: string
+          emitido_por?: string | null
+          exercicio?: number
+          fonte_recurso_id?: string | null
+          fornecedor_id?: string
+          historico_status?: Json | null
+          id?: string
+          inscrito_rp?: boolean | null
+          natureza_despesa_id?: string | null
+          numero?: string
+          objeto?: string
+          observacoes?: string | null
+          processo_sei?: string | null
+          saldo_liquidar?: number | null
+          saldo_pagar?: number | null
+          solicitacao_id?: string | null
+          status?: Database["public"]["Enums"]["status_empenho"] | null
+          tipo?: Database["public"]["Enums"]["tipo_empenho"]
+          tipo_rp?: string | null
+          updated_at?: string | null
+          valor_anulado?: number | null
+          valor_empenhado?: number
+          valor_liquidado?: number | null
+          valor_pago?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_empenhos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_empenhos_dotacao_id_fkey"
+            columns: ["dotacao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_dotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_empenhos_fonte_recurso_id_fkey"
+            columns: ["fonte_recurso_id"]
+            isOneToOne: false
+            referencedRelation: "fin_fontes_recurso"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_empenhos_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_empenhos_natureza_despesa_id_fkey"
+            columns: ["natureza_despesa_id"]
+            isOneToOne: false
+            referencedRelation: "fin_naturezas_despesa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_empenhos_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_extrato_transacoes: {
+        Row: {
+          conciliado_em: string | null
+          conciliado_por: string | null
+          created_at: string | null
+          data_balancete: string | null
+          data_transacao: string
+          documento: string | null
+          extrato_id: string
+          historico: string | null
+          id: string
+          justificativa_divergencia: string | null
+          numero_sequencial: number | null
+          pagamento_id: string | null
+          receita_id: string | null
+          status: Database["public"]["Enums"]["status_conciliacao"] | null
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          conciliado_em?: string | null
+          conciliado_por?: string | null
+          created_at?: string | null
+          data_balancete?: string | null
+          data_transacao: string
+          documento?: string | null
+          extrato_id: string
+          historico?: string | null
+          id?: string
+          justificativa_divergencia?: string | null
+          numero_sequencial?: number | null
+          pagamento_id?: string | null
+          receita_id?: string | null
+          status?: Database["public"]["Enums"]["status_conciliacao"] | null
+          tipo: string
+          valor: number
+        }
+        Update: {
+          conciliado_em?: string | null
+          conciliado_por?: string | null
+          created_at?: string | null
+          data_balancete?: string | null
+          data_transacao?: string
+          documento?: string | null
+          extrato_id?: string
+          historico?: string | null
+          id?: string
+          justificativa_divergencia?: string | null
+          numero_sequencial?: number | null
+          pagamento_id?: string | null
+          receita_id?: string | null
+          status?: Database["public"]["Enums"]["status_conciliacao"] | null
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_extrato_transacoes_extrato_id_fkey"
+            columns: ["extrato_id"]
+            isOneToOne: false
+            referencedRelation: "fin_extratos_bancarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_extrato_transacoes_pagamento_id_fkey"
+            columns: ["pagamento_id"]
+            isOneToOne: false
+            referencedRelation: "fin_pagamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_extrato_transacoes_receita_id_fkey"
+            columns: ["receita_id"]
+            isOneToOne: false
+            referencedRelation: "fin_receitas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_extratos_bancarios: {
+        Row: {
+          ano_referencia: number
+          arquivo_original: string | null
+          conciliado: boolean | null
+          conciliado_em: string | null
+          conciliado_por: string | null
+          conta_bancaria_id: string
+          created_at: string | null
+          data_importacao: string | null
+          id: string
+          importado_por: string | null
+          mes_referencia: number
+          saldo_anterior: number | null
+          saldo_final: number | null
+          total_creditos: number | null
+          total_debitos: number | null
+        }
+        Insert: {
+          ano_referencia: number
+          arquivo_original?: string | null
+          conciliado?: boolean | null
+          conciliado_em?: string | null
+          conciliado_por?: string | null
+          conta_bancaria_id: string
+          created_at?: string | null
+          data_importacao?: string | null
+          id?: string
+          importado_por?: string | null
+          mes_referencia: number
+          saldo_anterior?: number | null
+          saldo_final?: number | null
+          total_creditos?: number | null
+          total_debitos?: number | null
+        }
+        Update: {
+          ano_referencia?: number
+          arquivo_original?: string | null
+          conciliado?: boolean | null
+          conciliado_em?: string | null
+          conciliado_por?: string | null
+          conta_bancaria_id?: string
+          created_at?: string | null
+          data_importacao?: string | null
+          id?: string
+          importado_por?: string | null
+          mes_referencia?: number
+          saldo_anterior?: number | null
+          saldo_final?: number | null
+          total_creditos?: number | null
+          total_debitos?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_extratos_bancarios_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "fin_contas_bancarias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_fechamentos: {
+        Row: {
+          created_at: string | null
+          data_fechamento: string | null
+          exercicio: number
+          fechado_em: string | null
+          fechado_por: string | null
+          id: string
+          mes: number
+          motivo_reabertura: string | null
+          observacoes: string | null
+          reaberto_em: string | null
+          reaberto_por: string | null
+          resultado_mes: number | null
+          status: string | null
+          total_despesas: number | null
+          total_receitas: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          data_fechamento?: string | null
+          exercicio: number
+          fechado_em?: string | null
+          fechado_por?: string | null
+          id?: string
+          mes: number
+          motivo_reabertura?: string | null
+          observacoes?: string | null
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          resultado_mes?: number | null
+          status?: string | null
+          total_despesas?: number | null
+          total_receitas?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          data_fechamento?: string | null
+          exercicio?: number
+          fechado_em?: string | null
+          fechado_por?: string | null
+          id?: string
+          mes?: number
+          motivo_reabertura?: string | null
+          observacoes?: string | null
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          resultado_mes?: number | null
+          status?: string | null
+          total_despesas?: number | null
+          total_receitas?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      fin_fontes_recurso: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          created_at: string | null
+          descricao: string | null
+          detalhamento_fonte: string | null
+          id: string
+          nome: string
+          origem: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          created_at?: string | null
+          descricao?: string | null
+          detalhamento_fonte?: string | null
+          id?: string
+          nome: string
+          origem?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          created_at?: string | null
+          descricao?: string | null
+          detalhamento_fonte?: string | null
+          id?: string
+          nome?: string
+          origem?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      fin_lancamentos_contabeis: {
+        Row: {
+          complemento: string | null
+          conta_credito_id: string
+          conta_debito_id: string
+          created_at: string | null
+          created_by: string | null
+          data_competencia: string
+          data_lancamento: string
+          estornado: boolean | null
+          exercicio: number
+          fechamento_id: string | null
+          historico: string
+          id: string
+          lancamento_estorno_id: string | null
+          mes_referencia: number
+          numero: string
+          origem_id: string | null
+          tipo_origem: string
+          valor: number
+        }
+        Insert: {
+          complemento?: string | null
+          conta_credito_id: string
+          conta_debito_id: string
+          created_at?: string | null
+          created_by?: string | null
+          data_competencia: string
+          data_lancamento: string
+          estornado?: boolean | null
+          exercicio: number
+          fechamento_id?: string | null
+          historico: string
+          id?: string
+          lancamento_estorno_id?: string | null
+          mes_referencia: number
+          numero: string
+          origem_id?: string | null
+          tipo_origem: string
+          valor: number
+        }
+        Update: {
+          complemento?: string | null
+          conta_credito_id?: string
+          conta_debito_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          data_competencia?: string
+          data_lancamento?: string
+          estornado?: boolean | null
+          exercicio?: number
+          fechamento_id?: string | null
+          historico?: string
+          id?: string
+          lancamento_estorno_id?: string | null
+          mes_referencia?: number
+          numero?: string
+          origem_id?: string | null
+          tipo_origem?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_lancamentos_contabeis_conta_credito_id_fkey"
+            columns: ["conta_credito_id"]
+            isOneToOne: false
+            referencedRelation: "fin_plano_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_lancamentos_contabeis_conta_debito_id_fkey"
+            columns: ["conta_debito_id"]
+            isOneToOne: false
+            referencedRelation: "fin_plano_contas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_liquidacoes: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          atestado_em: string | null
+          atestado_por: string | null
+          cargo_atestante: string | null
+          chave_nfe: string | null
+          created_at: string | null
+          created_by: string | null
+          data_documento: string
+          data_liquidacao: string
+          empenho_id: string
+          exercicio: number
+          historico_status: Json | null
+          id: string
+          motivo_rejeicao: string | null
+          numero: string
+          numero_documento: string
+          observacoes: string | null
+          outras_retencoes: number | null
+          retencao_inss: number | null
+          retencao_irrf: number | null
+          retencao_iss: number | null
+          serie_documento: string | null
+          status: Database["public"]["Enums"]["status_liquidacao"] | null
+          tipo_documento: string
+          updated_at: string | null
+          valor_documento: number
+          valor_liquidado: number
+          valor_liquido: number | null
+          valor_retencoes: number | null
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          atestado_em?: string | null
+          atestado_por?: string | null
+          cargo_atestante?: string | null
+          chave_nfe?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_documento: string
+          data_liquidacao?: string
+          empenho_id: string
+          exercicio: number
+          historico_status?: Json | null
+          id?: string
+          motivo_rejeicao?: string | null
+          numero: string
+          numero_documento: string
+          observacoes?: string | null
+          outras_retencoes?: number | null
+          retencao_inss?: number | null
+          retencao_irrf?: number | null
+          retencao_iss?: number | null
+          serie_documento?: string | null
+          status?: Database["public"]["Enums"]["status_liquidacao"] | null
+          tipo_documento: string
+          updated_at?: string | null
+          valor_documento: number
+          valor_liquidado: number
+          valor_liquido?: number | null
+          valor_retencoes?: number | null
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          atestado_em?: string | null
+          atestado_por?: string | null
+          cargo_atestante?: string | null
+          chave_nfe?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_documento?: string
+          data_liquidacao?: string
+          empenho_id?: string
+          exercicio?: number
+          historico_status?: Json | null
+          id?: string
+          motivo_rejeicao?: string | null
+          numero?: string
+          numero_documento?: string
+          observacoes?: string | null
+          outras_retencoes?: number | null
+          retencao_inss?: number | null
+          retencao_irrf?: number | null
+          retencao_iss?: number | null
+          serie_documento?: string | null
+          status?: Database["public"]["Enums"]["status_liquidacao"] | null
+          tipo_documento?: string
+          updated_at?: string | null
+          valor_documento?: number
+          valor_liquidado?: number
+          valor_liquido?: number | null
+          valor_retencoes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_liquidacoes_empenho_id_fkey"
+            columns: ["empenho_id"]
+            isOneToOne: false
+            referencedRelation: "fin_empenhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_naturezas_despesa: {
+        Row: {
+          ativo: boolean | null
+          categoria_economica: string | null
+          codigo: string
+          created_at: string | null
+          descricao: string | null
+          elemento: string | null
+          grupo_natureza: string | null
+          id: string
+          modalidade_aplicacao: string | null
+          nome: string
+          subelemento: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          categoria_economica?: string | null
+          codigo: string
+          created_at?: string | null
+          descricao?: string | null
+          elemento?: string | null
+          grupo_natureza?: string | null
+          id?: string
+          modalidade_aplicacao?: string | null
+          nome: string
+          subelemento?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          categoria_economica?: string | null
+          codigo?: string
+          created_at?: string | null
+          descricao?: string | null
+          elemento?: string | null
+          grupo_natureza?: string | null
+          id?: string
+          modalidade_aplicacao?: string | null
+          nome?: string
+          subelemento?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      fin_pagamentos: {
+        Row: {
+          agencia_favorecido: string | null
+          autorizado_em: string | null
+          autorizado_por: string | null
+          banco_favorecido: string | null
+          conta_bancaria_id: string
+          conta_favorecido: string | null
+          created_at: string | null
+          created_by: string | null
+          data_efetivacao: string | null
+          data_estorno: string | null
+          data_pagamento: string
+          empenho_id: string
+          estornado: boolean | null
+          estornado_por: string | null
+          executado_em: string | null
+          executado_por: string | null
+          exercicio: number
+          forma_pagamento: string
+          fornecedor_id: string | null
+          historico_status: Json | null
+          id: string
+          identificador_transacao: string | null
+          liquidacao_id: string
+          motivo_estorno: string | null
+          numero: string
+          observacoes: string | null
+          status: Database["public"]["Enums"]["status_pagamento"] | null
+          tipo_conta_favorecido: string | null
+          updated_at: string | null
+          valor_bruto: number
+          valor_liquido: number | null
+          valor_retencoes: number | null
+        }
+        Insert: {
+          agencia_favorecido?: string | null
+          autorizado_em?: string | null
+          autorizado_por?: string | null
+          banco_favorecido?: string | null
+          conta_bancaria_id: string
+          conta_favorecido?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_efetivacao?: string | null
+          data_estorno?: string | null
+          data_pagamento?: string
+          empenho_id: string
+          estornado?: boolean | null
+          estornado_por?: string | null
+          executado_em?: string | null
+          executado_por?: string | null
+          exercicio: number
+          forma_pagamento: string
+          fornecedor_id?: string | null
+          historico_status?: Json | null
+          id?: string
+          identificador_transacao?: string | null
+          liquidacao_id: string
+          motivo_estorno?: string | null
+          numero: string
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["status_pagamento"] | null
+          tipo_conta_favorecido?: string | null
+          updated_at?: string | null
+          valor_bruto: number
+          valor_liquido?: number | null
+          valor_retencoes?: number | null
+        }
+        Update: {
+          agencia_favorecido?: string | null
+          autorizado_em?: string | null
+          autorizado_por?: string | null
+          banco_favorecido?: string | null
+          conta_bancaria_id?: string
+          conta_favorecido?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_efetivacao?: string | null
+          data_estorno?: string | null
+          data_pagamento?: string
+          empenho_id?: string
+          estornado?: boolean | null
+          estornado_por?: string | null
+          executado_em?: string | null
+          executado_por?: string | null
+          exercicio?: number
+          forma_pagamento?: string
+          fornecedor_id?: string | null
+          historico_status?: Json | null
+          id?: string
+          identificador_transacao?: string | null
+          liquidacao_id?: string
+          motivo_estorno?: string | null
+          numero?: string
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["status_pagamento"] | null
+          tipo_conta_favorecido?: string | null
+          updated_at?: string | null
+          valor_bruto?: number
+          valor_liquido?: number | null
+          valor_retencoes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_pagamentos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "fin_contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_pagamentos_empenho_id_fkey"
+            columns: ["empenho_id"]
+            isOneToOne: false
+            referencedRelation: "fin_empenhos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_pagamentos_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_pagamentos_liquidacao_id_fkey"
+            columns: ["liquidacao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_liquidacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_parametros: {
+        Row: {
+          categoria: string | null
+          chave: string
+          created_at: string | null
+          descricao: string | null
+          editavel: boolean | null
+          id: string
+          tipo: string | null
+          updated_at: string | null
+          valor: string
+        }
+        Insert: {
+          categoria?: string | null
+          chave: string
+          created_at?: string | null
+          descricao?: string | null
+          editavel?: boolean | null
+          id?: string
+          tipo?: string | null
+          updated_at?: string | null
+          valor: string
+        }
+        Update: {
+          categoria?: string | null
+          chave?: string
+          created_at?: string | null
+          descricao?: string | null
+          editavel?: boolean | null
+          id?: string
+          tipo?: string | null
+          updated_at?: string | null
+          valor?: string
+        }
+        Relationships: []
+      }
+      fin_plano_contas: {
+        Row: {
+          aceita_lancamento: boolean | null
+          ativo: boolean | null
+          codigo: string
+          conta_pai_id: string | null
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          id: string
+          natureza: Database["public"]["Enums"]["natureza_conta"]
+          nivel: number
+          nome: string
+          updated_at: string | null
+        }
+        Insert: {
+          aceita_lancamento?: boolean | null
+          ativo?: boolean | null
+          codigo: string
+          conta_pai_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          natureza: Database["public"]["Enums"]["natureza_conta"]
+          nivel?: number
+          nome: string
+          updated_at?: string | null
+        }
+        Update: {
+          aceita_lancamento?: boolean | null
+          ativo?: boolean | null
+          codigo?: string
+          conta_pai_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          natureza?: Database["public"]["Enums"]["natureza_conta"]
+          nivel?: number
+          nome?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_plano_contas_conta_pai_id_fkey"
+            columns: ["conta_pai_id"]
+            isOneToOne: false
+            referencedRelation: "fin_plano_contas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_programas_orcamentarios: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          created_at: string | null
+          exercicio: number
+          id: string
+          nome: string
+          objetivo: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          created_at?: string | null
+          exercicio: number
+          id?: string
+          nome: string
+          objetivo?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          created_at?: string | null
+          exercicio?: number
+          id?: string
+          nome?: string
+          objetivo?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      fin_receitas: {
+        Row: {
+          cnpj_cpf_pagador: string | null
+          conciliacao_id: string | null
+          conciliado: boolean | null
+          conta_bancaria_id: string | null
+          convenio_id: string | null
+          created_at: string | null
+          created_by: string | null
+          data_receita: string
+          documento_origem: string | null
+          entidade_pagadora: string | null
+          exercicio: number
+          fonte_recurso_id: string | null
+          id: string
+          numero: string
+          observacoes: string | null
+          origem_descricao: string
+          tipo: Database["public"]["Enums"]["tipo_receita"]
+          updated_at: string | null
+          valor: number
+        }
+        Insert: {
+          cnpj_cpf_pagador?: string | null
+          conciliacao_id?: string | null
+          conciliado?: boolean | null
+          conta_bancaria_id?: string | null
+          convenio_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_receita?: string
+          documento_origem?: string | null
+          entidade_pagadora?: string | null
+          exercicio: number
+          fonte_recurso_id?: string | null
+          id?: string
+          numero: string
+          observacoes?: string | null
+          origem_descricao: string
+          tipo: Database["public"]["Enums"]["tipo_receita"]
+          updated_at?: string | null
+          valor: number
+        }
+        Update: {
+          cnpj_cpf_pagador?: string | null
+          conciliacao_id?: string | null
+          conciliado?: boolean | null
+          conta_bancaria_id?: string | null
+          convenio_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_receita?: string
+          documento_origem?: string | null
+          entidade_pagadora?: string | null
+          exercicio?: number
+          fonte_recurso_id?: string | null
+          id?: string
+          numero?: string
+          observacoes?: string | null
+          origem_descricao?: string
+          tipo?: Database["public"]["Enums"]["tipo_receita"]
+          updated_at?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_receitas_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "fin_contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_receitas_convenio_id_fkey"
+            columns: ["convenio_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_receitas_fonte_recurso_id_fkey"
+            columns: ["fonte_recurso_id"]
+            isOneToOne: false
+            referencedRelation: "fin_fontes_recurso"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_solicitacao_itens: {
+        Row: {
+          created_at: string | null
+          descricao: string
+          id: string
+          item_numero: number
+          observacoes: string | null
+          quantidade: number
+          solicitacao_id: string
+          unidade: string | null
+          valor_total_estimado: number | null
+          valor_unitario_estimado: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          descricao: string
+          id?: string
+          item_numero: number
+          observacoes?: string | null
+          quantidade?: number
+          solicitacao_id: string
+          unidade?: string | null
+          valor_total_estimado?: number | null
+          valor_unitario_estimado?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          descricao?: string
+          id?: string
+          item_numero?: number
+          observacoes?: string | null
+          quantidade?: number
+          solicitacao_id?: string
+          unidade?: string | null
+          valor_total_estimado?: number | null
+          valor_unitario_estimado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_solicitacao_itens_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_solicitacoes: {
+        Row: {
+          autorizado_em: string | null
+          autorizado_por: string | null
+          ci_aprovado_em: string | null
+          ci_aprovado_por: string | null
+          contrato_id: string | null
+          created_at: string | null
+          created_by: string | null
+          data_solicitacao: string
+          dotacao_sugerida_id: string | null
+          exercicio: number
+          fornecedor_id: string | null
+          historico_status: Json | null
+          id: string
+          justificativa: string
+          motivo_rejeicao: string | null
+          numero: string
+          objeto: string
+          observacoes: string | null
+          parecer_ci: string | null
+          prazo_execucao: string | null
+          prioridade: string | null
+          processo_licitatorio_id: string | null
+          ressalvas_ci: string | null
+          servidor_solicitante_id: string | null
+          status:
+            | Database["public"]["Enums"]["status_workflow_financeiro"]
+            | null
+          tipo_despesa: string
+          unidade_solicitante_id: string
+          updated_at: string | null
+          valor_estimado: number
+        }
+        Insert: {
+          autorizado_em?: string | null
+          autorizado_por?: string | null
+          ci_aprovado_em?: string | null
+          ci_aprovado_por?: string | null
+          contrato_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_solicitacao?: string
+          dotacao_sugerida_id?: string | null
+          exercicio: number
+          fornecedor_id?: string | null
+          historico_status?: Json | null
+          id?: string
+          justificativa: string
+          motivo_rejeicao?: string | null
+          numero: string
+          objeto: string
+          observacoes?: string | null
+          parecer_ci?: string | null
+          prazo_execucao?: string | null
+          prioridade?: string | null
+          processo_licitatorio_id?: string | null
+          ressalvas_ci?: string | null
+          servidor_solicitante_id?: string | null
+          status?:
+            | Database["public"]["Enums"]["status_workflow_financeiro"]
+            | null
+          tipo_despesa: string
+          unidade_solicitante_id: string
+          updated_at?: string | null
+          valor_estimado: number
+        }
+        Update: {
+          autorizado_em?: string | null
+          autorizado_por?: string | null
+          ci_aprovado_em?: string | null
+          ci_aprovado_por?: string | null
+          contrato_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_solicitacao?: string
+          dotacao_sugerida_id?: string | null
+          exercicio?: number
+          fornecedor_id?: string | null
+          historico_status?: Json | null
+          id?: string
+          justificativa?: string
+          motivo_rejeicao?: string | null
+          numero?: string
+          objeto?: string
+          observacoes?: string | null
+          parecer_ci?: string | null
+          prazo_execucao?: string | null
+          prioridade?: string | null
+          processo_licitatorio_id?: string | null
+          ressalvas_ci?: string | null
+          servidor_solicitante_id?: string | null
+          status?:
+            | Database["public"]["Enums"]["status_workflow_financeiro"]
+            | null
+          tipo_despesa?: string
+          unidade_solicitante_id?: string
+          updated_at?: string | null
+          valor_estimado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_solicitacoes_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_solicitacoes_dotacao_sugerida_id_fkey"
+            columns: ["dotacao_sugerida_id"]
+            isOneToOne: false
+            referencedRelation: "fin_dotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_solicitacoes_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_solicitacoes_processo_licitatorio_id_fkey"
+            columns: ["processo_licitatorio_id"]
+            isOneToOne: false
+            referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_solicitacoes_servidor_solicitante_id_fkey"
+            columns: ["servidor_solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_solicitacoes_servidor_solicitante_id_fkey"
+            columns: ["servidor_solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_solicitacoes_unidade_solicitante_id_fkey"
+            columns: ["unidade_solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       folha_historico_status: {
         Row: {
           created_at: string | null
@@ -14372,6 +16295,10 @@ export type Database = {
           status: string
         }[]
       }
+      fn_gerar_numero_financeiro: {
+        Args: { p_exercicio?: number; p_tipo: string }
+        Returns: string
+      }
       fn_pode_arquivar_processo: {
         Args: { p_processo_id: string }
         Returns: boolean
@@ -14534,6 +16461,10 @@ export type Database = {
         Args: { _codigo_funcao: string; _user_id: string }
         Returns: boolean
       }
+      usuario_tem_permissao_financeira: {
+        Args: { p_permissao: string; p_user_id: string }
+        Returns: boolean
+      }
       verificar_conflito_agenda: {
         Args: {
           p_agenda_id?: string
@@ -14691,6 +16622,13 @@ export type Database = {
         | "dispensa"
         | "inexigibilidade"
       natureza_cargo: "efetivo" | "comissionado"
+      natureza_conta:
+        | "ativo"
+        | "passivo"
+        | "patrimonio_liquido"
+        | "receita"
+        | "despesa"
+        | "resultado"
       natureza_rubrica: "remuneratorio" | "indenizatorio" | "informativo"
       nivel_perfil: "sistema" | "organizacional" | "operacional"
       nivel_risco: "muito_baixo" | "baixo" | "medio" | "alto" | "muito_alto"
@@ -14730,12 +16668,27 @@ export type Database = {
         | "cedido"
         | "em_manutencao"
         | "baixado"
+      status_adiantamento:
+        | "solicitado"
+        | "autorizado"
+        | "liberado"
+        | "em_uso"
+        | "prestacao_pendente"
+        | "prestado"
+        | "aprovado"
+        | "rejeitado"
+        | "bloqueado"
       status_agenda:
         | "solicitado"
         | "aprovado"
         | "rejeitado"
         | "cancelado"
         | "concluido"
+      status_conciliacao:
+        | "pendente"
+        | "conciliado"
+        | "divergente"
+        | "justificado"
       status_conformidade:
         | "conforme"
         | "parcialmente_conforme"
@@ -14780,6 +16733,13 @@ export type Database = {
         | "minuta"
         | "aguardando_assinatura"
         | "assinado"
+      status_empenho:
+        | "emitido"
+        | "parcialmente_liquidado"
+        | "liquidado"
+        | "parcialmente_pago"
+        | "pago"
+        | "anulado"
       status_evento_esocial:
         | "pendente"
         | "gerado"
@@ -14789,6 +16749,12 @@ export type Database = {
         | "rejeitado"
         | "erro"
       status_folha: "aberta" | "previa" | "processando" | "fechada" | "reaberta"
+      status_liquidacao:
+        | "pendente"
+        | "atestada"
+        | "aprovada"
+        | "rejeitada"
+        | "cancelada"
       status_medicao: "rascunho" | "enviada" | "aprovada" | "rejeitada" | "paga"
       status_movimentacao_processo:
         | "pendente"
@@ -14797,6 +16763,13 @@ export type Database = {
         | "vencido"
         | "cancelado"
       status_nomeacao: "ativo" | "encerrado" | "revogado"
+      status_pagamento:
+        | "programado"
+        | "autorizado"
+        | "pago"
+        | "devolvido"
+        | "estornado"
+        | "cancelado"
       status_participante:
         | "pendente"
         | "confirmado"
@@ -14840,6 +16813,15 @@ export type Database = {
       status_solicitacao: "pendente" | "aprovada" | "rejeitada" | "cancelada"
       status_termo_cessao: "pendente" | "emitido" | "assinado" | "cancelado"
       status_unidade_local: "ativa" | "inativa" | "manutencao" | "interditada"
+      status_workflow_financeiro:
+        | "rascunho"
+        | "pendente_analise"
+        | "em_analise"
+        | "aprovado"
+        | "rejeitado"
+        | "cancelado"
+        | "executado"
+        | "estornado"
       tipo_aditivo:
         | "prazo"
         | "valor"
@@ -14856,7 +16838,16 @@ export type Database = {
         | "servico_externo"
         | "missao"
         | "outro"
+      tipo_alteracao_orcamentaria:
+        | "suplementacao"
+        | "reducao"
+        | "remanejamento"
+        | "transposicao"
+        | "transferencia"
+        | "credito_especial"
+        | "credito_extraordinario"
       tipo_ato_nomeacao: "portaria" | "decreto" | "ato" | "outro"
+      tipo_conta_bancaria: "corrente" | "poupanca" | "aplicacao" | "vinculada"
       tipo_conteudo_institucional:
         | "missao"
         | "visao"
@@ -14934,6 +16925,7 @@ export type Database = {
         | "declaracao"
         | "certidao"
         | "outro"
+      tipo_empenho: "ordinario" | "estimativo" | "global"
       tipo_evento_lai:
         | "abertura"
         | "classificacao"
@@ -15033,6 +17025,15 @@ export type Database = {
         | "viagem"
         | "federacao"
         | "outro"
+      tipo_receita:
+        | "repasse_tesouro"
+        | "convenio"
+        | "doacao"
+        | "restituicao"
+        | "rendimento_aplicacao"
+        | "taxa_servico"
+        | "multa"
+        | "outros"
       tipo_registro_ponto:
         | "normal"
         | "feriado"
@@ -15366,6 +17367,14 @@ export const Constants = {
         "inexigibilidade",
       ],
       natureza_cargo: ["efetivo", "comissionado"],
+      natureza_conta: [
+        "ativo",
+        "passivo",
+        "patrimonio_liquido",
+        "receita",
+        "despesa",
+        "resultado",
+      ],
       natureza_rubrica: ["remuneratorio", "indenizatorio", "informativo"],
       nivel_perfil: ["sistema", "organizacional", "operacional"],
       nivel_risco: ["muito_baixo", "baixo", "medio", "alto", "muito_alto"],
@@ -15409,12 +17418,29 @@ export const Constants = {
         "em_manutencao",
         "baixado",
       ],
+      status_adiantamento: [
+        "solicitado",
+        "autorizado",
+        "liberado",
+        "em_uso",
+        "prestacao_pendente",
+        "prestado",
+        "aprovado",
+        "rejeitado",
+        "bloqueado",
+      ],
       status_agenda: [
         "solicitado",
         "aprovado",
         "rejeitado",
         "cancelado",
         "concluido",
+      ],
+      status_conciliacao: [
+        "pendente",
+        "conciliado",
+        "divergente",
+        "justificado",
       ],
       status_conformidade: [
         "conforme",
@@ -15466,6 +17492,14 @@ export const Constants = {
         "aguardando_assinatura",
         "assinado",
       ],
+      status_empenho: [
+        "emitido",
+        "parcialmente_liquidado",
+        "liquidado",
+        "parcialmente_pago",
+        "pago",
+        "anulado",
+      ],
       status_evento_esocial: [
         "pendente",
         "gerado",
@@ -15476,6 +17510,13 @@ export const Constants = {
         "erro",
       ],
       status_folha: ["aberta", "previa", "processando", "fechada", "reaberta"],
+      status_liquidacao: [
+        "pendente",
+        "atestada",
+        "aprovada",
+        "rejeitada",
+        "cancelada",
+      ],
       status_medicao: ["rascunho", "enviada", "aprovada", "rejeitada", "paga"],
       status_movimentacao_processo: [
         "pendente",
@@ -15485,6 +17526,14 @@ export const Constants = {
         "cancelado",
       ],
       status_nomeacao: ["ativo", "encerrado", "revogado"],
+      status_pagamento: [
+        "programado",
+        "autorizado",
+        "pago",
+        "devolvido",
+        "estornado",
+        "cancelado",
+      ],
       status_participante: [
         "pendente",
         "confirmado",
@@ -15534,6 +17583,16 @@ export const Constants = {
       status_solicitacao: ["pendente", "aprovada", "rejeitada", "cancelada"],
       status_termo_cessao: ["pendente", "emitido", "assinado", "cancelado"],
       status_unidade_local: ["ativa", "inativa", "manutencao", "interditada"],
+      status_workflow_financeiro: [
+        "rascunho",
+        "pendente_analise",
+        "em_analise",
+        "aprovado",
+        "rejeitado",
+        "cancelado",
+        "executado",
+        "estornado",
+      ],
       tipo_aditivo: [
         "prazo",
         "valor",
@@ -15552,7 +17611,17 @@ export const Constants = {
         "missao",
         "outro",
       ],
+      tipo_alteracao_orcamentaria: [
+        "suplementacao",
+        "reducao",
+        "remanejamento",
+        "transposicao",
+        "transferencia",
+        "credito_especial",
+        "credito_extraordinario",
+      ],
       tipo_ato_nomeacao: ["portaria", "decreto", "ato", "outro"],
+      tipo_conta_bancaria: ["corrente", "poupanca", "aplicacao", "vinculada"],
       tipo_conteudo_institucional: [
         "missao",
         "visao",
@@ -15636,6 +17705,7 @@ export const Constants = {
         "certidao",
         "outro",
       ],
+      tipo_empenho: ["ordinario", "estimativo", "global"],
       tipo_evento_lai: [
         "abertura",
         "classificacao",
@@ -15744,6 +17814,16 @@ export const Constants = {
         "viagem",
         "federacao",
         "outro",
+      ],
+      tipo_receita: [
+        "repasse_tesouro",
+        "convenio",
+        "doacao",
+        "restituicao",
+        "rendimento_aplicacao",
+        "taxa_servico",
+        "multa",
+        "outros",
       ],
       tipo_registro_ponto: [
         "normal",
