@@ -106,6 +106,7 @@ import DatabaseSchemaPage from "./pages/admin/DatabaseSchemaPage";
 import RelatorioAdminPage from "./pages/admin/RelatorioAdminPage";
 import CalibradorSegadPage from "./pages/admin/CalibradorSegadPage";
 import CentralRelatoriosPage from "./pages/admin/CentralRelatoriosPage";
+import SobreSistemaPage from "./pages/admin/SobreSistemaPage";
 
 // ASCOM
 import GestaoDemandasAscomPage from "./pages/ascom/GestaoDemandasAscomPage";
