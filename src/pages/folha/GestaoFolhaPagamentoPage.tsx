@@ -2,26 +2,42 @@ import { useState } from "react";
 import { AdminLayout } from "@/components/admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, FileText, Check, Loader2, Eye, Users } from "lucide-react";
-import { useFolhasPagamento, useUpdateFolhaStatus } from "@/hooks/useFolhaPagamento";
+import { Plus, FileText, Loader2, Eye, Users, History, Lock, Unlock } from "lucide-react";
+import { useFolhasPagamento } from "@/hooks/useFolhaPagamento";
+import { usePermissoesFolha, useEnviarConferencia } from "@/hooks/useFechamentoFolha";
 import { NovaFolhaForm } from "@/components/folha/NovaFolhaForm";
-import { STATUS_FOLHA_LABELS, STATUS_FOLHA_COLORS, MESES, type StatusFolha } from "@/types/folha";
+import { FecharFolhaDialog } from "@/components/folha/FecharFolhaDialog";
+import { ReabrirFolhaDialog } from "@/components/folha/ReabrirFolhaDialog";
+import { HistoricoStatusFolhaDialog } from "@/components/folha/HistoricoStatusFolhaDialog";
+import { StatusFolhaIndicator } from "@/components/folha/StatusFolhaIndicator";
+import { MESES, type StatusFolha } from "@/types/folha";
 import { useNavigate } from "react-router-dom";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
+interface FolhaSelecionada {
+  id: string;
+  ano: number;
+  mes: number;
+  status: StatusFolha;
+}
 
 export default function GestaoFolhaPagamentoPage() {
   const navigate = useNavigate();
   const [anoFiltro, setAnoFiltro] = useState<number>(currentYear);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [folhaFechar, setFolhaFechar] = useState<FolhaSelecionada | null>(null);
+  const [folhaReabrir, setFolhaReabrir] = useState<FolhaSelecionada | null>(null);
+  const [folhaHistorico, setFolhaHistorico] = useState<FolhaSelecionada | null>(null);
   
   const { data: folhas, isLoading } = useFolhasPagamento(anoFiltro);
-  const updateStatus = useUpdateFolhaStatus();
+  const { data: permissoes } = usePermissoesFolha();
+  const enviarConferencia = useEnviarConferencia();
 
   const formatCurrency = (value: number | null | undefined) => {
     return (value || 0).toLocaleString("pt-BR", {
@@ -34,26 +50,8 @@ export default function GestaoFolhaPagamentoPage() {
     navigate(`/folha/${id}`);
   };
 
-  const canAdvanceStatus = (status: StatusFolha) => {
-    return ["previa", "aberta", "processando"].includes(status);
-  };
-
-  const getNextStatus = (current: StatusFolha): StatusFolha | null => {
-    const flow: Record<StatusFolha, StatusFolha | null> = {
-      previa: "aberta",
-      aberta: "processando",
-      processando: "fechada",
-      fechada: null,
-      reaberta: "aberta",
-    };
-    return flow[current];
-  };
-
-  const handleAdvanceStatus = (id: string, currentStatus: StatusFolha) => {
-    const nextStatus = getNextStatus(currentStatus);
-    if (nextStatus) {
-      updateStatus.mutate({ id, status: nextStatus });
-    }
+  const handleEnviarConferencia = (folhaId: string) => {
+    enviarConferencia.mutate(folhaId);
   };
 
   return (
@@ -215,30 +213,105 @@ export default function GestaoFolhaPagamentoPage() {
                             {formatCurrency(folha.total_liquido)}
                           </TableCell>
                           <TableCell className="text-center">
-                            <Badge className={STATUS_FOLHA_COLORS[folha.status as StatusFolha] || "bg-gray-100"}>
-                              {STATUS_FOLHA_LABELS[folha.status as StatusFolha] || folha.status}
-                            </Badge>
+                            <StatusFolhaIndicator
+                              status={folha.status as StatusFolha}
+                              fechadoEm={folha.data_fechamento}
+                            />
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleView(folha.id)}
-                                title="Visualizar"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              {canAdvanceStatus(folha.status as StatusFolha) && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleAdvanceStatus(folha.id, folha.status as StatusFolha)}
-                                  title="Avançar status"
-                                  disabled={updateStatus.isPending}
-                                >
-                                  <Check className="h-4 w-4 text-green-600" />
-                                </Button>
+                            <div className="flex items-center gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleView(folha.id)}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Ver detalhes</TooltipContent>
+                              </Tooltip>
+                              
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setFolhaHistorico({
+                                      id: folha.id,
+                                      ano: folha.competencia_ano,
+                                      mes: folha.competencia_mes,
+                                      status: folha.status as StatusFolha,
+                                    })}
+                                  >
+                                    <History className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Histórico</TooltipContent>
+                              </Tooltip>
+
+                              {/* Ação de enviar para conferência */}
+                              {['aberta', 'reaberta'].includes(folha.status) && permissoes?.podeFechar && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleEnviarConferencia(folha.id)}
+                                      disabled={enviarConferencia.isPending}
+                                    >
+                                      {enviarConferencia.isPending ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <FileText className="h-4 w-4 text-blue-600" />
+                                      )}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Enviar para conferência</TooltipContent>
+                                </Tooltip>
+                              )}
+
+                              {/* Ação de fechar folha */}
+                              {['processando', 'aberta'].includes(folha.status) && permissoes?.podeFechar && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => setFolhaFechar({
+                                        id: folha.id,
+                                        ano: folha.competencia_ano,
+                                        mes: folha.competencia_mes,
+                                        status: folha.status as StatusFolha,
+                                      })}
+                                    >
+                                      <Lock className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Fechar folha</TooltipContent>
+                                </Tooltip>
+                              )}
+
+                              {/* Ação de reabrir folha (super_admin) */}
+                              {folha.status === 'fechada' && permissoes?.podeReabrir && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => setFolhaReabrir({
+                                        id: folha.id,
+                                        ano: folha.competencia_ano,
+                                        mes: folha.competencia_mes,
+                                        status: folha.status as StatusFolha,
+                                      })}
+                                    >
+                                      <Unlock className="h-4 w-4 text-purple-600" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Reabrir folha</TooltipContent>
+                                </Tooltip>
                               )}
                             </div>
                           </TableCell>
@@ -252,6 +325,37 @@ export default function GestaoFolhaPagamentoPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Dialogs de ações */}
+      {folhaFechar && (
+        <FecharFolhaDialog
+          open={!!folhaFechar}
+          onOpenChange={(open) => !open && setFolhaFechar(null)}
+          folhaId={folhaFechar.id}
+          competenciaAno={folhaFechar.ano}
+          competenciaMes={folhaFechar.mes}
+        />
+      )}
+
+      {folhaReabrir && (
+        <ReabrirFolhaDialog
+          open={!!folhaReabrir}
+          onOpenChange={(open) => !open && setFolhaReabrir(null)}
+          folhaId={folhaReabrir.id}
+          competenciaAno={folhaReabrir.ano}
+          competenciaMes={folhaReabrir.mes}
+        />
+      )}
+
+      {folhaHistorico && (
+        <HistoricoStatusFolhaDialog
+          open={!!folhaHistorico}
+          onOpenChange={(open) => !open && setFolhaHistorico(null)}
+          folhaId={folhaHistorico.id}
+          competenciaAno={folhaHistorico.ano}
+          competenciaMes={folhaHistorico.mes}
+        />
+      )}
     </AdminLayout>
   );
 }
