@@ -3,8 +3,8 @@
  * Registro de manutenções preventivas e corretivas
  */
 
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { 
   Wrench, Plus, Search, Eye, Package, Calendar, 
   User, CheckCircle2, Clock, AlertTriangle
@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useManutencoesPatrimonio } from "@/hooks/usePatrimonio";
+import { NovaManutencaoDialog } from "@/components/inventario/NovaManutencaoDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -33,9 +34,19 @@ const TIPOS_MANUTENCAO = [
 ];
 
 export default function ManutencoesBensPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<string>("");
   const [filtroTipo, setFiltroTipo] = useState<string>("");
+  const [dialogNovaManutencaoOpen, setDialogNovaManutencaoOpen] = useState(false);
+
+  // Verifica se tem ação no URL
+  useEffect(() => {
+    if (searchParams.get("acao") === "nova") {
+      setDialogNovaManutencaoOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const { data: manutencoes, isLoading } = useManutencoesPatrimonio();
 
@@ -83,11 +94,9 @@ export default function ManutencoesBensPage() {
                 <p className="opacity-90 text-sm">Registro de manutenções preventivas e corretivas</p>
               </div>
             </div>
-            <Button asChild>
-              <Link to="/inventario/manutencoes?acao=nova">
-                <Plus className="w-4 h-4 mr-2" />
-                Nova Manutenção
-              </Link>
+            <Button onClick={() => setDialogNovaManutencaoOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nova Manutenção
             </Button>
           </div>
         </div>
@@ -214,6 +223,11 @@ export default function ManutencoesBensPage() {
           </Card>
         </div>
       </section>
+
+      <NovaManutencaoDialog
+        open={dialogNovaManutencaoOpen}
+        onOpenChange={setDialogNovaManutencaoOpen}
+      />
     </MainLayout>
   );
 }
