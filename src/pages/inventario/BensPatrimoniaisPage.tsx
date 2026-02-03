@@ -300,23 +300,23 @@ export default function BensPatrimoniaisPage() {
                 />
               </div>
             </div>
-            <Select value={filtroSituacao} onValueChange={setFiltroSituacao}>
+            <Select value={filtroSituacao || "all"} onValueChange={v => setFiltroSituacao(v === "all" ? "" : v)}>
               <SelectTrigger className="w-[160px]">
                 <SelectValue placeholder="Situação" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas</SelectItem>
+                <SelectItem value="all">Todas</SelectItem>
                 {SITUACOES_BEM.map(sit => (
                   <SelectItem key={sit.value} value={sit.value}>{sit.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+            <Select value={filtroCategoria || "all"} onValueChange={v => setFiltroCategoria(v === "all" ? "" : v)}>
               <SelectTrigger className="w-[160px]">
                 <SelectValue placeholder="Categoria" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas</SelectItem>
+                <SelectItem value="all">Todas</SelectItem>
                 {CATEGORIAS_BEM.map(cat => (
                   <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
                 ))}
