@@ -2205,6 +2205,108 @@ export type Database = {
           },
         ]
       }
+      config_fechamento_folha: {
+        Row: {
+          ativo: boolean | null
+          bloqueia_alteracoes: boolean | null
+          conta_remessa_padrao_id: string | null
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          dia_limite_lancamento: number | null
+          dia_limite_processamento: number | null
+          dia_pagamento: number | null
+          exige_aprovacao_reabertura: boolean | null
+          exige_frequencia_fechada: boolean | null
+          exige_todas_fichas_processadas: boolean | null
+          exige_validacao_inconsistencias: boolean | null
+          gera_esocial_automatico: boolean | null
+          gera_remessa_automatica: boolean | null
+          id: string
+          instituicao_id: string | null
+          nome: string
+          padrao: boolean | null
+          perfil_aprovador_reabertura: string | null
+          permite_fechar_com_pendencias: boolean | null
+          permite_reabertura: boolean | null
+          prazo_guarda_historico_dias: number | null
+          registra_historico_alteracoes: boolean | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          bloqueia_alteracoes?: boolean | null
+          conta_remessa_padrao_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          dia_limite_lancamento?: number | null
+          dia_limite_processamento?: number | null
+          dia_pagamento?: number | null
+          exige_aprovacao_reabertura?: boolean | null
+          exige_frequencia_fechada?: boolean | null
+          exige_todas_fichas_processadas?: boolean | null
+          exige_validacao_inconsistencias?: boolean | null
+          gera_esocial_automatico?: boolean | null
+          gera_remessa_automatica?: boolean | null
+          id?: string
+          instituicao_id?: string | null
+          nome?: string
+          padrao?: boolean | null
+          perfil_aprovador_reabertura?: string | null
+          permite_fechar_com_pendencias?: boolean | null
+          permite_reabertura?: boolean | null
+          prazo_guarda_historico_dias?: number | null
+          registra_historico_alteracoes?: boolean | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          bloqueia_alteracoes?: boolean | null
+          conta_remessa_padrao_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          dia_limite_lancamento?: number | null
+          dia_limite_processamento?: number | null
+          dia_pagamento?: number | null
+          exige_aprovacao_reabertura?: boolean | null
+          exige_frequencia_fechada?: boolean | null
+          exige_todas_fichas_processadas?: boolean | null
+          exige_validacao_inconsistencias?: boolean | null
+          gera_esocial_automatico?: boolean | null
+          gera_remessa_automatica?: boolean | null
+          id?: string
+          instituicao_id?: string | null
+          nome?: string
+          padrao?: boolean | null
+          perfil_aprovador_reabertura?: string | null
+          permite_fechar_com_pendencias?: boolean | null
+          permite_reabertura?: boolean | null
+          prazo_guarda_historico_dias?: number | null
+          registra_historico_alteracoes?: boolean | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_fechamento_folha_conta_remessa_padrao_id_fkey"
+            columns: ["conta_remessa_padrao_id"]
+            isOneToOne: false
+            referencedRelation: "contas_autarquia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_fechamento_folha_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       config_fechamento_frequencia: {
         Row: {
           ano: number
@@ -2278,6 +2380,73 @@ export type Database = {
             columns: ["instituicao_id"]
             isOneToOne: false
             referencedRelation: "config_institucional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      config_incidencias: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          instituicao_id: string | null
+          percentual_incidencia: number | null
+          rubrica_destino_id: string
+          rubrica_origem_id: string
+          tipo_incidencia: string
+          valor_limite: number | null
+          vigencia_fim: string | null
+          vigencia_inicio: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          instituicao_id?: string | null
+          percentual_incidencia?: number | null
+          rubrica_destino_id: string
+          rubrica_origem_id: string
+          tipo_incidencia: string
+          valor_limite?: number | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          instituicao_id?: string | null
+          percentual_incidencia?: number | null
+          rubrica_destino_id?: string
+          rubrica_origem_id?: string
+          tipo_incidencia?: string
+          valor_limite?: number | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_incidencias_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_incidencias_rubrica_destino_id_fkey"
+            columns: ["rubrica_destino_id"]
+            isOneToOne: false
+            referencedRelation: "config_rubricas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_incidencias_rubrica_origem_id_fkey"
+            columns: ["rubrica_origem_id"]
+            isOneToOne: false
+            referencedRelation: "config_rubricas"
             referencedColumns: ["id"]
           },
         ]
@@ -2732,6 +2901,225 @@ export type Database = {
           },
         ]
       }
+      config_regras_calculo: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          condicoes: Json | null
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          escopo: string
+          escopo_id: string | null
+          id: string
+          instituicao_id: string | null
+          nome: string
+          parametros: Json
+          prioridade: number | null
+          tipo_regra: string
+          updated_at: string | null
+          updated_by: string | null
+          vigencia_fim: string | null
+          vigencia_inicio: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          condicoes?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          escopo?: string
+          escopo_id?: string | null
+          id?: string
+          instituicao_id?: string | null
+          nome: string
+          parametros?: Json
+          prioridade?: number | null
+          tipo_regra: string
+          updated_at?: string | null
+          updated_by?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          condicoes?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          escopo?: string
+          escopo_id?: string | null
+          id?: string
+          instituicao_id?: string | null
+          nome?: string
+          parametros?: Json
+          prioridade?: number | null
+          tipo_regra?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_regras_calculo_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      config_rubricas: {
+        Row: {
+          ativo: boolean | null
+          automatica: boolean | null
+          codigo: string
+          codigo_esocial: string | null
+          compoe_base_fgts: boolean | null
+          compoe_base_inss: boolean | null
+          compoe_base_irrf: boolean | null
+          created_at: string | null
+          created_by: string | null
+          desconta_faltas: boolean | null
+          descricao: string | null
+          formula: string | null
+          id: string
+          incide_13_salario: boolean | null
+          incide_ferias: boolean | null
+          incide_fgts: boolean | null
+          incide_inss: boolean | null
+          incide_irrf: boolean | null
+          incide_rescisao: boolean | null
+          instituicao_id: string | null
+          natureza: string
+          natureza_esocial: string | null
+          nome: string
+          obrigatoria: boolean | null
+          ordem_calculo: number | null
+          percentual: number | null
+          proporcional_dias: boolean | null
+          proporcional_horas: boolean | null
+          rubrica_base_id: string | null
+          teto_constitucional: boolean | null
+          tipo_calculo: string
+          tipo_rubrica_id: string | null
+          updated_at: string | null
+          updated_by: string | null
+          valor_fixo: number | null
+          valor_maximo: number | null
+          valor_minimo: number | null
+          vigencia_fim: string | null
+          vigencia_inicio: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          automatica?: boolean | null
+          codigo: string
+          codigo_esocial?: string | null
+          compoe_base_fgts?: boolean | null
+          compoe_base_inss?: boolean | null
+          compoe_base_irrf?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          desconta_faltas?: boolean | null
+          descricao?: string | null
+          formula?: string | null
+          id?: string
+          incide_13_salario?: boolean | null
+          incide_ferias?: boolean | null
+          incide_fgts?: boolean | null
+          incide_inss?: boolean | null
+          incide_irrf?: boolean | null
+          incide_rescisao?: boolean | null
+          instituicao_id?: string | null
+          natureza: string
+          natureza_esocial?: string | null
+          nome: string
+          obrigatoria?: boolean | null
+          ordem_calculo?: number | null
+          percentual?: number | null
+          proporcional_dias?: boolean | null
+          proporcional_horas?: boolean | null
+          rubrica_base_id?: string | null
+          teto_constitucional?: boolean | null
+          tipo_calculo?: string
+          tipo_rubrica_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          valor_fixo?: number | null
+          valor_maximo?: number | null
+          valor_minimo?: number | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          automatica?: boolean | null
+          codigo?: string
+          codigo_esocial?: string | null
+          compoe_base_fgts?: boolean | null
+          compoe_base_inss?: boolean | null
+          compoe_base_irrf?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          desconta_faltas?: boolean | null
+          descricao?: string | null
+          formula?: string | null
+          id?: string
+          incide_13_salario?: boolean | null
+          incide_ferias?: boolean | null
+          incide_fgts?: boolean | null
+          incide_inss?: boolean | null
+          incide_irrf?: boolean | null
+          incide_rescisao?: boolean | null
+          instituicao_id?: string | null
+          natureza?: string
+          natureza_esocial?: string | null
+          nome?: string
+          obrigatoria?: boolean | null
+          ordem_calculo?: number | null
+          percentual?: number | null
+          proporcional_dias?: boolean | null
+          proporcional_horas?: boolean | null
+          rubrica_base_id?: string | null
+          teto_constitucional?: boolean | null
+          tipo_calculo?: string
+          tipo_rubrica_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          valor_fixo?: number | null
+          valor_maximo?: number | null
+          valor_minimo?: number | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_rubricas_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_rubricas_rubrica_base_id_fkey"
+            columns: ["rubrica_base_id"]
+            isOneToOne: false
+            referencedRelation: "config_rubricas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_rubricas_tipo_rubrica_id_fkey"
+            columns: ["tipo_rubrica_id"]
+            isOneToOne: false
+            referencedRelation: "config_tipos_rubrica"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       config_situacoes_funcionais: {
         Row: {
           ativo: boolean
@@ -2896,6 +3284,71 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "config_tipos_onus_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "config_institucional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      config_tipos_rubrica: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          exibe_contracheque: boolean | null
+          exibe_relatorio: boolean | null
+          grupo: string | null
+          id: string
+          instituicao_id: string | null
+          natureza: string
+          nome: string
+          ordem_exibicao: number | null
+          subgrupo: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          exibe_contracheque?: boolean | null
+          exibe_relatorio?: boolean | null
+          grupo?: string | null
+          id?: string
+          instituicao_id?: string | null
+          natureza: string
+          nome: string
+          ordem_exibicao?: number | null
+          subgrupo?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          exibe_contracheque?: boolean | null
+          exibe_relatorio?: boolean | null
+          grupo?: string | null
+          id?: string
+          instituicao_id?: string | null
+          natureza?: string
+          nome?: string
+          ordem_exibicao?: number | null
+          subgrupo?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_tipos_rubrica_instituicao_id_fkey"
             columns: ["instituicao_id"]
             isOneToOne: false
             referencedRelation: "config_institucional"
