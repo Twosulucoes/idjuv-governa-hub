@@ -101,12 +101,12 @@ export default function RequisicoesMaterialPage() {
                 />
               </div>
             </div>
-            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+            <Select value={filtroStatus || "all"} onValueChange={v => setFiltroStatus(v === "all" ? "" : v)}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 {STATUS_REQUISICAO.map(s => (
                   <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                 ))}

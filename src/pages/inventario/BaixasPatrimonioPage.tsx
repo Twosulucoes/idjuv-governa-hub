@@ -136,12 +136,12 @@ export default function BaixasPatrimonioPage() {
                 />
               </div>
             </div>
-            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+            <Select value={filtroStatus || "all"} onValueChange={v => setFiltroStatus(v === "all" ? "" : v)}>
               <SelectTrigger className="w-[160px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 {STATUS_BAIXA.map(s => (
                   <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                 ))}

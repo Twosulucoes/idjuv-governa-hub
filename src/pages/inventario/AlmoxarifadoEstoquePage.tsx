@@ -148,12 +148,12 @@ export default function AlmoxarifadoEstoquePage() {
                 />
               </div>
             </div>
-            <Select value={filtroEstoque} onValueChange={setFiltroEstoque}>
+            <Select value={filtroEstoque || "all"} onValueChange={v => setFiltroEstoque(v === "all" ? "" : v)}>
               <SelectTrigger className="w-[160px]">
                 <SelectValue placeholder="Estoque" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="baixo">Abaixo do Mínimo</SelectItem>
               </SelectContent>
             </Select>
