@@ -129,6 +129,19 @@ import DiagnosticoPendenciasPage from "./pages/curriculo/DiagnosticoPendenciasPa
 import GestaoProcessosPage from "./pages/workflow/GestaoProcessosPage";
 import ProcessoDetalhePage from "./pages/workflow/ProcessoDetalhePage";
 
+// Financeiro (ERP)
+import {
+  DashboardFinanceiroPage,
+  SolicitacoesPage,
+  EmpenhosPage,
+  LiquidacoesPage,
+  PagamentosPage,
+  AdiantamentosPage,
+  ContasBancariasPage,
+  OrcamentoPage,
+  RelatoriosFinanceiroPage,
+} from "./pages/financeiro";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -548,6 +561,55 @@ const App = () => (
               <Route path="/transparencia/lai" element={<PortalLAIPage />} />
               <Route path="/transparencia/relatorios" element={<ProtectedRoute><TransparenciaPage /></ProtectedRoute>} />
               
+              {/* ============================================ */}
+              {/* FINANCEIRO (ERP) - Com permissões mapeadas */}
+              {/* ============================================ */}
+              <Route path="/financeiro" element={
+                <ProtectedRoute requiredPermissions="orcamento.visualizar">
+                  <DashboardFinanceiroPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/orcamento" element={
+                <ProtectedRoute requiredPermissions="orcamento.visualizar">
+                  <OrcamentoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/solicitacoes" element={
+                <ProtectedRoute requiredPermissions="orcamento.visualizar">
+                  <SolicitacoesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/empenhos" element={
+                <ProtectedRoute requiredPermissions="orcamento.criar">
+                  <EmpenhosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/liquidacoes" element={
+                <ProtectedRoute requiredPermissions="orcamento.criar">
+                  <LiquidacoesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/pagamentos" element={
+                <ProtectedRoute requiredPermissions="orcamento.aprovar">
+                  <PagamentosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/adiantamentos" element={
+                <ProtectedRoute requiredPermissions="orcamento.visualizar">
+                  <AdiantamentosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/contas-bancarias" element={
+                <ProtectedRoute requiredPermissions="orcamento.aprovar">
+                  <ContasBancariasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/relatorios" element={
+                <ProtectedRoute requiredPermissions="orcamento.visualizar">
+                  <RelatoriosFinanceiroPage />
+                </ProtectedRoute>
+              } />
+
               {/* ============================================ */}
               {/* PROGRAMAS - Apenas autenticação */}
               {/* (permissão genérica removida) */}
