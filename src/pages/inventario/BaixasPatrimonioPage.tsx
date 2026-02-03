@@ -3,8 +3,8 @@
  * Desfazimento e baixa de bens patrimoniais
  */
 
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { 
   FileX, Plus, Search, Eye, Check, X,
   Package, Calendar, User, AlertTriangle
@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useBaixasPatrimonio } from "@/hooks/usePatrimonio";
+import { NovaBaixaDialog } from "@/components/inventario/NovaBaixaDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -38,8 +39,18 @@ const MOTIVOS_BAIXA = [
 ];
 
 export default function BaixasPatrimonioPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<string>("");
+  const [dialogNovaBaixaOpen, setDialogNovaBaixaOpen] = useState(false);
+
+  // Verifica se tem ação no URL
+  useEffect(() => {
+    if (searchParams.get("acao") === "nova") {
+      setDialogNovaBaixaOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const { data: baixas, isLoading } = useBaixasPatrimonio(
     filtroStatus || undefined
@@ -91,11 +102,9 @@ export default function BaixasPatrimonioPage() {
                 <p className="opacity-90 text-sm">Desfazimento e baixa de bens</p>
               </div>
             </div>
-            <Button asChild>
-              <Link to="/inventario/baixas?acao=nova">
-                <Plus className="w-4 h-4 mr-2" />
-                Nova Baixa
-              </Link>
+            <Button onClick={() => setDialogNovaBaixaOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nova Baixa
             </Button>
           </div>
         </div>
@@ -235,6 +244,11 @@ export default function BaixasPatrimonioPage() {
           </Card>
         </div>
       </section>
+
+      <NovaBaixaDialog
+        open={dialogNovaBaixaOpen}
+        onOpenChange={setDialogNovaBaixaOpen}
+      />
     </MainLayout>
   );
 }

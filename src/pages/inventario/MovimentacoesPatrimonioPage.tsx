@@ -3,7 +3,7 @@
  * Transferências, cessões e empréstimos de bens
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { 
   TrendingUp, Plus, Search, Filter, Eye, Check, X,
@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useMovimentacoesPatrimonio } from "@/hooks/usePatrimonio";
+import { NovaMovimentacaoDialog } from "@/components/inventario/NovaMovimentacaoDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -35,10 +36,19 @@ const STATUS_MOVIMENTACAO = [
 ];
 
 export default function MovimentacoesPatrimonioPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [busca, setBusca] = useState("");
   const [filtroTipo, setFiltroTipo] = useState<string>("");
   const [filtroStatus, setFiltroStatus] = useState<string>("");
+  const [dialogNovaMovimentacaoOpen, setDialogNovaMovimentacaoOpen] = useState(false);
+
+  // Verifica se tem ação no URL
+  useEffect(() => {
+    if (searchParams.get("acao") === "nova") {
+      setDialogNovaMovimentacaoOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const { data: movimentacoes, isLoading } = useMovimentacoesPatrimonio();
 
@@ -87,11 +97,9 @@ export default function MovimentacoesPatrimonioPage() {
                 <p className="opacity-90 text-sm">Transferências, cessões e empréstimos</p>
               </div>
             </div>
-            <Button asChild>
-              <Link to="/inventario/movimentacoes?acao=nova">
-                <Plus className="w-4 h-4 mr-2" />
-                Nova Movimentação
-              </Link>
+            <Button onClick={() => setDialogNovaMovimentacaoOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nova Movimentação
             </Button>
           </div>
         </div>
@@ -240,6 +248,11 @@ export default function MovimentacoesPatrimonioPage() {
           </Card>
         </div>
       </section>
+
+      <NovaMovimentacaoDialog
+        open={dialogNovaMovimentacaoOpen}
+        onOpenChange={setDialogNovaMovimentacaoOpen}
+      />
     </MainLayout>
   );
 }

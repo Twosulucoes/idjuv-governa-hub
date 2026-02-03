@@ -3,8 +3,8 @@
  * Gestão de materiais de consumo
  */
 
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { 
   Boxes, Plus, Search, AlertTriangle, Edit, Eye,
   Package, TrendingDown, TrendingUp, Filter
@@ -17,10 +17,21 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useItensMaterial, useAlmoxarifados, useEstatisticasAlmoxarifado } from "@/hooks/useAlmoxarifado";
+import { NovoItemMaterialDialog } from "@/components/inventario/NovoItemMaterialDialog";
 
 export default function AlmoxarifadoEstoquePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [busca, setBusca] = useState("");
   const [filtroEstoque, setFiltroEstoque] = useState<string>("");
+  const [dialogNovoItemOpen, setDialogNovoItemOpen] = useState(false);
+
+  // Verifica se tem ação no URL
+  useEffect(() => {
+    if (searchParams.get("acao") === "novo") {
+      setDialogNovoItemOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const { data: itens, isLoading } = useItensMaterial({
     abaixoEstoqueMinimo: filtroEstoque === 'baixo',
@@ -71,11 +82,9 @@ export default function AlmoxarifadoEstoquePage() {
                 <p className="opacity-90 text-sm">Controle de estoque e materiais de consumo</p>
               </div>
             </div>
-            <Button asChild>
-              <Link to="/inventario/almoxarifado?acao=novo">
-                <Plus className="w-4 h-4 mr-2" />
-                Novo Item
-              </Link>
+            <Button onClick={() => setDialogNovoItemOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Novo Item
             </Button>
           </div>
         </div>
@@ -239,6 +248,11 @@ export default function AlmoxarifadoEstoquePage() {
           </Card>
         </div>
       </section>
+
+      <NovoItemMaterialDialog 
+        open={dialogNovoItemOpen} 
+        onOpenChange={setDialogNovoItemOpen} 
+      />
     </MainLayout>
   );
 }

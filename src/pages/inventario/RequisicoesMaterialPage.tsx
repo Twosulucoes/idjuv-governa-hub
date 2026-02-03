@@ -3,7 +3,7 @@
  * Solicitação e atendimento de materiais de consumo
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { 
   ClipboardList, Plus, Search, Eye, Check, X,
@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useRequisicoesMaterial } from "@/hooks/useAlmoxarifado";
+import { NovaRequisicaoDialog } from "@/components/inventario/NovaRequisicaoDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -30,9 +31,18 @@ const STATUS_REQUISICAO = [
 ];
 
 export default function RequisicoesMaterialPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<string>("");
+  const [dialogNovaRequisicaoOpen, setDialogNovaRequisicaoOpen] = useState(false);
+
+  // Verifica se tem ação no URL
+  useEffect(() => {
+    if (searchParams.get("acao") === "nova") {
+      setDialogNovaRequisicaoOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const { data: requisicoes, isLoading } = useRequisicoesMaterial({
     status: filtroStatus || undefined,
@@ -76,11 +86,9 @@ export default function RequisicoesMaterialPage() {
                 <p className="opacity-90 text-sm">Solicitação e atendimento de materiais</p>
               </div>
             </div>
-            <Button asChild>
-              <Link to="/inventario/requisicoes?acao=nova">
-                <Plus className="w-4 h-4 mr-2" />
-                Nova Requisição
-              </Link>
+            <Button onClick={() => setDialogNovaRequisicaoOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nova Requisição
             </Button>
           </div>
         </div>
@@ -208,6 +216,11 @@ export default function RequisicoesMaterialPage() {
           </Card>
         </div>
       </section>
+
+      <NovaRequisicaoDialog 
+        open={dialogNovaRequisicaoOpen} 
+        onOpenChange={setDialogNovaRequisicaoOpen} 
+      />
     </MainLayout>
   );
 }
