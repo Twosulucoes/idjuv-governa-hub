@@ -40,9 +40,9 @@ import { toast } from "sonner";
 const formSchema = z.object({
   bem_id: z.string().min(1, "Selecione o bem"),
   tipo_movimentacao: z.string().min(1, "Selecione o tipo"),
-  unidade_destino_id: z.string().min(1, "Selecione a unidade de destino"),
+  unidade_local_destino_id: z.string().min(1, "Selecione a unidade de destino"),
   responsavel_destino_id: z.string().optional(),
-  motivo: z.string().min(5, "Descreva o motivo"),
+  motivo: z.string().min(5, "Descreva o motivo (mín. 5 caracteres)"),
   observacoes: z.string().optional(),
 });
 
@@ -63,13 +63,14 @@ interface NovaMovimentacaoDialogProps {
 export function NovaMovimentacaoDialog({ open, onOpenChange }: NovaMovimentacaoDialogProps) {
   const queryClient = useQueryClient();
 
+  // Buscar bens com unidade local atual
   const { data: bens } = useQuery({
-    queryKey: ["bens-ativos"],
+    queryKey: ["bens-ativos-movimentacao"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bens_patrimoniais")
-        .select("id, numero_patrimonio, descricao")
-        .eq("situacao", "ativo")
+        .select("id, numero_patrimonio, descricao, unidade_local_id")
+        .in("situacao", ["ativo", "alocado", "cadastrado", "tombado"])
         .order("numero_patrimonio");
       if (error) throw error;
       return data;
@@ -103,6 +104,9 @@ export function NovaMovimentacaoDialog({ open, onOpenChange }: NovaMovimentacaoD
     },
   });
 
+  // Obter unidade de origem do bem selecionado
+  const bemSelecionado = bens?.find(b => b.id === form.watch("bem_id"));
+
   const createMovimentacao = useMutation({
     mutationFn: async (formData: FormData) => {
       const { data: result, error } = await supabase
@@ -110,7 +114,8 @@ export function NovaMovimentacaoDialog({ open, onOpenChange }: NovaMovimentacaoD
         .insert([{
           bem_id: formData.bem_id,
           tipo: formData.tipo_movimentacao as "transferencia_interna" | "cessao" | "emprestimo" | "recolhimento",
-          unidade_destino_id: formData.unidade_destino_id,
+          unidade_local_origem_id: bemSelecionado?.unidade_local_id || null,
+          unidade_local_destino_id: formData.unidade_local_destino_id,
           responsavel_destino_id: formData.responsavel_destino_id || null,
           motivo: formData.motivo,
           observacoes: formData.observacoes || null,
@@ -138,7 +143,7 @@ export function NovaMovimentacaoDialog({ open, onOpenChange }: NovaMovimentacaoD
     defaultValues: {
       bem_id: "",
       tipo_movimentacao: "",
-      unidade_destino_id: "",
+      unidade_local_destino_id: "",
       responsavel_destino_id: "",
       motivo: "",
       observacoes: "",
@@ -214,7 +219,7 @@ export function NovaMovimentacaoDialog({ open, onOpenChange }: NovaMovimentacaoD
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="unidade_destino_id"
+                name="unidade_local_destino_id"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Unidade de Destino *</FormLabel>
