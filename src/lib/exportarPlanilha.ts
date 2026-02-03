@@ -17,8 +17,8 @@ export const CAMPOS_EXPORTACAO: CampoExportacao[] = [
   { id: 'rg', label: 'RG - Número', categoria: 'Dados Pessoais', getValue: (s) => s.rg },
   { id: 'rg_orgao_expedidor', label: 'RG - Órgão Emissor', categoria: 'Dados Pessoais', getValue: (s) => s.rg_orgao_expedidor },
   { id: 'rg_uf', label: 'RG - UF', categoria: 'Dados Pessoais', getValue: (s) => s.rg_uf },
-  { id: 'rg_data_emissao', label: 'RG - Data Emissão', categoria: 'Dados Pessoais', getValue: (s) => formatDate(s.rg_data_emissao) },
-  { id: 'data_nascimento', label: 'Data de Nascimento', categoria: 'Dados Pessoais', getValue: (s) => formatDate(s.data_nascimento) },
+  { id: 'rg_data_emissao', label: 'RG - Data Emissão', categoria: 'Dados Pessoais', getValue: (s) => formatDateBR(s.rg_data_emissao) },
+  { id: 'data_nascimento', label: 'Data de Nascimento', categoria: 'Dados Pessoais', getValue: (s) => formatDateBR(s.data_nascimento) },
   { id: 'sexo', label: 'Sexo', categoria: 'Dados Pessoais', getValue: (s) => s.sexo === 'M' ? 'Masculino' : s.sexo === 'F' ? 'Feminino' : s.sexo },
   { id: 'estado_civil', label: 'Estado Civil', categoria: 'Dados Pessoais', getValue: (s) => s.estado_civil },
   { id: 'nacionalidade', label: 'Nacionalidade', categoria: 'Dados Pessoais', getValue: (s) => s.nacionalidade },
@@ -35,7 +35,7 @@ export const CAMPOS_EXPORTACAO: CampoExportacao[] = [
   { id: 'ctps_uf', label: 'CTPS - UF', categoria: 'Documentos', getValue: (s) => s.ctps_uf },
   { id: 'cnh_numero', label: 'CNH - Número', categoria: 'Documentos', getValue: (s) => s.cnh_numero },
   { id: 'cnh_categoria', label: 'CNH - Categoria', categoria: 'Documentos', getValue: (s) => s.cnh_categoria },
-  { id: 'cnh_validade', label: 'CNH - Validade', categoria: 'Documentos', getValue: (s) => formatDate(s.cnh_validade) },
+  { id: 'cnh_validade', label: 'CNH - Validade', categoria: 'Documentos', getValue: (s) => formatDateBR(s.cnh_validade) },
   { id: 'certificado_reservista', label: 'Certificado Reservista', categoria: 'Documentos', getValue: (s) => s.certificado_reservista },
   
   // Contato
@@ -72,11 +72,16 @@ export const CAMPOS_EXPORTACAO: CampoExportacao[] = [
   { id: 'cargo_sigla', label: 'Cargo - Sigla', categoria: 'Dados Funcionais', getValue: (s) => s.cargo?.sigla || s.cargo_sigla },
   { id: 'unidade_nome', label: 'Unidade', categoria: 'Dados Funcionais', getValue: (s) => s.unidade?.nome || s.unidade_nome },
   { id: 'unidade_sigla', label: 'Unidade - Sigla', categoria: 'Dados Funcionais', getValue: (s) => s.unidade?.sigla || s.unidade_sigla },
-  { id: 'data_admissao', label: 'Data de Admissão', categoria: 'Dados Funcionais', getValue: (s) => formatDate(s.data_admissao) },
-  { id: 'data_posse', label: 'Data de Posse', categoria: 'Dados Funcionais', getValue: (s) => formatDate(s.data_posse) },
-  { id: 'data_exercicio', label: 'Data de Exercício', categoria: 'Dados Funcionais', getValue: (s) => formatDate(s.data_exercicio) },
+  { id: 'data_admissao', label: 'Data de Admissão', categoria: 'Dados Funcionais', getValue: (s) => formatDateBR(s.data_admissao) },
+  { id: 'data_posse', label: 'Data de Posse', categoria: 'Dados Funcionais', getValue: (s) => formatDateBR(s.data_posse || s.provimento?.data_posse) },
+  { id: 'data_exercicio', label: 'Data de Exercício', categoria: 'Dados Funcionais', getValue: (s) => formatDateBR(s.data_exercicio || s.provimento?.data_exercicio) },
   { id: 'carga_horaria', label: 'Carga Horária', categoria: 'Dados Funcionais', getValue: (s) => s.carga_horaria },
   { id: 'regime_juridico', label: 'Regime Jurídico', categoria: 'Dados Funcionais', getValue: (s) => s.regime_juridico },
+  
+  // Portaria de Nomeação
+  { id: 'portaria_nomeacao_numero', label: 'Portaria Nomeação - Número', categoria: 'Portaria de Nomeação', getValue: (s) => s.portaria_nomeacao?.numero },
+  { id: 'portaria_nomeacao_data', label: 'Portaria Nomeação - Data', categoria: 'Portaria de Nomeação', getValue: (s) => formatDateBR(s.portaria_nomeacao?.data_documento) },
+  { id: 'data_nomeacao', label: 'Data de Nomeação', categoria: 'Portaria de Nomeação', getValue: (s) => formatDateBR(s.provimento?.data_nomeacao) },
   
   // Remuneração
   { id: 'remuneracao_bruta', label: 'Remuneração Bruta', categoria: 'Remuneração', getValue: (s) => formatCurrency(s.remuneracao_bruta) },
@@ -111,15 +116,27 @@ export const CATEGORIAS_CAMPOS = CAMPOS_EXPORTACAO.reduce((acc, campo) => {
   return acc;
 }, {} as Record<string, CampoExportacao[]>);
 
-// Funções auxiliares
-function formatDate(value: string | null | undefined): string {
+// Formata data no padrão brasileiro sem problemas de fuso horário
+// Datas do banco vêm como "YYYY-MM-DD" (date) e devem ser tratadas como data local
+function formatDateBR(value: string | null | undefined): string {
   if (!value) return '';
   try {
-    const date = new Date(value);
+    // Se a data vier no formato YYYY-MM-DD, parsear manualmente para evitar problemas de fuso
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [ano, mes, dia] = value.split('-').map(Number);
+      return `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}/${ano}`;
+    }
+    // Para outros formatos (ISO com timezone), usar Date
+    const date = new Date(value + 'T12:00:00'); // Adiciona meio-dia para evitar problemas de fuso
     return date.toLocaleDateString('pt-BR');
   } catch {
     return value;
   }
+}
+
+// Mantida para compatibilidade, mas use formatDateBR para novos campos
+function formatDate(value: string | null | undefined): string {
+  return formatDateBR(value);
 }
 
 function formatCurrency(value: number | null | undefined): string {
