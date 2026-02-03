@@ -138,7 +138,7 @@ export default function ExportacaoPlanilhaPage() {
           .from("documentos")
           .select("numero, data_documento, servidores_ids")
           .eq("tipo", "portaria")
-          .eq("categoria", "nomeacao")
+          .in("categoria", ["nomeacao", "pessoal"])
           .not("servidores_ids", "is", null);
         
         if (portarias) {
