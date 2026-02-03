@@ -127,6 +127,18 @@ export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
                 Governo do Estado de Roraima
               </p>
             </div>
+
+            {/* Créditos técnicos */}
+            <div className="mt-4 pt-4 border-t border-primary-foreground/5 dark:border-border/50 flex items-center justify-center gap-2">
+              <img 
+                src="/images/logo-two-icon.png" 
+                alt="Two Soluções" 
+                className="h-4 w-auto opacity-60"
+              />
+              <p className="text-[10px] text-primary-foreground/40 dark:text-muted-foreground/50">
+                Sistema desenvolvido pela Two Soluções. Suporte técnico: solucoestwo@gmail.com
+              </p>
+            </div>
           </div>
         </div>
         
