@@ -142,6 +142,18 @@ import {
   RelatoriosFinanceiroPage,
 } from "./pages/financeiro";
 
+// Inventário e Patrimônio
+import {
+  DashboardInventarioPage,
+  BensPatrimoniaisPage,
+  MovimentacoesPatrimonioPage,
+  CampanhasInventarioPage,
+  AlmoxarifadoEstoquePage,
+  RequisicoesMaterialPage,
+  ManutencoesBensPage,
+  BaixasPatrimonioPage,
+} from "./pages/inventario";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -516,6 +528,50 @@ const App = () => (
               <Route path="/workflow/processos/:id" element={
                 <ProtectedRoute requiredPermissions="workflow.visualizar">
                   <ProcessoDetalhePage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
+              {/* INVENTÁRIO E PATRIMÔNIO */}
+              {/* ============================================ */}
+              <Route path="/inventario" element={
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
+                  <DashboardInventarioPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/bens" element={
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
+                  <BensPatrimoniaisPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/movimentacoes" element={
+                <ProtectedRoute requiredPermissions="patrimonio.tramitar">
+                  <MovimentacoesPatrimonioPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/campanhas" element={
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
+                  <CampanhasInventarioPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/almoxarifado" element={
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
+                  <AlmoxarifadoEstoquePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/requisicoes" element={
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
+                  <RequisicoesMaterialPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/manutencoes" element={
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
+                  <ManutencoesBensPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/baixas" element={
+                <ProtectedRoute requiredPermissions="patrimonio.criar">
+                  <BaixasPatrimonioPage />
                 </ProtectedRoute>
               } />
               
