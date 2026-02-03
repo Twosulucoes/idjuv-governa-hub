@@ -22,6 +22,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useBensPatrimoniais, useCreateBem } from "@/hooks/usePatrimonio";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 const CATEGORIAS_BEM = [
   { value: 'mobiliario', label: 'Mobiliário' },
@@ -74,6 +76,37 @@ export default function BensPatrimoniaisPage() {
     valor_aquisicao: 0,
     data_aquisicao: new Date().toISOString().split('T')[0],
     observacao: '',
+    unidade_local_id: '',
+    responsavel_id: '',
+  });
+
+  // Query para unidades locais
+  const { data: unidadesLocais } = useQuery({
+    queryKey: ["unidades-locais-ativas"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("unidades_locais")
+        .select("id, nome_unidade, codigo_unidade, municipio")
+        .eq("status", "ativa")
+        .order("nome_unidade");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Query para servidores
+  const { data: servidores } = useQuery({
+    queryKey: ["servidores-ativos"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("servidores")
+        .select("id, nome_completo")
+        .eq("ativo", true)
+        .order("nome_completo")
+        .limit(100);
+      if (error) throw error;
+      return data;
+    },
   });
 
   const bensFiltrados = bens?.filter(bem => {
@@ -87,8 +120,8 @@ export default function BensPatrimoniaisPage() {
   });
 
   const handleCriarBem = async () => {
-    if (!novoBem.descricao || !novoBem.categoria_bem || !novoBem.valor_aquisicao) {
-      toast.error('Preencha os campos obrigatórios');
+    if (!novoBem.descricao || !novoBem.categoria_bem || !novoBem.valor_aquisicao || !novoBem.unidade_local_id) {
+      toast.error('Preencha os campos obrigatórios (Descrição, Categoria, Valor e Unidade Local)');
       return;
     }
 
@@ -106,6 +139,8 @@ export default function BensPatrimoniaisPage() {
         observacao: novoBem.observacao || null,
         situacao: 'cadastrado',
         numero_patrimonio: '', // trigger vai gerar
+        unidade_local_id: novoBem.unidade_local_id,
+        responsavel_id: novoBem.responsavel_id || null,
       });
       setModalAberto(false);
       setNovoBem({
@@ -118,6 +153,8 @@ export default function BensPatrimoniaisPage() {
         valor_aquisicao: 0,
         data_aquisicao: new Date().toISOString().split('T')[0],
         observacao: '',
+        unidade_local_id: '',
+        responsavel_id: '',
       });
     } catch (error) {
       // Erro tratado no hook
@@ -171,6 +208,31 @@ export default function BensPatrimoniaisPage() {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
+                  {/* UNIDADE LOCAL - OBRIGATÓRIO */}
+                  <div className="grid gap-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                    <Label htmlFor="unidade_local" className="text-primary font-medium">
+                      Unidade Local * (Obrigatório)
+                    </Label>
+                    <Select 
+                      value={novoBem.unidade_local_id} 
+                      onValueChange={v => setNovoBem(prev => ({ ...prev, unidade_local_id: v }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a Unidade Local" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {unidadesLocais?.map(u => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.codigo_unidade ? `[${u.codigo_unidade}] ` : ''}{u.nome_unidade} - {u.municipio}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Todo bem deve estar vinculado a uma unidade local (ginásio, estádio, parque, etc.)
+                    </p>
+                  </div>
+
                   <div className="grid gap-2">
                     <Label htmlFor="descricao">Descrição *</Label>
                     <Input 
@@ -252,14 +314,32 @@ export default function BensPatrimoniaisPage() {
                       />
                     </div>
                   </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="data">Data de Aquisição *</Label>
-                    <Input 
-                      id="data" 
-                      type="date"
-                      value={novoBem.data_aquisicao}
-                      onChange={e => setNovoBem(prev => ({ ...prev, data_aquisicao: e.target.value }))}
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="data">Data de Aquisição *</Label>
+                      <Input 
+                        id="data" 
+                        type="date"
+                        value={novoBem.data_aquisicao}
+                        onChange={e => setNovoBem(prev => ({ ...prev, data_aquisicao: e.target.value }))}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="responsavel">Responsável</Label>
+                      <Select 
+                        value={novoBem.responsavel_id} 
+                        onValueChange={v => setNovoBem(prev => ({ ...prev, responsavel_id: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {servidores?.map(s => (
+                            <SelectItem key={s.id} value={s.id}>{s.nome_completo}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="obs">Observações</Label>
@@ -380,8 +460,12 @@ export default function BensPatrimoniaisPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1 text-sm">
-                            <Building2 className="w-3 h-3" />
-                            {(bem as any).unidade?.sigla || (bem as any).unidade_local?.nome || '-'}
+                            <Building2 className="w-3 h-3 text-primary" />
+                            <span className="truncate max-w-[150px]" title={(bem as any).unidade_local?.nome_unidade}>
+                              {(bem as any).unidade_local?.nome_unidade || 
+                               (bem as any).unidade?.sigla || 
+                               <span className="text-destructive text-xs">Sem local</span>}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell>

@@ -203,14 +203,14 @@ export default function MovimentacoesPatrimonioPage() {
                         <TableCell>
                           <div className="flex items-center gap-1 text-sm">
                             <Building2 className="w-3 h-3" />
-                            {(mov as any).origem_unidade?.sigla || '-'}
+                            {(mov as any).origem_unidade_local?.nome_unidade || '-'}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1 text-sm">
                             <ArrowRight className="w-3 h-3 text-muted-foreground" />
                             <Building2 className="w-3 h-3" />
-                            {(mov as any).destino_unidade?.sigla || '-'}
+                            {(mov as any).destino_unidade_local?.nome_unidade || '-'}
                           </div>
                         </TableCell>
                         <TableCell>

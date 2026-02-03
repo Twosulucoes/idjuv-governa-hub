@@ -30,6 +30,7 @@ type BaixaPatrimonio = Database['public']['Tables']['baixas_patrimonio']['Row'];
 export function useBensPatrimoniais(filters?: {
   situacao?: string;
   unidade_id?: string;
+  unidade_local_id?: string;
   categoria_bem?: string;
   responsavel_id?: string;
 }) {
@@ -42,7 +43,7 @@ export function useBensPatrimoniais(filters?: {
           *,
           responsavel:servidores!bens_patrimoniais_responsavel_id_fkey(id, nome_completo),
           unidade:estrutura_organizacional!bens_patrimoniais_unidade_id_fkey(id, nome, sigla),
-          unidade_local:unidades_locais!bens_patrimoniais_unidade_local_id_fkey(id, nome)
+          unidade_local:unidades_locais!bens_patrimoniais_unidade_local_id_fkey(id, nome_unidade, codigo_unidade, municipio)
         `)
         .order('created_at', { ascending: false });
 
@@ -51,6 +52,9 @@ export function useBensPatrimoniais(filters?: {
       }
       if (filters?.unidade_id) {
         query = query.eq('unidade_id', filters.unidade_id);
+      }
+      if (filters?.unidade_local_id) {
+        query = query.eq('unidade_local_id', filters.unidade_local_id);
       }
       if (filters?.categoria_bem) {
         query = query.eq('categoria_bem', filters.categoria_bem as any);
@@ -77,7 +81,7 @@ export function useBemPatrimonial(id: string | undefined) {
           *,
           responsavel:servidores!bens_patrimoniais_responsavel_id_fkey(id, nome_completo, cpf),
           unidade:estrutura_organizacional!bens_patrimoniais_unidade_id_fkey(id, nome, sigla),
-          unidade_local:unidades_locais!bens_patrimoniais_unidade_local_id_fkey(id, nome),
+          unidade_local:unidades_locais!bens_patrimoniais_unidade_local_id_fkey(id, nome_unidade, codigo_unidade, municipio, tipo_unidade),
           fornecedor:fornecedores!bens_patrimoniais_fornecedor_id_fkey(id, razao_social, cnpj)
         `)
         .eq('id', id)
@@ -150,8 +154,10 @@ export function useMovimentacoesPatrimonio(bemId?: string) {
           bem:bens_patrimoniais(id, numero_patrimonio, descricao),
           solicitante:servidores!movimentacoes_patrimonio_solicitante_id_fkey(id, nome_completo),
           aprovador:servidores!movimentacoes_patrimonio_aprovador_id_fkey(id, nome_completo),
-          origem_unidade:estrutura_organizacional!movimentacoes_patrimonio_origem_unidade_id_fkey(id, nome, sigla),
-          destino_unidade:estrutura_organizacional!movimentacoes_patrimonio_destino_unidade_id_fkey(id, nome, sigla)
+          responsavel_origem:servidores!movimentacoes_patrimonio_responsavel_origem_id_fkey(id, nome_completo),
+          responsavel_destino:servidores!movimentacoes_patrimonio_responsavel_destino_id_fkey(id, nome_completo),
+          origem_unidade_local:unidades_locais!movimentacoes_patrimonio_unidade_local_origem_id_fkey(id, nome_unidade, codigo_unidade),
+          destino_unidade_local:unidades_locais!movimentacoes_patrimonio_unidade_local_destino_id_fkey(id, nome_unidade, codigo_unidade)
         `)
         .order('created_at', { ascending: false });
 
@@ -420,6 +426,45 @@ export function useEstatisticasPatrimonio() {
         porSituacao: situacaoCount,
         porCategoria: categoriaCount,
       };
+    },
+  });
+}
+
+// ========== HISTÓRICO DO BEM ==========
+
+export function useHistoricoPatrimonio(bemId: string | undefined) {
+  return useQuery({
+    queryKey: ['historico-patrimonio', bemId],
+    queryFn: async () => {
+      if (!bemId) return [];
+      const { data, error } = await supabase
+        .from('historico_patrimonio')
+        .select(`
+          *,
+          unidade_local:unidades_locais(id, nome_unidade, codigo_unidade),
+          responsavel:servidores(id, nome_completo)
+        `)
+        .eq('bem_id', bemId)
+        .order('data_evento', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!bemId,
+  });
+}
+
+// ========== PATRIMÔNIO POR UNIDADE LOCAL ==========
+
+export function usePatrimonioPorUnidade() {
+  return useQuery({
+    queryKey: ['patrimonio-por-unidade'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('v_patrimonio_por_unidade')
+        .select('*')
+        .order('total_bens', { ascending: false });
+      if (error) throw error;
+      return data;
     },
   });
 }
