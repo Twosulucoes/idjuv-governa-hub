@@ -84,7 +84,7 @@ export default function ManutencoesBensPage() {
               </div>
             </div>
             <Button asChild>
-              <Link to="/inventario/manutencoes/nova">
+              <Link to="/inventario/manutencoes?acao=nova">
                 <Plus className="w-4 h-4 mr-2" />
                 Nova Manutenção
               </Link>

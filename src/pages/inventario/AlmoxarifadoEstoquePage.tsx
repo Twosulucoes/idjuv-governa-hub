@@ -72,7 +72,7 @@ export default function AlmoxarifadoEstoquePage() {
               </div>
             </div>
             <Button asChild>
-              <Link to="/inventario/almoxarifado/novo">
+              <Link to="/inventario/almoxarifado?acao=novo">
                 <Plus className="w-4 h-4 mr-2" />
                 Novo Item
               </Link>

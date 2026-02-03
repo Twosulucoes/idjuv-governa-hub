@@ -59,7 +59,7 @@ export default function DashboardFinanceiroPage() {
               <Link to="/financeiro/relatorios">Relatórios</Link>
             </Button>
             <Button asChild>
-              <Link to="/financeiro/solicitacoes/nova">Nova Solicitação</Link>
+              <Link to="/financeiro/solicitacoes?acao=nova">Nova Solicitação</Link>
             </Button>
           </div>
         </div>

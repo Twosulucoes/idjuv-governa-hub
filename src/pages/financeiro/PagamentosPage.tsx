@@ -80,7 +80,7 @@ export default function PagamentosPage() {
             </p>
           </div>
           <Button asChild>
-            <Link to="/financeiro/pagamentos/novo">
+            <Link to="/financeiro/pagamentos?acao=novo">
               <Plus className="h-4 w-4 mr-2" />
               Novo Pagamento
             </Link>

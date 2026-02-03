@@ -74,7 +74,7 @@ export default function EmpenhosPage() {
             </p>
           </div>
           <Button asChild>
-            <Link to="/financeiro/empenhos/novo">
+            <Link to="/financeiro/empenhos?acao=novo">
               <Plus className="h-4 w-4 mr-2" />
               Novo Empenho
             </Link>
