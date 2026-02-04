@@ -48,8 +48,6 @@ export function useDadosFederacoes(
             return await buscarDadosDirigentes(filtros);
           case 'calendario':
             return await buscarDadosCalendario(filtros);
-          case 'contatos_estrategicos':
-            return await buscarDadosContatosEstrategicos(filtros);
           default:
             return { dados: [], total: 0 };
         }
@@ -132,41 +130,6 @@ async function buscarDadosFederacoes(
     periodo_mandato: fed.mandato_inicio && fed.mandato_fim
       ? `${format(new Date(fed.mandato_inicio), 'dd/MM/yyyy')} - ${format(new Date(fed.mandato_fim), 'dd/MM/yyyy')}`
       : '-',
-  }));
-
-  return { dados: dadosProcessados, total: dadosProcessados.length };
-}
-
-// ================================================================
-// BUSCAR CONTATOS ESTRATÉGICOS (simplificado)
-// ================================================================
-
-async function buscarDadosContatosEstrategicos(
-  filtros: Record<string, unknown>
-): Promise<DadosRelatorioFederacao> {
-  let query = supabase
-    .from('federacoes_esportivas')
-    .select('id, nome, telefone, indicacao, status')
-    .order('nome', { ascending: true });
-
-  // Aplicar filtros
-  if (filtros.status && Array.isArray(filtros.status) && filtros.status.length > 0) {
-    query = query.in('status', filtros.status);
-  }
-
-  if (filtros.possui_indicacao === true) {
-    query = query.not('indicacao', 'is', null);
-  } else if (filtros.possui_indicacao === false) {
-    query = query.is('indicacao', null);
-  }
-
-  const { data, error } = await query;
-  if (error) throw error;
-
-  // Processar dados
-  const dadosProcessados = (data || []).map((fed) => ({
-    ...fed,
-    indicacao: fed.indicacao || '-',
   }));
 
   return { dados: dadosProcessados, total: dadosProcessados.length };
