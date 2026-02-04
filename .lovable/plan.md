@@ -1,128 +1,274 @@
 
-# Plano Corrigido: Aumentar Fontes do Bloco 2 + Correções Visuais
+# Plano: Sistema de Acesso Modular por Usuário
 
-## Resumo das Alterações
+## Resumo Executivo
 
-O usuário solicitou:
-1. **Aumentar fontes** no Bloco 2 (exceto nome do servidor que está bom em 11pt)
-2. Adicionar **hífen central** nas células de sábado/domingo/feriados no Bloco 3
-3. Corrigir **vazamento na coluna DIA** do Bloco 3
+O usuário deseja um sistema onde possa **autorizar módulos específicos diretamente para cada usuário**, ao invés de depender exclusivamente de perfis. Isso cria um controle granular onde um usuário pode ter acesso apenas a "RH" e "Federações", por exemplo, independentemente dos perfis que possui.
 
 ---
 
-## Solução: Aumentar Fontes + Altura do Bloco
+## Análise da Arquitetura Atual
 
-Para acomodar fontes maiores sem vazamento, aumentaremos a altura do Bloco 2 de **26mm para 30mm**.
+O sistema atual possui:
+1. **Permissões Institucionais**: 47 permissões na tabela `permissoes` (formato: `dominio.capacidade`)
+2. **Perfis**: Agrupam permissões e são associados a usuários
+3. **Módulos do Sistema**: 9 domínios (admin, workflow, compras, contratos, rh, orcamento, patrimonio, governanca, transparencia)
+4. **Tabela `module_access_scopes`**: Já existe mas associa módulos a roles, não a usuários
 
-### Novas Especificações de Fonte (AUMENTADAS)
+### Problema Identificado
+Atualmente, o acesso é concedido exclusivamente via **Perfis**. Não há como dizer: "Bruno tem acesso apenas ao módulo RH e Federações".
 
-| Campo | Tamanho Atual | Novo Tamanho |
-|-------|---------------|--------------|
-| Nome do Servidor | 11pt | **11pt** (mantém - já está bom) |
-| Labels (MATRÍCULA, CARGO...) | 6pt | **8pt** (+2pt) |
-| Valores dos campos | 8pt | **10pt** (+2pt) |
-| Badge de jornada | 7pt | **9pt** (+2pt) |
-| Label Unidade de Lotação | 6pt | **7pt** (+1pt) |
-| Valor Unidade de Lotação | 7pt | **9pt** (+2pt) |
-| Carga Semanal | 8pt | **10pt** (+2pt) |
+---
 
-### Nova Altura do Bloco 2
+## Solução Proposta: Acesso Modular por Usuário
 
-```text
-ANTES: 26mm (apertado com fontes pequenas)
-DEPOIS: 30mm (confortável com fontes maiores)
+### Conceito
+
+Criar uma camada de **restrição por módulo** diretamente no usuário:
+- Por padrão, usuário SEM restrições = acessa tudo que seus perfis permitem
+- Usuário COM restrições = só acessa módulos explicitamente liberados
+
+```
+Acesso Final = Permissões do Perfil ∩ Módulos Autorizados do Usuário
 ```
 
-### Nova Distribuição Vertical (dentro dos 30mm)
+### Módulos do Sistema
 
-```text
-+------------------------------------------+  y + 0
-|▌                                         |
-|▌ NOME DO SERVIDOR EM DESTAQUE    [8h/dia]|  y + 5mm (nome 11pt)
-|▌                                         |
-|▌ MATRÍCULA     CARGO / FUNÇÃO    COMPET. |  y + 12mm (labels 8pt)
-|▌ 12345         Analista Admin... JAN/2026|  y + 17mm (valores 10pt)
-|▌                                         |
-|▌ UNIDADE DE LOTAÇÃO              C.SEMANAL|  y + 22mm (labels 7pt)
-|▌ Gerência de Tecnologia da...   40h      |  y + 27mm (valores 9pt)
-+------------------------------------------+  y + 30mm
+| ID | Código | Nome | Rotas Principais |
+|----|--------|------|------------------|
+| 1 | admin | Administração | /admin/* |
+| 2 | workflow | Processos | /workflow/* |
+| 3 | compras | Compras | /processos/compras/* |
+| 4 | contratos | Contratos | /processos/convenios/*, contratos/* |
+| 5 | rh | Recursos Humanos | /rh/* |
+| 6 | orcamento | Orçamento/Financeiro | /financeiro/*, /folha/* |
+| 7 | patrimonio | Patrimônio/Inventário | /inventario/* |
+| 8 | governanca | Governança | /governanca/*, /cargos/*, /lotacoes/* |
+| 9 | transparencia | Transparência | /transparencia/* |
+| 10 | unidades | Unidades Locais | /unidades-locais/* |
+| 11 | federacoes | Federações Esportivas | /federacoes/* |
+| 12 | ascom | Comunicação | /admin/ascom/* |
+| 13 | programas | Programas Sociais | /programas/* |
+
+---
+
+## Alterações no Banco de Dados
+
+### 1. Tabela de Módulos do Sistema (Catálogo)
+
+```sql
+CREATE TABLE public.modulos_sistema (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  codigo TEXT NOT NULL UNIQUE,
+  nome TEXT NOT NULL,
+  descricao TEXT,
+  icone TEXT,
+  cor TEXT,
+  ordem INTEGER DEFAULT 0,
+  ativo BOOLEAN DEFAULT true,
+  prefixos_rota TEXT[],  -- ['/rh', '/rh/*']
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### 2. Tabela de Acesso por Usuário
+
+```sql
+CREATE TABLE public.usuario_modulos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  modulo_id UUID REFERENCES public.modulos_sistema(id) ON DELETE CASCADE NOT NULL,
+  ativo BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  created_by UUID REFERENCES auth.users(id),
+  UNIQUE(user_id, modulo_id)
+);
+```
+
+### 3. Flag de Restrição no Profile
+
+Adicionar na tabela `profiles`:
+```sql
+ALTER TABLE public.profiles 
+ADD COLUMN restringir_modulos BOOLEAN DEFAULT false;
+```
+
+- `restringir_modulos = false`: Usuário acessa tudo que seus perfis permitem
+- `restringir_modulos = true`: Usuário só acessa módulos explicitamente listados em `usuario_modulos`
+
+---
+
+## Fluxo de Verificação
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    VERIFICAÇÃO DE ACESSO                        │
+├────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. Usuário é Super Admin?                                      │
+│     └── SIM → ACESSO TOTAL                                      │
+│     └── NÃO → Continua                                          │
+│                                                                 │
+│  2. Usuário tem restringir_modulos = true?                      │
+│     └── NÃO → Usa permissões normais do perfil                  │
+│     └── SIM → Continua                                          │
+│                                                                 │
+│  3. O módulo da rota está em usuario_modulos?                   │
+│     └── NÃO → ACESSO NEGADO                                     │
+│     └── SIM → Verifica permissão específica                     │
+│                                                                 │
+│  4. Usuário tem permissão para a ação específica?               │
+│     └── NÃO → ACESSO NEGADO                                     │
+│     └── SIM → ACESSO PERMITIDO                                  │
+│                                                                 │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Alteração na Constante de Altura
+## Alterações no Frontend
+
+### 1. Hook `useModulosUsuario`
+
+Novo hook para verificar módulos autorizados:
 
 ```typescript
-// ANTES
-export const BLOCO_ALTURAS = {
-  cabecalho: 22,
-  dadosServidor: 26,  // ← apertado
-  assinaturas: 22,
-  rodape: 8
-};
+interface ModuloAcesso {
+  modulo_id: string;
+  codigo: string;
+  nome: string;
+  ativo: boolean;
+}
 
-// DEPOIS
-export const BLOCO_ALTURAS = {
-  cabecalho: 22,
-  dadosServidor: 30,  // ← aumentado para acomodar fontes maiores
-  assinaturas: 22,
-  rodape: 8
-};
+function useModulosUsuario() {
+  const [modulos, setModulos] = useState<ModuloAcesso[]>([]);
+  const [restringirModulos, setRestringirModulos] = useState(false);
+  
+  // Verificar se módulo está autorizado
+  const temAcessoModulo = (codigo: string) => boolean;
+  
+  // Verificar se rota está em módulo autorizado
+  const rotaAutorizada = (pathname: string) => boolean;
+}
 ```
 
----
+### 2. Atualização do AuthContext
 
-## Correções Adicionais no Bloco 3
+Integrar verificação de módulos nas funções existentes:
 
-### 1. Hífen em Dias Não Úteis
-
-Nas células de entrada/saída (ent1, sai1, ent2, sai2, abo1, abo2), quando for sábado, domingo ou feriado:
-- Renderizar um **"—"** (travessão) centralizado
-- Fonte 8pt, cor cinza médio
-
-### 2. Coluna DIA Centralizada
-
-Corrigir o vazamento renderizando "DD Xxx" como texto único centralizado:
 ```typescript
-const texto = `${String(dia).padStart(2, '0')} ${diaSemana}`;
-doc.text(texto, centerX, textY, { align: 'center' });
+// Modificar hasPermission para considerar módulos
+const hasPermission = (codigo: string): boolean => {
+  // ... lógica existente ...
+  
+  // Se restringir_modulos está ativo, verificar módulo
+  if (user.restringirModulos) {
+    const modulo = getModuloFromPermissao(codigo);
+    if (!user.modulosAutorizados.includes(modulo)) {
+      return false;
+    }
+  }
+  
+  return true;
+};
+```
+
+### 3. UI de Administração - Módulos do Usuário
+
+Adicionar nova aba na tela de detalhes do usuário:
+
+```
+┌──────────────────────────────────────────────┐
+│  USUÁRIO: Bruno Silva                        │
+│  ─────────────────────────────────────────── │
+│                                              │
+│  [●] Restringir acesso por módulos           │
+│                                              │
+│  MÓDULOS AUTORIZADOS:                        │
+│  ┌─────────────────────────────────────────┐ │
+│  │ [✓] RH (Recursos Humanos)               │ │
+│  │ [ ] Workflow (Processos)                │ │
+│  │ [✓] Federações (Federações Esportivas)  │ │
+│  │ [ ] Financeiro (Orçamento)              │ │
+│  │ [ ] Governança                          │ │
+│  │ ...                                     │ │
+│  └─────────────────────────────────────────┘ │
+│                                              │
+│  ⚠️ Com restrição ativa, Bruno só terá      │
+│     acesso aos módulos marcados acima,      │
+│     mesmo que seus perfis concedam mais.    │
+└──────────────────────────────────────────────┘
 ```
 
 ---
 
-## Arquivo a Modificar
+## Arquivos a Criar/Modificar
 
-| Arquivo | Alterações |
-|---------|------------|
-| `src/lib/pdfFrequenciaMensalGenerator.ts` | Aumentar altura do Bloco 2, aumentar fontes, ajustar espaçamento, adicionar hífen nos dias não úteis, centralizar coluna DIA |
+### Novos Arquivos
 
----
+| Arquivo | Descrição |
+|---------|-----------|
+| `src/hooks/useModulosUsuario.ts` | Hook para gerenciar módulos do usuário |
+| `src/hooks/useAdminModulos.ts` | Hook para admin de módulos |
+| `src/components/admin/UsuarioModulosTab.tsx` | Tab de módulos na administração de usuários |
+| `src/types/modulos.ts` | Tipos TypeScript para módulos |
+| `supabase/migrations/xxx_modulos_usuario.sql` | Migração do banco |
 
-## Resultado Visual Esperado
+### Arquivos a Modificar
 
-```text
-+------------------------------------------+
-|        BLOCO 2: DADOS DO SERVIDOR        |  30mm
-|                                          |
-| MATRÍCULA     CARGO / FUNÇÃO    COMPETÊNCIA  ← Fontes MAIORES
-| 12345         Analista Admin... JAN / 2026   ← Mais legível
-|                                          |
-| UNIDADE DE LOTAÇÃO                C. SEMANAL
-| Gerência de Tecnologia da Info... 40h    
-+------------------------------------------+
-
-+------------------------------------------+
-|       BLOCO 3: CORPO DA FREQUÊNCIA       |
-|  DIA  | ENT | SAÍ | ASSIN. | ENT | SAÍ...|
-|-------|-----|-----|--------|-----|-------|
-| 01 Qua|  —  |  —  | FERIADO|  —  |  —  ..|  ← Hífen nos dias não úteis
-| 02 Qui| 8:00|12:00|________|13:00|17:00..|
-| 03 Sáb|  —  |  —  | SÁBADO |  —  |  —  ..|
-+------------------------------------------+
-```
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/contexts/AuthContext.tsx` | Adicionar verificação de módulos |
+| `src/pages/admin/UsuariosAdminPage.tsx` | Adicionar aba de módulos |
+| `src/hooks/useAdminUsuarios.ts` | Adicionar funções de módulos |
+| `src/components/auth/ProtectedRoute.tsx` | Verificar módulo autorizado |
 
 ---
 
-## Impacto no Layout Geral
+## Segurança (RLS)
 
-Com o Bloco 2 aumentando de 26mm para 30mm (+4mm), o Bloco 3 (corpo da tabela) terá 4mm a menos de espaço. A altura das linhas será recalculada automaticamente pelo algoritmo de compressão existente, mantendo tudo dentro de uma única página A4.
+### Políticas para `modulos_sistema`
+- SELECT: Todos autenticados podem ver (catálogo público)
+- INSERT/UPDATE/DELETE: Apenas super_admin
+
+### Políticas para `usuario_modulos`
+- SELECT: Super admin ou o próprio usuário
+- INSERT/UPDATE/DELETE: Apenas super_admin ou admin.usuarios
+
+---
+
+## Exemplo de Uso
+
+### Cenário: Bruno deve acessar apenas RH e Federações
+
+1. Admin acessa `/admin/usuarios`
+2. Clica no usuário "Bruno"
+3. Ativa toggle "Restringir acesso por módulos"
+4. Marca apenas: RH, Federações
+5. Salva
+
+### Resultado:
+- Bruno tenta acessar `/rh/servidores` → **Permitido** (se perfil concede)
+- Bruno tenta acessar `/federacoes` → **Permitido** (se perfil concede)
+- Bruno tenta acessar `/admin/dashboard` → **Bloqueado** (módulo não autorizado)
+- Bruno tenta acessar `/financeiro` → **Bloqueado** (módulo não autorizado)
+
+---
+
+## Benefícios da Solução
+
+1. **Flexibilidade**: Combina perfis genéricos com restrições específicas
+2. **Simplicidade**: Sem mudança na estrutura de perfis existente
+3. **Retrocompatível**: Usuários existentes continuam funcionando (sem restrição)
+4. **Auditável**: Registro de quem autorizou cada módulo
+5. **Escalável**: Novos módulos podem ser adicionados ao catálogo
+
+---
+
+## Próximos Passos
+
+1. Aprovar este plano
+2. Criar migração do banco de dados
+3. Implementar hooks e componentes
+4. Integrar no AuthContext
+5. Testar fluxo completo
