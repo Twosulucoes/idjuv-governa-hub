@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Sheet,
   SheetContent,
@@ -22,6 +23,7 @@ import {
 } from '@/components/ui/sheet';
 import { useAdminUsuarios } from '@/hooks/useAdminUsuarios';
 import { useAdminPerfis } from '@/hooks/useAdminPerfis';
+import { UsuarioModulosTab } from '@/components/admin/UsuarioModulosTab';
 import { NIVEL_PERFIL_CORES } from '@/types/rbac';
 import type { UsuarioAdmin, Perfil } from '@/types/rbac';
 import { 
@@ -35,6 +37,7 @@ import {
   Ban,
   CheckCircle,
   RefreshCw,
+  Boxes,
 } from 'lucide-react';
 
 export default function UsuariosAdminPage() {
@@ -263,9 +266,9 @@ export default function UsuariosAdminPage() {
               </SheetDescription>
             </SheetHeader>
 
-            <div className="mt-6 space-y-6">
+            <div className="mt-6">
               {/* Status do usuário */}
-              <div className="flex items-center justify-between p-4 rounded-lg border">
+              <div className="flex items-center justify-between p-4 rounded-lg border mb-4">
                 <div>
                   <div className="font-medium">Status</div>
                   <div className="text-sm text-muted-foreground">
@@ -292,42 +295,62 @@ export default function UsuariosAdminPage() {
                 </Button>
               </div>
 
-              {/* Perfis do usuário */}
-              <div>
-                <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  Perfis de Acesso
-                </h4>
-                <ScrollArea className="h-[300px] pr-4">
-                  <div className="space-y-2">
-                    {perfisAtivos.map(perfil => {
-                      const tem = currentSelectedUser?.perfis.some(p => p.perfil_id === perfil.id);
-                      
-                      return (
-                        <div
-                          key={perfil.id}
-                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                            tem ? 'bg-primary/10 border-primary/30' : 'hover:bg-accent'
-                          }`}
-                          onClick={() => !saving && handleTogglePerfil(perfil.id)}
-                        >
-                          <Checkbox checked={tem} disabled={saving} />
-                          <div 
-                            className="w-3 h-3 rounded-full shrink-0"
-                            style={{ backgroundColor: perfil.cor || '#6b7280' }}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm">{perfil.nome}</div>
-                            <div className="text-xs text-muted-foreground truncate">
-                              {perfil.descricao || 'Sem descrição'}
+              {/* Tabs: Perfis e Módulos */}
+              <Tabs defaultValue="perfis" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="perfis" className="flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    Perfis
+                  </TabsTrigger>
+                  <TabsTrigger value="modulos" className="flex items-center gap-2">
+                    <Boxes className="h-4 w-4" />
+                    Módulos
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Tab Perfis */}
+                <TabsContent value="perfis" className="mt-4">
+                  <ScrollArea className="h-[350px] pr-4">
+                    <div className="space-y-2">
+                      {perfisAtivos.map(perfil => {
+                        const tem = currentSelectedUser?.perfis.some(p => p.perfil_id === perfil.id);
+                        
+                        return (
+                          <div
+                            key={perfil.id}
+                            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                              tem ? 'bg-primary/10 border-primary/30' : 'hover:bg-accent'
+                            }`}
+                            onClick={() => !saving && handleTogglePerfil(perfil.id)}
+                          >
+                            <Checkbox checked={tem} disabled={saving} />
+                            <div 
+                              className="w-3 h-3 rounded-full shrink-0"
+                              style={{ backgroundColor: perfil.cor || 'hsl(var(--muted-foreground))' }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm">{perfil.nome}</div>
+                              <div className="text-xs text-muted-foreground truncate">
+                                {perfil.descricao || 'Sem descrição'}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </ScrollArea>
-              </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                </TabsContent>
+
+                {/* Tab Módulos */}
+                <TabsContent value="modulos" className="mt-4">
+                  {currentSelectedUser && (
+                    <UsuarioModulosTab 
+                      userId={currentSelectedUser.id} 
+                      userName={currentSelectedUser.full_name || undefined}
+                    />
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
           </SheetContent>
         </Sheet>
