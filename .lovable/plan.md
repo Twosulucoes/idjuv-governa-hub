@@ -1,66 +1,179 @@
 
-# Plano: Limitação da Tabela para Não Invadir o Rodapé
+# Plano: Reestruturação do PDF de Frequência em 5 Blocos Modulares
 
-## Diagnóstico
+## Resumo das Alterações Solicitadas
 
-O problema identificado é que a tabela de frequência está sendo renderizada com **31 linhas fixas**, sem considerar o espaço disponível na página. Atualmente:
+O usuário solicita uma reorganização visual e estrutural do gerador de PDF de frequência, dividindo-o em 5 blocos distintos com tamanhos proporcionais, além de melhorias visuais específicas.
 
-- O **rodapé do sistema** está fixo em `pageHeight - 6` (linha 700)
-- A **área de assinaturas finais** e a **linha de data** são renderizadas após a tabela
-- Não há cálculo prévio para garantir que todo o conteúdo caiba antes do rodapé
+---
 
-## Cálculo do Espaço Disponível
+## Estrutura Proposta em 5 Blocos
 
-Estrutura atual da página A4 (297mm altura):
+```text
++------------------------------------------+
+|           BLOCO 1: CABEÇALHO             |  ~22mm
+|    Logos Gov (30%) e IDJuv (60%)         |
+|    Textos institucionais                 |
++------------------------------------------+
+|        BLOCO 2: DADOS DO SERVIDOR        |  ~26mm
+|    Nome, matrícula, cargo, unidade       |
+|    Fontes maiores e mais legíveis        |
++------------------------------------------+
+|                                          |
+|      BLOCO 3: CORPO DA FREQUÊNCIA        |  ~165mm
+|    Tabela com 31 linhas                  |
+|    Linhas mais visíveis nas colunas      |
+|    Campos de horário e assinatura        |
+|                                          |
++------------------------------------------+
+|    BLOCO 4: DATA E ASSINATURAS FINAIS    |  ~22mm
+|    Local/Data + Servidor + Chefe         |
++------------------------------------------+
+|         BLOCO 5: RODAPÉ SISTEMA          |  ~8mm
+|    Metadados de geração                  |
++------------------------------------------+
+```
 
-| Elemento | Altura Atual |
-|----------|-------------|
-| Margem superior | 8mm |
-| Cabeçalho institucional | 20mm |
-| Espaço após cabeçalho | 2mm |
-| Card de identificação | 24mm |
-| Espaço após card | 2mm |
-| Header da tabela | 10-12mm |
-| **31 linhas × 6.8mm** | **~211mm** |
-| Espaço após tabela | 2mm |
-| Linha de data | 8mm |
-| Área de assinaturas | ~10mm |
-| Rodapé do sistema | 6mm |
+---
 
-**Total estimado: ~303mm** — ultrapassa os 297mm disponíveis!
+## Detalhamento Técnico por Bloco
 
-## Solução Proposta
+### Bloco 1: Cabeçalho Institucional (~22mm)
 
-Implementar um **cálculo dinâmico** que determine a altura máxima disponível para a tabela, ajustando automaticamente o `rowHeight` para que o conteúdo sempre caiba em uma página.
+**Alterações nas Logos:**
+| Logo | Proporção Atual | Nova Proporção | Altura Calculada |
+|------|-----------------|----------------|------------------|
+| Governo RR | ~50% | **30%** | 8mm |
+| IDJuv | ~50% | **60%** | 14mm |
 
-### Ajustes Técnicos
+**Cálculo das dimensões:**
+- Logo Governo: 8mm altura × 3.69 (proporção) = ~29.5mm largura
+- Logo IDJuv: 14mm altura × 1.55 (proporção) = ~21.7mm largura
 
-1. **Definir zona de proteção do rodapé**
-   - Reservar espaço fixo para: linha de data (8mm) + assinaturas (12mm) + rodapé do sistema (8mm) = **28mm**
+**Implementação:**
+- Atualizar constantes `logoGovernoHeight` e `logoIdjuvHeight`
+- Manter logos alinhadas verticalmente ao centro do bloco
+- Textos institucionais centralizados entre as logos
 
-2. **Calcular altura disponível para tabela**
-   ```text
-   alturaDisponivel = pageHeight - margemSuperior - cabeçalho - card - headerTabela - zonaRodape
-   ```
+---
 
-3. **Ajustar `rowHeight` dinamicamente**
-   ```text
-   rowHeight = alturaDisponivel / 31 (linhas fixas)
-   ```
+### Bloco 2: Dados do Servidor (~26mm)
 
-4. **Validar altura mínima**
-   - Se `rowHeight` calculado for menor que 5.5mm (mínimo legível), manter 5.5mm e aceitar que algumas folhas podem ter layout mais apertado
+**Melhorias nas fontes:**
+| Campo | Tamanho Atual | Novo Tamanho |
+|-------|---------------|--------------|
+| Nome do Servidor | 9pt | **11pt** |
+| Labels (Matrícula, Cargo...) | 5pt | **6pt** |
+| Valores dos campos | 6.5pt | **8pt** |
+| Badge de jornada | 6pt | **7pt** |
 
-### Arquivos a Modificar
+**Estrutura visual:**
+- Borda arredondada com barra lateral colorida (mantido)
+- Espaçamento interno aumentado para comportar fontes maiores
+- Grid de 3 colunas para dados administrativos
 
-- `src/lib/pdfFrequenciaMensalGenerator.ts`
-  - Adicionar constante `ZONA_RODAPE` (~28mm)
-  - Calcular `alturaDisponivelTabela` antes de iniciar a renderização das linhas
-  - Ajustar `rowHeight` proporcionalmente
+---
 
-### Benefícios
+### Bloco 3: Corpo da Frequência (~165mm)
 
-- Garante que o documento nunca ultrapasse uma página
-- Protege a área do rodapé e assinaturas
-- Mantém layout institucional e profissional
-- Funciona automaticamente para jornadas de 6h e 8h
+**Melhorias visuais nas linhas separadoras:**
+
+| Elemento | Espessura Atual | Nova Espessura | Cor |
+|----------|-----------------|----------------|-----|
+| Borda externa da tabela | 0.3pt | **0.5pt** | Cinza escuro |
+| Linhas horizontais (linhas) | 0.1pt | **0.25pt** | Cinza médio |
+| Linhas verticais (colunas) | 0.1-0.15pt | **0.3pt** | Cinza médio |
+| Divisória entre turnos | 0.5pt | **0.8pt** | Verde institucional |
+
+**Header da tabela:**
+- Borda inferior mais forte (0.4pt)
+- Separadores verticais mais visíveis
+
+**Colunas da tabela:**
+- Linhas verticais contínuas do header até a última linha
+- Cor consistente em todas as separações
+
+---
+
+### Bloco 4: Data e Assinaturas Finais (~22mm)
+
+**Estrutura:**
+- Linha 1: "Boa Vista - RR, _______ de ________________________ de ________."
+- Linha 2: Duas áreas de assinatura lado a lado
+  - Esquerda: Assinatura do(a) Servidor(a)
+  - Direita: Visto do(a) Chefe Imediato
+
+**Melhorias:**
+- Espaçamento adequado entre a tabela e esta área
+- Linhas de assinatura mais espessas (0.5pt)
+- Fontes maiores nos labels (8pt)
+
+---
+
+### Bloco 5: Rodapé do Sistema (~8mm)
+
+**Conteúdo:**
+- Esquerda: Data/hora de geração + usuário
+- Centro: "IDJuv • Sistema de Gestão de Pessoas"
+- Direita: Texto personalizado (se houver)
+
+**Posicionamento fixo:**
+- Sempre a 6mm da borda inferior da página
+- Independente do conteúdo acima
+
+---
+
+## Arquivos a Modificar
+
+| Arquivo | Alterações |
+|---------|------------|
+| `src/lib/pdfFrequenciaMensalGenerator.ts` | Reestruturação completa em 5 funções modulares + ajustes visuais |
+
+---
+
+## Implementação Proposta
+
+### Novas Funções Modulares
+
+```text
+renderizarBloco1Cabecalho(doc, params)    → Logos 30%/60% + textos
+renderizarBloco2DadosServidor(doc, params) → Fontes aumentadas
+renderizarBloco3CorpoFrequencia(doc, params) → Linhas mais visíveis
+renderizarBloco4Assinaturas(doc, params)   → Data + assinaturas
+renderizarBloco5Rodape(doc, params)        → Metadados
+```
+
+### Constantes de Layout
+
+```text
+BLOCO_ALTURAS = {
+  cabecalho: 22,      // mm
+  dadosServidor: 26,  // mm
+  assinaturas: 22,    // mm
+  rodape: 8,          // mm
+  // corpo: calculado dinamicamente
+}
+
+LOGO_PROPORCOES = {
+  governo: 0.30,  // 30% de destaque visual
+  idjuv: 0.60,    // 60% de destaque visual
+}
+
+LINHAS_TABELA = {
+  externa: 0.5,
+  horizontal: 0.25,
+  vertical: 0.3,
+  divisoriaTurno: 0.8,
+}
+```
+
+---
+
+## Benefícios da Reestruturação
+
+1. **Código modular** - Cada bloco em função separada, facilitando manutenção
+2. **Proporções calculadas** - Logos com destaque adequado (IDJuv maior)
+3. **Legibilidade** - Fontes maiores nos dados do servidor
+4. **Visual profissional** - Linhas de separação mais visíveis na tabela
+5. **Flexibilidade** - Fácil ajustar alturas de cada bloco independentemente
+
