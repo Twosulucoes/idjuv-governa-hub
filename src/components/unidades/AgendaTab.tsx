@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +22,17 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Calendar, Loader2, Check, X, Clock } from "lucide-react";
+import { Plus, Calendar, Loader2, Check, X, Clock, Building2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+
+interface FederacaoOption {
+  id: string;
+  nome: string;
+  sigla: string;
+  cnpj: string | null;
+  telefone: string | null;
+  email: string | null;
+}
 import {
   AgendaUnidade,
   StatusAgenda,
@@ -54,6 +65,24 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
   const [saving, setSaving] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [isFederacao, setIsFederacao] = useState(false);
+  const [selectedFederacaoId, setSelectedFederacaoId] = useState<string>("");
+  
+  // Query para buscar federações ativas
+  const { data: federacoes = [] } = useQuery({
+    queryKey: ['federacoes-ativas'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('federacoes_esportivas')
+        .select('id, nome, sigla, cnpj, telefone, email')
+        .eq('status', 'ativa')
+        .order('sigla');
+      
+      if (error) throw error;
+      return (data || []) as FederacaoOption[];
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
   
   const [formData, setFormData] = useState({
     titulo: "",
@@ -71,6 +100,32 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
     publico_estimado: "",
     observacoes: "",
   });
+
+  // Auto-preencher dados quando selecionar federação
+  useEffect(() => {
+    if (isFederacao && selectedFederacaoId) {
+      const federacao = federacoes.find(f => f.id === selectedFederacaoId);
+      if (federacao) {
+        setFormData(prev => ({
+          ...prev,
+          solicitante_nome: federacao.nome,
+          solicitante_documento: federacao.cnpj || '',
+          solicitante_telefone: federacao.telefone || '',
+          solicitante_email: federacao.email || '',
+        }));
+      }
+    } else if (!isFederacao) {
+      // Limpar dados do solicitante se desmarcar federação
+      setFormData(prev => ({
+        ...prev,
+        solicitante_nome: '',
+        solicitante_documento: '',
+        solicitante_telefone: '',
+        solicitante_email: '',
+      }));
+      setSelectedFederacaoId('');
+    }
+  }, [isFederacao, selectedFederacaoId, federacoes]);
 
   useEffect(() => {
     loadReservas();
@@ -139,6 +194,7 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
         status: "solicitado",
         observacoes: formData.observacoes || null,
         created_by: userData.user?.id,
+        federacao_id: isFederacao && selectedFederacaoId ? selectedFederacaoId : null,
       });
 
       if (error) throw error;
@@ -196,6 +252,8 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
       publico_estimado: "",
       observacoes: "",
     });
+    setIsFederacao(false);
+    setSelectedFederacaoId("");
   }
 
   const daysInMonth = eachDayOfInterval({
@@ -450,6 +508,42 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
 
             <div className="border-t pt-4">
               <h4 className="font-medium mb-3">Dados do Solicitante</h4>
+              
+              {/* Toggle para Federação */}
+              <div className="flex items-center gap-3 mb-4 p-3 bg-muted/50 rounded-lg">
+                <Switch
+                  id="is-federacao"
+                  checked={isFederacao}
+                  onCheckedChange={setIsFederacao}
+                />
+                <Label htmlFor="is-federacao" className="cursor-pointer flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Solicitante é uma Federação Esportiva
+                </Label>
+              </div>
+              
+              {/* Seletor de Federação */}
+              {isFederacao && (
+                <div className="space-y-2 mb-4">
+                  <Label>Selecione a Federação *</Label>
+                  <Select
+                    value={selectedFederacaoId}
+                    onValueChange={setSelectedFederacaoId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma federação..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {federacoes.map((fed) => (
+                        <SelectItem key={fed.id} value={fed.id}>
+                          {fed.sigla} - {fed.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Nome *</Label>
@@ -458,6 +552,7 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
                     onChange={(e) => setFormData({ ...formData, solicitante_nome: e.target.value })}
                     placeholder="Nome completo"
                     required
+                    disabled={isFederacao && !!selectedFederacaoId}
                   />
                 </div>
                 <div className="space-y-2">
@@ -466,6 +561,7 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
                     value={formData.solicitante_documento}
                     onChange={(e) => setFormData({ ...formData, solicitante_documento: e.target.value })}
                     placeholder="Documento"
+                    disabled={isFederacao && !!selectedFederacaoId}
                   />
                 </div>
               </div>
@@ -476,6 +572,7 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
                     value={formData.solicitante_telefone}
                     onChange={(e) => setFormData({ ...formData, solicitante_telefone: e.target.value })}
                     placeholder="(00) 00000-0000"
+                    disabled={isFederacao && !!selectedFederacaoId}
                   />
                 </div>
                 <div className="space-y-2">
@@ -485,6 +582,7 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
                     value={formData.solicitante_email}
                     onChange={(e) => setFormData({ ...formData, solicitante_email: e.target.value })}
                     placeholder="email@exemplo.com"
+                    disabled={isFederacao && !!selectedFederacaoId}
                   />
                 </div>
               </div>

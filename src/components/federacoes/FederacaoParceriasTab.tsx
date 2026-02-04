@@ -2,15 +2,14 @@
  * Tab de Parcerias, Projetos e Espaços Cedidos
  * 
  * Gerencia o histórico de atividades atribuídas à federação:
- * - Parcerias e projetos
- * - Espaços cedidos (unidades locais)
- * - Árbitros vinculados
+ * - Parcerias e projetos (CRUD)
+ * - Espaços cedidos (visualização - dados vêm da agenda de unidades)
+ * - Árbitros vinculados (CRUD)
  */
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -18,38 +17,19 @@ import {
   Building2,
   Users,
   Plus,
-  Trash2,
-  Edit,
   FileText,
   Calendar,
   Clock,
   MapPin,
+  ExternalLink,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { NovaParceriaDialog } from './NovaParceriaDialog';
+import { NovoArbitroDialog } from './NovoArbitroDialog';
 
 interface FederacaoParceriasTabProps {
   federacaoId: string;
@@ -85,6 +65,21 @@ interface EspacoCedido {
   numero_portaria: string | null;
   status: string;
   observacoes: string | null;
+}
+
+interface EspacoAgenda {
+  id: string;
+  titulo: string;
+  data_inicio: string;
+  data_fim: string;
+  status: string;
+  numero_protocolo: string | null;
+  horario_diario: string | null;
+  unidade_local: {
+    id: string;
+    nome_unidade: string;
+    municipio: string | null;
+  } | null;
 }
 
 interface Arbitro {
@@ -124,6 +119,11 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   ativo: { label: 'Ativo', color: 'bg-green-100 text-green-800' },
   encerrado: { label: 'Encerrado', color: 'bg-gray-100 text-gray-800' },
   suspenso: { label: 'Suspenso', color: 'bg-yellow-100 text-yellow-800' },
+  aprovado: { label: 'Aprovado', color: 'bg-green-100 text-green-800' },
+  solicitado: { label: 'Solicitado', color: 'bg-blue-100 text-blue-800' },
+  rejeitado: { label: 'Rejeitado', color: 'bg-red-100 text-red-800' },
+  cancelado: { label: 'Cancelado', color: 'bg-gray-100 text-gray-800' },
+  concluido: { label: 'Concluído', color: 'bg-green-100 text-green-800' },
 };
 
 const diasSemanaLabels: Record<string, string> = {
@@ -139,8 +139,10 @@ const diasSemanaLabels: Record<string, string> = {
 export function FederacaoParceriasTab({ federacaoId, federacaoSigla }: FederacaoParceriasTabProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('parcerias');
+  const [openParceriaDialog, setOpenParceriaDialog] = useState(false);
+  const [openArbitroDialog, setOpenArbitroDialog] = useState(false);
 
-  // Queries
+  // Query: Parcerias
   const { data: parcerias = [], isLoading: loadingParcerias } = useQuery({
     queryKey: ['federacao-parcerias', federacaoId],
     queryFn: async () => {
@@ -155,7 +157,8 @@ export function FederacaoParceriasTab({ federacaoId, federacaoSigla }: Federacao
     },
   });
 
-  const { data: espacos = [], isLoading: loadingEspacos } = useQuery({
+  // Query: Espaços Cedidos (legado/manual)
+  const { data: espacosManuais = [], isLoading: loadingEspacosManuais } = useQuery({
     queryKey: ['federacao-espacos', federacaoId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -169,6 +172,32 @@ export function FederacaoParceriasTab({ federacaoId, federacaoSigla }: Federacao
     },
   });
 
+  // Query: Espaços via Agenda (reservas aprovadas da unidade)
+  const { data: espacosAgenda = [], isLoading: loadingEspacosAgenda } = useQuery({
+    queryKey: ['federacao-espacos-agenda', federacaoId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agenda_unidade')
+        .select(`
+          id,
+          titulo,
+          data_inicio,
+          data_fim,
+          status,
+          numero_protocolo,
+          horario_diario,
+          unidade_local:unidades_locais(id, nome_unidade, municipio)
+        `)
+        .eq('federacao_id', federacaoId)
+        .in('status', ['aprovado', 'concluido'])
+        .order('data_inicio', { ascending: false });
+      
+      if (error) throw error;
+      return (data || []) as EspacoAgenda[];
+    },
+  });
+
+  // Query: Árbitros
   const { data: arbitros = [], isLoading: loadingArbitros } = useQuery({
     queryKey: ['federacao-arbitros', federacaoId],
     queryFn: async () => {
@@ -182,6 +211,9 @@ export function FederacaoParceriasTab({ federacaoId, federacaoSigla }: Federacao
       return (data || []) as Arbitro[];
     },
   });
+
+  const loadingEspacos = loadingEspacosManuais || loadingEspacosAgenda;
+  const totalEspacos = espacosManuais.length + espacosAgenda.length;
 
   return (
     <div className="space-y-4">
@@ -200,7 +232,7 @@ export function FederacaoParceriasTab({ federacaoId, federacaoSigla }: Federacao
           </TabsTrigger>
           <TabsTrigger value="espacos" className="text-xs">
             <Building2 className="h-3 w-3 mr-1" />
-            Espaços ({espacos.length})
+            Espaços ({totalEspacos})
           </TabsTrigger>
           <TabsTrigger value="arbitros" className="text-xs">
             <Users className="h-3 w-3 mr-1" />
@@ -210,6 +242,13 @@ export function FederacaoParceriasTab({ federacaoId, federacaoSigla }: Federacao
 
         {/* Tab: Parcerias */}
         <TabsContent value="parcerias" className="space-y-3 mt-3">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => setOpenParceriaDialog(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Nova Parceria
+            </Button>
+          </div>
+          
           {loadingParcerias ? (
             <p className="text-sm text-muted-foreground text-center py-4">Carregando...</p>
           ) : parcerias.length === 0 ? (
@@ -273,9 +312,17 @@ export function FederacaoParceriasTab({ federacaoId, federacaoSigla }: Federacao
 
         {/* Tab: Espaços Cedidos */}
         <TabsContent value="espacos" className="space-y-3 mt-3">
+          <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
+            <p className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Os espaços cedidos são gerenciados pelo módulo de Unidades Locais (DIRAF).
+              Esta visualização consolida as cedências aprovadas para esta federação.
+            </p>
+          </div>
+          
           {loadingEspacos ? (
             <p className="text-sm text-muted-foreground text-center py-4">Carregando...</p>
-          ) : espacos.length === 0 ? (
+          ) : totalEspacos === 0 ? (
             <Card className="border-dashed">
               <CardContent className="pt-6 text-center">
                 <Building2 className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
@@ -285,70 +332,136 @@ export function FederacaoParceriasTab({ federacaoId, federacaoSigla }: Federacao
               </CardContent>
             </Card>
           ) : (
-            espacos.map((espaco) => (
-              <Card key={espaco.id} className="hover:bg-muted/30 transition-colors">
-                <CardContent className="pt-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-primary" />
-                        <span className="font-medium text-sm">{espaco.nome_espaco}</span>
-                        <Badge className={statusLabels[espaco.status]?.color || 'bg-gray-100'}>
-                          {statusLabels[espaco.status]?.label || espaco.status}
-                        </Badge>
+            <>
+              {/* Espaços da Agenda (automático) */}
+              {espacosAgenda.map((espaco) => (
+                <Card key={`agenda-${espaco.id}`} className="hover:bg-muted/30 transition-colors">
+                  <CardContent className="pt-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-primary" />
+                          <span className="font-medium text-sm">
+                            {espaco.unidade_local?.nome_unidade || 'Unidade Local'}
+                          </span>
+                          <Badge variant="secondary" className="text-xs">
+                            Via Agenda
+                          </Badge>
+                          <Badge className={statusLabels[espaco.status]?.color || 'bg-gray-100'}>
+                            {statusLabels[espaco.status]?.label || espaco.status}
+                          </Badge>
+                        </div>
                       </div>
-                    </div>
-                    
-                    {espaco.descricao_espaco && (
-                      <p className="text-xs text-muted-foreground">{espaco.descricao_espaco}</p>
-                    )}
-                    
-                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {formatDate(espaco.data_inicio)}
-                        {espaco.data_fim && ` - ${formatDate(espaco.data_fim)}`}
-                      </span>
                       
-                      {espaco.dias_semana && espaco.dias_semana.length > 0 && (
+                      <p className="text-sm text-foreground">{espaco.titulo}</p>
+                      
+                      {espaco.unidade_local?.municipio && (
+                        <p className="text-xs text-muted-foreground">
+                          📍 {espaco.unidade_local.municipio}
+                        </p>
+                      )}
+                      
+                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {espaco.dias_semana.map(d => diasSemanaLabels[d] || d).join(', ')}
+                          <Calendar className="h-3 w-3" />
+                          {formatDate(espaco.data_inicio)} - {formatDate(espaco.data_fim)}
                         </span>
-                      )}
-                      
-                      {espaco.horario_inicio && espaco.horario_fim && (
-                        <span>
-                          {espaco.horario_inicio.slice(0, 5)} - {espaco.horario_fim.slice(0, 5)}
-                        </span>
-                      )}
-                    </div>
-                    
-                    {(espaco.processo_sei || espaco.numero_termo_cessao || espaco.numero_portaria) && (
-                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground border-t pt-2 mt-2">
-                        {espaco.processo_sei && (
+                        
+                        {espaco.horario_diario && (
                           <span className="flex items-center gap-1">
-                            <FileText className="h-3 w-3" />
-                            SEI: {espaco.processo_sei}
+                            <Clock className="h-3 w-3" />
+                            {espaco.horario_diario}
                           </span>
                         )}
-                        {espaco.numero_termo_cessao && (
-                          <span>Termo: {espaco.numero_termo_cessao}</span>
-                        )}
-                        {espaco.numero_portaria && (
-                          <span>Portaria: {espaco.numero_portaria}</span>
+                        
+                        {espaco.numero_protocolo && (
+                          <span className="flex items-center gap-1">
+                            <FileText className="h-3 w-3" />
+                            Protocolo: {espaco.numero_protocolo}
+                          </span>
                         )}
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              
+              {/* Espaços Manuais (legado) */}
+              {espacosManuais.map((espaco) => (
+                <Card key={`manual-${espaco.id}`} className="hover:bg-muted/30 transition-colors">
+                  <CardContent className="pt-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-primary" />
+                          <span className="font-medium text-sm">{espaco.nome_espaco}</span>
+                          <Badge variant="outline" className="text-xs">
+                            Registro Manual
+                          </Badge>
+                          <Badge className={statusLabels[espaco.status]?.color || 'bg-gray-100'}>
+                            {statusLabels[espaco.status]?.label || espaco.status}
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      {espaco.descricao_espaco && (
+                        <p className="text-xs text-muted-foreground">{espaco.descricao_espaco}</p>
+                      )}
+                      
+                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {formatDate(espaco.data_inicio)}
+                          {espaco.data_fim && ` - ${formatDate(espaco.data_fim)}`}
+                        </span>
+                        
+                        {espaco.dias_semana && espaco.dias_semana.length > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {espaco.dias_semana.map(d => diasSemanaLabels[d] || d).join(', ')}
+                          </span>
+                        )}
+                        
+                        {espaco.horario_inicio && espaco.horario_fim && (
+                          <span>
+                            {espaco.horario_inicio.slice(0, 5)} - {espaco.horario_fim.slice(0, 5)}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {(espaco.processo_sei || espaco.numero_termo_cessao || espaco.numero_portaria) && (
+                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground border-t pt-2 mt-2">
+                          {espaco.processo_sei && (
+                            <span className="flex items-center gap-1">
+                              <FileText className="h-3 w-3" />
+                              SEI: {espaco.processo_sei}
+                            </span>
+                          )}
+                          {espaco.numero_termo_cessao && (
+                            <span>Termo: {espaco.numero_termo_cessao}</span>
+                          )}
+                          {espaco.numero_portaria && (
+                            <span>Portaria: {espaco.numero_portaria}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </>
           )}
         </TabsContent>
 
         {/* Tab: Árbitros */}
         <TabsContent value="arbitros" className="space-y-3 mt-3">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => setOpenArbitroDialog(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Novo Árbitro
+            </Button>
+          </div>
+          
           {loadingArbitros ? (
             <p className="text-sm text-muted-foreground text-center py-4">Carregando...</p>
           ) : arbitros.length === 0 ? (
@@ -403,6 +516,21 @@ export function FederacaoParceriasTab({ federacaoId, federacaoSigla }: Federacao
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Dialogs */}
+      <NovaParceriaDialog
+        open={openParceriaDialog}
+        onOpenChange={setOpenParceriaDialog}
+        federacaoId={federacaoId}
+        federacaoSigla={federacaoSigla}
+      />
+      
+      <NovoArbitroDialog
+        open={openArbitroDialog}
+        onOpenChange={setOpenArbitroDialog}
+        federacaoId={federacaoId}
+        federacaoSigla={federacaoSigla}
+      />
     </div>
   );
 }

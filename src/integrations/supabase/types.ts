@@ -210,6 +210,7 @@ export type Database = {
           documentos_anexos: Json | null
           encerrado_automaticamente: boolean | null
           espaco_especifico: string | null
+          federacao_id: string | null
           finalidade_detalhada: string | null
           historico_status: Json | null
           horario_diario: string | null
@@ -248,6 +249,7 @@ export type Database = {
           documentos_anexos?: Json | null
           encerrado_automaticamente?: boolean | null
           espaco_especifico?: string | null
+          federacao_id?: string | null
           finalidade_detalhada?: string | null
           historico_status?: Json | null
           horario_diario?: string | null
@@ -286,6 +288,7 @@ export type Database = {
           documentos_anexos?: Json | null
           encerrado_automaticamente?: boolean | null
           espaco_especifico?: string | null
+          federacao_id?: string | null
           finalidade_detalhada?: string | null
           historico_status?: Json | null
           horario_diario?: string | null
@@ -331,6 +334,13 @@ export type Database = {
             columns: ["aprovador_id"]
             isOneToOne: false
             referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_unidade_federacao_id_fkey"
+            columns: ["federacao_id"]
+            isOneToOne: false
+            referencedRelation: "federacoes_esportivas"
             referencedColumns: ["id"]
           },
           {
