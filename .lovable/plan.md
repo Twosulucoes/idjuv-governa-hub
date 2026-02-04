@@ -1,198 +1,192 @@
 
-# Plano: Integração Unidirecional - Cedência de Espaços para Federações
+# Plano: Relatório de Servidores por Diretoria (Hierárquico)
 
-## Resumo Executivo
+## Objetivo
 
-A gestão de cedências de espaços é **exclusiva do módulo Unidades Locais (DIRAF)**. O módulo de Federações apenas **visualiza** as cedências aprovadas vinculadas a cada federação, sem poder criar ou editar.
+Criar um relatório que exibe todos os servidores vinculados a uma diretoria, incluindo os lotados nas suas divisões e núcleos subordinados. O relatório será organizado hierarquicamente, mostrando a estrutura completa.
 
----
+## Fluxo de Uso
 
-## Arquitetura da Solução
+1. Usuário acessa a página de relatórios RH
+2. Seleciona uma Diretoria (dropdown)
+3. Sistema busca automaticamente:
+   - Servidores lotados diretamente na diretoria
+   - Divisões subordinadas e seus servidores
+   - Núcleos subordinados às divisões e seus servidores
+4. Gera PDF agrupado por unidade
+
+## Estrutura Hierárquica Atual
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────┐
-│                    FLUXO DE CEDÊNCIA DE ESPAÇOS                          │
-├──────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  UNIDADES LOCAIS (DIRAF)                    FEDERAÇÕES (Visualização)   │
-│  ─────────────────────────                  ────────────────────────    │
-│                                                                          │
-│  1. Usuário cria reserva na Agenda          ← Não pode criar            │
-│  2. Marca: "Solicitante é Federação"        ← Não pode editar           │
-│  3. Seleciona federação (dropdown)          ← Somente visualiza         │
-│  4. DIRAF aprova via SEI                                                 │
-│  5. Termo de cessão é gerado                                             │
-│                     ↓                                                    │
-│            [federacao_id salvo]                                          │
-│                     ↓                                                    │
-│  ─────────────────────────────────────────────────────────────────────  │
-│                                                                          │
-│  RESULTADO: Federação vê na aba "Espaços Cedidos" todas as              │
-│             reservas aprovadas onde ela é solicitante                    │
-│                                                                          │
-└──────────────────────────────────────────────────────────────────────────┘
+DIRETORIA (ex: DIRAF)
+├── Divisão 1 (ex: DiAGP)
+│   ├── Núcleo A (ex: NuAC)
+│   ├── Núcleo B (ex: NuDoc)
+│   └── Núcleo C (ex: NuPat)
+├── Divisão 2 (ex: DiCOF)
+│   └── ...
+└── Divisão 3 (ex: DRH)
+    └── ...
 ```
 
----
+## Componentes a Criar
 
-## Alterações no Banco de Dados
+### 1. Componente Card de Relatório
 
-### 1. Adicionar coluna `federacao_id` na tabela `agenda_unidade`
+**Arquivo:** `src/components/rh/RelatorioServidoresDiretoriaCard.tsx`
 
-```sql
-ALTER TABLE public.agenda_unidade 
-ADD COLUMN federacao_id UUID REFERENCES public.federacoes_esportivas(id) ON DELETE SET NULL;
+Funcionalidades:
+- Dropdown para seleção da Diretoria (DIRAF, DIJUV, DIESP)
+- Checkbox "Incluir logos no cabeçalho"
+- Preview de quantos servidores serão exportados
+- Botão "Gerar Relatório PDF"
+
+Interface visual:
+- Card com ícone de estrutura organizacional
+- Título: "Servidores por Diretoria"
+- Descrição: "Relatório hierárquico com todas as unidades subordinadas"
+
+### 2. Gerador de PDF
+
+**Arquivo:** `src/lib/pdfRelatorioServidoresDiretoria.ts`
+
+Estrutura do PDF:
+- Cabeçalho institucional (Governo/IDJuv)
+- Título: "Relatório de Servidores - [Nome da Diretoria]"
+- Data de emissão
+
+Conteúdo organizado em seções:
+
+```text
+┌─────────────────────────────────────────────────────┐
+│ DIRAF - DIRETORIA ADMINISTRATIVA E FINANCEIRA      │
+├─────────────────────────────────────────────────────┤
+│ Nome                        │ Telefone  │ Cargo    │
+├─────────────────────────────────────────────────────┤
+│ JOHNATAH DA LUZ VELOSO      │ 99233-0041│ Diretor  │
+│ MARIA GABRYELLA G. LOPES    │ 99153-4393│ Secret.  │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│ DiAGP - Divisão Administrativa e Gestão Patrimonial │
+├─────────────────────────────────────────────────────┤
+│ Nome                        │ Telefone  │ Cargo    │
+├─────────────────────────────────────────────────────┤
+│ (servidores da divisão...)                          │
+│                                                     │
+│     NuAC - Núcleo Administrativo de Contratos       │
+├─────────────────────────────────────────────────────┤
+│ (servidores do núcleo...)                           │
+│                                                     │
+│     NuDoc - Núcleo de Documentação                  │
+├─────────────────────────────────────────────────────┤
+│ (servidores do núcleo...)                           │
+└─────────────────────────────────────────────────────┘
 ```
 
-Isso permite identificar quando uma cedência é para uma federação específica.
+### 3. Hook para Busca Hierárquica
 
-### 2. Criar índice para consultas otimizadas
+A lógica de busca será integrada no componente:
 
-```sql
-CREATE INDEX idx_agenda_unidade_federacao ON public.agenda_unidade(federacao_id) 
-WHERE federacao_id IS NOT NULL;
+```
+1. Buscar todas unidades onde superior_id = diretoria_id (Divisões)
+2. Buscar unidades onde superior_id IN (ids das divisões) (Núcleos)
+3. Combinar todos os IDs de unidades
+4. Buscar lotações ativas onde unidade_id IN (todos os IDs)
+5. Organizar dados hierarquicamente para o PDF
 ```
 
----
+## Colunas do Relatório
 
-## Alterações no Frontend
+| Coluna | Descrição |
+|--------|-----------|
+| Nome Completo | Nome do servidor |
+| Telefone | Telefone celular |
+| Cargo | Nome do cargo ocupado |
 
-### Arquivo 1: `src/components/unidades/AgendaTab.tsx`
+## Arquivos a Criar
 
-Modificar o formulário de nova reserva para:
-
-1. Adicionar campo toggle: **"Solicitante é Federação?"**
-2. Se ativado, mostrar dropdown com lista de federações ativas
-3. Auto-preencher dados do solicitante com dados da federação
-4. Salvar `federacao_id` junto com a reserva
-
-**Campos a adicionar no formData:**
-- `is_federacao: boolean`
-- `federacao_id: string | null`
-
-**Lógica de preenchimento automático:**
-- Quando federação selecionada → preenche `solicitante_nome` com nome da federação
-- Preenche `solicitante_documento` com CNPJ
-- Preenche `solicitante_telefone` e `solicitante_email` com contatos
-
----
-
-### Arquivo 2: `src/components/federacoes/FederacaoParceriasTab.tsx`
-
-Modificar a query da aba "Espaços" para buscar de **duas fontes**:
-
-**Fonte 1:** Registros manuais em `federacao_espacos_cedidos` (legado/manual)
-
-**Fonte 2:** Reservas aprovadas em `agenda_unidade` onde `federacao_id = esta_federacao`
-
-Exibir ambos com indicador de origem:
-- Badge "Via Agenda" para cedências vindas de `agenda_unidade`
-- Badge "Registro Manual" para cedências de `federacao_espacos_cedidos`
-
-**Campos a exibir da agenda:**
-- Nome da Unidade Local
-- Município
-- Título da reserva
-- Data início/fim
-- Horário
-- Status
-- Número do protocolo
-
----
-
-### Arquivo 3: Criar Dialogs de Cadastro para Parcerias e Árbitros
-
-Como os espaços agora vêm automaticamente da agenda, precisamos apenas dos formulários para:
-
-| Componente | Descrição |
-|------------|-----------|
-| `NovaParceriaDialog.tsx` | Formulário para parcerias/projetos/convênios |
-| `NovoArbitroDialog.tsx` | Formulário para árbitros |
-
-**Campos de NovaParceriaDialog:**
-- Titulo (obrigatório)
-- Tipo: Parceria / Projeto / Convênio / Patrocínio
-- Data Início / Data Fim
-- Status: Vigente / Encerrada / Suspensa / Em Análise
-- Processo SEI
-- Número do Termo
-- Número da Portaria
-- Descrição
-- Observações
-
-**Campos de NovoArbitroDialog:**
-- Nome (obrigatório)
-- Telefone
-- Email
-- Modalidades (tags/array)
-- Disponibilidade (texto)
-- Ativo (checkbox)
-- Observações
-
----
-
-## Resumo de Arquivos
-
-### Novos Arquivos
 | Arquivo | Descrição |
 |---------|-----------|
-| `src/components/federacoes/NovaParceriaDialog.tsx` | Dialog para cadastrar parcerias |
-| `src/components/federacoes/NovoArbitroDialog.tsx` | Dialog para cadastrar árbitros |
+| `src/components/rh/RelatorioServidoresDiretoriaCard.tsx` | Componente UI do card de geração |
+| `src/lib/pdfRelatorioServidoresDiretoria.ts` | Gerador do PDF hierárquico |
 
-### Arquivos a Modificar
+## Arquivos a Modificar
+
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/components/unidades/AgendaTab.tsx` | Adicionar seletor de federação no formulário |
-| `src/components/federacoes/FederacaoParceriasTab.tsx` | Buscar espaços da agenda + botões "Novo" para parcerias/árbitros |
+| Página de relatórios RH | Adicionar o novo card de relatório |
 
-### Migração de Banco
-| Tipo | Alteração |
-|------|-----------|
-| ALTER TABLE | Adicionar `federacao_id` em `agenda_unidade` |
-| CREATE INDEX | Índice para buscas por federação |
+## Detalhamento Técnico
 
----
+### Busca Recursiva de Unidades
 
-## Fluxo de Uso Final
+```typescript
+// 1. Buscar divisões subordinadas à diretoria
+const divisoes = await supabase
+  .from('estrutura_organizacional')
+  .select('id, nome, sigla, tipo')
+  .eq('superior_id', diretoriaId)
+  .eq('ativo', true);
 
-### Na Unidade Local (DIRAF):
-1. Acessar `/unidades/{id}` → Aba "Agenda"
-2. Clicar "Nova Reserva"
-3. Ativar toggle "Solicitante é Federação"
-4. Selecionar "Federação de Atletismo de Roraima"
-5. Dados auto-preenchidos
-6. Definir datas, horários, espaço
-7. Salvar → Status "Solicitado"
-8. DIRAF aprova → Status "Aprovado"
+// 2. Buscar núcleos subordinados às divisões
+const nucleos = await supabase
+  .from('estrutura_organizacional')
+  .select('id, nome, sigla, tipo, superior_id')
+  .in('superior_id', divisoes.map(d => d.id))
+  .eq('ativo', true);
 
-### Na Federação (Visualização):
-1. Acessar `/federacoes` → Selecionar federação
-2. Ir na aba "Vínculos e Atividades" → Sub-aba "Espaços"
-3. Ver lista de todos os espaços cedidos:
-   - Cedências aprovadas vindas da Agenda (automático)
-   - Registros manuais legados (se houver)
-4. Cada card mostra: Unidade, Período, Horário, Status, Protocolo
-5. **Sem botão "Novo"** - apenas visualização
+// 3. Montar array completo de IDs
+const todasUnidadesIds = [
+  diretoriaId,
+  ...divisoes.map(d => d.id),
+  ...nucleos.map(n => n.id)
+];
 
----
+// 4. Buscar lotações
+const lotacoes = await supabase
+  .from('lotacoes')
+  .select(`
+    unidade_id,
+    servidor:servidores(nome_completo, telefone_celular),
+    cargo:cargos(nome, sigla)
+  `)
+  .in('unidade_id', todasUnidadesIds)
+  .eq('ativo', true);
+```
 
-## Benefícios
+### Estrutura de Dados para o PDF
 
-1. **Fonte única de verdade**: Cedências gerenciadas em um só lugar (Unidades)
-2. **Sincronização automática**: Federação vê cedências em tempo real
-3. **Controle DIRAF**: Apenas quem gerencia a unidade pode aprovar
-4. **Rastreabilidade**: Vínculo direto com processo SEI e termos
-5. **Retrocompatível**: Registros manuais existentes continuam visíveis
+```typescript
+interface UnidadeComServidores {
+  id: string;
+  nome: string;
+  sigla: string | null;
+  tipo: 'diretoria' | 'divisao' | 'nucleo';
+  nivel: number;
+  servidores: {
+    nome: string;
+    telefone: string | null;
+    cargo: string | null;
+  }[];
+  subordinadas: UnidadeComServidores[];
+}
+```
 
----
+### Layout do PDF
+
+- Orientação: Retrato (Portrait)
+- Formato: A4
+- Fonte: Helvetica
+- Cabeçalhos de seção com fundo colorido por nível:
+  - Diretoria: Azul escuro (primária)
+  - Divisão: Azul médio (secundária)
+  - Núcleo: Cinza escuro
+- Linhas zebradas para facilitar leitura
+- Rodapé com paginação e data
 
 ## Ordem de Implementação
 
-1. Migração do banco (adicionar `federacao_id`)
-2. Modificar `AgendaTab.tsx` com seletor de federação
-3. Criar `NovaParceriaDialog.tsx` e `NovoArbitroDialog.tsx`
-4. Atualizar `FederacaoParceriasTab.tsx`:
-   - Buscar espaços da agenda
-   - Adicionar botões "+ Novo" para parcerias e árbitros
-   - Remover possibilidade de criar espaços manualmente
-5. Testar integração completa
+1. Criar `pdfRelatorioServidoresDiretoria.ts` com a lógica de geração
+2. Criar `RelatorioServidoresDiretoriaCard.tsx` com a interface
+3. Integrar o card na página de relatórios existente
+4. Testar com cada diretoria (DIRAF, DIJUV, DIESP)
