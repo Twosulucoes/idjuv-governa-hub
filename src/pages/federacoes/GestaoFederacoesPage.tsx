@@ -30,6 +30,8 @@ import { EditarFederacaoDialog } from '@/components/federacoes/EditarFederacaoDi
 import { CalendarioFederacaoTab } from '@/components/federacoes/CalendarioFederacaoTab';
 import { CalendarioGeralFederacoesTab } from '@/components/federacoes/CalendarioGeralFederacoesTab';
 import { FederacoesErrorBoundary } from '@/components/federacoes/FederacoesErrorBoundary';
+import { MandatoExpiradoBadge, isMandatoExpirado } from '@/components/federacoes/MandatoExpiradoBadge';
+import { FederacaoParceriasTab } from '@/components/federacoes/FederacaoParceriasTab';
 
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -434,8 +436,13 @@ export default function GestaoFederacoesPage() {
                           <div className="text-sm">{fed.presidente_nome || '-'}</div>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
-                          <div className="text-sm">
-                            {formatDate(fed.mandato_inicio)} - {formatDate(fed.mandato_fim)}
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">
+                              {formatDate(fed.mandato_inicio)} - {formatDate(fed.mandato_fim)}
+                            </span>
+                            {isMandatoExpirado(fed.mandato_fim) && (
+                              <MandatoExpiradoBadge mandatoFim={fed.mandato_fim} variant="badge" />
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -612,6 +619,11 @@ export default function GestaoFederacoesPage() {
                     <p className="text-sm">
                       {formatDate(selectedFederacao.mandato_inicio)} até {formatDate(selectedFederacao.mandato_fim)}
                     </p>
+                    {isMandatoExpirado(selectedFederacao.mandato_fim) && (
+                      <div className="mt-2">
+                        <MandatoExpiradoBadge mandatoFim={selectedFederacao.mandato_fim} variant="alert" />
+                      </div>
+                    )}
                   </div>
 
                   <Separator />
@@ -715,6 +727,14 @@ export default function GestaoFederacoesPage() {
                       </div>
                     </>
                   )}
+
+                  <Separator />
+
+                  {/* Parcerias, Espaços e Árbitros */}
+                  <FederacaoParceriasTab
+                    federacaoId={selectedFederacao.id}
+                    federacaoSigla={selectedFederacao.sigla}
+                  />
 
                   <Separator />
 

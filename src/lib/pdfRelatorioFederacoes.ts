@@ -87,12 +87,13 @@ export async function gerarRelatorioFederacoesPDF(
   let currentPage = 1;
 
   // Carregar logos usando o sistema centralizado
+  // IMPORTANTE: Usar logo OFICIAL em fundo branco, não a versão dark!
   let logos: LogosCarregados = { governo: null, idjuv: null };
   if (config.incluirLogos) {
     const loadedLogos = await loadLogos();
     logos = { 
       governo: loadedLogos.governo, 
-      idjuv: loadedLogos.idjuvDark 
+      idjuv: loadedLogos.idjuvOficial // Usar OFICIAL, não dark!
     };
   }
 

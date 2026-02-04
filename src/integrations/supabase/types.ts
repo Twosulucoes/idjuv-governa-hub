@@ -6761,6 +6761,258 @@ export type Database = {
           },
         ]
       }
+      federacao_arbitros: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          disponibilidade: string | null
+          email: string | null
+          federacao_id: string
+          id: string
+          modalidades: string[] | null
+          nome: string
+          observacoes: string | null
+          telefone: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          disponibilidade?: string | null
+          email?: string | null
+          federacao_id: string
+          id?: string
+          modalidades?: string[] | null
+          nome: string
+          observacoes?: string | null
+          telefone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          disponibilidade?: string | null
+          email?: string | null
+          federacao_id?: string
+          id?: string
+          modalidades?: string[] | null
+          nome?: string
+          observacoes?: string | null
+          telefone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "federacao_arbitros_federacao_id_fkey"
+            columns: ["federacao_id"]
+            isOneToOne: false
+            referencedRelation: "federacoes_esportivas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      federacao_espacos_cedidos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string
+          descricao_espaco: string | null
+          dias_semana: string[] | null
+          federacao_id: string
+          horario_fim: string | null
+          horario_inicio: string | null
+          id: string
+          nome_espaco: string
+          numero_portaria: string | null
+          numero_termo_cessao: string | null
+          observacoes: string | null
+          processo_sei: string | null
+          status: string
+          unidade_local_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio: string
+          descricao_espaco?: string | null
+          dias_semana?: string[] | null
+          federacao_id: string
+          horario_fim?: string | null
+          horario_inicio?: string | null
+          id?: string
+          nome_espaco: string
+          numero_portaria?: string | null
+          numero_termo_cessao?: string | null
+          observacoes?: string | null
+          processo_sei?: string | null
+          status?: string
+          unidade_local_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          descricao_espaco?: string | null
+          dias_semana?: string[] | null
+          federacao_id?: string
+          horario_fim?: string | null
+          horario_inicio?: string | null
+          id?: string
+          nome_espaco?: string
+          numero_portaria?: string | null
+          numero_termo_cessao?: string | null
+          observacoes?: string | null
+          processo_sei?: string | null
+          status?: string
+          unidade_local_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "federacao_espacos_cedidos_federacao_id_fkey"
+            columns: ["federacao_id"]
+            isOneToOne: false
+            referencedRelation: "federacoes_esportivas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "federacao_espacos_cedidos_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "unidades_locais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "federacao_espacos_cedidos_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_cedencias_a_vencer"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "federacao_espacos_cedidos_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["unidade_local_id"]
+          },
+          {
+            foreignKeyName: "federacao_espacos_cedidos_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_movimentacoes_completas"
+            referencedColumns: ["destino_unidade_id"]
+          },
+          {
+            foreignKeyName: "federacao_espacos_cedidos_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_movimentacoes_completas"
+            referencedColumns: ["origem_unidade_id"]
+          },
+          {
+            foreignKeyName: "federacao_espacos_cedidos_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_patrimonio_por_unidade"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "federacao_espacos_cedidos_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_patrimonio"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "federacao_espacos_cedidos_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_unidades_locais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "federacao_espacos_cedidos_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_uso_unidades"
+            referencedColumns: ["unidade_id"]
+          },
+        ]
+      }
+      federacao_parcerias: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string
+          descricao: string | null
+          documento_url: string | null
+          federacao_id: string
+          id: string
+          numero_portaria: string | null
+          numero_termo: string | null
+          observacoes: string | null
+          processo_sei: string | null
+          status: string
+          tipo: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio: string
+          descricao?: string | null
+          documento_url?: string | null
+          federacao_id: string
+          id?: string
+          numero_portaria?: string | null
+          numero_termo?: string | null
+          observacoes?: string | null
+          processo_sei?: string | null
+          status?: string
+          tipo?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          descricao?: string | null
+          documento_url?: string | null
+          federacao_id?: string
+          id?: string
+          numero_portaria?: string | null
+          numero_termo?: string | null
+          observacoes?: string | null
+          processo_sei?: string | null
+          status?: string
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "federacao_parcerias_federacao_id_fkey"
+            columns: ["federacao_id"]
+            isOneToOne: false
+            referencedRelation: "federacoes_esportivas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       federacoes_esportivas: {
         Row: {
           analisado_por: string | null
