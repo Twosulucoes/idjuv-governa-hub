@@ -37,6 +37,7 @@ import { generateRelatorioSituacaoPortaria, ServidorPortariaItem } from "@/lib/p
 import { generateRelatorioAgrupadoPortaria, GrupoPortaria, ServidorParaPortaria } from "@/lib/pdfRelatorioAgrupadoPortaria";
 import { VINCULO_LABELS, SITUACAO_LABELS, MOVIMENTACAO_LABELS } from "@/types/rh";
 import { ExportacaoServidoresCard } from "@/components/rh/ExportacaoServidoresCard";
+import { RelatorioServidoresDiretoriaCard } from "@/components/rh/RelatorioServidoresDiretoriaCard";
 
 const NATUREZA_LABELS: Record<string, string> = {
   comissionado: 'Cargos Comissionados',
@@ -1153,6 +1154,9 @@ export default function RelatoriosRHPage() {
 
             {/* Relatório Configurável para Planilha */}
             <ExportacaoServidoresCard />
+
+            {/* Relatório Hierárquico por Diretoria */}
+            <RelatorioServidoresDiretoriaCard />
           </div>
 
           {/* Summary Cards */}
