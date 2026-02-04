@@ -1,179 +1,128 @@
 
-# Plano: Reestruturação do PDF de Frequência em 5 Blocos Modulares
+# Plano Corrigido: Aumentar Fontes do Bloco 2 + Correções Visuais
 
-## Resumo das Alterações Solicitadas
+## Resumo das Alterações
 
-O usuário solicita uma reorganização visual e estrutural do gerador de PDF de frequência, dividindo-o em 5 blocos distintos com tamanhos proporcionais, além de melhorias visuais específicas.
+O usuário solicitou:
+1. **Aumentar fontes** no Bloco 2 (exceto nome do servidor que está bom em 11pt)
+2. Adicionar **hífen central** nas células de sábado/domingo/feriados no Bloco 3
+3. Corrigir **vazamento na coluna DIA** do Bloco 3
 
 ---
 
-## Estrutura Proposta em 5 Blocos
+## Solução: Aumentar Fontes + Altura do Bloco
+
+Para acomodar fontes maiores sem vazamento, aumentaremos a altura do Bloco 2 de **26mm para 30mm**.
+
+### Novas Especificações de Fonte (AUMENTADAS)
+
+| Campo | Tamanho Atual | Novo Tamanho |
+|-------|---------------|--------------|
+| Nome do Servidor | 11pt | **11pt** (mantém - já está bom) |
+| Labels (MATRÍCULA, CARGO...) | 6pt | **8pt** (+2pt) |
+| Valores dos campos | 8pt | **10pt** (+2pt) |
+| Badge de jornada | 7pt | **9pt** (+2pt) |
+| Label Unidade de Lotação | 6pt | **7pt** (+1pt) |
+| Valor Unidade de Lotação | 7pt | **9pt** (+2pt) |
+| Carga Semanal | 8pt | **10pt** (+2pt) |
+
+### Nova Altura do Bloco 2
 
 ```text
-+------------------------------------------+
-|           BLOCO 1: CABEÇALHO             |  ~22mm
-|    Logos Gov (30%) e IDJuv (60%)         |
-|    Textos institucionais                 |
-+------------------------------------------+
-|        BLOCO 2: DADOS DO SERVIDOR        |  ~26mm
-|    Nome, matrícula, cargo, unidade       |
-|    Fontes maiores e mais legíveis        |
-+------------------------------------------+
-|                                          |
-|      BLOCO 3: CORPO DA FREQUÊNCIA        |  ~165mm
-|    Tabela com 31 linhas                  |
-|    Linhas mais visíveis nas colunas      |
-|    Campos de horário e assinatura        |
-|                                          |
-+------------------------------------------+
-|    BLOCO 4: DATA E ASSINATURAS FINAIS    |  ~22mm
-|    Local/Data + Servidor + Chefe         |
-+------------------------------------------+
-|         BLOCO 5: RODAPÉ SISTEMA          |  ~8mm
-|    Metadados de geração                  |
-+------------------------------------------+
+ANTES: 26mm (apertado com fontes pequenas)
+DEPOIS: 30mm (confortável com fontes maiores)
+```
+
+### Nova Distribuição Vertical (dentro dos 30mm)
+
+```text
++------------------------------------------+  y + 0
+|▌                                         |
+|▌ NOME DO SERVIDOR EM DESTAQUE    [8h/dia]|  y + 5mm (nome 11pt)
+|▌                                         |
+|▌ MATRÍCULA     CARGO / FUNÇÃO    COMPET. |  y + 12mm (labels 8pt)
+|▌ 12345         Analista Admin... JAN/2026|  y + 17mm (valores 10pt)
+|▌                                         |
+|▌ UNIDADE DE LOTAÇÃO              C.SEMANAL|  y + 22mm (labels 7pt)
+|▌ Gerência de Tecnologia da...   40h      |  y + 27mm (valores 9pt)
++------------------------------------------+  y + 30mm
 ```
 
 ---
 
-## Detalhamento Técnico por Bloco
+## Alteração na Constante de Altura
 
-### Bloco 1: Cabeçalho Institucional (~22mm)
+```typescript
+// ANTES
+export const BLOCO_ALTURAS = {
+  cabecalho: 22,
+  dadosServidor: 26,  // ← apertado
+  assinaturas: 22,
+  rodape: 8
+};
 
-**Alterações nas Logos:**
-| Logo | Proporção Atual | Nova Proporção | Altura Calculada |
-|------|-----------------|----------------|------------------|
-| Governo RR | ~50% | **30%** | 8mm |
-| IDJuv | ~50% | **60%** | 14mm |
-
-**Cálculo das dimensões:**
-- Logo Governo: 8mm altura × 3.69 (proporção) = ~29.5mm largura
-- Logo IDJuv: 14mm altura × 1.55 (proporção) = ~21.7mm largura
-
-**Implementação:**
-- Atualizar constantes `logoGovernoHeight` e `logoIdjuvHeight`
-- Manter logos alinhadas verticalmente ao centro do bloco
-- Textos institucionais centralizados entre as logos
-
----
-
-### Bloco 2: Dados do Servidor (~26mm)
-
-**Melhorias nas fontes:**
-| Campo | Tamanho Atual | Novo Tamanho |
-|-------|---------------|--------------|
-| Nome do Servidor | 9pt | **11pt** |
-| Labels (Matrícula, Cargo...) | 5pt | **6pt** |
-| Valores dos campos | 6.5pt | **8pt** |
-| Badge de jornada | 6pt | **7pt** |
-
-**Estrutura visual:**
-- Borda arredondada com barra lateral colorida (mantido)
-- Espaçamento interno aumentado para comportar fontes maiores
-- Grid de 3 colunas para dados administrativos
+// DEPOIS
+export const BLOCO_ALTURAS = {
+  cabecalho: 22,
+  dadosServidor: 30,  // ← aumentado para acomodar fontes maiores
+  assinaturas: 22,
+  rodape: 8
+};
+```
 
 ---
 
-### Bloco 3: Corpo da Frequência (~165mm)
+## Correções Adicionais no Bloco 3
 
-**Melhorias visuais nas linhas separadoras:**
+### 1. Hífen em Dias Não Úteis
 
-| Elemento | Espessura Atual | Nova Espessura | Cor |
-|----------|-----------------|----------------|-----|
-| Borda externa da tabela | 0.3pt | **0.5pt** | Cinza escuro |
-| Linhas horizontais (linhas) | 0.1pt | **0.25pt** | Cinza médio |
-| Linhas verticais (colunas) | 0.1-0.15pt | **0.3pt** | Cinza médio |
-| Divisória entre turnos | 0.5pt | **0.8pt** | Verde institucional |
+Nas células de entrada/saída (ent1, sai1, ent2, sai2, abo1, abo2), quando for sábado, domingo ou feriado:
+- Renderizar um **"—"** (travessão) centralizado
+- Fonte 8pt, cor cinza médio
 
-**Header da tabela:**
-- Borda inferior mais forte (0.4pt)
-- Separadores verticais mais visíveis
+### 2. Coluna DIA Centralizada
 
-**Colunas da tabela:**
-- Linhas verticais contínuas do header até a última linha
-- Cor consistente em todas as separações
+Corrigir o vazamento renderizando "DD Xxx" como texto único centralizado:
+```typescript
+const texto = `${String(dia).padStart(2, '0')} ${diaSemana}`;
+doc.text(texto, centerX, textY, { align: 'center' });
+```
 
 ---
 
-### Bloco 4: Data e Assinaturas Finais (~22mm)
-
-**Estrutura:**
-- Linha 1: "Boa Vista - RR, _______ de ________________________ de ________."
-- Linha 2: Duas áreas de assinatura lado a lado
-  - Esquerda: Assinatura do(a) Servidor(a)
-  - Direita: Visto do(a) Chefe Imediato
-
-**Melhorias:**
-- Espaçamento adequado entre a tabela e esta área
-- Linhas de assinatura mais espessas (0.5pt)
-- Fontes maiores nos labels (8pt)
-
----
-
-### Bloco 5: Rodapé do Sistema (~8mm)
-
-**Conteúdo:**
-- Esquerda: Data/hora de geração + usuário
-- Centro: "IDJuv • Sistema de Gestão de Pessoas"
-- Direita: Texto personalizado (se houver)
-
-**Posicionamento fixo:**
-- Sempre a 6mm da borda inferior da página
-- Independente do conteúdo acima
-
----
-
-## Arquivos a Modificar
+## Arquivo a Modificar
 
 | Arquivo | Alterações |
 |---------|------------|
-| `src/lib/pdfFrequenciaMensalGenerator.ts` | Reestruturação completa em 5 funções modulares + ajustes visuais |
+| `src/lib/pdfFrequenciaMensalGenerator.ts` | Aumentar altura do Bloco 2, aumentar fontes, ajustar espaçamento, adicionar hífen nos dias não úteis, centralizar coluna DIA |
 
 ---
 
-## Implementação Proposta
-
-### Novas Funções Modulares
+## Resultado Visual Esperado
 
 ```text
-renderizarBloco1Cabecalho(doc, params)    → Logos 30%/60% + textos
-renderizarBloco2DadosServidor(doc, params) → Fontes aumentadas
-renderizarBloco3CorpoFrequencia(doc, params) → Linhas mais visíveis
-renderizarBloco4Assinaturas(doc, params)   → Data + assinaturas
-renderizarBloco5Rodape(doc, params)        → Metadados
-```
++------------------------------------------+
+|        BLOCO 2: DADOS DO SERVIDOR        |  30mm
+|                                          |
+| MATRÍCULA     CARGO / FUNÇÃO    COMPETÊNCIA  ← Fontes MAIORES
+| 12345         Analista Admin... JAN / 2026   ← Mais legível
+|                                          |
+| UNIDADE DE LOTAÇÃO                C. SEMANAL
+| Gerência de Tecnologia da Info... 40h    
++------------------------------------------+
 
-### Constantes de Layout
-
-```text
-BLOCO_ALTURAS = {
-  cabecalho: 22,      // mm
-  dadosServidor: 26,  // mm
-  assinaturas: 22,    // mm
-  rodape: 8,          // mm
-  // corpo: calculado dinamicamente
-}
-
-LOGO_PROPORCOES = {
-  governo: 0.30,  // 30% de destaque visual
-  idjuv: 0.60,    // 60% de destaque visual
-}
-
-LINHAS_TABELA = {
-  externa: 0.5,
-  horizontal: 0.25,
-  vertical: 0.3,
-  divisoriaTurno: 0.8,
-}
++------------------------------------------+
+|       BLOCO 3: CORPO DA FREQUÊNCIA       |
+|  DIA  | ENT | SAÍ | ASSIN. | ENT | SAÍ...|
+|-------|-----|-----|--------|-----|-------|
+| 01 Qua|  —  |  —  | FERIADO|  —  |  —  ..|  ← Hífen nos dias não úteis
+| 02 Qui| 8:00|12:00|________|13:00|17:00..|
+| 03 Sáb|  —  |  —  | SÁBADO |  —  |  —  ..|
++------------------------------------------+
 ```
 
 ---
 
-## Benefícios da Reestruturação
+## Impacto no Layout Geral
 
-1. **Código modular** - Cada bloco em função separada, facilitando manutenção
-2. **Proporções calculadas** - Logos com destaque adequado (IDJuv maior)
-3. **Legibilidade** - Fontes maiores nos dados do servidor
-4. **Visual profissional** - Linhas de separação mais visíveis na tabela
-5. **Flexibilidade** - Fácil ajustar alturas de cada bloco independentemente
-
+Com o Bloco 2 aumentando de 26mm para 30mm (+4mm), o Bloco 3 (corpo da tabela) terá 4mm a menos de espaço. A altura das linhas será recalculada automaticamente pelo algoritmo de compressão existente, mantendo tudo dentro de uma única página A4.
