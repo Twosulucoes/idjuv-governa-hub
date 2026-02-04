@@ -109,7 +109,7 @@ export const INSTITUICAO = {
 // ============================================
 export const BLOCO_ALTURAS = {
   cabecalho: 22,      // Bloco 1: Cabeçalho institucional
-  dadosServidor: 26,  // Bloco 2: Card de dados do servidor
+  dadosServidor: 30,  // Bloco 2: Card de dados do servidor (aumentado para fontes maiores)
   assinaturas: 22,    // Bloco 4: Data e assinaturas finais
   rodape: 8,          // Bloco 5: Rodapé do sistema
   // Bloco 3: Corpo da frequência = calculado dinamicamente
@@ -350,79 +350,98 @@ function renderizarBloco2DadosServidor(params: RenderBloco2Params): number {
   doc.rect(margin, y, 2.5, identificacaoHeight, 'F');
 
   const cardPadding = 6;
-  let infoY = y + 5;
   const col1 = margin + cardPadding;
   const col2 = margin + contentWidth * 0.35;
   const col3 = margin + contentWidth * 0.68;
 
-  // === LINHA 1: Nome do Servidor (destaque principal - FONTE MAIOR) ===
+  // ============================================
+  // DISTRIBUIÇÃO VERTICAL DENTRO DOS 30mm
+  // ============================================
+  // Zona 1: Nome (y + 5mm)
+  // Zona 2: Labels em y + 12mm, Valores em y + 17mm
+  // Zona 3: Labels em y + 22mm, Valores em y + 27mm
+  // ============================================
+  
+  const nomeY = y + 5;
+  const linha2LabelY = y + 12;
+  const linha2ValorY = y + 17;
+  const linha3LabelY = y + 22;
+  const linha3ValorY = y + 27;
+
+  // === ZONA 1: Nome do Servidor (destaque principal) ===
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11); // AUMENTADO de 9 para 11
+  doc.setFontSize(11); // Mantém em 11pt (já está bom)
   doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
-  doc.text((servidor.nome_completo || '').toUpperCase(), col1, infoY);
+  doc.text((servidor.nome_completo || '').toUpperCase(), col1, nomeY);
   
   // Badge de jornada (canto direito)
-  const badgeWidth = 22;
+  const badgeWidth = 24;
   const badgeX = margin + contentWidth - badgeWidth - 4;
   doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
-  doc.roundedRect(badgeX, infoY - 4, badgeWidth, 6.5, 1.5, 1.5, 'F');
+  doc.roundedRect(badgeX, nomeY - 4.5, badgeWidth, 7, 1.5, 1.5, 'F');
   doc.setTextColor(CORES.branco.r, CORES.branco.g, CORES.branco.b);
-  doc.setFontSize(7); // AUMENTADO de 6 para 7
-  doc.text(`${cargaHorariaDiaria}h/dia`, badgeX + badgeWidth / 2, infoY, { align: 'center' });
-  
-  infoY += 8;
+  doc.setFontSize(9); // AUMENTADO de 7 para 9
+  doc.text(`${cargaHorariaDiaria}h/dia`, badgeX + badgeWidth / 2, nomeY, { align: 'center' });
 
-  // === LINHA 2: Dados Administrativos - FONTES MAIORES ===
+  // === ZONA 2: Dados Administrativos - FONTES AUMENTADAS ===
   const labelStyle = () => {
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6); // AUMENTADO de 5 para 6
+    doc.setFontSize(8); // AUMENTADO de 6 para 8
     doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
   };
   const valueStyle = () => {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8); // AUMENTADO de 6.5 para 8
+    doc.setFontSize(10); // AUMENTADO de 8 para 10
     doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
   };
 
   // Matrícula
   labelStyle();
-  doc.text('MATRÍCULA', col1, infoY);
+  doc.text('MATRÍCULA', col1, linha2LabelY);
   valueStyle();
-  doc.text(servidor.matricula || '—', col1, infoY + 4);
+  doc.text(servidor.matricula || '—', col1, linha2ValorY);
 
-  // Cargo
+  // Cargo / Função (com truncamento inteligente)
   labelStyle();
-  doc.text('CARGO / FUNÇÃO', col2, infoY);
+  doc.text('CARGO / FUNÇÃO', col2, linha2LabelY);
   valueStyle();
   const cargoFuncao = servidor.funcao 
     ? `${servidor.cargo || ''} / ${servidor.funcao}` 
     : (servidor.cargo || '—');
-  const cargoDisplay = cargoFuncao.length > 40 ? cargoFuncao.substring(0, 37) + '...' : cargoFuncao;
-  doc.text(cargoDisplay, col2, infoY + 4);
+  // Calcular largura disponível até col3
+  const larguraDisponivelCargo = col3 - col2 - 5;
+  let cargoDisplay = cargoFuncao;
+  while (doc.getTextWidth(cargoDisplay) > larguraDisponivelCargo && cargoDisplay.length > 3) {
+    cargoDisplay = cargoDisplay.substring(0, cargoDisplay.length - 4) + '...';
+  }
+  doc.text(cargoDisplay, col2, linha2ValorY);
 
   // Competência
   labelStyle();
-  doc.text('COMPETÊNCIA', col3, infoY);
+  doc.text('COMPETÊNCIA', col3, linha2LabelY);
   valueStyle();
-  doc.text(`${MESES[competencia.mes - 1].toUpperCase()} / ${competencia.ano}`, col3, infoY + 4);
-  
-  infoY += 10;
+  doc.text(`${MESES[competencia.mes - 1].toUpperCase()} / ${competencia.ano}`, col3, linha2ValorY);
 
-  // === LINHA 3: Unidade e Carga Semanal ===
+  // === ZONA 3: Unidade e Carga Semanal ===
   labelStyle();
-  doc.text('UNIDADE DE LOTAÇÃO', col1, infoY);
+  doc.setFontSize(7); // Label unidade ligeiramente menor para caber
+  doc.text('UNIDADE DE LOTAÇÃO', col1, linha3LabelY);
   valueStyle();
+  doc.setFontSize(9); // AUMENTADO de 7 para 9
+  // Truncar unidade com base na largura real disponível
+  const larguraDisponivelUnidade = col3 - col1 - 5;
+  let unidadeText = servidor.unidade || '—';
+  while (doc.getTextWidth(unidadeText) > larguraDisponivelUnidade && unidadeText.length > 3) {
+    unidadeText = unidadeText.substring(0, unidadeText.length - 4) + '...';
+  }
+  doc.text(unidadeText, col1, linha3ValorY);
+
+  labelStyle();
   doc.setFontSize(7);
-  const unidadeText = (servidor.unidade || '—').length > 80 
-    ? (servidor.unidade || '').substring(0, 77) + '...' 
-    : (servidor.unidade || '—');
-  doc.text(unidadeText, col1, infoY + 4);
-
-  labelStyle();
-  doc.text('CARGA SEMANAL', col3, infoY);
+  doc.text('CARGA SEMANAL', col3, linha3LabelY);
   valueStyle();
-  doc.setFontSize(8);
-  doc.text(`${servidor.carga_horaria_semanal || 40}h`, col3, infoY + 4);
+  doc.setFontSize(10); // AUMENTADO de 8 para 10
+  doc.text(`${servidor.carga_horaria_semanal || 40}h`, col3, linha3ValorY);
 
   return y + identificacaoHeight + 2;
 }
@@ -653,14 +672,12 @@ function renderizarBloco3CorpoFrequencia(params: RenderBloco3Params): number {
           const dataAtual = new Date(competencia.ano, competencia.mes - 1, dia);
           const diaSemana = DIAS_SEMANA_ABREV[dataAtual.getDay()];
           
+          // Renderizar "DD Xxx" como texto único centralizado para evitar vazamento
+          const diaTexto = `${String(dia).padStart(2, '0')} ${diaSemana}`;
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(8);
+          doc.setFontSize(7);
           doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
-          doc.text(String(dia).padStart(2, '0'), colX + 4.5, textY);
-          
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(6);
-          doc.text(diaSemana, colX + 10.5, textY);
+          doc.text(diaTexto, centerX, textY, { align: 'center' });
         } else {
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(6);
@@ -672,7 +689,14 @@ function renderizarBloco3CorpoFrequencia(params: RenderBloco3Params): number {
         doc.setFontSize(6);
         doc.text('—', centerX, textY, { align: 'center' });
       } else if (isNaoUtil) {
-        if (col.key === 'ass1' || col.key === 'ass2') {
+        // Para colunas de entrada/saída em dias não úteis: renderizar hífen central
+        if (['ent1', 'sai1', 'ent2', 'sai2', 'abo1', 'abo2'].includes(col.key)) {
+          doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.text('—', centerX, textY, { align: 'center' });
+        } else if (col.key === 'ass1' || col.key === 'ass2') {
+          // Manter label do tipo de dia não útil nas colunas de assinatura
           let displayLabel = '';
           if (isDomingo) displayLabel = 'DOMINGO';
           else if (isSabado) displayLabel = 'SÁBADO';
