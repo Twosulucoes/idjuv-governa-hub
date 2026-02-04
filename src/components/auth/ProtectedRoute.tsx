@@ -3,10 +3,12 @@
 // ============================================
 // Baseado EXCLUSIVAMENTE em permissões do banco
 // Mantém compatibilidade com allowedRoles para migração gradual
+// Integração com sistema de módulos por usuário
 
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModulosUsuario } from '@/hooks/useModulosUsuario';
 import { PermissionCode, ROUTE_PERMISSIONS, AppRole } from '@/types/auth';
 import { Loader2 } from 'lucide-react';
 
@@ -101,13 +103,14 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     hasAnyPermission, 
     hasAllPermissions 
   } = useAuth();
+  const { rotaAutorizada, loading: loadingModulos, restringirModulos } = useModulosUsuario();
   const location = useLocation();
 
   // ============================================
   // LOADING STATE
   // ============================================
 
-  if (isLoading) {
+  if (isLoading || loadingModulos) {
     return loadingComponent || (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -130,6 +133,16 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // Super Admin tem acesso total
   if (isSuperAdmin) {
     return <>{children}</>;
+  }
+
+  // ============================================
+  // VERIFICAÇÃO DE MÓDULO (NOVA)
+  // ============================================
+
+  // Verifica se a rota está em um módulo autorizado para o usuário
+  if (restringirModulos && !rotaAutorizada(location.pathname)) {
+    onAccessDenied?.();
+    return <Navigate to={accessDeniedPath} state={{ from: location, reason: 'module_restricted' }} replace />;
   }
 
   // ============================================

@@ -12227,6 +12227,45 @@ export type Database = {
         }
         Relationships: []
       }
+      modulos_sistema: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          cor: string | null
+          created_at: string | null
+          descricao: string | null
+          icone: string | null
+          id: string
+          nome: string
+          ordem: number | null
+          prefixos_rota: string[]
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          cor?: string | null
+          created_at?: string | null
+          descricao?: string | null
+          icone?: string | null
+          id?: string
+          nome: string
+          ordem?: number | null
+          prefixos_rota?: string[]
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          cor?: string | null
+          created_at?: string | null
+          descricao?: string | null
+          icone?: string | null
+          id?: string
+          nome?: string
+          ordem?: number | null
+          prefixos_rota?: string[]
+        }
+        Relationships: []
+      }
       movimentacoes_bem: {
         Row: {
           bem_id: string
@@ -14891,6 +14930,7 @@ export type Database = {
           id: string
           is_active: boolean
           requires_password_change: boolean | null
+          restringir_modulos: boolean | null
           servidor_id: string | null
           tipo_usuario: Database["public"]["Enums"]["tipo_usuario"]
           updated_at: string
@@ -14906,6 +14946,7 @@ export type Database = {
           id: string
           is_active?: boolean
           requires_password_change?: boolean | null
+          restringir_modulos?: boolean | null
           servidor_id?: string | null
           tipo_usuario?: Database["public"]["Enums"]["tipo_usuario"]
           updated_at?: string
@@ -14921,6 +14962,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           requires_password_change?: boolean | null
+          restringir_modulos?: boolean | null
           servidor_id?: string | null
           tipo_usuario?: Database["public"]["Enums"]["tipo_usuario"]
           updated_at?: string
@@ -17860,6 +17902,41 @@ export type Database = {
         }
         Relationships: []
       }
+      usuario_modulos: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          modulo_id: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          modulo_id: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          modulo_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usuario_modulos_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "modulos_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usuario_perfis: {
         Row: {
           ativo: boolean
@@ -18727,6 +18804,14 @@ export type Database = {
       }
       usuario_pode_reabrir_folha: {
         Args: { p_user_id: string }
+        Returns: boolean
+      }
+      usuario_tem_acesso_modulo: {
+        Args: { _codigo_modulo: string; _user_id: string }
+        Returns: boolean
+      }
+      usuario_tem_acesso_rota: {
+        Args: { _pathname: string; _user_id: string }
         Returns: boolean
       }
       usuario_tem_permissao: {
