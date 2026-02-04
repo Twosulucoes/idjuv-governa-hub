@@ -2,7 +2,7 @@
 // TIPOS E CONFIGURAÇÕES PARA RELATÓRIOS DE FEDERAÇÕES
 // ================================================================
 
-export type TipoRelatorioFederacao = 'federacoes' | 'dirigentes' | 'calendario';
+export type TipoRelatorioFederacao = 'federacoes' | 'dirigentes' | 'calendario' | 'contatos_estrategicos';
 
 export interface CampoRelatorioFederacao {
   id: string;
@@ -45,6 +45,7 @@ export const CAMPOS_FEDERACOES: CampoRelatorioFederacao[] = [
   { id: 'sigla', label: 'Sigla', tipo: 'texto', grupo: 'federacao', largura: 'pequena' },
   { id: 'modalidade', label: 'Modalidade', tipo: 'texto', grupo: 'federacao', largura: 'media' },
   { id: 'status', label: 'Status', tipo: 'badge', grupo: 'federacao', largura: 'pequena' },
+  { id: 'indicacao', label: 'Indicação', tipo: 'texto', grupo: 'federacao', largura: 'grande' },
   { id: 'data_criacao', label: 'Data de Criação', tipo: 'data', grupo: 'federacao', largura: 'media' },
   { id: 'mandato_inicio', label: 'Início Mandato', tipo: 'data', grupo: 'federacao', largura: 'media' },
   { id: 'mandato_fim', label: 'Fim Mandato', tipo: 'data', grupo: 'federacao', largura: 'media' },
@@ -112,10 +113,18 @@ export const CAMPOS_CALENDARIO: CampoRelatorioFederacao[] = [
   { id: 'observacoes', label: 'Observações', tipo: 'texto', grupo: 'evento', largura: 'grande' },
 ];
 
+// Campos para Contatos Estratégicos (simplificado)
+export const CAMPOS_CONTATOS_ESTRATEGICOS: CampoRelatorioFederacao[] = [
+  { id: 'nome', label: 'Nome', tipo: 'texto', grupo: 'federacao', largura: 'grande' },
+  { id: 'telefone', label: 'Telefone', tipo: 'texto', grupo: 'contato', largura: 'media' },
+  { id: 'indicacao', label: 'Indicação', tipo: 'texto', grupo: 'federacao', largura: 'grande' },
+];
+
 export const CAMPOS_POR_TIPO_FEDERACAO: Record<TipoRelatorioFederacao, CampoRelatorioFederacao[]> = {
   federacoes: CAMPOS_FEDERACOES,
   dirigentes: CAMPOS_DIRIGENTES,
   calendario: CAMPOS_CALENDARIO,
+  contatos_estrategicos: CAMPOS_CONTATOS_ESTRATEGICOS,
 };
 
 // ================================================================
@@ -274,10 +283,30 @@ export const FILTROS_CALENDARIO: FiltroFederacao[] = [
   },
 ];
 
+export const FILTROS_CONTATOS_ESTRATEGICOS: FiltroFederacao[] = [
+  {
+    id: 'status',
+    label: 'Status',
+    tipo: 'multiselect',
+    opcoes: [
+      { value: 'em_analise', label: 'Em Análise' },
+      { value: 'ativo', label: 'Ativa' },
+      { value: 'inativo', label: 'Inativa' },
+      { value: 'rejeitado', label: 'Rejeitada' },
+    ],
+  },
+  {
+    id: 'possui_indicacao',
+    label: 'Possui Indicação',
+    tipo: 'boolean',
+  },
+];
+
 export const FILTROS_POR_TIPO_FEDERACAO: Record<TipoRelatorioFederacao, FiltroFederacao[]> = {
   federacoes: FILTROS_FEDERACOES,
   dirigentes: FILTROS_DIRIGENTES,
   calendario: FILTROS_CALENDARIO,
+  contatos_estrategicos: FILTROS_CONTATOS_ESTRATEGICOS,
 };
 
 // ================================================================
@@ -288,6 +317,7 @@ export const TIPO_RELATORIO_FEDERACAO_LABELS: Record<TipoRelatorioFederacao, str
   federacoes: 'Federações',
   dirigentes: 'Dirigentes',
   calendario: 'Calendário de Competições',
+  contatos_estrategicos: 'Contatos Estratégicos',
 };
 
 export const STATUS_FEDERACAO_LABELS: Record<string, string> = {
@@ -330,6 +360,13 @@ export const CONFIG_PADRAO_FEDERACAO: Record<TipoRelatorioFederacao, Partial<Con
     camposSelecionados: ['federacao_sigla', 'titulo', 'tipo', 'status', 'data_inicio', 'data_fim', 'cidade'],
     orientacao: 'paisagem',
     ordenacao: { campo: 'data_inicio', direcao: 'asc' },
+  },
+  contatos_estrategicos: {
+    titulo: 'Contatos Estratégicos das Federações',
+    subtitulo: 'Instituto de Desenvolvimento da Juventude e do Esporte - IDJuv',
+    camposSelecionados: ['nome', 'telefone', 'indicacao'],
+    orientacao: 'retrato',
+    ordenacao: { campo: 'nome', direcao: 'asc' },
   },
 };
 
