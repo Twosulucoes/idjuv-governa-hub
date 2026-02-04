@@ -3,20 +3,18 @@
  * GERAÇÃO DE PDF DE FREQUÊNCIA MENSAL - MODELO OFICIAL ÚNICO
  * ============================================
  * 
+ * ESTRUTURA MODULAR EM 5 BLOCOS:
+ * 1. BLOCO 1: Cabeçalho Institucional (~22mm)
+ * 2. BLOCO 2: Dados do Servidor (~26mm)
+ * 3. BLOCO 3: Corpo da Frequência (dinâmico)
+ * 4. BLOCO 4: Data e Assinaturas Finais (~22mm)
+ * 5. BLOCO 5: Rodapé do Sistema (~8mm)
+ * 
  * CAMADA DE APRESENTAÇÃO - NÃO CONTÉM LÓGICA DE CÁLCULO
  * 
- * Este módulo é responsável EXCLUSIVAMENTE pela renderização visual.
- * Toda a lógica de cálculo deve vir do motor parametrizado:
- * - src/lib/frequenciaCalculoService.ts
- * - src/hooks/useConfigFrequencia.ts
- * 
- * PARAMETRIZAÇÃO POR JORNADA (dados do motor):
- * - Carga horária <= 6h: 1 turno + 1 campo de assinatura
- * - Carga horária >= 8h: 2 turnos + 2 campos de assinatura
- * 
  * @author Sistema IDJUV
- * @version 2.0.0 - Refatorado para consumir motor parametrizado
- * @date 03/02/2026
+ * @version 3.0.0 - Reestruturado em 5 blocos modulares
+ * @date 04/02/2026
  */
 import jsPDF from 'jspdf';
 import { DIAS_SEMANA_SIGLA, type DiaNaoUtil } from '@/types/frequencia';
@@ -106,13 +104,39 @@ export const INSTITUICAO = {
   endereco: 'Rua Cel. Pinto, 588, Centro, Boa Vista/RR, CEP 69.301-150',
 };
 
-// Paleta de cores institucional moderna - refinada
+// ============================================
+// LAYOUT EM 5 BLOCOS - ALTURAS PROPORCIONAIS
+// ============================================
+export const BLOCO_ALTURAS = {
+  cabecalho: 22,      // Bloco 1: Cabeçalho institucional
+  dadosServidor: 26,  // Bloco 2: Card de dados do servidor
+  assinaturas: 22,    // Bloco 4: Data e assinaturas finais
+  rodape: 8,          // Bloco 5: Rodapé do sistema
+  // Bloco 3: Corpo da frequência = calculado dinamicamente
+};
+
+// Proporções das logos (conforme solicitado: IDJuv 60%, Governo 30%)
+export const LOGO_PROPORCOES = {
+  governo: 0.30,  // 30% de destaque visual
+  idjuv: 0.60,    // 60% de destaque visual
+};
+
+// Espessuras das linhas da tabela (melhoradas para visibilidade)
+export const LINHAS_TABELA = {
+  externa: 0.5,         // Borda externa da tabela
+  horizontal: 0.25,     // Linhas horizontais entre linhas
+  vertical: 0.3,        // Linhas verticais entre colunas
+  divisoriaTurno: 0.8,  // Divisória entre 1º e 2º turno
+  headerInferior: 0.4,  // Borda inferior do header
+};
+
+// Paleta de cores institucional
 export const CORES = {
   // Cores primárias institucionais
-  primaria: { r: 0, g: 68, b: 68 },       // Verde institucional
-  primariaSuave: { r: 0, g: 85, b: 85 },  // Verde mais claro
-  secundaria: { r: 41, g: 98, b: 135 },   // Azul moderno
-  accent: { r: 180, g: 145, b: 75 },      // Dourado sutil
+  primaria: { r: 0, g: 68, b: 68 },
+  primariaSuave: { r: 0, g: 85, b: 85 },
+  secundaria: { r: 41, g: 98, b: 135 },
+  accent: { r: 180, g: 145, b: 75 },
   
   // Textos
   preto: { r: 0, g: 0, b: 0 },
@@ -128,8 +152,8 @@ export const CORES = {
   bgCard: { r: 255, g: 255, b: 255 },
   
   // Bordas e linhas
-  border: { r: 220, g: 225, b: 232 },
-  borderLight: { r: 235, g: 238, b: 242 },
+  border: { r: 180, g: 185, b: 195 },       // MAIS ESCURO para visibilidade
+  borderLight: { r: 200, g: 205, b: 215 },  // MAIS ESCURO para visibilidade
   borderStrong: { r: 0, g: 68, b: 68 },
   
   // Status
@@ -176,9 +200,6 @@ const DIAS_SEMANA_ABREV: Record<number, string> = {
 // FUNÇÕES AUXILIARES DE GERAÇÃO
 // ============================================
 
-/**
- * Gera os registros diários em branco para o mês
- */
 export function gerarRegistrosDiariosBranco(
   ano: number, 
   mes: number, 
@@ -204,20 +225,9 @@ export function gerarRegistrosDiariosBranco(
 }
 
 /**
- * Calcula o resumo mensal baseado nos registros
- * 
- * ATENÇÃO: Esta função é mantida apenas para compatibilidade.
- * Para novos desenvolvimentos, use:
- * - calcularResumoMensalParametrizado() de frequenciaCalculoService.ts
- * 
- * A lógica de cálculo deve vir do motor parametrizado.
- * Esta função apenas converte os dados já calculados para o formato do PDF.
- * 
  * @deprecated Use calcularResumoMensalParametrizado do frequenciaCalculoService
  */
 export function calcularResumoMensal(registros: RegistroDiario[], cargaHorariaDiaria: number): ResumoMensal {
-  // NOTA: Esta função é usada como fallback quando resumo não é fornecido
-  // A lógica principal de cálculo está em frequenciaCalculoService.ts
   const diasUteis = registros.filter(r => r.situacao === 'util').length;
   const diasTrabalhados = registros.filter(r => r.total_horas && r.total_horas > 0).length;
   const horasPrevistas = diasUteis * cargaHorariaDiaria;
@@ -235,139 +245,142 @@ export function calcularResumoMensal(registros: RegistroDiario[], cargaHorariaDi
 }
 
 // ============================================
-// FUNÇÃO PRINCIPAL DE RENDERIZAÇÃO
-// (Usada tanto para individual quanto para lote)
+// BLOCO 1: CABEÇALHO INSTITUCIONAL (~22mm)
 // ============================================
-
-export interface RenderizarPaginaParams {
+interface RenderBloco1Params {
   doc: jsPDF;
-  data: FrequenciaMensalPDFData;
-  rodapePersonalizado?: string;
+  y: number;
+  pageWidth: number;
+  margin: number;
+  contentWidth: number;
 }
 
-/**
- * Renderiza uma página de frequência conforme MODELO OFICIAL ÚNICO
- * 
- * CAMADA DE APRESENTAÇÃO - Consome dados do motor parametrizado
- * 
- * A determinação de 1 ou 2 turnos vem do motor:
- * - frequenciaCalculoService.verificarDoisTurnos()
- * - baseado em carga_horaria_diaria do servidor
- * 
- * O layout visual é fixo. A estrutura se adapta automaticamente.
- */
-export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void {
-  const { doc, data, rodapePersonalizado } = params;
+function renderizarBloco1Cabecalho(params: RenderBloco1Params): number {
+  const { doc, y, pageWidth, margin, contentWidth } = params;
+  const headerHeight = BLOCO_ALTURAS.cabecalho;
   
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 8;
-  const contentWidth = pageWidth - margin * 2;
-
-  const { tipo, competencia, servidor, registros, diasNaoUteis, configAssinatura, dataGeracao, usuarioGeracao } = data;
-  const ultimoDia = getUltimoDiaMes(competencia.ano, competencia.mes);
-
-  // =====================================================
-  // PARAMETRIZAÇÃO DO MOTOR - NÃO HARDCODEAR
-  // =====================================================
-  // A carga horária vem dos dados do servidor (já calculada pelo motor)
-  const cargaHorariaDiaria = servidor.carga_horaria_diaria || 8;
+  // Calcular alturas das logos conforme proporções solicitadas
+  // Base de cálculo: altura disponível do bloco = 22mm
+  // IDJuv: 60% → 14mm de altura
+  // Governo: 30% → 8mm de altura
+  const logoIdjuvHeight = 14;  // 60% do destaque visual
+  const logoGovernoHeight = 8; // 30% do destaque visual
   
-  // REGRA DO MOTOR: verificarDoisTurnos() de frequenciaCalculoService.ts
-  // Usando fallback local para compatibilidade: >= 8h = 2 turnos
-  const usaDoisTurnosFlag = verificarDoisTurnos(cargaHorariaDiaria);
-
-  let y = margin;
-
-  // ===== CABEÇALHO INSTITUCIONAL COMPACTO =====
-  const headerHeight = 20; // REDUZIDO de 24 para 20
-  
-  // Logos compactas e equilibradas
-  const logoGovernoHeight = 10; // REDUZIDO de 11 para 10
-  const logoGovernoWidth = logoGovernoHeight * 3.69;
-  const logoIdjuvHeight = 12; // REDUZIDO de 14 para 12
-  const logoIdjuvWidth = logoIdjuvHeight * 1.55;
+  // Calcular larguras mantendo proporções originais
+  const logoGovernoWidth = logoGovernoHeight * 3.69; // ~29.5mm
+  const logoIdjuvWidth = logoIdjuvHeight * 1.55;     // ~21.7mm
   
   const textCenterX = pageWidth / 2;
   
   try {
     // Logo Governo (esquerda, alinhada verticalmente)
-    doc.addImage(logoGoverno, 'JPEG', margin, y + (headerHeight - logoGovernoHeight) / 2, logoGovernoWidth, logoGovernoHeight);
+    doc.addImage(
+      logoGoverno, 
+      'JPEG', 
+      margin, 
+      y + (headerHeight - logoGovernoHeight) / 2, 
+      logoGovernoWidth, 
+      logoGovernoHeight
+    );
+    
     // Logo IDJuv (direita, alinhada verticalmente)
-    doc.addImage(logoIdjuv, 'PNG', pageWidth - margin - logoIdjuvWidth, y + (headerHeight - logoIdjuvHeight) / 2, logoIdjuvWidth, logoIdjuvHeight);
+    doc.addImage(
+      logoIdjuv, 
+      'PNG', 
+      pageWidth - margin - logoIdjuvWidth, 
+      y + (headerHeight - logoIdjuvHeight) / 2, 
+      logoIdjuvWidth, 
+      logoIdjuvHeight
+    );
   } catch (e) {
     console.warn('Logos não carregados');
   }
 
-  // Textos institucionais compactos
+  // Textos institucionais centralizados
   doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', textCenterX, y + 5, { align: 'center' });
+  doc.setFontSize(9); // Aumentado de 8 para 9
+  doc.text('GOVERNO DO ESTADO DE RORAIMA', textCenterX, y + 6, { align: 'center' });
   
-  doc.setFontSize(6.5);
+  doc.setFontSize(7.5); // Aumentado de 6.5 para 7.5
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);
-  doc.text('Instituto de Desporto, Juventude e Lazer / iDJUV', textCenterX, y + 9.5, { align: 'center' });
+  doc.text('Instituto de Desporto, Juventude e Lazer / iDJUV', textCenterX, y + 11, { align: 'center' });
   
   // Título principal
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
+  doc.setFontSize(11); // Aumentado de 10 para 11
   doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
-  doc.text('FOLHA INDIVIDUAL DE PRESENÇA', textCenterX, y + 16, { align: 'center' });
+  doc.text('FOLHA INDIVIDUAL DE PRESENÇA', textCenterX, y + 18, { align: 'center' });
 
   // Linha divisória sutil
   doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
-  doc.setLineWidth(0.3);
+  doc.setLineWidth(0.4);
   doc.line(margin, y + headerHeight, pageWidth - margin, y + headerHeight);
 
-  y += headerHeight + 2; // REDUZIDO espaçamento de 5 para 2
+  return y + headerHeight + 2;
+}
 
-  // ===== CARD DE IDENTIFICAÇÃO DO SERVIDOR (COMPACTO) =====
-  const identificacaoHeight = 24; // REDUZIDO de 28 para 24
+// ============================================
+// BLOCO 2: DADOS DO SERVIDOR (~26mm)
+// ============================================
+interface RenderBloco2Params {
+  doc: jsPDF;
+  y: number;
+  pageWidth: number;
+  margin: number;
+  contentWidth: number;
+  servidor: FrequenciaMensalPDFData['servidor'];
+  competencia: FrequenciaMensalPDFData['competencia'];
+  cargaHorariaDiaria: number;
+}
+
+function renderizarBloco2DadosServidor(params: RenderBloco2Params): number {
+  const { doc, y, margin, contentWidth, servidor, competencia, cargaHorariaDiaria } = params;
+  const identificacaoHeight = BLOCO_ALTURAS.dadosServidor;
   
   // Fundo branco com borda suave
   doc.setFillColor(CORES.bgCard.r, CORES.bgCard.g, CORES.bgCard.b);
   doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
-  doc.setLineWidth(0.3);
+  doc.setLineWidth(0.4);
   doc.roundedRect(margin, y, contentWidth, identificacaoHeight, 1.5, 1.5, 'FD');
 
   // Barra lateral colorida
   doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
-  doc.rect(margin, y, 2, identificacaoHeight, 'F');
+  doc.rect(margin, y, 2.5, identificacaoHeight, 'F');
 
-  const cardPadding = 5;
-  let infoY = y + 4;
+  const cardPadding = 6;
+  let infoY = y + 5;
   const col1 = margin + cardPadding;
   const col2 = margin + contentWidth * 0.35;
   const col3 = margin + contentWidth * 0.68;
 
-  // === LINHA 1: Nome do Servidor (destaque principal) ===
+  // === LINHA 1: Nome do Servidor (destaque principal - FONTE MAIOR) ===
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
+  doc.setFontSize(11); // AUMENTADO de 9 para 11
   doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
   doc.text((servidor.nome_completo || '').toUpperCase(), col1, infoY);
   
   // Badge de jornada (canto direito)
-  const badgeWidth = 20;
-  const badgeX = margin + contentWidth - badgeWidth - 3;
+  const badgeWidth = 22;
+  const badgeX = margin + contentWidth - badgeWidth - 4;
   doc.setFillColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
-  doc.roundedRect(badgeX, infoY - 3, badgeWidth, 5.5, 1.2, 1.2, 'F');
+  doc.roundedRect(badgeX, infoY - 4, badgeWidth, 6.5, 1.5, 1.5, 'F');
   doc.setTextColor(CORES.branco.r, CORES.branco.g, CORES.branco.b);
-  doc.setFontSize(6);
-  doc.text(`${cargaHorariaDiaria}h/dia`, badgeX + badgeWidth / 2, infoY + 0.5, { align: 'center' });
+  doc.setFontSize(7); // AUMENTADO de 6 para 7
+  doc.text(`${cargaHorariaDiaria}h/dia`, badgeX + badgeWidth / 2, infoY, { align: 'center' });
   
-  infoY += 7;
+  infoY += 8;
 
-  // === LINHA 2: Dados Administrativos ===
+  // === LINHA 2: Dados Administrativos - FONTES MAIORES ===
   const labelStyle = () => {
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(5);
+    doc.setFontSize(6); // AUMENTADO de 5 para 6
     doc.setTextColor(CORES.textoSecundario.r, CORES.textoSecundario.g, CORES.textoSecundario.b);
   };
   const valueStyle = () => {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6.5);
+    doc.setFontSize(8); // AUMENTADO de 6.5 para 8
     doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
   };
 
@@ -375,7 +388,7 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
   labelStyle();
   doc.text('MATRÍCULA', col1, infoY);
   valueStyle();
-  doc.text(servidor.matricula || '—', col1, infoY + 3.5);
+  doc.text(servidor.matricula || '—', col1, infoY + 4);
 
   // Cargo
   labelStyle();
@@ -385,68 +398,86 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
     ? `${servidor.cargo || ''} / ${servidor.funcao}` 
     : (servidor.cargo || '—');
   const cargoDisplay = cargoFuncao.length > 40 ? cargoFuncao.substring(0, 37) + '...' : cargoFuncao;
-  doc.text(cargoDisplay, col2, infoY + 3.5);
+  doc.text(cargoDisplay, col2, infoY + 4);
 
   // Competência
   labelStyle();
   doc.text('COMPETÊNCIA', col3, infoY);
   valueStyle();
-  doc.text(`${MESES[competencia.mes - 1].toUpperCase()} / ${competencia.ano}`, col3, infoY + 3.5);
+  doc.text(`${MESES[competencia.mes - 1].toUpperCase()} / ${competencia.ano}`, col3, infoY + 4);
   
-  infoY += 8;
+  infoY += 10;
 
   // === LINHA 3: Unidade e Carga Semanal ===
   labelStyle();
   doc.text('UNIDADE DE LOTAÇÃO', col1, infoY);
   valueStyle();
-  doc.setFontSize(6);
+  doc.setFontSize(7);
   const unidadeText = (servidor.unidade || '—').length > 80 
     ? (servidor.unidade || '').substring(0, 77) + '...' 
     : (servidor.unidade || '—');
-  doc.text(unidadeText, col1, infoY + 3.5);
+  doc.text(unidadeText, col1, infoY + 4);
 
   labelStyle();
   doc.text('CARGA SEMANAL', col3, infoY);
   valueStyle();
-  doc.setFontSize(6.5);
-  doc.text(`${servidor.carga_horaria_semanal || 40}h`, col3, infoY + 3.5);
+  doc.setFontSize(8);
+  doc.text(`${servidor.carga_horaria_semanal || 40}h`, col3, infoY + 4);
 
-  y += identificacaoHeight + 2; // REDUZIDO espaçamento de 4 para 2
+  return y + identificacaoHeight + 2;
+}
 
-  // ===== TABELA DE FREQUÊNCIA =====
+// ============================================
+// BLOCO 3: CORPO DA FREQUÊNCIA (dinâmico)
+// ============================================
+interface RenderBloco3Params {
+  doc: jsPDF;
+  y: number;
+  pageWidth: number;
+  pageHeight: number;
+  margin: number;
+  contentWidth: number;
+  data: FrequenciaMensalPDFData;
+  usaDoisTurnos: boolean;
+  cargaHorariaDiaria: number;
+}
+
+interface ColConfig {
+  key: string;
+  label: string;
+  label2?: string;
+  width: number;
+  align: 'left' | 'center' | 'right';
+}
+
+function renderizarBloco3CorpoFrequencia(params: RenderBloco3Params): number {
+  const { doc, y, pageHeight, margin, contentWidth, data, usaDoisTurnos, cargaHorariaDiaria } = params;
+  const { tipo, competencia, registros, diasNaoUteis } = data;
+  const ultimoDia = getUltimoDiaMes(competencia.ano, competencia.mes);
+  
+  let currentY = y;
   
   // Determinar estrutura das colunas baseado na JORNADA
-  interface ColConfig {
-    key: string;
-    label: string;
-    label2?: string;
-    width: number;
-    align: 'left' | 'center' | 'right';
-  }
-
   let colunas: ColConfig[] = [];
   
-  // Estrutura de colunas baseada no flag do motor (verificarDoisTurnos)
-  if (usaDoisTurnosFlag) {
-    // JORNADA >= 8H: 2 TURNOS, 2 ASSINATURAS (determinado pelo motor)
+  if (usaDoisTurnos) {
+    // JORNADA >= 8H: 2 TURNOS, 2 ASSINATURAS
     const turnoWidth = (contentWidth - 14) / 2;
     const colWidth = turnoWidth / 4;
     
     colunas = [
       { key: 'dia', label: 'DIA', width: 14, align: 'center' },
-      // 1º TURNO
       { key: 'ent1', label: 'ENT.', label2: '1º', width: colWidth, align: 'center' },
       { key: 'sai1', label: 'SAÍ.', label2: '1º', width: colWidth, align: 'center' },
       { key: 'ass1', label: 'ASSIN.', label2: '1º', width: colWidth + 5, align: 'center' },
       { key: 'abo1', label: 'ABONO', label2: '1º', width: colWidth - 5, align: 'center' },
-      // 2º TURNO
       { key: 'ent2', label: 'ENT.', label2: '2º', width: colWidth, align: 'center' },
       { key: 'sai2', label: 'SAÍ.', label2: '2º', width: colWidth, align: 'center' },
       { key: 'ass2', label: 'ASSIN.', label2: '2º', width: colWidth + 5, align: 'center' },
       { key: 'abo2', label: 'ABONO', label2: '2º', width: colWidth - 5, align: 'center' },
     ];
   } else {
-    // JORNADA <= 6H: 1 TURNO, 1 ASSINATURA (determinado pelo motor)
+    // JORNADA <= 6H: 1 TURNO, 1 ASSINATURA
     colunas = [
       { key: 'dia', label: 'DIA', width: 16, align: 'center' },
       { key: 'ent1', label: 'ENTRADA', width: 30, align: 'center' },
@@ -456,101 +487,88 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
     ];
   }
 
-  // Header da tabela - altura baseada no layout do motor
-  const headerHeight2 = usaDoisTurnosFlag ? 12 : 10;
-  
-  // =====================================================
-  // CÁLCULO DINÂMICO DO ROWHEIGHT PARA PROTEGER O RODAPÉ
-  // =====================================================
-  // Zonas fixas após a tabela (AUMENTADO para garantir espaço):
-  // - Espaço após tabela: 2mm
-  // - Linha de local e data: 10mm
-  // - Espaço antes das assinaturas: 10mm
-  // - Área de assinaturas finais (linha + texto): 12mm
-  // - Espaço antes do rodapé do sistema: 4mm
-  // - Rodapé do sistema: 6mm
-  const ZONA_RODAPE = 44; // 2 + 10 + 10 + 12 + 4 + 6 = 44mm de proteção
+  // Header da tabela
+  const headerHeight = usaDoisTurnos ? 12 : 10;
   
   // Calcular altura disponível para a tabela (31 linhas fixas)
-  const alturaDisponivelTabela = pageHeight - y - headerHeight2 - ZONA_RODAPE;
+  const zonaRodape = BLOCO_ALTURAS.assinaturas + BLOCO_ALTURAS.rodape + 4; // ~34mm de proteção
+  const alturaDisponivelTabela = pageHeight - currentY - headerHeight - zonaRodape;
   const totalLinhasTabela = 31;
   
-  // Calcular rowHeight dinamicamente, com mínimo de 5.5mm para legibilidade
+  // Calcular rowHeight dinamicamente
   const rowHeightCalculado = alturaDisponivelTabela / totalLinhasTabela;
-  const rowHeight = Math.max(5.5, Math.min(rowHeightCalculado, 7.0)); // Entre 5.5 e 7.0mm
+  const rowHeight = Math.max(5.5, Math.min(rowHeightCalculado, 7.0));
   
-  // Fundo do header (cinza claro em vez de verde)
+  // ===== HEADER DA TABELA =====
+  // Fundo do header
   doc.setFillColor(CORES.headerTabela.r, CORES.headerTabela.g, CORES.headerTabela.b);
-  doc.rect(margin, y, contentWidth, headerHeight2, 'F');
+  doc.rect(margin, currentY, contentWidth, headerHeight, 'F');
   
-  // Borda do header
+  // Borda externa do header (mais forte)
   doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
-  doc.setLineWidth(0.3);
-  doc.rect(margin, y, contentWidth, headerHeight2);
+  doc.setLineWidth(LINHAS_TABELA.externa);
+  doc.rect(margin, currentY, contentWidth, headerHeight);
   
-  // Textos do header - COR PRETA OBRIGATÓRIA
+  // Borda inferior do header (mais forte)
+  doc.setLineWidth(LINHAS_TABELA.headerInferior);
+  doc.line(margin, currentY + headerHeight, margin + contentWidth, currentY + headerHeight);
+  
+  // Textos do header
   doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
   doc.setFont('helvetica', 'bold');
   
   let colX = margin;
   
-  if (usaDoisTurnosFlag) {
-    // Header com indicadores de turno - layout 2 turnos (motor)
-    doc.setFontSize(7.5); // AUMENTADO para alta legibilidade
-    doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
+  if (usaDoisTurnos) {
+    doc.setFontSize(7.5);
     
     for (const col of colunas) {
       const centerX = colX + col.width / 2;
       
       if (col.key === 'dia') {
-        doc.setFontSize(8.5); // AUMENTADO para destaque
-        doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
-        doc.text(col.label, centerX, y + 7, { align: 'center' });
+        doc.setFontSize(8.5);
+        doc.text(col.label, centerX, currentY + 7, { align: 'center' });
       } else if (col.label2) {
-        doc.setFontSize(7.5); // AUMENTADO
-        doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
-        doc.text(col.label, centerX, y + 5.5, { align: 'center' });
-        doc.setFontSize(6.5); // AUMENTADO - sublegenda também preta
-        doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
-        doc.text(`(${col.label2})`, centerX, y + 10.5, { align: 'center' });
+        doc.setFontSize(7.5);
+        doc.text(col.label, centerX, currentY + 5.5, { align: 'center' });
+        doc.setFontSize(6.5);
+        doc.text(`(${col.label2})`, centerX, currentY + 10.5, { align: 'center' });
       }
       
-      // Separador vertical entre colunas
+      // Separadores verticais do header
       if (col.key !== 'abo2') {
-        // Linha divisória MAIS FORTE entre 1º e 2º turno (após coluna ABONO 1º)
         if (col.key === 'abo1') {
-          doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
-          doc.setLineWidth(0.5);
+          // Linha divisória FORTE entre 1º e 2º turno (verde institucional)
+          doc.setDrawColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+          doc.setLineWidth(LINHAS_TABELA.divisoriaTurno);
         } else {
-          doc.setDrawColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
-          doc.setLineWidth(0.15);
+          doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
+          doc.setLineWidth(LINHAS_TABELA.vertical);
         }
-        doc.line(colX + col.width, y + 1, colX + col.width, y + headerHeight2 - 1);
+        doc.line(colX + col.width, currentY + 1, colX + col.width, currentY + headerHeight - 1);
       }
       
       colX += col.width;
     }
   } else {
-    // Header para 1 turno - layout 1 turno (motor)
-    doc.setFontSize(8.5); // AUMENTADO para alta legibilidade
-    doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
+    doc.setFontSize(8.5);
     
     for (const col of colunas) {
       const centerX = colX + col.width / 2;
-      doc.text(col.label, centerX, y + 7, { align: 'center' });
+      doc.text(col.label, centerX, currentY + 7, { align: 'center' });
       
-      // Separador vertical sutil
+      // Separadores verticais
       if (col.key !== 'abo1') {
-        doc.setDrawColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
-        doc.setLineWidth(0.15);
-        doc.line(colX + col.width, y + 1, colX + col.width, y + headerHeight2 - 1);
+        doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
+        doc.setLineWidth(LINHAS_TABELA.vertical);
+        doc.line(colX + col.width, currentY + 1, colX + col.width, currentY + headerHeight - 1);
       }
       
       colX += col.width;
     }
   }
 
-  y += headerHeight2;
+  currentY += headerHeight;
 
   // ===== LINHAS DA TABELA =====
   const registrosDias = registros || gerarRegistrosDiariosBranco(competencia.ano, competencia.mes, diasNaoUteis);
@@ -559,7 +577,6 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
   for (let linha = 1; linha <= totalLinhas; linha++) {
     const dia = linha <= ultimoDia ? linha : null;
     
-    // Buscar situação do dia
     let situacao = '';
     let label = '';
     let registro: RegistroDiario | null = null;
@@ -590,42 +607,42 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
     const isPontoFacultativo = situacao === 'ponto_facultativo';
     const isLinhaVazia = !dia;
 
-    // Cor de fundo alternada e especial para dias não úteis
+    // Cor de fundo para dias não úteis
     if (isNaoUtil && !isLinhaVazia) {
       if (isFeriado || isFerias || isLicenca) {
         doc.setFillColor(CORES.bgFeriado.r, CORES.bgFeriado.g, CORES.bgFeriado.b);
       } else {
         doc.setFillColor(CORES.bgFimSemana.r, CORES.bgFimSemana.g, CORES.bgFimSemana.b);
       }
-      doc.rect(margin, y, contentWidth, rowHeight, 'F');
+      doc.rect(margin, currentY, contentWidth, rowHeight, 'F');
     } else if (linha % 2 === 0 && !isLinhaVazia) {
       doc.setFillColor(CORES.bgCinza.r, CORES.bgCinza.g, CORES.bgCinza.b);
-      doc.rect(margin, y, contentWidth, rowHeight, 'F');
+      doc.rect(margin, currentY, contentWidth, rowHeight, 'F');
     }
 
-    // Borda da linha - mais suave
-    doc.setDrawColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
-    doc.setLineWidth(0.1);
-    doc.rect(margin, y, contentWidth, rowHeight);
+    // Borda da linha (mais visível)
+    doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
+    doc.setLineWidth(LINHAS_TABELA.horizontal);
+    doc.rect(margin, currentY, contentWidth, rowHeight);
 
-    // Separadores verticais sutis
+    // Separadores verticais (mais visíveis)
     colX = margin;
     for (let i = 0; i < colunas.length - 1; i++) {
       colX += colunas[i].width;
       
-      // Linha divisória entre turnos (se 2 turnos, conforme motor)
-      if (usaDoisTurnosFlag && colunas[i].key === 'abo1') {
-        doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
-        doc.setLineWidth(0.5);
+      // Linha divisória entre turnos
+      if (usaDoisTurnos && colunas[i].key === 'abo1') {
+        doc.setDrawColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
+        doc.setLineWidth(LINHAS_TABELA.divisoriaTurno);
       } else {
-        doc.setDrawColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
-        doc.setLineWidth(0.1);
+        doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
+        doc.setLineWidth(LINHAS_TABELA.vertical);
       }
-      doc.line(colX, y, colX, y + rowHeight);
+      doc.line(colX, currentY, colX, currentY + rowHeight);
     }
 
-    // Conteúdo - FONTES MAIORES + COR PRETA
-    const textY = y + rowHeight / 2 + 1.5;
+    // Conteúdo das células
+    const textY = currentY + rowHeight / 2 + 1.5;
     colX = margin;
     
     for (const col of colunas) {
@@ -633,35 +650,29 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
       
       if (col.key === 'dia') {
         if (dia) {
-          // Número do dia + abreviação - PRETO E MAIOR
           const dataAtual = new Date(competencia.ano, competencia.mes - 1, dia);
           const diaSemana = DIAS_SEMANA_ABREV[dataAtual.getDay()];
           
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(8); // AUMENTADO de 6.5 para 8
+          doc.setFontSize(8);
           doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
           doc.text(String(dia).padStart(2, '0'), colX + 4.5, textY);
           
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(6); // AUMENTADO de 4.5 para 6
-          doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
+          doc.setFontSize(6);
           doc.text(diaSemana, colX + 10.5, textY);
         } else {
-          // Linha vazia (dia inexistente)
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(6);
           doc.setTextColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
           doc.text('—', centerX, textY, { align: 'center' });
         }
       } else if (isLinhaVazia) {
-        // Linha vazia (dia inexistente) - minimalista
         doc.setTextColor(CORES.borderLight.r, CORES.borderLight.g, CORES.borderLight.b);
         doc.setFontSize(6);
         doc.text('—', centerX, textY, { align: 'center' });
       } else if (isNaoUtil) {
-        // Dia não útil - FONTES MAIORES
         if (col.key === 'ass1' || col.key === 'ass2') {
-          // Mostrar o motivo na coluna de assinatura
           let displayLabel = '';
           if (isDomingo) displayLabel = 'DOMINGO';
           else if (isSabado) displayLabel = 'SÁBADO';
@@ -671,7 +682,6 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
           else if (isPontoFacultativo) displayLabel = 'PTO. FACULTATIVO';
           else displayLabel = label || situacao.toUpperCase();
           
-          // Truncar se muito longo
           if (displayLabel.length > 16) {
             displayLabel = displayLabel.substring(0, 15) + '…';
           }
@@ -679,20 +689,16 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
           if (isFeriado || isFerias || isLicenca) {
             doc.setTextColor(CORES.vermelho.r, CORES.vermelho.g, CORES.vermelho.b);
           } else {
-            doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b); // PRETO em vez de cinza sutil
+            doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
           }
           doc.setFont('helvetica', 'italic');
-          doc.setFontSize(6.5); // AUMENTADO de 5 para 6.5
+          doc.setFontSize(6.5);
           doc.text(displayLabel, centerX, textY, { align: 'center' });
-        } else {
-          // Outras colunas em branco para dias não úteis - sem tracinho
-          // Deixa vazio para visual mais limpo
         }
       } else if (tipo === 'preenchida' && registro) {
-        // Dia útil preenchido - PRETO E MAIOR
         doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5); // AUMENTADO de 6 para 7.5
+        doc.setFontSize(7.5);
         
         let valor = '';
         if (col.key === 'ent1') valor = registro.entrada_manha || '';
@@ -704,57 +710,152 @@ export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void
           doc.text(valor, centerX, textY, { align: 'center' });
         }
       }
-      // Campos em branco para dias úteis em folha vazia ficam vazios para preenchimento manual
       
       colX += col.width;
     }
 
-    y += rowHeight;
+    currentY += rowHeight;
   }
 
-  // ===== RODAPÉ - LOCAL E DATA =====
-  y += 2; // REDUZIDO de 4 para 2
+  return currentY;
+}
+
+// ============================================
+// BLOCO 4: DATA E ASSINATURAS FINAIS (~22mm)
+// ============================================
+interface RenderBloco4Params {
+  doc: jsPDF;
+  y: number;
+  pageWidth: number;
+  margin: number;
+  contentWidth: number;
+}
+
+function renderizarBloco4Assinaturas(params: RenderBloco4Params): number {
+  const { doc, y, margin, contentWidth } = params;
   
+  let currentY = y + 4; // Espaço após a tabela
+  
+  // Linha de local e data
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
+  doc.setFontSize(9); // AUMENTADO de 8 para 9
   doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
-  doc.text('Boa Vista - RR, _______ de ________________________ de ________.', margin, y);
+  doc.text('Boa Vista - RR, _______ de ________________________ de ________.', margin, currentY);
 
-  y += 8; // REDUZIDO de 10 para 8
+  currentY += 12; // Espaço antes das assinaturas
 
-  // ===== ÁREA DE ASSINATURAS FINAIS =====
-  const assinaturaBoxWidth = contentWidth / 2 - 8;
+  // Área de assinaturas
+  const assinaturaBoxWidth = contentWidth / 2 - 10;
   
-  // Estilo de linha mais elegante
+  // Linha de assinatura do servidor
   doc.setDrawColor(CORES.border.r, CORES.border.g, CORES.border.b);
-  doc.setLineWidth(0.4);
-  
-  // Linha de assinatura do servidor - PRETO E MAIOR
-  doc.line(margin, y, margin + assinaturaBoxWidth, y);
-  doc.setFontSize(7.5); // AUMENTADO de 6.5 para 7.5
+  doc.setLineWidth(0.5); // Mais espessa
+  doc.line(margin, currentY, margin + assinaturaBoxWidth, currentY);
+  doc.setFontSize(8); // AUMENTADO de 7.5 para 8
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
-  doc.text('Assinatura do(a) Servidor(a)', margin + assinaturaBoxWidth / 2, y + 4.5, { align: 'center' });
+  doc.text('Assinatura do(a) Servidor(a)', margin + assinaturaBoxWidth / 2, currentY + 5, { align: 'center' });
   
-  // Linha de assinatura da chefia - PRETO E MAIOR
-  const chefiaX = margin + assinaturaBoxWidth + 16;
-  doc.line(chefiaX, y, margin + contentWidth, y);
-  doc.setTextColor(CORES.preto.r, CORES.preto.g, CORES.preto.b);
-  doc.text('Visto do(a) Chefe Imediato', chefiaX + assinaturaBoxWidth / 2, y + 4.5, { align: 'center' });
+  // Linha de assinatura da chefia
+  const chefiaX = margin + assinaturaBoxWidth + 20;
+  doc.line(chefiaX, currentY, margin + contentWidth, currentY);
+  doc.text('Visto do(a) Chefe Imediato', chefiaX + assinaturaBoxWidth / 2, currentY + 5, { align: 'center' });
 
-  // ===== RODAPÉ DO SISTEMA =====
+  return currentY + BLOCO_ALTURAS.assinaturas - 12;
+}
+
+// ============================================
+// BLOCO 5: RODAPÉ DO SISTEMA (~8mm)
+// ============================================
+interface RenderBloco5Params {
+  doc: jsPDF;
+  pageWidth: number;
+  pageHeight: number;
+  margin: number;
+  dataGeracao: string;
+  usuarioGeracao?: string;
+  rodapePersonalizado?: string;
+}
+
+function renderizarBloco5Rodape(params: RenderBloco5Params): void {
+  const { doc, pageWidth, pageHeight, margin, dataGeracao, usuarioGeracao, rodapePersonalizado } = params;
+  
+  // Posição fixa: 6mm da borda inferior
   const rodapeY = pageHeight - 6;
   
-  doc.setFontSize(5);
+  doc.setFontSize(5.5);
   doc.setTextColor(CORES.textoSutil.r, CORES.textoSutil.g, CORES.textoSutil.b);
   doc.setFont('helvetica', 'normal');
   
+  // Esquerda: Data/hora de geração + usuário
   doc.text(`Gerado em ${dataGeracao}${usuarioGeracao ? ` por ${usuarioGeracao}` : ''}`, margin, rodapeY);
+  
+  // Centro: Identificação do sistema
   doc.text(`${INSTITUICAO.sigla} • Sistema de Gestão de Pessoas`, pageWidth / 2, rodapeY, { align: 'center' });
   
+  // Direita: Texto personalizado (se houver)
   if (rodapePersonalizado) {
     doc.text(rodapePersonalizado, pageWidth - margin, rodapeY, { align: 'right' });
   }
+}
+
+// ============================================
+// FUNÇÃO PRINCIPAL DE RENDERIZAÇÃO
+// (Orquestra os 5 blocos)
+// ============================================
+
+export interface RenderizarPaginaParams {
+  doc: jsPDF;
+  data: FrequenciaMensalPDFData;
+  rodapePersonalizado?: string;
+}
+
+/**
+ * Renderiza uma página de frequência com estrutura de 5 blocos modulares
+ */
+export function renderizarPaginaFrequencia(params: RenderizarPaginaParams): void {
+  const { doc, data, rodapePersonalizado } = params;
+  
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 8;
+  const contentWidth = pageWidth - margin * 2;
+
+  const { servidor, competencia, dataGeracao, usuarioGeracao } = data;
+  
+  // Determinar jornada do motor parametrizado
+  const cargaHorariaDiaria = servidor.carga_horaria_diaria || 8;
+  const usaDoisTurnos = verificarDoisTurnos(cargaHorariaDiaria);
+
+  let y = margin;
+
+  // ===== BLOCO 1: CABEÇALHO INSTITUCIONAL =====
+  y = renderizarBloco1Cabecalho({
+    doc, y, pageWidth, margin, contentWidth
+  });
+
+  // ===== BLOCO 2: DADOS DO SERVIDOR =====
+  y = renderizarBloco2DadosServidor({
+    doc, y, pageWidth, margin, contentWidth,
+    servidor, competencia, cargaHorariaDiaria
+  });
+
+  // ===== BLOCO 3: CORPO DA FREQUÊNCIA =====
+  y = renderizarBloco3CorpoFrequencia({
+    doc, y, pageWidth, pageHeight, margin, contentWidth,
+    data, usaDoisTurnos, cargaHorariaDiaria
+  });
+
+  // ===== BLOCO 4: DATA E ASSINATURAS =====
+  renderizarBloco4Assinaturas({
+    doc, y, pageWidth, margin, contentWidth
+  });
+
+  // ===== BLOCO 5: RODAPÉ DO SISTEMA =====
+  renderizarBloco5Rodape({
+    doc, pageWidth, pageHeight, margin,
+    dataGeracao, usuarioGeracao, rodapePersonalizado
+  });
 }
 
 // ============================================
