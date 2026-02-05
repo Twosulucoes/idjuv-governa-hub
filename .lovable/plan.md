@@ -282,10 +282,39 @@ Vincular acesso aos relatorios conforme perfil:
 
 ## Ordem de Implementacao
 
-1. **Fase 1**: Blocos modulares (base reutilizavel)
-2. **Fase 2**: Relatorios simples (Ficha + Listagem)
+ 1. **Fase 1**: Blocos modulares (base reutilizavel) ✅ CONCLUÍDA
+ 2. **Fase 2**: Relatorios simples (Ficha + Listagem) ✅ CONCLUÍDA
 3. **Fase 3**: Relatorios operacionais (Patrimonio + Cedencias)
 4. **Fase 4**: Views SQL para KPIs
 5. **Fase 5**: Relatorios avancados (Dashboard + Indicadores)
-6. **Fase 6**: Pagina central unificada
+ 6. **Fase 6**: Pagina central unificada ✅ CONCLUÍDA
 7. **Fase 7**: Integracao com Central de Relatorios global
+ 
+ ---
+ 
+ ## Progresso da Implementação
+ 
+ ### Arquivos Criados
+ 
+ **Blocos Modulares (src/lib/pdf/unidades/):**
+ - `index.ts` - Barrel export
+ - `blocoIdentificacao.ts` - Dados básicos da unidade
+ - `blocoLocalizacao.ts` - Endereço e município
+ - `blocoEstrutura.ts` - Áreas e estrutura disponível
+ - `blocoResponsavel.ts` - Chefe atual e histórico
+ - `blocoCedencias.ts` - Resumo de agendamentos
+ - `blocoPatrimonio.ts` - Resumo de itens patrimoniais
+ 
+ **Geradores PDF:**
+ - `src/lib/pdfFichaUnidadeLocal.ts` - Ficha completa individual
+ - `src/lib/pdfListagemUnidades.ts` - Lista resumida em tabela
+ 
+ **Componentes UI:**
+ - `src/components/unidades/reports/ReportCard.tsx` - Card de relatório
+ - `src/components/unidades/reports/ReportFilters.tsx` - Filtros comuns
+ 
+ **Página Central:**
+ - `src/pages/unidades/RelatoriosCentralPage.tsx` - Hub com tabs (Simples/Operacionais/Avançados)
+ 
+ ### Rotas Adicionadas
+ - `/unidades/central-relatorios` - Central de Relatórios de Unidades

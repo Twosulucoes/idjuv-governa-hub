@@ -81,6 +81,7 @@ import GestaoUnidadesLocaisPage from "./pages/unidades/GestaoUnidadesLocaisPage"
 import UnidadeDetalhePage from "./pages/unidades/UnidadeDetalhePage";
 import RelatoriosCedenciaPage from "./pages/unidades/RelatoriosCedenciaPage";
 import RelatoriosUnidadesLocaisPage from "./pages/unidades/RelatoriosUnidadesLocaisPage";
+ import RelatoriosCentralPage from "./pages/unidades/RelatoriosCentralPage";
 
 import NoticiasPage from "./pages/NoticiasPage";
 
@@ -377,6 +378,7 @@ const App = () => (
               <Route path="/unidades" element={<ProtectedRoute><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
               <Route path="/unidades/gestao" element={<ProtectedRoute><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
               <Route path="/unidades/relatorios" element={<ProtectedRoute><RelatoriosUnidadesLocaisPage /></ProtectedRoute>} />
+               <Route path="/unidades/central-relatorios" element={<ProtectedRoute><RelatoriosCentralPage /></ProtectedRoute>} />
               <Route path="/unidades/cedencia" element={<ProtectedRoute><RelatoriosCedenciaPage /></ProtectedRoute>} />
               <Route path="/unidades/:id" element={<ProtectedRoute><UnidadeDetalhePage /></ProtectedRoute>} />
               
