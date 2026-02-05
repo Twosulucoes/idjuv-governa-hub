@@ -132,7 +132,7 @@ export function useAdminPerfis() {
   };
 
   // Buscar permissões de um perfil
-  const buscarPermissoesDoPerfil = async (perfilId: string): Promise<string[]> => {
+  const buscarPermissoesDoPerfil = useCallback(async (perfilId: string): Promise<string[]> => {
     try {
       const { data, error } = await supabase
         .from('perfil_permissoes')
@@ -146,7 +146,7 @@ export function useAdminPerfis() {
       console.error('Erro ao buscar permissões do perfil:', err);
       return [];
     }
-  };
+  }, []);
 
   // Alternar permissão do perfil
   const alternarPermissaoPerfil = async (perfilId: string, permissaoId: string, conceder: boolean) => {
