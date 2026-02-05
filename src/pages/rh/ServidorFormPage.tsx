@@ -63,6 +63,7 @@ import {
   TIPOS_SANGUINEOS,
   CATEGORIAS_RESERVA
 } from "@/types/rh";
+import { SegundoVinculoSection } from "@/components/rh/SegundoVinculoSection";
 
 type FormData = {
   nome_completo: string;
@@ -130,6 +131,16 @@ type FormData = {
   acumulo_descricao: string;
   observacoes: string;
   indicacao: string;
+  // Segundo vínculo
+  possui_vinculo_externo: boolean;
+  vinculo_externo_esfera: string;
+  vinculo_externo_orgao: string;
+  vinculo_externo_cargo: string;
+  vinculo_externo_matricula: string;
+  vinculo_externo_situacao: string;
+  vinculo_externo_forma: string;
+  vinculo_externo_ato_id: string | null;
+  vinculo_externo_observacoes: string;
 };
 
 const initialFormData: FormData = {
@@ -198,6 +209,16 @@ const initialFormData: FormData = {
   acumulo_descricao: '',
   observacoes: '',
   indicacao: '',
+  // Segundo vínculo
+  possui_vinculo_externo: false,
+  vinculo_externo_esfera: '',
+  vinculo_externo_orgao: '',
+  vinculo_externo_cargo: '',
+  vinculo_externo_matricula: '',
+  vinculo_externo_situacao: '',
+  vinculo_externo_forma: '',
+  vinculo_externo_ato_id: null,
+  vinculo_externo_observacoes: '',
 };
 
 export default function ServidorFormPage() {
@@ -323,6 +344,16 @@ export default function ServidorFormPage() {
         acumulo_descricao: servidor.acumulo_descricao || '',
         observacoes: servidor.observacoes || '',
         indicacao: servidor.indicacao || '',
+        // Segundo vínculo
+        possui_vinculo_externo: servidor.possui_vinculo_externo || false,
+        vinculo_externo_esfera: servidor.vinculo_externo_esfera || '',
+        vinculo_externo_orgao: servidor.vinculo_externo_orgao || '',
+        vinculo_externo_cargo: servidor.vinculo_externo_cargo || '',
+        vinculo_externo_matricula: servidor.vinculo_externo_matricula || '',
+        vinculo_externo_situacao: servidor.vinculo_externo_situacao || '',
+        vinculo_externo_forma: servidor.vinculo_externo_forma || '',
+        vinculo_externo_ato_id: servidor.vinculo_externo_ato_id || null,
+        vinculo_externo_observacoes: servidor.vinculo_externo_observacoes || '',
       });
     }
   }, [servidor]);
@@ -403,6 +434,16 @@ export default function ServidorFormPage() {
         acumulo_descricao: data.acumulo_descricao || null,
         observacoes: data.observacoes || null,
         indicacao: data.indicacao || null,
+        // Segundo vínculo
+        possui_vinculo_externo: data.possui_vinculo_externo,
+        vinculo_externo_esfera: data.vinculo_externo_esfera || null,
+        vinculo_externo_orgao: data.vinculo_externo_orgao || null,
+        vinculo_externo_cargo: data.vinculo_externo_cargo || null,
+        vinculo_externo_matricula: data.vinculo_externo_matricula || null,
+        vinculo_externo_situacao: data.vinculo_externo_situacao || null,
+        vinculo_externo_forma: data.vinculo_externo_forma || null,
+        vinculo_externo_ato_id: data.vinculo_externo_ato_id || null,
+        vinculo_externo_observacoes: data.vinculo_externo_observacoes || null,
       };
 
       let servidorId: string | null = null;
@@ -1295,6 +1336,24 @@ export default function ServidorFormPage() {
                     </div>
                   )}
                 </div>
+
+                <Separator />
+
+                {/* Segundo Vínculo Funcional */}
+                <SegundoVinculoSection
+                  data={{
+                    possui_vinculo_externo: formData.possui_vinculo_externo,
+                    vinculo_externo_esfera: formData.vinculo_externo_esfera,
+                    vinculo_externo_orgao: formData.vinculo_externo_orgao,
+                    vinculo_externo_cargo: formData.vinculo_externo_cargo,
+                    vinculo_externo_matricula: formData.vinculo_externo_matricula,
+                    vinculo_externo_situacao: formData.vinculo_externo_situacao,
+                    vinculo_externo_forma: formData.vinculo_externo_forma,
+                    vinculo_externo_ato_id: formData.vinculo_externo_ato_id,
+                    vinculo_externo_observacoes: formData.vinculo_externo_observacoes,
+                  }}
+                  onChange={(field, value) => updateField(field as keyof FormData, value as string | boolean)}
+                />
 
                 <Separator />
                 

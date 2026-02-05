@@ -164,6 +164,49 @@ export const AFASTAMENTO_LABELS: Record<TipoAfastamento, string> = {
   outro: 'Outro',
 };
 
+// ============================================
+// TIPOS DE VÍNCULO EXTERNO (Segundo Vínculo)
+// ============================================
+
+export type VinculoExternoEsfera = 
+  | 'federal'
+  | 'estadual_rr'
+  | 'estadual_outro'
+  | 'municipal';
+
+export type VinculoExternoSituacao = 
+  | 'ativo'
+  | 'licenciado'
+  | 'cedido'
+  | 'afastado';
+
+export type VinculoExternoForma = 
+  | 'informal'
+  | 'cessao'
+  | 'requisicao'
+  | 'licenca';
+
+export const VINCULO_EXTERNO_ESFERA_LABELS: Record<VinculoExternoEsfera, string> = {
+  federal: 'Federal (União)',
+  estadual_rr: 'Estadual (Roraima)',
+  estadual_outro: 'Estadual (Outro Estado)',
+  municipal: 'Municipal',
+};
+
+export const VINCULO_EXTERNO_SITUACAO_LABELS: Record<VinculoExternoSituacao, string> = {
+  ativo: 'Ativo no Órgão de Origem',
+  licenciado: 'Licenciado',
+  cedido: 'Cedido',
+  afastado: 'Afastado',
+};
+
+export const VINCULO_EXTERNO_FORMA_LABELS: Record<VinculoExternoForma, string> = {
+  informal: 'Informal (sem ato formal)',
+  cessao: 'Cessão Formal',
+  requisicao: 'Requisição',
+  licenca: 'Licença para Exercício em Outro Órgão',
+};
+
 // Constantes para Ficha SEGAD
 export const RACAS_CORES = [
   'Branca',

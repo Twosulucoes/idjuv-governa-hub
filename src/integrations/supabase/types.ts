@@ -16737,6 +16737,7 @@ export type Database = {
           pcd: boolean | null
           pcd_tipo: string | null
           pis_pasep: string | null
+          possui_vinculo_externo: boolean | null
           raca_cor: string | null
           regime_juridico: string | null
           remuneracao_bruta: number | null
@@ -16766,6 +16767,14 @@ export type Database = {
           updated_by: string | null
           user_id: string | null
           vinculo: Database["public"]["Enums"]["vinculo_funcional"]
+          vinculo_externo_ato_id: string | null
+          vinculo_externo_cargo: string | null
+          vinculo_externo_esfera: string | null
+          vinculo_externo_forma: string | null
+          vinculo_externo_matricula: string | null
+          vinculo_externo_observacoes: string | null
+          vinculo_externo_orgao: string | null
+          vinculo_externo_situacao: string | null
         }
         Insert: {
           acumula_cargo?: boolean | null
@@ -16839,6 +16848,7 @@ export type Database = {
           pcd?: boolean | null
           pcd_tipo?: string | null
           pis_pasep?: string | null
+          possui_vinculo_externo?: boolean | null
           raca_cor?: string | null
           regime_juridico?: string | null
           remuneracao_bruta?: number | null
@@ -16868,6 +16878,14 @@ export type Database = {
           updated_by?: string | null
           user_id?: string | null
           vinculo?: Database["public"]["Enums"]["vinculo_funcional"]
+          vinculo_externo_ato_id?: string | null
+          vinculo_externo_cargo?: string | null
+          vinculo_externo_esfera?: string | null
+          vinculo_externo_forma?: string | null
+          vinculo_externo_matricula?: string | null
+          vinculo_externo_observacoes?: string | null
+          vinculo_externo_orgao?: string | null
+          vinculo_externo_situacao?: string | null
         }
         Update: {
           acumula_cargo?: boolean | null
@@ -16941,6 +16959,7 @@ export type Database = {
           pcd?: boolean | null
           pcd_tipo?: string | null
           pis_pasep?: string | null
+          possui_vinculo_externo?: boolean | null
           raca_cor?: string | null
           regime_juridico?: string | null
           remuneracao_bruta?: number | null
@@ -16970,6 +16989,14 @@ export type Database = {
           updated_by?: string | null
           user_id?: string | null
           vinculo?: Database["public"]["Enums"]["vinculo_funcional"]
+          vinculo_externo_ato_id?: string | null
+          vinculo_externo_cargo?: string | null
+          vinculo_externo_esfera?: string | null
+          vinculo_externo_forma?: string | null
+          vinculo_externo_matricula?: string | null
+          vinculo_externo_observacoes?: string | null
+          vinculo_externo_orgao?: string | null
+          vinculo_externo_situacao?: string | null
         }
         Relationships: [
           {
@@ -16984,6 +17011,13 @@ export type Database = {
             columns: ["unidade_atual_id"]
             isOneToOne: false
             referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servidores_vinculo_externo_ato_id_fkey"
+            columns: ["vinculo_externo_ato_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
             referencedColumns: ["id"]
           },
         ]
