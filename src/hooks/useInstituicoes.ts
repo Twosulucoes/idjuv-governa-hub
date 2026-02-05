@@ -71,11 +71,17 @@
    const createMutation = useMutation({
      mutationFn: async (formData: InstituicaoFormData) => {
        const { data: userData } = await supabase.auth.getUser();
+      
+      // Converte strings vazias para null em campos de data
+      const sanitizedData = {
+        ...formData,
+        data_fundacao: formData.data_fundacao || null,
+      };
        
        const { data: result, error } = await supabase
          .from('instituicoes')
          .insert({
-           ...formData,
+          ...sanitizedData,
            created_by: userData.user?.id,
            status: 'ativo' as const,
            ativo: true,
@@ -99,11 +105,17 @@
    const updateMutation = useMutation({
      mutationFn: async ({ id, data: formData }: { id: string; data: Partial<InstituicaoFormData> }) => {
        const { data: userData } = await supabase.auth.getUser();
+      
+      // Converte strings vazias para null em campos de data
+      const sanitizedData = {
+        ...formData,
+        data_fundacao: formData.data_fundacao || null,
+      };
  
        const { data: result, error } = await supabase
          .from('instituicoes')
          .update({
-           ...formData,
+          ...sanitizedData,
            updated_by: userData.user?.id,
          })
          .eq('id', id)
