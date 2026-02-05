@@ -88,6 +88,8 @@ import NoticiasPage from "./pages/NoticiasPage";
 // Auth Pages
 import AuthPage from "./pages/AuthPage";
 import AccessDeniedPage from "./pages/AccessDeniedPage";
+import MeuPerfilPage from "./pages/MeuPerfilPage";
+import TrocaSenhaObrigatoriaPage from "./pages/TrocaSenhaObrigatoriaPage";
 import UsuariosAdminPage from "./pages/admin/UsuariosAdminPage";
 import GestaoDocumentosPage from "./pages/admin/GestaoDocumentosPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
@@ -194,6 +196,8 @@ const App = () => (
               <Route path="/sistema" element={<ProtectedRoute><SistemaPage /></ProtectedRoute>} />
               <Route path="/apresentacao" element={<ProtectedRoute><ApresentacaoPage /></ProtectedRoute>} />
               <Route path="/noticias" element={<ProtectedRoute><NoticiasPage /></ProtectedRoute>} />
+              <Route path="/meu-perfil" element={<ProtectedRoute><MeuPerfilPage /></ProtectedRoute>} />
+              <Route path="/trocar-senha-obrigatoria" element={<ProtectedRoute><TrocaSenhaObrigatoriaPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* ADMIN - Com permissões mapeadas */}
