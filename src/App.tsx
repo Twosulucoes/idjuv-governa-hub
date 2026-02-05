@@ -118,6 +118,7 @@ import ConsultaProtocoloAscomPage from "./pages/ascom/ConsultaProtocoloAscomPage
 // Federações
 import CadastroFederacaoPage from "./pages/federacoes/CadastroFederacaoPage";
 import GestaoFederacoesPage from "./pages/federacoes/GestaoFederacoesPage";
+import FederacaoDetalhePage from "./pages/federacoes/FederacaoDetalhePage";
 
 // Mini-Currículo / Pré-Cadastro
 import MiniCurriculoPage from "./pages/curriculo/MiniCurriculoPage";
@@ -305,6 +306,7 @@ const App = () => (
               {/* (rota real é /admin/federacoes, não /federacoes) */}
               {/* ============================================ */}
               <Route path="/admin/federacoes" element={<ProtectedRoute><GestaoFederacoesPage /></ProtectedRoute>} />
+              <Route path="/admin/federacoes/:id" element={<ProtectedRoute><FederacaoDetalhePage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* GOVERNANÇA - Com permissões mapeadas */}

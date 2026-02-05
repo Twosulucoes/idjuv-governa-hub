@@ -168,6 +168,7 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionCode | PermissionCode[]
   '/federacoes': 'federacoes.visualizar',
   '/federacoes/nova': 'federacoes.criar',
   '/federacoes/:id': 'federacoes.visualizar',
+  '/admin/federacoes/:id': 'federacoes.visualizar',
   
   // ============================================
   // UNIDADES LOCAIS
