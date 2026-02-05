@@ -3,71 +3,31 @@
 // ============================================
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { useAdminUsuarios } from '@/hooks/useAdminUsuarios';
-import { useAdminPerfis } from '@/hooks/useAdminPerfis';
-import { UsuarioModulosTab } from '@/components/admin/UsuarioModulosTab';
-import { NIVEL_PERFIL_CORES } from '@/types/rbac';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import type { UsuarioAdmin, Perfil } from '@/types/rbac';
+import type { UsuarioAdmin } from '@/types/rbac';
 import { 
-  Users, 
   Search, 
-  Shield,
   Info,
   Loader2,
-  UserCircle,
-  X,
-  Ban,
-  CheckCircle,
   RefreshCw,
-  Boxes,
-  KeyRound,
-  Copy,
-  AlertTriangle,
 } from 'lucide-react';
 
 export default function UsuariosAdminPage() {
-  const { usuarios, loading, saving, fetchUsuarios, associarPerfil, desassociarPerfil, toggleUsuarioAtivo } = useAdminUsuarios();
-  const { perfis, perfisAtivos } = useAdminPerfis();
-  const { toast } = useToast();
+  const navigate = useNavigate();
+  const { usuarios, loading, fetchUsuarios } = useAdminUsuarios();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTipo, setFilterTipo] = useState<'all' | 'servidor' | 'tecnico'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'ativo' | 'bloqueado'>('all');
-  const [selectedUser, setSelectedUser] = useState<UsuarioAdmin | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  
-  // Estados para reset de senha
-  const [resetDialogOpen, setResetDialogOpen] = useState(false);
-  const [tempPassword, setTempPassword] = useState<string | null>(null);
-  const [resetting, setResetting] = useState(false);
 
   // Filtrar usuários
   const usuariosFiltrados = usuarios.filter(u => {
@@ -89,91 +49,8 @@ export default function UsuariosAdminPage() {
   };
 
   const handleOpenDetails = (user: UsuarioAdmin) => {
-    setSelectedUser(user);
-    setSheetOpen(true);
+    navigate(`/admin/usuarios/${user.id}`);
   };
-
-  const handleTogglePerfil = async (perfilId: string) => {
-    if (!selectedUser) return;
-    
-    const tem = selectedUser.perfis.some(p => p.perfil_id === perfilId);
-    
-    try {
-      if (tem) {
-        await desassociarPerfil(selectedUser.id, perfilId);
-      } else {
-        await associarPerfil(selectedUser.id, perfilId);
-      }
-      // Atualizar o usuário selecionado
-      const updated = usuarios.find(u => u.id === selectedUser.id);
-      if (updated) setSelectedUser(updated);
-    } catch {
-      // Error handled by hook
-    }
-  };
-
-  const handleToggleStatus = async () => {
-    if (!selectedUser) return;
-    await toggleUsuarioAtivo(selectedUser.id, !selectedUser.is_active);
-    const updated = usuarios.find(u => u.id === selectedUser.id);
-    if (updated) setSelectedUser(updated);
-  };
-
-  // Função para resetar senha via edge function
-  const handleResetPassword = async () => {
-    if (!currentSelectedUser) return;
-    
-    setResetting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('admin-reset-password', {
-        body: { userId: currentSelectedUser.id }
-      });
-
-      if (error) {
-        toast({
-          variant: 'destructive',
-          title: 'Erro ao resetar senha',
-          description: error.message
-        });
-        return;
-      }
-
-      if (data?.error) {
-        toast({
-          variant: 'destructive',
-          title: 'Erro',
-          description: data.error
-        });
-        return;
-      }
-
-      setTempPassword(data.senhaTemporaria);
-      setResetDialogOpen(true);
-    } catch (err) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro',
-        description: 'Ocorreu um erro ao resetar a senha.'
-      });
-    } finally {
-      setResetting(false);
-    }
-  };
-
-  const handleCopyPassword = () => {
-    if (tempPassword) {
-      navigator.clipboard.writeText(tempPassword);
-      toast({
-        title: 'Copiado!',
-        description: 'Senha copiada para a área de transferência.'
-      });
-    }
-  };
-
-  // Atualizar selectedUser quando usuarios mudar
-  const currentSelectedUser = selectedUser 
-    ? usuarios.find(u => u.id === selectedUser.id) || selectedUser 
-    : null;
 
   return (
     <AdminLayout 
@@ -312,184 +189,6 @@ export default function UsuariosAdminPage() {
             ))}
           </div>
         )}
-
-        {/* Sheet de detalhes do usuário */}
-        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-          <SheetContent className="w-full sm:max-w-lg">
-            <SheetHeader>
-              <SheetTitle className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={currentSelectedUser?.avatar_url || undefined} />
-                  <AvatarFallback className="bg-primary/10 text-primary">
-                    {getInitials(currentSelectedUser?.full_name || null)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div>{currentSelectedUser?.full_name || 'Sem nome'}</div>
-                  <div className="text-sm font-normal text-muted-foreground">
-                    {currentSelectedUser?.email}
-                  </div>
-                </div>
-              </SheetTitle>
-              <SheetDescription>
-                Gerencie os perfis de acesso deste usuário
-              </SheetDescription>
-            </SheetHeader>
-
-            <div className="mt-6">
-              {/* Ações do usuário */}
-              <div className="flex flex-col gap-3 mb-4">
-                {/* Status do usuário */}
-                <div className="flex items-center justify-between p-4 rounded-lg border">
-                  <div>
-                    <div className="font-medium">Status</div>
-                    <div className="text-sm text-muted-foreground">
-                      {currentSelectedUser?.is_active ? 'Usuário ativo' : 'Usuário bloqueado'}
-                    </div>
-                  </div>
-                  <Button
-                    variant={currentSelectedUser?.is_active ? 'destructive' : 'default'}
-                    size="sm"
-                    onClick={handleToggleStatus}
-                    disabled={saving}
-                  >
-                    {currentSelectedUser?.is_active ? (
-                      <>
-                        <Ban className="h-4 w-4 mr-2" />
-                        Bloquear
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Desbloquear
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                {/* Botão Resetar Senha */}
-                <div className="flex items-center justify-between p-4 rounded-lg border">
-                  <div>
-                    <div className="font-medium">Segurança</div>
-                    <div className="text-sm text-muted-foreground">
-                      Gerar nova senha temporária
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleResetPassword}
-                    disabled={resetting}
-                  >
-                    {resetting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Resetando...
-                      </>
-                    ) : (
-                      <>
-                        <KeyRound className="h-4 w-4 mr-2" />
-                        Resetar Senha
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Tabs: Perfis e Módulos */}
-              <Tabs defaultValue="perfis" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="perfis" className="flex items-center gap-2">
-                    <Shield className="h-4 w-4" />
-                    Perfis
-                  </TabsTrigger>
-                  <TabsTrigger value="modulos" className="flex items-center gap-2">
-                    <Boxes className="h-4 w-4" />
-                    Módulos
-                  </TabsTrigger>
-                </TabsList>
-
-                {/* Tab Perfis */}
-                <TabsContent value="perfis" className="mt-4">
-                  <ScrollArea className="h-[350px] pr-4">
-                    <div className="space-y-2">
-                      {perfisAtivos.map(perfil => {
-                        const tem = currentSelectedUser?.perfis.some(p => p.perfil_id === perfil.id);
-                        
-                        return (
-                          <div
-                            key={perfil.id}
-                            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                              tem ? 'bg-primary/10 border-primary/30' : 'hover:bg-accent'
-                            }`}
-                            onClick={() => !saving && handleTogglePerfil(perfil.id)}
-                          >
-                            <Checkbox checked={tem} disabled={saving} />
-                            <div 
-                              className="w-3 h-3 rounded-full shrink-0"
-                              style={{ backgroundColor: perfil.cor || 'hsl(var(--muted-foreground))' }}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-sm">{perfil.nome}</div>
-                              <div className="text-xs text-muted-foreground truncate">
-                                {perfil.descricao || 'Sem descrição'}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </ScrollArea>
-                </TabsContent>
-
-                {/* Tab Módulos */}
-                <TabsContent value="modulos" className="mt-4">
-                  {currentSelectedUser && (
-                    <UsuarioModulosTab 
-                      userId={currentSelectedUser.id} 
-                      userName={currentSelectedUser.full_name || undefined}
-                    />
-                  )}
-                </TabsContent>
-              </Tabs>
-            </div>
-          </SheetContent>
-        </Sheet>
-
-        {/* Dialog de Senha Temporária */}
-        <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-500" />
-                Senha Resetada com Sucesso
-              </DialogTitle>
-              <DialogDescription>
-                A nova senha temporária do usuário é:
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="flex items-center gap-2 p-4 bg-muted rounded-lg font-mono text-lg">
-              <span className="flex-1 select-all">{tempPassword}</span>
-              <Button variant="ghost" size="sm" onClick={handleCopyPassword}>
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <Alert className="border-amber-500 bg-amber-50 dark:bg-amber-950/30">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-amber-700 dark:text-amber-300">
-                Informe esta senha ao usuário. Ele será obrigado a alterá-la no primeiro acesso.
-              </AlertDescription>
-            </Alert>
-
-            <DialogFooter>
-              <Button onClick={() => setResetDialogOpen(false)}>
-                Entendi
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </AdminLayout>
   );
