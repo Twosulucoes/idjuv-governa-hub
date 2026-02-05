@@ -1,142 +1,92 @@
 
 # Plano: Simplificar Sistema de Acesso por Modulos
 
-## Diagnostico do Problema
+## ✅ STATUS: IMPLEMENTADO
 
-O sistema atual possui duas camadas de controle de acesso que operam de forma independente:
+Data de implementação: 2026-02-05
 
-```text
-+------------------+          +------------------+
-| Sistema Modulos  |          | Sistema RBAC     |
-| (usuario_modulos)|          | (usuario_perfis) |
-+------------------+          +------------------+
-        |                             |
-        v                             v
-  Filtra ROTAS              Filtra MENU e ACOES
-  (ProtectedRoute)          (MenuContext/hasPermission)
-```
+---
 
-### Problema Identificado
-O usuario **Rangel**:
-1. Tem `restringir_modulos = true`
-2. Esta autorizado ao modulo `rh` (tabela `usuario_modulos`)
-3. **Nao tem nenhum perfil associado** (tabela `usuario_perfis` vazia para ele)
+## Resumo das Alterações
 
-### Resultado
-- A rota `/rh/servidores` esta tecnicamente liberada pelo sistema de modulos
-- Mas o menu de RH nao aparece porque nenhuma permissao `rh.visualizar` foi concedida via perfil
-- Outros itens do menu aparecem porque nao tem `permission` definida (como Federacoes, Instituicoes)
+### 1. ProtectedRoute Simplificado
+- Removida a dependência do hook `useModulosUsuario`
+- Removida a verificação `rotaAutorizada()` e `restringirModulos`
+- O controle de acesso agora é feito **exclusivamente via RBAC** (perfis/permissões)
 
-## Solucao Proposta
+### 2. UsuarioModulosTab Refatorado
+- Agora mostra **domínios acessíveis** baseados nos perfis do usuário
+- Busca permissões via `perfil_permissoes` e agrupa por domínio
+- Interface clara indicando que perfis controlam os acessos
 
-Simplificar para um unico sistema: **Usar SOMENTE o RBAC (perfis e permissoes)** e remover a camada de modulos customizados.
-
-### Opcao 1: Remover Sistema de Modulos (Recomendada)
-
-O sistema RBAC ja cobre 100% dos casos de uso:
-- Permissoes por dominio (`rh.visualizar`, `compras.criar`, etc.)
-- Perfis pre-configurados que agrupam permissoes
-- Filtro de menu automatico baseado nas permissoes
-
-Beneficios:
-- Uma unica fonte de verdade
-- Administrador gerencia apenas perfis
-- Menos confusao para usuarios e admins
-
-### Opcao 2: Integrar Modulos com RBAC
-
-Se preferir manter a granularidade por modulos:
-- Criar **perfis por modulo** (ex: "Operador RH", "Gestor RH")
-- Ao autorizar modulo, associar automaticamente o perfil correspondente
-- Mostrar de forma clara na UI que modulos e perfis estao conectados
-
-## Implementacao (Opcao 1 - Remover Modulos)
-
-### 1. Modificar a Tab de Modulos para Orientar o Admin
-
-Substituir a aba "Modulos" atual por uma visao simplificada que:
-- Mostra quais dominios o usuario tem acesso (baseado nos perfis)
-- Remove a necessidade de configurar `restringir_modulos`
-- Indica claramente: "Configure os perfis para definir os acessos"
-
-### 2. Ajustar ProtectedRoute
-
-Remover a verificacao de `rotaAutorizada` do hook `useModulosUsuario` e confiar apenas no RBAC.
-
-### 3. Desativar Flag `restringir_modulos`
-
-A flag continuara no banco para migracao, mas nao sera mais usada no frontend.
-
-### 4. Criar Perfis Especificos por Area (se necessario)
-
-Verificar se existem perfis adequados para operadores de cada area:
-- Operador RH (com `rh.visualizar`, `rh.criar`)
-- Operador Compras (com `compras.visualizar`, `compras.criar`)
-- etc.
-
-## Fluxo Simplificado Pos-Implementacao
+### 3. Fluxo Simplificado
 
 ```text
 +------------------+
-| Usuario sem      |
-| perfil associado |
+| Administrador    |
 +------------------+
         |
         v
-  Admin associa perfil
-  "Operador RH"
+  Associa perfil ao usuário
+  (ex: "Operador RH")
         |
         v
 +------------------+
-| Usuario com      |
-| rh.visualizar    |
-| rh.criar         |
+| Perfil contém    |
+| permissões:      |
+| - rh.visualizar  |
+| - rh.criar       |
 +------------------+
         |
         v
   Menu RH aparece
-  Rotas RH acessiveis
+  Rotas RH acessíveis
 ```
 
 ---
 
-## Secao Tecnica
+## Arquivos Modificados
 
-### Arquivos a Modificar
-
-| Arquivo | Alteracao |
+| Arquivo | Alteração |
 |---------|-----------|
-| `src/pages/admin/UsuarioDetalhePage.tsx` | Substituir aba "Modulos" por visao de dominios acessiveis |
-| `src/components/auth/ProtectedRoute.tsx` | Remover verificacao de `rotaAutorizada` de modulos |
-| `src/components/admin/UsuarioModulosTab.tsx` | Refatorar para mostrar dominios ao inves de modulos |
+| `src/components/auth/ProtectedRoute.tsx` | Removida verificação de módulos, apenas RBAC |
+| `src/components/admin/UsuarioModulosTab.tsx` | Refatorado para mostrar domínios via perfis |
+| `src/pages/admin/UsuarioDetalhePage.tsx` | Atualizado título/descrição da aba |
 
-### Migracao de Banco (Opcional)
+---
 
-Se quiser limpar os dados de modulos:
-```sql
--- Desativar restricao de modulos para todos os usuarios
-UPDATE profiles SET restringir_modulos = false;
-```
+## Próximos Passos (Opcional)
 
-### Verificacao Necessaria
+### Para o Usuário Rangel
+1. Acesse `/admin/usuarios` 
+2. Clique no usuário Rangel
+3. Na aba "Perfis", associe um perfil que tenha permissões de RH (ex: criar "Operador RH")
 
-Antes de implementar, precisamos verificar:
-1. Criar perfis especificos para cada area se nao existirem
-2. Associar permissoes corretas aos perfis existentes
-3. Garantir que o perfil "Servidor" tenha pelo menos `rh.self`
+### Perfis Sugeridos para Criar
 
-### Solucao Imediata para o Usuario Rangel
-
-Para resolver o problema agora, basta:
-1. Associar um perfil ao Rangel que tenha permissoes de RH (ex: criar um perfil "Operador RH")
-2. Ou associar permissoes `rh.visualizar` a um perfil existente que o Rangel possa usar
-
-### Perfis a Criar com Permissoes
-
-| Perfil | Permissoes |
+| Perfil | Permissões |
 |--------|------------|
 | Operador RH | rh.visualizar, rh.criar, rh.self |
 | Gestor RH | rh.visualizar, rh.criar, rh.tramitar, rh.aprovar, rh.self |
 | Operador Compras | compras.visualizar, compras.criar |
 | Gestor Compras | compras.visualizar, compras.criar, compras.tramitar, compras.aprovar |
+
+### Limpeza de Dados (Opcional)
+
+Se quiser remover completamente a flag `restringir_modulos`:
+```sql
+UPDATE profiles SET restringir_modulos = false;
+```
+
+---
+
+## Hooks e Arquivos Obsoletos (Podem Ser Removidos)
+
+Os seguintes arquivos não são mais necessários para o controle de acesso:
+- `src/hooks/useModulosUsuario.ts` (ainda usado em outros lugares?)
+- `src/hooks/useAdminModulos.ts`
+- `src/types/modulos.ts`
+
+**Nota**: Verifique se estes arquivos são usados em outros lugares antes de remover.
+
 

@@ -1,14 +1,13 @@
 // ============================================
-// COMPONENTE DE ROTA PROTEGIDA - FASE 6
+// COMPONENTE DE ROTA PROTEGIDA - FASE 7
 // ============================================
-// Baseado EXCLUSIVAMENTE em permissões do banco
+// Baseado EXCLUSIVAMENTE em permissões do banco (RBAC)
 // Mantém compatibilidade com allowedRoles para migração gradual
-// Integração com sistema de módulos por usuário
+// Sistema de módulos removido - usar apenas perfis/permissões
 
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useModulosUsuario } from '@/hooks/useModulosUsuario';
 import { PermissionCode, ROUTE_PERMISSIONS, AppRole } from '@/types/auth';
 import { Loader2 } from 'lucide-react';
 
@@ -103,14 +102,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     hasAnyPermission, 
     hasAllPermissions 
   } = useAuth();
-  const { rotaAutorizada, loading: loadingModulos, restringirModulos } = useModulosUsuario();
   const location = useLocation();
 
   // ============================================
   // LOADING STATE
   // ============================================
 
-  if (isLoading || loadingModulos) {
+  if (isLoading) {
     return loadingComponent || (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -146,14 +144,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // ============================================
-  // VERIFICAÇÃO DE MÓDULO (NOVA)
+  // NOTA: Sistema de módulos removido (Fase 7)
+  // O controle de acesso agora é feito apenas via RBAC (perfis/permissões)
   // ============================================
-
-  // Verifica se a rota está em um módulo autorizado para o usuário
-  if (restringirModulos && !rotaAutorizada(location.pathname)) {
-    onAccessDenied?.();
-    return <Navigate to={accessDeniedPath} state={{ from: location, reason: 'module_restricted' }} replace />;
-  }
 
   // ============================================
   // DETERMINAÇÃO DAS PERMISSÕES REQUERIDAS
