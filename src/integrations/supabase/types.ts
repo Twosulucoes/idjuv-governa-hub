@@ -215,7 +215,9 @@ export type Database = {
           historico_status: Json | null
           horario_diario: string | null
           id: string
+          instituicao_id: string | null
           motivo_rejeicao: string | null
+          numero_processo_sei: string | null
           numero_protocolo: string | null
           observacoes: string | null
           publico_estimado: number | null
@@ -254,7 +256,9 @@ export type Database = {
           historico_status?: Json | null
           horario_diario?: string | null
           id?: string
+          instituicao_id?: string | null
           motivo_rejeicao?: string | null
+          numero_processo_sei?: string | null
           numero_protocolo?: string | null
           observacoes?: string | null
           publico_estimado?: number | null
@@ -293,7 +297,9 @@ export type Database = {
           historico_status?: Json | null
           horario_diario?: string | null
           id?: string
+          instituicao_id?: string | null
           motivo_rejeicao?: string | null
+          numero_processo_sei?: string | null
           numero_protocolo?: string | null
           observacoes?: string | null
           publico_estimado?: number | null
@@ -341,6 +347,20 @@ export type Database = {
             columns: ["federacao_id"]
             isOneToOne: false
             referencedRelation: "federacoes_esportivas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_unidade_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_unidade_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "v_instituicoes_resumo"
             referencedColumns: ["id"]
           },
           {
@@ -10667,6 +10687,126 @@ export type Database = {
           },
         ]
       }
+      instituicoes: {
+        Row: {
+          area_atuacao: string[] | null
+          ativo: boolean
+          ato_constituicao: string | null
+          ato_documento_url: string | null
+          cnpj: string | null
+          codigo_instituicao: string | null
+          created_at: string
+          created_by: string | null
+          data_fundacao: string | null
+          data_validacao: string | null
+          email: string | null
+          endereco_bairro: string | null
+          endereco_cep: string | null
+          endereco_cidade: string | null
+          endereco_complemento: string | null
+          endereco_logradouro: string | null
+          endereco_numero: string | null
+          endereco_uf: string | null
+          esfera_governo: Database["public"]["Enums"]["esfera_governo"] | null
+          id: string
+          inscricao_estadual: string | null
+          nome_fantasia: string | null
+          nome_razao_social: string
+          observacoes: string | null
+          orgao_vinculado: string | null
+          responsavel_cargo: string | null
+          responsavel_cpf: string | null
+          responsavel_email: string | null
+          responsavel_nome: string
+          responsavel_telefone: string | null
+          site: string | null
+          status: Database["public"]["Enums"]["status_instituicao"]
+          telefone: string | null
+          tipo_instituicao: Database["public"]["Enums"]["tipo_instituicao"]
+          updated_at: string
+          updated_by: string | null
+          validado_por: string | null
+        }
+        Insert: {
+          area_atuacao?: string[] | null
+          ativo?: boolean
+          ato_constituicao?: string | null
+          ato_documento_url?: string | null
+          cnpj?: string | null
+          codigo_instituicao?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_fundacao?: string | null
+          data_validacao?: string | null
+          email?: string | null
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_complemento?: string | null
+          endereco_logradouro?: string | null
+          endereco_numero?: string | null
+          endereco_uf?: string | null
+          esfera_governo?: Database["public"]["Enums"]["esfera_governo"] | null
+          id?: string
+          inscricao_estadual?: string | null
+          nome_fantasia?: string | null
+          nome_razao_social: string
+          observacoes?: string | null
+          orgao_vinculado?: string | null
+          responsavel_cargo?: string | null
+          responsavel_cpf?: string | null
+          responsavel_email?: string | null
+          responsavel_nome: string
+          responsavel_telefone?: string | null
+          site?: string | null
+          status?: Database["public"]["Enums"]["status_instituicao"]
+          telefone?: string | null
+          tipo_instituicao: Database["public"]["Enums"]["tipo_instituicao"]
+          updated_at?: string
+          updated_by?: string | null
+          validado_por?: string | null
+        }
+        Update: {
+          area_atuacao?: string[] | null
+          ativo?: boolean
+          ato_constituicao?: string | null
+          ato_documento_url?: string | null
+          cnpj?: string | null
+          codigo_instituicao?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_fundacao?: string | null
+          data_validacao?: string | null
+          email?: string | null
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_complemento?: string | null
+          endereco_logradouro?: string | null
+          endereco_numero?: string | null
+          endereco_uf?: string | null
+          esfera_governo?: Database["public"]["Enums"]["esfera_governo"] | null
+          id?: string
+          inscricao_estadual?: string | null
+          nome_fantasia?: string | null
+          nome_razao_social?: string
+          observacoes?: string | null
+          orgao_vinculado?: string | null
+          responsavel_cargo?: string | null
+          responsavel_cpf?: string | null
+          responsavel_email?: string | null
+          responsavel_nome?: string
+          responsavel_telefone?: string | null
+          site?: string | null
+          status?: Database["public"]["Enums"]["status_instituicao"]
+          telefone?: string | null
+          tipo_instituicao?: Database["public"]["Enums"]["tipo_instituicao"]
+          updated_at?: string
+          updated_by?: string | null
+          validado_por?: string | null
+        }
+        Relationships: []
+      }
       itens_ata_registro_preco: {
         Row: {
           ata_id: string
@@ -18281,6 +18421,78 @@ export type Database = {
           },
         ]
       }
+      v_instituicoes_resumo: {
+        Row: {
+          ativo: boolean | null
+          cnpj: string | null
+          codigo_instituicao: string | null
+          created_at: string | null
+          email: string | null
+          endereco_cidade: string | null
+          endereco_uf: string | null
+          esfera_governo: Database["public"]["Enums"]["esfera_governo"] | null
+          id: string | null
+          nome_fantasia: string | null
+          nome_razao_social: string | null
+          orgao_vinculado: string | null
+          responsavel_cargo: string | null
+          responsavel_nome: string | null
+          solicitacoes_aprovadas: number | null
+          status: Database["public"]["Enums"]["status_instituicao"] | null
+          telefone: string | null
+          tipo_instituicao:
+            | Database["public"]["Enums"]["tipo_instituicao"]
+            | null
+          total_solicitacoes: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          cnpj?: string | null
+          codigo_instituicao?: string | null
+          created_at?: string | null
+          email?: string | null
+          endereco_cidade?: string | null
+          endereco_uf?: string | null
+          esfera_governo?: Database["public"]["Enums"]["esfera_governo"] | null
+          id?: string | null
+          nome_fantasia?: string | null
+          nome_razao_social?: string | null
+          orgao_vinculado?: string | null
+          responsavel_cargo?: string | null
+          responsavel_nome?: string | null
+          solicitacoes_aprovadas?: never
+          status?: Database["public"]["Enums"]["status_instituicao"] | null
+          telefone?: string | null
+          tipo_instituicao?:
+            | Database["public"]["Enums"]["tipo_instituicao"]
+            | null
+          total_solicitacoes?: never
+        }
+        Update: {
+          ativo?: boolean | null
+          cnpj?: string | null
+          codigo_instituicao?: string | null
+          created_at?: string | null
+          email?: string | null
+          endereco_cidade?: string | null
+          endereco_uf?: string | null
+          esfera_governo?: Database["public"]["Enums"]["esfera_governo"] | null
+          id?: string | null
+          nome_fantasia?: string | null
+          nome_razao_social?: string | null
+          orgao_vinculado?: string | null
+          responsavel_cargo?: string | null
+          responsavel_nome?: string | null
+          solicitacoes_aprovadas?: never
+          status?: Database["public"]["Enums"]["status_instituicao"] | null
+          telefone?: string | null
+          tipo_instituicao?:
+            | Database["public"]["Enums"]["tipo_instituicao"]
+            | null
+          total_solicitacoes?: never
+        }
+        Relationships: []
+      }
       v_movimentacoes_completas: {
         Row: {
           aceite_responsavel: boolean | null
@@ -18996,6 +19208,7 @@ export type Database = {
         | "arquivar"
         | "suspender"
         | "informar"
+      esfera_governo: "municipal" | "estadual" | "federal"
       estado_conservacao: "otimo" | "bom" | "regular" | "ruim" | "inservivel"
       estado_conservacao_inventario:
         | "novo"
@@ -19183,6 +19396,7 @@ export type Database = {
         | "rejeitado"
         | "erro"
       status_folha: "aberta" | "previa" | "processando" | "fechada" | "reaberta"
+      status_instituicao: "ativo" | "inativo" | "pendente_validacao"
       status_liquidacao:
         | "pendente"
         | "atestada"
@@ -19385,6 +19599,7 @@ export type Database = {
         | "13_2a_parcela"
         | "rescisao"
         | "retroativos"
+      tipo_instituicao: "formal" | "informal" | "orgao_publico"
       tipo_justificativa:
         | "atestado"
         | "declaracao"
@@ -19785,6 +20000,7 @@ export const Constants = {
         "suspender",
         "informar",
       ],
+      esfera_governo: ["municipal", "estadual", "federal"],
       estado_conservacao: ["otimo", "bom", "regular", "ruim", "inservivel"],
       estado_conservacao_inventario: [
         "novo",
@@ -19995,6 +20211,7 @@ export const Constants = {
         "erro",
       ],
       status_folha: ["aberta", "previa", "processando", "fechada", "reaberta"],
+      status_instituicao: ["ativo", "inativo", "pendente_validacao"],
       status_liquidacao: [
         "pendente",
         "atestada",
@@ -20219,6 +20436,7 @@ export const Constants = {
         "rescisao",
         "retroativos",
       ],
+      tipo_instituicao: ["formal", "informal", "orgao_publico"],
       tipo_justificativa: [
         "atestado",
         "declaracao",
