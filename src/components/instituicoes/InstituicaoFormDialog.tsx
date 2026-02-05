@@ -125,7 +125,12 @@
        if (isEditing && instituicao) {
          await updateInstituicao({ id: instituicao.id, data: formData });
        } else {
-         await createInstituicao(formData);
+          // Remove campos de data vazios para evitar erro de sintaxe no banco
+          const dataToSave = {
+            ...formData,
+            data_fundacao: formData.data_fundacao || null,
+          };
+          await createInstituicao(dataToSave);
        }
        onOpenChange(false);
        onSuccess?.();
