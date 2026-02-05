@@ -16,7 +16,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -485,22 +487,21 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    {/* Agrupar por categoria */}
                     {Object.entries(CATEGORIAS_EVENTO).map(([key, label]) => {
                       const tiposCategoria = TIPOS_EVENTO.filter(t => t.categoria === key);
                       if (tiposCategoria.length === 0) return null;
                       
                       return (
-                        <div key={key}>
-                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">
+                        <SelectGroup key={key}>
+                          <SelectLabel className="text-xs font-semibold text-muted-foreground">
                             {label}
-                          </div>
+                          </SelectLabel>
                           {tiposCategoria.map((tipo) => (
                             <SelectItem key={tipo.value} value={tipo.value}>
                               {tipo.label}
                             </SelectItem>
                           ))}
-                        </div>
+                        </SelectGroup>
                       );
                     })}
                   </SelectContent>
