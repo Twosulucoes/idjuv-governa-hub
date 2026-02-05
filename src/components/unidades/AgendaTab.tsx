@@ -24,6 +24,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus, Calendar, Loader2, Check, X, Clock, Building2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+ import { InstituicaoSelector } from "@/components/instituicoes/InstituicaoSelector";
+ import { InstituicaoFormDialog } from "@/components/instituicoes/InstituicaoFormDialog";
+ import type { TipoInstituicao } from "@/types/instituicoes";
+ import { SEI_PLACEHOLDER } from "@/types/instituicoes";
 
 interface FederacaoOption {
   id: string;
@@ -67,6 +71,9 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isFederacao, setIsFederacao] = useState(false);
   const [selectedFederacaoId, setSelectedFederacaoId] = useState<string>("");
+   const [isInstituicao, setIsInstituicao] = useState(false);
+   const [selectedInstituicaoId, setSelectedInstituicaoId] = useState<string>("");
+   const [showInstituicaoForm, setShowInstituicaoForm] = useState(false);
   
   // Query para buscar federações ativas
   const { data: federacoes = [] } = useQuery({
@@ -195,6 +202,7 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
         observacoes: formData.observacoes || null,
         created_by: userData.user?.id,
         federacao_id: isFederacao && selectedFederacaoId ? selectedFederacaoId : null,
+         instituicao_id: isInstituicao && selectedInstituicaoId ? selectedInstituicaoId : null,
       });
 
       if (error) throw error;
@@ -254,6 +262,8 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
     });
     setIsFederacao(false);
     setSelectedFederacaoId("");
+     setIsInstituicao(false);
+     setSelectedInstituicaoId("");
   }
 
   const daysInMonth = eachDayOfInterval({
@@ -543,6 +553,41 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
                   </Select>
                 </div>
               )}
+               
+               {/* Toggle para Instituição */}
+               {!isFederacao && (
+                 <div className="flex items-center gap-3 mb-4 p-3 bg-muted/50 rounded-lg">
+                   <Switch
+                     id="is-instituicao"
+                     checked={isInstituicao}
+                     onCheckedChange={setIsInstituicao}
+                   />
+                   <Label htmlFor="is-instituicao" className="cursor-pointer flex items-center gap-2">
+                     <Building2 className="h-4 w-4" />
+                     Solicitante é uma Instituição Cadastrada
+                   </Label>
+                 </div>
+               )}
+               
+               {/* Seletor de Instituição */}
+               {isInstituicao && !isFederacao && (
+                 <div className="mb-4">
+                   <InstituicaoSelector
+                     value={selectedInstituicaoId}
+                     onChange={(id, inst) => {
+                       setSelectedInstituicaoId(id || '');
+                       if (inst) {
+                         setFormData(prev => ({
+                           ...prev,
+                           solicitante_nome: inst.nome_razao_social,
+                           solicitante_documento: inst.cnpj || '',
+                         }));
+                       }
+                     }}
+                     onAddNew={() => setShowInstituicaoForm(true)}
+                   />
+                 </div>
+               )}
               
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
@@ -618,6 +663,15 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
           </form>
         </DialogContent>
       </Dialog>
+       
+       {/* Dialog de Nova Instituição */}
+       <InstituicaoFormDialog
+         open={showInstituicaoForm}
+         onOpenChange={setShowInstituicaoForm}
+         onSuccess={() => {
+           setShowInstituicaoForm(false);
+         }}
+       />
     </div>
   );
 }
