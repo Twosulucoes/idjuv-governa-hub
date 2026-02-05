@@ -1,7 +1,7 @@
 
 # Plano: Extrair e Reutilizar Componente de Vinculo Funcional
 
-## Contexto do Problema
+**Status: ✅ CONCLUÍDO**
 
 O formulario de cadastro manual de servidor (`ServidorFormPage.tsx`) nao possui os campos de vinculo funcional que existem no dialogo de conversao de pre-cadastro (`ConversaoServidorDialog.tsx`):
 

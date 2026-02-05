@@ -33,7 +33,8 @@ import {
   Loader2,
   Download,
   FileDown,
-  Settings
+  Settings,
+  Briefcase
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -64,6 +65,8 @@ import {
   CATEGORIAS_RESERVA
 } from "@/types/rh";
 import { SegundoVinculoSection } from "@/components/rh/SegundoVinculoSection";
+import { VinculoFuncionalForm, useVinculoFuncionalValidation } from "@/components/rh/VinculoFuncionalForm";
+import type { TipoServidor } from "@/types/servidor";
 
 type FormData = {
   nome_completo: string;
@@ -141,6 +144,11 @@ type FormData = {
   vinculo_externo_forma: string;
   vinculo_externo_ato_id: string | null;
   vinculo_externo_observacoes: string;
+  // Vínculo funcional (tipo, cargo, unidade, admissão)
+  tipo_servidor: TipoServidor | '';
+  cargo_atual_id: string;
+  unidade_atual_id: string;
+  data_admissao: string;
 };
 
 const initialFormData: FormData = {
@@ -219,6 +227,11 @@ const initialFormData: FormData = {
   vinculo_externo_forma: '',
   vinculo_externo_ato_id: null,
   vinculo_externo_observacoes: '',
+  // Vínculo funcional
+  tipo_servidor: '',
+  cargo_atual_id: '',
+  unidade_atual_id: '',
+  data_admissao: new Date().toISOString().split('T')[0],
 };
 
 export default function ServidorFormPage() {
@@ -354,6 +367,11 @@ export default function ServidorFormPage() {
         vinculo_externo_forma: servidor.vinculo_externo_forma || '',
         vinculo_externo_ato_id: servidor.vinculo_externo_ato_id || null,
         vinculo_externo_observacoes: servidor.vinculo_externo_observacoes || '',
+        // Vínculo funcional
+        tipo_servidor: (servidor.tipo_servidor as TipoServidor) || '',
+        cargo_atual_id: servidor.cargo_atual_id || '',
+        unidade_atual_id: servidor.unidade_atual_id || '',
+        data_admissao: servidor.data_admissao || new Date().toISOString().split('T')[0],
       });
     }
   }, [servidor]);
@@ -444,6 +462,11 @@ export default function ServidorFormPage() {
         vinculo_externo_forma: data.vinculo_externo_forma || null,
         vinculo_externo_ato_id: data.vinculo_externo_ato_id || null,
         vinculo_externo_observacoes: data.vinculo_externo_observacoes || null,
+        // Vínculo funcional
+        tipo_servidor: data.tipo_servidor || null,
+        cargo_atual_id: data.cargo_atual_id || null,
+        unidade_atual_id: data.unidade_atual_id || null,
+        data_admissao: data.data_admissao || null,
       };
 
       let servidorId: string | null = null;
@@ -498,6 +521,36 @@ export default function ServidorFormPage() {
           } catch (userError) {
             console.error('Erro ao criar usuário:', userError);
             toast.info('Servidor cadastrado! Usuário pode ser criado posteriormente.');
+          }
+        }
+
+        // Criar lotação inicial (se tiver unidade selecionada)
+        if (servidorId && data.unidade_atual_id) {
+          try {
+            await supabase.from('lotacoes').insert({
+              servidor_id: servidorId,
+              unidade_id: data.unidade_atual_id,
+              cargo_id: data.cargo_atual_id || null,
+              tipo_lotacao: 'lotacao_interna',
+              data_inicio: data.data_admissao || new Date().toISOString().split('T')[0],
+              ativo: true,
+            });
+
+            // Criar provimento (se tiver cargo)
+            if (data.cargo_atual_id) {
+              await supabase.from('provimentos').insert({
+                servidor_id: servidorId,
+                cargo_id: data.cargo_atual_id,
+                unidade_id: data.unidade_atual_id,
+                status: 'ativo',
+                data_nomeacao: data.data_admissao || new Date().toISOString().split('T')[0],
+                data_posse: data.data_admissao || new Date().toISOString().split('T')[0],
+                data_exercicio: data.data_admissao || new Date().toISOString().split('T')[0],
+              });
+            }
+          } catch (lotacaoError) {
+            console.error('Erro ao criar lotação/provimento:', lotacaoError);
+            // Não lançar erro - servidor foi criado com sucesso
           }
         }
       }
@@ -652,10 +705,14 @@ export default function ServidorFormPage() {
 
           <form onSubmit={handleSubmit}>
             <Tabs defaultValue="pessoal" className="space-y-6">
-              <TabsList className="grid grid-cols-3 lg:grid-cols-5 gap-2">
+              <TabsList className="grid grid-cols-3 lg:grid-cols-6 gap-2">
                 <TabsTrigger value="pessoal" className="flex items-center gap-2">
                   <User className="h-4 w-4" />
                   <span className="hidden sm:inline">Pessoal</span>
+                </TabsTrigger>
+                <TabsTrigger value="vinculo" className="flex items-center gap-2">
+                  <Briefcase className="h-4 w-4" />
+                  <span className="hidden sm:inline">Vínculo</span>
                 </TabsTrigger>
                 <TabsTrigger value="documentos" className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
@@ -866,6 +923,30 @@ export default function ServidorFormPage() {
                         />
                       </div>
                     </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Vínculo Funcional */}
+              <TabsContent value="vinculo">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Briefcase className="h-5 w-5 text-primary" />
+                      Vínculo Funcional
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <VinculoFuncionalForm
+                      tipoServidor={formData.tipo_servidor}
+                      cargoId={formData.cargo_atual_id}
+                      unidadeId={formData.unidade_atual_id}
+                      dataAdmissao={formData.data_admissao}
+                      onTipoServidorChange={(tipo) => updateField('tipo_servidor', tipo)}
+                      onCargoChange={(cargoId) => updateField('cargo_atual_id', cargoId)}
+                      onUnidadeChange={(unidadeId) => updateField('unidade_atual_id', unidadeId)}
+                      onDataAdmissaoChange={(data) => updateField('data_admissao', data)}
+                    />
                   </CardContent>
                 </Card>
               </TabsContent>
