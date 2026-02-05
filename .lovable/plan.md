@@ -1,110 +1,96 @@
 
-# Plano: Correção do Sistema de Troca de Senha
+# Plano: Migrar Detalhes de Usuário para Página Dedicada
 
-## Problema Identificado
+## Contexto do Problema
 
-O sistema está em **loop infinito** porque:
+Atualmente, ao clicar em um usuário na tela de Administração de Usuários (`/admin/usuarios`), um painel lateral (Sheet) aparece à direita da tela. Este painel tem largura limitada (`sm:max-w-lg`) e, especialmente em dispositivos móveis, não permite visualizar todas as informações necessárias para a administração completa do usuário.
 
-1. **Coluna com DEFAULT errado**: A coluna `requires_password_change` foi criada com `DEFAULT true`
-2. **Todos os 14 usuários afetados**: Todos os perfis no banco estão com a flag ativa
-3. **Mesmo após trocar a senha, o problema persiste** porque o ProtectedRoute verifica a flag antes de permitir qualquer navegação
+## Solucao Proposta
 
-## Causa Raiz
+Seguindo o mesmo padrão utilizado na pagina de detalhes de Federacoes (`/admin/federacoes/:id`), a proposta e substituir o Sheet por uma pagina de detalhes dedicada em tela cheia, acessada via rota `/admin/usuarios/:id`.
 
-Quando a coluna `requires_password_change` foi adicionada à tabela `profiles`, foi definido o default como `true` em vez de `false`. Isso ativou a flag para todos os usuários existentes automaticamente.
+## Beneficios
 
-## Solução
+1. **Melhor UX**: Utilizacao total do espaco da tela para exibir informacoes
+2. **URLs compartilhaveis**: Links diretos para detalhes de usuarios especificos
+3. **Consistencia**: Padrao ja utilizado em outras paginas de detalhes (Federacoes, Servidores, Unidades)
+4. **Mobile-first**: Melhor experiencia em dispositivos moveis
 
-### Etapa 1: Migração SQL (Correção Urgente)
+## Implementacao
 
-Alterar o default da coluna e corrigir os dados existentes:
+### 1. Criar nova pagina `UsuarioDetalhePage.tsx`
 
-```sql
--- 1. Corrigir o DEFAULT da coluna para FALSE
-ALTER TABLE profiles 
-ALTER COLUMN requires_password_change SET DEFAULT false;
+Nova pagina em `src/pages/admin/UsuarioDetalhePage.tsx` contendo:
 
--- 2. Corrigir todos os usuários que estão com flag incorretamente ativa
--- (apenas os que NÃO foram resetados pelo admin)
-UPDATE profiles 
-SET requires_password_change = false 
-WHERE requires_password_change = true;
+- **Header** com botao "Voltar", avatar, nome e email do usuario
+- **Cards de acoes rapidas** (Status, Resetar Senha)
+- **Tabs organizadas**:
+  - **Dados**: Informacoes basicas do usuario (email, tipo, data de criacao, status)
+  - **Perfis**: Lista de perfis com checkboxes para associar/desassociar
+  - **Modulos**: Componente `UsuarioModulosTab` existente
+
+```text
++--------------------------------------------------+
+| [<- Voltar]  Avatar  Nome do Usuario             |
+|              email@exemplo.com                   |
+|              Badge: Servidor | Badge: Ativo      |
++--------------------------------------------------+
+| [Bloquear/Desbloquear]  [Resetar Senha]          |
++--------------------------------------------------+
+| [Dados] [Perfis] [Modulos]                       |
++--------------------------------------------------+
+|                                                  |
+|  Conteudo da tab selecionada                     |
+|  (tela cheia, scroll vertical)                   |
+|                                                  |
++--------------------------------------------------+
 ```
 
-### Etapa 2: Verificar a Página TrocaSenhaObrigatoriaPage
+### 2. Modificar `UsuariosAdminPage.tsx`
 
-A página atual está correta:
-- Chama `supabase.auth.updateUser({ password: novaSenha })`
-- Depois atualiza o profile: `requires_password_change = false`
-- Por fim, chama `refreshUser()` e navega para `/sistema`
+- Remover o componente Sheet e todo seu conteudo
+- Alterar `handleOpenDetails` para usar `navigate(`/admin/usuarios/${user.id}`)`
+- Manter a listagem e filtros existentes
 
-**Porém**, há um problema de timing: o `ProtectedRoute` pode redirecionar de volta antes que o `refreshUser()` termine de atualizar o estado.
-
-### Etapa 3: Ajustar Lógica no ProtectedRoute
-
-O ProtectedRoute verifica a flag ANTES de renderizar a página de troca. Se a rota atual for `/trocar-senha-obrigatoria`, deve permitir o acesso normalmente e não redirecionar.
-
-Verificar linha 139 de `ProtectedRoute.tsx`:
-```typescript
-if (user?.requiresPasswordChange && location.pathname !== '/trocar-senha-obrigatoria') {
-  return <Navigate to="/trocar-senha-obrigatoria" replace />;
-}
-```
-
-Esta lógica está correta, mas o problema é que após a troca, o `refreshUser()` atualiza o contexto com novos dados do banco. Se o banco ainda tiver `requires_password_change = true` (por não ter sido atualizado corretamente), o loop continua.
-
-### Etapa 4: Melhorar TrocaSenhaObrigatoriaPage
-
-Garantir que a atualização do profile seja bem-sucedida antes de navegar:
+### 3. Adicionar rota no `App.tsx`
 
 ```typescript
-const handleTrocarSenha = async () => {
-  // ... validação ...
-  
-  // 1. Atualizar senha no Auth
-  const { error: updateError } = await supabase.auth.updateUser({
-    password: novaSenha
-  });
-  
-  if (updateError) {
-    // tratamento de erro
-    return;
-  }
-  
-  // 2. Atualizar profile - AGUARDAR resultado
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update({ 
-      requires_password_change: false,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', user.id);
-  
-  if (profileError) {
-    console.error('Erro ao atualizar profile:', profileError);
-    toast.error('Erro ao finalizar troca de senha');
-    return;
-  }
-  
-  // 3. Atualizar contexto e redirecionar
-  await refreshUser();
-  navigate('/sistema', { replace: true });
-};
+<Route path="/admin/usuarios/:id" element={
+  <ProtectedRoute requiredPermissions="admin.usuarios">
+    <UsuarioDetalhePage />
+  </ProtectedRoute>
+} />
 ```
 
-## Arquivos a Modificar
+---
 
-| Arquivo | Alteração |
+## Secao Tecnica
+
+### Arquivos a criar
+
+| Arquivo | Descricao |
 |---------|-----------|
-| Nova migração SQL | Corrigir DEFAULT e dados existentes |
-| `src/pages/TrocaSenhaObrigatoriaPage.tsx` | Melhorar tratamento de erro do update no profile |
+| `src/pages/admin/UsuarioDetalhePage.tsx` | Pagina de detalhes do usuario |
 
-## Ordem de Execução
+### Arquivos a modificar
 
-1. **URGENTE**: Executar migração SQL para corrigir os dados
-2. Ajustar a página TrocaSenhaObrigatoriaPage para melhor tratamento de erros
-3. Testar o fluxo completo
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/pages/admin/UsuariosAdminPage.tsx` | Remover Sheet, alterar navegacao para rota |
+| `src/App.tsx` | Adicionar rota `/admin/usuarios/:id` |
 
-## Observação Importante
+### Dependencias reutilizadas
 
-A migração irá definir `requires_password_change = false` para **todos** os usuários. Se algum usuário DEVERIA estar com a flag ativa (porque um admin resetou a senha dele recentemente), o admin precisará resetar novamente.
+- `useAdminUsuarios` - hook para operacoes de usuario
+- `useAdminPerfis` - hook para listar perfis
+- `UsuarioModulosTab` - componente de modulos ja existente
+- Componentes UI: `AdminLayout`, `Card`, `Tabs`, `Badge`, `Button`, `Avatar`, `Alert`, `Dialog`
+
+### Fluxo de dados
+
+1. Usuario acessa `/admin/usuarios`
+2. Clica em um card de usuario
+3. Navega para `/admin/usuarios/:id`
+4. Pagina carrega dados do usuario via hook `useAdminUsuarios` (filtrado por ID)
+5. Exibe informacoes em tela cheia com tabs
+6. Botao "Voltar" retorna para `/admin/usuarios`
