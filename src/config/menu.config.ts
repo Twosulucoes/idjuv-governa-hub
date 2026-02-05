@@ -580,6 +580,12 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/federacoes",
         icon: Trophy,
       },
+       {
+         id: "instituicoes",
+         label: "Instituições",
+         route: "/admin/instituicoes",
+         icon: Building2,
+       },
     ],
   },
 
