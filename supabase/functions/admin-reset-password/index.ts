@@ -22,7 +22,10 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
+    console.log("Auth header presente:", !!authHeader);
+    
     if (!authHeader) {
+      console.log("Erro: Header Authorization ausente");
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -30,29 +33,40 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-    if (!supabaseUrl || !serviceRoleKey) {
+    if (!supabaseUrl || !serviceRoleKey || !supabaseAnonKey) {
+      console.log("Erro: Configuração ausente");
       return new Response(JSON.stringify({ error: "Configuração do backend ausente" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Cliente admin (bypass RLS)
-    const admin = createClient(supabaseUrl, serviceRoleKey);
+    // Cliente com anon key para validar o token do usuário
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader },
+      },
+    });
 
-    // Autenticar usuário solicitante
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await admin.auth.getUser(token);
-    if (userError || !userData?.user) {
+    // Autenticar usuário solicitante usando o cliente com o token
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    console.log("Auth result - user:", user?.id, "error:", userError?.message);
+    
+    if (userError || !user) {
+      console.log("Erro auth:", userError?.message || "Sem usuário");
       return new Response(JSON.stringify({ error: "Usuário não autenticado" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const requesterId = userData.user.id;
+    const requesterId = user.id;
+
+    // Cliente admin (bypass RLS) para operações privilegiadas
+    const admin = createClient(supabaseUrl, serviceRoleKey);
 
     // Autorizar: verificar se tem permissão admin.usuarios via RPC
     const { data: temPermissao, error: permError } = await admin.rpc('usuario_tem_permissao', {
