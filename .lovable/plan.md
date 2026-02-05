@@ -1,199 +1,271 @@
 
+# Plano: Atualizar Relatórios de RH com Informações do Segundo Vínculo
 
-# Plano: Visualização de Federação em Tela Cheia
+## Objetivo
 
-## Situação Atual
+Atualizar todos os relatórios de servidores existentes para incluir as informações do **Segundo Vínculo Funcional** e criar um **novo relatório especializado** para listar apenas os servidores que possuem segundo vínculo.
 
-Atualmente, ao clicar no ícone de "olhinho" (Eye) na listagem de federações, o sistema abre um `Sheet` (modal lateral) que desliza da direita:
+## Arquivos a Atualizar
 
+### 1. Planilha Configurável (Exportação Excel/CSV)
+**Arquivo:** `src/lib/exportarPlanilha.ts`
+
+Adicionar novos campos exportáveis na categoria "Segundo Vínculo":
+
+| Campo ID | Label no Excel |
+|----------|----------------|
+| `possui_vinculo_externo` | Possui Segundo Vínculo |
+| `vinculo_externo_esfera` | Esfera do Vínculo |
+| `vinculo_externo_orgao` | Órgão de Origem |
+| `vinculo_externo_cargo` | Cargo no Órgão |
+| `vinculo_externo_matricula` | Matrícula no Órgão |
+| `vinculo_externo_situacao` | Situação no Órgão |
+| `vinculo_externo_forma` | Forma do Vínculo |
+
+### 2. Relatório por Vínculo
+**Arquivo:** `src/lib/pdfRelatoriosRH.ts`
+
+Adicionar coluna/indicador visual no relatório agrupado por vínculo:
+- Servidores com segundo vínculo terão um ícone ou texto adicional indicando o órgão de origem
+
+### 3. Relatório de Histórico Funcional Individual
+**Arquivo:** `src/lib/pdfRelatoriosRH.ts`
+
+Adicionar nova seção "SEGUNDO VÍNCULO FUNCIONAL" no relatório individual com:
+- Esfera do Vínculo
+- Órgão de Origem
+- Cargo Efetivo
+- Matrícula
+- Situação no Órgão
+- Forma do Vínculo
+- Portaria/Ato Formal (com link/número)
+
+### 4. Relatório de Contatos Estratégicos
+**Arquivo:** `src/lib/pdfRelatorioContatosEstrategicos.ts`
+
+Adicionar coluna "Órgão de Origem" para servidores que possuem segundo vínculo.
+
+## Novo Relatório a Criar
+
+### Relatório de Servidores com Segundo Vínculo
+**Novo arquivo:** `src/lib/pdfRelatorioSegundoVinculo.ts`
+
+Relatório especializado listando apenas servidores que possuem vínculo externo:
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│                 RELATÓRIO DE SERVIDORES COM SEGUNDO VÍNCULO              │
+│                        Instituto de Juventude - IDJuv                     │
+├──────────────────────────────────────────────────────────────────────────┤
+│ Data: 05/02/2026                           Total: 12 servidores          │
+├──────────────────────────────────────────────────────────────────────────┤
+│ Ord │ Servidor        │ Vínculo IDJuv │ Esfera   │ Órgão Origem  │ Forma │
+├─────┼─────────────────┼───────────────┼──────────┼───────────────┼───────┤
+│  1  │ JOÃO DA SILVA   │ Comissionado  │ Federal  │ RFB           │ Cessão│
+│  2  │ MARIA OLIVEIRA  │ Comissionado  │ Estadual │ SEPLAN/RR     │ Licenc│
+│ ... │ ...             │ ...           │ ...      │ ...           │ ...   │
+└──────────────────────────────────────────────────────────────────────────┘
+
+Agrupamento opcional por:
+- Esfera (Federal, Estadual, Municipal)
+- Forma do Vínculo (Cessão, Requisição, Licença, Informal)
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│  Gestão de Federações                                      Sheet    │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                    ┌───────────────┐│
-│  ┌──────────────────────────────────────────┐     │  FERR         ││
-│  │ Lista de Federações                      │     │  Federação de ││
-│  │                                          │     │  Remo de RR   ││
-│  │  FERR | Presidente | Status | 👁️        │     │               ││
-│  │  FBRR | Presidente | Status | 👁️        │     │  [Dados...]   ││
-│  │  ...                                     │     │               ││
-│  └──────────────────────────────────────────┘     └───────────────┘│
-└─────────────────────────────────────────────────────────────────────┘
+
+### Card do Novo Relatório
+**Novo arquivo:** `src/components/rh/RelatorioSegundoVinculoCard.tsx`
+
+Card para a página de relatórios permitindo:
+- Filtro por esfera (Federal/Estadual/Municipal)
+- Filtro por forma de vínculo
+- Opção de agrupar por esfera ou por forma
+- Preview de quantidade de registros
+
+## Integração na Página de Relatórios
+
+**Arquivo:** `src/pages/rh/RelatoriosRHPage.tsx`
+
+Adicionar:
+- Importação do novo card
+- Renderização na grid de relatórios
+- Busca incluindo campos do segundo vínculo nas queries existentes
+
+## Detalhamento Tecnico
+
+### 1. Exportacao Excel/CSV - Novos Campos
+
+```typescript
+// src/lib/exportarPlanilha.ts
+
+// Adicionar campos do segundo vínculo
+{ id: 'possui_vinculo_externo', label: 'Possui Segundo Vínculo', categoria: 'Segundo Vínculo', 
+  getValue: (s) => s.possui_vinculo_externo ? 'Sim' : 'Não' },
+{ id: 'vinculo_externo_esfera', label: 'Esfera do Vínculo', categoria: 'Segundo Vínculo', 
+  getValue: (s) => VINCULO_EXTERNO_ESFERA_LABELS[s.vinculo_externo_esfera] || '' },
+{ id: 'vinculo_externo_orgao', label: 'Órgão de Origem', categoria: 'Segundo Vínculo', 
+  getValue: (s) => s.vinculo_externo_orgao || '' },
+{ id: 'vinculo_externo_cargo', label: 'Cargo no Órgão', categoria: 'Segundo Vínculo', 
+  getValue: (s) => s.vinculo_externo_cargo || '' },
+{ id: 'vinculo_externo_matricula', label: 'Matrícula no Órgão', categoria: 'Segundo Vínculo', 
+  getValue: (s) => s.vinculo_externo_matricula || '' },
+{ id: 'vinculo_externo_situacao', label: 'Situação no Órgão', categoria: 'Segundo Vínculo', 
+  getValue: (s) => VINCULO_EXTERNO_SITUACAO_LABELS[s.vinculo_externo_situacao] || '' },
+{ id: 'vinculo_externo_forma', label: 'Forma do Vínculo', categoria: 'Segundo Vínculo', 
+  getValue: (s) => VINCULO_EXTERNO_FORMA_LABELS[s.vinculo_externo_forma] || '' },
 ```
 
-## Nova Experiência
+### 2. Historico Funcional - Nova Secao
 
-Ao clicar no "olhinho", o sistema navegará para uma página dedicada em tela cheia:
+```typescript
+// Adicionar apos secao de Licenças no generateRelatorioHistoricoFuncional
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  ← Voltar   FERR - Federação de Remo de Roraima                     │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  [Badge: Ativa]                    Cadastro: 15/03/2024             │
-│                                                                     │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │ Dados │ Parcerias │ Árbitros │ Calendário                    │  │
-│  ├───────────────────────────────────────────────────────────────┤  │
-│  │                                                               │  │
-│  │  Dados da Federação                                          │  │
-│  │  ─────────────────                                           │  │
-│  │  CNPJ: 00.000.000/0001-00                                    │  │
-│  │  Criada em: 01/01/2020                                       │  │
-│  │  Endereço: Rua XYZ, 123                                      │  │
-│  │  Telefone: (95) 99999-9999                                   │  │
-│  │  Email: contato@ferr.org.br                                  │  │
-│  │                                                               │  │
-│  │  Mandato Atual                                               │  │
-│  │  ─────────────                                               │  │
-│  │  01/01/2024 até 31/12/2027                                   │  │
-│  │                                                               │  │
-│  │  Presidente                                                  │  │
-│  │  ──────────                                                  │  │
-│  │  João da Silva                                               │  │
-│  │  Nascimento: 15/05/1980                                      │  │
-│  │  ...                                                         │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-│                                                                     │
-│  [Aprovar] [Editar Dados] [🗑️]                                      │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+if (data.servidor.possui_vinculo_externo) {
+  y = checkPageBreak(doc, y, 80);
+  y = addSectionHeader(doc, 'SEGUNDO VÍNCULO FUNCIONAL', y);
+  
+  addField(doc, 'Esfera', VINCULO_EXTERNO_ESFERA_LABELS[data.servidor.vinculo_externo_esfera], col1, y, colWidth);
+  addField(doc, 'Situação', VINCULO_EXTERNO_SITUACAO_LABELS[data.servidor.vinculo_externo_situacao], col2, y, colWidth);
+  y += 10;
+  
+  addField(doc, 'Órgão de Origem', data.servidor.vinculo_externo_orgao, col1, y, contentWidth);
+  y += 10;
+  
+  addField(doc, 'Cargo Efetivo', data.servidor.vinculo_externo_cargo, col1, y, colWidth);
+  addField(doc, 'Matrícula', data.servidor.vinculo_externo_matricula || '-', col2, y, colWidth);
+  y += 10;
+  
+  addField(doc, 'Forma do Vínculo', VINCULO_EXTERNO_FORMA_LABELS[data.servidor.vinculo_externo_forma], col1, y, colWidth);
+  
+  if (data.servidor.vinculo_externo_ato) {
+    addField(doc, 'Ato Formal', `Portaria nº ${data.servidor.vinculo_externo_ato.numero}`, col2, y, colWidth);
+  }
+  y += 10;
+}
 ```
 
-## Arquivos a Criar
+### 3. Novo Relatorio PDF - Estrutura
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `src/pages/federacoes/FederacaoDetalhePage.tsx` | Nova página de detalhe em tela cheia |
+```typescript
+// src/lib/pdfRelatorioSegundoVinculo.ts
+
+interface ServidorSegundoVinculo {
+  nome: string;
+  cpf: string;
+  vinculo_idjuv: string;
+  cargo_idjuv: string;
+  unidade_idjuv: string;
+  vinculo_externo_esfera: string;
+  vinculo_externo_orgao: string;
+  vinculo_externo_cargo: string;
+  vinculo_externo_matricula: string | null;
+  vinculo_externo_situacao: string;
+  vinculo_externo_forma: string;
+  vinculo_externo_ato_numero: string | null;
+}
+
+interface RelatorioSegundoVinculoData {
+  servidores: ServidorSegundoVinculo[];
+  totalServidores: number;
+  dataGeracao: string;
+  filtroEsfera: string | null;
+  filtroForma: string | null;
+  agruparPor: 'esfera' | 'forma' | null;
+}
+
+export async function gerarRelatorioSegundoVinculo(data: RelatorioSegundoVinculoData): Promise<void> {
+  // Header institucional
+  // Tabela com colunas: Ord | Servidor | Vínculo IDJuv | Esfera | Órgão Origem | Cargo | Forma
+  // Agrupamento opcional
+  // Footer institucional
+}
+```
+
+### 4. Card para Pagina de Relatorios
+
+```typescript
+// src/components/rh/RelatorioSegundoVinculoCard.tsx
+
+export function RelatorioSegundoVinculoCard() {
+  const [filtroEsfera, setFiltroEsfera] = useState<string>("all");
+  const [filtroForma, setFiltroForma] = useState<string>("all");
+  const [agruparPor, setAgruparPor] = useState<'esfera' | 'forma' | 'nenhum'>('nenhum');
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Query para contar servidores com segundo vínculo
+  const { data: previewCount = 0 } = useQuery({
+    queryKey: ["segundo-vinculo-preview", filtroEsfera, filtroForma],
+    queryFn: async () => {
+      let query = supabase
+        .from("servidores")
+        .select("id", { count: "exact", head: true })
+        .eq("ativo", true)
+        .eq("possui_vinculo_externo", true);
+      
+      if (filtroEsfera !== "all") {
+        query = query.eq("vinculo_externo_esfera", filtroEsfera);
+      }
+      if (filtroForma !== "all") {
+        query = query.eq("vinculo_externo_forma", filtroForma);
+      }
+      
+      const { count, error } = await query;
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
+  return (
+    <Card>
+      <CardHeader>...</CardHeader>
+      <CardContent>
+        <Select label="Esfera" ... />
+        <Select label="Forma" ... />
+        <RadioGroup label="Agrupar por" ... />
+        <Button onClick={handleExportar}>Gerar Relatório PDF</Button>
+      </CardContent>
+    </Card>
+  );
+}
+```
 
 ## Arquivos a Modificar
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/App.tsx` | Adicionar rota `/admin/federacoes/:id` |
-| `src/pages/federacoes/GestaoFederacoesPage.tsx` | Alterar `handleViewDetails` para navegar em vez de abrir Sheet |
-| `src/types/auth.ts` | Adicionar permissão para a nova rota |
+| `src/lib/exportarPlanilha.ts` | Adicionar 7 novos campos da categoria "Segundo Vínculo" |
+| `src/lib/pdfRelatoriosRH.ts` | Adicionar seção de segundo vínculo no histórico funcional e indicador no relatório por vínculo |
+| `src/lib/pdfRelatorioContatosEstrategicos.ts` | Adicionar coluna de órgão de origem |
+| `src/pages/rh/RelatoriosRHPage.tsx` | Atualizar queries para incluir campos do segundo vínculo, adicionar novo card |
+| `src/components/rh/ExportacaoServidoresCard.tsx` | Importar labels do segundo vínculo |
 
-## Detalhamento Tecnico
+## Arquivos a Criar
 
-### 1. Nova Pagina FederacaoDetalhePage.tsx
+| Arquivo | Descrição |
+|---------|-----------|
+| `src/lib/pdfRelatorioSegundoVinculo.ts` | Gerador PDF do relatório especializado |
+| `src/components/rh/RelatorioSegundoVinculoCard.tsx` | Card com filtros para página de relatórios |
 
-A nova pagina tera:
+## Resumo Visual das Alterações
 
-- Cabecalho com botao "Voltar" e titulo da federacao (sigla + nome)
-- Badge de status e data de cadastro
-- Tabs organizadas:
-  - **Dados**: Informacoes da federacao, mandato, presidente e dirigentes
-  - **Parcerias**: Componente `FederacaoParceriasTab` existente
-  - **Calendario**: Componente `CalendarioFederacaoTab` existente
-- Botoes de acao: Aprovar/Rejeitar/Inativar, Editar, Excluir
-- Dialogs de confirmacao (reutilizando a logica existente)
+```text
+RELATÓRIOS EXISTENTES (Atualizar):
+├── Planilha Excel/CSV ─────────────── + 7 campos do segundo vínculo
+├── Histórico Funcional Individual ─── + Seção "Segundo Vínculo Funcional"
+├── Servidores por Vínculo ──────────── + Indicador de vínculo externo
+└── Contatos Estratégicos ──────────── + Coluna "Órgão Origem" (opcional)
 
-### 2. Alteracao na Rota (App.tsx)
-
-Adicionar nova rota:
-```typescript
-<Route 
-  path="/admin/federacoes/:id" 
-  element={<ProtectedRoute><FederacaoDetalhePage /></ProtectedRoute>} 
-/>
+NOVO RELATÓRIO:
+└── Servidores com Segundo Vínculo
+    ├── Filtro por esfera (Federal/Estadual/Municipal)
+    ├── Filtro por forma (Cessão/Requisição/Licença/Informal)
+    ├── Agrupamento opcional
+    └── Link para portaria vinculada
 ```
 
-### 3. Navegacao em vez de Modal
+## Ordem de Implementação
 
-Alterar `handleViewDetails` em `GestaoFederacoesPage.tsx`:
-
-```typescript
-// Antes (abre modal):
-const handleViewDetails = (federacao: Federacao) => {
-  setSelectedFederacao(federacao);
-  setSheetOpen(true);
-};
-
-// Depois (navega para pagina):
-const handleViewDetails = (federacao: Federacao) => {
-  navigate(`/admin/federacoes/${federacao.id}`);
-};
-```
-
-### 4. Remocao do Sheet
-
-Remover:
-- Estado `sheetOpen` e `selectedFederacao`
-- Componente `Sheet` e todo seu conteudo (linhas 478-750)
-- Imports nao utilizados (Sheet, SheetContent, etc)
-
-### 5. Estrutura da Nova Pagina
-
-```typescript
-export default function FederacaoDetalhePage() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  
-  // Query para buscar federacao
-  const { data: federacao, isLoading } = useQuery({...});
-  
-  return (
-    <AdminLayout>
-      {/* Cabecalho com Voltar */}
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" onClick={() => navigate('/admin/federacoes')}>
-          <ArrowLeft /> Voltar
-        </Button>
-        <div>
-          <h1>{federacao.sigla}</h1>
-          <p>{federacao.nome}</p>
-        </div>
-      </div>
-      
-      {/* Status e acoes */}
-      <div className="flex justify-between mb-6">
-        <Badge>{status}</Badge>
-        <div className="flex gap-2">
-          {/* Botoes de acao baseados no status */}
-        </div>
-      </div>
-      
-      {/* Conteudo em Tabs */}
-      <Tabs defaultValue="dados">
-        <TabsList>
-          <TabsTrigger value="dados">Dados</TabsTrigger>
-          <TabsTrigger value="parcerias">Parcerias e Arbitros</TabsTrigger>
-          <TabsTrigger value="calendario">Calendario</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="dados">
-          {/* Dados da federacao, mandato, dirigentes */}
-        </TabsContent>
-        
-        <TabsContent value="parcerias">
-          <FederacaoParceriasTab ... />
-        </TabsContent>
-        
-        <TabsContent value="calendario">
-          <CalendarioFederacaoTab ... />
-        </TabsContent>
-      </Tabs>
-      
-      {/* Dialogs de confirmacao */}
-    </AdminLayout>
-  );
-}
-```
-
-## Beneficios
-
-1. **Mais espaco**: Aproveitamento total da tela para exibir informacoes
-2. **Melhor navegacao**: URL propria permite compartilhamento e bookmark
-3. **Consistencia**: Segue o padrao das outras paginas de detalhe (Servidor, Unidade)
-4. **Mobile-friendly**: Layout responsivo que se adapta melhor em dispositivos moveis
-
-## Ordem de Implementacao
-
-1. Criar `FederacaoDetalhePage.tsx` com toda a logica migrada do Sheet
-2. Adicionar rota no `App.tsx`
-3. Adicionar permissao no `src/types/auth.ts`
-4. Modificar `GestaoFederacoesPage.tsx` para usar navegacao
-5. Remover codigo do Sheet nao utilizado
-6. Testar navegacao e funcionalidades
-
+1. Atualizar `src/lib/exportarPlanilha.ts` com novos campos
+2. Atualizar `src/lib/pdfRelatoriosRH.ts` (histórico funcional e relatório por vínculo)
+3. Criar `src/lib/pdfRelatorioSegundoVinculo.ts`
+4. Criar `src/components/rh/RelatorioSegundoVinculoCard.tsx`
+5. Atualizar `src/pages/rh/RelatoriosRHPage.tsx` para incluir queries e novo card
+6. Testar todos os relatórios
