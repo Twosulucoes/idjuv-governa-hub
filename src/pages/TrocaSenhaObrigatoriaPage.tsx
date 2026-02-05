@@ -61,7 +61,7 @@ export default function TrocaSenhaObrigatoriaPage() {
     setLoading(true);
 
     try {
-      // Atualizar senha no Supabase Auth
+      // 1. Atualizar senha no Supabase Auth
       const { error: updateError } = await supabase.auth.updateUser({
         password: novaSenha
       });
@@ -76,15 +76,27 @@ export default function TrocaSenhaObrigatoriaPage() {
         return;
       }
 
-      // Remover flag requires_password_change do profile
+      // 2. Remover flag requires_password_change do profile - AGUARDAR resultado
       if (user?.id) {
-        await supabase
+        const { error: profileError } = await supabase
           .from('profiles')
           .update({ 
             requires_password_change: false,
             updated_at: new Date().toISOString()
           })
           .eq('id', user.id);
+
+        if (profileError) {
+          console.error('Erro ao atualizar profile:', profileError);
+          toast({
+            variant: 'destructive',
+            title: 'Erro ao finalizar',
+            description: 'Senha alterada, mas houve erro ao atualizar perfil. Faça login novamente.'
+          });
+          await signOut();
+          navigate('/auth');
+          return;
+        }
       }
 
       toast({
@@ -92,11 +104,12 @@ export default function TrocaSenhaObrigatoriaPage() {
         description: 'Você será redirecionado para o sistema.',
       });
 
-      // Atualizar contexto e redirecionar
+      // 3. Atualizar contexto e redirecionar com replace para evitar voltar
       await refreshUser();
-      navigate('/sistema');
+      navigate('/sistema', { replace: true });
 
     } catch (error) {
+      console.error('Erro ao alterar senha:', error);
       toast({
         variant: 'destructive',
         title: 'Erro',
