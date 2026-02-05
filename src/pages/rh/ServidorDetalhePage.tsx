@@ -35,7 +35,9 @@ import {
   History,
   Star,
   ChevronDown,
-  FileText
+  FileText,
+  Link2,
+  ExternalLink
 } from "lucide-react";
 import { generateFichaCadastral } from "@/lib/pdfGenerator";
 import { downloadFichaCadastroGeral } from "@/lib/pdfFichaCadastroGeral";
@@ -47,7 +49,13 @@ import {
   type SituacaoFuncional,
   SITUACAO_LABELS,
   SITUACAO_COLORS,
-  MOVIMENTACAO_LABELS
+  MOVIMENTACAO_LABELS,
+  VINCULO_EXTERNO_ESFERA_LABELS,
+  VINCULO_EXTERNO_SITUACAO_LABELS,
+  VINCULO_EXTERNO_FORMA_LABELS,
+  type VinculoExternoEsfera,
+  type VinculoExternoSituacao,
+  type VinculoExternoForma
 } from "@/types/rh";
 import { formatDateBR } from "@/lib/formatters";
 import { type TipoServidor } from "@/types/servidor";
@@ -474,6 +482,11 @@ export default function ServidorDetalheePage() {
                   </CardContent>
                 </Card>
 
+                {/* Segundo Vínculo Funcional */}
+                {(servidor as any).possui_vinculo_externo && (
+                  <SecondVinculoCard servidor={servidor as any} />
+                )}
+
                 {/* Frequência (Jornada / Regime) */}
                 {isAdmin && id && <ServidorFrequenciaConfigCard servidorId={id} />}
 
@@ -634,5 +647,86 @@ function InfoRow({ label, value }: { label: string; value: string }) {
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium text-foreground">{value}</span>
     </div>
+  );
+}
+
+// Componente para exibir segundo vínculo
+function SecondVinculoCard({ servidor }: { servidor: any }) {
+  const { data: documento } = useQuery({
+    queryKey: ["documento-vinculo-detalhe", servidor.vinculo_externo_ato_id],
+    queryFn: async () => {
+      if (!servidor.vinculo_externo_ato_id) return null;
+      const { data, error } = await supabase
+        .from("documentos")
+        .select("id, numero, titulo, data_documento")
+        .eq("id", servidor.vinculo_externo_ato_id)
+        .single();
+      if (error) return null;
+      return data;
+    },
+    enabled: !!servidor.vinculo_externo_ato_id,
+  });
+
+  const navigate = useNavigate();
+
+  const esferaLabel = servidor.vinculo_externo_esfera 
+    ? VINCULO_EXTERNO_ESFERA_LABELS[servidor.vinculo_externo_esfera as VinculoExternoEsfera] 
+    : '-';
+  const situacaoLabel = servidor.vinculo_externo_situacao 
+    ? VINCULO_EXTERNO_SITUACAO_LABELS[servidor.vinculo_externo_situacao as VinculoExternoSituacao] 
+    : '-';
+  const formaLabel = servidor.vinculo_externo_forma 
+    ? VINCULO_EXTERNO_FORMA_LABELS[servidor.vinculo_externo_forma as VinculoExternoForma] 
+    : '-';
+
+  return (
+    <Card className="border-info/30 bg-info/5">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Link2 className="h-5 w-5 text-info" />
+          Segundo Vínculo Funcional
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <InfoRow label="Esfera" value={esferaLabel} />
+        <InfoRow label="Órgão de Origem" value={servidor.vinculo_externo_orgao || '-'} />
+        <InfoRow label="Cargo Efetivo" value={servidor.vinculo_externo_cargo || '-'} />
+        {servidor.vinculo_externo_matricula && (
+          <InfoRow label="Matrícula no Órgão" value={servidor.vinculo_externo_matricula} />
+        )}
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Situação</span>
+          <Badge variant="outline" className="text-xs">
+            {situacaoLabel}
+          </Badge>
+        </div>
+        <Separator />
+        <InfoRow label="Forma do Vínculo" value={formaLabel} />
+        {documento && (
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-muted-foreground">Ato Formal</span>
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto p-0 text-primary"
+              onClick={() => navigate(`/documentos/${documento.id}`)}
+            >
+              <FileText className="h-3 w-3 mr-1" />
+              {documento.numero ? `Portaria ${documento.numero}` : documento.titulo}
+              <ExternalLink className="h-3 w-3 ml-1" />
+            </Button>
+          </div>
+        )}
+        {servidor.vinculo_externo_observacoes && (
+          <>
+            <Separator />
+            <div className="text-sm">
+              <span className="text-muted-foreground">Observações: </span>
+              <span className="text-foreground">{servidor.vinculo_externo_observacoes}</span>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
