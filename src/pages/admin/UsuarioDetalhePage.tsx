@@ -434,16 +434,16 @@ export default function UsuarioDetalhePage() {
             </Card>
           </TabsContent>
 
-          {/* Tab Módulos */}
+          {/* Tab Módulos/Domínios */}
           <TabsContent value="modulos" className="mt-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Boxes className="h-5 w-5" />
-                  Acesso por Módulos
+                  Domínios Acessíveis
                 </CardTitle>
                 <CardDescription>
-                  Configure restrições de acesso por módulos do sistema
+                  Visualize os domínios que o usuário pode acessar com base nos perfis associados
                 </CardDescription>
               </CardHeader>
               <CardContent>
