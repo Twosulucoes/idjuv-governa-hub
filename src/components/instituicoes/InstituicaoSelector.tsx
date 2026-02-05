@@ -34,6 +34,9 @@
      nome_razao_social: string;
      cnpj?: string;
      responsavel_nome?: string;
+    responsavel_cpf?: string;
+    responsavel_telefone?: string;
+    responsavel_email?: string;
      tipo_instituicao: TipoInstituicao;
    }) => void;
    onAddNew?: () => void;
@@ -157,6 +160,9 @@
                            nome_razao_social: inst.nome_razao_social,
                            cnpj: inst.cnpj || undefined,
                            responsavel_nome: inst.responsavel_nome,
+                          responsavel_cpf: inst.responsavel_cpf || undefined,
+                          responsavel_telefone: inst.responsavel_telefone || undefined,
+                          responsavel_email: inst.responsavel_email || undefined,
                            tipo_instituicao: inst.tipo_instituicao,
                          });
                          setOpen(false);

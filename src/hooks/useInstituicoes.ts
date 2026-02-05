@@ -181,13 +181,13 @@
      queryFn: async () => {
        const { data, error } = await supabase
          .from('instituicoes')
-         .select('id, codigo_instituicao, nome_razao_social, tipo_instituicao, cnpj, responsavel_nome')
+        .select('id, codigo_instituicao, nome_razao_social, tipo_instituicao, cnpj, responsavel_nome, responsavel_cpf, responsavel_telefone, responsavel_email')
          .eq('ativo', true)
          .eq('status', 'ativo')
          .order('nome_razao_social');
  
        if (error) throw error;
-       return (data || []) as Pick<Instituicao, 'id' | 'codigo_instituicao' | 'nome_razao_social' | 'tipo_instituicao' | 'cnpj' | 'responsavel_nome'>[];
+      return (data || []) as Pick<Instituicao, 'id' | 'codigo_instituicao' | 'nome_razao_social' | 'tipo_instituicao' | 'cnpj' | 'responsavel_nome' | 'responsavel_cpf' | 'responsavel_telefone' | 'responsavel_email'>[];
      },
      staleTime: 5 * 60 * 1000,
    });

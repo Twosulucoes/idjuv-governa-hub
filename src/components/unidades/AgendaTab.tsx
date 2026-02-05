@@ -82,7 +82,7 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
       const { data, error } = await supabase
         .from('federacoes_esportivas')
         .select('id, nome, sigla, cnpj, telefone, email')
-        .eq('status', 'ativa')
+        .eq('status', 'ativo')
         .order('sigla');
       
       if (error) throw error;
@@ -133,6 +133,23 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
       setSelectedFederacaoId('');
     }
   }, [isFederacao, selectedFederacaoId, federacoes]);
+
+  // Limpar dados quando desmarcar instituição
+  useEffect(() => {
+    if (!isInstituicao) {
+      setSelectedInstituicaoId('');
+      // Só limpa se não for federação também
+      if (!isFederacao) {
+        setFormData(prev => ({
+          ...prev,
+          solicitante_nome: '',
+          solicitante_documento: '',
+          solicitante_telefone: '',
+          solicitante_email: '',
+        }));
+      }
+    }
+  }, [isInstituicao, isFederacao]);
 
   useEffect(() => {
     loadReservas();
@@ -580,7 +597,18 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
                          setFormData(prev => ({
                            ...prev,
                            solicitante_nome: inst.nome_razao_social,
-                           solicitante_documento: inst.cnpj || '',
+                           solicitante_documento: inst.cnpj || inst.responsavel_cpf || '',
+                           solicitante_telefone: inst.responsavel_telefone || '',
+                           solicitante_email: inst.responsavel_email || '',
+                         }));
+                       } else {
+                         // Limpar campos se desmarcar
+                         setFormData(prev => ({
+                           ...prev,
+                           solicitante_nome: '',
+                           solicitante_documento: '',
+                           solicitante_telefone: '',
+                           solicitante_email: '',
                          }));
                        }
                      }}
@@ -597,7 +625,7 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
                     onChange={(e) => setFormData({ ...formData, solicitante_nome: e.target.value })}
                     placeholder="Nome completo"
                     required
-                    disabled={isFederacao && !!selectedFederacaoId}
+                    disabled={(isFederacao && !!selectedFederacaoId) || (isInstituicao && !!selectedInstituicaoId)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -606,7 +634,7 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
                     value={formData.solicitante_documento}
                     onChange={(e) => setFormData({ ...formData, solicitante_documento: e.target.value })}
                     placeholder="Documento"
-                    disabled={isFederacao && !!selectedFederacaoId}
+                    disabled={(isFederacao && !!selectedFederacaoId) || (isInstituicao && !!selectedInstituicaoId)}
                   />
                 </div>
               </div>
@@ -617,7 +645,7 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
                     value={formData.solicitante_telefone}
                     onChange={(e) => setFormData({ ...formData, solicitante_telefone: e.target.value })}
                     placeholder="(00) 00000-0000"
-                    disabled={isFederacao && !!selectedFederacaoId}
+                    disabled={(isFederacao && !!selectedFederacaoId) || (isInstituicao && !!selectedInstituicaoId)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -627,7 +655,7 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
                     value={formData.solicitante_email}
                     onChange={(e) => setFormData({ ...formData, solicitante_email: e.target.value })}
                     placeholder="email@exemplo.com"
-                    disabled={isFederacao && !!selectedFederacaoId}
+                    disabled={(isFederacao && !!selectedFederacaoId) || (isInstituicao && !!selectedInstituicaoId)}
                   />
                 </div>
               </div>
