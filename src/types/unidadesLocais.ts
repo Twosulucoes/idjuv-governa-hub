@@ -426,3 +426,89 @@ export const TIPOS_DOCUMENTO_CEDENCIA = [
   'Procuração',
   'Outro',
 ];
+
+// ===============================================
+// CATEGORIAS E TIPOS DE EVENTO (AGENDAMENTO)
+// ===============================================
+
+export const CATEGORIAS_EVENTO = {
+  esportivo: 'Esportivo',
+  cultural: 'Cultural',
+  institucional: 'Institucional',
+  comunitario: 'Comunitário',
+  outro: 'Outro',
+} as const;
+
+export type CategoriaEvento = keyof typeof CATEGORIAS_EVENTO;
+
+export interface TipoEvento {
+  value: string;
+  label: string;
+  categoria: CategoriaEvento;
+}
+
+export const TIPOS_EVENTO: TipoEvento[] = [
+  // Esportivos
+  { value: 'competicao_esportiva', label: 'Competição Esportiva', categoria: 'esportivo' },
+  { value: 'treinamento', label: 'Treinamento/Treino', categoria: 'esportivo' },
+  { value: 'aula_escolinha', label: 'Aula/Escolinha', categoria: 'esportivo' },
+  { value: 'festival_esportivo', label: 'Festival Esportivo', categoria: 'esportivo' },
+  { value: 'seletiva', label: 'Seletiva/Peneira', categoria: 'esportivo' },
+  { value: 'amistoso', label: 'Amistoso', categoria: 'esportivo' },
+  // Culturais
+  { value: 'evento_cultural', label: 'Evento Cultural', categoria: 'cultural' },
+  { value: 'show_apresentacao', label: 'Show/Apresentação', categoria: 'cultural' },
+  // Institucionais
+  { value: 'reuniao', label: 'Reunião', categoria: 'institucional' },
+  { value: 'cerimonia', label: 'Cerimônia/Solenidade', categoria: 'institucional' },
+  { value: 'palestra_workshop', label: 'Palestra/Workshop', categoria: 'institucional' },
+  // Comunitários
+  { value: 'acao_comunitaria', label: 'Ação Comunitária', categoria: 'comunitario' },
+  { value: 'feira_exposicao', label: 'Feira/Exposição', categoria: 'comunitario' },
+  // Outro
+  { value: 'outro', label: 'Outro', categoria: 'outro' },
+];
+
+// Função auxiliar para verificar se tipo é esportivo
+export function isTipoEsportivo(tipoUso: string): boolean {
+  const tipo = TIPOS_EVENTO.find(t => t.value === tipoUso);
+  return tipo?.categoria === 'esportivo';
+}
+
+// Função para obter label do tipo de evento (suporta valores antigos)
+export function getTipoEventoLabel(tipoUso: string): string {
+  const tipo = TIPOS_EVENTO.find(t => t.value === tipoUso);
+  return tipo?.label || tipoUso; // Retorna o valor antigo se não encontrar
+}
+
+// Modalidades esportivas
+export const MODALIDADES_ESPORTIVAS = [
+  'Futebol',
+  'Futsal',
+  'Vôlei',
+  'Vôlei de Praia',
+  'Basquete',
+  'Handebol',
+  'Natação',
+  'Ciclismo',
+  'Atletismo',
+  'Boxe',
+  'Wrestling/Luta Olímpica',
+  'Ginástica',
+  'Tênis',
+  'Beach Tennis',
+  'Xadrez',
+  'Flag Football',
+  'Futebol Americano',
+  'Judô',
+  'Jiu-Jitsu',
+  'Karatê',
+  'Taekwondo',
+  'Capoeira',
+  'Musculação/Fitness',
+  'Hidroginástica',
+  'Dança Esportiva',
+  'Outro',
+] as const;
+
+export type ModalidadeEsportiva = typeof MODALIDADES_ESPORTIVAS[number];

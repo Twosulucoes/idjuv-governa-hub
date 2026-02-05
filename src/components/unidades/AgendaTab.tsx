@@ -42,7 +42,12 @@ import {
   StatusAgenda,
   STATUS_AGENDA_LABELS,
   STATUS_AGENDA_COLORS,
+  TIPOS_EVENTO,
+  CATEGORIAS_EVENTO,
+  isTipoEsportivo,
+  getTipoEventoLabel,
 } from "@/types/unidadesLocais";
+import { ModalidadesSelector } from "./ModalidadesSelector";
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -50,17 +55,6 @@ interface AgendaTabProps {
   unidadeId: string;
   chefeAtualId?: string;
 }
-
-const TIPOS_USO = [
-  "Evento Esportivo",
-  "Treinamento",
-  "Competição",
-  "Evento Cultural",
-  "Reunião",
-  "Aula",
-  "Cerimônia",
-  "Outro",
-];
 
 export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
   const [reservas, setReservas] = useState<AgendaUnidade[]>([]);
@@ -95,6 +89,7 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
     titulo: "",
     descricao: "",
     tipo_uso: "",
+    modalidades_esportivas: [] as string[],
     solicitante_nome: "",
     solicitante_documento: "",
     solicitante_telefone: "",
@@ -182,6 +177,13 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
     setSaving(true);
 
     try {
+      // Validar modalidades se for esportivo
+      if (isTipoEsportivo(formData.tipo_uso) && formData.modalidades_esportivas.length === 0) {
+        toast.error("Selecione ao menos uma modalidade esportiva.");
+        setSaving(false);
+        return;
+      }
+
       const { data: userData } = await supabase.auth.getUser();
 
       const dataInicio = `${formData.data_inicio}T${formData.hora_inicio}:00`;
@@ -207,6 +209,7 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
         titulo: formData.titulo,
         descricao: formData.descricao || null,
         tipo_uso: formData.tipo_uso,
+        modalidades_esportivas: isTipoEsportivo(formData.tipo_uso) ? formData.modalidades_esportivas : [],
         solicitante_nome: formData.solicitante_nome,
         solicitante_documento: formData.solicitante_documento || null,
         solicitante_telefone: formData.solicitante_telefone || null,
@@ -220,7 +223,7 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
         created_by: userData.user?.id,
         federacao_id: isFederacao && selectedFederacaoId ? selectedFederacaoId : null,
          instituicao_id: isInstituicao && selectedInstituicaoId ? selectedInstituicaoId : null,
-      });
+      } as any);
 
       if (error) throw error;
 
@@ -265,6 +268,7 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
       titulo: "",
       descricao: "",
       tipo_uso: "",
+      modalidades_esportivas: [],
       solicitante_nome: "",
       solicitante_documento: "",
       solicitante_telefone: "",
@@ -405,8 +409,13 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
                           <strong>Solicitante:</strong> {reserva.solicitante_nome}
                         </p>
                         <p className="text-sm">
-                          <strong>Tipo:</strong> {reserva.tipo_uso}
+                          <strong>Tipo:</strong> {getTipoEventoLabel(reserva.tipo_uso)}
                         </p>
+                        {(reserva as any).modalidades_esportivas && (reserva as any).modalidades_esportivas.length > 0 && (
+                          <p className="text-sm">
+                            <strong>Modalidades:</strong> {(reserva as any).modalidades_esportivas.join(', ')}
+                          </p>
+                        )}
                       </div>
                       
                       {reserva.status === "solicitado" && chefeAtualId && (
@@ -464,18 +473,36 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
                 <Label>Tipo de Uso *</Label>
                 <Select
                   value={formData.tipo_uso}
-                  onValueChange={(v) => setFormData({ ...formData, tipo_uso: v })}
+                  onValueChange={(v) => setFormData({ 
+                    ...formData, 
+                    tipo_uso: v,
+                    // Limpar modalidades se mudar para tipo não-esportivo
+                    modalidades_esportivas: isTipoEsportivo(v) ? formData.modalidades_esportivas : []
+                  })}
                   required
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    {TIPOS_USO.map((tipo) => (
-                      <SelectItem key={tipo} value={tipo}>
-                        {tipo}
-                      </SelectItem>
-                    ))}
+                    {/* Agrupar por categoria */}
+                    {Object.entries(CATEGORIAS_EVENTO).map(([key, label]) => {
+                      const tiposCategoria = TIPOS_EVENTO.filter(t => t.categoria === key);
+                      if (tiposCategoria.length === 0) return null;
+                      
+                      return (
+                        <div key={key}>
+                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">
+                            {label}
+                          </div>
+                          {tiposCategoria.map((tipo) => (
+                            <SelectItem key={tipo.value} value={tipo.value}>
+                              {tipo.label}
+                            </SelectItem>
+                          ))}
+                        </div>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -490,6 +517,14 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
                 />
               </div>
             </div>
+
+            {/* Seletor de Modalidades Esportivas */}
+            {isTipoEsportivo(formData.tipo_uso) && (
+              <ModalidadesSelector
+                value={formData.modalidades_esportivas}
+                onChange={(modalidades) => setFormData({ ...formData, modalidades_esportivas: modalidades })}
+              />
+            )}
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">

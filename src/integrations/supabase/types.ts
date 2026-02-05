@@ -216,6 +216,7 @@ export type Database = {
           horario_diario: string | null
           id: string
           instituicao_id: string | null
+          modalidades_esportivas: string[] | null
           motivo_rejeicao: string | null
           numero_processo_sei: string | null
           numero_protocolo: string | null
@@ -257,6 +258,7 @@ export type Database = {
           horario_diario?: string | null
           id?: string
           instituicao_id?: string | null
+          modalidades_esportivas?: string[] | null
           motivo_rejeicao?: string | null
           numero_processo_sei?: string | null
           numero_protocolo?: string | null
@@ -298,6 +300,7 @@ export type Database = {
           horario_diario?: string | null
           id?: string
           instituicao_id?: string | null
+          modalidades_esportivas?: string[] | null
           motivo_rejeicao?: string | null
           numero_processo_sei?: string | null
           numero_protocolo?: string | null
