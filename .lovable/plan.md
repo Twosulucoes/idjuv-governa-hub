@@ -1,270 +1,307 @@
 
-# Plano: Revisão de Tipos de Evento e Seleção de Modalidades Esportivas
+# Plano: Sistema de Gerenciamento de Senhas
 
-## Contexto e Objetivo
+## Resumo
 
-O sistema de agendamento das Unidades Locais precisa de duas melhorias:
-1. **Revisar as opções de tipo de evento** para eliminar redundâncias
-2. **Adicionar seleção de modalidades esportivas** quando o evento for esportivo, permitindo múltipla seleção
-
-O objetivo final é gerar relatórios e dashboards com panorama geral de todas as atividades esportivas em andamento e agendadas.
-
----
-
-## Análise Atual
-
-### Tipos de Uso Existentes (TIPOS_USO)
-```
-"Evento Esportivo"    ← Genérico
-"Treinamento"         ← Pode ser esportivo
-"Competição"          ← Redundante com "Evento Esportivo"
-"Evento Cultural"     ← OK
-"Reunião"             ← OK
-"Aula"                ← Pode ser esportiva
-"Cerimônia"           ← OK
-"Outro"               ← OK
-```
-
-**Problemas identificados:**
-- "Evento Esportivo" e "Competição" são redundantes
-- "Treinamento" e "Aula" podem ser esportivos mas não capturam a modalidade
-- Não há como saber qual modalidade esportiva está sendo praticada
+Implementar funcionalidades para:
+1. **Admin pode resetar senha de qualquer usuário** (via edge function existente)
+2. **Usuário pode alterar sua própria senha** (nova página "Meu Perfil")
+3. **Forçar troca de senha no primeiro acesso** (após reset pelo admin)
 
 ---
 
-## Solução Proposta
+## Fluxos de Uso
 
-### 1. Nova Categorização de Tipos de Evento
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    FLUXO 1: ADMIN RESETA SENHA                  │
+├─────────────────────────────────────────────────────────────────┤
+│  Admin → Usuários → Seleciona Usuário → Resetar Senha           │
+│                            ↓                                     │
+│          Sistema gera senha temporária (12 caracteres)          │
+│                            ↓                                     │
+│           Modal exibe senha para admin copiar/anotar            │
+│                            ↓                                     │
+│       Marca "requires_password_change = true" no profile        │
+└─────────────────────────────────────────────────────────────────┘
 
-Reorganizar em categorias claras e não-redundantes:
+┌─────────────────────────────────────────────────────────────────┐
+│              FLUXO 2: USUÁRIO ALTERA PRÓPRIA SENHA              │
+├─────────────────────────────────────────────────────────────────┤
+│  Usuário → Menu → Meu Perfil → Segurança → Alterar Senha        │
+│                            ↓                                     │
+│        Digita: Senha Atual + Nova Senha + Confirmação           │
+│                            ↓                                     │
+│              Sistema valida e atualiza via Supabase              │
+└─────────────────────────────────────────────────────────────────┘
 
-| Categoria | Tipo de Evento | É Esportivo? |
-|-----------|----------------|--------------|
-| **Esportivo** | Competição Esportiva | Sim |
-| **Esportivo** | Treinamento/Treino | Sim |
-| **Esportivo** | Aula/Escolinha | Sim |
-| **Esportivo** | Festival Esportivo | Sim |
-| **Esportivo** | Seletiva/Peneira | Sim |
-| **Esportivo** | Amistoso | Sim |
-| **Cultural** | Evento Cultural | Não |
-| **Cultural** | Show/Apresentação | Não |
-| **Institucional** | Reunião | Não |
-| **Institucional** | Cerimônia/Solenidade | Não |
-| **Institucional** | Palestra/Workshop | Não |
-| **Comunitário** | Ação Comunitária | Não |
-| **Comunitário** | Feira/Exposição | Não |
-| **Outro** | Outro | Configurável |
-
-### 2. Lista de Modalidades Esportivas
-
-Baseado nas federações ativas do sistema e modalidades comuns:
-
+┌─────────────────────────────────────────────────────────────────┐
+│         FLUXO 3: TROCA OBRIGATÓRIA (APÓS RESET DO ADMIN)        │
+├─────────────────────────────────────────────────────────────────┤
+│  Usuário faz login com senha temporária                         │
+│                            ↓                                     │
+│   Sistema detecta "requires_password_change = true"             │
+│                            ↓                                     │
+│  Redireciona para tela de troca obrigatória (não pode pular)    │
+│                            ↓                                     │
+│   Usuário define nova senha → Remove flag → Acessa sistema      │
+└─────────────────────────────────────────────────────────────────┘
 ```
-Futebol, Futsal, Vôlei, Vôlei de Praia, Basquete, Handebol,
-Natação, Ciclismo, Atletismo, Boxe, Wrestling/Luta Olímpica,
-Ginástica, Tênis, Beach Tennis, Xadrez, Flag Football,
-Futebol Americano, Judô, Jiu-Jitsu, Karatê, Taekwondo,
-Capoeira, Musculação/Fitness, Hidroginástica, Dança, Outro
-```
-
-### 3. Comportamento Dinâmico do Formulário
-
-Quando o usuário seleciona um tipo de evento **esportivo**:
-- Aparece um campo de seleção múltipla de modalidades
-- O campo é obrigatório para tipos esportivos
-- Permite selecionar uma ou mais modalidades
-
----
-
-## Alterações no Banco de Dados
-
-### Migração SQL
-
-```sql
--- Adicionar coluna para armazenar modalidades esportivas (array de texto)
-ALTER TABLE agenda_unidade 
-ADD COLUMN IF NOT EXISTS modalidades_esportivas text[] DEFAULT '{}';
-
--- Criar índice GIN para buscas eficientes por modalidade
-CREATE INDEX IF NOT EXISTS idx_agenda_modalidades 
-ON agenda_unidade USING GIN (modalidades_esportivas);
-
--- Comentário para documentação
-COMMENT ON COLUMN agenda_unidade.modalidades_esportivas 
-IS 'Array de modalidades esportivas praticadas no evento';
-```
-
----
-
-## Alterações no Frontend
-
-### Arquivo: `src/types/unidadesLocais.ts`
-
-Adicionar constantes:
-
-```typescript
-// Categorias de tipos de evento
-export const CATEGORIAS_EVENTO = {
-  esportivo: 'Esportivo',
-  cultural: 'Cultural',
-  institucional: 'Institucional',
-  comunitario: 'Comunitário',
-  outro: 'Outro',
-} as const;
-
-// Tipos de evento revisados
-export const TIPOS_EVENTO = [
-  // Esportivos
-  { value: 'competicao_esportiva', label: 'Competição Esportiva', categoria: 'esportivo' },
-  { value: 'treinamento', label: 'Treinamento/Treino', categoria: 'esportivo' },
-  { value: 'aula_escolinha', label: 'Aula/Escolinha', categoria: 'esportivo' },
-  { value: 'festival_esportivo', label: 'Festival Esportivo', categoria: 'esportivo' },
-  { value: 'seletiva', label: 'Seletiva/Peneira', categoria: 'esportivo' },
-  { value: 'amistoso', label: 'Amistoso', categoria: 'esportivo' },
-  // Culturais
-  { value: 'evento_cultural', label: 'Evento Cultural', categoria: 'cultural' },
-  { value: 'show_apresentacao', label: 'Show/Apresentação', categoria: 'cultural' },
-  // Institucionais
-  { value: 'reuniao', label: 'Reunião', categoria: 'institucional' },
-  { value: 'cerimonia', label: 'Cerimônia/Solenidade', categoria: 'institucional' },
-  { value: 'palestra_workshop', label: 'Palestra/Workshop', categoria: 'institucional' },
-  // Comunitários
-  { value: 'acao_comunitaria', label: 'Ação Comunitária', categoria: 'comunitario' },
-  { value: 'feira_exposicao', label: 'Feira/Exposição', categoria: 'comunitario' },
-  // Outro
-  { value: 'outro', label: 'Outro', categoria: 'outro' },
-] as const;
-
-// Modalidades esportivas
-export const MODALIDADES_ESPORTIVAS = [
-  'Futebol',
-  'Futsal',
-  'Vôlei',
-  'Vôlei de Praia',
-  'Basquete',
-  'Handebol',
-  'Natação',
-  'Ciclismo',
-  'Atletismo',
-  'Boxe',
-  'Wrestling/Luta Olímpica',
-  'Ginástica',
-  'Tênis',
-  'Beach Tennis',
-  'Xadrez',
-  'Flag Football',
-  'Futebol Americano',
-  'Judô',
-  'Jiu-Jitsu',
-  'Karatê',
-  'Taekwondo',
-  'Capoeira',
-  'Musculação/Fitness',
-  'Hidroginástica',
-  'Dança Esportiva',
-  'Outro',
-] as const;
-
-// Função auxiliar para verificar se tipo é esportivo
-export function isTipoEsportivo(tipoUso: string): boolean {
-  const tipo = TIPOS_EVENTO.find(t => t.value === tipoUso);
-  return tipo?.categoria === 'esportivo';
-}
-```
-
-### Arquivo: `src/components/unidades/AgendaTab.tsx`
-
-**Mudanças principais:**
-
-1. **Importar novos tipos**
-2. **Atualizar formData** para incluir `modalidades_esportivas: string[]`
-3. **Substituir Select de tipo_uso** por agrupado por categoria
-4. **Adicionar componente de seleção múltipla de modalidades** (visível apenas para tipos esportivos)
-5. **Validar modalidades** antes de submeter (obrigatório se esportivo)
-6. **Incluir modalidades na requisição** de criação de reserva
-
-**Estrutura do formulário atualizado:**
-
-```
-┌─────────────────────────────────────────────────────────┐
-│ Tipo de Evento *                                        │
-│ ┌─────────────────────────────────────────────────────┐ │
-│ │ ▼ Selecione o tipo de evento                       │ │
-│ │   ── Esportivo ──                                   │ │
-│ │   Competição Esportiva                              │ │
-│ │   Treinamento/Treino                                │ │
-│ │   Aula/Escolinha                                    │ │
-│ │   ...                                               │ │
-│ │   ── Cultural ──                                    │ │
-│ │   Evento Cultural                                   │ │
-│ │   ...                                               │ │
-│ └─────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────┐
-│ Modalidades Esportivas * (aparece se tipo esportivo)    │
-│ ┌─────────────────────────────────────────────────────┐ │
-│ │ ☑ Futebol    ☑ Futsal    ☐ Vôlei    ☐ Basquete   │ │
-│ │ ☐ Handebol   ☐ Natação   ☐ Atletismo  ...         │ │
-│ └─────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Componente de Seleção de Modalidades
-
-Criar componente reutilizável `ModalidadesSelector`:
-- Exibe checkboxes em grid responsivo
-- Permite múltipla seleção
-- Mostra badges das modalidades selecionadas
-- Valida mínimo de 1 modalidade para eventos esportivos
-
----
-
-## Benefícios para Relatórios
-
-Com esta estrutura, será possível gerar:
-
-1. **Dashboard de Atividades por Modalidade**
-   - Quantas atividades de cada modalidade estão agendadas
-   - Filtro por período, unidade, status
-
-2. **Calendário Esportivo Geral**
-   - Visualização de todas as atividades esportivas
-   - Agrupamento por modalidade
-
-3. **Relatório de Ocupação por Tipo**
-   - Distribuição: % Esportivo vs Cultural vs Institucional
-   - Ranking de modalidades mais praticadas
-
-4. **Panorama por Unidade**
-   - Quais modalidades cada unidade mais atende
-   - Identificar especialização de espaços
-
----
-
-## Arquivos a Modificar
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/types/unidadesLocais.ts` | Adicionar constantes de tipos, categorias e modalidades |
-| `src/components/unidades/AgendaTab.tsx` | Atualizar formulário com Select agrupado e seletor de modalidades |
-| `src/integrations/supabase/types.ts` | (Auto-atualizado após migração) |
-
----
-
-## Compatibilidade com Dados Existentes
-
-- Os registros existentes com `tipo_uso` antigo continuarão funcionando
-- O campo `modalidades_esportivas` será array vazio para registros antigos
-- O Select exibirá o valor antigo se não encontrar correspondência nos novos tipos
-- Migração gradual: novos agendamentos usarão os novos tipos
 
 ---
 
 ## Implementação
 
-1. Executar migração SQL para adicionar coluna `modalidades_esportivas`
-2. Atualizar tipos em `unidadesLocais.ts`
-3. Criar componente `ModalidadesSelector`
-4. Atualizar `AgendaTab.tsx` com nova lógica de formulário
-5. Testar fluxo completo de agendamento esportivo
+### 1. Atualizar Edge Function (Correção)
+
+A edge function `admin-reset-password` verifica permissões via `user_roles`, mas o sistema usa `usuario_perfis` + `perfil_permissoes`. Será necessário ajustar para usar a RPC `usuario_tem_permissao`.
+
+**Arquivo**: `supabase/functions/admin-reset-password/index.ts`
+
+```typescript
+// Substituir verificação por:
+const { data: temPermissao } = await admin.rpc('usuario_tem_permissao', {
+  check_user_id: requesterId,
+  codigo_permissao: 'admin.usuarios'
+});
+
+if (!temPermissao) {
+  return new Response(JSON.stringify({ error: "Sem permissão" }), { status: 403 });
+}
+```
+
+### 2. Botão "Resetar Senha" no Admin de Usuários
+
+**Arquivo**: `src/pages/admin/UsuariosAdminPage.tsx`
+
+Adicionar no Sheet de detalhes do usuário:
+- Botão "Resetar Senha" (ícone KeyRound)
+- Ao clicar, chama edge function
+- Modal exibe senha temporária gerada
+- Instrução para admin informar ao usuário
+
+```typescript
+// Novo estado
+const [resetDialogOpen, setResetDialogOpen] = useState(false);
+const [tempPassword, setTempPassword] = useState<string | null>(null);
+const [resetting, setResetting] = useState(false);
+
+// Função de reset
+const handleResetPassword = async () => {
+  setResetting(true);
+  const { data, error } = await supabase.functions.invoke('admin-reset-password', {
+    body: { userId: currentSelectedUser.id }
+  });
+  
+  if (error || data?.error) {
+    toast.error(data?.error || 'Erro ao resetar senha');
+  } else {
+    setTempPassword(data.senhaTemporaria);
+    setResetDialogOpen(true);
+  }
+  setResetting(false);
+};
+```
+
+### 3. Criar Página "Meu Perfil"
+
+**Arquivo**: `src/pages/MeuPerfilPage.tsx`
+
+Nova página com tabs:
+- **Dados Pessoais**: Visualização (nome, email, avatar)
+- **Segurança**: Formulário de alteração de senha
+
+```typescript
+// Formulário de alteração de senha
+const handleChangePassword = async () => {
+  // Validar senha atual (re-autenticando)
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: senhaAtual
+  });
+  
+  if (signInError) {
+    setError('Senha atual incorreta');
+    return;
+  }
+  
+  // Atualizar para nova senha
+  const { error: updateError } = await supabase.auth.updateUser({
+    password: novaSenha
+  });
+  
+  if (!updateError) {
+    toast.success('Senha alterada com sucesso!');
+  }
+};
+```
+
+### 4. Atualizar UserMenu com Navegação
+
+**Arquivo**: `src/components/auth/UserMenu.tsx`
+
+Adicionar navegação funcional:
+
+```typescript
+<DropdownMenuItem onClick={() => navigate('/meu-perfil')}>
+  <User className="h-4 w-4 mr-2" />
+  Meu Perfil
+</DropdownMenuItem>
+```
+
+### 5. Interceptar Login para Troca Obrigatória
+
+**Arquivo**: `src/contexts/AuthContext.tsx`
+
+Após login bem-sucedido, verificar flag:
+
+```typescript
+// No fetchUserData, incluir requires_password_change
+const userData = {
+  ...
+  requiresPasswordChange: profile?.requires_password_change || false,
+};
+
+// Exportar no contexto
+const requiresPasswordChange = user?.requiresPasswordChange || false;
+```
+
+**Arquivo**: `src/App.tsx`
+
+Redirecionar se flag ativa:
+
+```typescript
+// No ProtectedRoute ou em useEffect global
+if (isAuthenticated && user?.requiresPasswordChange) {
+  navigate('/trocar-senha-obrigatoria');
+}
+```
+
+### 6. Página de Troca Obrigatória
+
+**Arquivo**: `src/pages/TrocaSenhaObrigatoriaPage.tsx`
+
+Tela simples sem menu ou navegação:
+- Não permite sair sem trocar
+- Após troca, atualiza profile e redireciona
+
+```typescript
+const handleForceChange = async () => {
+  const { error } = await supabase.auth.updateUser({ password: novaSenha });
+  
+  if (!error) {
+    // Remover flag
+    await supabase
+      .from('profiles')
+      .update({ requires_password_change: false })
+      .eq('id', user.id);
+    
+    // Atualizar contexto e redirecionar
+    await refreshUser();
+    navigate('/sistema');
+  }
+};
+```
+
+---
+
+## Arquivos a Criar/Modificar
+
+| Arquivo | Ação | Descrição |
+|---------|------|-----------|
+| `supabase/functions/admin-reset-password/index.ts` | Modificar | Ajustar verificação de permissão para usar RPC |
+| `src/pages/admin/UsuariosAdminPage.tsx` | Modificar | Adicionar botão e modal de reset de senha |
+| `src/pages/MeuPerfilPage.tsx` | **Criar** | Nova página com dados pessoais e alteração de senha |
+| `src/pages/TrocaSenhaObrigatoriaPage.tsx` | **Criar** | Tela de troca forçada após reset do admin |
+| `src/components/auth/UserMenu.tsx` | Modificar | Adicionar navegação para Meu Perfil |
+| `src/contexts/AuthContext.tsx` | Modificar | Incluir flag requiresPasswordChange |
+| `src/types/auth.ts` | Modificar | Adicionar campo requiresPasswordChange ao AuthUser |
+| `src/App.tsx` | Modificar | Adicionar rotas e lógica de redirecionamento |
+
+---
+
+## Rotas
+
+| Rota | Página | Acesso |
+|------|--------|--------|
+| `/meu-perfil` | MeuPerfilPage | Autenticado |
+| `/trocar-senha-obrigatoria` | TrocaSenhaObrigatoriaPage | Autenticado (flag ativa) |
+
+---
+
+## Componentes Visuais
+
+### Modal de Senha Temporária (Admin)
+
+```text
+┌─────────────────────────────────────────────┐
+│           Senha Resetada com Sucesso        │
+├─────────────────────────────────────────────┤
+│                                             │
+│  A nova senha temporária do usuário é:      │
+│                                             │
+│  ┌─────────────────────────────────────┐    │
+│  │  Ab3$kLm9#pQr   [Copiar]            │    │
+│  └─────────────────────────────────────┘    │
+│                                             │
+│  ⚠️ Informe esta senha ao usuário.          │
+│  Ele será obrigado a alterá-la no primeiro  │
+│  acesso.                                    │
+│                                             │
+│                         [Entendi]           │
+└─────────────────────────────────────────────┘
+```
+
+### Página Meu Perfil - Tab Segurança
+
+```text
+┌─────────────────────────────────────────────┐
+│  Meu Perfil                                 │
+├─────────────────────────────────────────────┤
+│  [Dados Pessoais]  [Segurança]              │
+├─────────────────────────────────────────────┤
+│                                             │
+│  Alterar Senha                              │
+│                                             │
+│  Senha Atual *                              │
+│  ┌─────────────────────────────────────┐    │
+│  │ ••••••••                            │    │
+│  └─────────────────────────────────────┘    │
+│                                             │
+│  Nova Senha *                               │
+│  ┌─────────────────────────────────────┐    │
+│  │ ••••••••                            │    │
+│  └─────────────────────────────────────┘    │
+│                                             │
+│  Confirmar Nova Senha *                     │
+│  ┌─────────────────────────────────────┐    │
+│  │ ••••••••                            │    │
+│  └─────────────────────────────────────┘    │
+│                                             │
+│             [Alterar Senha]                 │
+└─────────────────────────────────────────────┘
+```
+
+---
+
+## Segurança
+
+- Verificação de senha atual antes de permitir troca
+- Validação Zod para nova senha (mínimo 6 caracteres)
+- Flag `requires_password_change` só pode ser removida após troca efetiva
+- Edge function usa service role key para bypass de RLS
+- Verificação de permissão `admin.usuarios` via RPC segura
+
+---
+
+## Ordem de Implementação
+
+1. Atualizar edge function com verificação correta de permissão
+2. Criar tipo `requiresPasswordChange` no AuthUser
+3. Atualizar AuthContext para carregar a flag
+4. Criar página TrocaSenhaObrigatoriaPage
+5. Criar página MeuPerfilPage
+6. Adicionar botão de reset no UsuariosAdminPage
+7. Atualizar UserMenu com navegação
+8. Adicionar rotas no App.tsx
+9. Testar fluxo completo
