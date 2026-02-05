@@ -38,7 +38,7 @@ export function RelatorioContatosEstrategicosCard() {
     try {
       let query = supabase
         .from("servidores")
-        .select("nome_completo, telefone_celular, indicacao")
+        .select("nome_completo, telefone_celular, indicacao, possui_vinculo_externo, vinculo_externo_orgao")
         .eq("ativo", true)
         .order("nome_completo");
 

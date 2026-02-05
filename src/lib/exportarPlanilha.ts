@@ -1,5 +1,13 @@
 import * as XLSX from 'xlsx';
 import { formatCPF, formatTelefone, formatCEP, formatPISPASEP } from './formatters';
+import { 
+  VINCULO_EXTERNO_ESFERA_LABELS, 
+  VINCULO_EXTERNO_SITUACAO_LABELS, 
+  VINCULO_EXTERNO_FORMA_LABELS,
+  type VinculoExternoEsfera,
+  type VinculoExternoSituacao,
+  type VinculoExternoForma
+} from '@/types/rh';
 
 export interface CampoExportacao {
   id: string;
@@ -94,6 +102,15 @@ export const CAMPOS_EXPORTACAO: CampoExportacao[] = [
   { id: 'formacao_academica', label: 'Formação Acadêmica', categoria: 'Formação', getValue: (s) => s.formacao_academica },
   { id: 'instituicao_ensino', label: 'Instituição de Ensino', categoria: 'Formação', getValue: (s) => s.instituicao_ensino },
   { id: 'ano_conclusao', label: 'Ano de Conclusão', categoria: 'Formação', getValue: (s) => s.ano_conclusao },
+  
+  // Segundo Vínculo Funcional
+  { id: 'possui_vinculo_externo', label: 'Possui Segundo Vínculo', categoria: 'Segundo Vínculo', getValue: (s) => s.possui_vinculo_externo ? 'Sim' : 'Não' },
+  { id: 'vinculo_externo_esfera', label: 'Esfera do Vínculo', categoria: 'Segundo Vínculo', getValue: (s) => s.vinculo_externo_esfera ? VINCULO_EXTERNO_ESFERA_LABELS[s.vinculo_externo_esfera as VinculoExternoEsfera] || s.vinculo_externo_esfera : '' },
+  { id: 'vinculo_externo_orgao', label: 'Órgão de Origem', categoria: 'Segundo Vínculo', getValue: (s) => s.vinculo_externo_orgao || '' },
+  { id: 'vinculo_externo_cargo', label: 'Cargo no Órgão', categoria: 'Segundo Vínculo', getValue: (s) => s.vinculo_externo_cargo || '' },
+  { id: 'vinculo_externo_matricula', label: 'Matrícula no Órgão', categoria: 'Segundo Vínculo', getValue: (s) => s.vinculo_externo_matricula || '' },
+  { id: 'vinculo_externo_situacao', label: 'Situação no Órgão', categoria: 'Segundo Vínculo', getValue: (s) => s.vinculo_externo_situacao ? VINCULO_EXTERNO_SITUACAO_LABELS[s.vinculo_externo_situacao as VinculoExternoSituacao] || s.vinculo_externo_situacao : '' },
+  { id: 'vinculo_externo_forma', label: 'Forma do Vínculo', categoria: 'Segundo Vínculo', getValue: (s) => s.vinculo_externo_forma ? VINCULO_EXTERNO_FORMA_LABELS[s.vinculo_externo_forma as VinculoExternoForma] || s.vinculo_externo_forma : '' },
 ];
 
 // Campos padrão pré-selecionados
