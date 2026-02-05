@@ -1,9 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 function generateTempPassword(): string {
@@ -16,17 +18,27 @@ function generateTempPassword(): string {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    console.log("Auth header presente:", !!authHeader);
-    
-    if (!authHeader) {
-      console.log("Erro: Header Authorization ausente");
+    const authHeaderRaw = req.headers.get("Authorization") ?? req.headers.get("authorization");
+    console.log("Auth header presente:", !!authHeaderRaw);
+
+    if (!authHeaderRaw) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const tokenMatch = authHeaderRaw.match(/^Bearer\s+(.+)$/i);
+    const accessToken = tokenMatch?.[1];
+
+    if (!accessToken) {
+      return new Response(JSON.stringify({ error: "Token inválido" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -37,48 +49,60 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
     if (!supabaseUrl || !serviceRoleKey || !supabaseAnonKey) {
-      console.log("Erro: Configuração ausente");
       return new Response(JSON.stringify({ error: "Configuração do backend ausente" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Cliente com anon key para validar o token do usuário
+    // Validar JWT manualmente (verify_jwt=false)
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
-        headers: { Authorization: authHeader },
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
       },
     });
 
-    // Autenticar usuário solicitante usando o cliente com o token
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    console.log("Auth result - user:", user?.id, "error:", userError?.message);
-    
-    if (userError || !user) {
-      console.log("Erro auth:", userError?.message || "Sem usuário");
-      return new Response(JSON.stringify({ error: "Usuário não autenticado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(accessToken);
+    const requesterId = claimsData?.claims?.sub as string | undefined;
+
+    if (claimsError || !requesterId) {
+      return new Response(
+        JSON.stringify({
+          error: "Usuário não autenticado",
+          details: claimsError?.message ?? null,
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
-    const requesterId = user.id;
-
-    // Cliente admin (bypass RLS) para operações privilegiadas
-    const admin = createClient(supabaseUrl, serviceRoleKey);
-
-    // Autorizar: verificar se tem permissão admin.usuarios via RPC
-    const { data: temPermissao, error: permError } = await admin.rpc('usuario_tem_permissao', {
-      check_user_id: requesterId,
-      codigo_permissao: 'admin.usuarios'
-    });
+    // Autorizar: verificar se tem permissão admin.usuarios via RPC (no contexto do usuário)
+    const { data: temPermissao, error: permError } = await supabaseClient.rpc(
+      "usuario_tem_permissao",
+      {
+        _user_id: requesterId,
+        _codigo_funcao: "admin.usuarios",
+      }
+    );
 
     if (permError) {
-      return new Response(JSON.stringify({ error: "Falha ao validar permissões" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Falha ao validar permissões",
+          details: permError.message,
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     if (!temPermissao) {
@@ -87,6 +111,15 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Cliente admin (bypass RLS) para operações privilegiadas
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    });
 
     const body = await req.json().catch(() => ({}));
     const targetUserId = body?.userId;
