@@ -99,7 +99,10 @@ export const UserMenu: React.FC<UserMenuProps> = ({ showRoleBadge = true }) => {
         
         <DropdownMenuSeparator />
         
-        <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
+        <DropdownMenuItem 
+          className="flex items-center gap-2 cursor-pointer"
+          onClick={() => navigate('/meu-perfil')}
+        >
           <User className="h-4 w-4" />
           <span>Meu Perfil</span>
         </DropdownMenuItem>

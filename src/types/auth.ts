@@ -62,6 +62,8 @@ export interface AuthUser {
   tipoUsuario?: 'servidor' | 'tecnico';
   orgUnitId?: string;
   orgUnitName?: string;
+  // Flag para forçar troca de senha no primeiro acesso
+  requiresPasswordChange?: boolean;
 }
 
 // Estado da autenticação

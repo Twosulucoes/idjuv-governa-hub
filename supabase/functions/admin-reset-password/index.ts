@@ -54,21 +54,20 @@ serve(async (req) => {
 
     const requesterId = userData.user.id;
 
-    // Autorizar: apenas admin
-    const { data: roles, error: rolesError } = await admin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", requesterId);
+    // Autorizar: verificar se tem permissão admin.usuarios via RPC
+    const { data: temPermissao, error: permError } = await admin.rpc('usuario_tem_permissao', {
+      check_user_id: requesterId,
+      codigo_permissao: 'admin.usuarios'
+    });
 
-    if (rolesError) {
+    if (permError) {
       return new Response(JSON.stringify({ error: "Falha ao validar permissões" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const isAdmin = (roles ?? []).some((r: { role: string }) => r.role === "admin");
-    if (!isAdmin) {
+    if (!temPermissao) {
       return new Response(JSON.stringify({ error: "Sem permissão" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -21,10 +21,20 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useAdminUsuarios } from '@/hooks/useAdminUsuarios';
 import { useAdminPerfis } from '@/hooks/useAdminPerfis';
 import { UsuarioModulosTab } from '@/components/admin/UsuarioModulosTab';
 import { NIVEL_PERFIL_CORES } from '@/types/rbac';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import type { UsuarioAdmin, Perfil } from '@/types/rbac';
 import { 
   Users, 
@@ -38,17 +48,26 @@ import {
   CheckCircle,
   RefreshCw,
   Boxes,
+  KeyRound,
+  Copy,
+  AlertTriangle,
 } from 'lucide-react';
 
 export default function UsuariosAdminPage() {
   const { usuarios, loading, saving, fetchUsuarios, associarPerfil, desassociarPerfil, toggleUsuarioAtivo } = useAdminUsuarios();
   const { perfis, perfisAtivos } = useAdminPerfis();
+  const { toast } = useToast();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTipo, setFilterTipo] = useState<'all' | 'servidor' | 'tecnico'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'ativo' | 'bloqueado'>('all');
   const [selectedUser, setSelectedUser] = useState<UsuarioAdmin | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  
+  // Estados para reset de senha
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   // Filtrar usuários
   const usuariosFiltrados = usuarios.filter(u => {
@@ -98,6 +117,57 @@ export default function UsuariosAdminPage() {
     await toggleUsuarioAtivo(selectedUser.id, !selectedUser.is_active);
     const updated = usuarios.find(u => u.id === selectedUser.id);
     if (updated) setSelectedUser(updated);
+  };
+
+  // Função para resetar senha via edge function
+  const handleResetPassword = async () => {
+    if (!currentSelectedUser) return;
+    
+    setResetting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-reset-password', {
+        body: { userId: currentSelectedUser.id }
+      });
+
+      if (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao resetar senha',
+          description: error.message
+        });
+        return;
+      }
+
+      if (data?.error) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro',
+          description: data.error
+        });
+        return;
+      }
+
+      setTempPassword(data.senhaTemporaria);
+      setResetDialogOpen(true);
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Ocorreu um erro ao resetar a senha.'
+      });
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  const handleCopyPassword = () => {
+    if (tempPassword) {
+      navigator.clipboard.writeText(tempPassword);
+      toast({
+        title: 'Copiado!',
+        description: 'Senha copiada para a área de transferência.'
+      });
+    }
   };
 
   // Atualizar selectedUser quando usuarios mudar
@@ -267,32 +337,63 @@ export default function UsuariosAdminPage() {
             </SheetHeader>
 
             <div className="mt-6">
-              {/* Status do usuário */}
-              <div className="flex items-center justify-between p-4 rounded-lg border mb-4">
-                <div>
-                  <div className="font-medium">Status</div>
-                  <div className="text-sm text-muted-foreground">
-                    {currentSelectedUser?.is_active ? 'Usuário ativo' : 'Usuário bloqueado'}
+              {/* Ações do usuário */}
+              <div className="flex flex-col gap-3 mb-4">
+                {/* Status do usuário */}
+                <div className="flex items-center justify-between p-4 rounded-lg border">
+                  <div>
+                    <div className="font-medium">Status</div>
+                    <div className="text-sm text-muted-foreground">
+                      {currentSelectedUser?.is_active ? 'Usuário ativo' : 'Usuário bloqueado'}
+                    </div>
                   </div>
+                  <Button
+                    variant={currentSelectedUser?.is_active ? 'destructive' : 'default'}
+                    size="sm"
+                    onClick={handleToggleStatus}
+                    disabled={saving}
+                  >
+                    {currentSelectedUser?.is_active ? (
+                      <>
+                        <Ban className="h-4 w-4 mr-2" />
+                        Bloquear
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Desbloquear
+                      </>
+                    )}
+                  </Button>
                 </div>
-                <Button
-                  variant={currentSelectedUser?.is_active ? 'destructive' : 'default'}
-                  size="sm"
-                  onClick={handleToggleStatus}
-                  disabled={saving}
-                >
-                  {currentSelectedUser?.is_active ? (
-                    <>
-                      <Ban className="h-4 w-4 mr-2" />
-                      Bloquear
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Desbloquear
-                    </>
-                  )}
-                </Button>
+
+                {/* Botão Resetar Senha */}
+                <div className="flex items-center justify-between p-4 rounded-lg border">
+                  <div>
+                    <div className="font-medium">Segurança</div>
+                    <div className="text-sm text-muted-foreground">
+                      Gerar nova senha temporária
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetPassword}
+                    disabled={resetting}
+                  >
+                    {resetting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Resetando...
+                      </>
+                    ) : (
+                      <>
+                        <KeyRound className="h-4 w-4 mr-2" />
+                        Resetar Senha
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
 
               {/* Tabs: Perfis e Módulos */}
@@ -354,6 +455,41 @@ export default function UsuariosAdminPage() {
             </div>
           </SheetContent>
         </Sheet>
+
+        {/* Dialog de Senha Temporária */}
+        <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-500" />
+                Senha Resetada com Sucesso
+              </DialogTitle>
+              <DialogDescription>
+                A nova senha temporária do usuário é:
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="flex items-center gap-2 p-4 bg-muted rounded-lg font-mono text-lg">
+              <span className="flex-1 select-all">{tempPassword}</span>
+              <Button variant="ghost" size="sm" onClick={handleCopyPassword}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <Alert className="border-amber-500 bg-amber-50 dark:bg-amber-950/30">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-700 dark:text-amber-300">
+                Informe esta senha ao usuário. Ele será obrigado a alterá-la no primeiro acesso.
+              </AlertDescription>
+            </Alert>
+
+            <DialogFooter>
+              <Button onClick={() => setResetDialogOpen(false)}>
+                Entendi
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

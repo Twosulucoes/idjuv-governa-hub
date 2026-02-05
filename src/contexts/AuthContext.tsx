@@ -149,6 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isSuperAdmin,
         servidorId: profile?.servidor_id || undefined,
         tipoUsuario: profile?.tipo_usuario || undefined,
+        requiresPasswordChange: profile?.requires_password_change || false,
       };
     } catch (error) {
       console.error('[Auth] Erro ao buscar dados do usuário:', error);
@@ -161,6 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         permissions: [],
         permissoesDetalhadas: [],
         isSuperAdmin: false,
+        requiresPasswordChange: false,
       };
     }
   }, [fetchPermissoes]);

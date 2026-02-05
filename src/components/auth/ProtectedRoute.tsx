@@ -130,6 +130,16 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to={loginPath} state={{ from: location }} replace />;
   }
 
+  // ============================================
+  // VERIFICAÇÃO DE TROCA OBRIGATÓRIA DE SENHA
+  // ============================================
+
+  // Se o usuário precisa trocar a senha, redirecionar
+  // (exceto se já estiver na página de troca)
+  if (user?.requiresPasswordChange && location.pathname !== '/trocar-senha-obrigatoria') {
+    return <Navigate to="/trocar-senha-obrigatoria" replace />;
+  }
+
   // Super Admin tem acesso total
   if (isSuperAdmin) {
     return <>{children}</>;
