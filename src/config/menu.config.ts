@@ -566,6 +566,14 @@ export const menuConfig: MenuSection[] = [
         icon: MapPin,
         permission: "patrimonio.visualizar",
       },
+       {
+         id: "relatorios-unidades",
+         label: "Relatórios Unidades",
+         labelShort: "Relatórios",
+         route: "/unidades/central-relatorios",
+         icon: BarChart3,
+         permission: "patrimonio.visualizar",
+       },
       {
         id: "federacoes",
         label: "Federações Esportivas",
