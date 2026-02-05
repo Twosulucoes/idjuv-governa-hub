@@ -22,6 +22,15 @@ import {
   checkPageBreak,
 } from './pdfTemplate';
 
+import { 
+  VINCULO_EXTERNO_ESFERA_LABELS, 
+  VINCULO_EXTERNO_SITUACAO_LABELS, 
+  VINCULO_EXTERNO_FORMA_LABELS,
+  type VinculoExternoEsfera,
+  type VinculoExternoSituacao,
+  type VinculoExternoForma
+} from '@/types/rh';
+
 // ===== Interfaces =====
 
 interface ServidorDiretoriaItem {
@@ -56,6 +65,8 @@ interface ServidorVinculoItem {
   cargo: string;
   unidade: string;
   situacao: string;
+  possui_vinculo_externo?: boolean;
+  vinculo_externo_orgao?: string | null;
 }
 
 interface GrupoVinculo {
@@ -113,6 +124,15 @@ interface RelatorioHistoricoFuncionalData {
     vinculo: string;
     situacao: string;
     data_admissao: string | null;
+    // Segundo Vínculo
+    possui_vinculo_externo?: boolean;
+    vinculo_externo_esfera?: string;
+    vinculo_externo_situacao?: string;
+    vinculo_externo_orgao?: string;
+    vinculo_externo_cargo?: string;
+    vinculo_externo_matricula?: string | null;
+    vinculo_externo_forma?: string;
+    vinculo_externo_ato?: { numero: string; ano: number } | null;
   };
   historico: HistoricoItem[];
   portarias: PortariaItem[];
@@ -353,8 +373,19 @@ export const generateRelatorioServidoresVinculo = async (data: RelatorioServidor
       doc.text(s.nome.substring(0, 32), PAGINA.margemEsquerda + 2, y);
       doc.text(formatCPF(s.cpf), 80, y);
       doc.text((s.cargo || '-').substring(0, 20), 110, y);
-      doc.text((s.unidade || '-').substring(0, 15), 150, y);
-      doc.text((s.situacao || '-').substring(0, 10), 178, y);
+      // Se possui segundo vínculo, mostrar indicador
+      if (s.possui_vinculo_externo && s.vinculo_externo_orgao) {
+        doc.text((s.unidade || '-').substring(0, 12), 150, y);
+        // Indicador de segundo vínculo
+        setColor(doc, { r: 59, g: 130, b: 246 }); // azul
+        doc.setFontSize(6);
+        doc.text(`[${(s.vinculo_externo_orgao || '2º').substring(0, 8)}]`, 175, y);
+        setColor(doc, CORES.textoEscuro);
+        doc.setFontSize(8);
+      } else {
+        doc.text((s.unidade || '-').substring(0, 15), 150, y);
+        doc.text((s.situacao || '-').substring(0, 10), 178, y);
+      }
       y += 5;
     });
     
@@ -531,6 +562,39 @@ export const generateRelatorioHistoricoFuncional = async (data: RelatorioHistori
       doc.text(String(l.dias || '-'), 160, y);
       y += 5;
     });
+  }
+  
+  // Segundo Vínculo Funcional
+  if (data.servidor.possui_vinculo_externo) {
+    y = checkPageBreak(doc, y, 80);
+    y = addSectionHeader(doc, 'SEGUNDO VÍNCULO FUNCIONAL', y);
+    
+    const esferaLabel = data.servidor.vinculo_externo_esfera 
+      ? VINCULO_EXTERNO_ESFERA_LABELS[data.servidor.vinculo_externo_esfera as VinculoExternoEsfera] || data.servidor.vinculo_externo_esfera
+      : '-';
+    const situacaoLabel = data.servidor.vinculo_externo_situacao 
+      ? VINCULO_EXTERNO_SITUACAO_LABELS[data.servidor.vinculo_externo_situacao as VinculoExternoSituacao] || data.servidor.vinculo_externo_situacao
+      : '-';
+    const formaLabel = data.servidor.vinculo_externo_forma 
+      ? VINCULO_EXTERNO_FORMA_LABELS[data.servidor.vinculo_externo_forma as VinculoExternoForma] || data.servidor.vinculo_externo_forma
+      : '-';
+    
+    addField(doc, 'Esfera', esferaLabel, col1, y, colWidth);
+    addField(doc, 'Situação no Órgão', situacaoLabel, col2, y, colWidth);
+    y += 10;
+    
+    addField(doc, 'Órgão de Origem', data.servidor.vinculo_externo_orgao || '-', col1, y, contentWidth);
+    y += 10;
+    
+    addField(doc, 'Cargo Efetivo', data.servidor.vinculo_externo_cargo || '-', col1, y, colWidth);
+    addField(doc, 'Matrícula', data.servidor.vinculo_externo_matricula || '-', col2, y, colWidth);
+    y += 10;
+    
+    addField(doc, 'Forma do Vínculo', formaLabel, col1, y, colWidth);
+    if (data.servidor.vinculo_externo_ato) {
+      addField(doc, 'Ato Formal', `Portaria nº ${data.servidor.vinculo_externo_ato.numero}/${data.servidor.vinculo_externo_ato.ano}`, col2, y, colWidth);
+    }
+    y += 10;
   }
   
   generateInstitutionalFooter(doc, { sistema: 'Sistema de Gestão de RH - IDJUV' });

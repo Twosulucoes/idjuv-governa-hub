@@ -8,6 +8,8 @@ interface ServidorContato {
   nome_completo: string;
   telefone_celular: string | null;
   indicacao: string | null;
+  possui_vinculo_externo?: boolean;
+  vinculo_externo_orgao?: string | null;
 }
 
 interface LogosCarregados {
@@ -49,9 +51,10 @@ export async function gerarRelatorioContatosEstrategicos(
   }
 
   // Larguras das colunas
-  const colNome = contentWidth * 0.35;
-  const colTelefone = contentWidth * 0.20;
-  const colIndicacao = contentWidth * 0.45;
+  const colNome = contentWidth * 0.30;
+  const colTelefone = contentWidth * 0.18;
+  const colOrgao = contentWidth * 0.17;
+  const colIndicacao = contentWidth * 0.35;
 
   function checkPageBreak(altura: number): void {
     if (currentY + altura > pageHeight - marginBottom) {
@@ -167,6 +170,8 @@ export async function gerarRelatorioContatosEstrategicos(
     xPos += colNome;
     doc.text('Telefone', xPos, currentY + 5.5);
     xPos += colTelefone;
+    doc.text('Órgão Origem', xPos, currentY + 5.5);
+    xPos += colOrgao;
     doc.text('Indicação', xPos, currentY + 5.5);
 
     doc.setTextColor(0);
@@ -212,6 +217,14 @@ export async function gerarRelatorioContatosEstrategicos(
     doc.text(telefoneFormatado, xPos, currentY + 4.5);
     
     xPos += colTelefone;
+    
+    // Órgão de Origem (se possui segundo vínculo)
+    const orgaoOrigem = servidor.possui_vinculo_externo && servidor.vinculo_externo_orgao
+      ? servidor.vinculo_externo_orgao.substring(0, 12)
+      : '-';
+    doc.text(orgaoOrigem, xPos, currentY + 4.5);
+    
+    xPos += colOrgao;
     
     // Indicação (com quebra de linha)
     doc.text(linhasIndicacao, xPos, currentY + 4.5);

@@ -38,6 +38,8 @@ import { generateRelatorioAgrupadoPortaria, GrupoPortaria, ServidorParaPortaria 
 import { VINCULO_LABELS, SITUACAO_LABELS, MOVIMENTACAO_LABELS } from "@/types/rh";
 import { ExportacaoServidoresCard } from "@/components/rh/ExportacaoServidoresCard";
 import { RelatorioServidoresDiretoriaCard } from "@/components/rh/RelatorioServidoresDiretoriaCard";
+import { RelatorioSegundoVinculoCard } from "@/components/rh/RelatorioSegundoVinculoCard";
+import { RelatorioContatosEstrategicosCard } from "@/components/rh/RelatorioContatosEstrategicosCard";
 
 const NATUREZA_LABELS: Record<string, string> = {
   comissionado: 'Cargos Comissionados',
@@ -151,6 +153,8 @@ export default function RelatoriosRHPage() {
           vinculo,
           situacao,
           data_admissao,
+          possui_vinculo_externo,
+          vinculo_externo_orgao,
           cargo:cargos!servidores_cargo_atual_id_fkey(id, nome, sigla),
           unidade:estrutura_organizacional!servidores_unidade_atual_id_fkey(id, nome, sigla)
         `)
@@ -278,7 +282,9 @@ export default function RelatoriosRHPage() {
             matricula: s.matricula,
             cargo: s.cargo?.nome || "-",
             unidade: s.unidade?.sigla || s.unidade?.nome || "-",
-            situacao: SITUACAO_LABELS[s.situacao as keyof typeof SITUACAO_LABELS] || s.situacao
+            situacao: SITUACAO_LABELS[s.situacao as keyof typeof SITUACAO_LABELS] || s.situacao,
+            possui_vinculo_externo: s.possui_vinculo_externo,
+            vinculo_externo_orgao: s.vinculo_externo_orgao
           }))
         })),
         totalServidores: filteredServidores.length,
@@ -309,7 +315,8 @@ export default function RelatoriosRHPage() {
         .select(`
           *,
           cargo:cargos!servidores_cargo_atual_id_fkey(id, nome, sigla),
-          unidade:estrutura_organizacional!servidores_unidade_atual_id_fkey(id, nome, sigla)
+          unidade:estrutura_organizacional!servidores_unidade_atual_id_fkey(id, nome, sigla),
+          vinculo_externo_ato:documentos!servidores_vinculo_externo_ato_id_fkey(numero, ano)
         `)
         .eq("id", selectedServidor)
         .single();
@@ -367,7 +374,19 @@ export default function RelatoriosRHPage() {
           unidade: servidor.unidade?.nome || "-",
           vinculo: VINCULO_LABELS[servidor.vinculo as keyof typeof VINCULO_LABELS] || servidor.vinculo,
           situacao: SITUACAO_LABELS[servidor.situacao as keyof typeof SITUACAO_LABELS] || servidor.situacao,
-          data_admissao: servidor.data_admissao
+          data_admissao: servidor.data_admissao,
+          // Segundo Vínculo
+          possui_vinculo_externo: servidor.possui_vinculo_externo,
+          vinculo_externo_esfera: servidor.vinculo_externo_esfera,
+          vinculo_externo_situacao: servidor.vinculo_externo_situacao,
+          vinculo_externo_orgao: servidor.vinculo_externo_orgao,
+          vinculo_externo_cargo: servidor.vinculo_externo_cargo,
+          vinculo_externo_matricula: servidor.vinculo_externo_matricula,
+          vinculo_externo_forma: servidor.vinculo_externo_forma,
+          vinculo_externo_ato: servidor.vinculo_externo_ato ? {
+            numero: (servidor.vinculo_externo_ato as { numero?: string; ano?: number })?.numero || '',
+            ano: (servidor.vinculo_externo_ato as { numero?: string; ano?: number })?.ano || 0
+          } : null
         },
         historico: (historico || []).map(h => ({
           data: h.data_evento,
@@ -1157,6 +1176,12 @@ export default function RelatoriosRHPage() {
 
             {/* Relatório Hierárquico por Diretoria */}
             <RelatorioServidoresDiretoriaCard />
+
+            {/* Relatório de Contatos Estratégicos */}
+            <RelatorioContatosEstrategicosCard />
+
+            {/* Relatório de Segundo Vínculo */}
+            <RelatorioSegundoVinculoCard />
           </div>
 
           {/* Summary Cards */}
