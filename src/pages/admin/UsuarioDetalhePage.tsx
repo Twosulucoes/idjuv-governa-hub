@@ -24,6 +24,7 @@ import {
 import { useAdminUsuarios } from '@/hooks/useAdminUsuarios';
 import { useAdminPerfis } from '@/hooks/useAdminPerfis';
 import { UsuarioModulosTab } from '@/components/admin/UsuarioModulosTab';
+import { UsuarioFuncoesTab } from '@/components/admin/UsuarioFuncoesTab';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { UsuarioAdmin } from '@/types/rbac';
@@ -39,6 +40,7 @@ import {
   Boxes,
   KeyRound,
   Copy,
+  Key,
   AlertTriangle,
   User,
   Mail,
@@ -288,7 +290,7 @@ export default function UsuarioDetalhePage() {
 
         {/* Tabs organizadas */}
         <Tabs defaultValue="dados" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="dados" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Dados</span>
@@ -296,6 +298,10 @@ export default function UsuarioDetalhePage() {
             <TabsTrigger value="perfis" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
               <span className="hidden sm:inline">Perfis</span>
+            </TabsTrigger>
+            <TabsTrigger value="funcoes" className="flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              <span className="hidden sm:inline">Funções</span>
             </TabsTrigger>
             <TabsTrigger value="modulos" className="flex items-center gap-2">
               <Boxes className="h-4 w-4" />
@@ -430,6 +436,27 @@ export default function UsuarioDetalhePage() {
                     })}
                   </div>
                 </ScrollArea>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Tab Funções */}
+          <TabsContent value="funcoes" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Key className="h-5 w-5" />
+                  Funções do Sistema
+                </CardTitle>
+                <CardDescription>
+                  Visualize todas as funções do sistema e quais o usuário tem acesso
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <UsuarioFuncoesTab 
+                  userId={usuario.id} 
+                  userName={usuario.full_name || undefined}
+                />
               </CardContent>
             </Card>
           </TabsContent>
