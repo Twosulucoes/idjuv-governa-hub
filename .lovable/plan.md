@@ -1,188 +1,283 @@
 
+# Plano: Reset Total e Sistema Simplificado de 3 Perfis
 
-# Plano: Simplificar Sistema de Atribuição de Funções a Usuários
+## Resumo
 
-## Diagnóstico do Sistema Atual
+Vamos eliminar toda a complexidade atual e criar um sistema com apenas **3 tipos de usuário**:
 
-O sistema atual possui **múltiplas camadas de controle de acesso** que geram complexidade:
+| Perfil | Acesso | Descrição |
+|--------|--------|-----------|
+| **Super Admin** | Tudo | Você - controle total |
+| **Gestor** | Módulos selecionados + Aprovações | Pode aprovar processos + acessar módulos escolhidos |
+| **Servidor** | Módulos selecionados | Apenas visualiza/opera nos módulos liberados |
 
-```text
-+-----------------------------+     +-----------------------------+
-| Sistema Legado              |     | Sistema RBAC Novo           |
-| (funcoes_sistema +          |     | (permissoes +               |
-|  perfil_funcoes)            |     |  perfil_permissoes)         |
-+-----------------------------+     +-----------------------------+
-        |                                     |
-        v                                     v
-  Usado pelo login              Usado na UI de admin/perfis
-  (listar_permissoes_usuario)   (PerfilPermissoesPage.tsx)
-```
+---
 
-### Problemas Identificados
+## O Que Será Feito
 
-1. **Duas tabelas de permissões**: `funcoes_sistema` (legado) e `permissoes` (novo RBAC)
-2. **Administração fragmentada**: 
-   - Permissões de PERFIL são gerenciadas em `/admin/perfis/:id/permissoes`
-   - Mas não existe forma fácil de ver/atribuir funções diretamente ao USUÁRIO
-3. **Fluxo indireto**: Para dar acesso a um usuário, o admin precisa:
-   - Ir na gestão de Perfis
-   - Configurar permissões do perfil
-   - Voltar ao usuário e associar o perfil
-4. **Listagem de funções confusa**: A tabela `funcoes_sistema` tem 180+ registros com estrutura hierárquica complexa
+### 1. Arquivar Tabelas Antigas (Backup)
 
-## Solução Proposta
+Renomear todas as tabelas de RBAC para backup interno:
 
-Criar uma **página de visão consolidada** que mostra todas as funções que um usuário tem acesso, com interface simplificada.
+- `perfis` → `_backup_perfis`
+- `perfil_funcoes` → `_backup_perfil_funcoes`
+- `perfil_permissoes` → `_backup_perfil_permissoes`
+- `funcoes_sistema` → `_backup_funcoes_sistema`
+- `permissoes` → `_backup_permissoes`
+- `usuario_perfis` → `_backup_usuario_perfis`
 
-### Fluxo Proposto
+### 2. Criar Estrutura Nova e Simples
+
+**Novo esquema:**
 
 ```text
-/admin/usuarios/:id
-        |
-        v
-+---------------------------------------------------+
-| [Dados] [Perfis] [Funções] (nova aba)             |
-+---------------------------------------------------+
-|                                                   |
-| Funções de Sistema (João Silva)                   |
-| ------------------------------------------------  |
-| Filtro: [Todos os módulos ▼] [Buscar...]          |
-| ------------------------------------------------  |
-|                                                   |
-| 📁 ADMIN                                          |
-|   ✓ admin.dashboard.visualizar (via Gestor RH)   |
-|   ✓ admin.usuarios (via Super Administrador)     |
-|   ✗ admin.perfis.gerenciar                        |
-|                                                   |
-| 📁 RH                                             |
-|   ✓ rh.servidores.visualizar (via Gestor RH)     |
-|   ✓ rh.servidores.criar (via Gestor RH)          |
-|   ✗ rh.servidores.excluir                         |
-|                                                   |
-+---------------------------------------------------+
-| Nota: Para alterar funções, edite os Perfis       |
-+---------------------------------------------------+
+profiles (usuários)
+    |
+usuario_perfis (1 perfil por usuário)
+    |
+perfis (apenas 3: super_admin, gestor, servidor)
+    |
+usuario_modulos (quais módulos cada usuário pode acessar)
 ```
 
-## Implementação
+**Tabela `perfis` (apenas 3 registros):**
 
-### 1. Criar componente `UsuarioFuncoesTab`
+| nome | codigo | pode_aprovar |
+|------|--------|--------------|
+| Super Administrador | super_admin | true |
+| Gestor | gestor | true |
+| Servidor | servidor | false |
 
-Novo componente em `src/components/admin/UsuarioFuncoesTab.tsx` que:
+**Nova tabela `usuario_modulos`:**
 
-- Lista todas as funções do sistema agrupadas por módulo
-- Mostra quais estão ativas para o usuário (com nome do perfil que concedeu)
-- Permite filtrar por módulo e buscar por nome
-- Exibe de forma clara o que está ativo vs inativo
+```sql
+CREATE TABLE usuario_modulos (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id),
+  modulo TEXT NOT NULL, -- 'rh', 'financeiro', 'processos', etc.
+  UNIQUE(user_id, modulo)
+);
+```
 
-### 2. Atualizar `UsuarioDetalhePage`
+### 3. Desativar Todos os Usuários Exceto Você
 
-Adicionar a nova aba "Funções" substituindo ou complementando a aba "Módulos":
+- `UPDATE profiles SET is_active = false WHERE id != 'b53e0eea-bf59-4de9-b71e-5d36d3c69bb8'`
+- Limpar todas as associações de perfis anteriores
 
-- Aba "Dados": informações básicas (já existe)
-- Aba "Perfis": associar perfis (já existe)
-- Aba "Funções": nova visualização consolidada de todas as funções
+### 4. Associar Você ao Super Admin
 
-### 3. Buscar funções do usuário
+- Criar perfil Super Admin
+- Associar seu usuário a ele
+- Super Admin não precisa de módulos - tem acesso a tudo
 
-Criar query que:
-1. Busca todos os perfis do usuário
-2. Busca as funções de cada perfil via `perfil_funcoes`
-3. Agrupa por módulo com indicação de qual perfil concedeu
+### 5. Bloquear Novos Cadastros
+
+- Trigger para novos usuários entrarem com `is_active = false`
+- Tela de login mostra "Aguardando aprovação"
+
+### 6. Simplificar Tela de Usuários
+
+A tela de detalhes do usuário ficará com apenas 2 abas:
+
+- **Perfil**: Escolher entre Gestor ou Servidor
+- **Módulos**: Marcar quais módulos o usuário pode acessar (checkboxes simples)
+
+---
+
+## Interface Simplificada
+
+### Tela de Gerenciamento de Usuário
+
+```text
++--------------------------------------------------+
+| João Silva (joao@email.com)          [Ativo ✓]   |
++--------------------------------------------------+
+| Tipo: [Servidor ▼]  ou  [Gestor ▼]               |
++--------------------------------------------------+
+| Módulos Liberados:                               |
+|                                                  |
+| [✓] Recursos Humanos (RH)                        |
+| [✓] Processos / Workflow                         |
+| [ ] Financeiro / Orçamento                       |
+| [ ] Governança                                   |
+| [ ] Contratos                                    |
+| [ ] Patrimônio                                   |
+| [ ] Compras                                      |
+| [ ] Transparência                                |
+| [ ] Administração                                |
++--------------------------------------------------+
+```
 
 ---
 
 ## Seção Técnica
 
-### Arquivos a Criar
+### Migrações SQL
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `src/components/admin/UsuarioFuncoesTab.tsx` | Componente de visualização de funções do usuário |
+**Migração 1 - Backup e Reset:**
 
-### Arquivos a Modificar
+```sql
+-- Arquivar tabelas antigas
+ALTER TABLE IF EXISTS perfis RENAME TO _backup_perfis;
+ALTER TABLE IF EXISTS perfil_funcoes RENAME TO _backup_perfil_funcoes;
+ALTER TABLE IF EXISTS perfil_permissoes RENAME TO _backup_perfil_permissoes;
+ALTER TABLE IF EXISTS funcoes_sistema RENAME TO _backup_funcoes_sistema;
+ALTER TABLE IF EXISTS permissoes RENAME TO _backup_permissoes;
+ALTER TABLE IF EXISTS usuario_perfis RENAME TO _backup_usuario_perfis;
+
+-- Criar novos perfis (apenas 3)
+CREATE TABLE perfis (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nome TEXT NOT NULL,
+  codigo TEXT UNIQUE NOT NULL,
+  pode_aprovar BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+INSERT INTO perfis (nome, codigo, pode_aprovar) VALUES
+  ('Super Administrador', 'super_admin', true),
+  ('Gestor', 'gestor', true),
+  ('Servidor', 'servidor', false);
+
+-- Associação usuário-perfil (1:1)
+CREATE TABLE usuario_perfis (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE UNIQUE,
+  perfil_id UUID REFERENCES perfis(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Módulos por usuário
+CREATE TABLE usuario_modulos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  modulo TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, modulo)
+);
+
+-- RLS
+ALTER TABLE perfis ENABLE ROW LEVEL SECURITY;
+ALTER TABLE usuario_perfis ENABLE ROW LEVEL SECURITY;
+ALTER TABLE usuario_modulos ENABLE ROW LEVEL SECURITY;
+```
+
+**Migração 2 - Configurar Seu Usuário:**
+
+```sql
+-- Desativar todos exceto você
+UPDATE profiles SET is_active = false WHERE id != 'b53e0eea-bf59-4de9-b71e-5d36d3c69bb8';
+
+-- Associar você ao Super Admin
+INSERT INTO usuario_perfis (user_id, perfil_id)
+SELECT 
+  'b53e0eea-bf59-4de9-b71e-5d36d3c69bb8',
+  id
+FROM perfis WHERE codigo = 'super_admin';
+```
+
+**Migração 3 - Bloquear Novos Cadastros:**
+
+```sql
+CREATE OR REPLACE FUNCTION bloquear_novo_usuario()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.is_active := false;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_bloquear_novo_usuario
+  BEFORE INSERT ON profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION bloquear_novo_usuario();
+```
+
+### Funções SQL Simplificadas
+
+```sql
+-- Verificar se é super admin
+CREATE OR REPLACE FUNCTION usuario_eh_super_admin(check_user_id UUID)
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM usuario_perfis up
+    JOIN perfis p ON p.id = up.perfil_id
+    WHERE up.user_id = check_user_id AND p.codigo = 'super_admin'
+  );
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+
+-- Verificar se pode acessar módulo
+CREATE OR REPLACE FUNCTION usuario_pode_acessar_modulo(check_user_id UUID, check_modulo TEXT)
+RETURNS BOOLEAN AS $$
+  SELECT 
+    usuario_eh_super_admin(check_user_id) 
+    OR EXISTS (
+      SELECT 1 FROM usuario_modulos 
+      WHERE user_id = check_user_id AND modulo = check_modulo
+    );
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+
+-- Verificar se pode aprovar
+CREATE OR REPLACE FUNCTION usuario_pode_aprovar(check_user_id UUID)
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM usuario_perfis up
+    JOIN perfis p ON p.id = up.perfil_id
+    WHERE up.user_id = check_user_id AND p.pode_aprovar = true
+  );
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+```
+
+### Arquivos Frontend a Modificar
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/pages/admin/UsuarioDetalhePage.tsx` | Adicionar aba "Funções" |
+| `src/pages/admin/UsuarioDetalhePage.tsx` | Simplificar para 2 abas: Perfil + Módulos (editáveis) |
+| `src/contexts/AuthContext.tsx` | Simplificar verificação de permissões |
+| `src/hooks/useAdminUsuarios.ts` | Adicionar funções para gerenciar módulos |
+| `src/components/admin/UsuarioModulosTab.tsx` | Trocar para checkboxes editáveis |
 
-### Estrutura do Componente UsuarioFuncoesTab
+### Arquivos a Remover/Ignorar
+
+- `src/components/admin/UsuarioFuncoesTab.tsx` (não será mais necessário)
+- `src/hooks/useAdminPerfis.ts` (simplificar drasticamente)
+- `src/hooks/useAdminPermissoes.ts` (não será mais necessário)
+- Páginas de gestão de perfis complexas
+
+### Lista de Módulos
+
+| Código | Nome |
+|--------|------|
+| `rh` | Recursos Humanos |
+| `workflow` | Processos |
+| `financeiro` | Financeiro |
+| `orcamento` | Orçamento |
+| `governanca` | Governança |
+| `contratos` | Contratos |
+| `patrimonio` | Patrimônio |
+| `compras` | Compras |
+| `transparencia` | Transparência |
+| `admin` | Administração |
+
+### Verificação de Acesso no Frontend
 
 ```typescript
-interface UsuarioFuncoesTabProps {
-  userId: string;
-  userName?: string;
+// Novo hook simplificado
+function useModulos() {
+  const { user } = useAuth();
+  
+  // Super admin acessa tudo
+  const isSuperAdmin = user?.perfil === 'super_admin';
+  
+  // Verificar módulo
+  const podeAcessar = (modulo: string) => {
+    if (isSuperAdmin) return true;
+    return user?.modulos?.includes(modulo);
+  };
+  
+  // Verificar se pode aprovar
+  const podeAprovar = user?.perfil === 'super_admin' || user?.perfil === 'gestor';
+  
+  return { podeAcessar, podeAprovar, isSuperAdmin };
 }
-
-// Dados carregados
-interface FuncaoUsuario {
-  id: string;
-  codigo: string;
-  nome: string;
-  modulo: string;
-  submodulo: string | null;
-  tipo_acao: string;
-  concedida: boolean;
-  perfilNome: string | null; // Nome do perfil que concedeu
-}
 ```
-
-### Query para Buscar Funções
-
-```sql
--- Todas as funções do sistema com status de concessão para o usuário
-SELECT 
-  fs.id,
-  fs.codigo,
-  fs.nome,
-  fs.modulo,
-  fs.submodulo,
-  fs.tipo_acao,
-  CASE WHEN pf.id IS NOT NULL THEN true ELSE false END as concedida,
-  p.nome as perfil_nome
-FROM funcoes_sistema fs
-LEFT JOIN perfil_funcoes pf ON pf.funcao_id = fs.id 
-  AND pf.concedido = true
-  AND pf.perfil_id IN (
-    SELECT perfil_id FROM usuario_perfis 
-    WHERE user_id = :userId AND ativo = true
-  )
-LEFT JOIN perfis p ON p.id = pf.perfil_id
-WHERE fs.ativo = true
-ORDER BY fs.modulo, fs.submodulo, fs.ordem
-```
-
-### Layout da Aba Funções
-
-```text
-+--------------------------------------------------+
-| Filtros                                          |
-| [Módulo: Todos ▼]  [🔍 Buscar função...]         |
-| [Mostrar apenas ativas ☐]                        |
-+--------------------------------------------------+
-| 📁 admin (12 funções, 4 ativas)                  |
-|   ✓ Dashboard - Visualizar         [Gestor RH]  |
-|   ✓ Usuários - Gerenciar          [Admin]       |
-|   ✗ Perfis - Gerenciar                           |
-|   ✗ Auditoria - Visualizar                       |
-|--------------------------------------------------+
-| 📁 rh (25 funções, 18 ativas)                    |
-|   ✓ Servidores - Visualizar        [Gestor RH]  |
-|   ✓ Servidores - Criar             [Gestor RH]  |
-|   ✓ Servidores - Editar            [Gestor RH]  |
-|   ✗ Servidores - Excluir                         |
-+--------------------------------------------------+
-```
-
-### Cores e Ícones
-
-- Função ativa: fundo verde claro, ícone ✓ verde
-- Função inativa: fundo cinza, ícone ✗ muted
-- Badge do perfil: cor do perfil que concedeu
-
-### Validação
-
-- Somente leitura (não permite editar funções diretamente)
-- Mensagem clara direcionando para a aba "Perfis" para fazer alterações
-- Contador de funções ativas por módulo
-
