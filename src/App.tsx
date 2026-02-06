@@ -193,6 +193,14 @@ const App = () => (
               {/* Hot site - Seletiva Seleções Estudantis (público) */}
               <Route path="/selecoes-v1" element={<SeletivaEstudantilPage />} />
               <Route path="/selecoes" element={<SeletivaEstudantilV2Page />} />
+              <Route path="/selecao" element={<SeletivaEstudantilV2Page />} />
+              <Route path="/seleções" element={<SeletivaEstudantilV2Page />} />
+              <Route path="/selecões" element={<SeletivaEstudantilV2Page />} />
+              <Route path="/SELECOES" element={<SeletivaEstudantilV2Page />} />
+              <Route path="/SELEÇÕES" element={<SeletivaEstudantilV2Page />} />
+              <Route path="/SELECAO" element={<SeletivaEstudantilV2Page />} />
+              <Route path="/Selecoes" element={<SeletivaEstudantilV2Page />} />
+              <Route path="/Selecao" element={<SeletivaEstudantilV2Page />} />
               <Route path="/selecoes/noticia/:slug" element={<NoticiaDetalhePage />} />
               
               {/* Pré-cadastro (mantido mas não linkado) */}
