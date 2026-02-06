@@ -191,9 +191,9 @@ const App = () => (
               <Route path="/portal-preview-idjuv-2026" element={<PortalPreviewPage />} />
               
               {/* Hot site - Seletiva Seleções Estudantis (público) */}
-              <Route path="/selecoes" element={<SeletivaEstudantilPage />} />
-              <Route path="/selecoes-v2" element={<SeletivaEstudantilV2Page />} />
-              <Route path="/selecoes-v2/noticia/:slug" element={<NoticiaDetalhePage />} />
+              <Route path="/selecoes-v1" element={<SeletivaEstudantilPage />} />
+              <Route path="/selecoes" element={<SeletivaEstudantilV2Page />} />
+              <Route path="/selecoes/noticia/:slug" element={<NoticiaDetalhePage />} />
               
               {/* Pré-cadastro (mantido mas não linkado) */}
               <Route path="/curriculo" element={<MiniCurriculoPage />} />
