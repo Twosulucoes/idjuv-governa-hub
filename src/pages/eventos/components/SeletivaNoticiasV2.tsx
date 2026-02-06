@@ -113,7 +113,7 @@ export function SeletivaNoticiasV2() {
   const outrasNoticias = displayNoticias.filter((n) => n.id !== noticiaDestaque?.id).slice(0, 3);
 
   const handleNoticiaClick = (slug: string) => {
-    navigate(`/selecoes-v2/noticia/${slug}`);
+    navigate(`/selecoes/noticia/${slug}`);
   };
 
   return (
