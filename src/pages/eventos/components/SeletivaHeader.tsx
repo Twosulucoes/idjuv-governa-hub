@@ -17,11 +17,11 @@ export function SeletivaHeader() {
           <Link to="/" className="flex items-center gap-3">
             <LogoIdjuv variant="auto" className="h-10" />
           </Link>
-          <div className="h-8 w-px bg-border hidden sm:block" />
+          <div className="h-8 w-px bg-border" />
           <img 
             src={logoGoverno} 
             alt="Governo de Roraima" 
-            className="h-8 hidden sm:block object-contain"
+            className="h-8 object-contain"
           />
         </div>
         
