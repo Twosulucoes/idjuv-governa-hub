@@ -41,8 +41,8 @@ const contatosPadrao: Contato[] = [{
   id: "2",
   tipo: "site_oficial",
   titulo: "Jogos Escolares",
-  subtitulo: "Site Oficial da CBDE",
-  valor: "https://www.jogosescolares.com.br",
+  subtitulo: "Site Oficial do JERS",
+  valor: "https://www.jogosescolaresrr.com.br",
   icone: "graduation-cap",
   ordem: 2
 }, {
@@ -58,7 +58,7 @@ const contatosPadrao: Contato[] = [{
   tipo: "coordenador",
   titulo: "Coordenação das Seleções",
   subtitulo: "IDJuv - Diretoria de Esportes",
-  valor: "esportes@idjuv.rr.gov.br",
+  valor: "idjuv.diesp@gmail.com",
   icone: "mail",
   ordem: 4
 }, {
