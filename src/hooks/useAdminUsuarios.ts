@@ -30,7 +30,8 @@ export function useAdminUsuarios() {
       // Buscar associações usuário-perfil
       const { data: perfilAssociacoes, error: perfilError } = await supabase
         .from('usuario_perfis')
-        .select('*, perfil:perfis(id, nome, codigo, descricao, pode_aprovar, created_at)');
+        // OBS: a coluna `pode_aprovar` não existe em `perfis` neste banco; derivamos no frontend
+        .select('*, perfil:perfis(id, nome, codigo, descricao, created_at)');
 
       if (perfilError) throw perfilError;
 

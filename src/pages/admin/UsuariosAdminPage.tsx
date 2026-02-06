@@ -26,7 +26,7 @@ import {
 
 export default function UsuariosAdminPage() {
   const navigate = useNavigate();
-  const { usuarios, loading, fetchUsuarios } = useAdminUsuarios();
+  const { usuarios, loading, error, fetchUsuarios } = useAdminUsuarios();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPerfil, setFilterPerfil] = useState<'all' | PerfilCodigo>('all');
@@ -75,10 +75,19 @@ export default function UsuariosAdminPage() {
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Cada usuário possui um <strong>perfil</strong> (Super Admin, Gestor ou Servidor) 
+            Cada usuário possui um <strong>perfil</strong> (Super Admin, Gestor ou Servidor)
             e acesso a <strong>módulos específicos</strong>. Clique em um usuário para gerenciar.
           </AlertDescription>
         </Alert>
+
+        {/* Erro de carregamento (RLS / query inválida / etc.) */}
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              Não foi possível carregar os usuários: <span className="font-mono">{error}</span>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Header com filtros */}
         <div className="flex flex-col lg:flex-row gap-4">
@@ -189,13 +198,14 @@ export default function UsuariosAdminPage() {
                       {/* Módulos */}
                       <div className="hidden lg:block text-right text-sm text-muted-foreground min-w-[100px]">
                         {perfilCodigo === 'super_admin' ? (
-                          <span className="text-green-600">Acesso total</span>
+                          <span className="text-primary">Acesso total</span>
                         ) : usuario.modulos.length > 0 ? (
                           <span>{usuario.modulos.length} módulo(s)</span>
                         ) : (
-                          <span className="text-amber-600">Sem módulos</span>
+                          <span className="text-muted-foreground">Sem módulos</span>
                         )}
                       </div>
+
                     </div>
                   </CardContent>
                 </Card>
