@@ -1,5 +1,6 @@
 /**
  * Componente de Ícone de Modalidade usando recorte da imagem de silhuetas
+ * Versão com silhuetas P&B sem fundo colorido
  */
 
 import { cn } from "@/lib/utils";
@@ -12,18 +13,17 @@ interface SportIconProps {
 }
 
 // Mapeamento das posições de cada esporte na imagem 2x2
-// A imagem está dividida em 4 quadrantes iguais
 const sportPositions = {
-  handebol: { row: 0, col: 0, color: "bg-blue-500" },      // Superior esquerdo - azul
-  volei: { row: 0, col: 1, color: "bg-orange-500" },       // Superior direito - laranja
-  basquete: { row: 1, col: 0, color: "bg-purple-600" },    // Inferior esquerdo - roxo
-  futsal: { row: 1, col: 1, color: "bg-red-500" },         // Inferior direito - vermelho
+  handebol: { row: 0, col: 0 },   // Superior esquerdo
+  volei: { row: 0, col: 1 },      // Superior direito
+  basquete: { row: 1, col: 0 },   // Inferior esquerdo
+  futsal: { row: 1, col: 1 },     // Inferior direito
 };
 
 const sizes = {
-  sm: "w-12 h-12",
-  md: "w-20 h-20",
-  lg: "w-28 h-28",
+  sm: "w-10 h-10",
+  md: "w-14 h-14",
+  lg: "w-20 h-20",
 };
 
 export function SportIcon({ sport, className, size = "md" }: SportIconProps) {
@@ -36,7 +36,7 @@ export function SportIcon({ sport, className, size = "md" }: SportIconProps) {
   return (
     <div
       className={cn(
-        "rounded-xl overflow-hidden flex-shrink-0 shadow-lg",
+        "rounded-lg overflow-hidden flex-shrink-0 grayscale contrast-200 brightness-0 dark:invert",
         sizes[size],
         className
       )}
@@ -47,19 +47,5 @@ export function SportIcon({ sport, className, size = "md" }: SportIconProps) {
       }}
       aria-label={`Ícone de ${sport}`}
     />
-  );
-}
-
-/**
- * Versão com borda decorativa
- */
-export function SportIconCircle({ sport, className, size = "md" }: SportIconProps) {
-  return (
-    <div className={cn("relative", sizes[size], className)}>
-      <div className="absolute inset-0 rounded-full border-4 border-zinc-900 dark:border-zinc-100" />
-      <div className="absolute inset-1 rounded-full overflow-hidden">
-        <SportIcon sport={sport} className="w-full h-full rounded-full" size="lg" />
-      </div>
-    </div>
   );
 }

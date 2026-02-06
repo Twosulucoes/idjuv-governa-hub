@@ -49,19 +49,19 @@ export function ModalidadePoster({
       </div>
 
       {/* Layout Principal */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+      <div className="flex items-center gap-4 md:gap-6">
+        {/* Ícone da Modalidade */}
+        <SportIcon sport={sport} size="md" className="flex-shrink-0" />
+        
         {/* Título e Categoria */}
         <div className="flex-1">
-          <h3 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-[0.2em] uppercase text-zinc-900 dark:text-zinc-100 mb-1">
+          <h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-[0.15em] uppercase text-zinc-900 dark:text-zinc-100 leading-tight">
             {modalidade}
           </h3>
-          <p className="text-lg md:text-xl font-bold tracking-[0.15em] uppercase text-zinc-500 dark:text-zinc-400">
+          <p className="text-sm md:text-base font-bold tracking-[0.1em] uppercase text-zinc-500 dark:text-zinc-400">
             {categoria}
           </p>
         </div>
-
-        {/* Ícone da Modalidade */}
-        <SportIcon sport={sport} size="lg" className="self-center md:self-auto" />
       </div>
 
       {/* Naipes */}

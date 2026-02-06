@@ -168,7 +168,7 @@ export default function SeletivaEstudantilV2Page() {
                 <img 
                   src={heroImage} 
                   alt="Atletas das 4 modalidades: Handebol, Vôlei, Basquete e Futsal em ação" 
-                  className="w-full h-auto object-cover aspect-square md:aspect-video"
+                  className="w-full h-auto object-cover aspect-square md:aspect-video grayscale"
                 />
                 {/* Overlay sutil */}
                 <div className="absolute inset-0 bg-gradient-to-t from-zinc-900/30 to-transparent" />
