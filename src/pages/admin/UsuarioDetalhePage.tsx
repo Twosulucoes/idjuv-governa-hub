@@ -1,17 +1,14 @@
 // ============================================
-// PÁGINA DE DETALHES DO USUÁRIO (TELA CHEIA)
+// PÁGINA DE DETALHES DO USUÁRIO (SIMPLIFICADO)
 // ============================================
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
@@ -22,30 +19,26 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useAdminUsuarios } from '@/hooks/useAdminUsuarios';
-import { useAdminPerfis } from '@/hooks/useAdminPerfis';
+import { UsuarioPerfilTab } from '@/components/admin/UsuarioPerfilTab';
 import { UsuarioModulosTab } from '@/components/admin/UsuarioModulosTab';
-import { UsuarioFuncoesTab } from '@/components/admin/UsuarioFuncoesTab';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import type { UsuarioAdmin } from '@/types/rbac';
+import { PERFIL_LABELS, PERFIL_CORES, type PerfilCodigo, type Modulo } from '@/types/rbac';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
   ArrowLeft,
   Shield,
-  Info,
   Loader2,
   Ban,
   CheckCircle,
   Boxes,
   KeyRound,
   Copy,
-  Key,
   AlertTriangle,
   User,
   Mail,
   Calendar,
-  UserCog,
 } from 'lucide-react';
 
 export default function UsuarioDetalhePage() {
@@ -53,8 +46,14 @@ export default function UsuarioDetalhePage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  const { usuarios, loading, saving, associarPerfil, desassociarPerfil, toggleUsuarioAtivo } = useAdminUsuarios();
-  const { perfisAtivos } = useAdminPerfis();
+  const { 
+    usuarios, 
+    loading, 
+    saving, 
+    definirPerfil, 
+    toggleModulo, 
+    toggleUsuarioAtivo 
+  } = useAdminUsuarios();
   
   // Estados para reset de senha
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
@@ -69,25 +68,19 @@ export default function UsuarioDetalhePage() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const handleTogglePerfil = async (perfilId: string) => {
-    if (!usuario) return;
-    
-    const tem = usuario.perfis.some(p => p.perfil_id === perfilId);
-    
-    try {
-      if (tem) {
-        await desassociarPerfil(usuario.id, perfilId);
-      } else {
-        await associarPerfil(usuario.id, perfilId);
-      }
-    } catch {
-      // Error handled by hook
-    }
-  };
-
   const handleToggleStatus = async () => {
     if (!usuario) return;
     await toggleUsuarioAtivo(usuario.id, !usuario.is_active);
+  };
+
+  const handleDefinirPerfil = async (perfilCodigo: PerfilCodigo) => {
+    if (!usuario) return;
+    await definirPerfil(usuario.id, perfilCodigo);
+  };
+
+  const handleToggleModulo = async (modulo: Modulo, temAtualmente: boolean) => {
+    if (!usuario) return;
+    await toggleModulo(usuario.id, modulo, temAtualmente);
   };
 
   // Função para resetar senha via edge function
@@ -166,6 +159,8 @@ export default function UsuarioDetalhePage() {
     );
   }
 
+  const perfilCodigo = usuario.perfil?.perfil?.codigo as PerfilCodigo | undefined;
+
   return (
     <AdminLayout 
       title="Detalhes do Usuário" 
@@ -202,9 +197,11 @@ export default function UsuarioDetalhePage() {
                     {usuario.email}
                   </p>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    <Badge variant="outline">
-                      {usuario.tipo_usuario === 'servidor' ? 'Servidor' : 'Técnico'}
-                    </Badge>
+                    {perfilCodigo && (
+                      <Badge className={PERFIL_CORES[perfilCodigo]}>
+                        {PERFIL_LABELS[perfilCodigo]}
+                      </Badge>
+                    )}
                     {usuario.is_active ? (
                       <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/30">
                         Ativo
@@ -288,20 +285,16 @@ export default function UsuarioDetalhePage() {
           </Card>
         </div>
 
-        {/* Tabs organizadas */}
-        <Tabs defaultValue="dados" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+        {/* Tabs simplificadas: Perfil + Módulos */}
+        <Tabs defaultValue="perfil" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="dados" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Dados</span>
             </TabsTrigger>
-            <TabsTrigger value="perfis" className="flex items-center gap-2">
+            <TabsTrigger value="perfil" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
-              <span className="hidden sm:inline">Perfis</span>
-            </TabsTrigger>
-            <TabsTrigger value="funcoes" className="flex items-center gap-2">
-              <Key className="h-4 w-4" />
-              <span className="hidden sm:inline">Funções</span>
+              <span className="hidden sm:inline">Perfil</span>
             </TabsTrigger>
             <TabsTrigger value="modulos" className="flex items-center gap-2">
               <Boxes className="h-4 w-4" />
@@ -314,7 +307,7 @@ export default function UsuarioDetalhePage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Info className="h-5 w-5" />
+                  <User className="h-5 w-5" />
                   Informações Básicas
                 </CardTitle>
                 <CardDescription>
@@ -333,11 +326,11 @@ export default function UsuarioDetalhePage() {
                   
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <UserCog className="h-4 w-4" />
-                      Tipo de Usuário
+                      <Shield className="h-4 w-4" />
+                      Perfil
                     </div>
                     <p className="font-medium">
-                      {usuario.tipo_usuario === 'servidor' ? 'Servidor' : 'Técnico'}
+                      {perfilCodigo ? PERFIL_LABELS[perfilCodigo] : 'Sem perfil'}
                     </p>
                   </div>
                   
@@ -355,158 +348,79 @@ export default function UsuarioDetalhePage() {
                   
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Shield className="h-4 w-4" />
-                      Perfis Associados
+                      <Boxes className="h-4 w-4" />
+                      Módulos Liberados
                     </div>
-                    <div className="flex flex-wrap gap-1">
-                      {usuario.perfis.length > 0 ? (
-                        usuario.perfis.map(up => (
-                          <Badge 
-                            key={up.id} 
-                            variant="secondary"
-                            className="text-xs"
-                            style={{ 
-                              borderColor: up.perfil?.cor || undefined,
-                              borderWidth: up.perfil?.cor ? 1 : 0
-                            }}
-                          >
-                            {up.perfil?.nome || 'Perfil'}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-muted-foreground text-sm">Nenhum perfil associado</span>
-                      )}
-                    </div>
+                    <p className="font-medium">
+                      {perfilCodigo === 'super_admin' 
+                        ? 'Todos (Super Admin)' 
+                        : `${usuario.modulos.length} módulo(s)`
+                      }
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Tab Perfis */}
-          <TabsContent value="perfis" className="mt-6">
+          {/* Tab Perfil */}
+          <TabsContent value="perfil" className="mt-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Shield className="h-5 w-5" />
-                  Perfis de Acesso
+                  Tipo de Perfil
                 </CardTitle>
                 <CardDescription>
-                  Selecione os perfis que este usuário deve possuir
+                  Defina se o usuário é Gestor ou Servidor
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Alert className="mb-4">
-                  <Info className="h-4 w-4" />
-                  <AlertDescription>
-                    Usuários herdam todas as permissões dos perfis associados.
-                    Clique em um perfil para associar ou desassociar.
-                  </AlertDescription>
-                </Alert>
-                
-                <ScrollArea className="h-[400px] pr-4">
-                  <div className="space-y-2">
-                    {perfisAtivos.map(perfil => {
-                      const tem = usuario.perfis.some(p => p.perfil_id === perfil.id);
-                      
-                      return (
-                        <div
-                          key={perfil.id}
-                          className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${
-                            tem ? 'bg-primary/10 border-primary/30' : 'hover:bg-accent'
-                          }`}
-                          onClick={() => !saving && handleTogglePerfil(perfil.id)}
-                        >
-                          <Checkbox checked={tem} disabled={saving} />
-                          <div 
-                            className="w-4 h-4 rounded-full shrink-0"
-                            style={{ backgroundColor: perfil.cor || 'hsl(var(--muted-foreground))' }}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium">{perfil.nome}</div>
-                            <div className="text-sm text-muted-foreground truncate">
-                              {perfil.descricao || 'Sem descrição'}
-                            </div>
-                          </div>
-                          {tem && (
-                            <CheckCircle className="h-5 w-5 text-primary shrink-0" />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Tab Funções */}
-          <TabsContent value="funcoes" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Key className="h-5 w-5" />
-                  Funções do Sistema
-                </CardTitle>
-                <CardDescription>
-                  Visualize todas as funções do sistema e quais o usuário tem acesso
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <UsuarioFuncoesTab 
-                  userId={usuario.id} 
-                  userName={usuario.full_name || undefined}
+                <UsuarioPerfilTab
+                  usuario={usuario}
+                  saving={saving}
+                  onDefinirPerfil={handleDefinirPerfil}
                 />
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Tab Módulos/Domínios */}
+          {/* Tab Módulos */}
           <TabsContent value="modulos" className="mt-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Boxes className="h-5 w-5" />
-                  Domínios Acessíveis
+                  Módulos Liberados
                 </CardTitle>
                 <CardDescription>
-                  Visualize os domínios que o usuário pode acessar com base nos perfis associados
+                  Selecione quais áreas do sistema o usuário pode acessar
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <UsuarioModulosTab 
-                  userId={usuario.id} 
-                  userName={usuario.full_name || undefined}
+                <UsuarioModulosTab
+                  usuario={usuario}
+                  saving={saving}
+                  onToggleModulo={handleToggleModulo}
                 />
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
 
-        {/* Dialog de Senha Temporária */}
+        {/* Dialog de senha temporária */}
         <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <KeyRound className="h-5 w-5 text-amber-500" />
-                Senha Resetada
-              </DialogTitle>
+              <DialogTitle>Senha Temporária Gerada</DialogTitle>
               <DialogDescription>
-                A senha foi alterada com sucesso. Anote a senha temporária abaixo.
+                Uma nova senha temporária foi criada para o usuário. Copie e envie para o usuário.
               </DialogDescription>
             </DialogHeader>
-            
-            <Alert variant="default" className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-              <AlertDescription className="text-amber-800 dark:text-amber-200">
-                <strong>Atenção:</strong> Esta senha será exibida apenas uma vez.
-                O usuário deverá alterá-la no próximo login.
-              </AlertDescription>
-            </Alert>
 
-            <div className="flex items-center gap-2 p-4 bg-muted rounded-lg font-mono text-lg">
-              <span className="flex-1 select-all">{tempPassword}</span>
-              <Button variant="ghost" size="icon" onClick={handleCopyPassword}>
+            <div className="bg-muted p-4 rounded-lg flex items-center justify-between">
+              <code className="text-lg font-mono">{tempPassword}</code>
+              <Button variant="ghost" size="sm" onClick={handleCopyPassword}>
                 <Copy className="h-4 w-4" />
               </Button>
             </div>

@@ -99,7 +99,7 @@ import ControleAcessoAdminPage from "./pages/admin/ControleAcessoAdminPage";
 import CentralAprovacoesPage from "./pages/admin/CentralAprovacoesPage";
 import AuditoriaPage from "./pages/admin/AuditoriaPage";
 import GestaoPerfilPage from "./pages/admin/GestaoPerfilPage";
-import PerfilPermissoesPage from "./pages/admin/PerfilPermissoesPage";
+// Página PerfilPermissoesPage removida - sistema simplificado
 import BackupOffsitePage from "./pages/admin/BackupOffsitePage";
 import DisasterRecoveryPage from "./pages/admin/DisasterRecoveryPage";
 import UsuariosTecnicosPage from "./pages/admin/UsuariosTecnicosPage";
@@ -245,11 +245,7 @@ const App = () => (
                   <GestaoPerfilPage />
                 </ProtectedRoute>
               } />
-              <Route path="/admin/perfis/:id/permissoes" element={
-                <ProtectedRoute requiredPermissions="admin.perfis">
-                  <PerfilPermissoesPage />
-                </ProtectedRoute>
-              } />
+              {/* Rota removida - sistema simplificado */}
               <Route path="/admin/backup" element={
                 <ProtectedRoute requiredPermissions="admin.backup">
                   <BackupOffsitePage />

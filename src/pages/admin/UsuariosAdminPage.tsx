@@ -1,5 +1,5 @@
 // ============================================
-// PÁGINA DE ADMINISTRAÇÃO DE USUÁRIOS (NOVO RBAC)
+// PÁGINA DE ADMINISTRAÇÃO DE USUÁRIOS (SIMPLIFICADO)
 // ============================================
 
 import { useState } from 'react';
@@ -13,12 +13,15 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAdminUsuarios } from '@/hooks/useAdminUsuarios';
-import type { UsuarioAdmin } from '@/types/rbac';
+import { PERFIL_LABELS, PERFIL_CORES, type PerfilCodigo, type UsuarioAdmin } from '@/types/rbac';
 import { 
   Search, 
   Info,
   Loader2,
   RefreshCw,
+  Shield,
+  UserCheck,
+  User,
 } from 'lucide-react';
 
 export default function UsuariosAdminPage() {
@@ -26,7 +29,7 @@ export default function UsuariosAdminPage() {
   const { usuarios, loading, fetchUsuarios } = useAdminUsuarios();
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterTipo, setFilterTipo] = useState<'all' | 'servidor' | 'tecnico'>('all');
+  const [filterPerfil, setFilterPerfil] = useState<'all' | PerfilCodigo>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'ativo' | 'bloqueado'>('all');
 
   // Filtrar usuários
@@ -35,17 +38,27 @@ export default function UsuariosAdminPage() {
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesTipo = filterTipo === 'all' || u.tipo_usuario === filterTipo;
+    const perfilCodigo = u.perfil?.perfil?.codigo as PerfilCodigo | undefined;
+    const matchesPerfil = filterPerfil === 'all' || perfilCodigo === filterPerfil;
     const matchesStatus = filterStatus === 'all' || 
       (filterStatus === 'ativo' && u.is_active) ||
       (filterStatus === 'bloqueado' && !u.is_active);
     
-    return matchesSearch && matchesTipo && matchesStatus;
+    return matchesSearch && matchesPerfil && matchesStatus;
   });
 
   const getInitials = (name: string | null) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const getPerfilIcon = (codigo: PerfilCodigo | undefined) => {
+    switch (codigo) {
+      case 'super_admin': return <Shield className="h-4 w-4" />;
+      case 'gestor': return <UserCheck className="h-4 w-4" />;
+      case 'servidor': return <User className="h-4 w-4" />;
+      default: return null;
+    }
   };
 
   const handleOpenDetails = (user: UsuarioAdmin) => {
@@ -55,15 +68,15 @@ export default function UsuariosAdminPage() {
   return (
     <AdminLayout 
       title="Administração de Usuários" 
-      description="Gerencie os usuários e seus perfis de acesso"
+      description="Gerencie os usuários e seus acessos ao sistema"
     >
       <div className="space-y-6">
         {/* Aviso institucional */}
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Usuários recebem acesso ao sistema através de <strong>perfis</strong>.
-            Permissões não podem ser atribuídas diretamente aos usuários.
+            Cada usuário possui um <strong>perfil</strong> (Super Admin, Gestor ou Servidor) 
+            e acesso a <strong>módulos específicos</strong>. Clique em um usuário para gerenciar.
           </AlertDescription>
         </Alert>
 
@@ -79,14 +92,15 @@ export default function UsuariosAdminPage() {
             />
           </div>
           
-          <Select value={filterTipo} onValueChange={(v) => setFilterTipo(v as any)}>
+          <Select value={filterPerfil} onValueChange={(v) => setFilterPerfil(v as any)}>
             <SelectTrigger className="w-full lg:w-48">
-              <SelectValue placeholder="Tipo de usuário" />
+              <SelectValue placeholder="Perfil" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos os tipos</SelectItem>
-              <SelectItem value="servidor">Servidores</SelectItem>
-              <SelectItem value="tecnico">Técnicos</SelectItem>
+              <SelectItem value="all">Todos os perfis</SelectItem>
+              <SelectItem value="super_admin">Super Admin</SelectItem>
+              <SelectItem value="gestor">Gestor</SelectItem>
+              <SelectItem value="servidor">Servidor</SelectItem>
             </SelectContent>
           </Select>
 
@@ -115,78 +129,78 @@ export default function UsuariosAdminPage() {
         ) : usuariosFiltrados.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
-              {searchTerm || filterTipo !== 'all' || filterStatus !== 'all'
+              {searchTerm || filterPerfil !== 'all' || filterStatus !== 'all'
                 ? 'Nenhum usuário encontrado com os filtros aplicados.'
                 : 'Nenhum usuário cadastrado.'}
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-3">
-            {usuariosFiltrados.map((usuario) => (
-              <Card 
-                key={usuario.id}
-                className={`cursor-pointer transition-all hover:shadow-md ${
-                  !usuario.is_active ? 'opacity-60' : ''
-                }`}
-                onClick={() => handleOpenDetails(usuario)}
-              >
-                <CardContent className="py-4">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={usuario.avatar_url || undefined} />
-                      <AvatarFallback className="bg-primary/10 text-primary">
-                        {getInitials(usuario.full_name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium truncate">
-                          {usuario.full_name || 'Sem nome'}
-                        </span>
-                        {!usuario.is_active && (
-                          <Badge variant="destructive" className="text-xs">
-                            Bloqueado
+            {usuariosFiltrados.map((usuario) => {
+              const perfilCodigo = usuario.perfil?.perfil?.codigo as PerfilCodigo | undefined;
+              
+              return (
+                <Card 
+                  key={usuario.id}
+                  className={`cursor-pointer transition-all hover:shadow-md ${
+                    !usuario.is_active ? 'opacity-60' : ''
+                  }`}
+                  onClick={() => handleOpenDetails(usuario)}
+                >
+                  <CardContent className="py-4">
+                    <div className="flex items-center gap-4">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={usuario.avatar_url || undefined} />
+                        <AvatarFallback className="bg-primary/10 text-primary">
+                          {getInitials(usuario.full_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium truncate">
+                            {usuario.full_name || 'Sem nome'}
+                          </span>
+                          {!usuario.is_active && (
+                            <Badge variant="destructive" className="text-xs">
+                              Bloqueado
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-sm text-muted-foreground truncate">
+                          {usuario.email}
+                        </div>
+                      </div>
+
+                      {/* Perfil */}
+                      <div className="hidden md:flex items-center gap-2">
+                        {perfilCodigo ? (
+                          <Badge className={PERFIL_CORES[perfilCodigo]}>
+                            {getPerfilIcon(perfilCodigo)}
+                            <span className="ml-1">{PERFIL_LABELS[perfilCodigo]}</span>
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            Sem perfil
                           </Badge>
                         )}
                       </div>
-                      <div className="text-sm text-muted-foreground truncate">
-                        {usuario.email}
+
+                      {/* Módulos */}
+                      <div className="hidden lg:block text-right text-sm text-muted-foreground min-w-[100px]">
+                        {perfilCodigo === 'super_admin' ? (
+                          <span className="text-green-600">Acesso total</span>
+                        ) : usuario.modulos.length > 0 ? (
+                          <span>{usuario.modulos.length} módulo(s)</span>
+                        ) : (
+                          <span className="text-amber-600">Sem módulos</span>
+                        )}
                       </div>
                     </div>
-
-                    <div className="hidden md:flex flex-wrap gap-1 max-w-xs">
-                      {usuario.perfis.length > 0 ? (
-                        usuario.perfis.slice(0, 3).map(up => (
-                          <Badge 
-                            key={up.id} 
-                            variant="secondary"
-                            className="text-xs"
-                            style={{ 
-                              borderColor: up.perfil?.cor || undefined,
-                              borderWidth: up.perfil?.cor ? 1 : 0
-                            }}
-                          >
-                            {up.perfil?.nome || 'Perfil'}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Sem perfis</span>
-                      )}
-                      {usuario.perfis.length > 3 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{usuario.perfis.length - 3}
-                        </Badge>
-                      )}
-                    </div>
-
-                    <Badge variant="outline" className="hidden sm:inline-flex text-xs">
-                      {usuario.tipo_usuario === 'servidor' ? 'Servidor' : 'Técnico'}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

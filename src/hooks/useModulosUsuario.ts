@@ -1,17 +1,16 @@
 // ============================================
-// HOOK PARA VERIFICAÇÃO DE MÓDULOS DO USUÁRIO
+// HOOK PARA VERIFICAÇÃO DE MÓDULOS DO USUÁRIO (SIMPLIFICADO)
 // ============================================
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import type { ModuloSistema, UsuarioModulosData } from '@/types/modulos';
+import { MODULOS, type Modulo } from '@/types/rbac';
 
 export function useModulosUsuario() {
   const { user, isSuperAdmin } = useAuth();
-  const [modulos, setModulos] = useState<ModuloSistema[]>([]);
-  const [modulosAutorizados, setModulosAutorizados] = useState<string[]>([]);
-  const [restringirModulos, setRestringirModulos] = useState(false);
+  const [modulosAutorizados, setModulosAutorizados] = useState<Modulo[]>([]);
+  const [perfilCodigo, setPerfilCodigo] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Buscar dados de módulos do usuário
@@ -22,42 +21,34 @@ export function useModulosUsuario() {
     }
 
     try {
-      // Buscar catálogo de módulos
-      const { data: modulosData } = await supabase
-        .from('modulos_sistema')
-        .select('*')
-        .eq('ativo', true)
-        .order('ordem');
+      // Buscar perfil do usuário
+      const { data: perfilData } = await supabase
+        .from('usuario_perfis')
+        .select('perfil:perfis(codigo)')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      setModulos(modulosData || []);
+      const codigo = (perfilData?.perfil as any)?.codigo || null;
+      setPerfilCodigo(codigo);
 
-      // Buscar flag de restrição do profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('restringir_modulos')
-        .eq('id', user.id)
-        .single();
-
-      const restringir = profileData?.restringir_modulos ?? false;
-      setRestringirModulos(restringir);
-
-      // Se tem restrição, buscar módulos autorizados
-      if (restringir) {
-        const { data: autorizadosData } = await supabase
-          .from('usuario_modulos')
-          .select('modulo_id, modulo:modulos_sistema(codigo)')
-          .eq('user_id', user.id)
-          .eq('ativo', true);
-
-        const codigos = (autorizadosData || [])
-          .map(a => (a.modulo as any)?.codigo)
-          .filter(Boolean);
-        
-        setModulosAutorizados(codigos);
-      } else {
-        // Sem restrição = todos os módulos autorizados
-        setModulosAutorizados((modulosData || []).map(m => m.codigo));
+      // Super admin tem todos os módulos
+      if (codigo === 'super_admin') {
+        setModulosAutorizados([...MODULOS]);
+        setLoading(false);
+        return;
       }
+
+      // Buscar módulos autorizados
+      const { data: modulosData } = await supabase
+        .from('usuario_modulos')
+        .select('modulo')
+        .eq('user_id', user.id);
+
+      const modulos = (modulosData || [])
+        .map(m => m.modulo as Modulo)
+        .filter(Boolean);
+      
+      setModulosAutorizados(modulos);
     } catch (error) {
       console.error('[useModulosUsuario] Erro:', error);
     } finally {
@@ -70,56 +61,52 @@ export function useModulosUsuario() {
   }, [fetchModulosUsuario]);
 
   // Verificar se módulo está autorizado
-  const temAcessoModulo = useCallback((codigo: string): boolean => {
+  const temAcessoModulo = useCallback((codigo: Modulo): boolean => {
     // Super admin tem acesso total
-    if (isSuperAdmin) return true;
+    if (isSuperAdmin || perfilCodigo === 'super_admin') return true;
     
-    // Sem restrição = acesso total
-    if (!restringirModulos) return true;
-    
-    // Com restrição = verificar lista
+    // Verificar lista
     return modulosAutorizados.includes(codigo);
-  }, [isSuperAdmin, restringirModulos, modulosAutorizados]);
+  }, [isSuperAdmin, perfilCodigo, modulosAutorizados]);
 
   // Verificar se rota está em módulo autorizado
   const rotaAutorizada = useCallback((pathname: string): boolean => {
     // Super admin tem acesso total
-    if (isSuperAdmin) return true;
+    if (isSuperAdmin || perfilCodigo === 'super_admin') return true;
     
-    // Sem restrição = acesso total
-    if (!restringirModulos) return true;
+    // Mapear prefixos de rota para módulos
+    const rotaModuloMap: Record<string, Modulo> = {
+      '/admin': 'admin',
+      '/rh': 'rh',
+      '/workflow': 'workflow',
+      '/processos': 'workflow',
+      '/compras': 'compras',
+      '/licitacoes': 'compras',
+      '/contratos': 'contratos',
+      '/patrimonio': 'patrimonio',
+      '/financeiro': 'financeiro',
+      '/orcamento': 'orcamento',
+      '/governanca': 'governanca',
+      '/transparencia': 'transparencia',
+    };
     
     // Encontrar módulo que cobre a rota
-    const moduloRota = modulos.find(m => 
-      m.prefixos_rota.some(prefixo => 
-        pathname === prefixo || pathname.startsWith(prefixo + '/')
-      )
-    );
+    for (const [prefixo, modulo] of Object.entries(rotaModuloMap)) {
+      if (pathname === prefixo || pathname.startsWith(prefixo + '/')) {
+        return modulosAutorizados.includes(modulo);
+      }
+    }
     
-    // Se não encontrou módulo, permitir (rota não mapeada)
-    if (!moduloRota) return true;
-    
-    // Verificar se módulo está autorizado
-    return modulosAutorizados.includes(moduloRota.codigo);
-  }, [isSuperAdmin, restringirModulos, modulos, modulosAutorizados]);
-
-  // Obter módulo de uma rota
-  const getModuloDaRota = useCallback((pathname: string): ModuloSistema | null => {
-    return modulos.find(m => 
-      m.prefixos_rota.some(prefixo => 
-        pathname === prefixo || pathname.startsWith(prefixo + '/')
-      )
-    ) || null;
-  }, [modulos]);
+    // Rota não mapeada = permitida
+    return true;
+  }, [isSuperAdmin, perfilCodigo, modulosAutorizados]);
 
   return {
-    modulos,
     modulosAutorizados,
-    restringirModulos,
+    perfilCodigo,
     loading,
     temAcessoModulo,
     rotaAutorizada,
-    getModuloDaRota,
     refetch: fetchModulosUsuario,
   };
 }
