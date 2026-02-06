@@ -81,44 +81,123 @@ export function DecorativeCircle({ className }: DecorativeProps) {
 }
 
 /**
- * Silhueta de atleta genérica
+ * Jogador de Futsal - silhueta detalhada
  */
-export function AthleteSilhouette({ 
-  sport = "generic",
-  className 
-}: DecorativeProps & { sport?: "futsal" | "handebol" | "basquete" | "volei" | "generic" }) {
-  const paths: Record<string, string> = {
-    futsal: "M50 10 L45 25 L40 20 L35 40 L30 80 L40 85 L45 60 L50 85 L55 60 L60 85 L70 80 L65 40 L60 20 L55 25 Z",
-    handebol: "M50 10 L45 25 L35 30 L30 50 L25 80 L35 85 L45 60 L50 85 L55 60 L65 85 L75 80 L70 50 L65 30 L55 25 Z",
-    basquete: "M50 8 L45 22 L30 35 L35 55 L30 85 L42 88 L48 62 L52 62 L58 88 L70 85 L65 55 L70 35 L55 22 Z",
-    volei: "M50 10 L45 25 L38 35 L32 55 L28 82 L40 88 L47 60 L53 60 L60 88 L72 82 L68 55 L62 35 L55 25 Z",
-    generic: "M50 10 L45 25 L40 35 L35 55 L30 80 L40 85 L47 60 L53 60 L60 85 L70 80 L65 55 L60 35 L55 25 Z"
-  };
-
+export function FutsalPlayer({ className }: DecorativeProps) {
   return (
-    <svg
-      viewBox="0 0 100 100"
-      fill="currentColor"
-      className={cn("w-full h-full", className)}
-    >
-      <circle cx="50" cy="10" r="8" />
-      <path d={paths[sport]} />
+    <svg viewBox="0 0 100 120" fill="currentColor" className={cn("w-full h-full", className)}>
+      {/* Cabeça */}
+      <ellipse cx="50" cy="12" rx="10" ry="11" />
+      {/* Corpo/Torso */}
+      <path d="M35 25 L40 22 L50 20 L60 22 L65 25 L62 50 L58 48 L50 50 L42 48 L38 50 Z" />
+      {/* Braço esquerdo (chutando) */}
+      <path d="M35 28 L25 35 L20 50 L25 52 L32 40 L38 35 Z" />
+      {/* Braço direito */}
+      <path d="M65 28 L75 38 L78 42 L74 45 L68 38 L62 32 Z" />
+      {/* Perna esquerda (apoio) */}
+      <path d="M42 48 L40 70 L38 95 L35 105 L42 107 L45 97 L46 70 L48 50 Z" />
+      {/* Perna direita (chutando - elevada) */}
+      <path d="M52 50 L55 55 L70 60 L85 55 L88 50 L85 48 L70 52 L55 48 L52 48 Z" />
+      {/* Bola */}
+      <circle cx="92" cy="52" r="8" />
+      <path d="M88 52 L92 48 L96 52 L92 56 Z" fill="currentColor" opacity="0.3" />
     </svg>
   );
 }
 
 /**
- * Círculo com silhueta de atleta
+ * Jogador de Handebol - silhueta detalhada
+ */
+export function HandebolPlayer({ className }: DecorativeProps) {
+  return (
+    <svg viewBox="0 0 100 120" fill="currentColor" className={cn("w-full h-full", className)}>
+      {/* Cabeça */}
+      <ellipse cx="45" cy="12" rx="10" ry="11" />
+      {/* Corpo/Torso inclinado */}
+      <path d="M32 25 L38 22 L48 20 L58 24 L60 28 L55 52 L48 50 L40 52 L35 50 Z" />
+      {/* Braço esquerdo */}
+      <path d="M32 28 L22 40 L18 55 L22 58 L28 45 L35 32 Z" />
+      {/* Braço direito (arremessando) - elevado com bola */}
+      <path d="M58 24 L70 15 L82 8 L85 12 L75 22 L65 30 L60 28 Z" />
+      {/* Bola na mão */}
+      <circle cx="85" cy="8" r="6" />
+      {/* Perna esquerda */}
+      <path d="M40 50 L38 72 L35 95 L32 107 L40 108 L43 96 L44 72 L45 52 Z" />
+      {/* Perna direita (impulso) */}
+      <path d="M48 50 L52 70 L58 90 L62 100 L68 97 L60 85 L54 65 L50 50 Z" />
+    </svg>
+  );
+}
+
+/**
+ * Jogador de Basquete - silhueta detalhada
+ */
+export function BasquetePlayer({ className }: DecorativeProps) {
+  return (
+    <svg viewBox="0 0 100 130" fill="currentColor" className={cn("w-full h-full", className)}>
+      {/* Cabeça */}
+      <ellipse cx="50" cy="12" rx="10" ry="11" />
+      {/* Corpo/Torso */}
+      <path d="M38 25 L42 22 L50 20 L58 22 L62 25 L58 55 L52 53 L48 53 L42 55 Z" />
+      {/* Braço esquerdo (equilibrando) */}
+      <path d="M38 28 L28 35 L22 45 L26 48 L32 40 L40 32 Z" />
+      {/* Braço direito (segurando bola acima) */}
+      <path d="M62 25 L72 18 L78 8 L82 10 L78 22 L68 30 L62 28 Z" />
+      {/* Bola acima */}
+      <circle cx="80" cy="5" r="9" />
+      <path d="M74 5 Q80 0, 86 5 Q80 10, 74 5" fill="currentColor" opacity="0.3" />
+      {/* Perna esquerda (flexionada - salto) */}
+      <path d="M42 53 L38 65 L35 75 L32 85 L28 95 L35 98 L40 88 L44 75 L46 60 L48 55 Z" />
+      {/* Perna direita (estendida) */}
+      <path d="M52 53 L55 70 L58 90 L60 105 L55 115 L62 118 L68 108 L64 88 L58 65 L54 53 Z" />
+    </svg>
+  );
+}
+
+/**
+ * Jogador de Vôlei - silhueta detalhada
+ */
+export function VoleiPlayer({ className }: DecorativeProps) {
+  return (
+    <svg viewBox="0 0 100 130" fill="currentColor" className={cn("w-full h-full", className)}>
+      {/* Cabeça */}
+      <ellipse cx="50" cy="12" rx="10" ry="11" />
+      {/* Corpo/Torso arqueado */}
+      <path d="M38 25 L44 22 L50 20 L56 22 L62 25 L58 50 L50 52 L42 50 Z" />
+      {/* Braço esquerdo (preparando) */}
+      <path d="M38 28 L30 22 L22 25 L20 30 L28 30 L38 30 Z" />
+      {/* Braço direito (atacando - cortada) */}
+      <path d="M62 25 L75 15 L88 5 L92 10 L80 22 L68 32 L62 28 Z" />
+      {/* Mão na bola */}
+      <ellipse cx="90" cy="6" rx="7" ry="7" />
+      {/* Perna esquerda (impulso) */}
+      <path d="M42 50 L38 65 L32 80 L28 95 L35 100 L42 85 L46 68 L48 52 Z" />
+      {/* Perna direita (elevada atrás) */}
+      <path d="M52 52 L58 60 L68 68 L75 72 L78 68 L70 60 L60 52 L54 50 Z" />
+    </svg>
+  );
+}
+
+/**
+ * Círculo com figura de atleta específica por esporte
  */
 export function AthleteCircle({ 
   sport = "generic",
   className 
 }: DecorativeProps & { sport?: "futsal" | "handebol" | "basquete" | "volei" | "generic" }) {
+  const SportComponent = {
+    futsal: FutsalPlayer,
+    handebol: HandebolPlayer,
+    basquete: BasquetePlayer,
+    volei: VoleiPlayer,
+    generic: FutsalPlayer
+  }[sport];
+
   return (
     <div className={cn("relative", className)}>
-      <DecorativeCircle className="w-full h-full absolute inset-0" />
-      <div className="absolute inset-4 text-zinc-900">
-        <AthleteSilhouette sport={sport} />
+      <div className="w-full h-full rounded-full border-4 border-zinc-900 bg-gradient-to-br from-zinc-100 to-zinc-200 absolute inset-0" />
+      <div className="absolute inset-3 text-zinc-900 flex items-center justify-center">
+        <SportComponent className="w-4/5 h-4/5" />
       </div>
     </div>
   );
