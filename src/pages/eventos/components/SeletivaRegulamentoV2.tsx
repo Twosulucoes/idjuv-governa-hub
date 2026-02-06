@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, Download, Calendar, Users, Trophy, FileCheck, ClipboardCheck, AlertCircle, Scale, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileText, Download, Calendar, Users, Trophy, FileCheck, ClipboardCheck, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import useEmblaCarousel from "embla-carousel-react";
 import type { LucideIcon } from "lucide-react";
@@ -89,12 +89,6 @@ const regulamentoCompleto: {
       titulo: "DISPOSIÇÕES GERAIS",
       icon: AlertCircle,
       conteudo: "A comissão técnica foi aprovada pela Presidência do IDJuv em processo administrativo próprio, com número de protocolo SEI disponível para conferência. Os casos omissos serão tratados pela comissão técnica, com decisão final do Presidente do Instituto."
-    },
-    {
-      numero: "09",
-      titulo: "FUNDAMENTAÇÃO",
-      icon: Scale,
-      conteudo: "Este regulamento está fundamentado na Lei Estadual de política de esporte e lazer, e nas diretrizes do COB para os Jogos da Juventude 2026."
     }
   ]
 };
@@ -194,50 +188,50 @@ export function SeletivaRegulamentoV2() {
                 return (
                   <div 
                     key={secao.numero} 
-                    className="flex-[0_0_85%] md:flex-[0_0_60%] lg:flex-[0_0_50%] min-w-0 px-3"
+                    className="flex-[0_0_90%] md:flex-[0_0_65%] lg:flex-[0_0_55%] min-w-0 px-2 md:px-4"
                   >
                     <motion.div
                       animate={{
-                        scale: isActive ? 1 : 0.9,
+                        scale: isActive ? 1 : 0.92,
                         opacity: isActive ? 1 : 0.5,
                       }}
                       transition={{ duration: 0.3 }}
-                      className="bg-white dark:bg-zinc-800 rounded-3xl p-6 md:p-8 shadow-xl h-full min-h-[320px] flex flex-col"
+                      className="bg-white dark:bg-zinc-800 rounded-2xl md:rounded-3xl p-5 md:p-8 shadow-xl h-full min-h-[340px] md:min-h-[360px] flex flex-col overflow-hidden"
                     >
                       {/* Header do Card */}
-                      <div className="flex items-center gap-4 mb-6">
-                        <div className="w-16 h-16 rounded-2xl bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center shadow-lg">
-                          <span className="text-2xl font-black text-white dark:text-zinc-900">
+                      <div className="flex items-start gap-3 md:gap-4 mb-4 md:mb-6">
+                        <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center shadow-lg flex-shrink-0">
+                          <span className="text-lg md:text-xl font-black text-white dark:text-zinc-900">
                             {secao.numero}
                           </span>
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <IconComponent className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
-                            <span className="text-xs font-bold tracking-[0.15em] uppercase text-zinc-500 dark:text-zinc-400">
+                            <IconComponent className="w-4 h-4 text-zinc-500 dark:text-zinc-400 flex-shrink-0" />
+                            <span className="text-[10px] md:text-xs font-bold tracking-[0.1em] uppercase text-zinc-500 dark:text-zinc-400">
                               Seção {secao.numero}
                             </span>
                           </div>
-                          <h3 className="text-xl md:text-2xl font-black tracking-[0.1em] uppercase text-zinc-900 dark:text-zinc-100">
+                          <h3 className="text-base md:text-xl font-black tracking-[0.05em] md:tracking-[0.1em] uppercase text-zinc-900 dark:text-zinc-100 leading-tight">
                             {secao.titulo}
                           </h3>
                         </div>
                       </div>
 
                       {/* Conteúdo */}
-                      <div className="flex-1">
+                      <div className="flex-1 overflow-y-auto">
                         {secao.conteudo && (
-                          <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed mb-4">
+                          <p className="text-sm md:text-base text-zinc-600 dark:text-zinc-300 leading-relaxed mb-3">
                             {secao.conteudo}
                           </p>
                         )}
 
                         {secao.lista && (
-                          <ul className="space-y-2">
+                          <ul className="space-y-1.5 md:space-y-2">
                             {secao.lista.map((item, i) => (
-                              <li key={i} className="flex items-start gap-3">
-                                <span className="w-2 h-2 rounded-full bg-zinc-900 dark:bg-zinc-100 mt-2 flex-shrink-0" />
-                                <span className="text-sm text-zinc-600 dark:text-zinc-300">{item}</span>
+                              <li key={i} className="flex items-start gap-2 md:gap-3">
+                                <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-zinc-900 dark:bg-zinc-100 mt-1.5 md:mt-2 flex-shrink-0" />
+                                <span className="text-xs md:text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed">{item}</span>
                               </li>
                             ))}
                           </ul>
@@ -245,18 +239,18 @@ export function SeletivaRegulamentoV2() {
                       </div>
 
                       {/* Footer com indicador de progresso */}
-                      <div className="mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                      <div className="mt-4 pt-3 md:pt-4 border-t border-zinc-200 dark:border-zinc-700">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold tracking-[0.1em] uppercase text-zinc-400 dark:text-zinc-500">
+                          <span className="text-[10px] md:text-xs font-bold tracking-[0.1em] uppercase text-zinc-400 dark:text-zinc-500">
                             {index + 1} de {regulamentoCompleto.secoes.length}
                           </span>
-                          <div className="flex gap-1">
+                          <div className="flex gap-0.5 md:gap-1">
                             {regulamentoCompleto.secoes.map((_, i) => (
                               <div
                                 key={i}
                                 className={`h-1 rounded-full transition-all duration-300 ${
                                   i === index 
-                                    ? "w-6 bg-zinc-900 dark:bg-zinc-100" 
+                                    ? "w-4 md:w-6 bg-zinc-900 dark:bg-zinc-100" 
                                     : "w-1 bg-zinc-300 dark:bg-zinc-600"
                                 }`}
                               />
