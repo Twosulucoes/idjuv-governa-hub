@@ -4,9 +4,7 @@
  * Sistema de navegação baseado exclusivamente no RBAC institucional
  * com permissões no formato: dominio.capacidade
  * 
- * NÃO USAR: roles hardcoded, MODULE_PERMISSIONS, legacyPermissions
- * 
- * @version 3.0.0
+ * @version 4.0.0 - Reorganizado com todos os módulos
  */
 
 import {
@@ -42,6 +40,24 @@ import {
   CalendarDays,
   Plane,
   ClipboardList,
+  Wrench,
+  Trash2,
+  BookOpen,
+  GraduationCap,
+  Users2,
+  Heart,
+  Briefcase,
+  School,
+  Medal,
+  FileWarning,
+  ScrollText,
+  Landmark,
+  Network,
+  Cake,
+  Receipt,
+  FolderOpen,
+  Download,
+  Gavel,
   type LucideIcon,
 } from "lucide-react";
 
@@ -92,6 +108,12 @@ export type PermissaoInstitucional =
   // Transparência
   | 'transparencia.visualizar'
   | 'transparencia.responder'
+  // Integridade
+  | 'integridade.visualizar'
+  | 'integridade.gerenciar'
+  // Programas
+  | 'programas.visualizar'
+  | 'programas.gerenciar'
   // Admin
   | 'admin.usuarios'
   | 'admin.perfis'
@@ -108,7 +130,7 @@ export interface MenuItem {
   permission?: PermissaoInstitucional;
   children?: MenuItem[];
   badge?: string | number;
-  priority?: number; // Menor = maior prioridade (mobile)
+  priority?: number;
 }
 
 export interface MenuSection {
@@ -270,6 +292,13 @@ export const menuConfig: MenuSection[] = [
             permission: "rh.visualizar",
           },
           {
+            id: "frequencia-pacotes",
+            label: "Pacotes de Frequência",
+            route: "/rh/frequencia/pacotes",
+            icon: FolderOpen,
+            permission: "rh.visualizar",
+          },
+          {
             id: "frequencia-config",
             label: "Parametrização",
             labelShort: "Parâmetros",
@@ -306,6 +335,64 @@ export const menuConfig: MenuSection[] = [
         route: "/rh/viagens",
         icon: Plane,
         permission: "rh.visualizar",
+      },
+      {
+        id: "contracheques-submenu",
+        label: "Contracheques",
+        icon: Receipt,
+        children: [
+          {
+            id: "meu-contracheque",
+            label: "Meu Contracheque",
+            route: "/rh/meu-contracheque",
+            icon: Receipt,
+            permission: "rh.self",
+          },
+          {
+            id: "contracheques",
+            label: "Consultar Contracheques",
+            route: "/rh/contracheques",
+            icon: Receipt,
+            permission: "rh.visualizar",
+          },
+        ],
+      },
+      {
+        id: "utilitarios-rh",
+        label: "Utilitários",
+        icon: Wrench,
+        children: [
+          {
+            id: "aniversariantes",
+            label: "Aniversariantes",
+            route: "/rh/aniversariantes",
+            icon: Cake,
+            permission: "rh.visualizar",
+          },
+          {
+            id: "pendencias-rh",
+            label: "Diagnóstico de Pendências",
+            labelShort: "Pendências",
+            route: "/rh/pendencias",
+            icon: AlertTriangle,
+            permission: "rh.visualizar",
+          },
+          {
+            id: "modelos-docs",
+            label: "Modelos de Documentos",
+            labelShort: "Modelos",
+            route: "/rh/modelos",
+            icon: FileText,
+            permission: "rh.visualizar",
+          },
+          {
+            id: "exportar-planilha",
+            label: "Exportar Planilha",
+            route: "/rh/exportar",
+            icon: Download,
+            permission: "rh.visualizar",
+          },
+        ],
       },
       {
         id: "relatorios-rh",
@@ -380,6 +467,22 @@ export const menuConfig: MenuSection[] = [
         icon: ClipboardList,
         permission: "patrimonio.visualizar",
         priority: 6,
+      },
+      {
+        id: "manutencoes-bens",
+        label: "Manutenções",
+        route: "/inventario/manutencoes",
+        icon: Wrench,
+        permission: "patrimonio.visualizar",
+        priority: 7,
+      },
+      {
+        id: "baixas-patrimonio",
+        label: "Baixas",
+        route: "/inventario/baixas",
+        icon: Trash2,
+        permission: "patrimonio.criar",
+        priority: 8,
       },
     ],
   },
@@ -482,6 +585,84 @@ export const menuConfig: MenuSection[] = [
     priority: 6,
     items: [
       {
+        id: "estrutura-submenu",
+        label: "Estrutura Organizacional",
+        labelShort: "Estrutura",
+        icon: Building2,
+        children: [
+          {
+            id: "organograma",
+            label: "Organograma",
+            route: "/organograma",
+            icon: Network,
+            permission: "governanca.visualizar",
+          },
+          {
+            id: "estrutura-org",
+            label: "Gestão da Estrutura",
+            route: "/governanca/estrutura",
+            icon: Building2,
+            permission: "governanca.visualizar",
+          },
+          {
+            id: "cargos",
+            label: "Cargos",
+            route: "/cargos",
+            icon: Briefcase,
+            permission: "governanca.visualizar",
+          },
+          {
+            id: "lotacoes",
+            label: "Lotações",
+            route: "/lotacoes",
+            icon: Users2,
+            permission: "governanca.visualizar",
+          },
+        ],
+      },
+      {
+        id: "documentos-legais",
+        label: "Documentos Legais",
+        icon: Gavel,
+        children: [
+          {
+            id: "lei-criacao",
+            label: "Lei de Criação",
+            route: "/governanca/lei-criacao",
+            icon: ScrollText,
+            permission: "governanca.visualizar",
+          },
+          {
+            id: "decreto",
+            label: "Decreto",
+            route: "/governanca/decreto",
+            icon: ScrollText,
+            permission: "governanca.visualizar",
+          },
+          {
+            id: "regimento",
+            label: "Regimento Interno",
+            route: "/governanca/regimento",
+            icon: BookOpen,
+            permission: "governanca.visualizar",
+          },
+          {
+            id: "portarias-gov",
+            label: "Portarias",
+            route: "/governanca/portarias",
+            icon: FileText,
+            permission: "governanca.visualizar",
+          },
+        ],
+      },
+      {
+        id: "matriz-raci",
+        label: "Matriz RACI",
+        route: "/governanca/matriz-raci",
+        icon: ClipboardList,
+        permission: "governanca.visualizar",
+      },
+      {
         id: "riscos",
         label: "Gestão de Riscos",
         route: "/governanca/riscos",
@@ -509,16 +690,76 @@ export const menuConfig: MenuSection[] = [
         icon: ClipboardCheck,
         permission: "governanca.avaliar",
       },
+      {
+        id: "relatorio-governanca",
+        label: "Relatórios",
+        route: "/governanca/relatorio",
+        icon: BarChart3,
+        permission: "governanca.visualizar",
+      },
     ],
   },
 
-  // ========== 7. TRANSPARÊNCIA E LAI ==========
+  // ========== 7. INTEGRIDADE ==========
+  {
+    id: "integridade",
+    label: "Integridade",
+    labelShort: "Integridade",
+    icon: Shield,
+    priority: 7,
+    items: [
+      {
+        id: "integridade-portal",
+        label: "Portal de Integridade",
+        route: "/integridade",
+        icon: Shield,
+        permission: "integridade.visualizar",
+      },
+      {
+        id: "denuncias",
+        label: "Denúncias",
+        route: "/integridade/denuncias",
+        icon: FileWarning,
+        permission: "integridade.visualizar",
+      },
+      {
+        id: "gestao-denuncias",
+        label: "Gestão de Denúncias",
+        route: "/integridade/gestao-denuncias",
+        icon: ClipboardList,
+        permission: "integridade.gerenciar",
+      },
+      {
+        id: "codigo-etica",
+        label: "Código de Ética",
+        route: "/integridade/codigo-etica",
+        icon: BookOpen,
+        permission: "integridade.visualizar",
+      },
+      {
+        id: "conflito-interesses",
+        label: "Conflito de Interesses",
+        route: "/integridade/conflito",
+        icon: AlertTriangle,
+        permission: "integridade.visualizar",
+      },
+      {
+        id: "politica-integridade",
+        label: "Política de Integridade",
+        route: "/integridade/politica",
+        icon: ScrollText,
+        permission: "integridade.visualizar",
+      },
+    ],
+  },
+
+  // ========== 8. TRANSPARÊNCIA E LAI ==========
   {
     id: "transparencia",
     label: "Transparência e LAI",
     labelShort: "Transparência",
     icon: Eye,
-    priority: 7,
+    priority: 8,
     items: [
       {
         id: "portal",
@@ -542,6 +783,27 @@ export const menuConfig: MenuSection[] = [
         permission: "transparencia.visualizar",
       },
       {
+        id: "orcamento-publico",
+        label: "Execução Orçamentária",
+        route: "/transparencia/orcamento",
+        icon: Wallet,
+        permission: "transparencia.visualizar",
+      },
+      {
+        id: "patrimonio-publico",
+        label: "Patrimônio",
+        route: "/transparencia/patrimonio",
+        icon: Package,
+        permission: "transparencia.visualizar",
+      },
+      {
+        id: "cargos-remuneracao",
+        label: "Cargos e Remuneração",
+        route: "/transparencia/cargos",
+        icon: Users,
+        permission: "transparencia.visualizar",
+      },
+      {
         id: "lai",
         label: "e-SIC / LAI",
         route: "/transparencia/lai",
@@ -551,13 +813,13 @@ export const menuConfig: MenuSection[] = [
     ],
   },
 
-  // ========== 8. ESPAÇOS E FEDERAÇÕES ==========
+  // ========== 9. ESPAÇOS E FEDERAÇÕES ==========
   {
     id: "espacos-federacoes",
     label: "Espaços e Federações",
     labelShort: "Espaços",
     icon: MapPin,
-    priority: 8,
+    priority: 9,
     items: [
       {
         id: "unidades-locais",
@@ -566,36 +828,82 @@ export const menuConfig: MenuSection[] = [
         icon: MapPin,
         permission: "patrimonio.visualizar",
       },
-       {
-         id: "relatorios-unidades",
-         label: "Relatórios Unidades",
-         labelShort: "Relatórios",
-         route: "/unidades/central-relatorios",
-         icon: BarChart3,
-         permission: "patrimonio.visualizar",
-       },
+      {
+        id: "relatorios-unidades",
+        label: "Relatórios Unidades",
+        labelShort: "Relatórios",
+        route: "/unidades/central-relatorios",
+        icon: BarChart3,
+        permission: "patrimonio.visualizar",
+      },
       {
         id: "federacoes",
         label: "Federações Esportivas",
         route: "/admin/federacoes",
         icon: Trophy,
       },
-       {
-         id: "instituicoes",
-         label: "Instituições",
-         route: "/admin/instituicoes",
-         icon: Building2,
-       },
+      {
+        id: "instituicoes",
+        label: "Instituições",
+        route: "/admin/instituicoes",
+        icon: Building2,
+      },
     ],
   },
 
-  // ========== 9. COMUNICAÇÃO (ASCOM) ==========
+  // ========== 10. PROGRAMAS ==========
+  {
+    id: "programas",
+    label: "Programas",
+    labelShort: "Programas",
+    icon: GraduationCap,
+    priority: 10,
+    items: [
+      {
+        id: "bolsa-atleta",
+        label: "Bolsa Atleta",
+        route: "/programas/bolsa-atleta",
+        icon: Medal,
+        permission: "programas.visualizar",
+      },
+      {
+        id: "juventude-cidada",
+        label: "Juventude Cidadã",
+        route: "/programas/juventude-cidada",
+        icon: Users2,
+        permission: "programas.visualizar",
+      },
+      {
+        id: "esporte-comunidade",
+        label: "Esporte na Comunidade",
+        route: "/programas/esporte-comunidade",
+        icon: Heart,
+        permission: "programas.visualizar",
+      },
+      {
+        id: "jovem-empreendedor",
+        label: "Jovem Empreendedor",
+        route: "/programas/jovem-empreendedor",
+        icon: Briefcase,
+        permission: "programas.visualizar",
+      },
+      {
+        id: "jogos-escolares",
+        label: "Jogos Escolares",
+        route: "/programas/jogos-escolares",
+        icon: School,
+        permission: "programas.visualizar",
+      },
+    ],
+  },
+
+  // ========== 11. COMUNICAÇÃO (ASCOM) ==========
   {
     id: "ascom",
     label: "Comunicação",
     labelShort: "ASCOM",
     icon: Megaphone,
-    priority: 9,
+    priority: 11,
     items: [
       {
         id: "demandas-ascom",
@@ -606,13 +914,13 @@ export const menuConfig: MenuSection[] = [
     ],
   },
 
-  // ========== 10. ADMINISTRAÇÃO (RESTRITO) ==========
+  // ========== 12. ADMINISTRAÇÃO (RESTRITO) ==========
   {
     id: "admin",
     label: "Administração",
     labelShort: "Admin",
     icon: Settings,
-    priority: 10,
+    priority: 12,
     items: [
       {
         id: "central-relatorios",
@@ -634,6 +942,13 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/perfis",
         icon: Shield,
         permission: "admin.perfis",
+      },
+      {
+        id: "pre-cadastros",
+        label: "Pré-Cadastros",
+        route: "/admin/pre-cadastros",
+        icon: UserCog,
+        permission: "admin.usuarios",
       },
       {
         id: "reunioes",
