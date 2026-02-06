@@ -7,7 +7,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info, Loader2 } from 'lucide-react';
-import { MODULOS, MODULO_LABELS, MODULO_ICONES, type Modulo, type UsuarioAdmin } from '@/types/rbac';
+import { MODULES_CONFIG, type Modulo, getModuloCorClass } from '@/shared/config/modules.config';
+import type { UsuarioAdmin } from '@/types/rbac';
 
 interface UsuarioModulosTabProps {
   usuario: UsuarioAdmin;
@@ -42,31 +43,33 @@ export function UsuarioModulosTab({ usuario, saving, onToggleModulo }: UsuarioMo
 
       <ScrollArea className="h-[400px] pr-4">
         <div className="space-y-2">
-          {MODULOS.map((modulo) => {
-            const temAcesso = usuario.modulos.includes(modulo);
-            const icone = MODULO_ICONES[modulo];
-            const label = MODULO_LABELS[modulo];
+          {MODULES_CONFIG.map((config) => {
+            const temAcesso = usuario.modulos.includes(config.codigo);
+            const Icon = config.icone;
+            const corClass = getModuloCorClass(config.cor);
 
             return (
               <div
-                key={modulo}
+                key={config.codigo}
                 className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${
                   temAcesso 
                     ? 'bg-primary/10 border-primary/30' 
                     : 'hover:bg-accent'
                 }`}
-                onClick={() => !saving && onToggleModulo(modulo, temAcesso)}
+                onClick={() => !saving && onToggleModulo(config.codigo, temAcesso)}
               >
                 <Checkbox 
                   checked={temAcesso} 
                   disabled={saving} 
-                  onCheckedChange={() => !saving && onToggleModulo(modulo, temAcesso)}
+                  onCheckedChange={() => !saving && onToggleModulo(config.codigo, temAcesso)}
                 />
-                <span className="text-xl">{icone}</span>
+                <div className={`p-2 rounded-md ${corClass}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium">{label}</div>
+                  <div className="font-medium">{config.nome}</div>
                   <div className="text-sm text-muted-foreground">
-                    Código: {modulo}
+                    {config.descricao}
                   </div>
                 </div>
                 {saving && (
