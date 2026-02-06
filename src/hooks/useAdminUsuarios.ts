@@ -1,11 +1,11 @@
 // ============================================
-// HOOK DE USUÁRIOS RBAC (NOVO)
+// HOOK DE USUÁRIOS (SISTEMA SIMPLIFICADO)
 // ============================================
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import type { UsuarioAdmin, UsuarioPerfil, Perfil } from '@/types/rbac';
+import type { UsuarioAdmin, Modulo, PerfilCodigo, Perfil } from '@/types/rbac';
 
 export function useAdminUsuarios() {
   const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([]);
@@ -14,7 +14,7 @@ export function useAdminUsuarios() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Buscar todos os usuários com seus perfis
+  // Buscar todos os usuários com seus perfis e módulos
   const fetchUsuarios = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -28,36 +28,60 @@ export function useAdminUsuarios() {
       if (profilesError) throw profilesError;
 
       // Buscar associações usuário-perfil
-      const { data: associacoes, error: associacoesError } = await supabase
+      const { data: perfilAssociacoes, error: perfilError } = await supabase
         .from('usuario_perfis')
-        .select('*, perfil:perfis(*)')
-        .eq('ativo', true);
+        .select('*, perfil:perfis(id, nome, codigo, descricao, pode_aprovar, created_at)');
 
-      if (associacoesError) throw associacoesError;
+      if (perfilError) throw perfilError;
+
+      // Buscar módulos dos usuários
+      const { data: modulosData, error: modulosError } = await supabase
+        .from('usuario_modulos')
+        .select('*');
+
+      if (modulosError) throw modulosError;
 
       // Combinar dados
-      const usuariosData: UsuarioAdmin[] = (profiles || []).map(p => ({
-        id: p.id,
-        email: p.email || '',
-        full_name: p.full_name,
-        avatar_url: p.avatar_url,
-        is_active: p.is_active ?? true,
-        tipo_usuario: p.tipo_usuario || 'servidor',
-        created_at: p.created_at,
-        perfis: (associacoes || [])
-          .filter(a => a.user_id === p.id)
-          .map(a => ({
-            id: a.id,
-            user_id: a.user_id,
-            perfil_id: a.perfil_id,
-            ativo: a.ativo,
-            data_inicio: a.data_inicio,
-            data_fim: a.data_fim,
-            created_at: a.created_at,
-            created_by: a.created_by,
-            perfil: a.perfil as Perfil,
-          })),
-      }));
+      const usuariosData: UsuarioAdmin[] = (profiles || []).map(p => {
+        const perfilAssoc = (perfilAssociacoes || []).find(a => a.user_id === p.id);
+        const modulosUsuario = (modulosData || [])
+          .filter(m => m.user_id === p.id)
+          .map(m => m.modulo as Modulo);
+
+        // Mapear o perfil aninhado
+        let perfilMapeado: { id: string; user_id: string; perfil_id: string; created_at: string; created_by: string | null; perfil?: Perfil } | null = null;
+        
+        if (perfilAssoc) {
+          const perfilDB = perfilAssoc.perfil as any;
+          perfilMapeado = {
+            id: perfilAssoc.id,
+            user_id: perfilAssoc.user_id,
+            perfil_id: perfilAssoc.perfil_id,
+            created_at: perfilAssoc.created_at,
+            created_by: perfilAssoc.created_by,
+            perfil: perfilDB ? {
+              id: perfilDB.id,
+              nome: perfilDB.nome,
+              codigo: perfilDB.codigo as PerfilCodigo,
+              descricao: perfilDB.descricao,
+              pode_aprovar: perfilDB.pode_aprovar ?? (perfilDB.codigo === 'super_admin' || perfilDB.codigo === 'gestor'),
+              created_at: perfilDB.created_at,
+            } : undefined,
+          };
+        }
+
+        return {
+          id: p.id,
+          email: p.email || '',
+          full_name: p.full_name,
+          avatar_url: p.avatar_url,
+          is_active: p.is_active ?? true,
+          tipo_usuario: (p.tipo_usuario || 'servidor') as 'servidor' | 'tecnico',
+          created_at: p.created_at,
+          perfil: perfilMapeado,
+          modulos: modulosUsuario,
+        };
+      });
 
       setUsuarios(usuariosData);
     } catch (err: any) {
@@ -72,77 +96,102 @@ export function useAdminUsuarios() {
     fetchUsuarios();
   }, [fetchUsuarios]);
 
-  // Associar perfil a usuário
-  const associarPerfil = async (userId: string, perfilId: string) => {
+  // Definir perfil do usuário
+  const definirPerfil = async (userId: string, perfilCodigo: PerfilCodigo | null) => {
     setSaving(true);
     try {
-      // Verificar se já existe
-      const { data: existente } = await supabase
-        .from('usuario_perfis')
-        .select('id, ativo')
-        .eq('user_id', userId)
-        .eq('perfil_id', perfilId)
-        .single();
-
-      if (existente) {
-        if (!existente.ativo) {
-          // Reativar
-          const { error } = await supabase
-            .from('usuario_perfis')
-            .update({ 
-              ativo: true, 
-              data_inicio: new Date().toISOString(), 
-              data_fim: null 
-            })
-            .eq('id', existente.id);
-
-          if (error) throw error;
-        }
-      } else {
-        // Criar nova associação
+      if (perfilCodigo === null) {
+        // Remover perfil
         const { error } = await supabase
           .from('usuario_perfis')
-          .insert({ 
-            user_id: userId, 
-            perfil_id: perfilId, 
-            ativo: true 
+          .delete()
+          .eq('user_id', userId);
+
+        if (error) throw error;
+      } else {
+        // Buscar ID do perfil
+        const { data: perfil, error: perfilError } = await supabase
+          .from('perfis')
+          .select('id')
+          .eq('codigo', perfilCodigo)
+          .single();
+
+        if (perfilError) throw perfilError;
+
+        // Upsert associação
+        const { error } = await supabase
+          .from('usuario_perfis')
+          .upsert({
+            user_id: userId,
+            perfil_id: perfil.id,
+          }, {
+            onConflict: 'user_id',
           });
 
         if (error) throw error;
       }
 
-      toast({ title: 'Perfil associado ao usuário!' });
+      toast({ title: 'Perfil atualizado!' });
       await fetchUsuarios();
     } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Erro ao associar perfil', description: err.message });
+      toast({ variant: 'destructive', title: 'Erro ao definir perfil', description: err.message });
       throw err;
     } finally {
       setSaving(false);
     }
   };
 
-  // Desassociar perfil de usuário
-  const desassociarPerfil = async (userId: string, perfilId: string) => {
+  // Adicionar módulo ao usuário
+  const adicionarModulo = async (userId: string, modulo: Modulo) => {
     setSaving(true);
     try {
       const { error } = await supabase
-        .from('usuario_perfis')
-        .update({ 
-          ativo: false, 
-          data_fim: new Date().toISOString() 
-        })
-        .eq('user_id', userId)
-        .eq('perfil_id', perfilId);
+        .from('usuario_modulos')
+        .insert({
+          user_id: userId,
+          modulo,
+        });
 
       if (error) throw error;
 
-      toast({ title: 'Perfil removido do usuário!' });
+      toast({ title: 'Módulo adicionado!' });
       await fetchUsuarios();
     } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Erro ao remover perfil', description: err.message });
+      toast({ variant: 'destructive', title: 'Erro ao adicionar módulo', description: err.message });
       throw err;
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Remover módulo do usuário
+  const removerModulo = async (userId: string, modulo: Modulo) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('usuario_modulos')
+        .delete()
+        .eq('user_id', userId)
+        .eq('modulo', modulo);
+
+      if (error) throw error;
+
+      toast({ title: 'Módulo removido!' });
+      await fetchUsuarios();
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erro ao remover módulo', description: err.message });
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Toggle módulo
+  const toggleModulo = async (userId: string, modulo: Modulo, temAtualmente: boolean) => {
+    if (temAtualmente) {
+      await removerModulo(userId, modulo);
+    } else {
+      await adicionarModulo(userId, modulo);
     }
   };
 
@@ -178,8 +227,10 @@ export function useAdminUsuarios() {
     saving,
     error,
     fetchUsuarios,
-    associarPerfil,
-    desassociarPerfil,
+    definirPerfil,
+    adicionarModulo,
+    removerModulo,
+    toggleModulo,
     toggleUsuarioAtivo,
   };
 }

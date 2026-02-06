@@ -1,100 +1,89 @@
 // ============================================
-// TIPOS DO SISTEMA RBAC INSTITUCIONAL
+// TIPOS DO SISTEMA RBAC SIMPLIFICADO (3 PERFIS)
 // ============================================
 
 /**
- * Domínios do sistema RBAC institucional
- * Cada domínio representa um módulo funcional
+ * Módulos do sistema
+ * Cada módulo representa uma área funcional que pode ser liberada para usuários
  */
-export const DOMINIOS = [
+export const MODULOS = [
   'admin',
   'workflow',
   'compras',
   'contratos',
   'rh',
+  'financeiro',
   'orcamento',
   'patrimonio',
   'governanca',
   'transparencia',
 ] as const;
 
-export type Dominio = typeof DOMINIOS[number];
+export type Modulo = typeof MODULOS[number];
 
 /**
- * Capacidades padrão do sistema
+ * Códigos de perfil do sistema (apenas 3)
  */
-export const CAPACIDADES = [
-  'visualizar',
-  'criar',
-  'tramitar',
-  'aprovar',
-  'avaliar',
-  'responder',
-  'administrar',
-  'self',
-] as const;
-
-export type Capacidade = typeof CAPACIDADES[number];
+export const PERFIL_CODIGOS = ['super_admin', 'gestor', 'servidor'] as const;
+export type PerfilCodigo = typeof PERFIL_CODIGOS[number];
 
 /**
- * Permissão institucional do banco de dados
- */
-export interface Permissao {
-  id: string;
-  codigo: string;
-  nome: string;
-  descricao: string | null;
-  dominio: Dominio;
-  capacidade: Capacidade;
-  ordem: number;
-  ativo: boolean;
-  created_at: string;
-}
-
-/**
- * Perfil institucional
+ * Perfil do sistema (simplificado)
+ * Compatível com o schema do banco que ainda tem campos extras
  */
 export interface Perfil {
   id: string;
   nome: string;
+  codigo: PerfilCodigo;
   descricao: string | null;
-  codigo: string | null;
-  nivel: 'sistema' | 'organizacional' | 'operacional';
-  nivel_hierarquia: number;
-  perfil_pai_id: string | null;
-  ativo: boolean;
-  is_sistema: boolean;
-  cor: string | null;
-  icone: string | null;
+  pode_aprovar: boolean;
   created_at: string;
-  updated_at: string;
 }
 
 /**
- * Associação Perfil-Permissão
+ * Perfil do banco (com todos os campos do schema atual)
+ * Usado internamente para mapear dados do Supabase
  */
-export interface PerfilPermissao {
+export interface PerfilDB {
   id: string;
-  perfil_id: string;
-  permissao_id: string;
-  concedido: boolean;
+  nome: string;
+  codigo: string;
+  descricao: string | null;
+  ativo?: boolean;
+  cor?: string | null;
+  icone?: string | null;
+  nivel?: string;
+  nivel_hierarquia?: number;
+  perfil_pai_id?: string | null;
+  is_sistema?: boolean;
+  pode_aprovar?: boolean;
   created_at: string;
-  created_by: string | null;
+  created_by?: string | null;
+  updated_at?: string;
+  updated_by?: string | null;
 }
 
 /**
- * Associação Usuário-Perfil
+ * Associação Usuário-Perfil (1:1)
  */
 export interface UsuarioPerfil {
   id: string;
   user_id: string;
   perfil_id: string;
-  ativo: boolean;
-  data_inicio: string;
-  data_fim: string | null;
   created_at: string;
   created_by: string | null;
   perfil?: Perfil;
+}
+
+/**
+ * Módulo liberado para um usuário
+ */
+export interface UsuarioModulo {
+  id: string;
+  user_id: string;
+  modulo: Modulo;
+  created_at: string;
+  created_by: string | null;
 }
 
 /**
@@ -108,57 +97,64 @@ export interface UsuarioAdmin {
   is_active: boolean;
   tipo_usuario: 'servidor' | 'tecnico';
   created_at: string;
-  perfis: UsuarioPerfil[];
+  perfil?: UsuarioPerfil | null;
+  modulos: Modulo[];
 }
 
-// Labels amigáveis para domínios
-export const DOMINIO_LABELS: Record<Dominio, string> = {
+// Labels amigáveis para módulos
+export const MODULO_LABELS: Record<Modulo, string> = {
   admin: 'Administração',
   workflow: 'Processos',
   compras: 'Compras',
   contratos: 'Contratos',
   rh: 'Recursos Humanos',
+  financeiro: 'Financeiro',
   orcamento: 'Orçamento',
   patrimonio: 'Patrimônio',
   governanca: 'Governança',
   transparencia: 'Transparência',
 };
 
-// Ícones para domínios (nome do Lucide icon)
-export const DOMINIO_ICONES: Record<Dominio, string> = {
-  admin: 'Settings',
-  workflow: 'Workflow',
-  compras: 'ShoppingCart',
-  contratos: 'FileCheck',
-  rh: 'Users',
-  orcamento: 'Wallet',
-  patrimonio: 'Package',
-  governanca: 'Scale',
-  transparencia: 'Eye',
+// Ícones para módulos (emoji)
+export const MODULO_ICONES: Record<Modulo, string> = {
+  admin: '⚙️',
+  workflow: '🔄',
+  compras: '🛒',
+  contratos: '📝',
+  rh: '👥',
+  financeiro: '💰',
+  orcamento: '📊',
+  patrimonio: '📦',
+  governanca: '⚖️',
+  transparencia: '👁️',
 };
 
-// Labels amigáveis para capacidades
-export const CAPACIDADE_LABELS: Record<Capacidade, string> = {
-  visualizar: 'Visualizar',
-  criar: 'Criar',
-  tramitar: 'Tramitar',
-  aprovar: 'Aprovar',
-  avaliar: 'Avaliar',
-  responder: 'Responder',
-  administrar: 'Administrar',
-  self: 'Próprio',
+// Labels para perfis
+export const PERFIL_LABELS: Record<PerfilCodigo, string> = {
+  super_admin: 'Super Administrador',
+  gestor: 'Gestor',
+  servidor: 'Servidor',
 };
 
-// Cores para níveis de perfil
-export const NIVEL_PERFIL_CORES: Record<string, string> = {
-  sistema: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-  organizacional: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  operacional: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+// Descrições para perfis
+export const PERFIL_DESCRICOES: Record<PerfilCodigo, string> = {
+  super_admin: 'Acesso total ao sistema',
+  gestor: 'Pode aprovar processos e acessar módulos selecionados',
+  servidor: 'Acesso aos módulos selecionados',
 };
 
-// Labels para níveis
-export const NIVEL_PERFIL_LABELS: Record<string, string> = {
-  sistema: 'Sistema',
-  organizacional: 'Organizacional',
-  operacional: 'Operacional',
+// Cores para perfis
+export const PERFIL_CORES: Record<PerfilCodigo, string> = {
+  super_admin: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  gestor: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  servidor: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
 };
+
+// ============================================
+// TIPOS LEGADOS (COMPATIBILIDADE)
+// ============================================
+
+// Alias para compatibilidade com código legado
+export const DOMINIOS = MODULOS;
+export type Dominio = Modulo;
+export const DOMINIO_LABELS = MODULO_LABELS;

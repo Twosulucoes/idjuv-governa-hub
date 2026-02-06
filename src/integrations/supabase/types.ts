@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      _backup_usuario_modulos_old: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          modulo_id: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          modulo_id: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          modulo_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usuario_modulos_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "modulos_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       acesso_processo_sigiloso: {
         Row: {
           concedido_por: string | null
@@ -18091,35 +18126,53 @@ export type Database = {
       }
       usuario_modulos: {
         Row: {
-          ativo: boolean | null
           created_at: string | null
           created_by: string | null
           id: string
-          modulo_id: string
+          modulo: string
           user_id: string
         }
         Insert: {
-          ativo?: boolean | null
           created_at?: string | null
           created_by?: string | null
           id?: string
-          modulo_id: string
+          modulo: string
           user_id: string
         }
         Update: {
-          ativo?: boolean | null
           created_at?: string | null
           created_by?: string | null
           id?: string
-          modulo_id?: string
+          modulo?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "usuario_modulos_modulo_id_fkey"
-            columns: ["modulo_id"]
+            foreignKeyName: "usuario_modulos_created_by_fkey1"
+            columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: "modulos_sistema"
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usuario_modulos_created_by_fkey1"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usuario_modulos_user_id_fkey1"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usuario_modulos_user_id_fkey1"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
         ]
