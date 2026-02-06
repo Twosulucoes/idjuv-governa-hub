@@ -102,8 +102,10 @@ export const MODULO_ICONES: Record<Modulo, string> = {
   financeiro: '💰',
   patrimonio: '📦',
   governanca: '⚖️',
+  integridade: '🛡️',
   transparencia: '👁️',
   comunicacao: '📢',
+  programas: '🎓',
 };
 
 // Labels para perfis

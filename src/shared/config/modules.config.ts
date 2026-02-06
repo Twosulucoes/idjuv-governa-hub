@@ -34,8 +34,10 @@ export const MODULOS = [
   'financeiro',
   'patrimonio',
   'governanca',
+  'integridade',
   'transparencia',
   'comunicacao',
+  'programas',
 ] as const;
 
 export type Modulo = typeof MODULOS[number];
@@ -124,8 +126,17 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     descricao: 'Estrutura, organograma, cargos, federações, programas',
     icone: Building2,
     cor: 'indigo',
-    rotas: ['/governanca', '/organograma', '/cargos', '/lotacoes', '/federacoes', '/instituicoes', '/programas', '/integridade'],
+    rotas: ['/governanca', '/organograma', '/cargos', '/lotacoes'],
     menuSectionIds: ['governanca'],
+  },
+  {
+    codigo: 'integridade',
+    nome: 'Integridade',
+    descricao: 'Denúncias, ética e compliance',
+    icone: Building2,
+    cor: 'rose',
+    rotas: ['/integridade'],
+    menuSectionIds: ['integridade'],
   },
   {
     codigo: 'transparencia',
@@ -144,6 +155,15 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     cor: 'pink',
     rotas: ['/ascom'],
     menuSectionIds: ['ascom'],
+  },
+  {
+    codigo: 'programas',
+    nome: 'Programas',
+    descricao: 'Programas sociais e esportivos',
+    icone: Building2,
+    cor: 'emerald',
+    rotas: ['/programas'],
+    menuSectionIds: ['programas'],
   },
 ];
 
@@ -188,6 +208,8 @@ export const MODULO_COR_CLASSES: Record<string, string> = {
   cyan: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-800 dark:text-cyan-200',
   teal: 'bg-teal-100 text-teal-800 dark:bg-teal-800 dark:text-teal-200',
   pink: 'bg-pink-100 text-pink-800 dark:bg-pink-800 dark:text-pink-200',
+  rose: 'bg-rose-100 text-rose-800 dark:bg-rose-800 dark:text-rose-200',
+  emerald: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-800 dark:text-emerald-200',
 };
 
 /**
