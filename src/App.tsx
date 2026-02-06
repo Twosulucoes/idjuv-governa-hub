@@ -53,6 +53,7 @@ import ExecucaoOrcamentariaPage from "./pages/transparencia/ExecucaoOrcamentaria
 import PatrimonioPublicoPage from "./pages/transparencia/PatrimonioPublicoPage";
 import PortalLAIPage from "./pages/transparencia/PortalLAIPage";
 import EstruturaOrganizacionalPage from "./pages/governanca/EstruturaOrganizacionalPage";
+import SeletivaEstudantilPage from "./pages/eventos/SeletivaEstudantilPage";
 
 // RH Pages
 import GestaoServidoresPage from "./pages/rh/GestaoServidoresPage";
@@ -186,6 +187,9 @@ const App = () => (
               
               {/* Rota secreta para preview do portal público */}
               <Route path="/portal-preview-idjuv-2026" element={<PortalPreviewPage />} />
+              
+              {/* Hot site - Seletiva Seleções Estudantis */}
+              <Route path="/seletiva-estudantil-2025" element={<SeletivaEstudantilPage />} />
               
               {/* Pré-cadastro (mantido mas não linkado) */}
               <Route path="/curriculo" element={<MiniCurriculoPage />} />
