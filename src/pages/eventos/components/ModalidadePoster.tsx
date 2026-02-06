@@ -103,20 +103,11 @@ export function ModalidadePoster({
         ))}
       </div>
 
-      {/* Footer Institucional */}
-      <div className="mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700 flex flex-wrap items-center justify-between gap-4">
+      {/* Footer simples */}
+      <div className="mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700">
         <p className="text-[10px] tracking-[0.15em] uppercase text-zinc-400 dark:text-zinc-500">
-          Diretoria de Esporte
+          Diretoria de Esporte • IDJuv
         </p>
-        <div className="flex items-center gap-3">
-          <LogoIdjuv variant="light" className="h-6 opacity-50 dark:hidden" />
-          <LogoIdjuv variant="dark" className="h-6 opacity-50 hidden dark:block" />
-          <img 
-            src={logoGoverno} 
-            alt="Governo de Roraima" 
-            className="h-5 object-contain opacity-50"
-          />
-        </div>
       </div>
     </motion.div>
   );
