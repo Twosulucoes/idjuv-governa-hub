@@ -30,42 +30,66 @@ const regulamentoCompleto: {
       numero: "01",
       titulo: "OBJETIVO",
       icon: Trophy,
-      conteudo: "Selecionar atletas estudantis de Roraima para representar o estado nos Jogos da Juventude 2026."
+      conteudo: "Identificar, avaliar e selecionar atletas estudantis do Estado de Roraima para compor as delegações que representarão o estado nos Jogos da Juventude 2026, competição nacional organizada pelo COB."
     },
     {
       numero: "02",
       titulo: "QUEM PODE PARTICIPAR",
       icon: Users,
-      conteudo: "Estudantes de 15 a 17 anos, matriculados em escolas públicas ou privadas de Roraima."
+      conteudo: "Estudantes regularmente matriculados em instituições de ensino públicas ou privadas do Estado de Roraima, com idade entre 15 e 17 anos completos no ano da competição. É obrigatória documentação comprobatória.",
+      lista: [
+        "Documento de identidade com foto",
+        "Declaração de matrícula escolar 2026",
+        "Autorização dos pais/responsáveis"
+      ]
     },
     {
       numero: "03",
       titulo: "MODALIDADES",
       icon: Trophy,
+      conteudo: "Quatro modalidades coletivas serão disputadas, cada uma nos naipes masculino e feminino:",
       lista: [
-        "Futsal",
-        "Handebol",
-        "Basquetebol",
-        "Voleibol"
+        "Futsal — 19/02 (Fem: 8h | Masc: 14h)",
+        "Handebol — 21/02 (Fem: 8h | Masc: 14h)",
+        "Basquete — 26/02 (Fem: 8h30 | Masc: 15h)",
+        "Vôlei — 28/02 (Fem: 8h30 | Masc: 15h)"
       ]
     },
     {
       numero: "04",
-      titulo: "QUANDO E ONDE",
+      titulo: "LOCAL E PERÍODO",
       icon: Calendar,
-      conteudo: "De 19/02 a 01/03/2026, no Ginásio Hélio Campos (Canarinho), Boa Vista - RR."
+      conteudo: "Todas as seletivas acontecerão no Ginásio Poliesportivo Hélio da Costa Campos, localizado na Rua Presidente Juscelino Kubitscheck, 848, Bairro Canarinho, Boa Vista - RR. Período: 19 de fevereiro a 01 de março de 2026."
     },
     {
       numero: "05",
-      titulo: "CONVOCAÇÃO",
-      icon: FileCheck,
-      conteudo: "A lista dos convocados será publicada no site em até 5 dias após o evento. O número de convocados para a fase de treinamento será o dobro das vagas finais."
+      titulo: "CRITÉRIOS DE AVALIAÇÃO",
+      icon: ClipboardCheck,
+      conteudo: "Os atletas serão avaliados pela comissão técnica do IDJuv considerando:",
+      lista: [
+        "Habilidades técnicas específicas da modalidade",
+        "Capacidade tática e leitura de jogo",
+        "Condicionamento físico adequado",
+        "Comportamento, disciplina e potencial de evolução"
+      ]
     },
     {
       numero: "06",
-      titulo: "FASE DE TREINAMENTO",
-      icon: ClipboardCheck,
-      conteudo: "Os atletas convocados passarão por treinamentos, onde ao final serão selecionados os representantes que viajarão para os Jogos da Juventude."
+      titulo: "DINÂMICA DA SELETIVA",
+      icon: Users,
+      conteudo: "No dia da seletiva, os trabalhos serão conduzidos por servidores e professores designados pela Diretoria de Esportes, garantindo o melhor aproveitamento dos critérios de avaliação e a escolha justa dos atletas."
+    },
+    {
+      numero: "07",
+      titulo: "CONVOCAÇÃO E TREINAMENTOS",
+      icon: FileCheck,
+      conteudo: "A lista dos convocados será publicada neste site em até 5 dias após cada seletiva. O número de convocados para a fase de treinamento será o DOBRO das vagas finais. Após os treinamentos, serão definidos os atletas que representarão Roraima."
+    },
+    {
+      numero: "08",
+      titulo: "DISPOSIÇÕES GERAIS",
+      icon: AlertCircle,
+      conteudo: "A Comissão Técnica foi aprovada pela Presidência do IDJuv em processo administrativo próprio (protocolo SEI disponível para conferência). Os casos omissos serão analisados pela Comissão, com decisão final do Presidente do Instituto."
     }
   ]
 };
