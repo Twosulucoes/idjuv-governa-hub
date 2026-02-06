@@ -12,12 +12,10 @@ export function SeletivaFooterV2() {
       <div className="container mx-auto px-4">
         {/* Logos Institucionais */}
         <div className="flex flex-col md:flex-row items-center justify-center gap-8 mb-6">
-          <div className="text-center">
-            <p className="text-[10px] tracking-[0.3em] uppercase text-zinc-400 mb-2">
-              Diretoria de Esporte
-            </p>
-            <div className="h-px w-24 bg-zinc-700 mx-auto" />
-          </div>
+          <p className="text-[10px] text-zinc-400 mb-2 text-right">
+            <span className="block">Diretoria de</span>
+            <span className="block uppercase text-lg tracking-[0.5em]">ESPORTE</span>
+          </p>
           
           <LogoIdjuv variant="dark" className="h-12" />
           
