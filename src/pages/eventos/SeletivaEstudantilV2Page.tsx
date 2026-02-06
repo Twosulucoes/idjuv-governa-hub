@@ -1,6 +1,6 @@
 /**
  * Hot Site V2 - Seletiva das Seleções Estudantis 2026
- * Versão minimalista com tipografia bold e design P&B
+ * Versão minimalista com tipografia bold, design P&B e suporte a dark mode
  */
 
 import { motion } from "framer-motion";
@@ -8,9 +8,10 @@ import { SeletivaHeaderV2 } from "./components/SeletivaHeaderV2";
 import { SeletivaFooterV2 } from "./components/SeletivaFooterV2";
 import { SeletivaRegulamentoV2 } from "./components/SeletivaRegulamentoV2";
 import { ModalidadePoster } from "./components/ModalidadePoster";
-import { DotsIndicator, CornerDecoration, ParallelLines } from "./components/DecorativeElements";
+import { DotsIndicator } from "./components/DecorativeElements";
 import { SeletivaGaleria } from "./components/SeletivaGaleria";
 import { SeletivaResultados } from "./components/SeletivaResultados";
+import heroImage from "@/assets/hero-4-modalidades.jpg";
 
 // Dados das modalidades
 const modalidades = [
@@ -102,109 +103,114 @@ const modalidades = [
 
 export default function SeletivaEstudantilV2Page() {
   return (
-    <div className="min-h-screen bg-zinc-100">
+    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 transition-colors duration-300">
       <SeletivaHeaderV2 />
       
-      {/* Hero Section */}
-      <section className="relative pt-24 pb-16 md:pt-32 md:pb-24 px-4 overflow-hidden">
-        {/* Decorações de canto */}
-        <CornerDecoration 
-          position="top-left" 
-          className="absolute top-20 left-4 text-zinc-300 opacity-50 hidden md:block" 
-        />
-        <CornerDecoration 
-          position="top-right" 
-          className="absolute top-20 right-4 text-zinc-300 opacity-50 hidden md:block" 
-        />
+      {/* Hero Section com Imagem */}
+      <section className="relative pt-20 pb-8 md:pt-24 md:pb-12 overflow-hidden">
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-b from-zinc-200/50 to-zinc-100 dark:from-zinc-800/50 dark:to-zinc-900" />
         
-        <div className="container mx-auto max-w-5xl text-center">
+        <div className="container mx-auto max-w-6xl px-4 relative z-10">
           {/* Dots Indicator */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
+            className="mb-6"
           >
-            <DotsIndicator total={5} active={0} className="mb-12" />
+            <DotsIndicator total={4} active={0} className="justify-start" />
           </motion.div>
 
-          {/* Título Principal */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="mb-8"
-          >
-            <p className="text-lg md:text-xl font-bold tracking-[0.3em] uppercase text-zinc-500 mb-4">
-              SELETIVA DAS
-            </p>
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-[0.4em] uppercase text-zinc-900 mb-4">
-              SELEÇÕES
-            </h1>
-            <p className="text-3xl md:text-4xl lg:text-5xl font-black tracking-[0.3em] uppercase text-zinc-900">
-              ESTUDANTIS
-            </p>
-          </motion.div>
+          {/* Título e Imagem lado a lado */}
+          <div className="grid lg:grid-cols-2 gap-8 items-center">
+            {/* Texto */}
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <p className="text-sm md:text-base font-bold tracking-[0.3em] uppercase text-zinc-500 dark:text-zinc-400 mb-2">
+                SELETIVA DAS
+              </p>
+              <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-[0.15em] uppercase text-zinc-900 dark:text-zinc-100 leading-none mb-4">
+                SELEÇÕES<br />
+                <span className="text-zinc-600 dark:text-zinc-300">ESTUDANTIS</span>
+              </h1>
+              
+              {/* Badges */}
+              <div className="flex flex-wrap gap-3 mt-6">
+                <div className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 rounded-full">
+                  <span className="text-xs md:text-sm font-bold tracking-[0.15em] uppercase text-white dark:text-zinc-900">
+                    19/FEV a 01/MAR
+                  </span>
+                </div>
+                <div className="px-4 py-2 border-2 border-zinc-900 dark:border-zinc-100 rounded-full">
+                  <span className="text-xs md:text-sm font-bold tracking-[0.15em] uppercase text-zinc-900 dark:text-zinc-100">
+                    15 a 17 ANOS
+                  </span>
+                </div>
+              </div>
 
-          {/* Linhas decorativas */}
-          <motion.div
-            initial={{ opacity: 0, scaleX: 0 }}
-            animate={{ opacity: 1, scaleX: 1 }}
-            transition={{ delay: 0.5, duration: 0.5 }}
-            className="flex justify-center mb-8"
-          >
-            <ParallelLines className="w-32 text-zinc-400" />
-          </motion.div>
+              <p className="mt-6 text-sm md:text-base tracking-[0.05em] uppercase text-zinc-600 dark:text-zinc-400">
+                Jogos da Juventude 2026 — Representando Roraima
+              </p>
+            </motion.div>
 
-          {/* Data e Categoria */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8"
-          >
-            <div className="px-6 py-3 bg-zinc-900 rounded-full">
-              <span className="text-sm md:text-base font-bold tracking-[0.2em] uppercase text-white">
-                19/FEV a 01/MAR
-              </span>
-            </div>
-            <div className="h-px w-12 bg-zinc-400 hidden md:block" />
-            <div className="px-6 py-3 border-2 border-zinc-900 rounded-full">
-              <span className="text-sm md:text-base font-bold tracking-[0.2em] uppercase text-zinc-900">
-                15 a 17 ANOS
-              </span>
-            </div>
-          </motion.div>
-
-          {/* Subtítulo */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
-            className="mt-12 text-lg tracking-[0.1em] uppercase text-zinc-500 max-w-2xl mx-auto"
-          >
-            Jogos da Juventude 2026 — Representando Roraima
-          </motion.p>
+            {/* Imagem Hero */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4, duration: 0.5 }}
+              className="relative"
+            >
+              <div className="relative rounded-3xl overflow-hidden shadow-2xl">
+                <img 
+                  src={heroImage} 
+                  alt="Atletas das 4 modalidades: Futsal, Handebol, Basquete e Vôlei" 
+                  className="w-full h-auto object-cover"
+                />
+                {/* Overlay sutil */}
+                <div className="absolute inset-0 bg-gradient-to-t from-zinc-900/20 to-transparent" />
+              </div>
+              
+              {/* Labels das modalidades */}
+              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                {["FUTSAL", "HANDEBOL", "BASQUETE", "VÔLEI"].map((mod, i) => (
+                  <motion.span
+                    key={mod}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 + i * 0.1 }}
+                    className="px-3 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] font-bold tracking-wider rounded-full"
+                  >
+                    {mod}
+                  </motion.span>
+                ))}
+              </div>
+            </motion.div>
+          </div>
         </div>
       </section>
 
       {/* Seção de Modalidades */}
-      <section className="py-16 px-4 bg-white">
+      <section className="py-16 px-4 bg-white dark:bg-zinc-800 transition-colors">
         <div className="container mx-auto max-w-5xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center mb-12"
           >
-            <h2 className="text-3xl md:text-4xl font-black tracking-[0.25em] uppercase text-zinc-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-black tracking-[0.2em] uppercase text-zinc-900 dark:text-zinc-100 mb-3">
               MODALIDADES
             </h2>
-            <p className="text-lg tracking-[0.1em] uppercase text-zinc-500">
+            <p className="text-base tracking-[0.1em] uppercase text-zinc-500 dark:text-zinc-400">
               Calendário completo das seletivas
             </p>
           </motion.div>
 
-          <div className="space-y-8">
+          <div className="space-y-6">
             {modalidades.map((mod, index) => (
               <ModalidadePoster
                 key={mod.modalidade}
