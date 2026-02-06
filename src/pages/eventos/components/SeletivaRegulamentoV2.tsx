@@ -23,72 +23,49 @@ const regulamentoCompleto: {
   subtitulo: string;
   secoes: SecaoRegulamento[];
 } = {
-  titulo: "REGULAMENTO OFICIAL",
+  titulo: "RESUMO DO REGULAMENTO",
   subtitulo: "Seletiva das Seleções Estudantis 2026",
   secoes: [
     {
       numero: "01",
       titulo: "OBJETIVO",
       icon: Trophy,
-      conteudo: "A Seletiva das Seleções Estudantis tem como objetivo identificar, avaliar e selecionar atletas estudantis do Estado de Roraima para compor as delegações que representarão o estado nos Jogos da Juventude 2026, competição de âmbito nacional organizada pelo Comitê Olímpico do Brasil."
+      conteudo: "Selecionar atletas estudantis de Roraima para representar o estado nos Jogos da Juventude 2026."
     },
     {
       numero: "02",
-      titulo: "PARTICIPAÇÃO",
+      titulo: "QUEM PODE PARTICIPAR",
       icon: Users,
-      conteudo: "Podem participar estudantes regularmente matriculados em instituições de ensino públicas ou privadas do Estado de Roraima, com idade entre 15 (quinze) e 17 (dezessete) anos completos no ano da competição nacional (2026). É obrigatória a apresentação de documentação comprobatória de matrícula escolar vigente."
+      conteudo: "Estudantes de 15 a 17 anos, matriculados em escolas públicas ou privadas de Roraima."
     },
     {
       numero: "03",
       titulo: "MODALIDADES",
       icon: Trophy,
       lista: [
-        "Futsal — Masculino e Feminino",
-        "Handebol — Masculino e Feminino",
-        "Basquetebol — Masculino e Feminino",
-        "Voleibol — Masculino e Feminino"
+        "Futsal",
+        "Handebol",
+        "Basquetebol",
+        "Voleibol"
       ]
     },
     {
       numero: "04",
-      titulo: "PERÍODO E LOCAL",
+      titulo: "QUANDO E ONDE",
       icon: Calendar,
-      conteudo: "As seletivas serão realizadas entre os dias 19 de fevereiro e 01 de março de 2026, no Ginásio Poliesportivo Hélio da Costa Campos, localizado na Rua Presidente Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR."
+      conteudo: "De 19/02 a 01/03/2026, no Ginásio Hélio Campos (Canarinho), Boa Vista - RR."
     },
     {
       numero: "05",
-      titulo: "DOCUMENTAÇÃO",
+      titulo: "CONVOCAÇÃO",
       icon: FileCheck,
-      lista: [
-        "Documento de identidade oficial com foto",
-        "Declaração de matrícula escolar (2026)",
-        "Autorização dos pais/responsáveis"
-      ]
+      conteudo: "A lista dos convocados será publicada no site em até 5 dias após o evento. O número de convocados para a fase de treinamento será o dobro das vagas finais."
     },
     {
       numero: "06",
-      titulo: "CRITÉRIOS",
+      titulo: "FASE DE TREINAMENTO",
       icon: ClipboardCheck,
-      conteudo: "Os atletas serão avaliados por comissão técnica do IDJuv considerando:",
-      lista: [
-        "Habilidades técnicas da modalidade",
-        "Capacidade tática e leitura de jogo",
-        "Condicionamento físico",
-        "Comportamento e disciplina",
-        "Potencial de evolução"
-      ]
-    },
-    {
-      numero: "07",
-      titulo: "DINÂMICA DA SELETIVA",
-      icon: Users,
-      conteudo: "No dia da seletiva, os trabalhos serão conduzidos por servidores e professores designados para garantir o melhor aproveitamento dos critérios de avaliação e escolha dos atletas."
-    },
-    {
-      numero: "08",
-      titulo: "DISPOSIÇÕES GERAIS",
-      icon: AlertCircle,
-      conteudo: "A comissão técnica foi aprovada pela Presidência do IDJuv em processo administrativo próprio, com número de protocolo SEI disponível para conferência. Os casos omissos serão tratados pela comissão técnica, com decisão final do Presidente do Instituto."
+      conteudo: "Os atletas convocados passarão por treinamentos, onde ao final serão selecionados os representantes que viajarão para os Jogos da Juventude."
     }
   ]
 };
