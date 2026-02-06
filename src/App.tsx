@@ -188,8 +188,8 @@ const App = () => (
               {/* Rota secreta para preview do portal público */}
               <Route path="/portal-preview-idjuv-2026" element={<PortalPreviewPage />} />
               
-              {/* Hot site - Seletiva Seleções Estudantis */}
-              <Route path="/seletiva-estudantil-2025" element={<SeletivaEstudantilPage />} />
+              {/* Hot site - Seletiva Seleções Estudantis (público) */}
+              <Route path="/selecoes" element={<SeletivaEstudantilPage />} />
               
               {/* Pré-cadastro (mantido mas não linkado) */}
               <Route path="/curriculo" element={<MiniCurriculoPage />} />
