@@ -4,7 +4,7 @@
  */
 
 import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
-import logoGoverno from "@/assets/logo-governo-roraima.jpg";
+import logoGovernoDark from "@/assets/logo-governo-roraima-dark.png";
 
 export function SeletivaFooterV2() {
   return (
@@ -21,13 +21,11 @@ export function SeletivaFooterV2() {
           
           <LogoIdjuv variant="dark" className="h-12" />
           
-          <div className="bg-white rounded-lg p-2">
-            <img 
-              src={logoGoverno} 
-              alt="Governo de Roraima" 
-              className="h-10 object-contain"
-            />
-          </div>
+          <img 
+            src={logoGovernoDark} 
+            alt="Governo de Roraima" 
+            className="h-10 object-contain"
+          />
         </div>
         
         {/* Copyright */}

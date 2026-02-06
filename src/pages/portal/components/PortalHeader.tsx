@@ -9,6 +9,8 @@ import { Menu, X, ChevronDown, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
 import { cn } from "@/lib/utils";
+import logoGoverno from "@/assets/logo-governo-roraima.jpg";
+import logoGovernoDark from "@/assets/logo-governo-roraima-dark.png";
 
 export function PortalHeader() {
   const [isScrolled, setIsScrolled] = useState(false);
