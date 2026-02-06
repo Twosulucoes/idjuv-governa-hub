@@ -55,6 +55,7 @@ import PortalLAIPage from "./pages/transparencia/PortalLAIPage";
 import EstruturaOrganizacionalPage from "./pages/governanca/EstruturaOrganizacionalPage";
 import SeletivaEstudantilPage from "./pages/eventos/SeletivaEstudantilPage";
 import SeletivaEstudantilV2Page from "./pages/eventos/SeletivaEstudantilV2Page";
+import NoticiaDetalhePage from "./pages/eventos/NoticiaDetalhePage";
 
 // RH Pages
 import GestaoServidoresPage from "./pages/rh/GestaoServidoresPage";
@@ -192,6 +193,7 @@ const App = () => (
               {/* Hot site - Seletiva Seleções Estudantis (público) */}
               <Route path="/selecoes" element={<SeletivaEstudantilPage />} />
               <Route path="/selecoes-v2" element={<SeletivaEstudantilV2Page />} />
+              <Route path="/selecoes-v2/noticia/:slug" element={<NoticiaDetalhePage />} />
               
               {/* Pré-cadastro (mantido mas não linkado) */}
               <Route path="/curriculo" element={<MiniCurriculoPage />} />
