@@ -8,6 +8,7 @@ import { Calendar, Clock, ArrowRight, Newspaper, Trophy, GraduationCap, External
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 interface Noticia {
   id: string;
@@ -89,25 +90,31 @@ function formatDate(dateString: string | null) {
 }
 
 export function SeletivaNoticiasV2() {
+  const navigate = useNavigate();
+  
   const { data: noticias, isLoading } = useQuery({
     queryKey: ["noticias-eventos-esportivos"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("noticias_eventos_esportivos")
-        .select("id, titulo, resumo, categoria, imagem_destaque_url, data_publicacao, destaque")
+        .select("id, titulo, slug, resumo, categoria, imagem_destaque_url, data_publicacao, destaque")
         .eq("status", "publicado")
         .order("data_publicacao", { ascending: false })
         .limit(4);
 
       if (error) throw error;
-      return data as Noticia[];
+      return data as (Noticia & { slug: string })[];
     },
   });
 
   // Use notícias do banco ou exemplos se vazio
-  const displayNoticias = noticias && noticias.length > 0 ? noticias : noticiasExemplo;
+  const displayNoticias = noticias && noticias.length > 0 ? noticias : noticiasExemplo.map(n => ({ ...n, slug: `noticia-${n.id}` }));
   const noticiaDestaque = displayNoticias.find((n) => n.destaque) || displayNoticias[0];
   const outrasNoticias = displayNoticias.filter((n) => n.id !== noticiaDestaque?.id).slice(0, 3);
+
+  const handleNoticiaClick = (slug: string) => {
+    navigate(`/selecoes-v2/noticia/${slug}`);
+  };
 
   return (
     <section className="py-16 px-4 bg-white dark:bg-zinc-800 transition-colors">
@@ -151,6 +158,7 @@ export function SeletivaNoticiasV2() {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
+              onClick={() => handleNoticiaClick(noticiaDestaque.slug)}
               className="lg:row-span-2 group cursor-pointer"
             >
               <div className="relative h-full min-h-[400px] rounded-2xl overflow-hidden bg-zinc-900 dark:bg-zinc-700">
@@ -211,6 +219,7 @@ export function SeletivaNoticiasV2() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
+                  onClick={() => handleNoticiaClick(noticia.slug)}
                   className="group cursor-pointer"
                 >
                   <div className="flex gap-4 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-700/50 border border-zinc-200 dark:border-zinc-600 hover:border-zinc-400 dark:hover:border-zinc-500 transition-all">
