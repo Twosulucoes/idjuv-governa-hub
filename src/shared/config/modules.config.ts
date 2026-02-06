@@ -98,7 +98,7 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     icone: FileText,
     cor: 'amber',
     rotas: ['/contratos'],
-    menuSectionIds: ['compras-contratos'],
+    menuSectionIds: [], // Usa mesma seção de compras-contratos
   },
   {
     codigo: 'financeiro',
