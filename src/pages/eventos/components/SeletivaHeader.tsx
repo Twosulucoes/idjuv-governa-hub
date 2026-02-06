@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import { Instagram } from "lucide-react";
 import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
 import { FaixaBrasil } from "@/components/ui/FaixaBrasil";
-import logoGoverno from "@/assets/logo-governo-rr.png";
+import logoGoverno from "@/assets/logo-governo-roraima.jpg";
 
 export function SeletivaHeader() {
   return (

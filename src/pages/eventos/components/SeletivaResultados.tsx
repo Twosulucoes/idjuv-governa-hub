@@ -158,8 +158,8 @@ export function SeletivaResultados() {
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             {temAlgumResultado 
-              ? "Confira os atletas selecionados para representar Roraima nos Jogos da Juventude 2025"
-              : "Em breve, divulgaremos aqui os atletas selecionados para representar Roraima nos Jogos da Juventude 2025"
+              ? "Confira os atletas selecionados para representar Roraima nos Jogos da Juventude 2026"
+              : "Em breve, divulgaremos aqui os atletas selecionados para representar Roraima nos Jogos da Juventude 2026"
             }
           </p>
         </motion.div>
