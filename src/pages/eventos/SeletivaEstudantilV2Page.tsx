@@ -11,6 +11,8 @@ import { ModalidadePoster } from "./components/ModalidadePoster";
 import { DotsIndicator } from "./components/DecorativeElements";
 import { SeletivaGaleria } from "./components/SeletivaGaleria";
 import { SeletivaResultados } from "./components/SeletivaResultados";
+import { SeletivaNoticiasV2 } from "./components/SeletivaNoticiasV2";
+import { SeletivaContatosV2 } from "./components/SeletivaContatosV2";
 import heroImage from "@/assets/hero-4-modalidades.jpg";
 
 // Dados das modalidades
@@ -229,11 +231,17 @@ export default function SeletivaEstudantilV2Page() {
       {/* Regulamento */}
       <SeletivaRegulamentoV2 />
 
+      {/* Notícias */}
+      <SeletivaNoticiasV2 />
+
       {/* Galeria */}
       <SeletivaGaleria />
 
       {/* Resultados */}
       <SeletivaResultados />
+
+      {/* Contatos e Links Oficiais */}
+      <SeletivaContatosV2 />
 
       {/* Footer */}
       <SeletivaFooterV2 />

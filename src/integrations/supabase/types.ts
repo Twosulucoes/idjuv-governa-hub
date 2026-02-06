@@ -1999,6 +1999,42 @@ export type Database = {
         }
         Relationships: []
       }
+      categorias_noticias_eventos: {
+        Row: {
+          ativo: boolean | null
+          cor: string | null
+          created_at: string
+          descricao: string | null
+          icone: string | null
+          id: string
+          nome: string
+          ordem: number | null
+          slug: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          cor?: string | null
+          created_at?: string
+          descricao?: string | null
+          icone?: string | null
+          id?: string
+          nome: string
+          ordem?: number | null
+          slug: string
+        }
+        Update: {
+          ativo?: boolean | null
+          cor?: string | null
+          created_at?: string
+          descricao?: string | null
+          icone?: string | null
+          id?: string
+          nome?: string
+          ordem?: number | null
+          slug?: string
+        }
+        Relationships: []
+      }
       centros_custo: {
         Row: {
           ativo: boolean | null
@@ -4346,6 +4382,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      contatos_eventos_esportivos: {
+        Row: {
+          ativo: boolean | null
+          created_at: string
+          evento: string
+          icone: string | null
+          id: string
+          ordem: number | null
+          subtitulo: string | null
+          tipo: string
+          titulo: string
+          updated_at: string
+          valor: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string
+          evento?: string
+          icone?: string | null
+          id?: string
+          ordem?: number | null
+          subtitulo?: string | null
+          tipo: string
+          titulo: string
+          updated_at?: string
+          valor: string
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string
+          evento?: string
+          icone?: string | null
+          id?: string
+          ordem?: number | null
+          subtitulo?: string | null
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+          valor?: string
+        }
+        Relationships: []
       }
       conteudo_rascunho: {
         Row: {
@@ -10189,6 +10267,63 @@ export type Database = {
           },
         ]
       }
+      galeria_eventos_esportivos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_evento: string | null
+          descricao: string | null
+          destaque: boolean | null
+          evento: string
+          foto_thumbnail_url: string | null
+          foto_url: string
+          fotografo: string | null
+          id: string
+          modalidade: string | null
+          naipe: string | null
+          ordem: number | null
+          status: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_evento?: string | null
+          descricao?: string | null
+          destaque?: boolean | null
+          evento?: string
+          foto_thumbnail_url?: string | null
+          foto_url: string
+          fotografo?: string | null
+          id?: string
+          modalidade?: string | null
+          naipe?: string | null
+          ordem?: number | null
+          status?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_evento?: string | null
+          descricao?: string | null
+          destaque?: boolean | null
+          evento?: string
+          foto_thumbnail_url?: string | null
+          foto_url?: string
+          fotografo?: string | null
+          id?: string
+          modalidade?: string | null
+          naipe?: string | null
+          ordem?: number | null
+          status?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       historico_conteudo_oficial: {
         Row: {
           conteudo: string
@@ -13285,6 +13420,72 @@ export type Database = {
             referencedColumns: ["unidade_id"]
           },
         ]
+      }
+      noticias_eventos_esportivos: {
+        Row: {
+          autor_id: string | null
+          autor_nome: string | null
+          categoria: string
+          conteudo: string
+          created_at: string
+          data_publicacao: string | null
+          destaque: boolean | null
+          evento_relacionado: string | null
+          id: string
+          imagem_destaque_alt: string | null
+          imagem_destaque_url: string | null
+          resumo: string | null
+          slug: string
+          status: string
+          subtitulo: string | null
+          tags: string[] | null
+          titulo: string
+          updated_at: string
+          visualizacoes: number | null
+        }
+        Insert: {
+          autor_id?: string | null
+          autor_nome?: string | null
+          categoria?: string
+          conteudo: string
+          created_at?: string
+          data_publicacao?: string | null
+          destaque?: boolean | null
+          evento_relacionado?: string | null
+          id?: string
+          imagem_destaque_alt?: string | null
+          imagem_destaque_url?: string | null
+          resumo?: string | null
+          slug: string
+          status?: string
+          subtitulo?: string | null
+          tags?: string[] | null
+          titulo: string
+          updated_at?: string
+          visualizacoes?: number | null
+        }
+        Update: {
+          autor_id?: string | null
+          autor_nome?: string | null
+          categoria?: string
+          conteudo?: string
+          created_at?: string
+          data_publicacao?: string | null
+          destaque?: boolean | null
+          evento_relacionado?: string | null
+          id?: string
+          imagem_destaque_alt?: string | null
+          imagem_destaque_url?: string | null
+          resumo?: string | null
+          slug?: string
+          status?: string
+          subtitulo?: string | null
+          tags?: string[] | null
+          titulo?: string
+          updated_at?: string
+          visualizacoes?: number | null
+        }
+        Relationships: []
       }
       ocorrencias_patrimonio: {
         Row: {
