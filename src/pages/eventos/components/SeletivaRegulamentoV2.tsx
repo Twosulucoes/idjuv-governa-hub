@@ -1,13 +1,32 @@
 /**
  * Seção de Regulamento V2 - Seletivas Estudantis
- * Regulamento completo estruturado com botão de download
+ * Regulamento completo estruturado com accordions colapsáveis e botão de download
  */
 
 import { motion } from "framer-motion";
-import { FileText, Download, Calendar, Users, Trophy, FileCheck, ClipboardCheck, AlertCircle, Scale } from "lucide-react";
+import { FileText, Download, Calendar, Users, Trophy, FileCheck, ClipboardCheck, AlertCircle, Scale, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import type { LucideIcon } from "lucide-react";
 
-const regulamentoCompleto = {
+interface SecaoRegulamento {
+  numero: string;
+  titulo: string;
+  icon: LucideIcon;
+  conteudo?: string;
+  lista?: string[];
+}
+
+const regulamentoCompleto: {
+  titulo: string;
+  subtitulo: string;
+  secoes: SecaoRegulamento[];
+} = {
   titulo: "REGULAMENTO OFICIAL",
   subtitulo: "Seletiva das Seleções Estudantis 2026",
   secoes: [
@@ -38,7 +57,7 @@ const regulamentoCompleto = {
       numero: "04",
       titulo: "PERÍODO E LOCAL",
       icon: Calendar,
-      conteudo: "As seletivas serão realizadas entre os dias 19 de fevereiro e 01 de março de 2026, no Ginásio Poliesportivo Hélio da Costa Campos, localizado na Rua Presidente Juscelino Kubitscheck, S/N, Centro, Boa Vista - RR. Os horários específicos de cada modalidade e naipe estão detalhados no cronograma oficial."
+      conteudo: "As seletivas serão realizadas entre os dias 19 de fevereiro e 01 de março de 2026, no Ginásio Poliesportivo Hélio da Costa Campos, localizado na Rua Presidente Juscelino Kubitscheck, S/N, Canarinho, Boa Vista - RR. Os horários específicos de cada modalidade e naipe estão detalhados no cronograma oficial."
     },
     {
       numero: "05",
@@ -116,58 +135,68 @@ export function SeletivaRegulamentoV2() {
           </p>
         </motion.div>
 
-        {/* Conteúdo do Regulamento */}
-        <div className="space-y-6">
-          {regulamentoCompleto.secoes.map((secao, index) => {
-            const IconComponent = secao.icon;
-            return (
-              <motion.div
-                key={secao.numero}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.05 }}
-                className="bg-white dark:bg-zinc-800 rounded-2xl p-6 md:p-8 shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start gap-4 md:gap-6">
-                  {/* Número da seção */}
-                  <div className="flex-shrink-0 w-12 h-12 md:w-14 md:h-14 rounded-xl bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center">
-                    <span className="text-lg md:text-xl font-black text-white dark:text-zinc-900">
-                      {secao.numero}
-                    </span>
-                  </div>
+        {/* Conteúdo do Regulamento com Accordion */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          <Accordion type="single" collapsible className="space-y-4">
+            {regulamentoCompleto.secoes.map((secao) => {
+              const IconComponent = secao.icon;
+              return (
+                <AccordionItem
+                  key={secao.numero}
+                  value={secao.numero}
+                  className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm hover:shadow-md transition-shadow border-0 overflow-hidden"
+                >
+                  <AccordionTrigger className="px-6 py-5 hover:no-underline [&[data-state=open]>div>.chevron]:rotate-180">
+                    <div className="flex items-center gap-4 md:gap-6 flex-1">
+                      {/* Número da seção */}
+                      <div className="flex-shrink-0 w-12 h-12 md:w-14 md:h-14 rounded-xl bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center">
+                        <span className="text-lg md:text-xl font-black text-white dark:text-zinc-900">
+                          {secao.numero}
+                        </span>
+                      </div>
 
-                  {/* Conteúdo */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-3">
-                      <IconComponent className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
-                      <h3 className="text-lg md:text-xl font-bold tracking-[0.1em] uppercase text-zinc-900 dark:text-zinc-100">
-                        {secao.titulo}
-                      </h3>
+                      {/* Título */}
+                      <div className="flex items-center gap-2 flex-1 text-left">
+                        <IconComponent className="w-5 h-5 text-zinc-500 dark:text-zinc-400 hidden md:block" />
+                        <h3 className="text-base md:text-lg font-bold tracking-[0.1em] uppercase text-zinc-900 dark:text-zinc-100">
+                          {secao.titulo}
+                        </h3>
+                      </div>
+
+                      {/* Chevron customizado */}
+                      <ChevronDown className="chevron w-5 h-5 text-zinc-500 dark:text-zinc-400 transition-transform duration-200 shrink-0" />
                     </div>
+                  </AccordionTrigger>
+                  
+                  <AccordionContent className="px-6 pb-6">
+                    <div className="pl-16 md:pl-20 border-l-2 border-zinc-200 dark:border-zinc-700 ml-6 md:ml-7">
+                      {secao.conteudo && (
+                        <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed mb-4">
+                          {secao.conteudo}
+                        </p>
+                      )}
 
-                    {secao.conteudo && (
-                      <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed mb-4">
-                        {secao.conteudo}
-                      </p>
-                    )}
-
-                    {secao.lista && (
-                      <ul className="space-y-2">
-                        {secao.lista.map((item, i) => (
-                          <li key={i} className="flex items-start gap-3">
-                            <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500 mt-2 flex-shrink-0" />
-                            <span className="text-zinc-600 dark:text-zinc-300">{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
+                      {secao.lista && (
+                        <ul className="space-y-2">
+                          {secao.lista.map((item, i) => (
+                            <li key={i} className="flex items-start gap-3">
+                              <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500 mt-2 flex-shrink-0" />
+                              <span className="text-zinc-600 dark:text-zinc-300">{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+        </motion.div>
 
         {/* Botão de Download */}
         <motion.div
