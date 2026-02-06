@@ -23,7 +23,8 @@ import {
   MapPin,
   AlertCircle,
   CheckCircle2,
-  Megaphone
+  Megaphone,
+  Loader2
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -77,18 +78,91 @@ export default function SolicitacaoPublicaAscomPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [requerAutorizacao, setRequerAutorizacao] = useState(false);
   const [protocoloGerado, setProtocoloGerado] = useState<string | null>(null);
+  const [isLoadingServidor, setIsLoadingServidor] = useState(true);
+  const [servidorLogado, setServidorLogado] = useState<{
+    id: string;
+    nome: string;
+    cargo_nome: string;
+    telefone: string;
+    email: string;
+    unidade_nome: string;
+  } | null>(null);
 
   const form = useForm<SolicitacaoFormData>({
     resolver: zodResolver(solicitacaoSchema),
     defaultValues: {
       prioridade: 'normal',
       categoria: '',
-      tipo: ''
+      tipo: '',
+      nome_responsavel: '',
+      cargo_funcao: '',
+      setor_departamento: '',
+      contato_telefone: '',
+      contato_email: ''
     }
   });
 
   const categoriaWatch = form.watch('categoria');
   const tipoWatch = form.watch('tipo');
+
+  // Carregar dados do servidor logado (se estiver autenticado)
+  useEffect(() => {
+    const fetchServidorLogado = async () => {
+      setIsLoadingServidor(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user?.id) {
+          setIsLoadingServidor(false);
+          return;
+        }
+        
+        const { data: servidor } = await supabase
+          .from('servidores')
+          .select(`
+            id,
+            nome_completo,
+            telefone_celular,
+            email_institucional,
+            unidade_atual_id,
+            cargo_atual_id,
+            cargos:cargo_atual_id (nome),
+            unidade:unidade_atual_id (nome, sigla)
+          `)
+          .eq('user_id', user.id)
+          .single();
+        
+        if (servidor) {
+          const cargoNome = (servidor.cargos as { nome: string } | null)?.nome || '';
+          const unidadeNome = servidor.unidade 
+            ? `${(servidor.unidade as { sigla: string; nome: string }).sigla} - ${(servidor.unidade as { sigla: string; nome: string }).nome}`
+            : '';
+          
+          setServidorLogado({
+            id: servidor.id,
+            nome: servidor.nome_completo,
+            cargo_nome: cargoNome,
+            telefone: servidor.telefone_celular || '',
+            email: servidor.email_institucional || '',
+            unidade_nome: unidadeNome
+          });
+          
+          // Preencher formulário com dados do servidor
+          form.setValue('nome_responsavel', servidor.nome_completo);
+          form.setValue('cargo_funcao', cargoNome);
+          form.setValue('setor_departamento', unidadeNome);
+          form.setValue('contato_telefone', servidor.telefone_celular || '');
+          form.setValue('contato_email', servidor.email_institucional || '');
+        }
+      } catch (error) {
+        console.error('Erro ao buscar dados do servidor:', error);
+      } finally {
+        setIsLoadingServidor(false);
+      }
+    };
+    
+    fetchServidorLogado();
+  }, [form]);
 
   // Verificar se requer autorização
   useEffect(() => {
@@ -292,81 +366,126 @@ export default function SolicitacaoPublicaAscomPage() {
                   <User className="h-5 w-5" />
                   Dados do Solicitante
                 </CardTitle>
-                <CardDescription>Informações de contato para retorno</CardDescription>
+                <CardDescription>
+                  {servidorLogado 
+                    ? 'Dados preenchidos automaticamente a partir do seu cadastro de servidor'
+                    : 'Informações de contato para retorno'
+                  }
+                </CardDescription>
               </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="nome_responsavel"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome Completo *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Seu nome completo" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <CardContent className="space-y-4">
+                {isLoadingServidor && (
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Verificando dados do servidor...
+                  </div>
+                )}
+                
+                {servidorLogado && (
+                  <Alert className="mb-4">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertTitle>Identificação automática</AlertTitle>
+                    <AlertDescription>
+                      Seus dados foram preenchidos automaticamente. Você pode editá-los se necessário.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
-                <FormField
-                  control={form.control}
-                  name="cargo_funcao"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cargo/Função</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Seu cargo ou função" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="nome_responsavel"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome Completo *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Seu nome completo" 
+                            {...field} 
+                            className={servidorLogado ? 'bg-muted/50' : ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="setor_departamento"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Setor/Departamento *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ex: Diretoria de Esportes" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="cargo_funcao"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cargo/Função</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Seu cargo ou função" 
+                            {...field} 
+                            className={servidorLogado ? 'bg-muted/50' : ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="contato_telefone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Telefone *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="(95) 99999-9999" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="setor_departamento"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Setor/Departamento *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Ex: Diretoria de Esportes" 
+                            {...field} 
+                            className={servidorLogado ? 'bg-muted/50' : ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="contato_email"
-                  render={({ field }) => (
-                    <FormItem className="md:col-span-2">
-                      <FormLabel>E-mail *</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="seu.email@exemplo.com" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        Você receberá atualizações sobre sua solicitação neste e-mail
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="contato_telefone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Telefone *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="(95) 99999-9999" 
+                            {...field} 
+                            className={servidorLogado ? 'bg-muted/50' : ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="contato_email"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel>E-mail *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="email" 
+                            placeholder="seu.email@exemplo.com" 
+                            {...field} 
+                            className={servidorLogado ? 'bg-muted/50' : ''}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Você receberá atualizações sobre sua solicitação neste e-mail
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </CardContent>
             </Card>
 
