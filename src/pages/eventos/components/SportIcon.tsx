@@ -21,13 +21,14 @@ const sportPositions = {
 };
 
 const sizes = {
-  sm: "w-10 h-10",
-  md: "w-14 h-14",
-  lg: "w-20 h-20",
+  sm: { container: "w-10 h-10", px: 40 },
+  md: { container: "w-14 h-14", px: 56 },
+  lg: { container: "w-20 h-20", px: 80 },
 };
 
 export function SportIcon({ sport, className, size = "md" }: SportIconProps) {
   const position = sportPositions[sport];
+  const sizeConfig = sizes[size];
   
   // Calcula a posição do background para mostrar apenas o quadrante correto
   const bgPositionX = position.col === 0 ? "0%" : "100%";
@@ -36,16 +37,20 @@ export function SportIcon({ sport, className, size = "md" }: SportIconProps) {
   return (
     <div
       className={cn(
-        "rounded-lg overflow-hidden flex-shrink-0 grayscale contrast-200 brightness-0 dark:invert",
-        sizes[size],
+        "rounded-lg overflow-hidden flex-shrink-0",
+        sizeConfig.container,
         className
       )}
-      style={{
-        backgroundImage: `url(${silhuetasImg})`,
-        backgroundSize: "200% 200%",
-        backgroundPosition: `${bgPositionX} ${bgPositionY}`,
-      }}
-      aria-label={`Ícone de ${sport}`}
-    />
+    >
+      <img
+        src={silhuetasImg}
+        alt={`Ícone de ${sport}`}
+        className="w-[200%] h-[200%] object-cover grayscale contrast-200 brightness-0 dark:invert"
+        style={{
+          objectPosition: `${bgPositionX} ${bgPositionY}`,
+          transform: `translate(${position.col === 0 ? '0' : '-50%'}, ${position.row === 0 ? '0' : '-50%'})`,
+        }}
+      />
+    </div>
   );
 }
