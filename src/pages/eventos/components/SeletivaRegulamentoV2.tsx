@@ -53,7 +53,7 @@ const regulamentoCompleto: {
       numero: "04",
       titulo: "PERÍODO E LOCAL",
       icon: Calendar,
-      conteudo: "As seletivas serão realizadas entre os dias 19 de fevereiro e 01 de março de 2026, no Ginásio Poliesportivo Hélio da Costa Campos, localizado na Rua Presidente Juscelino Kubitscheck, S/N, Canarinho, Boa Vista - RR."
+      conteudo: "As seletivas serão realizadas entre os dias 19 de fevereiro e 01 de março de 2026, no Ginásio Poliesportivo Hélio da Costa Campos, localizado na Rua Presidente Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR."
     },
     {
       numero: "05",
@@ -63,9 +63,7 @@ const regulamentoCompleto: {
         "Documento de identidade oficial com foto",
         "Declaração de matrícula escolar (2026)",
         "Autorização dos pais/responsáveis",
-        "Atestado médico (últimos 90 dias)",
-        "02 fotos 3x4 recentes",
-        "Comprovante de residência em RR"
+        "Atestado médico (últimos 90 dias)"
       ]
     },
     {
@@ -88,7 +86,6 @@ const regulamentoCompleto: {
       lista: [
         "Inscrição gratuita no local da seletiva",
         "Proibido representar outros estados",
-        "Não comparecimento = eliminação",
         "Comissão técnica autônoma",
         "Casos omissos: Diretoria de Esporte"
       ]

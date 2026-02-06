@@ -25,14 +25,14 @@ const modalidades = [
         data: "19 DE FEVEREIRO",
         horario: "08H",
         local: "GINÁSIO HÉLIO DA COSTA CAMPOS",
-        endereco: "R. Pres. Juscelino Kubitscheck, S/N, Canarinho, Boa Vista - RR"
+        endereco: "R. Pres. Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR"
       },
       {
         naipe: "MASCULINO" as const,
         data: "19 DE FEVEREIRO",
         horario: "14H",
         local: "GINÁSIO HÉLIO DA COSTA CAMPOS",
-        endereco: "R. Pres. Juscelino Kubitscheck, S/N, Canarinho, Boa Vista - RR"
+        endereco: "R. Pres. Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR"
       }
     ]
   },
@@ -46,14 +46,14 @@ const modalidades = [
         data: "21 DE FEVEREIRO",
         horario: "08H",
         local: "GINÁSIO HÉLIO DA COSTA CAMPOS",
-        endereco: "R. Pres. Juscelino Kubitscheck, S/N, Canarinho, Boa Vista - RR"
+        endereco: "R. Pres. Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR"
       },
       {
         naipe: "MASCULINO" as const,
         data: "21 DE FEVEREIRO",
         horario: "14H",
         local: "GINÁSIO HÉLIO DA COSTA CAMPOS",
-        endereco: "R. Pres. Juscelino Kubitscheck, S/N, Canarinho, Boa Vista - RR"
+        endereco: "R. Pres. Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR"
       }
     ]
   },
@@ -67,14 +67,14 @@ const modalidades = [
         data: "26 DE FEVEREIRO",
         horario: "08H30",
         local: "GINÁSIO HÉLIO DA COSTA CAMPOS",
-        endereco: "R. Pres. Juscelino Kubitscheck, S/N, Canarinho, Boa Vista - RR"
+        endereco: "R. Pres. Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR"
       },
       {
         naipe: "MASCULINO" as const,
         data: "26 DE FEVEREIRO",
         horario: "15H",
         local: "GINÁSIO HÉLIO DA COSTA CAMPOS",
-        endereco: "R. Pres. Juscelino Kubitscheck, S/N, Canarinho, Boa Vista - RR"
+        endereco: "R. Pres. Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR"
       }
     ]
   },
@@ -88,14 +88,14 @@ const modalidades = [
         data: "28 DE FEVEREIRO",
         horario: "08H30",
         local: "GINÁSIO HÉLIO DA COSTA CAMPOS",
-        endereco: "R. Pres. Juscelino Kubitscheck, S/N, Canarinho, Boa Vista - RR"
+        endereco: "R. Pres. Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR"
       },
       {
         naipe: "MASCULINO" as const,
         data: "28 DE FEVEREIRO",
         horario: "15H",
         local: "GINÁSIO HÉLIO DA COSTA CAMPOS",
-        endereco: "R. Pres. Juscelino Kubitscheck, S/N, Canarinho, Boa Vista - RR"
+        endereco: "R. Pres. Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR"
       }
     ]
   }
