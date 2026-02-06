@@ -4,7 +4,7 @@
  * Define todos os módulos do sistema e suas rotas associadas.
  * Usado para controle de acesso baseado em módulos (pasta = permissão).
  * 
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import {
@@ -71,7 +71,7 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     icone: Users,
     cor: 'blue',
     rotas: ['/rh', '/folha', '/curriculo'],
-    menuSectionIds: ['rh', 'folha'],
+    menuSectionIds: ['rh'],
   },
   {
     codigo: 'workflow',
@@ -116,7 +116,7 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     icone: Package,
     cor: 'cyan',
     rotas: ['/inventario', '/unidades', '/processos/patrimonio', '/processos/almoxarifado'],
-    menuSectionIds: ['inventario'],
+    menuSectionIds: ['inventario', 'espacos-federacoes'],
   },
   {
     codigo: 'governanca',
@@ -125,7 +125,7 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     icone: Building2,
     cor: 'indigo',
     rotas: ['/governanca', '/organograma', '/cargos', '/lotacoes', '/federacoes', '/instituicoes', '/programas', '/integridade'],
-    menuSectionIds: ['governanca', 'estrutura'],
+    menuSectionIds: ['governanca'],
   },
   {
     codigo: 'transparencia',
@@ -143,7 +143,7 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     icone: Megaphone,
     cor: 'pink',
     rotas: ['/ascom'],
-    menuSectionIds: ['comunicacao'],
+    menuSectionIds: ['ascom'],
   },
 ];
 
@@ -195,4 +195,13 @@ export const MODULO_COR_CLASSES: Record<string, string> = {
  */
 export function getModuloCorClass(cor: string | null): string {
   return MODULO_COR_CLASSES[cor || 'slate'] || MODULO_COR_CLASSES.slate;
+}
+
+/**
+ * Verifica se uma seção do menu pertence a algum módulo
+ * Retorna o primeiro módulo encontrado ou null
+ */
+export function getModuleForMenuSection(sectionId: string): Modulo | null {
+  const config = MODULES_CONFIG.find(m => m.menuSectionIds.includes(sectionId));
+  return config?.codigo || null;
 }

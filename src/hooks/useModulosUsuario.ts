@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { MODULOS, type Modulo } from '@/types/rbac';
+import { MODULOS, type Modulo, findModuleByRoute } from '@/shared/config/modules.config';
 
 export function useModulosUsuario() {
   const { user, isSuperAdmin } = useAuth();
@@ -45,8 +45,8 @@ export function useModulosUsuario() {
         .eq('user_id', user.id);
 
       const modulos = (modulosData || [])
-        .map(m => m.modulo as Modulo)
-        .filter(Boolean);
+        .map(m => m.modulo)
+        .filter((m): m is Modulo => MODULOS.includes(m as Modulo));
       
       setModulosAutorizados(modulos);
     } catch (error) {
@@ -74,31 +74,14 @@ export function useModulosUsuario() {
     // Super admin tem acesso total
     if (isSuperAdmin || perfilCodigo === 'super_admin') return true;
     
-    // Mapear prefixos de rota para módulos
-    const rotaModuloMap: Record<string, Modulo> = {
-      '/admin': 'admin',
-      '/rh': 'rh',
-      '/workflow': 'workflow',
-      '/processos': 'workflow',
-      '/compras': 'compras',
-      '/licitacoes': 'compras',
-      '/contratos': 'contratos',
-      '/patrimonio': 'patrimonio',
-      '/financeiro': 'financeiro',
-      '/orcamento': 'orcamento',
-      '/governanca': 'governanca',
-      '/transparencia': 'transparencia',
-    };
+    // Usar a função do modules.config para mapear rota -> módulo
+    const modulo = findModuleByRoute(pathname);
     
-    // Encontrar módulo que cobre a rota
-    for (const [prefixo, modulo] of Object.entries(rotaModuloMap)) {
-      if (pathname === prefixo || pathname.startsWith(prefixo + '/')) {
-        return modulosAutorizados.includes(modulo);
-      }
-    }
+    // Rota não mapeada a nenhum módulo = permitida
+    if (!modulo) return true;
     
-    // Rota não mapeada = permitida
-    return true;
+    // Verificar se tem acesso ao módulo da rota
+    return modulosAutorizados.includes(modulo.codigo);
   }, [isSuperAdmin, perfilCodigo, modulosAutorizados]);
 
   return {

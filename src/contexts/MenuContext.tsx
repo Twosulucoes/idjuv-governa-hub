@@ -1,10 +1,10 @@
 /**
  * CONTEXTO DE MENU INSTITUCIONAL
  * 
- * Gerencia estado do menu e integração com RBAC
- * Filtra itens baseado em permissões do AuthContext
+ * Gerencia estado do menu e integração com RBAC + Módulos
+ * Filtra itens baseado em permissões do AuthContext E módulos do usuário
  * 
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import React, { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
@@ -17,6 +17,8 @@ import {
   type MenuSection,
   type PermissaoInstitucional 
 } from '@/config/menu.config';
+import { getModuleForMenuSection, type Modulo } from '@/shared/config/modules.config';
+import { useModulosUsuario } from '@/hooks/useModulosUsuario';
 
 // ================================
 // TIPOS
@@ -31,7 +33,7 @@ export interface MenuSectionFiltered extends Omit<MenuSection, 'items'> {
 }
 
 interface MenuContextType {
-  // Menu filtrado por permissões
+  // Menu filtrado por permissões e módulos
   sections: MenuSectionFiltered[];
   dashboard: MenuItem;
   
@@ -59,6 +61,7 @@ interface MenuContextType {
   // Helpers
   isActive: (route?: string) => boolean;
   hasPermission: (permission?: PermissaoInstitucional) => boolean;
+  hasModuleAccess: (modulo: Modulo) => boolean;
   getQuickAccessItems: () => MenuItemFiltered[];
   getFavoriteItems: () => MenuItemFiltered[];
 }
@@ -78,6 +81,7 @@ const MenuContext = createContext<MenuContextType | undefined>(undefined);
 export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const { isLoading: authLoading, isAuthenticated, isSuperAdmin, hasPermission: authHasPermission } = useAuth();
+  const { modulosAutorizados, loading: modulosLoading, temAcessoModulo } = useModulosUsuario();
   
   // Estado local
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -143,12 +147,19 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return authHasPermission(permission);
   }, [isAuthenticated, isSuperAdmin, authHasPermission]);
 
+  const hasModuleAccess = useCallback((modulo: Modulo): boolean => {
+    // Super admin tem acesso total
+    if (isSuperAdmin) return true;
+    
+    return temAcessoModulo(modulo);
+  }, [isSuperAdmin, temAcessoModulo]);
+
   // ================================
   // FILTRAGEM DO MENU
   // ================================
 
   const sections = useMemo((): MenuSectionFiltered[] => {
-    if (authLoading) return [];
+    if (authLoading || modulosLoading) return [];
 
     const filterItem = (item: MenuItem): MenuItemFiltered | null => {
       // Item com filhos
@@ -172,6 +183,14 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const result: MenuSectionFiltered[] = [];
 
     for (const section of menuConfig) {
+      // Verificar se a seção está mapeada a um módulo
+      const moduloDaSecao = getModuleForMenuSection(section.id);
+      
+      // Se mapeada a um módulo, verificar acesso
+      if (moduloDaSecao && !hasModuleAccess(moduloDaSecao)) {
+        continue; // Pular seção inteira se não tem acesso ao módulo
+      }
+      
       const filteredItems = section.items
         .map(filterItem)
         .filter((item): item is MenuItemFiltered => item !== null);
@@ -183,10 +202,10 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Ordenar por prioridade
     return result.sort((a, b) => (a.priority || 99) - (b.priority || 99));
-  }, [authLoading, hasPermission]);
+  }, [authLoading, modulosLoading, hasPermission, hasModuleAccess]);
 
   // ================================
-// HELPERS
+  // HELPERS
   // ================================
 
   const isActive = useCallback((route?: string): boolean => {
@@ -280,7 +299,7 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value: MenuContextType = {
     sections,
     dashboard: DASHBOARD_ITEM,
-    isLoading: authLoading,
+    isLoading: authLoading || modulosLoading,
     isSidebarOpen,
     isMobileDrawerOpen,
     openSections,
@@ -295,6 +314,7 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toggleFavorite,
     isActive,
     hasPermission,
+    hasModuleAccess,
     getQuickAccessItems,
     getFavoriteItems,
   };

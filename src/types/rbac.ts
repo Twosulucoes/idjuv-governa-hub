@@ -2,24 +2,9 @@
 // TIPOS DO SISTEMA RBAC SIMPLIFICADO (3 PERFIS)
 // ============================================
 
-/**
- * Módulos do sistema
- * Cada módulo representa uma área funcional que pode ser liberada para usuários
- */
-export const MODULOS = [
-  'admin',
-  'workflow',
-  'compras',
-  'contratos',
-  'rh',
-  'financeiro',
-  'orcamento',
-  'patrimonio',
-  'governanca',
-  'transparencia',
-] as const;
-
-export type Modulo = typeof MODULOS[number];
+// Re-exportar do módulo central de configuração
+export { MODULOS, type Modulo, MODULES_CONFIG, getModuleByCode, findModuleByRoute, MODULO_COR_CLASSES, getModuloCorClass } from '@/shared/config/modules.config';
+import { MODULOS, type Modulo, MODULES_CONFIG } from '@/shared/config/modules.config';
 
 /**
  * Códigos de perfil do sistema (apenas 3)
@@ -101,21 +86,13 @@ export interface UsuarioAdmin {
   modulos: Modulo[];
 }
 
-// Labels amigáveis para módulos
-export const MODULO_LABELS: Record<Modulo, string> = {
-  admin: 'Administração',
-  workflow: 'Processos',
-  compras: 'Compras',
-  contratos: 'Contratos',
-  rh: 'Recursos Humanos',
-  financeiro: 'Financeiro',
-  orcamento: 'Orçamento',
-  patrimonio: 'Patrimônio',
-  governanca: 'Governança',
-  transparencia: 'Transparência',
-};
+// Labels amigáveis para módulos - derivado do MODULES_CONFIG
+export const MODULO_LABELS: Record<Modulo, string> = MODULES_CONFIG.reduce((acc, m) => {
+  acc[m.codigo] = m.nome;
+  return acc;
+}, {} as Record<Modulo, string>);
 
-// Ícones para módulos (emoji)
+// Ícones para módulos (emoji) - mapeamento para componentes que usam emoji
 export const MODULO_ICONES: Record<Modulo, string> = {
   admin: '⚙️',
   workflow: '🔄',
@@ -123,10 +100,10 @@ export const MODULO_ICONES: Record<Modulo, string> = {
   contratos: '📝',
   rh: '👥',
   financeiro: '💰',
-  orcamento: '📊',
   patrimonio: '📦',
   governanca: '⚖️',
   transparencia: '👁️',
+  comunicacao: '📢',
 };
 
 // Labels para perfis
