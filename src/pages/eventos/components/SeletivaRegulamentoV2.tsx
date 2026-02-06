@@ -1,17 +1,13 @@
 /**
  * Seção de Regulamento V2 - Seletivas Estudantis
- * Regulamento completo estruturado com accordions colapsáveis e botão de download
+ * Regulamento em formato de carrossel moderno e dinâmico
  */
 
-import { motion } from "framer-motion";
-import { FileText, Download, Calendar, Users, Trophy, FileCheck, ClipboardCheck, AlertCircle, Scale, ChevronDown } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { FileText, Download, Calendar, Users, Trophy, FileCheck, ClipboardCheck, AlertCircle, Scale, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import useEmblaCarousel from "embla-carousel-react";
 import type { LucideIcon } from "lucide-react";
 
 interface SecaoRegulamento {
@@ -57,32 +53,32 @@ const regulamentoCompleto: {
       numero: "04",
       titulo: "PERÍODO E LOCAL",
       icon: Calendar,
-      conteudo: "As seletivas serão realizadas entre os dias 19 de fevereiro e 01 de março de 2026, no Ginásio Poliesportivo Hélio da Costa Campos, localizado na Rua Presidente Juscelino Kubitscheck, S/N, Canarinho, Boa Vista - RR. Os horários específicos de cada modalidade e naipe estão detalhados no cronograma oficial."
+      conteudo: "As seletivas serão realizadas entre os dias 19 de fevereiro e 01 de março de 2026, no Ginásio Poliesportivo Hélio da Costa Campos, localizado na Rua Presidente Juscelino Kubitscheck, S/N, Canarinho, Boa Vista - RR."
     },
     {
       numero: "05",
-      titulo: "DOCUMENTAÇÃO NECESSÁRIA",
+      titulo: "DOCUMENTAÇÃO",
       icon: FileCheck,
       lista: [
-        "Documento de identidade oficial com foto (RG ou CNH)",
-        "Declaração de matrícula escolar atualizada (2026)",
-        "Autorização dos pais ou responsáveis legais (menores de 18 anos)",
-        "Atestado médico de aptidão física (emitido nos últimos 90 dias)",
+        "Documento de identidade oficial com foto",
+        "Declaração de matrícula escolar (2026)",
+        "Autorização dos pais/responsáveis",
+        "Atestado médico (últimos 90 dias)",
         "02 fotos 3x4 recentes",
-        "Comprovante de residência no Estado de Roraima"
+        "Comprovante de residência em RR"
       ]
     },
     {
       numero: "06",
-      titulo: "CRITÉRIOS DE SELEÇÃO",
+      titulo: "CRITÉRIOS",
       icon: ClipboardCheck,
-      conteudo: "Os atletas serão avaliados por comissão técnica designada pelo Instituto de Desporto e Juventude de Roraima (IDJuv), considerando os seguintes aspectos:",
+      conteudo: "Os atletas serão avaliados por comissão técnica do IDJuv considerando:",
       lista: [
-        "Habilidades técnicas específicas da modalidade",
+        "Habilidades técnicas da modalidade",
         "Capacidade tática e leitura de jogo",
-        "Condicionamento físico adequado à categoria",
-        "Comportamento e disciplina esportiva",
-        "Potencial de desenvolvimento e evolução"
+        "Condicionamento físico",
+        "Comportamento e disciplina",
+        "Potencial de evolução"
       ]
     },
     {
@@ -90,30 +86,60 @@ const regulamentoCompleto: {
       titulo: "DISPOSIÇÕES GERAIS",
       icon: AlertCircle,
       lista: [
-        "A inscrição é gratuita e deve ser realizada no local da seletiva",
-        "Atletas que já representam seleções de outros estados estão impedidos de participar",
-        "O não comparecimento no dia e horário designados implica em eliminação automática",
-        "A comissão técnica tem autonomia total nas decisões de seleção",
-        "Os casos omissos serão resolvidos pela Diretoria de Esporte do IDJuv"
+        "Inscrição gratuita no local da seletiva",
+        "Proibido representar outros estados",
+        "Não comparecimento = eliminação",
+        "Comissão técnica autônoma",
+        "Casos omissos: Diretoria de Esporte"
       ]
     },
     {
       numero: "08",
-      titulo: "FUNDAMENTAÇÃO LEGAL",
+      titulo: "FUNDAMENTAÇÃO",
       icon: Scale,
-      conteudo: "Este regulamento está fundamentado na Lei Estadual nº XXX/XXXX, que dispõe sobre a política estadual de esporte e lazer, e nas diretrizes estabelecidas pelo Comitê Olímpico do Brasil para os Jogos da Juventude 2026."
+      conteudo: "Este regulamento está fundamentado na Lei Estadual de política de esporte e lazer, e nas diretrizes do COB para os Jogos da Juventude 2026."
     }
   ]
 };
 
 export function SeletivaRegulamentoV2() {
-  // TODO: Substituir por link real do regulamento quando disponível
+  const [emblaRef, emblaApi] = useEmblaCarousel({ 
+    loop: true,
+    align: "center",
+    skipSnaps: false,
+  });
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(false);
+
+  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
+  const scrollTo = useCallback((index: number) => emblaApi?.scrollTo(index), [emblaApi]);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+    setCanScrollPrev(emblaApi.canScrollPrev());
+    setCanScrollNext(emblaApi.canScrollNext());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on("select", onSelect);
+    emblaApi.on("reInit", onSelect);
+    return () => {
+      emblaApi.off("select", onSelect);
+      emblaApi.off("reInit", onSelect);
+    };
+  }, [emblaApi, onSelect]);
+
   const regulamentoDisponivel = true;
   const linkRegulamento = "#";
 
   return (
-    <section className="py-20 px-4 bg-zinc-100 dark:bg-zinc-900 transition-colors">
-      <div className="container mx-auto max-w-5xl">
+    <section className="py-20 px-4 bg-zinc-100 dark:bg-zinc-900 transition-colors overflow-hidden">
+      <div className="container mx-auto max-w-6xl">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -135,67 +161,154 @@ export function SeletivaRegulamentoV2() {
           </p>
         </motion.div>
 
-        {/* Conteúdo do Regulamento com Accordion */}
+        {/* Carrossel */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
+          className="relative"
         >
-          <Accordion type="single" collapsible className="space-y-4">
-            {regulamentoCompleto.secoes.map((secao) => {
-              const IconComponent = secao.icon;
-              return (
-                <AccordionItem
-                  key={secao.numero}
-                  value={secao.numero}
-                  className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm hover:shadow-md transition-shadow border-0 overflow-hidden"
-                >
-                  <AccordionTrigger className="px-6 py-5 hover:no-underline [&[data-state=open]>div>.chevron]:rotate-180">
-                    <div className="flex items-center gap-4 md:gap-6 flex-1">
-                      {/* Número da seção */}
-                      <div className="flex-shrink-0 w-12 h-12 md:w-14 md:h-14 rounded-xl bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center">
-                        <span className="text-lg md:text-xl font-black text-white dark:text-zinc-900">
-                          {secao.numero}
-                        </span>
+          {/* Navegação Desktop */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={scrollPrev}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 hidden md:flex w-12 h-12 rounded-full bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 shadow-lg hover:scale-110 transition-transform -translate-x-6"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={scrollNext}
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 hidden md:flex w-12 h-12 rounded-full bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 shadow-lg hover:scale-110 transition-transform translate-x-6"
+          >
+            <ChevronRight className="w-6 h-6" />
+          </Button>
+
+          {/* Embla Viewport */}
+          <div ref={emblaRef} className="overflow-hidden">
+            <div className="flex">
+              {regulamentoCompleto.secoes.map((secao, index) => {
+                const IconComponent = secao.icon;
+                const isActive = index === selectedIndex;
+                
+                return (
+                  <div 
+                    key={secao.numero} 
+                    className="flex-[0_0_85%] md:flex-[0_0_60%] lg:flex-[0_0_50%] min-w-0 px-3"
+                  >
+                    <motion.div
+                      animate={{
+                        scale: isActive ? 1 : 0.9,
+                        opacity: isActive ? 1 : 0.5,
+                      }}
+                      transition={{ duration: 0.3 }}
+                      className="bg-white dark:bg-zinc-800 rounded-3xl p-6 md:p-8 shadow-xl h-full min-h-[320px] flex flex-col"
+                    >
+                      {/* Header do Card */}
+                      <div className="flex items-center gap-4 mb-6">
+                        <div className="w-16 h-16 rounded-2xl bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center shadow-lg">
+                          <span className="text-2xl font-black text-white dark:text-zinc-900">
+                            {secao.numero}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <IconComponent className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
+                            <span className="text-xs font-bold tracking-[0.15em] uppercase text-zinc-500 dark:text-zinc-400">
+                              Seção {secao.numero}
+                            </span>
+                          </div>
+                          <h3 className="text-xl md:text-2xl font-black tracking-[0.1em] uppercase text-zinc-900 dark:text-zinc-100">
+                            {secao.titulo}
+                          </h3>
+                        </div>
                       </div>
 
-                      {/* Título */}
-                      <div className="flex items-center gap-2 flex-1 text-left">
-                        <IconComponent className="w-5 h-5 text-zinc-500 dark:text-zinc-400 hidden md:block" />
-                        <h3 className="text-base md:text-lg font-bold tracking-[0.1em] uppercase text-zinc-900 dark:text-zinc-100">
-                          {secao.titulo}
-                        </h3>
+                      {/* Conteúdo */}
+                      <div className="flex-1">
+                        {secao.conteudo && (
+                          <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed mb-4">
+                            {secao.conteudo}
+                          </p>
+                        )}
+
+                        {secao.lista && (
+                          <ul className="space-y-2">
+                            {secao.lista.map((item, i) => (
+                              <li key={i} className="flex items-start gap-3">
+                                <span className="w-2 h-2 rounded-full bg-zinc-900 dark:bg-zinc-100 mt-2 flex-shrink-0" />
+                                <span className="text-sm text-zinc-600 dark:text-zinc-300">{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
 
-                      {/* Chevron customizado */}
-                      <ChevronDown className="chevron w-5 h-5 text-zinc-500 dark:text-zinc-400 transition-transform duration-200 shrink-0" />
-                    </div>
-                  </AccordionTrigger>
-                  
-                  <AccordionContent className="px-6 pb-6">
-                    <div className="pl-16 md:pl-20 border-l-2 border-zinc-200 dark:border-zinc-700 ml-6 md:ml-7">
-                      {secao.conteudo && (
-                        <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed mb-4">
-                          {secao.conteudo}
-                        </p>
-                      )}
+                      {/* Footer com indicador de progresso */}
+                      <div className="mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold tracking-[0.1em] uppercase text-zinc-400 dark:text-zinc-500">
+                            {index + 1} de {regulamentoCompleto.secoes.length}
+                          </span>
+                          <div className="flex gap-1">
+                            {regulamentoCompleto.secoes.map((_, i) => (
+                              <div
+                                key={i}
+                                className={`h-1 rounded-full transition-all duration-300 ${
+                                  i === index 
+                                    ? "w-6 bg-zinc-900 dark:bg-zinc-100" 
+                                    : "w-1 bg-zinc-300 dark:bg-zinc-600"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
-                      {secao.lista && (
-                        <ul className="space-y-2">
-                          {secao.lista.map((item, i) => (
-                            <li key={i} className="flex items-start gap-3">
-                              <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500 mt-2 flex-shrink-0" />
-                              <span className="text-zinc-600 dark:text-zinc-300">{item}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              );
-            })}
-          </Accordion>
+          {/* Navegação Mobile */}
+          <div className="flex justify-center gap-4 mt-6 md:hidden">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={scrollPrev}
+              className="w-12 h-12 rounded-full"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={scrollNext}
+              className="w-12 h-12 rounded-full"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </Button>
+          </div>
+
+          {/* Dots Indicator */}
+          <div className="flex justify-center gap-2 mt-8">
+            {regulamentoCompleto.secoes.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => scrollTo(index)}
+                className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                  index === selectedIndex 
+                    ? "bg-zinc-900 dark:bg-zinc-100 scale-125" 
+                    : "bg-zinc-300 dark:bg-zinc-600 hover:bg-zinc-400 dark:hover:bg-zinc-500"
+                }`}
+                aria-label={`Ir para seção ${index + 1}`}
+              />
+            ))}
+          </div>
         </motion.div>
 
         {/* Botão de Download */}
@@ -206,9 +319,9 @@ export function SeletivaRegulamentoV2() {
           transition={{ delay: 0.3 }}
           className="mt-12"
         >
-          <div className="bg-zinc-900 dark:bg-zinc-100 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="bg-zinc-900 dark:bg-zinc-100 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-xl bg-zinc-800 dark:bg-zinc-200 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-2xl bg-zinc-800 dark:bg-zinc-200 flex items-center justify-center">
                 <FileText className="w-8 h-8 text-zinc-300 dark:text-zinc-600" />
               </div>
               <div>
@@ -219,7 +332,7 @@ export function SeletivaRegulamentoV2() {
                   Regulamento Completo (PDF)
                 </p>
                 <p className="text-sm text-zinc-400 dark:text-zinc-500">
-                  Versão oficial para impressão e consulta
+                  Versão oficial para impressão
                 </p>
               </div>
             </div>
