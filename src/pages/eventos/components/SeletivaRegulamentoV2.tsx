@@ -62,8 +62,7 @@ const regulamentoCompleto: {
       lista: [
         "Documento de identidade oficial com foto",
         "Declaração de matrícula escolar (2026)",
-        "Autorização dos pais/responsáveis",
-        "Atestado médico (últimos 90 dias)"
+        "Autorização dos pais/responsáveis"
       ]
     },
     {
@@ -81,17 +80,18 @@ const regulamentoCompleto: {
     },
     {
       numero: "07",
-      titulo: "DISPOSIÇÕES GERAIS",
-      icon: AlertCircle,
-      lista: [
-        "Inscrição gratuita no local da seletiva",
-        "Proibido representar outros estados",
-        "Comissão técnica autônoma",
-        "Casos omissos: Diretoria de Esporte"
-      ]
+      titulo: "DINÂMICA DA SELETIVA",
+      icon: Users,
+      conteudo: "No dia da seletiva, os trabalhos serão conduzidos por servidores e professores designados para garantir o melhor aproveitamento dos critérios de avaliação e escolha dos atletas."
     },
     {
       numero: "08",
+      titulo: "DISPOSIÇÕES GERAIS",
+      icon: AlertCircle,
+      conteudo: "A comissão técnica foi aprovada pela Presidência do IDJuv em processo administrativo próprio, com número de protocolo SEI disponível para conferência. Os casos omissos serão tratados pela comissão técnica, com decisão final do Presidente do Instituto."
+    },
+    {
+      numero: "09",
       titulo: "FUNDAMENTAÇÃO",
       icon: Scale,
       conteudo: "Este regulamento está fundamentado na Lei Estadual de política de esporte e lazer, e nas diretrizes do COB para os Jogos da Juventude 2026."
