@@ -101,14 +101,16 @@ export function useAdminUsuarios() {
   const definirPerfil = async (userId: string, perfilCodigo: PerfilCodigo | null) => {
     setSaving(true);
     try {
-      if (perfilCodigo === null) {
-        // Remover perfil
-        const { error } = await supabase
-          .from('usuario_perfis')
-          .delete()
-          .eq('user_id', userId);
+      // 1) Desativar perfis anteriores do usuário
+      const { error: desativarError } = await supabase
+        .from('usuario_perfis')
+        .update({ ativo: false })
+        .eq('user_id', userId);
 
-        if (error) throw error;
+      if (desativarError) throw desativarError;
+
+      if (perfilCodigo === null) {
+        // Apenas desativou – não precisa inserir novo
       } else {
         // Buscar ID do perfil
         const { data: perfil, error: perfilError } = await supabase
@@ -119,17 +121,18 @@ export function useAdminUsuarios() {
 
         if (perfilError) throw perfilError;
 
-        // Upsert associação
-        const { error } = await supabase
+        // Inserir ou atualizar para ativo = true
+        const { error: upsertError } = await supabase
           .from('usuario_perfis')
           .upsert({
             user_id: userId,
             perfil_id: perfil.id,
+            ativo: true,
           }, {
-            onConflict: 'user_id',
+            onConflict: 'user_id,perfil_id',
           });
 
-        if (error) throw error;
+        if (upsertError) throw upsertError;
       }
 
       toast({ title: 'Perfil atualizado!' });
