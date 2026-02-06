@@ -34,7 +34,7 @@ const contatosPadrao: Contato[] = [{
   tipo: "site_oficial",
   titulo: "Jogos da Juventude",
   subtitulo: "Site Oficial do COB",
-  valor: "https://www.jogosdajuventude.com.br",
+  valor: "https://jogosdajuventude.org.br",
   icone: "trophy",
   ordem: 1
 }, {
