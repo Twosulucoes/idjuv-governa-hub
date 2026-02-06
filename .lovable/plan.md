@@ -1,283 +1,480 @@
 
-# Plano: Reset Total e Sistema Simplificado de 3 Perfis
 
-## Resumo
+# Plano: Sistema de Modulos com Todos os Formularios Organizados
 
-Vamos eliminar toda a complexidade atual e criar um sistema com apenas **3 tipos de usuário**:
+## Objetivo
 
-| Perfil | Acesso | Descrição |
-|--------|--------|-----------|
-| **Super Admin** | Tudo | Você - controle total |
-| **Gestor** | Módulos selecionados + Aprovações | Pode aprovar processos + acessar módulos escolhidos |
-| **Servidor** | Módulos selecionados | Apenas visualiza/opera nos módulos liberados |
+Reorganizar 100% do codigo por modulos funcionais, mover todos os formularios avulsos para seus modulos afins, e criar um sistema de controle de acesso onde cada "pasta" (modulo) pode ser liberada ou bloqueada para usuarios.
 
 ---
 
-## O Que Será Feito
+## Mapeamento Completo de Formularios por Modulo
 
-### 1. Arquivar Tabelas Antigas (Backup)
+### Modulo RH (Recursos Humanos)
 
-Renomear todas as tabelas de RBAC para backup interno:
+| Formulario | Tipo | Localizacao Atual | Nova Localizacao |
+|------------|------|-------------------|------------------|
+| DadosPessoaisForm.tsx | Pre-cadastro | src/components/curriculo/ | src/modules/rh/components/curriculo/ |
+| DocumentosForm.tsx | Pre-cadastro | src/components/curriculo/ | src/modules/rh/components/curriculo/ |
+| EnderecoForm.tsx | Pre-cadastro | src/components/curriculo/ | src/modules/rh/components/curriculo/ |
+| PrevidenciaForm.tsx | Pre-cadastro | src/components/curriculo/ | src/modules/rh/components/curriculo/ |
+| EscolaridadeForm.tsx | Pre-cadastro | src/components/curriculo/ | src/modules/rh/components/curriculo/ |
+| AptidoesForm.tsx | Pre-cadastro | src/components/curriculo/ | src/modules/rh/components/curriculo/ |
+| ChecklistForm.tsx | Pre-cadastro | src/components/curriculo/ | src/modules/rh/components/curriculo/ |
+| DadosBancariosForm.tsx | Pre-cadastro | src/components/curriculo/ | src/modules/rh/components/curriculo/ |
+| DependentesForm.tsx | Pre-cadastro | src/components/curriculo/ | src/modules/rh/components/curriculo/ |
+| RevisaoForm.tsx | Pre-cadastro | src/components/curriculo/ | src/modules/rh/components/curriculo/ |
+| ProvimentoForm.tsx | Servidor | src/components/rh/ | src/modules/rh/components/servidor/ |
+| ExoneracaoForm.tsx | Servidor | src/components/rh/ | src/modules/rh/components/servidor/ |
+| DesignacaoForm.tsx | Servidor | src/components/rh/ | src/modules/rh/components/servidor/ |
+| CessaoForm.tsx | Servidor | src/components/rh/ | src/modules/rh/components/servidor/ |
+| RetornoCessaoForm.tsx | Servidor | src/components/rh/ | src/modules/rh/components/servidor/ |
+| VinculoFuncionalForm.tsx | Servidor | src/components/rh/ | src/modules/rh/components/servidor/ |
+| LotacaoForm.tsx | Servidor | src/components/rh/ | src/modules/rh/components/servidor/ |
+| PortariaForm.tsx | Portaria | src/components/portarias/ | src/modules/rh/components/portarias/ |
+| NovaPortariaUnificada.tsx | Portaria | src/components/portarias/ | src/modules/rh/components/portarias/ |
+| PortariaColetivaDialog.tsx | Portaria | src/components/portarias/ | src/modules/rh/components/portarias/ |
+| EditarPortariaDialog.tsx | Portaria | src/components/portarias/ | src/modules/rh/components/portarias/ |
+| RetificarPortariaDialog.tsx | Portaria | src/components/portarias/ | src/modules/rh/components/portarias/ |
+| LancarFaltaDialog.tsx | Frequencia | src/components/frequencia/ | src/modules/rh/components/frequencia/ |
+| ImprimirFrequenciaDialog.tsx | Frequencia | src/components/frequencia/ | src/modules/rh/components/frequencia/ |
+| **OrdemMissaoPage.tsx** | Avulso | src/pages/formularios/ | src/modules/rh/pages/formularios/ |
+| **RelatorioViagemPage.tsx** | Avulso | src/pages/formularios/ | src/modules/rh/pages/formularios/ |
 
-- `perfis` → `_backup_perfis`
-- `perfil_funcoes` → `_backup_perfil_funcoes`
-- `perfil_permissoes` → `_backup_perfil_permissoes`
-- `funcoes_sistema` → `_backup_funcoes_sistema`
-- `permissoes` → `_backup_permissoes`
-- `usuario_perfis` → `_backup_usuario_perfis`
+### Modulo RH - Folha de Pagamento
 
-### 2. Criar Estrutura Nova e Simples
+| Formulario | Tipo | Localizacao Atual | Nova Localizacao |
+|------------|------|-------------------|------------------|
+| NovaFolhaForm.tsx | Folha | src/components/folha/ | src/modules/rh/components/folha/ |
+| RubricaForm.tsx | Folha | src/components/folha/ | src/modules/rh/components/folha/ |
+| TabelaINSSForm.tsx | Folha | src/components/folha/ | src/modules/rh/components/folha/ |
+| TabelaIRRFForm.tsx | Folha | src/components/folha/ | src/modules/rh/components/folha/ |
+| ParametroForm.tsx | Folha | src/components/folha/ | src/modules/rh/components/folha/ |
+| ContaAutarquiaForm.tsx | Folha | src/components/folha/ | src/modules/rh/components/folha/ |
+| FecharFolhaDialog.tsx | Folha | src/components/folha/ | src/modules/rh/components/folha/ |
+| ProcessarFolhaDialog.tsx | Folha | src/components/folha/ | src/modules/rh/components/folha/ |
+| ReabrirFolhaDialog.tsx | Folha | src/components/folha/ | src/modules/rh/components/folha/ |
+| GerarRemessaDialog.tsx | Folha | src/components/folha/ | src/modules/rh/components/folha/ |
 
-**Novo esquema:**
+---
+
+### Modulo COMPRAS (Compras e Licitacoes)
+
+| Formulario | Tipo | Localizacao Atual | Nova Localizacao |
+|------------|------|-------------------|------------------|
+| **TermoDemandaPage.tsx** | Avulso | src/pages/formularios/ | src/modules/compras/pages/formularios/ |
+
+---
+
+### Modulo PATRIMONIO (Inventario, Almoxarifado, Unidades)
+
+| Formulario | Tipo | Localizacao Atual | Nova Localizacao |
+|------------|------|-------------------|------------------|
+| **TermoResponsabilidadePage.tsx** | Avulso | src/pages/formularios/ | src/modules/patrimonio/pages/formularios/ |
+| **RequisicaoMaterialPage.tsx** | Avulso | src/pages/formularios/ | src/modules/patrimonio/pages/formularios/ |
+| NovaMovimentacaoDialog.tsx | Inventario | src/components/inventario/ | src/modules/patrimonio/components/inventario/ |
+| NovaBaixaDialog.tsx | Inventario | src/components/inventario/ | src/modules/patrimonio/components/inventario/ |
+| NovaManutencaoDialog.tsx | Inventario | src/components/inventario/ | src/modules/patrimonio/components/inventario/ |
+| NovaRequisicaoDialog.tsx | Inventario | src/components/inventario/ | src/modules/patrimonio/components/inventario/ |
+| NovoItemMaterialDialog.tsx | Inventario | src/components/inventario/ | src/modules/patrimonio/components/inventario/ |
+| UnidadeLocalForm.tsx | Unidade | src/components/unidades/ | src/modules/patrimonio/components/unidades/ |
+
+---
+
+### Modulo WORKFLOW (Processos Administrativos)
+
+| Formulario | Tipo | Localizacao Atual | Nova Localizacao |
+|------------|------|-------------------|------------------|
+| NovoProcessoDialog.tsx | Processo | src/components/workflow/ | src/modules/workflow/components/ |
+| NovoDespachoDialog.tsx | Processo | src/components/workflow/ | src/modules/workflow/components/ |
+| NovaMovimentacaoDialog.tsx | Processo | src/components/workflow/ | src/modules/workflow/components/ |
+
+---
+
+### Modulo GOVERNANCA (Estrutura, Organograma, Cargos)
+
+| Formulario | Tipo | Localizacao Atual | Nova Localizacao |
+|------------|------|-------------------|------------------|
+| CargoForm.tsx | Cargo | src/components/cargos/ | src/modules/governanca/components/cargos/ |
+| CargoDetailDialog.tsx | Cargo | src/components/cargos/ | src/modules/governanca/components/cargos/ |
+| ComposicaoCargosEditor.tsx | Cargo | src/components/cargos/ | src/modules/governanca/components/cargos/ |
+| MemorandoLotacaoDialog.tsx | Lotacao | src/components/lotacoes/ | src/modules/governanca/components/lotacoes/ |
+| RegistroEntregaDialog.tsx | Lotacao | src/components/lotacoes/ | src/modules/governanca/components/lotacoes/ |
+| ExportOrganogramaDialog.tsx | Organograma | src/components/organograma/ | src/modules/governanca/components/organograma/ |
+| UnidadeNode.tsx | Organograma | src/components/organograma/ | src/modules/governanca/components/organograma/ |
+| UnidadeDetailPanel.tsx | Organograma | src/components/organograma/ | src/modules/governanca/components/organograma/ |
+| InstituicaoFormDialog.tsx | Instituicao | src/components/instituicoes/ | src/modules/governanca/components/instituicoes/ |
+| EditarFederacaoDialog.tsx | Federacao | src/components/federacoes/ | src/modules/governanca/components/federacoes/ |
+| NovaCompeticaoDialog.tsx | Federacao | src/components/federacoes/ | src/modules/governanca/components/federacoes/ |
+| NovaParceriaDialog.tsx | Federacao | src/components/federacoes/ | src/modules/governanca/components/federacoes/ |
+| NovoArbitroDialog.tsx | Federacao | src/components/federacoes/ | src/modules/governanca/components/federacoes/ |
+
+---
+
+### Modulo ADMIN (Administracao do Sistema)
+
+| Formulario | Tipo | Localizacao Atual | Nova Localizacao |
+|------------|------|-------------------|------------------|
+| CriarUsuarioDialog.tsx | Usuario | src/components/admin/ | src/modules/admin/components/ |
+| UsuarioModulosTab.tsx | Usuario | src/components/admin/ | src/modules/admin/components/ |
+| UsuarioPerfilTab.tsx | Usuario | src/components/admin/ | src/modules/admin/components/ |
+| NovaReuniaoDialog.tsx | Reuniao | src/components/reunioes/ | src/modules/admin/components/reunioes/ |
+| EditarReuniaoDialog.tsx | Reuniao | src/components/reunioes/ | src/modules/admin/components/reunioes/ |
+| AdicionarParticipanteDialog.tsx | Reuniao | src/components/reunioes/ | src/modules/admin/components/reunioes/ |
+| EnviarConvitesDialog.tsx | Reuniao | src/components/reunioes/ | src/modules/admin/components/reunioes/ |
+
+---
+
+## Nova Estrutura de Pastas
 
 ```text
-profiles (usuários)
-    |
-usuario_perfis (1 perfil por usuário)
-    |
-perfis (apenas 3: super_admin, gestor, servidor)
-    |
-usuario_modulos (quais módulos cada usuário pode acessar)
+src/
+├── modules/                          
+│   ├── admin/                        
+│   │   ├── components/
+│   │   │   ├── CriarUsuarioDialog.tsx
+│   │   │   ├── UsuarioModulosTab.tsx
+│   │   │   ├── UsuarioPerfilTab.tsx
+│   │   │   └── reunioes/
+│   │   │       ├── NovaReuniaoDialog.tsx
+│   │   │       └── ...
+│   │   ├── hooks/
+│   │   ├── pages/
+│   │   └── index.ts
+│   │
+│   ├── rh/                           
+│   │   ├── components/
+│   │   │   ├── curriculo/           (10 forms pre-cadastro)
+│   │   │   ├── servidor/            (7 forms servidor)
+│   │   │   ├── portarias/           (6 forms portarias)
+│   │   │   ├── frequencia/          (3 forms frequencia)
+│   │   │   └── folha/               (10 forms folha)
+│   │   ├── pages/
+│   │   │   ├── formularios/
+│   │   │   │   ├── OrdemMissaoPage.tsx
+│   │   │   │   └── RelatorioViagemPage.tsx
+│   │   │   └── ...
+│   │   └── index.ts
+│   │
+│   ├── workflow/                     
+│   │   ├── components/
+│   │   │   ├── NovoProcessoDialog.tsx
+│   │   │   ├── NovoDespachoDialog.tsx
+│   │   │   └── NovaMovimentacaoDialog.tsx
+│   │   ├── pages/
+│   │   └── index.ts
+│   │
+│   ├── compras/                      
+│   │   ├── components/
+│   │   ├── pages/
+│   │   │   ├── formularios/
+│   │   │   │   └── TermoDemandaPage.tsx
+│   │   │   └── ...
+│   │   └── index.ts
+│   │
+│   ├── contratos/                    
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── index.ts
+│   │
+│   ├── financeiro/                   
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── index.ts
+│   │
+│   ├── patrimonio/                   
+│   │   ├── components/
+│   │   │   ├── inventario/          (5 forms inventario)
+│   │   │   └── unidades/            (1 form unidade)
+│   │   ├── pages/
+│   │   │   ├── formularios/
+│   │   │   │   ├── TermoResponsabilidadePage.tsx
+│   │   │   │   └── RequisicaoMaterialPage.tsx
+│   │   │   └── ...
+│   │   └── index.ts
+│   │
+│   ├── governanca/                   
+│   │   ├── components/
+│   │   │   ├── cargos/              (3 forms)
+│   │   │   ├── lotacoes/            (2 forms)
+│   │   │   ├── organograma/         (4 components)
+│   │   │   ├── instituicoes/        (1 form)
+│   │   │   └── federacoes/          (4 forms)
+│   │   ├── pages/
+│   │   └── index.ts
+│   │
+│   ├── transparencia/                
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── index.ts
+│   │
+│   └── comunicacao/                  
+│       ├── components/
+│       ├── pages/
+│       └── index.ts
+│
+├── shared/                           
+│   ├── components/
+│   │   ├── ui/                      (shadcn/ui - 50+ componentes)
+│   │   ├── layout/                  (MainLayout, AdminLayout, etc)
+│   │   ├── menu/                    (MenuSidebar, etc)
+│   │   ├── navigation/              (NavLink, etc)
+│   │   ├── auth/                    (ProtectedRoute, etc)
+│   │   └── reports/                 (blocos de relatorio)
+│   ├── contexts/
+│   │   ├── AuthContext.tsx
+│   │   └── MenuContext.tsx
+│   ├── hooks/
+│   │   ├── use-mobile.tsx
+│   │   ├── use-toast.ts
+│   │   └── ...
+│   ├── config/
+│   │   ├── menu.config.ts
+│   │   └── modules.config.ts        (NOVO)
+│   ├── types/
+│   │   └── rbac.ts
+│   └── lib/
+│       └── utils.ts
+│
+├── integrations/
+│   └── supabase/                    (NAO MODIFICAR)
+│
+├── App.tsx
+├── main.tsx
+└── index.css
 ```
-
-**Tabela `perfis` (apenas 3 registros):**
-
-| nome | codigo | pode_aprovar |
-|------|--------|--------------|
-| Super Administrador | super_admin | true |
-| Gestor | gestor | true |
-| Servidor | servidor | false |
-
-**Nova tabela `usuario_modulos`:**
-
-```sql
-CREATE TABLE usuario_modulos (
-  id UUID PRIMARY KEY,
-  user_id UUID REFERENCES profiles(id),
-  modulo TEXT NOT NULL, -- 'rh', 'financeiro', 'processos', etc.
-  UNIQUE(user_id, modulo)
-);
-```
-
-### 3. Desativar Todos os Usuários Exceto Você
-
-- `UPDATE profiles SET is_active = false WHERE id != 'b53e0eea-bf59-4de9-b71e-5d36d3c69bb8'`
-- Limpar todas as associações de perfis anteriores
-
-### 4. Associar Você ao Super Admin
-
-- Criar perfil Super Admin
-- Associar seu usuário a ele
-- Super Admin não precisa de módulos - tem acesso a tudo
-
-### 5. Bloquear Novos Cadastros
-
-- Trigger para novos usuários entrarem com `is_active = false`
-- Tela de login mostra "Aguardando aprovação"
-
-### 6. Simplificar Tela de Usuários
-
-A tela de detalhes do usuário ficará com apenas 2 abas:
-
-- **Perfil**: Escolher entre Gestor ou Servidor
-- **Módulos**: Marcar quais módulos o usuário pode acessar (checkboxes simples)
 
 ---
 
-## Interface Simplificada
-
-### Tela de Gerenciamento de Usuário
-
-```text
-+--------------------------------------------------+
-| João Silva (joao@email.com)          [Ativo ✓]   |
-+--------------------------------------------------+
-| Tipo: [Servidor ▼]  ou  [Gestor ▼]               |
-+--------------------------------------------------+
-| Módulos Liberados:                               |
-|                                                  |
-| [✓] Recursos Humanos (RH)                        |
-| [✓] Processos / Workflow                         |
-| [ ] Financeiro / Orçamento                       |
-| [ ] Governança                                   |
-| [ ] Contratos                                    |
-| [ ] Patrimônio                                   |
-| [ ] Compras                                      |
-| [ ] Transparência                                |
-| [ ] Administração                                |
-+--------------------------------------------------+
-```
-
----
-
-## Seção Técnica
-
-### Migrações SQL
-
-**Migração 1 - Backup e Reset:**
-
-```sql
--- Arquivar tabelas antigas
-ALTER TABLE IF EXISTS perfis RENAME TO _backup_perfis;
-ALTER TABLE IF EXISTS perfil_funcoes RENAME TO _backup_perfil_funcoes;
-ALTER TABLE IF EXISTS perfil_permissoes RENAME TO _backup_perfil_permissoes;
-ALTER TABLE IF EXISTS funcoes_sistema RENAME TO _backup_funcoes_sistema;
-ALTER TABLE IF EXISTS permissoes RENAME TO _backup_permissoes;
-ALTER TABLE IF EXISTS usuario_perfis RENAME TO _backup_usuario_perfis;
-
--- Criar novos perfis (apenas 3)
-CREATE TABLE perfis (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  nome TEXT NOT NULL,
-  codigo TEXT UNIQUE NOT NULL,
-  pode_aprovar BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
-INSERT INTO perfis (nome, codigo, pode_aprovar) VALUES
-  ('Super Administrador', 'super_admin', true),
-  ('Gestor', 'gestor', true),
-  ('Servidor', 'servidor', false);
-
--- Associação usuário-perfil (1:1)
-CREATE TABLE usuario_perfis (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE UNIQUE,
-  perfil_id UUID REFERENCES perfis(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Módulos por usuário
-CREATE TABLE usuario_modulos (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  modulo TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(user_id, modulo)
-);
-
--- RLS
-ALTER TABLE perfis ENABLE ROW LEVEL SECURITY;
-ALTER TABLE usuario_perfis ENABLE ROW LEVEL SECURITY;
-ALTER TABLE usuario_modulos ENABLE ROW LEVEL SECURITY;
-```
-
-**Migração 2 - Configurar Seu Usuário:**
-
-```sql
--- Desativar todos exceto você
-UPDATE profiles SET is_active = false WHERE id != 'b53e0eea-bf59-4de9-b71e-5d36d3c69bb8';
-
--- Associar você ao Super Admin
-INSERT INTO usuario_perfis (user_id, perfil_id)
-SELECT 
-  'b53e0eea-bf59-4de9-b71e-5d36d3c69bb8',
-  id
-FROM perfis WHERE codigo = 'super_admin';
-```
-
-**Migração 3 - Bloquear Novos Cadastros:**
-
-```sql
-CREATE OR REPLACE FUNCTION bloquear_novo_usuario()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.is_active := false;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trigger_bloquear_novo_usuario
-  BEFORE INSERT ON profiles
-  FOR EACH ROW
-  EXECUTE FUNCTION bloquear_novo_usuario();
-```
-
-### Funções SQL Simplificadas
-
-```sql
--- Verificar se é super admin
-CREATE OR REPLACE FUNCTION usuario_eh_super_admin(check_user_id UUID)
-RETURNS BOOLEAN AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM usuario_perfis up
-    JOIN perfis p ON p.id = up.perfil_id
-    WHERE up.user_id = check_user_id AND p.codigo = 'super_admin'
-  );
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
-
--- Verificar se pode acessar módulo
-CREATE OR REPLACE FUNCTION usuario_pode_acessar_modulo(check_user_id UUID, check_modulo TEXT)
-RETURNS BOOLEAN AS $$
-  SELECT 
-    usuario_eh_super_admin(check_user_id) 
-    OR EXISTS (
-      SELECT 1 FROM usuario_modulos 
-      WHERE user_id = check_user_id AND modulo = check_modulo
-    );
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
-
--- Verificar se pode aprovar
-CREATE OR REPLACE FUNCTION usuario_pode_aprovar(check_user_id UUID)
-RETURNS BOOLEAN AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM usuario_perfis up
-    JOIN perfis p ON p.id = up.perfil_id
-    WHERE up.user_id = check_user_id AND p.pode_aprovar = true
-  );
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
-```
-
-### Arquivos Frontend a Modificar
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/pages/admin/UsuarioDetalhePage.tsx` | Simplificar para 2 abas: Perfil + Módulos (editáveis) |
-| `src/contexts/AuthContext.tsx` | Simplificar verificação de permissões |
-| `src/hooks/useAdminUsuarios.ts` | Adicionar funções para gerenciar módulos |
-| `src/components/admin/UsuarioModulosTab.tsx` | Trocar para checkboxes editáveis |
-
-### Arquivos a Remover/Ignorar
-
-- `src/components/admin/UsuarioFuncoesTab.tsx` (não será mais necessário)
-- `src/hooks/useAdminPerfis.ts` (simplificar drasticamente)
-- `src/hooks/useAdminPermissoes.ts` (não será mais necessário)
-- Páginas de gestão de perfis complexas
-
-### Lista de Módulos
-
-| Código | Nome |
-|--------|------|
-| `rh` | Recursos Humanos |
-| `workflow` | Processos |
-| `financeiro` | Financeiro |
-| `orcamento` | Orçamento |
-| `governanca` | Governança |
-| `contratos` | Contratos |
-| `patrimonio` | Patrimônio |
-| `compras` | Compras |
-| `transparencia` | Transparência |
-| `admin` | Administração |
-
-### Verificação de Acesso no Frontend
+## Arquivo de Configuracao de Modulos
 
 ```typescript
-// Novo hook simplificado
-function useModulos() {
-  const { user } = useAuth();
-  
-  // Super admin acessa tudo
-  const isSuperAdmin = user?.perfil === 'super_admin';
-  
-  // Verificar módulo
-  const podeAcessar = (modulo: string) => {
-    if (isSuperAdmin) return true;
-    return user?.modulos?.includes(modulo);
-  };
-  
-  // Verificar se pode aprovar
-  const podeAprovar = user?.perfil === 'super_admin' || user?.perfil === 'gestor';
-  
-  return { podeAcessar, podeAprovar, isSuperAdmin };
+// src/shared/config/modules.config.ts
+
+export const MODULOS = [
+  'admin',
+  'rh',
+  'workflow',
+  'compras',
+  'contratos',
+  'financeiro',
+  'patrimonio',
+  'governanca',
+  'transparencia',
+  'comunicacao',
+] as const;
+
+export type Modulo = typeof MODULOS[number];
+
+export interface ModuleConfig {
+  codigo: Modulo;
+  nome: string;
+  descricao: string;
+  icone: string;
+  cor: string;
+  rotas: string[];
+  formularios: string[];
+}
+
+export const MODULES_CONFIG: ModuleConfig[] = [
+  {
+    codigo: 'admin',
+    nome: 'Administracao',
+    descricao: 'Usuarios, perfis, auditoria, reunioes',
+    icone: 'Settings',
+    cor: 'slate',
+    rotas: ['/admin'],
+    formularios: ['CriarUsuario', 'Reunioes'],
+  },
+  {
+    codigo: 'rh',
+    nome: 'Recursos Humanos',
+    descricao: 'Servidores, frequencia, ferias, portarias, folha',
+    icone: 'Users',
+    cor: 'blue',
+    rotas: ['/rh', '/folha'],
+    formularios: [
+      'Pre-cadastro (10 forms)',
+      'Servidor (7 forms)',
+      'Portarias (6 forms)',
+      'Frequencia (3 forms)',
+      'Folha (10 forms)',
+      'Ordem de Missao',
+      'Relatorio de Viagem',
+    ],
+  },
+  {
+    codigo: 'workflow',
+    nome: 'Processos',
+    descricao: 'Tramitacao de processos administrativos',
+    icone: 'GitBranch',
+    cor: 'purple',
+    rotas: ['/workflow'],
+    formularios: ['Novo Processo', 'Novo Despacho', 'Nova Movimentacao'],
+  },
+  {
+    codigo: 'compras',
+    nome: 'Compras',
+    descricao: 'Licitacoes e processos de aquisicao',
+    icone: 'ShoppingCart',
+    cor: 'orange',
+    rotas: ['/processos/compras', '/processos/diarias', '/processos/convenios'],
+    formularios: ['Termo de Demanda'],
+  },
+  {
+    codigo: 'contratos',
+    nome: 'Contratos',
+    descricao: 'Gestao e execucao contratual',
+    icone: 'FileText',
+    cor: 'amber',
+    rotas: ['/contratos'],
+    formularios: [],
+  },
+  {
+    codigo: 'financeiro',
+    nome: 'Financeiro',
+    descricao: 'Orcamento, empenhos, pagamentos',
+    icone: 'DollarSign',
+    cor: 'green',
+    rotas: ['/financeiro'],
+    formularios: [],
+  },
+  {
+    codigo: 'patrimonio',
+    nome: 'Patrimonio',
+    descricao: 'Bens, inventario, almoxarifado, unidades',
+    icone: 'Package',
+    cor: 'cyan',
+    rotas: ['/inventario', '/unidades', '/processos/patrimonio', '/processos/almoxarifado'],
+    formularios: [
+      'Termo de Responsabilidade',
+      'Requisicao de Material',
+      'Movimentacao',
+      'Baixa',
+      'Manutencao',
+      'Unidade Local',
+    ],
+  },
+  {
+    codigo: 'governanca',
+    nome: 'Governanca',
+    descricao: 'Estrutura, organograma, cargos, federacoes',
+    icone: 'Building2',
+    cor: 'indigo',
+    rotas: ['/governanca', '/organograma', '/cargos', '/lotacoes', '/federacoes', '/instituicoes', '/programas', '/integridade'],
+    formularios: ['Cargo', 'Lotacao', 'Federacao', 'Instituicao', 'Competicao'],
+  },
+  {
+    codigo: 'transparencia',
+    nome: 'Transparencia',
+    descricao: 'Portal LAI e dados publicos',
+    icone: 'Eye',
+    cor: 'teal',
+    rotas: ['/transparencia'],
+    formularios: [],
+  },
+  {
+    codigo: 'comunicacao',
+    nome: 'Comunicacao',
+    descricao: 'ASCOM e demandas de comunicacao',
+    icone: 'Megaphone',
+    cor: 'pink',
+    rotas: ['/admin/ascom'],
+    formularios: ['Demanda ASCOM'],
+  },
+];
+```
+
+---
+
+## Resumo Quantitativo
+
+| Modulo | Formularios/Dialogs | Paginas | Componentes |
+|--------|---------------------|---------|-------------|
+| RH | 36 | 20+ | 40+ |
+| Patrimonio | 8 | 12 | 15+ |
+| Governanca | 14 | 15+ | 20+ |
+| Admin | 7 | 15+ | 10+ |
+| Workflow | 3 | 2 | 5 |
+| Compras | 1 | 4 | 5 |
+| Comunicacao | 1 | 5 | 5 |
+| Financeiro | 0 | 10+ | 10+ |
+| Transparencia | 0 | 5 | 5 |
+| Contratos | 0 | 0 | 0 |
+| **TOTAL** | **70+** | **90+** | **115+** |
+
+---
+
+## Secao Tecnica
+
+### Ordem de Execucao
+
+1. **Criar estrutura de pastas** - src/modules/ e src/shared/
+2. **Mover shared primeiro** - UI, contexts, lib, types, hooks gerais
+3. **Mover modulo por modulo** (ordem sugerida):
+   - shared (base)
+   - admin (core)
+   - rh (maior modulo - 36 forms)
+   - workflow
+   - patrimonio (8 forms)
+   - governanca (14 forms)
+   - compras (1 form)
+   - comunicacao (1 form)
+   - financeiro
+   - transparencia
+   - contratos
+4. **Atualizar imports** - Usar aliases @/modules/ e @/shared/
+5. **Atualizar App.tsx** - Imports dos modulos
+6. **Criar modules.config.ts** - Mapeamento central
+7. **Atualizar MenuContext.tsx** - Filtrar menu por modulos
+8. **Testar cada modulo** - Navegacao e funcionalidades
+
+### Arquivos a Criar
+
+| Arquivo | Descricao |
+|---------|-----------|
+| src/shared/config/modules.config.ts | Configuracao central de modulos |
+| src/modules/*/index.ts | Exports de cada modulo |
+| src/shared/components/index.ts | Exports compartilhados |
+| src/shared/hooks/index.ts | Exports de hooks |
+
+### Arquivos a Modificar
+
+| Arquivo | Alteracao |
+|---------|-----------|
+| src/App.tsx | Atualizar imports para @/modules/* |
+| src/contexts/MenuContext.tsx | Filtrar menu baseado em modulos |
+| src/contexts/AuthContext.tsx | Carregar modulos do usuario |
+| src/hooks/useModulosUsuario.ts | Usar MODULES_CONFIG |
+| vite.config.ts | Adicionar aliases @/modules e @/shared |
+| tsconfig.json | Adicionar paths para aliases |
+
+### Configuracao de Aliases (vite.config.ts)
+
+```typescript
+resolve: {
+  alias: {
+    '@': path.resolve(__dirname, './src'),
+    '@/modules': path.resolve(__dirname, './src/modules'),
+    '@/shared': path.resolve(__dirname, './src/shared'),
+  },
 }
 ```
+
+### Migracao SQL Necessaria
+
+A migracao SQL ja foi aplicada anteriormente (usuario_modulos). Nenhuma nova migracao de banco sera necessaria para esta reorganizacao - e apenas uma reestruturacao de codigo frontend.
+
+---
+
+## Beneficios
+
+| Beneficio | Descricao |
+|-----------|-----------|
+| Isolamento | Cada modulo e uma "pasta" independente |
+| Controle de Acesso | Modulo = unidade de permissao |
+| Manutencao | Codigo relacionado esta junto |
+| Escalabilidade | Facil adicionar novos modulos |
+| Onboarding | Novos desenvolvedores entendem rapido |
+| Lazy Loading | Possibilidade futura de carregar sob demanda |
+
