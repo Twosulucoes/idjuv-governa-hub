@@ -1,6 +1,6 @@
 /**
  * SeletivaEstudantilPage - Hot site para Seletiva das Seleções Estudantis
- * Jogos da Juventude 2025
+ * Jogos da Juventude 2026
  */
 
 import { motion } from "framer-motion";
@@ -230,7 +230,7 @@ export default function SeletivaEstudantilPage() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-8"
             >
               <Trophy className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-primary">Jogos da Juventude 2025</span>
+              <span className="text-sm font-medium text-primary">Jogos da Juventude 2026</span>
             </motion.div>
 
             <motion.div
@@ -442,7 +442,7 @@ export default function SeletivaEstudantilPage() {
             
             <div className="text-center md:text-right text-sm text-muted-foreground">
               <p>Instituto de Desporto, Juventude e Lazer de Roraima</p>
-              <p className="text-xs mt-1">© 2025 - Todos os direitos reservados</p>
+              <p className="text-xs mt-1">© 2026 - Todos os direitos reservados</p>
             </div>
           </div>
         </div>
