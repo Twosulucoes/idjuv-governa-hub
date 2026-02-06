@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 // Pages
 import EmBrevePage from "./pages/EmBrevePage";
+import PortalPreviewPage from "./pages/PortalPreviewPage";
 import ApresentacaoPage from "./pages/ApresentacaoPage";
 import SistemaPage from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -182,6 +183,11 @@ const App = () => (
               <Route path="/" element={<EmBrevePage />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/acesso-negado" element={<AccessDeniedPage />} />
+              
+              {/* Rota secreta para preview do portal público */}
+              <Route path="/portal-preview-idjuv-2026" element={<PortalPreviewPage />} />
+              
+              {/* Pré-cadastro (mantido mas não linkado) */}
               <Route path="/curriculo" element={<MiniCurriculoPage />} />
               <Route path="/curriculo/sucesso" element={<MiniCurriculoSucessoPage />} />
               <Route path="/curriculo/:codigo" element={<MiniCurriculoPage />} />
