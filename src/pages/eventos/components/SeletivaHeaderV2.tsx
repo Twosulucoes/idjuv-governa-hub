@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { Instagram, Moon, Sun } from "lucide-react";
 import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
 import logoGoverno from "@/assets/logo-governo-roraima.jpg";
+import logoGovernoDark from "@/assets/logo-governo-roraima-dark.png";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 
@@ -25,7 +26,12 @@ export function SeletivaHeaderV2() {
           <img 
             src={logoGoverno} 
             alt="Governo de Roraima" 
-            className="h-6 object-contain dark:brightness-110"
+            className="h-6 object-contain dark:hidden"
+          />
+          <img 
+            src={logoGovernoDark} 
+            alt="Governo de Roraima" 
+            className="h-6 object-contain hidden dark:block"
           />
         </div>
         
