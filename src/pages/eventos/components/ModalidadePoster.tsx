@@ -5,7 +5,8 @@
 
 import { motion } from "framer-motion";
 import { Calendar, MapPin } from "lucide-react";
-import { DotsIndicator, AthleteCircle } from "./DecorativeElements";
+import { DotsIndicator } from "./DecorativeElements";
+import { SportIcon } from "./SportIcon";
 import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
 import logoGoverno from "@/assets/logo-governo-roraima.jpg";
 
@@ -59,10 +60,8 @@ export function ModalidadePoster({
           </p>
         </div>
 
-        {/* Círculo com Atleta */}
-        <div className="w-24 h-24 md:w-28 md:h-28 flex-shrink-0 self-center md:self-auto">
-          <AthleteCircle sport={sport} className="w-full h-full" />
-        </div>
+        {/* Ícone da Modalidade */}
+        <SportIcon sport={sport} size="lg" className="self-center md:self-auto" />
       </div>
 
       {/* Naipes */}

@@ -167,22 +167,22 @@ export default function SeletivaEstudantilV2Page() {
               <div className="relative rounded-3xl overflow-hidden shadow-2xl">
                 <img 
                   src={heroImage} 
-                  alt="Atletas das 4 modalidades: Futsal, Handebol, Basquete e Vôlei" 
-                  className="w-full h-auto object-cover"
+                  alt="Atletas das 4 modalidades: Handebol, Vôlei, Basquete e Futsal em ação" 
+                  className="w-full h-auto object-cover aspect-square md:aspect-video"
                 />
                 {/* Overlay sutil */}
-                <div className="absolute inset-0 bg-gradient-to-t from-zinc-900/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-zinc-900/30 to-transparent" />
               </div>
               
               {/* Labels das modalidades */}
-              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                {["FUTSAL", "HANDEBOL", "BASQUETE", "VÔLEI"].map((mod, i) => (
+              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap justify-center gap-2">
+                {["HANDEBOL", "VÔLEI", "BASQUETE", "FUTSAL"].map((mod, i) => (
                   <motion.span
                     key={mod}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 + i * 0.1 }}
-                    className="px-3 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] font-bold tracking-wider rounded-full"
+                    className="px-3 py-1.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] md:text-xs font-bold tracking-wider rounded-full shadow-md"
                   >
                     {mod}
                   </motion.span>
