@@ -19,23 +19,65 @@ import heroImage from "@/assets/hero-4-modalidades.jpg";
 // Dados das modalidades
 const modalidades = [
   {
+    modalidade: "VOLEIBOL",
+    categoria: "15 A 17 ANOS",
+    sport: "volei" as const,
+    naipes: [
+      {
+        naipe: "FEMININO" as const,
+        data: "28 DE FEVEREIRO",
+        horario: "08H",
+        local: "GINÁSIO POLIESPORTIVO HÉLIO CAMPOS",
+        endereco: "Rua Presidente Juscelino Kubitscheck, 848 - Canarinho, Boa Vista - RR"
+      },
+      {
+        naipe: "MASCULINO" as const,
+        data: "01 DE MARÇO",
+        horario: "08H",
+        local: "GINÁSIO POLIESPORTIVO HÉLIO CAMPOS",
+        endereco: "Rua Presidente Juscelino Kubitscheck, 848 - Canarinho, Boa Vista - RR"
+      }
+    ]
+  },
+  {
     modalidade: "FUTSAL",
     categoria: "15 A 17 ANOS",
     sport: "futsal" as const,
     naipes: [
       {
-        naipe: "FEMININO" as const,
-        data: "19 DE FEVEREIRO",
+        naipe: "MASCULINO" as const,
+        data: "07 DE MARÇO",
         horario: "08H",
-        local: "GINÁSIO HÉLIO DA COSTA CAMPOS",
-        endereco: "R. Pres. Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR"
+        local: "ESCOLA EST. PROF. ANTÔNIO FERREIRA",
+        endereco: "Rua Reinaldo Neves, 558 - Jardim Floresta, Boa Vista - RR"
       },
       {
+        naipe: "FEMININO" as const,
+        data: "08 DE MARÇO",
+        horario: "08H",
+        local: "GINÁSIO POLIESPORTIVO HÉLIO CAMPOS",
+        endereco: "Rua Presidente Juscelino Kubitscheck, 848 - Canarinho, Boa Vista - RR"
+      }
+    ]
+  },
+  {
+    modalidade: "BASQUETEBOL",
+    categoria: "15 A 17 ANOS",
+    sport: "basquete" as const,
+    naipes: [
+      {
         naipe: "MASCULINO" as const,
-        data: "19 DE FEVEREIRO",
-        horario: "14H",
-        local: "GINÁSIO HÉLIO DA COSTA CAMPOS",
-        endereco: "R. Pres. Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR"
+        data: "14 DE MARÇO",
+        horario: "08H",
+        local: "GINÁSIO POLIESPORTIVO HÉLIO CAMPOS",
+        endereco: "Rua Presidente Juscelino Kubitscheck, 848 - Canarinho, Boa Vista - RR"
+      },
+      {
+        naipe: "FEMININO" as const,
+        data: "15 DE MARÇO",
+        horario: "08H",
+        local: "GINÁSIO POLIESPORTIVO HÉLIO CAMPOS",
+        endereco: "Rua Presidente Juscelino Kubitscheck, 848 - Canarinho, Boa Vista - RR"
       }
     ]
   },
@@ -45,60 +87,18 @@ const modalidades = [
     sport: "handebol" as const,
     naipes: [
       {
-        naipe: "FEMININO" as const,
-        data: "21 DE FEVEREIRO",
+        naipe: "MASCULINO" as const,
+        data: "21 DE MARÇO",
         horario: "08H",
-        local: "GINÁSIO HÉLIO DA COSTA CAMPOS",
-        endereco: "R. Pres. Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR"
+        local: "GINÁSIO POLIESPORTIVO HÉLIO CAMPOS",
+        endereco: "Rua Presidente Juscelino Kubitscheck, 848 - Canarinho, Boa Vista - RR"
       },
-      {
-        naipe: "MASCULINO" as const,
-        data: "21 DE FEVEREIRO",
-        horario: "14H",
-        local: "GINÁSIO HÉLIO DA COSTA CAMPOS",
-        endereco: "R. Pres. Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR"
-      }
-    ]
-  },
-  {
-    modalidade: "BASQUETE",
-    categoria: "15 A 17 ANOS",
-    sport: "basquete" as const,
-    naipes: [
       {
         naipe: "FEMININO" as const,
-        data: "26 DE FEVEREIRO",
-        horario: "08H30",
-        local: "GINÁSIO HÉLIO DA COSTA CAMPOS",
-        endereco: "R. Pres. Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR"
-      },
-      {
-        naipe: "MASCULINO" as const,
-        data: "26 DE FEVEREIRO",
-        horario: "15H",
-        local: "GINÁSIO HÉLIO DA COSTA CAMPOS",
-        endereco: "R. Pres. Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR"
-      }
-    ]
-  },
-  {
-    modalidade: "VÔLEI",
-    categoria: "15 A 17 ANOS",
-    sport: "volei" as const,
-    naipes: [
-      {
-        naipe: "FEMININO" as const,
-        data: "28 DE FEVEREIRO",
-        horario: "08H30",
-        local: "GINÁSIO HÉLIO DA COSTA CAMPOS",
-        endereco: "R. Pres. Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR"
-      },
-      {
-        naipe: "MASCULINO" as const,
-        data: "28 DE FEVEREIRO",
-        horario: "15H",
-        local: "GINÁSIO HÉLIO DA COSTA CAMPOS",
-        endereco: "R. Pres. Juscelino Kubitscheck, 848, Canarinho, Boa Vista - RR"
+        data: "22 DE MARÇO",
+        horario: "08H",
+        local: "GINÁSIO POLIESPORTIVO HÉLIO CAMPOS",
+        endereco: "Rua Presidente Juscelino Kubitscheck, 848 - Canarinho, Boa Vista - RR"
       }
     ]
   }
