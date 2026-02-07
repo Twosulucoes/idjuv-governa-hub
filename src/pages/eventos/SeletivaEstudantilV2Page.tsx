@@ -13,6 +13,7 @@ import { SeletivaGaleria } from "./components/SeletivaGaleria";
 import { SeletivaResultados } from "./components/SeletivaResultados";
 import { SeletivaNoticiasV2 } from "./components/SeletivaNoticiasV2";
 import { SeletivaContatosV2 } from "./components/SeletivaContatosV2";
+import { SeletivaCountdownCTA } from "./components/SeletivaCountdownCTA";
 import heroImage from "@/assets/hero-4-modalidades.jpg";
 
 // Dados das modalidades
@@ -194,6 +195,9 @@ export default function SeletivaEstudantilV2Page() {
           </div>
         </div>
       </section>
+
+      {/* CTA de Inscrição com Countdown */}
+      <SeletivaCountdownCTA />
 
       {/* Seção de Modalidades */}
       <section className="py-16 px-4 bg-white dark:bg-zinc-800 transition-colors">
