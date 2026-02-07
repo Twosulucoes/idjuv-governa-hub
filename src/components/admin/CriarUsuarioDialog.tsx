@@ -226,8 +226,18 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
       });
       
       onSuccess?.();
-    } catch (error) {
-      // Erro já tratado no hook
+    } catch (error: any) {
+      // Tratar caso especial de usuário já existente (permissões atualizadas)
+      if (error?.message?.startsWith('USUARIO_JA_EXISTE:')) {
+        toast({
+          title: "Permissões atualizadas!",
+          description: "O usuário já existia. Suas permissões foram atualizadas."
+        });
+        onSuccess?.();
+        onOpenChange(false);
+        return;
+      }
+      // Outros erros já tratados no hook
     } finally {
       setIsCreating(false);
     }
