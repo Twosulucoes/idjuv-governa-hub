@@ -1,11 +1,12 @@
 // ============================================
-// HOOK DE USUÁRIOS (SISTEMA SIMPLIFICADO)
+// HOOK DE USUÁRIOS (SISTEMA RBAC)
+// Usando as novas tabelas user_roles e user_modules
 // ============================================
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import type { UsuarioAdmin, Modulo, PerfilCodigo, Perfil } from '@/types/rbac';
+import type { UsuarioAdmin, Modulo, AppRole, PerfilCodigo, PERFIL_TO_ROLE, ROLE_TO_PERFIL } from '@/types/rbac';
 
 export function useAdminUsuarios() {
   const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([]);
@@ -14,7 +15,7 @@ export function useAdminUsuarios() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Buscar todos os usuários com seus perfis e módulos
+  // Buscar todos os usuários com seus roles e módulos
   const fetchUsuarios = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -27,49 +28,26 @@ export function useAdminUsuarios() {
 
       if (profilesError) throw profilesError;
 
-      // Buscar associações usuário-perfil
-      const { data: perfilAssociacoes, error: perfilError } = await supabase
-        .from('usuario_perfis')
-        // OBS: a coluna `pode_aprovar` não existe em `perfis` neste banco; derivamos no frontend
-        .select('*, perfil:perfis(id, nome, codigo, descricao, created_at)');
+      // Buscar roles dos usuários (nova tabela)
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('*');
 
-      if (perfilError) throw perfilError;
+      if (rolesError) throw rolesError;
 
-      // Buscar módulos dos usuários
+      // Buscar módulos dos usuários (nova tabela)
       const { data: modulosData, error: modulosError } = await supabase
-        .from('usuario_modulos')
+        .from('user_modules')
         .select('*');
 
       if (modulosError) throw modulosError;
 
       // Combinar dados
       const usuariosData: UsuarioAdmin[] = (profiles || []).map(p => {
-        const perfilAssoc = (perfilAssociacoes || []).find(a => a.user_id === p.id);
+        const userRole = (rolesData || []).find((r: any) => r.user_id === p.id);
         const modulosUsuario = (modulosData || [])
-          .filter(m => m.user_id === p.id)
-          .map(m => m.modulo as Modulo);
-
-        // Mapear o perfil aninhado
-        let perfilMapeado: { id: string; user_id: string; perfil_id: string; created_at: string; created_by: string | null; perfil?: Perfil } | null = null;
-        
-        if (perfilAssoc) {
-          const perfilDB = perfilAssoc.perfil as any;
-          perfilMapeado = {
-            id: perfilAssoc.id,
-            user_id: perfilAssoc.user_id,
-            perfil_id: perfilAssoc.perfil_id,
-            created_at: perfilAssoc.created_at,
-            created_by: perfilAssoc.created_by,
-            perfil: perfilDB ? {
-              id: perfilDB.id,
-              nome: perfilDB.nome,
-              codigo: perfilDB.codigo as PerfilCodigo,
-              descricao: perfilDB.descricao,
-              pode_aprovar: perfilDB.pode_aprovar ?? (perfilDB.codigo === 'super_admin' || perfilDB.codigo === 'gestor'),
-              created_at: perfilDB.created_at,
-            } : undefined,
-          };
-        }
+          .filter((m: any) => m.user_id === p.id)
+          .map((m: any) => m.module as Modulo);
 
         return {
           id: p.id,
@@ -79,7 +57,7 @@ export function useAdminUsuarios() {
           is_active: p.is_active ?? true,
           tipo_usuario: (p.tipo_usuario || 'servidor') as 'servidor' | 'tecnico',
           created_at: p.created_at,
-          perfil: perfilMapeado,
+          role: userRole?.role as AppRole | undefined,
           modulos: modulosUsuario,
         };
       });
@@ -97,52 +75,44 @@ export function useAdminUsuarios() {
     fetchUsuarios();
   }, [fetchUsuarios]);
 
-  // Definir perfil do usuário
-  const definirPerfil = async (userId: string, perfilCodigo: PerfilCodigo | null) => {
+  // Definir role do usuário (novo sistema)
+  const definirRole = async (userId: string, role: AppRole | null) => {
     setSaving(true);
     try {
-      // 1) Desativar perfis anteriores do usuário
-      const { error: desativarError } = await supabase
-        .from('usuario_perfis')
-        .update({ ativo: false })
-        .eq('user_id', userId);
-
-      if (desativarError) throw desativarError;
-
-      if (perfilCodigo === null) {
-        // Apenas desativou – não precisa inserir novo
+      if (role === null) {
+        // Remover role
+        const { error } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId);
+        if (error) throw error;
       } else {
-        // Buscar ID do perfil
-        const { data: perfil, error: perfilError } = await supabase
-          .from('perfis')
-          .select('id')
-          .eq('codigo', perfilCodigo)
-          .single();
-
-        if (perfilError) throw perfilError;
-
-        // Inserir ou atualizar para ativo = true
-        const { error: upsertError } = await supabase
-          .from('usuario_perfis')
-          .upsert({
-            user_id: userId,
-            perfil_id: perfil.id,
-            ativo: true,
-          }, {
-            onConflict: 'user_id,perfil_id',
-          });
-
-        if (upsertError) throw upsertError;
+        // Upsert role
+        const { error } = await supabase
+          .from('user_roles')
+          .upsert({ user_id: userId, role }, { onConflict: 'user_id' });
+        if (error) throw error;
       }
 
-      toast({ title: 'Perfil atualizado!' });
+      toast({ title: 'Role atualizada!' });
       await fetchUsuarios();
     } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Erro ao definir perfil', description: err.message });
+      toast({ variant: 'destructive', title: 'Erro ao definir role', description: err.message });
       throw err;
     } finally {
       setSaving(false);
     }
+  };
+
+  // Compatibilidade: definirPerfil mapeia para definirRole
+  const definirPerfil = async (userId: string, perfilCodigo: PerfilCodigo | null) => {
+    const roleMap: Record<PerfilCodigo, AppRole> = {
+      super_admin: 'admin',
+      gestor: 'manager',
+      servidor: 'user'
+    };
+    const role = perfilCodigo ? roleMap[perfilCodigo] : null;
+    await definirRole(userId, role);
   };
 
   // Adicionar módulo ao usuário
@@ -150,13 +120,10 @@ export function useAdminUsuarios() {
     setSaving(true);
     try {
       const { error } = await supabase
-        .from('usuario_modulos')
-        .insert({
-          user_id: userId,
-          modulo,
-        });
+        .from('user_modules')
+        .insert({ user_id: userId, module: modulo });
 
-      if (error) throw error;
+      if (error && !error.message.includes('duplicate')) throw error;
 
       toast({ title: 'Módulo adicionado!' });
       await fetchUsuarios();
@@ -173,10 +140,10 @@ export function useAdminUsuarios() {
     setSaving(true);
     try {
       const { error } = await supabase
-        .from('usuario_modulos')
+        .from('user_modules')
         .delete()
         .eq('user_id', userId)
-        .eq('modulo', modulo);
+        .eq('module', modulo);
 
       if (error) throw error;
 
@@ -232,6 +199,7 @@ export function useAdminUsuarios() {
     error,
     fetchUsuarios,
     definirPerfil,
+    definirRole,
     adicionarModulo,
     removerModulo,
     toggleModulo,

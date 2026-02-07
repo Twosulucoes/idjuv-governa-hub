@@ -1,16 +1,18 @@
 // ============================================
-// HOOK PARA VERIFICAÇÃO DE MÓDULOS DO USUÁRIO (SIMPLIFICADO)
+// HOOK PARA VERIFICAÇÃO DE MÓDULOS DO USUÁRIO (RBAC)
+// Usando as novas tabelas user_roles e user_modules
 // ============================================
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { MODULOS, type Modulo, findModuleByRoute } from '@/shared/config/modules.config';
+import type { AppRole } from '@/types/rbac';
 
 export function useModulosUsuario() {
   const { user, isSuperAdmin } = useAuth();
   const [modulosAutorizados, setModulosAutorizados] = useState<Modulo[]>([]);
-  const [perfilCodigo, setPerfilCodigo] = useState<string | null>(null);
+  const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Buscar dados de módulos do usuário
@@ -21,32 +23,28 @@ export function useModulosUsuario() {
     }
 
     try {
-      // ============================================
-      // SUPER ADMIN VIA AuthContext TEM ACESSO TOTAL
-      // Verifica PRIMEIRO antes de consultar banco
-      // ============================================
+      // Super admin via AuthContext tem acesso total
       if (isSuperAdmin) {
         console.log('[useModulosUsuario] Super Admin detectado via AuthContext - acesso total');
-        setPerfilCodigo('super_admin');
+        setRole('admin');
         setModulosAutorizados([...MODULOS]);
         setLoading(false);
         return;
       }
 
-      // Buscar perfil do usuário
-      const { data: perfilData } = await supabase
-        .from('usuario_perfis')
-        .select('perfil:perfis(codigo)')
+      // Buscar role do usuário (nova tabela)
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
         .eq('user_id', user.id)
-        .eq('ativo', true)
         .maybeSingle();
 
-      const codigo = (perfilData?.perfil as any)?.codigo || null;
-      setPerfilCodigo(codigo);
+      const userRole = (roleData?.role as AppRole) || null;
+      setRole(userRole);
 
-      // Super admin via perfil também tem todos os módulos
-      if (codigo === 'super_admin') {
-        console.log('[useModulosUsuario] Super Admin detectado via perfil - acesso total');
+      // Admin tem todos os módulos
+      if (userRole === 'admin') {
+        console.log('[useModulosUsuario] Admin detectado via role - acesso total');
         setModulosAutorizados([...MODULOS]);
         setLoading(false);
         return;
@@ -54,13 +52,13 @@ export function useModulosUsuario() {
 
       // Buscar módulos autorizados para usuários comuns
       const { data: modulosData } = await supabase
-        .from('usuario_modulos')
-        .select('modulo')
+        .from('user_modules')
+        .select('module')
         .eq('user_id', user.id);
 
       const modulos = (modulosData || [])
-        .map(m => m.modulo)
-        .filter((m): m is Modulo => MODULOS.includes(m as Modulo));
+        .map((m: any) => m.module)
+        .filter((m: string): m is Modulo => MODULOS.includes(m as Modulo));
       
       console.log('[useModulosUsuario] Módulos carregados:', modulos);
       setModulosAutorizados(modulos);
@@ -77,17 +75,17 @@ export function useModulosUsuario() {
 
   // Verificar se módulo está autorizado
   const temAcessoModulo = useCallback((codigo: Modulo): boolean => {
-    // Super admin tem acesso total
-    if (isSuperAdmin || perfilCodigo === 'super_admin') return true;
+    // Admin tem acesso total
+    if (isSuperAdmin || role === 'admin') return true;
     
     // Verificar lista
     return modulosAutorizados.includes(codigo);
-  }, [isSuperAdmin, perfilCodigo, modulosAutorizados]);
+  }, [isSuperAdmin, role, modulosAutorizados]);
 
   // Verificar se rota está em módulo autorizado
   const rotaAutorizada = useCallback((pathname: string): boolean => {
-    // Super admin tem acesso total
-    if (isSuperAdmin || perfilCodigo === 'super_admin') return true;
+    // Admin tem acesso total
+    if (isSuperAdmin || role === 'admin') return true;
     
     // Usar a função do modules.config para mapear rota -> módulo
     const modulo = findModuleByRoute(pathname);
@@ -97,11 +95,13 @@ export function useModulosUsuario() {
     
     // Verificar se tem acesso ao módulo da rota
     return modulosAutorizados.includes(modulo.codigo);
-  }, [isSuperAdmin, perfilCodigo, modulosAutorizados]);
+  }, [isSuperAdmin, role, modulosAutorizados]);
 
   return {
     modulosAutorizados,
-    perfilCodigo,
+    role,
+    // Compatibilidade
+    perfilCodigo: role === 'admin' ? 'super_admin' : role === 'manager' ? 'gestor' : 'servidor',
     loading,
     temAcessoModulo,
     rotaAutorizada,

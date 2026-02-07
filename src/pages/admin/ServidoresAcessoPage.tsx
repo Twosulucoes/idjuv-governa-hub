@@ -1,6 +1,6 @@
 // ============================================
 // PÁGINA DE GESTÃO DE ACESSO DOS SERVIDORES
-// Apenas servidores COM conta no sistema
+// Atualizado para usar user_roles e user_modules
 // ============================================
 
 import { useState, useEffect, useCallback } from 'react';
@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { QuickModuloToggle } from '@/components/admin/QuickModuloToggle';
 import { MODULES_CONFIG, type Modulo } from '@/shared/config/modules.config';
+import type { AppRole } from '@/types/rbac';
 import { 
   Search, 
   Loader2, 
@@ -37,7 +38,7 @@ interface UsuarioServidor {
   unidade_nome: string | null;
   email: string;
   is_active: boolean;
-  perfil_codigo: string | null;
+  role: AppRole | null;
   modulos: Modulo[];
 }
 
@@ -69,6 +70,7 @@ export default function ServidoresAcessoPage() {
       }
 
       const servidorIds = profiles.map(p => p.servidor_id).filter(Boolean);
+      const profileIds = profiles.map(p => p.id);
 
       // Buscar dados dos servidores
       const { data: servidores } = await supabase
@@ -83,24 +85,25 @@ export default function ServidoresAcessoPage() {
         `)
         .in('id', servidorIds);
 
-      // Buscar perfis dos usuários
-      const { data: perfilData } = await supabase
-        .from('usuario_perfis')
-        .select('user_id, perfil:perfis(codigo)')
-        .eq('ativo', true);
+      // Buscar roles dos usuários (nova tabela)
+      const { data: rolesData } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('user_id', profileIds);
 
-      // Buscar módulos dos usuários
+      // Buscar módulos dos usuários (nova tabela)
       const { data: modulosData } = await supabase
-        .from('usuario_modulos')
-        .select('user_id, modulo');
+        .from('user_modules')
+        .select('user_id, module')
+        .in('user_id', profileIds);
 
       // Mapear dados
       const usuariosMapeados: UsuarioServidor[] = profiles.map(profile => {
         const servidor = servidores?.find(s => s.id === profile.servidor_id);
-        const perfilInfo = perfilData?.find(p => p.user_id === profile.id);
-        const modulos = modulosData
+        const roleInfo = (rolesData as any[])?.find(r => r.user_id === profile.id);
+        const modulos = (modulosData as any[])
           ?.filter(m => m.user_id === profile.id)
-          .map(m => m.modulo as Modulo) || [];
+          .map(m => m.module as Modulo) || [];
 
         return {
           profile_id: profile.id,
@@ -112,7 +115,7 @@ export default function ServidoresAcessoPage() {
           unidade_nome: (servidor?.unidade as any)?.nome || null,
           email: profile.email || '',
           is_active: profile.is_active ?? false,
-          perfil_codigo: (perfilInfo?.perfil as any)?.codigo || null,
+          role: roleInfo?.role as AppRole || null,
           modulos,
         };
       });
@@ -175,14 +178,14 @@ export default function ServidoresAcessoPage() {
     try {
       if (temAtualmente) {
         await supabase
-          .from('usuario_modulos')
+          .from('user_modules')
           .delete()
           .eq('user_id', userId)
-          .eq('modulo', modulo);
+          .eq('module', modulo);
       } else {
         await supabase
-          .from('usuario_modulos')
-          .insert({ user_id: userId, modulo });
+          .from('user_modules')
+          .insert({ user_id: userId, module: modulo });
       }
       toast({ title: temAtualmente ? 'Módulo removido' : 'Módulo adicionado' });
       await fetchUsuarios();
@@ -289,7 +292,7 @@ export default function ServidoresAcessoPage() {
           <div className="space-y-2">
             {usuariosFiltrados.map((usuario) => {
               const isExpanded = expandedUsuario === usuario.profile_id;
-              const isSuperAdmin = usuario.perfil_codigo === 'super_admin';
+              const isAdmin = usuario.role === 'admin';
               const isSaving = saving === usuario.profile_id;
               
               return (
@@ -314,10 +317,10 @@ export default function ServidoresAcessoPage() {
                           <span className="font-medium truncate">
                             {usuario.nome_completo}
                           </span>
-                          {isSuperAdmin && (
+                          {isAdmin && (
                             <Badge className="bg-primary/10 text-primary border-primary/30 text-xs">
                               <Shield className="h-3 w-3 mr-1" />
-                              Super Admin
+                              Admin
                             </Badge>
                           )}
                         </div>
@@ -338,7 +341,7 @@ export default function ServidoresAcessoPage() {
                       </div>
 
                       {/* Toggle ativo/bloqueado */}
-                      {!isSuperAdmin && (
+                      {!isAdmin && (
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-xs text-muted-foreground hidden sm:block">
                             {usuario.is_active ? 'Ativo' : 'Bloqueado'}
@@ -352,14 +355,14 @@ export default function ServidoresAcessoPage() {
                       )}
 
                       {/* Módulos (resumo) */}
-                      {!isSuperAdmin && (
+                      {!isAdmin && (
                         <Badge variant="outline" className="text-xs hidden md:flex">
                           {usuario.modulos.length} módulo(s)
                         </Badge>
                       )}
 
                       {/* Botão expandir */}
-                      {!isSuperAdmin && (
+                      {!isAdmin && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -375,7 +378,7 @@ export default function ServidoresAcessoPage() {
                     </div>
 
                     {/* Área expandida - Módulos */}
-                    {isExpanded && !isSuperAdmin && (
+                    {isExpanded && !isAdmin && (
                       <div className="mt-4 pt-4 border-t">
                         <p className="text-xs text-muted-foreground mb-3">
                           Clique para ativar/desativar módulos:
