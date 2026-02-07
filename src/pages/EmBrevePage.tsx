@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Rocket, Lock, Sparkles, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Rocket, Lock, Sparkles, LogIn } from "lucide-react";
 import { Link } from "react-router-dom";
 import logoIdjuv from "@/assets/logo-idjuv-oficial.png";
 
@@ -58,16 +59,18 @@ export default function EmBrevePage() {
             </div>
           </div>
 
-          {/* Link administrativo discreto */}
-          <div className="pt-4 border-t border-border/50">
-            <Link
-              to="/auth"
-              className="inline-flex items-center gap-2 text-xs text-muted-foreground/60 hover:text-primary transition-colors group"
-            >
-              <Lock className="h-3 w-3 group-hover:scale-110 transition-transform" />
-              <span>Acesso Restrito</span>
-              <Zap className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </Link>
+          {/* Botão de entrada no sistema */}
+          <div className="pt-4 border-t border-border/50 space-y-3">
+            <Button asChild size="lg" className="w-full gap-2">
+              <Link to="/auth">
+                <LogIn className="h-4 w-4" />
+                Entrar no Sistema
+              </Link>
+            </Button>
+            <p className="text-xs text-muted-foreground/60">
+              <Lock className="h-3 w-3 inline mr-1" />
+              Acesso restrito a servidores autorizados
+            </p>
           </div>
         </CardContent>
       </Card>
