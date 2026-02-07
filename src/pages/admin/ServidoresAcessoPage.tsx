@@ -1,6 +1,6 @@
 // ============================================
 // PÁGINA DE GESTÃO DE ACESSO DOS SERVIDORES
-// Lista todos os servidores e permite gerenciar acesso ao sistema
+// Apenas servidores COM conta no sistema
 // ============================================
 
 import { useState, useEffect, useCallback } from 'react';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { QuickModuloToggle } from '@/components/admin/QuickModuloToggle';
@@ -19,67 +19,69 @@ import {
   Search, 
   Loader2, 
   RefreshCw, 
-  UserPlus,
   UserCheck,
   UserX,
   ChevronDown,
   ChevronUp,
-  Info,
   Mail,
+  Shield,
 } from 'lucide-react';
 
-interface ServidorComAcesso {
-  id: string;
+interface UsuarioServidor {
+  profile_id: string;
+  servidor_id: string;
   nome_completo: string;
   matricula: string | null;
-  cpf: string | null;
-  situacao: string;
   vinculo: string;
   cargo_nome: string | null;
   unidade_nome: string | null;
-  // Dados do usuário (se existir)
-  profile_id: string | null;
-  email: string | null;
-  is_active: boolean | null;
+  email: string;
+  is_active: boolean;
   perfil_codigo: string | null;
   modulos: Modulo[];
 }
 
 export default function ServidoresAcessoPage() {
-  const [servidores, setServidores] = useState<ServidorComAcesso[]>([]);
+  const [usuarios, setUsuarios] = useState<UsuarioServidor[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterAcesso, setFilterAcesso] = useState<'all' | 'com_acesso' | 'sem_acesso'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'ativo' | 'bloqueado'>('all');
   const [filterVinculo, setFilterVinculo] = useState<string>('all');
-  const [expandedServidor, setExpandedServidor] = useState<string | null>(null);
+  const [expandedUsuario, setExpandedUsuario] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const fetchServidores = useCallback(async () => {
+  const fetchUsuarios = useCallback(async () => {
     setLoading(true);
     try {
-      // Buscar todos os servidores ativos com seus dados de acesso
-      const { data, error } = await supabase
+      // Buscar profiles com servidor vinculado
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, email, is_active, servidor_id')
+        .not('servidor_id', 'is', null);
+
+      if (profilesError) throw profilesError;
+
+      if (!profiles || profiles.length === 0) {
+        setUsuarios([]);
+        setLoading(false);
+        return;
+      }
+
+      const servidorIds = profiles.map(p => p.servidor_id).filter(Boolean);
+
+      // Buscar dados dos servidores
+      const { data: servidores } = await supabase
         .from('servidores')
         .select(`
           id,
           nome_completo,
           matricula,
-          cpf,
-          situacao,
           vinculo,
           cargo:cargos(nome),
           unidade:estrutura_organizacional(nome)
         `)
-        .eq('situacao', 'ativo')
-        .order('nome_completo');
-
-      if (error) throw error;
-
-      // Buscar profiles vinculados
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, servidor_id, email, is_active');
+        .in('id', servidorIds);
 
       // Buscar perfis dos usuários
       const { data: perfilData } = await supabase
@@ -93,33 +95,33 @@ export default function ServidoresAcessoPage() {
         .select('user_id, modulo');
 
       // Mapear dados
-      const servidoresComAcesso: ServidorComAcesso[] = (data || []).map(s => {
-        const profile = profiles?.find(p => p.servidor_id === s.id);
-        const perfilInfo = perfilData?.find(p => p.user_id === profile?.id);
+      const usuariosMapeados: UsuarioServidor[] = profiles.map(profile => {
+        const servidor = servidores?.find(s => s.id === profile.servidor_id);
+        const perfilInfo = perfilData?.find(p => p.user_id === profile.id);
         const modulos = modulosData
-          ?.filter(m => m.user_id === profile?.id)
+          ?.filter(m => m.user_id === profile.id)
           .map(m => m.modulo as Modulo) || [];
 
         return {
-          id: s.id,
-          nome_completo: s.nome_completo,
-          matricula: s.matricula,
-          cpf: s.cpf,
-          situacao: s.situacao,
-          vinculo: s.vinculo,
-          cargo_nome: (s.cargo as any)?.nome || null,
-          unidade_nome: (s.unidade as any)?.nome || null,
-          profile_id: profile?.id || null,
-          email: profile?.email || null,
-          is_active: profile?.is_active ?? null,
+          profile_id: profile.id,
+          servidor_id: profile.servidor_id!,
+          nome_completo: servidor?.nome_completo || 'Nome não encontrado',
+          matricula: servidor?.matricula || null,
+          vinculo: servidor?.vinculo || 'N/A',
+          cargo_nome: (servidor?.cargo as any)?.nome || null,
+          unidade_nome: (servidor?.unidade as any)?.nome || null,
+          email: profile.email || '',
+          is_active: profile.is_active ?? false,
           perfil_codigo: (perfilInfo?.perfil as any)?.codigo || null,
           modulos,
         };
       });
 
-      setServidores(servidoresComAcesso);
+      // Ordenar por nome
+      usuariosMapeados.sort((a, b) => a.nome_completo.localeCompare(b.nome_completo));
+      setUsuarios(usuariosMapeados);
     } catch (err: any) {
-      console.error('Erro ao buscar servidores:', err);
+      console.error('Erro ao buscar usuários:', err);
       toast({ variant: 'destructive', title: 'Erro', description: err.message });
     } finally {
       setLoading(false);
@@ -127,29 +129,49 @@ export default function ServidoresAcessoPage() {
   }, [toast]);
 
   useEffect(() => {
-    fetchServidores();
-  }, [fetchServidores]);
+    fetchUsuarios();
+  }, [fetchUsuarios]);
 
-  // Filtrar servidores
-  const servidoresFiltrados = servidores.filter(s => {
+  // Filtrar usuários
+  const usuariosFiltrados = usuarios.filter(u => {
     const matchesSearch = 
-      s.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.matricula?.includes(searchTerm);
+      u.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.matricula?.includes(searchTerm);
     
-    const matchesAcesso = 
-      filterAcesso === 'all' ||
-      (filterAcesso === 'com_acesso' && s.profile_id) ||
-      (filterAcesso === 'sem_acesso' && !s.profile_id);
+    const matchesStatus = 
+      filterStatus === 'all' ||
+      (filterStatus === 'ativo' && u.is_active) ||
+      (filterStatus === 'bloqueado' && !u.is_active);
     
-    const matchesVinculo = filterVinculo === 'all' || s.vinculo === filterVinculo;
+    const matchesVinculo = filterVinculo === 'all' || u.vinculo === filterVinculo;
     
-    return matchesSearch && matchesAcesso && matchesVinculo;
+    return matchesSearch && matchesStatus && matchesVinculo;
   });
+
+  // Toggle status ativo/bloqueado
+  const handleToggleStatus = async (userId: string, currentStatus: boolean) => {
+    setSaving(userId);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_active: !currentStatus })
+        .eq('id', userId);
+
+      if (error) throw error;
+      
+      toast({ title: !currentStatus ? 'Usuário ativado' : 'Usuário bloqueado' });
+      await fetchUsuarios();
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erro', description: err.message });
+    } finally {
+      setSaving(null);
+    }
+  };
 
   // Toggle módulo
   const handleToggleModulo = async (userId: string, modulo: Modulo, temAtualmente: boolean) => {
-    setSaving(true);
+    setSaving(userId);
     try {
       if (temAtualmente) {
         await supabase
@@ -163,67 +185,51 @@ export default function ServidoresAcessoPage() {
           .insert({ user_id: userId, modulo });
       }
       toast({ title: temAtualmente ? 'Módulo removido' : 'Módulo adicionado' });
-      await fetchServidores();
+      await fetchUsuarios();
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erro', description: err.message });
     } finally {
-      setSaving(false);
+      setSaving(null);
     }
   };
 
   // Obter vínculos únicos para filtro
-  const vinculos = [...new Set(servidores.map(s => s.vinculo))].sort();
+  const vinculos = [...new Set(usuarios.map(u => u.vinculo))].sort();
 
   // Estatísticas
   const stats = {
-    total: servidores.length,
-    comAcesso: servidores.filter(s => s.profile_id).length,
-    semAcesso: servidores.filter(s => !s.profile_id).length,
-    ativos: servidores.filter(s => s.is_active).length,
+    total: usuarios.length,
+    ativos: usuarios.filter(u => u.is_active).length,
+    bloqueados: usuarios.filter(u => !u.is_active).length,
   };
 
   return (
     <AdminLayout 
       title="Gestão de Acesso dos Servidores" 
-      description="Visualize todos os servidores e gerencie seus acessos ao sistema"
+      description="Gerencie o acesso e módulos dos servidores cadastrados no sistema"
     >
       <div className="space-y-6">
         {/* Estatísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <Card>
             <CardContent className="py-4">
               <div className="text-2xl font-bold text-primary">{stats.total}</div>
-              <div className="text-sm text-muted-foreground">Servidores Ativos</div>
+              <div className="text-sm text-muted-foreground">Total com Conta</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="py-4">
-              <div className="text-2xl font-bold text-green-600">{stats.comAcesso}</div>
-              <div className="text-sm text-muted-foreground">Com Acesso</div>
+              <div className="text-2xl font-bold text-primary">{stats.ativos}</div>
+              <div className="text-sm text-muted-foreground">Ativos</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="py-4">
-              <div className="text-2xl font-bold text-amber-600">{stats.semAcesso}</div>
-              <div className="text-sm text-muted-foreground">Sem Conta</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="py-4">
-              <div className="text-2xl font-bold text-blue-600">{stats.ativos}</div>
-              <div className="text-sm text-muted-foreground">Usuários Ativos</div>
+              <div className="text-2xl font-bold text-destructive">{stats.bloqueados}</div>
+              <div className="text-sm text-muted-foreground">Bloqueados</div>
             </CardContent>
           </Card>
         </div>
-
-        {/* Aviso */}
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertDescription>
-            Servidores <strong>sem conta</strong> precisam se cadastrar no sistema. 
-            Para servidores <strong>com conta</strong>, expanda para gerenciar módulos.
-          </AlertDescription>
-        </Alert>
 
         {/* Filtros */}
         <div className="flex flex-col lg:flex-row gap-4">
@@ -237,14 +243,14 @@ export default function ServidoresAcessoPage() {
             />
           </div>
           
-          <Select value={filterAcesso} onValueChange={(v) => setFilterAcesso(v as any)}>
-            <SelectTrigger className="w-full lg:w-48">
-              <SelectValue placeholder="Acesso" />
+          <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
+            <SelectTrigger className="w-full lg:w-40">
+              <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="com_acesso">Com acesso</SelectItem>
-              <SelectItem value="sem_acesso">Sem conta</SelectItem>
+              <SelectItem value="ativo">Ativos</SelectItem>
+              <SelectItem value="bloqueado">Bloqueados</SelectItem>
             </SelectContent>
           </Select>
 
@@ -260,48 +266,45 @@ export default function ServidoresAcessoPage() {
             </SelectContent>
           </Select>
 
-          <Button variant="outline" onClick={fetchServidores} disabled={loading}>
+          <Button variant="outline" onClick={fetchUsuarios} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Atualizar
           </Button>
         </div>
 
-        {/* Lista de servidores */}
+        {/* Lista de usuários */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : servidoresFiltrados.length === 0 ? (
+        ) : usuariosFiltrados.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
-              Nenhum servidor encontrado com os filtros aplicados.
+              {usuarios.length === 0 
+                ? 'Nenhum servidor possui conta no sistema ainda.' 
+                : 'Nenhum usuário encontrado com os filtros aplicados.'}
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-2">
-            {servidoresFiltrados.map((servidor) => {
-              const isExpanded = expandedServidor === servidor.id;
-              const isSuperAdmin = servidor.perfil_codigo === 'super_admin';
+            {usuariosFiltrados.map((usuario) => {
+              const isExpanded = expandedUsuario === usuario.profile_id;
+              const isSuperAdmin = usuario.perfil_codigo === 'super_admin';
+              const isSaving = saving === usuario.profile_id;
               
               return (
                 <Card 
-                  key={servidor.id}
-                  className={`transition-all ${
-                    !servidor.profile_id ? 'border-amber-200 dark:border-amber-900' : ''
-                  } ${servidor.is_active === false ? 'opacity-60' : ''}`}
+                  key={usuario.profile_id}
+                  className={`transition-all ${!usuario.is_active ? 'opacity-60 border-destructive/30' : ''}`}
                 >
                   <CardContent className="py-3">
                     <div className="flex items-center gap-3">
                       {/* Ícone de status */}
                       <div className="shrink-0">
-                        {servidor.profile_id ? (
-                          servidor.is_active ? (
-                            <UserCheck className="h-5 w-5 text-green-600" />
-                          ) : (
-                            <UserX className="h-5 w-5 text-red-500" />
-                          )
+                        {usuario.is_active ? (
+                          <UserCheck className="h-5 w-5 text-primary" />
                         ) : (
-                          <UserPlus className="h-5 w-5 text-amber-500" />
+                          <UserX className="h-5 w-5 text-destructive" />
                         )}
                       </div>
 
@@ -309,61 +312,58 @@ export default function ServidoresAcessoPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium truncate">
-                            {servidor.nome_completo}
+                            {usuario.nome_completo}
                           </span>
                           {isSuperAdmin && (
-                            <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 text-xs">
+                            <Badge className="bg-primary/10 text-primary border-primary/30 text-xs">
+                              <Shield className="h-3 w-3 mr-1" />
                               Super Admin
-                            </Badge>
-                          )}
-                          {servidor.is_active === false && (
-                            <Badge variant="destructive" className="text-xs">
-                              Bloqueado
                             </Badge>
                           )}
                         </div>
                         <div className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
-                          <span className="capitalize">{servidor.vinculo}</span>
-                          {servidor.cargo_nome && (
+                          <span className="capitalize">{usuario.vinculo}</span>
+                          {usuario.cargo_nome && (
                             <>
                               <span>•</span>
-                              <span className="truncate">{servidor.cargo_nome}</span>
+                              <span className="truncate">{usuario.cargo_nome}</span>
                             </>
                           )}
-                          {servidor.email && (
-                            <>
-                              <span>•</span>
-                              <span className="flex items-center gap-1">
-                                <Mail className="h-3 w-3" />
-                                {servidor.email}
-                              </span>
-                            </>
-                          )}
+                          <span>•</span>
+                          <span className="flex items-center gap-1">
+                            <Mail className="h-3 w-3" />
+                            {usuario.email}
+                          </span>
                         </div>
                       </div>
 
-                      {/* Módulos (resumo) */}
-                      {servidor.profile_id && !isSuperAdmin && (
-                        <div className="hidden md:block shrink-0">
-                          <Badge variant="outline" className="text-xs">
-                            {servidor.modulos.length} módulo(s)
-                          </Badge>
+                      {/* Toggle ativo/bloqueado */}
+                      {!isSuperAdmin && (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs text-muted-foreground hidden sm:block">
+                            {usuario.is_active ? 'Ativo' : 'Bloqueado'}
+                          </span>
+                          <Switch
+                            checked={usuario.is_active}
+                            onCheckedChange={() => handleToggleStatus(usuario.profile_id, usuario.is_active)}
+                            disabled={isSaving}
+                          />
                         </div>
                       )}
 
-                      {/* Status para quem não tem conta */}
-                      {!servidor.profile_id && (
-                        <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
-                          Aguardando cadastro
+                      {/* Módulos (resumo) */}
+                      {!isSuperAdmin && (
+                        <Badge variant="outline" className="text-xs hidden md:flex">
+                          {usuario.modulos.length} módulo(s)
                         </Badge>
                       )}
 
-                      {/* Botão expandir - para todos exceto super admin */}
+                      {/* Botão expandir */}
                       {!isSuperAdmin && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setExpandedServidor(isExpanded ? null : servidor.id)}
+                          onClick={() => setExpandedUsuario(isExpanded ? null : usuario.profile_id)}
                         >
                           {isExpanded ? (
                             <ChevronUp className="h-4 w-4" />
@@ -374,42 +374,20 @@ export default function ServidoresAcessoPage() {
                       )}
                     </div>
 
-                    {/* Área expandida */}
+                    {/* Área expandida - Módulos */}
                     {isExpanded && !isSuperAdmin && (
                       <div className="mt-4 pt-4 border-t">
-                        {servidor.profile_id ? (
-                          <>
-                            <p className="text-xs text-muted-foreground mb-3">
-                              Clique para ativar/desativar módulos:
-                            </p>
-                            <QuickModuloToggle
-                              modulosAtivos={servidor.modulos}
-                              onToggle={(modulo, temAtualmente) => 
-                                handleToggleModulo(servidor.profile_id!, modulo, temAtualmente)
-                              }
-                              disabled={saving}
-                              isSuperAdmin={false}
-                            />
-                          </>
-                        ) : (
-                          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
-                            <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">
-                              Servidor sem conta no sistema
-                            </p>
-                            <p className="text-xs text-amber-700 dark:text-amber-300 mb-3">
-                              Este servidor precisa criar uma conta usando o CPF <strong>{servidor.cpf || 'N/A'}</strong> ou 
-                              matrícula <strong>{servidor.matricula || 'N/A'}</strong> para acessar o sistema.
-                            </p>
-                            <div className="text-xs text-muted-foreground">
-                              <strong>Dados do servidor:</strong>
-                              <ul className="mt-1 space-y-1">
-                                <li>• Cargo: {servidor.cargo_nome || 'Não informado'}</li>
-                                <li>• Unidade: {servidor.unidade_nome || 'Não informada'}</li>
-                                <li>• Vínculo: {servidor.vinculo}</li>
-                              </ul>
-                            </div>
-                          </div>
-                        )}
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Clique para ativar/desativar módulos:
+                        </p>
+                        <QuickModuloToggle
+                          modulosAtivos={usuario.modulos}
+                          onToggle={(modulo, temAtualmente) => 
+                            handleToggleModulo(usuario.profile_id, modulo, temAtualmente)
+                          }
+                          disabled={isSaving}
+                          isSuperAdmin={false}
+                        />
                       </div>
                     )}
                   </CardContent>
@@ -421,7 +399,7 @@ export default function ServidoresAcessoPage() {
 
         {/* Contador */}
         <div className="text-center text-sm text-muted-foreground">
-          Exibindo {servidoresFiltrados.length} de {servidores.length} servidores
+          Exibindo {usuariosFiltrados.length} de {usuarios.length} usuários
         </div>
       </div>
     </AdminLayout>
