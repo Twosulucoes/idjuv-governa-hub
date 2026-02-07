@@ -21,24 +21,38 @@ export function useModulosUsuario() {
     }
 
     try {
-      // Buscar perfil do usuário
-      const { data: perfilData } = await supabase
-        .from('usuario_perfis')
-        .select('perfil:perfis(codigo)')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      const codigo = (perfilData?.perfil as any)?.codigo || null;
-      setPerfilCodigo(codigo);
-
-      // Super admin tem todos os módulos
-      if (codigo === 'super_admin') {
+      // ============================================
+      // SUPER ADMIN VIA AuthContext TEM ACESSO TOTAL
+      // Verifica PRIMEIRO antes de consultar banco
+      // ============================================
+      if (isSuperAdmin) {
+        console.log('[useModulosUsuario] Super Admin detectado via AuthContext - acesso total');
+        setPerfilCodigo('super_admin');
         setModulosAutorizados([...MODULOS]);
         setLoading(false);
         return;
       }
 
-      // Buscar módulos autorizados
+      // Buscar perfil do usuário
+      const { data: perfilData } = await supabase
+        .from('usuario_perfis')
+        .select('perfil:perfis(codigo)')
+        .eq('user_id', user.id)
+        .eq('ativo', true)
+        .maybeSingle();
+
+      const codigo = (perfilData?.perfil as any)?.codigo || null;
+      setPerfilCodigo(codigo);
+
+      // Super admin via perfil também tem todos os módulos
+      if (codigo === 'super_admin') {
+        console.log('[useModulosUsuario] Super Admin detectado via perfil - acesso total');
+        setModulosAutorizados([...MODULOS]);
+        setLoading(false);
+        return;
+      }
+
+      // Buscar módulos autorizados para usuários comuns
       const { data: modulosData } = await supabase
         .from('usuario_modulos')
         .select('modulo')
@@ -48,13 +62,14 @@ export function useModulosUsuario() {
         .map(m => m.modulo)
         .filter((m): m is Modulo => MODULOS.includes(m as Modulo));
       
+      console.log('[useModulosUsuario] Módulos carregados:', modulos);
       setModulosAutorizados(modulos);
     } catch (error) {
       console.error('[useModulosUsuario] Erro:', error);
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, isSuperAdmin]);
 
   useEffect(() => {
     fetchModulosUsuario();
