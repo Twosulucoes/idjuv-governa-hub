@@ -30,8 +30,11 @@ const PERFIL_ICONS: Record<PerfilCodigo, React.ReactNode> = {
 };
 
 export function UsuarioPerfilTab({ usuario, saving, onDefinirPerfil }: UsuarioPerfilTabProps) {
-  const perfilAtual = usuario.perfil?.perfil?.codigo as PerfilCodigo | undefined;
-  const ehSuperAdmin = perfilAtual === 'super_admin';
+  // Mapear role do novo sistema para PerfilCodigo legado
+  const perfilAtual = usuario.role 
+    ? (usuario.role === 'admin' ? 'super_admin' : usuario.role === 'manager' ? 'gestor' : 'servidor')
+    : undefined;
+  const ehSuperAdmin = usuario.role === 'admin';
 
   // Opções de perfil disponíveis (exceto super_admin que é especial)
   const perfisDisponiveis: PerfilCodigo[] = ['gestor', 'servidor'];
