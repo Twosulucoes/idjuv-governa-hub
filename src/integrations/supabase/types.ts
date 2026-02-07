@@ -39,15 +39,7 @@ export type Database = {
           modulo_id?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "usuario_modulos_modulo_id_fkey"
-            columns: ["modulo_id"]
-            isOneToOne: false
-            referencedRelation: "modulos_sistema"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       acesso_processo_sigiloso: {
         Row: {
@@ -834,7 +826,6 @@ export type Database = {
           metadata: Json | null
           module_name: string | null
           org_unit_id: string | null
-          role_at_time: Database["public"]["Enums"]["app_role"] | null
           timestamp: string
           user_agent: string | null
           user_id: string | null
@@ -851,7 +842,6 @@ export type Database = {
           metadata?: Json | null
           module_name?: string | null
           org_unit_id?: string | null
-          role_at_time?: Database["public"]["Enums"]["app_role"] | null
           timestamp?: string
           user_agent?: string | null
           user_id?: string | null
@@ -868,7 +858,6 @@ export type Database = {
           metadata?: Json | null
           module_name?: string | null
           org_unit_id?: string | null
-          role_at_time?: Database["public"]["Enums"]["app_role"] | null
           timestamp?: string
           user_agent?: string | null
           user_id?: string | null
@@ -1340,13 +1329,6 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "banco_horas_servidor_id_fkey"
-            columns: ["servidor_id"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
         ]
@@ -2739,24 +2721,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "config_autarquia_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "config_autarquia_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "config_autarquia_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
         ]
@@ -4162,13 +4130,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "configuracao_jornada_servidor_id_fkey"
-            columns: ["servidor_id"]
-            isOneToOne: true
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
         ]
       }
       consignacoes: {
@@ -4265,13 +4226,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "consignacoes_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
           {
@@ -4372,13 +4326,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contas_autarquia_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
         ]
@@ -5442,13 +5389,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "dependentes_irrf_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "dependentes_irrf_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
@@ -5553,24 +5493,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "designacoes_aprovado_por_fkey"
-            columns: ["aprovado_por"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "designacoes_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "designacoes_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
           {
@@ -6638,13 +6564,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "estrutura_organizacional_servidor_responsavel_id_fkey"
-            columns: ["servidor_responsavel_id"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "estrutura_organizacional_superior_id_fkey"
             columns: ["superior_id"]
             isOneToOne: false
@@ -6746,13 +6665,6 @@ export type Database = {
             columns: ["gerado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "eventos_esocial_gerado_por_fkey"
-            columns: ["gerado_por"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
           {
@@ -6908,13 +6820,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "exportacoes_folha_enviado_por_fkey"
-            columns: ["enviado_por"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "exportacoes_folha_folha_id_fkey"
             columns: ["folha_id"]
             isOneToOne: false
@@ -6926,13 +6831,6 @@ export type Database = {
             columns: ["gerado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "exportacoes_folha_gerado_por_fkey"
-            columns: ["gerado_por"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
         ]
@@ -9725,24 +9623,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "folhas_pagamento_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "folhas_pagamento_fechado_por_fkey"
             columns: ["fechado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "folhas_pagamento_fechado_por_fkey"
-            columns: ["fechado_por"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
           {
@@ -9753,24 +9637,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "folhas_pagamento_processado_por_fkey"
-            columns: ["processado_por"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "folhas_pagamento_reaberto_por_fkey"
             columns: ["reaberto_por"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "folhas_pagamento_reaberto_por_fkey"
-            columns: ["reaberto_por"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
         ]
@@ -10234,65 +10104,6 @@ export type Database = {
             columns: ["unidade_id"]
             isOneToOne: false
             referencedRelation: "estrutura_organizacional"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      funcoes_sistema: {
-        Row: {
-          ativo: boolean
-          codigo: string
-          created_at: string
-          descricao: string | null
-          funcao_pai_id: string | null
-          icone: string | null
-          id: string
-          modulo: string
-          nome: string
-          ordem: number
-          rota: string | null
-          submodulo: string | null
-          tipo_acao: string
-          updated_at: string
-        }
-        Insert: {
-          ativo?: boolean
-          codigo: string
-          created_at?: string
-          descricao?: string | null
-          funcao_pai_id?: string | null
-          icone?: string | null
-          id?: string
-          modulo: string
-          nome: string
-          ordem?: number
-          rota?: string | null
-          submodulo?: string | null
-          tipo_acao?: string
-          updated_at?: string
-        }
-        Update: {
-          ativo?: boolean
-          codigo?: string
-          created_at?: string
-          descricao?: string | null
-          funcao_pai_id?: string | null
-          icone?: string | null
-          id?: string
-          modulo?: string
-          nome?: string
-          ordem?: number
-          rota?: string | null
-          submodulo?: string | null
-          tipo_acao?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "funcoes_sistema_funcao_pai_id_fkey"
-            columns: ["funcao_pai_id"]
-            isOneToOne: false
-            referencedRelation: "funcoes_sistema"
             referencedColumns: ["id"]
           },
         ]
@@ -11658,13 +11469,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "justificativas_ponto_aprovador_id_fkey"
-            columns: ["aprovador_id"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "justificativas_ponto_registro_ponto_id_fkey"
             columns: ["registro_ponto_id"]
             isOneToOne: false
@@ -12543,13 +12347,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "memorandos_lotacao_emitido_por_fkey"
-            columns: ["emitido_por"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "memorandos_lotacao_lotacao_id_fkey"
             columns: ["lotacao_id"]
             isOneToOne: false
@@ -12561,13 +12358,6 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "memorandos_lotacao_servidor_id_fkey"
-            columns: ["servidor_id"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
           {
@@ -12631,7 +12421,6 @@ export type Database = {
           created_at: string | null
           id: string
           module_name: string
-          role: Database["public"]["Enums"]["app_role"]
         }
         Insert: {
           access_scope?: Database["public"]["Enums"]["access_scope"]
@@ -12642,7 +12431,6 @@ export type Database = {
           created_at?: string | null
           id?: string
           module_name: string
-          role: Database["public"]["Enums"]["app_role"]
         }
         Update: {
           access_scope?: Database["public"]["Enums"]["access_scope"]
@@ -12653,46 +12441,6 @@ export type Database = {
           created_at?: string | null
           id?: string
           module_name?: string
-          role?: Database["public"]["Enums"]["app_role"]
-        }
-        Relationships: []
-      }
-      modulos_sistema: {
-        Row: {
-          ativo: boolean | null
-          codigo: string
-          cor: string | null
-          created_at: string | null
-          descricao: string | null
-          icone: string | null
-          id: string
-          nome: string
-          ordem: number | null
-          prefixos_rota: string[]
-        }
-        Insert: {
-          ativo?: boolean | null
-          codigo: string
-          cor?: string | null
-          created_at?: string | null
-          descricao?: string | null
-          icone?: string | null
-          id?: string
-          nome: string
-          ordem?: number | null
-          prefixos_rota?: string[]
-        }
-        Update: {
-          ativo?: boolean | null
-          codigo?: string
-          cor?: string | null
-          created_at?: string | null
-          descricao?: string | null
-          icone?: string | null
-          id?: string
-          nome?: string
-          ordem?: number | null
-          prefixos_rota?: string[]
         }
         Relationships: []
       }
@@ -13851,24 +13599,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "parametros_folha_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "parametros_folha_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "parametros_folha_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
         ]
@@ -14318,13 +14052,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "pensoes_alimenticias_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "pensoes_alimenticias_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
@@ -14343,48 +14070,6 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "v_servidores_situacao"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      perfil_funcoes: {
-        Row: {
-          concedido: boolean
-          created_at: string
-          created_by: string | null
-          funcao_id: string
-          id: string
-          perfil_id: string
-        }
-        Insert: {
-          concedido?: boolean
-          created_at?: string
-          created_by?: string | null
-          funcao_id: string
-          id?: string
-          perfil_id: string
-        }
-        Update: {
-          concedido?: boolean
-          created_at?: string
-          created_by?: string | null
-          funcao_id?: string
-          id?: string
-          perfil_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "perfil_funcoes_funcao_id_fkey"
-            columns: ["funcao_id"]
-            isOneToOne: false
-            referencedRelation: "funcoes_sistema"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "perfil_funcoes_perfil_id_fkey"
-            columns: ["perfil_id"]
-            isOneToOne: false
-            referencedRelation: "perfis"
             referencedColumns: ["id"]
           },
         ]
@@ -14416,79 +14101,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "perfil_permissoes_perfil_id_fkey"
-            columns: ["perfil_id"]
-            isOneToOne: false
-            referencedRelation: "perfis"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "perfil_permissoes_permissao_id_fkey"
             columns: ["permissao_id"]
             isOneToOne: false
             referencedRelation: "permissoes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      perfis: {
-        Row: {
-          ativo: boolean
-          codigo: string | null
-          cor: string | null
-          created_at: string
-          created_by: string | null
-          descricao: string | null
-          icone: string | null
-          id: string
-          is_sistema: boolean
-          nivel: Database["public"]["Enums"]["nivel_perfil"]
-          nivel_hierarquia: number
-          nome: string
-          perfil_pai_id: string | null
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          ativo?: boolean
-          codigo?: string | null
-          cor?: string | null
-          created_at?: string
-          created_by?: string | null
-          descricao?: string | null
-          icone?: string | null
-          id?: string
-          is_sistema?: boolean
-          nivel?: Database["public"]["Enums"]["nivel_perfil"]
-          nivel_hierarquia?: number
-          nome: string
-          perfil_pai_id?: string | null
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          ativo?: boolean
-          codigo?: string | null
-          cor?: string | null
-          created_at?: string
-          created_by?: string | null
-          descricao?: string | null
-          icone?: string | null
-          id?: string
-          is_sistema?: boolean
-          nivel?: Database["public"]["Enums"]["nivel_perfil"]
-          nivel_hierarquia?: number
-          nome?: string
-          perfil_pai_id?: string | null
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "perfis_perfil_pai_id_fkey"
-            columns: ["perfil_pai_id"]
-            isOneToOne: false
-            referencedRelation: "perfis"
             referencedColumns: ["id"]
           },
         ]
@@ -16176,13 +15792,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "registros_ponto_aprovador_id_fkey"
-            columns: ["aprovador_id"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "registros_ponto_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
@@ -16282,13 +15891,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "remessas_bancarias_enviado_por_fkey"
-            columns: ["enviado_por"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "remessas_bancarias_folha_id_fkey"
             columns: ["folha_id"]
             isOneToOne: false
@@ -16300,13 +15902,6 @@ export type Database = {
             columns: ["gerado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "remessas_bancarias_gerado_por_fkey"
-            columns: ["gerado_por"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
         ]
@@ -16608,13 +16203,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "retornos_bancarios_processado_por_fkey"
-            columns: ["processado_por"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "retornos_bancarios_remessa_id_fkey"
             columns: ["remessa_id"]
             isOneToOne: false
@@ -16867,19 +16455,16 @@ export type Database = {
           created_at: string
           id: string
           permission: Database["public"]["Enums"]["app_permission"]
-          role: Database["public"]["Enums"]["app_role"]
         }
         Insert: {
           created_at?: string
           id?: string
           permission: Database["public"]["Enums"]["app_permission"]
-          role: Database["public"]["Enums"]["app_role"]
         }
         Update: {
           created_at?: string
           id?: string
           permission?: Database["public"]["Enums"]["app_permission"]
-          role?: Database["public"]["Enums"]["app_role"]
         }
         Relationships: []
       }
@@ -16986,24 +16571,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "rubricas_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "rubricas_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "rubricas_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
         ]
@@ -17048,13 +16619,6 @@ export type Database = {
             columns: ["alterado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "rubricas_historico_alterado_por_fkey"
-            columns: ["alterado_por"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
           {
@@ -17664,13 +17228,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "solicitacoes_ajuste_ponto_aprovador_id_fkey"
-            columns: ["aprovador_id"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "solicitacoes_ajuste_ponto_registro_ponto_id_fkey"
             columns: ["registro_ponto_id"]
             isOneToOne: false
@@ -17682,13 +17239,6 @@ export type Database = {
             columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "solicitacoes_ajuste_ponto_servidor_id_fkey"
-            columns: ["servidor_id"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
         ]
@@ -17868,13 +17418,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "tabela_inss_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
         ]
       }
       tabela_irrf: {
@@ -17923,13 +17466,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tabela_irrf_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
             referencedColumns: ["id"]
           },
         ]
@@ -18289,6 +17825,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_modules: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          module: Database["public"]["Enums"]["app_module"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          module: Database["public"]["Enums"]["app_module"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          module?: Database["public"]["Enums"]["app_module"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_org_units: {
         Row: {
           access_scope: Database["public"]["Enums"]["access_scope"] | null
@@ -18351,18 +17911,21 @@ export type Database = {
       user_roles: {
         Row: {
           created_at: string
+          created_by: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           id?: string
-          role?: Database["public"]["Enums"]["app_role"]
+          role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
@@ -18431,103 +17994,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      usuario_modulos: {
-        Row: {
-          created_at: string | null
-          created_by: string | null
-          id: string
-          modulo: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          modulo: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          modulo?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "usuario_modulos_created_by_fkey1"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "usuario_modulos_created_by_fkey1"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "usuario_modulos_user_id_fkey1"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "usuario_modulos_user_id_fkey1"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "v_usuarios_sistema"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      usuario_perfis: {
-        Row: {
-          ativo: boolean
-          created_at: string
-          created_by: string | null
-          data_fim: string | null
-          data_inicio: string
-          id: string
-          observacao: string | null
-          perfil_id: string
-          user_id: string
-        }
-        Insert: {
-          ativo?: boolean
-          created_at?: string
-          created_by?: string | null
-          data_fim?: string | null
-          data_inicio?: string
-          id?: string
-          observacao?: string | null
-          perfil_id: string
-          user_id: string
-        }
-        Update: {
-          ativo?: boolean
-          created_at?: string
-          created_by?: string | null
-          data_fim?: string | null
-          data_inicio?: string
-          id?: string
-          observacao?: string | null
-          perfil_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "usuario_perfis_perfil_id_fkey"
-            columns: ["perfil_id"]
-            isOneToOne: false
-            referencedRelation: "perfis"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       viagens_diarias: {
         Row: {
@@ -18912,18 +18378,6 @@ export type Database = {
         }
         Relationships: []
       }
-      v_permissoes_admin: {
-        Row: {
-          capacidade: string | null
-          codigo: string | null
-          concedido: boolean | null
-          dominio: string | null
-          nome: string | null
-          perfil_codigo: string | null
-          perfil_nome: string | null
-        }
-        Relationships: []
-      }
       v_processos_resumo: {
         Row: {
           assunto: string | null
@@ -19135,33 +18589,6 @@ export type Database = {
         }
         Relationships: []
       }
-      v_usuarios_sistema: {
-        Row: {
-          avatar_url: string | null
-          created_at: string | null
-          full_name: string | null
-          id: string | null
-          perfis: string[] | null
-          updated_at: string | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          created_at?: string | null
-          full_name?: string | null
-          id?: string | null
-          perfis?: never
-          updated_at?: string | null
-        }
-        Update: {
-          avatar_url?: string | null
-          created_at?: string | null
-          full_name?: string | null
-          id?: string | null
-          perfis?: never
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
     }
     Functions: {
       atualizar_codigos_unidades_locais: { Args: never; Returns: undefined }
@@ -19188,6 +18615,10 @@ export type Database = {
         Args: { p_data_inicio: string; p_tipo_prazo?: string }
         Returns: string
       }
+      can_access_module: {
+        Args: { _module: Database["public"]["Enums"]["app_module"] }
+        Returns: boolean
+      }
       can_approve: {
         Args: { _module_name?: string; _user_id: string }
         Returns: boolean
@@ -19209,14 +18640,6 @@ export type Database = {
       count_dependentes_irrf: {
         Args: { p_data?: string; p_servidor_id: string }
         Returns: number
-      }
-      criar_usuario_para_servidor: {
-        Args: {
-          p_email: string
-          p_role?: Database["public"]["Enums"]["app_role"]
-          p_servidor_id: string
-        }
-        Returns: string
       }
       enviar_folha_conferencia: { Args: { p_folha_id: string }; Returns: Json }
       fechar_folha: {
@@ -19323,9 +18746,9 @@ export type Database = {
         }[]
       }
       get_user_permissions: { Args: { _user_id: string }; Returns: string[] }
-      get_user_role: {
-        Args: { _user_id: string }
-        Returns: Database["public"]["Enums"]["app_role"]
+      has_module: {
+        Args: { _module: Database["public"]["Enums"]["app_module"] }
+        Returns: boolean
       }
       has_permission: {
         Args: {
@@ -19335,12 +18758,10 @@ export type Database = {
         Returns: boolean
       }
       has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
       }
+      is_active_user: { Args: never; Returns: boolean }
       is_admin_user: { Args: { _user_id: string }; Returns: boolean }
       is_usuario_tecnico: { Args: { _user_id: string }; Returns: boolean }
       list_public_tables: {
@@ -19409,11 +18830,18 @@ export type Database = {
         Args: { p_folha_id: string; p_justificativa: string }
         Returns: Json
       }
+      user_context: {
+        Args: never
+        Returns: {
+          is_active: boolean
+          modules: Database["public"]["Enums"]["app_module"][]
+          roles: Database["public"]["Enums"]["app_role"][]
+        }[]
+      }
       user_has_unit_access: {
         Args: { _unidade_id: string; _user_id: string }
         Returns: boolean
       }
-      usuario_eh_admin: { Args: { check_user_id: string }; Returns: boolean }
       usuario_eh_super_admin: {
         Args: { check_user_id: string }
         Returns: boolean
@@ -19432,10 +18860,6 @@ export type Database = {
       }
       usuario_tem_acesso_rota: {
         Args: { _pathname: string; _user_id: string }
-        Returns: boolean
-      }
-      usuario_tem_permissao: {
-        Args: { _codigo_funcao: string; _user_id: string }
         Returns: boolean
       }
       usuario_tem_permissao_financeira: {
@@ -19457,6 +18881,20 @@ export type Database = {
     }
     Enums: {
       access_scope: "all" | "org_unit" | "local_unit" | "own" | "readonly"
+      app_module:
+        | "rh"
+        | "financeiro"
+        | "compras"
+        | "patrimonio"
+        | "contratos"
+        | "workflow"
+        | "governanca"
+        | "transparencia"
+        | "comunicacao"
+        | "programas"
+        | "gestores_escolares"
+        | "integridade"
+        | "admin"
       app_permission:
         | "users.read"
         | "users.create"
@@ -19490,23 +18928,7 @@ export type Database = {
         | "approval.delegate"
         | "org_units.manage"
         | "mfa.manage"
-      app_role:
-        | "admin"
-        | "manager"
-        | "user"
-        | "guest"
-        | "presidencia"
-        | "diraf"
-        | "rh"
-        | "ti_admin"
-        | "gabinete"
-        | "controle_interno"
-        | "juridico"
-        | "cpl"
-        | "ascom"
-        | "cadastrador_local"
-        | "cadastrador_setor"
-        | "cadastrador_leitura"
+      app_role: "admin" | "manager" | "user"
       approval_status:
         | "draft"
         | "submitted"
@@ -20240,6 +19662,21 @@ export const Constants = {
   public: {
     Enums: {
       access_scope: ["all", "org_unit", "local_unit", "own", "readonly"],
+      app_module: [
+        "rh",
+        "financeiro",
+        "compras",
+        "patrimonio",
+        "contratos",
+        "workflow",
+        "governanca",
+        "transparencia",
+        "comunicacao",
+        "programas",
+        "gestores_escolares",
+        "integridade",
+        "admin",
+      ],
       app_permission: [
         "users.read",
         "users.create",
@@ -20274,24 +19711,7 @@ export const Constants = {
         "org_units.manage",
         "mfa.manage",
       ],
-      app_role: [
-        "admin",
-        "manager",
-        "user",
-        "guest",
-        "presidencia",
-        "diraf",
-        "rh",
-        "ti_admin",
-        "gabinete",
-        "controle_interno",
-        "juridico",
-        "cpl",
-        "ascom",
-        "cadastrador_local",
-        "cadastrador_setor",
-        "cadastrador_leitura",
-      ],
+      app_role: ["admin", "manager", "user"],
       approval_status: [
         "draft",
         "submitted",
