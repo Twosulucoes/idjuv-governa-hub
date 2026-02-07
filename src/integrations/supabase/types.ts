@@ -6469,6 +6469,36 @@ export type Database = {
           },
         ]
       }
+      escolas_jer: {
+        Row: {
+          created_at: string
+          id: string
+          inep: string | null
+          ja_cadastrada: boolean
+          municipio: string | null
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inep?: string | null
+          ja_cadastrada?: boolean
+          municipio?: string | null
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inep?: string | null
+          ja_cadastrada?: boolean
+          municipio?: string | null
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       estoque: {
         Row: {
           almoxarifado_id: string
@@ -10323,6 +10353,83 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      gestores_escolares: {
+        Row: {
+          acesso_testado: boolean
+          celular: string
+          contato_realizado: boolean
+          cpf: string
+          created_at: string
+          data_cadastro_cbde: string | null
+          data_confirmacao: string | null
+          data_contato: string | null
+          data_nascimento: string | null
+          email: string
+          endereco: string | null
+          escola_id: string
+          id: string
+          nome: string
+          observacoes: string | null
+          responsavel_id: string | null
+          responsavel_nome: string | null
+          rg: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          acesso_testado?: boolean
+          celular: string
+          contato_realizado?: boolean
+          cpf: string
+          created_at?: string
+          data_cadastro_cbde?: string | null
+          data_confirmacao?: string | null
+          data_contato?: string | null
+          data_nascimento?: string | null
+          email: string
+          endereco?: string | null
+          escola_id: string
+          id?: string
+          nome: string
+          observacoes?: string | null
+          responsavel_id?: string | null
+          responsavel_nome?: string | null
+          rg?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          acesso_testado?: boolean
+          celular?: string
+          contato_realizado?: boolean
+          cpf?: string
+          created_at?: string
+          data_cadastro_cbde?: string | null
+          data_confirmacao?: string | null
+          data_contato?: string | null
+          data_nascimento?: string | null
+          email?: string
+          endereco?: string | null
+          escola_id?: string
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          responsavel_id?: string | null
+          responsavel_nome?: string | null
+          rg?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gestores_escolares_escola_id_fkey"
+            columns: ["escola_id"]
+            isOneToOne: true
+            referencedRelation: "escolas_jer"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       historico_conteudo_oficial: {
         Row: {
