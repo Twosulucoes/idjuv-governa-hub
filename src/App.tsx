@@ -137,6 +137,12 @@ import MiniCurriculoSucessoPage from "./pages/curriculo/MiniCurriculoSucessoPage
 import GestaoPreCadastrosPage from "./pages/curriculo/GestaoPreCadastrosPage";
 import DiagnosticoPendenciasPage from "./pages/curriculo/DiagnosticoPendenciasPage";
 
+// Credenciamento Gestores Escolares
+import FormularioGestorPage from "./pages/cadastrogestores/FormularioGestorPage";
+import ConsultaGestorPage from "./pages/cadastrogestores/ConsultaGestorPage";
+import AdminGestoresPage from "./pages/cadastrogestores/AdminGestoresPage";
+import ImportarEscolasPage from "./pages/cadastrogestores/ImportarEscolasPage";
+
 // Workflow (SEI-like)
 import GestaoProcessosPage from "./pages/workflow/GestaoProcessosPage";
 import ProcessoDetalhePage from "./pages/workflow/ProcessoDetalhePage";
@@ -210,6 +216,10 @@ const App = () => (
               <Route path="/ascom/solicitar" element={<SolicitacaoPublicaAscomPage />} />
               <Route path="/ascom/consultar" element={<ConsultaProtocoloAscomPage />} />
               <Route path="/federacoes/cadastro" element={<CadastroFederacaoPage />} />
+              
+              {/* Credenciamento Gestores Escolares - JER */}
+              <Route path="/cadastrogestores" element={<FormularioGestorPage />} />
+              <Route path="/cadastrogestores/consulta" element={<ConsultaGestorPage />} />
               
               {/* ============================================ */}
               {/* ROTAS PROTEGIDAS - Apenas autenticação */}
@@ -311,6 +321,20 @@ const App = () => (
               <Route path="/admin/pre-cadastros/pendencias" element={
                 <ProtectedRoute requiredPermissions="rh.precadastros.visualizar">
                   <DiagnosticoPendenciasPage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ============================================ */}
+              {/* GESTORES ESCOLARES - Admin */}
+              {/* ============================================ */}
+              <Route path="/cadastrogestores/admin" element={
+                <ProtectedRoute>
+                  <AdminGestoresPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/cadastrogestores/admin/escolas" element={
+                <ProtectedRoute>
+                  <ImportarEscolasPage />
                 </ProtectedRoute>
               } />
               
