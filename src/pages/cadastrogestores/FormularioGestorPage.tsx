@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { CheckCircle, Loader2, ArrowRight, School, Search } from 'lucide-react';
+import { CheckCircle, Loader2, ArrowRight, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,6 +30,7 @@ import {
 import { useEscolasJer } from '@/hooks/useEscolasJer';
 import { useGestoresEscolares } from '@/hooks/useGestoresEscolares';
 import { validarCPF, formatarCPF, formatarCelular } from '@/types/gestoresEscolares';
+import { HeaderPublico } from '@/components/cadastrogestores/HeaderPublico';
 
 // Schema de validação
 const formSchema = z.object({
@@ -107,16 +108,7 @@ export default function FormularioGestorPage() {
   if (enviado && gestorCriado) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
-        {/* Header */}
-        <header className="bg-primary text-primary-foreground py-4">
-          <div className="container mx-auto px-4 flex items-center gap-3">
-            <School className="h-8 w-8" />
-            <div>
-              <h1 className="font-bold text-lg">IDJuv - Instituto de Desporto e Juventude</h1>
-              <p className="text-sm opacity-90">Credenciamento de Gestores Escolares - JER 2025</p>
-            </div>
-          </div>
-        </header>
+        <HeaderPublico />
 
         <div className="container mx-auto px-4 py-12">
           <Card className="max-w-lg mx-auto">
@@ -132,9 +124,9 @@ export default function FormularioGestorPage() {
                 <p className="text-sm"><strong>Escola:</strong> {gestorCriado.escola}</p>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-6 text-left">
-                <h3 className="font-semibold text-blue-800 mb-2">Próximos Passos:</h3>
-                <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 p-4 rounded-lg mb-6 text-left">
+                <h3 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">Próximos Passos:</h3>
+                <ol className="text-sm text-blue-700 dark:text-blue-300 space-y-1 list-decimal list-inside">
                   <li>A equipe IDJuv irá cadastrar você no sistema CBDE</li>
                   <li>Você receberá um email do CBDE com login e senha</li>
                   <li>A equipe entrará em contato para confirmar</li>
@@ -159,16 +151,7 @@ export default function FormularioGestorPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
-      {/* Header */}
-      <header className="bg-primary text-primary-foreground py-4">
-        <div className="container mx-auto px-4 flex items-center gap-3">
-          <School className="h-8 w-8" />
-          <div>
-            <h1 className="font-bold text-lg">IDJuv - Instituto de Desporto e Juventude</h1>
-            <p className="text-sm opacity-90">Credenciamento de Gestores Escolares - JER 2025</p>
-          </div>
-        </div>
-      </header>
+      <HeaderPublico />
 
       <div className="container mx-auto px-4 py-8">
         <Card className="max-w-2xl mx-auto">

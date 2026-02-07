@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, School, ArrowLeft, Loader2, CheckCircle, Clock, AlertCircle, Phone, Mail } from 'lucide-react';
+import { Search, ArrowLeft, Loader2, CheckCircle, Clock, AlertCircle, Phone, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,9 +13,9 @@ import { useGestoresEscolares } from '@/hooks/useGestoresEscolares';
 import { 
   STATUS_GESTOR_CONFIG, 
   formatarCPF, 
-  formatarCelular,
   type GestorEscolar 
 } from '@/types/gestoresEscolares';
+import { HeaderPublico } from '@/components/cadastrogestores/HeaderPublico';
 
 export default function ConsultaGestorPage() {
   const [cpf, setCpf] = useState('');
@@ -70,16 +70,10 @@ export default function ConsultaGestorPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
-      {/* Header */}
-      <header className="bg-primary text-primary-foreground py-4">
-        <div className="container mx-auto px-4 flex items-center gap-3">
-          <School className="h-8 w-8" />
-          <div>
-            <h1 className="font-bold text-lg">IDJuv - Instituto de Desporto e Juventude</h1>
-            <p className="text-sm opacity-90">Credenciamento de Gestores Escolares - JER 2025</p>
-          </div>
-        </div>
-      </header>
+      <HeaderPublico 
+        titulo="Consulta de Status" 
+        subtitulo="Acompanhe seu pré-cadastro - JER 2025" 
+      />
 
       <div className="container mx-auto px-4 py-8">
         <Card className="max-w-lg mx-auto">
@@ -161,11 +155,11 @@ export default function ConsultaGestorPage() {
                 </div>
 
                 {/* Próximo passo */}
-                <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-                  <p className="text-sm font-semibold text-blue-800 mb-1">
+                <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 p-4 rounded-lg">
+                  <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-1">
                     Próximo passo:
                   </p>
-                  <p className="text-sm text-blue-700">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
                     {statusConfig.proximoPasso}
                   </p>
                 </div>
@@ -206,16 +200,16 @@ export default function ConsultaGestorPage() {
 
                 {/* Contato em caso de problema */}
                 {resultado.status === 'problema' && (
-                  <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
-                    <p className="text-sm font-semibold text-amber-800 mb-2">
+                  <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 p-4 rounded-lg">
+                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-2">
                       Entre em contato:
                     </p>
                     <div className="flex flex-col gap-1">
-                      <p className="text-sm text-amber-700 flex items-center gap-2">
+                      <p className="text-sm text-amber-700 dark:text-amber-300 flex items-center gap-2">
                         <Phone className="h-4 w-4" />
                         (95) 3621-3232
                       </p>
-                      <p className="text-sm text-amber-700 flex items-center gap-2">
+                      <p className="text-sm text-amber-700 dark:text-amber-300 flex items-center gap-2">
                         <Mail className="h-4 w-4" />
                         esporte@idjuv.rr.gov.br
                       </p>
