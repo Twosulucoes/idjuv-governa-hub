@@ -930,6 +930,15 @@ export const menuConfig: MenuSection[] = [
         priority: 1,
       },
       {
+        id: "servidores-acesso",
+        label: "Gestão de Acessos",
+        labelShort: "Acessos",
+        route: "/admin/servidores-acesso",
+        icon: Users,
+        permission: "admin.usuarios",
+        priority: 2,
+      },
+      {
         id: "usuarios",
         label: "Usuários",
         route: "/admin/usuarios",
