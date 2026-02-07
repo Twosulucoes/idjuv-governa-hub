@@ -951,6 +951,14 @@ export const menuConfig: MenuSection[] = [
         permission: "admin.usuarios",
       },
       {
+        id: "gestores-escolares-admin",
+        label: "Gestores Escolares",
+        labelShort: "JER",
+        route: "/cadastrogestores/admin",
+        icon: School,
+        permission: "admin.usuarios",
+      },
+      {
         id: "reunioes",
         label: "Reuniões",
         route: "/admin/reunioes",
