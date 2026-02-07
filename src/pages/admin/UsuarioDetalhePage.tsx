@@ -159,7 +159,10 @@ export default function UsuarioDetalhePage() {
     );
   }
 
-  const perfilCodigo = usuario.perfil?.perfil?.codigo as PerfilCodigo | undefined;
+  // Mapear role para PerfilCodigo para exibição
+  const perfilCodigo: PerfilCodigo | undefined = usuario.role 
+    ? (usuario.role === 'admin' ? 'super_admin' : usuario.role === 'manager' ? 'gestor' : 'servidor')
+    : undefined;
 
   return (
     <AdminLayout 

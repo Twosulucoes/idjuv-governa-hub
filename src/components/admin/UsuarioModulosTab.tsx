@@ -17,8 +17,8 @@ interface UsuarioModulosTabProps {
 }
 
 export function UsuarioModulosTab({ usuario, saving, onToggleModulo }: UsuarioModulosTabProps) {
-  // Super admin tem acesso a tudo, não precisa de módulos específicos
-  const ehSuperAdmin = usuario.perfil?.perfil?.codigo === 'super_admin';
+  // Admin (role 'admin') tem acesso a tudo automaticamente
+  const ehSuperAdmin = usuario.role === 'admin';
 
   if (ehSuperAdmin) {
     return (
