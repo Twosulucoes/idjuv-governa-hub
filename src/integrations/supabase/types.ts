@@ -18862,6 +18862,10 @@ export type Database = {
         Args: { _pathname: string; _user_id: string }
         Returns: boolean
       }
+      usuario_tem_permissao: {
+        Args: { _codigo_funcao: string; _user_id: string }
+        Returns: boolean
+      }
       usuario_tem_permissao_financeira: {
         Args: { p_permissao: string; p_user_id: string }
         Returns: boolean
