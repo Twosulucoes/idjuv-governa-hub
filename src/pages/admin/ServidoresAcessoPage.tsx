@@ -351,8 +351,15 @@ export default function ServidoresAcessoPage() {
                         </div>
                       )}
 
-                      {/* Botão expandir */}
-                      {servidor.profile_id && !isSuperAdmin && (
+                      {/* Status para quem não tem conta */}
+                      {!servidor.profile_id && (
+                        <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                          Aguardando cadastro
+                        </Badge>
+                      )}
+
+                      {/* Botão expandir - para todos exceto super admin */}
+                      {!isSuperAdmin && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -367,20 +374,42 @@ export default function ServidoresAcessoPage() {
                       )}
                     </div>
 
-                    {/* Área expandida - Módulos */}
-                    {isExpanded && servidor.profile_id && !isSuperAdmin && (
+                    {/* Área expandida */}
+                    {isExpanded && !isSuperAdmin && (
                       <div className="mt-4 pt-4 border-t">
-                        <p className="text-xs text-muted-foreground mb-3">
-                          Clique para ativar/desativar módulos:
-                        </p>
-                        <QuickModuloToggle
-                          modulosAtivos={servidor.modulos}
-                          onToggle={(modulo, temAtualmente) => 
-                            handleToggleModulo(servidor.profile_id!, modulo, temAtualmente)
-                          }
-                          disabled={saving}
-                          isSuperAdmin={false}
-                        />
+                        {servidor.profile_id ? (
+                          <>
+                            <p className="text-xs text-muted-foreground mb-3">
+                              Clique para ativar/desativar módulos:
+                            </p>
+                            <QuickModuloToggle
+                              modulosAtivos={servidor.modulos}
+                              onToggle={(modulo, temAtualmente) => 
+                                handleToggleModulo(servidor.profile_id!, modulo, temAtualmente)
+                              }
+                              disabled={saving}
+                              isSuperAdmin={false}
+                            />
+                          </>
+                        ) : (
+                          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
+                            <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">
+                              Servidor sem conta no sistema
+                            </p>
+                            <p className="text-xs text-amber-700 dark:text-amber-300 mb-3">
+                              Este servidor precisa criar uma conta usando o CPF <strong>{servidor.cpf || 'N/A'}</strong> ou 
+                              matrícula <strong>{servidor.matricula || 'N/A'}</strong> para acessar o sistema.
+                            </p>
+                            <div className="text-xs text-muted-foreground">
+                              <strong>Dados do servidor:</strong>
+                              <ul className="mt-1 space-y-1">
+                                <li>• Cargo: {servidor.cargo_nome || 'Não informado'}</li>
+                                <li>• Unidade: {servidor.unidade_nome || 'Não informada'}</li>
+                                <li>• Vínculo: {servidor.vinculo}</li>
+                              </ul>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </CardContent>
