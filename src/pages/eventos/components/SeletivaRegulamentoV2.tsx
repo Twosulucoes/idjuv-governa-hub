@@ -4,8 +4,25 @@
  */
 
 import { useState, useCallback, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { FileText, Download, Calendar, Users, Trophy, FileCheck, ClipboardCheck, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { motion } from "framer-motion";
+import { 
+  FileText, 
+  Download, 
+  Calendar, 
+  Users, 
+  Trophy, 
+  ClipboardCheck, 
+  ChevronLeft, 
+  ChevronRight,
+  Target,
+  UserCheck,
+  Layers,
+  FormInput,
+  FileCheck,
+  MapPin,
+  Dumbbell,
+  Globe
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import useEmblaCarousel from "embla-carousel-react";
 import type { LucideIcon } from "lucide-react";
@@ -16,6 +33,7 @@ interface SecaoRegulamento {
   icon: LucideIcon;
   conteudo?: string;
   lista?: string[];
+  destaque?: string;
 }
 
 const regulamentoCompleto: {
@@ -24,75 +42,122 @@ const regulamentoCompleto: {
   secoes: SecaoRegulamento[];
 } = {
   titulo: "RESUMO DO REGULAMENTO",
-  subtitulo: "Seletiva das Seleções Estudantis 2026",
+  subtitulo: "Seletiva das Seleções Escolares de Roraima 2026",
   secoes: [
     {
       numero: "01",
-      titulo: "OBJETIVO",
+      titulo: "TÍTULO E OBJETIVO",
       icon: Trophy,
-      conteudo: "Identificar, avaliar e selecionar atletas estudantis do Estado de Roraima para compor as delegações que representarão o estado nos Jogos da Juventude 2026, competição nacional organizada pelo COB."
+      destaque: "Seletiva das Seleções Escolares de Roraima 2026",
+      conteudo: "O IDJUV torna público o processo para formar as seleções estaduais que representarão Roraima nos Jogos da Juventude (COB) e outras competições oficiais."
     },
     {
       numero: "02",
-      titulo: "QUEM PODE PARTICIPAR",
-      icon: Users,
-      conteudo: "Estudantes regularmente matriculados em instituições de ensino públicas ou privadas do Estado de Roraima, com idade entre 15 e 17 anos completos no ano da competição. É obrigatória documentação comprobatória.",
-      lista: [
-        "Documento de identidade com foto",
-        "Declaração de matrícula escolar 2026",
-        "Autorização dos pais/responsáveis"
-      ]
+      titulo: "QUEM PODE PARTICIPAR?",
+      icon: UserCheck,
+      destaque: "Estudante-Atleta: 15 a 17 anos",
+      conteudo: "Estudantes nascidos em 2009, 2010 e 2011. É obrigatório estar regularmente matriculado e com frequência comprovada em escolas das redes pública ou privada."
     },
     {
       numero: "03",
-      titulo: "MODALIDADES",
-      icon: Trophy,
-      conteudo: "Quatro modalidades coletivas serão disputadas, cada uma nos naipes masculino e feminino:",
+      titulo: "MODALIDADES CONTEMPLADAS",
+      icon: Target,
+      conteudo: "O processo seletivo abrange as seguintes modalidades coletivas (masculino e feminino):",
       lista: [
-        "Futsal — 19/02 (Fem: 8h | Masc: 14h)",
-        "Handebol — 21/02 (Fem: 8h | Masc: 14h)",
-        "Basquete — 26/02 (Fem: 8h30 | Masc: 15h)",
-        "Vôlei — 28/02 (Fem: 8h30 | Masc: 15h)"
+        "Futsal",
+        "Voleibol",
+        "Basquetebol",
+        "Handebol"
       ]
     },
     {
       numero: "04",
-      titulo: "LOCAL E PERÍODO",
-      icon: Calendar,
-      conteudo: "Todas as seletivas acontecerão no Ginásio Poliesportivo Hélio da Costa Campos, localizado na Rua Presidente Juscelino Kubitscheck, 848, Bairro Canarinho, Boa Vista - RR. Período: 19 de fevereiro a 01 de março de 2026."
-    },
-    {
-      numero: "05",
-      titulo: "CRITÉRIOS DE AVALIAÇÃO",
-      icon: ClipboardCheck,
-      conteudo: "Os atletas serão avaliados pela comissão técnica do IDJuv considerando:",
+      titulo: "AS TRÊS ETAPAS DE SELEÇÃO",
+      icon: Layers,
       lista: [
-        "Habilidades técnicas específicas da modalidade",
-        "Capacidade tática e leitura de jogo",
-        "Condicionamento físico adequado",
-        "Comportamento, disciplina e potencial de evolução"
+        "I Etapa (Pré-Seleção): Avaliação técnica inicial para formar um grupo ampliado",
+        "II Etapa (Atleta Talento): Identificação de destaques durante os JER's 2026",
+        "III Etapa (Seleção Final): Definição do grupo definitivo que representará o Estado"
       ]
     },
     {
+      numero: "05",
+      titulo: "INSCRIÇÕES ONLINE",
+      icon: FormInput,
+      destaque: "Período: 09 a 13 de fevereiro de 2026",
+      conteudo: "As inscrições devem ser feitas exclusivamente pelo link oficial divulgado pelo IDJUV: idjuv.online/selecoes"
+    },
+    {
       numero: "06",
-      titulo: "DINÂMICA DA SELETIVA",
-      icon: Users,
-      conteudo: "No dia da seletiva, os trabalhos serão conduzidos por servidores e professores designados pela Diretoria de Esportes, garantindo o melhor aproveitamento dos critérios de avaliação e a escolha justa dos atletas."
+      titulo: "DOCUMENTAÇÃO NECESSÁRIA",
+      icon: FileCheck,
+      conteudo: "Para participar, o atleta deve apresentar:",
+      lista: [
+        "Documento oficial original com foto no ato da avaliação",
+        "Termo de Autorização assinado pelos pais ou responsáveis (anexado na inscrição para menores)"
+      ]
     },
     {
       numero: "07",
-      titulo: "CONVOCAÇÃO E TREINAMENTOS",
-      icon: FileCheck,
-      conteudo: "A lista dos convocados será publicada neste site em até 5 dias após cada seletiva. O número de convocados para a fase de treinamento será o DOBRO das vagas finais. Após os treinamentos, serão definidos os atletas que representarão Roraima."
+      titulo: "CRONOGRAMA – VOLEIBOL E FUTSAL",
+      icon: Calendar,
+      conteudo: "Local: Ginásio Hélio Campos e Escola Prof. Antônio Ferreira",
+      lista: [
+        "Voleibol: 28/02 (Fem) e 01/03 (Masc)",
+        "Futsal: 07/03 (Masc) e 08/03 (Fem)"
+      ]
     },
     {
       numero: "08",
-      titulo: "DISPOSIÇÕES GERAIS",
-      icon: AlertCircle,
-      conteudo: "A Comissão Técnica foi aprovada pela Presidência do IDJuv em processo administrativo próprio (protocolo SEI disponível para conferência). Os casos omissos serão analisados pela Comissão, com decisão final do Presidente do Instituto."
+      titulo: "CRONOGRAMA – BASQUETE E HANDEBOL",
+      icon: Calendar,
+      conteudo: "Local: Ginásio Hélio Campos • Horário inicial: 08:00h",
+      lista: [
+        "Basquetebol: 14/03 (Masc) e 15/03 (Fem)",
+        "Handebol: 21/03 (Masc) e 22/03 (Fem)"
+      ]
+    },
+    {
+      numero: "09",
+      titulo: "CRITÉRIOS DE AVALIAÇÃO",
+      icon: ClipboardCheck,
+      conteudo: "A Comissão de Seleção avaliará de forma técnica e objetiva:",
+      lista: [
+        "Fundamentos técnicos e desempenho tático",
+        "Capacidade física, disciplina e comportamento esportivo",
+        "Potencial de desenvolvimento"
+      ]
+    },
+    {
+      numero: "10",
+      titulo: "ABRANGÊNCIA ESTADUAL",
+      icon: MapPin,
+      conteudo: "O processo garante a participação de estudantes dos 15 municípios de Roraima. A seleção baseia-se exclusivamente no mérito esportivo e desempenho técnico, sem cotas por município."
+    },
+    {
+      numero: "11",
+      titulo: "TREINAMENTOS E PREPARAÇÃO",
+      icon: Dumbbell,
+      conteudo: "Os atletas pré-selecionados passarão por treinamentos para:",
+      lista: [
+        "Aprimoramento físico e tático",
+        "Padronização de sistemas de jogo para competições nacionais"
+      ]
+    },
+    {
+      numero: "12",
+      titulo: "CANAIS OFICIAIS DE INFORMAÇÃO",
+      icon: Globe,
+      conteudo: "Fique por dentro de todos os editais e resultados:",
+      lista: [
+        "🌐 idjuv.online/selecoes",
+        "📧 Dúvidas: idjuv.diesp@gmail.com"
+      ]
     }
   ]
 };
+
+const REGULAMENTO_PDF_URL = "/docs/regulamento-seletiva-2026.pdf";
 
 export function SeletivaRegulamentoV2() {
   const [emblaRef, emblaApi] = useEmblaCarousel({ 
@@ -101,8 +166,6 @@ export function SeletivaRegulamentoV2() {
     skipSnaps: false,
   });
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [canScrollPrev, setCanScrollPrev] = useState(false);
-  const [canScrollNext, setCanScrollNext] = useState(false);
 
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
@@ -111,8 +174,6 @@ export function SeletivaRegulamentoV2() {
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
     setSelectedIndex(emblaApi.selectedScrollSnap());
-    setCanScrollPrev(emblaApi.canScrollPrev());
-    setCanScrollNext(emblaApi.canScrollNext());
   }, [emblaApi]);
 
   useEffect(() => {
@@ -125,9 +186,6 @@ export function SeletivaRegulamentoV2() {
       emblaApi.off("reInit", onSelect);
     };
   }, [emblaApi, onSelect]);
-
-  const regulamentoDisponivel = true;
-  const linkRegulamento = "#";
 
   return (
     <section className="py-20 px-4 bg-zinc-100 dark:bg-zinc-900 transition-colors overflow-hidden">
@@ -221,6 +279,12 @@ export function SeletivaRegulamentoV2() {
 
                       {/* Conteúdo */}
                       <div className="flex-1 overflow-y-auto">
+                        {secao.destaque && (
+                          <p className="text-sm md:text-base font-bold text-zinc-900 dark:text-zinc-100 mb-2 px-3 py-2 bg-zinc-100 dark:bg-zinc-700 rounded-lg">
+                            {secao.destaque}
+                          </p>
+                        )}
+
                         {secao.conteudo && (
                           <p className="text-sm md:text-base text-zinc-600 dark:text-zinc-300 leading-relaxed mb-3">
                             {secao.conteudo}
@@ -321,34 +385,23 @@ export function SeletivaRegulamentoV2() {
                   Download Disponível
                 </p>
                 <p className="text-lg font-bold tracking-wide text-white dark:text-zinc-900">
-                  Regulamento Completo (PDF)
+                  Regulamento Nº 001/2026 – IDJUV
                 </p>
                 <p className="text-sm text-zinc-400 dark:text-zinc-500">
-                  Versão oficial para impressão
+                  Seletiva da Seleção Coletiva • PDF Oficial
                 </p>
               </div>
             </div>
 
-            {regulamentoDisponivel ? (
-              <a href={linkRegulamento} target="_blank" rel="noopener noreferrer">
-                <Button 
-                  size="lg" 
-                  className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full px-8 font-bold tracking-wide shadow-lg"
-                >
-                  <Download className="mr-2 w-5 h-5" />
-                  BAIXAR PDF
-                </Button>
-              </a>
-            ) : (
+            <a href={REGULAMENTO_PDF_URL} target="_blank" rel="noopener noreferrer" download>
               <Button 
                 size="lg" 
-                variant="outline" 
-                className="border-zinc-600 text-zinc-400 rounded-full px-8" 
-                disabled
+                className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full px-8 font-bold tracking-wide shadow-lg"
               >
-                EM BREVE
+                <Download className="mr-2 w-5 h-5" />
+                BAIXAR PDF
               </Button>
-            )}
+            </a>
           </div>
         </motion.div>
 
@@ -359,7 +412,7 @@ export function SeletivaRegulamentoV2() {
           viewport={{ once: true }}
           className="text-center text-sm text-zinc-500 dark:text-zinc-500 mt-8"
         >
-          Este regulamento pode sofrer alterações. Consulte sempre a versão mais atualizada.
+          Este regulamento pode sofrer alterações. Consulte sempre a versão mais atualizada em idjuv.online/selecoes
         </motion.p>
       </div>
     </section>
