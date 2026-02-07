@@ -106,6 +106,7 @@ export const MODULO_ICONES: Record<Modulo, string> = {
   transparencia: '👁️',
   comunicacao: '📢',
   programas: '🎓',
+  gestores_escolares: '🏫',
 };
 
 // Labels para perfis

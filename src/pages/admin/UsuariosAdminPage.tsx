@@ -13,7 +13,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAdminUsuarios } from '@/hooks/useAdminUsuarios';
-import { PERFIL_LABELS, PERFIL_CORES, type PerfilCodigo, type UsuarioAdmin } from '@/types/rbac';
+import { QuickModuloToggle } from '@/components/admin/QuickModuloToggle';
+import { PERFIL_LABELS, PERFIL_CORES, type PerfilCodigo, type UsuarioAdmin, type Modulo } from '@/types/rbac';
 import { 
   Search, 
   Info,
@@ -22,15 +23,17 @@ import {
   Shield,
   UserCheck,
   User,
+  ChevronRight,
 } from 'lucide-react';
 
 export default function UsuariosAdminPage() {
   const navigate = useNavigate();
-  const { usuarios, loading, error, fetchUsuarios } = useAdminUsuarios();
+  const { usuarios, loading, saving, error, fetchUsuarios, toggleModulo } = useAdminUsuarios();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPerfil, setFilterPerfil] = useState<'all' | PerfilCodigo>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'ativo' | 'bloqueado'>('all');
+  const [expandedUser, setExpandedUser] = useState<string | null>(null);
 
   // Filtrar usuários
   const usuariosFiltrados = usuarios.filter(u => {
@@ -63,6 +66,15 @@ export default function UsuariosAdminPage() {
 
   const handleOpenDetails = (user: UsuarioAdmin) => {
     navigate(`/admin/usuarios/${user.id}`);
+  };
+
+  const handleToggleModulo = async (userId: string, modulo: Modulo, temAtualmente: boolean) => {
+    await toggleModulo(userId, modulo, temAtualmente);
+  };
+
+  const handleToggleExpand = (e: React.MouseEvent, userId: string) => {
+    e.stopPropagation();
+    setExpandedUser(prev => prev === userId ? null : userId);
   };
 
   return (
@@ -147,20 +159,22 @@ export default function UsuariosAdminPage() {
           <div className="space-y-3">
             {usuariosFiltrados.map((usuario) => {
               const perfilCodigo = usuario.perfil?.perfil?.codigo as PerfilCodigo | undefined;
+              const isExpanded = expandedUser === usuario.id;
+              const isSuperAdmin = perfilCodigo === 'super_admin';
               
               return (
                 <Card 
                   key={usuario.id}
-                  className={`cursor-pointer transition-all hover:shadow-md ${
+                  className={`transition-all ${
                     !usuario.is_active ? 'opacity-60' : ''
-                  }`}
-                  onClick={() => handleOpenDetails(usuario)}
+                  } ${isExpanded ? 'ring-2 ring-primary/30' : ''}`}
                 >
                   <CardContent className="py-4">
+                    {/* Linha principal */}
                     <div className="flex items-center gap-4">
-                      <Avatar className="h-12 w-12">
+                      <Avatar className="h-10 w-10 shrink-0">
                         <AvatarImage src={usuario.avatar_url || undefined} />
-                        <AvatarFallback className="bg-primary/10 text-primary">
+                        <AvatarFallback className="bg-primary/10 text-primary text-sm">
                           {getInitials(usuario.full_name)}
                         </AvatarFallback>
                       </Avatar>
@@ -182,7 +196,7 @@ export default function UsuariosAdminPage() {
                       </div>
 
                       {/* Perfil */}
-                      <div className="hidden md:flex items-center gap-2">
+                      <div className="hidden sm:flex items-center gap-2 shrink-0">
                         {perfilCodigo ? (
                           <Badge className={PERFIL_CORES[perfilCodigo]}>
                             {getPerfilIcon(perfilCodigo)}
@@ -195,18 +209,46 @@ export default function UsuariosAdminPage() {
                         )}
                       </div>
 
-                      {/* Módulos */}
-                      <div className="hidden lg:block text-right text-sm text-muted-foreground min-w-[100px]">
-                        {perfilCodigo === 'super_admin' ? (
-                          <span className="text-primary">Acesso total</span>
-                        ) : usuario.modulos.length > 0 ? (
-                          <span>{usuario.modulos.length} módulo(s)</span>
-                        ) : (
-                          <span className="text-muted-foreground">Sem módulos</span>
+                      {/* Toggle Módulos / Detalhes */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {!isSuperAdmin && (
+                          <Button
+                            variant={isExpanded ? "secondary" : "outline"}
+                            size="sm"
+                            onClick={(e) => handleToggleExpand(e, usuario.id)}
+                            className="text-xs"
+                          >
+                            {usuario.modulos.length > 0 
+                              ? `${usuario.modulos.length} módulo(s)` 
+                              : 'Módulos'}
+                          </Button>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenDetails(usuario)}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
                       </div>
-
                     </div>
+
+                    {/* Área expandida de módulos */}
+                    {isExpanded && !isSuperAdmin && (
+                      <div className="mt-4 pt-4 border-t">
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Clique para ativar/desativar módulos:
+                        </p>
+                        <QuickModuloToggle
+                          modulosAtivos={usuario.modulos}
+                          onToggle={(modulo, temAtualmente) => 
+                            handleToggleModulo(usuario.id, modulo, temAtualmente)
+                          }
+                          disabled={saving}
+                          isSuperAdmin={false}
+                        />
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );

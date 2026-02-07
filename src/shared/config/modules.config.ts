@@ -18,6 +18,7 @@ import {
   Building2,
   Eye,
   Megaphone,
+  School,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -38,6 +39,7 @@ export const MODULOS = [
   'transparencia',
   'comunicacao',
   'programas',
+  'gestores_escolares', // Novo módulo para JER
 ] as const;
 
 export type Modulo = typeof MODULOS[number];
@@ -118,16 +120,16 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     icone: Package,
     cor: 'cyan',
     rotas: ['/inventario', '/unidades', '/processos/patrimonio', '/processos/almoxarifado'],
-    menuSectionIds: ['inventario', 'espacos-federacoes'],
+    menuSectionIds: ['inventario'],
   },
   {
     codigo: 'governanca',
     nome: 'Governança',
-    descricao: 'Estrutura, organograma, cargos, federações, programas',
+    descricao: 'Estrutura, organograma, cargos, federações',
     icone: Building2,
     cor: 'indigo',
-    rotas: ['/governanca', '/organograma', '/cargos', '/lotacoes'],
-    menuSectionIds: ['governanca'],
+    rotas: ['/governanca', '/organograma', '/cargos', '/lotacoes', '/admin/federacoes', '/admin/instituicoes'],
+    menuSectionIds: ['governanca', 'espacos-federacoes'],
   },
   {
     codigo: 'integridade',
@@ -164,6 +166,15 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     cor: 'emerald',
     rotas: ['/programas'],
     menuSectionIds: ['programas'],
+  },
+  {
+    codigo: 'gestores_escolares',
+    nome: 'Gestores Escolares',
+    descricao: 'Credenciamento de gestores para Jogos Escolares',
+    icone: School,
+    cor: 'amber',
+    rotas: ['/cadastrogestores/admin'],
+    menuSectionIds: [],
   },
 ];
 
