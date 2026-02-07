@@ -1,16 +1,15 @@
 /**
  * Hook para buscar permissões do usuário autenticado
  * 
- * Consome a função `listar_permissoes_usuario` do Supabase EXTERNO
- * que retorna todas as funções permitidas para o usuário.
- * 
- * O frontend NÃO decide acesso - apenas renderiza com base
- * nos dados retornados pelo backend.
+ * ATUALIZADO: Agora usa as novas tabelas user_roles e user_modules
+ * do sistema RBAC simplificado.
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { MODULOS, type Modulo } from '@/shared/config/modules.config';
+import type { AppRole } from '@/types/rbac';
 
 export interface PermissaoUsuario {
   funcao_id: string;
@@ -33,17 +32,25 @@ interface UsePermissoesUsuarioReturn {
   temTodasPermissoes: (codigos: string[]) => boolean;
   permissoesPorModulo: Record<string, PermissaoUsuario[]>;
   refetch: () => Promise<void>;
+  // Novo sistema
+  role: AppRole | null;
+  modules: Modulo[];
+  isAdmin: boolean;
 }
 
 export function usePermissoesUsuario(): UsePermissoesUsuarioReturn {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isSuperAdmin } = useAuth();
   const [permissoes, setPermissoes] = useState<PermissaoUsuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [role, setRole] = useState<AppRole | null>(null);
+  const [modules, setModules] = useState<Modulo[]>([]);
 
   const fetchPermissoes = useCallback(async () => {
-    if (!isAuthenticated || !user?.id || !isSupabaseConfigured()) {
+    if (!isAuthenticated || !user?.id) {
       setPermissoes([]);
+      setModules([]);
+      setRole(null);
       setLoading(false);
       return;
     }
@@ -52,107 +59,97 @@ export function usePermissoesUsuario(): UsePermissoesUsuarioReturn {
     setError(null);
 
     try {
-      // Tenta usar a função RPC
-      const { data, error: rpcError } = await supabase.rpc('listar_permissoes_usuario', {
-        check_user_id: user.id
-      });
-
-      if (rpcError) {
-        // Se houver qualquer erro na RPC, usa fallback
-        console.warn('[Permissões] Erro na RPC, usando fallback:', rpcError.message);
-        await fetchPermissoesFallback();
+      // Super admin tem tudo
+      if (isSuperAdmin) {
+        setRole('admin');
+        setModules([...MODULOS]);
+        // Gerar permissões sintéticas para todos os módulos
+        const todasPermissoes: PermissaoUsuario[] = MODULOS.map(m => ({
+          funcao_id: m,
+          funcao_codigo: m,
+          funcao_nome: m,
+          modulo: m,
+          submodulo: null,
+          tipo_acao: 'full',
+          perfil_nome: 'Super Admin',
+        }));
+        setPermissoes(todasPermissoes);
+        setLoading(false);
         return;
       }
 
-      setPermissoes(data || []);
+      // Buscar role do usuário
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const userRole = (roleData?.role as AppRole) || null;
+      setRole(userRole);
+
+      // Admin tem todos os módulos
+      if (userRole === 'admin') {
+        setModules([...MODULOS]);
+        const todasPermissoes: PermissaoUsuario[] = MODULOS.map(m => ({
+          funcao_id: m,
+          funcao_codigo: m,
+          funcao_nome: m,
+          modulo: m,
+          submodulo: null,
+          tipo_acao: 'full',
+          perfil_nome: 'Admin',
+        }));
+        setPermissoes(todasPermissoes);
+        setLoading(false);
+        return;
+      }
+
+      // Buscar módulos do usuário
+      const { data: modulesData } = await supabase
+        .from('user_modules')
+        .select('module')
+        .eq('user_id', user.id);
+
+      const userModules = (modulesData || [])
+        .map((m: any) => m.module)
+        .filter((m: string): m is Modulo => MODULOS.includes(m as Modulo));
+      
+      setModules(userModules);
+
+      // Gerar permissões baseadas nos módulos
+      const permissoesDoModulo: PermissaoUsuario[] = userModules.map(m => ({
+        funcao_id: m,
+        funcao_codigo: m,
+        funcao_nome: m,
+        modulo: m,
+        submodulo: null,
+        tipo_acao: 'access',
+        perfil_nome: userRole || 'user',
+      }));
+      
+      setPermissoes(permissoesDoModulo);
     } catch (err: any) {
       console.error('[Permissões] Erro ao buscar:', err);
-      // Em caso de erro, tenta fallback
-      await fetchPermissoesFallback();
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [user?.id, isAuthenticated]);
-
-  // Fallback: busca permissões via joins se RPC não existir
-  const fetchPermissoesFallback = async () => {
-    if (!user?.id) return;
-
-    try {
-      // Busca os perfis do usuário
-      const { data: usuarioPerfis, error: upError } = await supabase
-        .from('usuario_perfis')
-        .select('perfil_id, perfil:perfis(nome)')
-        .eq('user_id', user.id)
-        .eq('ativo', true);
-
-      if (upError) throw upError;
-
-      if (!usuarioPerfis || usuarioPerfis.length === 0) {
-        setPermissoes([]);
-        return;
-      }
-
-      const perfilIds = usuarioPerfis.map(up => up.perfil_id);
-
-      // Busca as funções associadas aos perfis
-      const { data: perfilFuncoes, error: pfError } = await supabase
-        .from('perfil_funcoes')
-        .select(`
-          funcao:funcoes_sistema(
-            id,
-            codigo,
-            nome,
-            modulo,
-            submodulo,
-            tipo_acao,
-            rota,
-            icone
-          )
-        `)
-        .in('perfil_id', perfilIds)
-        .eq('concedido', true);
-
-      if (pfError) throw pfError;
-
-      // Mapeia para o formato esperado
-      const permissoesMap = new Map<string, PermissaoUsuario>();
-      
-      perfilFuncoes?.forEach((pf: any) => {
-        if (pf.funcao) {
-          const f = pf.funcao;
-          if (!permissoesMap.has(f.codigo)) {
-            permissoesMap.set(f.codigo, {
-              funcao_id: f.id,
-              funcao_codigo: f.codigo,
-              funcao_nome: f.nome,
-              modulo: f.modulo,
-              submodulo: f.submodulo,
-              tipo_acao: f.tipo_acao,
-              perfil_nome: '',
-              rota: f.rota,
-              icone: f.icone,
-            });
-          }
-        }
-      });
-
-      setPermissoes(Array.from(permissoesMap.values()));
-    } catch (err: any) {
-      console.error('[Permissões Fallback] Erro:', err);
-      setError(err.message);
-    }
-  };
+  }, [user?.id, isAuthenticated, isSuperAdmin]);
 
   // Carrega permissões quando usuário muda
   useEffect(() => {
     fetchPermissoes();
   }, [fetchPermissoes]);
 
-  // Verifica se tem uma permissão específica
+  // Verifica se tem uma permissão específica (agora baseado em módulos)
   const temPermissao = useCallback((codigo: string): boolean => {
-    return permissoes.some(p => p.funcao_codigo === codigo);
-  }, [permissoes]);
+    if (isSuperAdmin || role === 'admin') return true;
+    
+    // Extrair módulo do código (ex: 'rh.servidores.criar' -> 'rh')
+    const modulo = codigo.split('.')[0] as Modulo;
+    return modules.includes(modulo);
+  }, [isSuperAdmin, role, modules]);
 
   // Verifica se tem pelo menos uma das permissões
   const temAlgumaPermissao = useCallback((codigos: string[]): boolean => {
@@ -178,6 +175,8 @@ export function usePermissoesUsuario(): UsePermissoesUsuarioReturn {
     return grupos;
   }, [permissoes]);
 
+  const isAdmin = role === 'admin' || isSuperAdmin;
+
   return {
     permissoes,
     loading,
@@ -187,5 +186,8 @@ export function usePermissoesUsuario(): UsePermissoesUsuarioReturn {
     temTodasPermissoes,
     permissoesPorModulo,
     refetch: fetchPermissoes,
+    role,
+    modules,
+    isAdmin,
   };
 }
