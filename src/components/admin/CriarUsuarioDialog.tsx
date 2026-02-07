@@ -96,12 +96,20 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
 
       if (servidoresError) throw servidoresError;
 
-      const { data: profiles } = await supabase
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('servidor_id')
         .not('servidor_id', 'is', null);
 
-      const servidoresComUsuario = new Set(profiles?.map(p => p.servidor_id) || []);
+      if (profilesError) {
+        console.error('Erro ao buscar profiles:', profilesError);
+      }
+
+      const servidoresComUsuario = new Set(
+        (profiles || [])
+          .filter(p => p.servidor_id !== null)
+          .map(p => p.servidor_id as string)
+      );
 
       const cargoIds = servidoresData?.filter(s => s.cargo_atual_id).map(s => s.cargo_atual_id) || [];
       const unidadeIds = servidoresData?.filter(s => s.unidade_atual_id).map(s => s.unidade_atual_id) || [];
