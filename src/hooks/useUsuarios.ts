@@ -131,19 +131,19 @@ export function useUsuarios() {
 
       if (servidorError) throw new Error('Servidor não encontrado');
 
-      // Primeiro, verificar se o usuário já existe no sistema
+      // Verificar se já existe um profile com este email
       const { data: existingProfile } = await supabase
         .from('profiles')
         .select('id')
         .eq('email', email)
         .maybeSingle();
 
-      // Se já existe, apenas atualizar as permissões
+      // Se já existe profile, atualizar permissões
       if (existingProfile) {
         const userId = existingProfile.id;
 
-        // Atualizar o profile com servidor_id se não tiver
-        const { error: updateError } = await supabase
+        // Atualizar o profile com servidor_id
+        await supabase
           .from('profiles')
           .update({ 
             servidor_id: servidorId,
@@ -153,41 +153,26 @@ export function useUsuarios() {
           })
           .eq('id', userId);
 
-        if (updateError) {
-          console.warn('Erro ao atualizar profile:', updateError);
-        }
-
-        // Atribuir role (upsert para evitar duplicatas)
-        const { error: roleError } = await supabase
+        // Upsert role
+        await supabase
           .from('user_roles')
           .upsert({ user_id: userId, role }, { onConflict: 'user_id' });
 
-        if (roleError) {
-          console.warn('Erro ao atribuir role:', roleError);
-        }
-
-        // Remover módulos antigos e adicionar novos
+        // Limpar módulos antigos e inserir novos
         await supabase
           .from('user_modules')
           .delete()
           .eq('user_id', userId);
 
         if (modulos.length > 0) {
-          const modulosInsert = modulos.map(m => ({
-            user_id: userId,
-            module: m
-          }));
-          const { error: modulosError } = await supabase.from('user_modules').insert(modulosInsert);
-          if (modulosError) {
-            console.warn('Erro ao atribuir módulos:', modulosError);
-          }
+          const modulosInsert = modulos.map(m => ({ user_id: userId, module: m }));
+          await supabase.from('user_modules').insert(modulosInsert);
         }
 
-        // Retornar indicando que foi atualizado (sem senha nova)
         return { authData: { user: { id: userId } }, senhaTemporaria: null, usuarioAtualizado: true };
       }
 
-      // Se não existe, criar novo usuário
+      // Se não existe, tentar criar novo usuário no auth
       const senhaTemporaria = generateTempPassword();
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -204,36 +189,66 @@ export function useUsuarios() {
         }
       });
 
+      // Se auth.signUp retornar erro de "already registered", buscar pelo auth.users via RPC ou tratar
       if (authError) {
+        const isAlreadyRegistered = 
+          authError.message?.includes('already registered') || 
+          (authError as any)?.code === 'user_already_exists';
+
+        if (isAlreadyRegistered) {
+          // Usuário existe no auth mas não tinha profile visível (RLS). Agora que RLS foi corrigido, tentar novamente.
+          // Pode ser que o trigger on_auth_user_created criou o profile. Buscar novamente.
+          const { data: retryProfile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', email)
+            .maybeSingle();
+
+          if (retryProfile) {
+            const userId = retryProfile.id;
+
+            await supabase
+              .from('profiles')
+              .update({ 
+                servidor_id: servidorId,
+                full_name: servidor.nome_completo,
+                cpf: servidor.cpf,
+                tipo_usuario: 'servidor'
+              })
+              .eq('id', userId);
+
+            await supabase
+              .from('user_roles')
+              .upsert({ user_id: userId, role }, { onConflict: 'user_id' });
+
+            await supabase
+              .from('user_modules')
+              .delete()
+              .eq('user_id', userId);
+
+            if (modulos.length > 0) {
+              const modulosInsert = modulos.map(m => ({ user_id: userId, module: m }));
+              await supabase.from('user_modules').insert(modulosInsert);
+            }
+
+            return { authData: { user: { id: userId } }, senhaTemporaria: null, usuarioAtualizado: true };
+          }
+        }
         throw authError;
       }
       
       const userId = authData.user?.id;
       if (!userId) throw new Error('Erro ao obter ID do usuário criado');
 
-      // Atribuir role na tabela user_roles
-      const { error: roleError } = await supabase
+      // Atribuir role
+      await supabase
         .from('user_roles')
         .insert({ user_id: userId, role });
 
-      if (roleError) {
-        console.warn('Erro ao atribuir role:', roleError);
-      }
-
-      // Atribuir módulos na tabela user_modules
+      // Atribuir módulos
       if (modulos.length > 0) {
-        const modulosInsert = modulos.map(m => ({
-          user_id: userId,
-          module: m
-        }));
-        
-        const { error: modulosError } = await supabase
-          .from('user_modules')
-          .insert(modulosInsert);
-
-        if (modulosError) {
-          console.warn('Erro ao atribuir módulos:', modulosError);
-        }
+        const modulosInsert = modulos.map(m => ({ user_id: userId, module: m }));
+        await supabase.from('user_modules').insert(modulosInsert);
       }
 
       return { authData, senhaTemporaria, usuarioAtualizado: false };
