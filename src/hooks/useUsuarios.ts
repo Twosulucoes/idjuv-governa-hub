@@ -121,7 +121,7 @@ export function useUsuarios() {
       email: string; 
       role?: AppRole;
       modulos?: Modulo[];
-    }): Promise<{ authData: any; senhaTemporaria: string }> => {
+    }): Promise<{ authData: any; senhaTemporaria: string | null; usuarioAtualizado?: boolean }> => {
       // Buscar dados do servidor
       const { data: servidor, error: servidorError } = await supabase
         .from('servidores')
@@ -131,10 +131,65 @@ export function useUsuarios() {
 
       if (servidorError) throw new Error('Servidor não encontrado');
 
-      // Gerar senha temporária
+      // Primeiro, verificar se o usuário já existe no sistema
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+
+      // Se já existe, apenas atualizar as permissões
+      if (existingProfile) {
+        const userId = existingProfile.id;
+
+        // Atualizar o profile com servidor_id se não tiver
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ 
+            servidor_id: servidorId,
+            full_name: servidor.nome_completo,
+            cpf: servidor.cpf,
+            tipo_usuario: 'servidor'
+          })
+          .eq('id', userId);
+
+        if (updateError) {
+          console.warn('Erro ao atualizar profile:', updateError);
+        }
+
+        // Atribuir role (upsert para evitar duplicatas)
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .upsert({ user_id: userId, role }, { onConflict: 'user_id' });
+
+        if (roleError) {
+          console.warn('Erro ao atribuir role:', roleError);
+        }
+
+        // Remover módulos antigos e adicionar novos
+        await supabase
+          .from('user_modules')
+          .delete()
+          .eq('user_id', userId);
+
+        if (modulos.length > 0) {
+          const modulosInsert = modulos.map(m => ({
+            user_id: userId,
+            module: m
+          }));
+          const { error: modulosError } = await supabase.from('user_modules').insert(modulosInsert);
+          if (modulosError) {
+            console.warn('Erro ao atribuir módulos:', modulosError);
+          }
+        }
+
+        // Retornar indicando que foi atualizado (sem senha nova)
+        return { authData: { user: { id: userId } }, senhaTemporaria: null, usuarioAtualizado: true };
+      }
+
+      // Se não existe, criar novo usuário
       const senhaTemporaria = generateTempPassword();
 
-      // Tentar criar usuário no Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password: senhaTemporaria,
@@ -149,59 +204,7 @@ export function useUsuarios() {
         }
       });
 
-      // Tratar erro de usuário já existente
       if (authError) {
-        // Verificar se é erro de usuário já existente
-        if (authError.message?.includes('already registered') || 
-            (authError as any).code === 'user_already_exists') {
-          
-          // Buscar o profile existente pelo email
-          const { data: existingProfile, error: profileError } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('email', email)
-            .maybeSingle();
-
-          if (profileError || !existingProfile) {
-            throw new Error('Usuário existe no Auth mas não foi encontrado no sistema. Entre em contato com o suporte.');
-          }
-
-          const userId = existingProfile.id;
-
-          // Atualizar o profile com servidor_id se não tiver
-          await supabase
-            .from('profiles')
-            .update({ 
-              servidor_id: servidorId,
-              full_name: servidor.nome_completo,
-              cpf: servidor.cpf,
-              tipo_usuario: 'servidor'
-            })
-            .eq('id', userId);
-
-          // Atribuir role (upsert para evitar duplicatas)
-          await supabase
-            .from('user_roles')
-            .upsert({ user_id: userId, role }, { onConflict: 'user_id' });
-
-          // Remover módulos antigos e adicionar novos
-          await supabase
-            .from('user_modules')
-            .delete()
-            .eq('user_id', userId);
-
-          if (modulos.length > 0) {
-            const modulosInsert = modulos.map(m => ({
-              user_id: userId,
-              module: m
-            }));
-            await supabase.from('user_modules').insert(modulosInsert);
-          }
-
-          // Retornar indicando que foi atualizado (sem senha nova)
-          throw new Error('USUARIO_JA_EXISTE:' + userId);
-        }
-        
         throw authError;
       }
       
@@ -233,19 +236,17 @@ export function useUsuarios() {
         }
       }
 
-      return { authData, senhaTemporaria };
+      return { authData, senhaTemporaria, usuarioAtualizado: false };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['usuarios-sistema'] });
-      toast.success('Usuário criado com sucesso!');
+      if (data.usuarioAtualizado) {
+        toast.info('Usuário já existia. Permissões atualizadas com sucesso!');
+      } else {
+        toast.success('Usuário criado com sucesso!');
+      }
     },
     onError: (error: any) => {
-      // Tratar caso especial de usuário já existente
-      if (error.message?.startsWith('USUARIO_JA_EXISTE:')) {
-        queryClient.invalidateQueries({ queryKey: ['usuarios-sistema'] });
-        toast.info('Usuário já existia. Permissões atualizadas com sucesso!');
-        return;
-      }
       toast.error(`Erro ao criar usuário: ${error.message}`);
     }
   });

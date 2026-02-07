@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, ChevronDown, Shield, FileText, BookOpen, Scale, Eye, Sun, Moon } from "lucide-react";
+import { Menu, X, ChevronDown, Shield, FileText, BookOpen, Scale, Eye, Sun, Moon, LogOut, User } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import logoGoverno from "@/assets/logo-governo-roraima.jpg";
 import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
+import { UserMenu } from "@/components/auth/UserMenu";
 
 const menuItems = [
   {
@@ -78,6 +80,7 @@ export function Header() {
   const [mounted, setMounted] = useState(false);
   const location = useLocation();
   const { resolvedTheme, setTheme } = useTheme();
+  const { isAuthenticated, signOut, user } = useAuth();
 
   useEffect(() => {
     setMounted(true);
@@ -140,12 +143,18 @@ export function Header() {
                 <Moon className="h-4 w-4" />
               )}
             </Button>
-            <Link 
-              to="/acesso" 
-              className="text-xs font-medium px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors"
-            >
-              Área Restrita
-            </Link>
+            
+            {/* Mostrar UserMenu se logado, ou link para Área Restrita se não */}
+            {isAuthenticated ? (
+              <UserMenu showRoleBadge={false} />
+            ) : (
+              <Link 
+                to="/auth" 
+                className="text-xs font-medium px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors"
+              >
+                Área Restrita
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -291,14 +300,34 @@ export function Header() {
             </nav>
 
             {/* Footer do menu mobile */}
-            <div className="border-t p-4 bg-muted/30 safe-area-inset-bottom">
-              <Link 
-                to="/acesso"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-center w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg font-medium touch-target"
-              >
-                Área Restrita
-              </Link>
+            <div className="border-t p-4 bg-muted/30 safe-area-inset-bottom space-y-2">
+              {isAuthenticated ? (
+                <>
+                  <div className="flex items-center gap-3 px-4 py-2 text-sm">
+                    <User className="h-4 w-4 text-primary" />
+                    <span className="font-medium truncate">{user?.fullName || user?.email}</span>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    className="w-full"
+                    onClick={() => {
+                      signOut();
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sair do Sistema
+                  </Button>
+                </>
+              ) : (
+                <Link 
+                  to="/auth"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-center w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg font-medium touch-target"
+                >
+                  Área Restrita
+                </Link>
+              )}
             </div>
           </div>
         </>
