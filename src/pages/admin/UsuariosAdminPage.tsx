@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAdminUsuarios } from '@/hooks/useAdminUsuarios';
 import { QuickModuloToggle } from '@/components/admin/QuickModuloToggle';
+import { CriarUsuarioDialog } from '@/components/admin/CriarUsuarioDialog';
 import { PERFIL_LABELS, PERFIL_CORES, type PerfilCodigo, type UsuarioAdmin, type Modulo } from '@/types/rbac';
 import { 
   Search, 
@@ -24,6 +25,7 @@ import {
   UserCheck,
   User,
   ChevronRight,
+  UserPlus,
 } from 'lucide-react';
 
 export default function UsuariosAdminPage() {
@@ -34,6 +36,7 @@ export default function UsuariosAdminPage() {
   const [filterPerfil, setFilterPerfil] = useState<'all' | PerfilCodigo>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'ativo' | 'bloqueado'>('all');
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [showCriarDialog, setShowCriarDialog] = useState(false);
 
   // Filtrar usuários
   const usuariosFiltrados = usuarios.filter(u => {
@@ -139,6 +142,11 @@ export default function UsuariosAdminPage() {
           <Button variant="outline" onClick={() => fetchUsuarios()} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Atualizar
+          </Button>
+
+          <Button onClick={() => setShowCriarDialog(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Novo Usuário
           </Button>
         </div>
 
@@ -255,6 +263,13 @@ export default function UsuariosAdminPage() {
             })}
           </div>
         )}
+
+        {/* Dialog de criação de usuário */}
+        <CriarUsuarioDialog
+          open={showCriarDialog}
+          onOpenChange={setShowCriarDialog}
+          onSuccess={() => fetchUsuarios()}
+        />
       </div>
     </AdminLayout>
   );

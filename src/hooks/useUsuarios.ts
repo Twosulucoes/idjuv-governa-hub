@@ -5,6 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { UsuarioSistema, TipoUsuario } from '@/types/usuario';
+import { Modulo, AppRole } from '@/types/rbac';
 import { toast } from 'sonner';
 
 export function useUsuarios() {
@@ -108,16 +109,18 @@ export function useUsuarios() {
     }
   });
 
-  // Criar usuário para servidor
+  // Criar usuário para servidor (integrado com RBAC)
   const criarUsuarioParaServidor = useMutation({
     mutationFn: async ({ 
       servidorId, 
       email, 
-      role = 'user' 
+      role = 'user',
+      modulos = []
     }: { 
       servidorId: string; 
       email: string; 
-      role?: string;
+      role?: AppRole;
+      modulos?: Modulo[];
     }): Promise<{ authData: any; senhaTemporaria: string }> => {
       // Buscar dados do servidor
       const { data: servidor, error: servidorError } = await supabase
@@ -142,17 +145,45 @@ export function useUsuarios() {
             servidor_id: servidorId,
             cpf: servidor.cpf,
             tipo_usuario: 'servidor',
-            role: role
           }
         }
       });
 
       if (authError) throw authError;
+      
+      const userId = authData.user?.id;
+      if (!userId) throw new Error('Erro ao obter ID do usuário criado');
+
+      // Atribuir role na tabela user_roles
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({ user_id: userId, role });
+
+      if (roleError) {
+        console.warn('Erro ao atribuir role:', roleError);
+      }
+
+      // Atribuir módulos na tabela user_modules
+      if (modulos.length > 0) {
+        const modulosInsert = modulos.map(m => ({
+          user_id: userId,
+          module: m
+        }));
+        
+        const { error: modulosError } = await supabase
+          .from('user_modules')
+          .insert(modulosInsert);
+
+        if (modulosError) {
+          console.warn('Erro ao atribuir módulos:', modulosError);
+        }
+      }
 
       return { authData, senhaTemporaria };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['usuarios-sistema'] });
+      toast.success('Usuário criado com sucesso!');
     },
     onError: (error: any) => {
       toast.error(`Erro ao criar usuário: ${error.message}`);

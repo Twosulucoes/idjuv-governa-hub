@@ -1,5 +1,6 @@
 // ============================================
-// DIALOG PARA CRIAR USUÁRIO A PARTIR DE SERVIDOR
+// DIALOG PARA CRIAR USUÁRIO COM RBAC
+// Integra seleção de role e módulos
 // ============================================
 
 import React, { useState, useEffect } from 'react';
@@ -11,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useUsuarios } from '@/hooks/useUsuarios';
 import { 
@@ -24,9 +26,10 @@ import {
   Copy,
   Key,
   Eye,
-  EyeOff
+  EyeOff,
+  Shield
 } from 'lucide-react';
-import { AppRole, ROLE_LABELS } from '@/types/auth';
+import { AppRole, Modulo, ROLE_LABELS, MODULOS, MODULO_LABELS } from '@/types/rbac';
 
 interface CriarUsuarioDialogProps {
   open: boolean;
@@ -63,17 +66,18 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
   const [selectedServidor, setSelectedServidor] = useState<ServidorOption | null>(null);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<AppRole>('user');
+  const [selectedModulos, setSelectedModulos] = useState<Modulo[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   
   // Estado para exibir senha após criação
   const [senhaGerada, setSenhaGerada] = useState<string | null>(null);
   const [usuarioCriado, setUsuarioCriado] = useState<{ nome: string; email: string } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Carregar servidores
   const loadServidores = async () => {
     setIsLoadingServidores(true);
     try {
-      // Buscar servidores ativos
       const { data: servidoresData, error: servidoresError } = await supabase
         .from('servidores')
         .select(`
@@ -92,7 +96,6 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
 
       if (servidoresError) throw servidoresError;
 
-      // Buscar IDs de servidores que já têm usuário
       const { data: profiles } = await supabase
         .from('profiles')
         .select('servidor_id')
@@ -100,7 +103,6 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
 
       const servidoresComUsuario = new Set(profiles?.map(p => p.servidor_id) || []);
 
-      // Buscar nomes de cargos e unidades
       const cargoIds = servidoresData?.filter(s => s.cargo_atual_id).map(s => s.cargo_atual_id) || [];
       const unidadeIds = servidoresData?.filter(s => s.unidade_atual_id).map(s => s.unidade_atual_id) || [];
 
@@ -155,19 +157,27 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
       setSelectedServidor(null);
       setEmail('');
       setRole('user');
+      setSelectedModulos([]);
       setSearchTerm('');
       setSenhaGerada(null);
       setUsuarioCriado(null);
+      setShowPassword(false);
     }
   }, [open]);
 
-  // Quando selecionar servidor, preencher email
   const handleSelectServidor = (servidor: ServidorOption) => {
     setSelectedServidor(servidor);
     setEmail(servidor.email_institucional || servidor.email_pessoal || '');
   };
 
-  // Criar usuário
+  const toggleModulo = (modulo: Modulo) => {
+    setSelectedModulos(prev => 
+      prev.includes(modulo) 
+        ? prev.filter(m => m !== modulo)
+        : [...prev, modulo]
+    );
+  };
+
   const handleCriar = async () => {
     if (!selectedServidor) {
       toast({
@@ -192,10 +202,10 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
       const resultado = await criarUsuarioParaServidor.mutateAsync({
         servidorId: selectedServidor.id,
         email,
-        role
+        role,
+        modulos: selectedModulos
       });
 
-      // Exibir senha gerada
       setSenhaGerada(resultado.senhaTemporaria);
       setUsuarioCriado({
         nome: selectedServidor.nome_completo,
@@ -215,7 +225,6 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
     }
   };
 
-  // Filtrar servidores
   const servidoresFiltrados = servidores.filter(s => {
     if (!searchTerm) return true;
     const termo = searchTerm.toLowerCase();
@@ -226,14 +235,8 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
     );
   });
 
-  // Servidores disponíveis (sem usuário)
   const servidoresDisponiveis = servidoresFiltrados.filter(s => !s.jaTemUsuario);
-  const servidoresComUsuario = servidoresFiltrados.filter(s => s.jaTemUsuario);
 
-  // Estado para mostrar/ocultar senha
-  const [showPassword, setShowPassword] = useState(false);
-
-  // Copiar senha para clipboard
   const copiarSenha = () => {
     if (senhaGerada) {
       navigator.clipboard.writeText(senhaGerada);
@@ -243,6 +246,11 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
       });
     }
   };
+
+  // Módulos disponíveis (excluindo admin para não-admins)
+  const modulosDisponiveis = role === 'admin' 
+    ? MODULOS.filter(m => m !== 'admin') // Admin tem acesso total
+    : MODULOS.filter(m => m !== 'admin');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -271,9 +279,9 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
         {/* Tela de sucesso com senha */}
         {senhaGerada && usuarioCriado ? (
           <div className="space-y-6 py-4">
-            <Alert className="bg-green-50 border-green-200">
+            <Alert className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
               <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">
+              <AlertDescription className="text-green-800 dark:text-green-200">
                 O usuário foi criado com sucesso. Informe os dados abaixo ao servidor.
               </AlertDescription>
             </Alert>
@@ -357,7 +365,7 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
                 </AlertDescription>
               </Alert>
             ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto border rounded-md p-2">
+              <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-2">
                 {servidoresDisponiveis.map((servidor) => (
                   <div
                     key={servidor.id}
@@ -391,7 +399,7 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
               </div>
             )}
 
-            {/* Servidor selecionado */}
+            {/* Servidor selecionado - Formulário */}
             {selectedServidor && (
               <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-2">
@@ -417,18 +425,58 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
 
                 {/* Role */}
                 <div className="space-y-2">
-                  <Label>Nível de acesso</Label>
+                  <Label className="flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    Nível de acesso (Role)
+                  </Label>
                   <Select value={role} onValueChange={(v) => setRole(v as AppRole)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="user">Usuário</SelectItem>
-                      <SelectItem value="manager">Gerente</SelectItem>
-                      <SelectItem value="admin">Administrador</SelectItem>
+                      <SelectItem value="user">{ROLE_LABELS.user}</SelectItem>
+                      <SelectItem value="manager">{ROLE_LABELS.manager}</SelectItem>
+                      <SelectItem value="admin">{ROLE_LABELS.admin}</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {role === 'admin' && 'Acesso total a todos os módulos'}
+                    {role === 'manager' && 'Pode aprovar processos e gerenciar equipes'}
+                    {role === 'user' && 'Acesso aos módulos selecionados abaixo'}
+                  </p>
                 </div>
+
+                {/* Módulos - só mostra se não for admin */}
+                {role !== 'admin' && (
+                  <div className="space-y-2">
+                    <Label>Módulos de acesso</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 border rounded-md">
+                      {modulosDisponiveis.map((modulo) => (
+                        <div
+                          key={modulo}
+                          className="flex items-center space-x-2"
+                        >
+                          <Checkbox
+                            id={`modulo-${modulo}`}
+                            checked={selectedModulos.includes(modulo)}
+                            onCheckedChange={() => toggleModulo(modulo)}
+                          />
+                          <label
+                            htmlFor={`modulo-${modulo}`}
+                            className="text-sm cursor-pointer"
+                          >
+                            {MODULO_LABELS[modulo]}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedModulos.length === 0 
+                        ? 'Nenhum módulo selecionado'
+                        : `${selectedModulos.length} módulo(s) selecionado(s)`}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
