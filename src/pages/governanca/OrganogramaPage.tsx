@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { MainLayout } from "@/components/layout/MainLayout";
+import { ModuleLayout } from "@/components/layout/ModuleLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Scale, Users, Building2, Briefcase, Shield, FileText, ChevronDown, ChevronRight } from "lucide-react";
 
@@ -65,21 +64,6 @@ const orgUnits: OrgUnit[] = [
     responsavel: "Assessor Jurídico"
   },
   {
-    id: "assessoria-especial",
-    name: "Assessoria Especial",
-    shortName: "ASESP",
-    level: "assessoria",
-    parent: "presidencia",
-    description: "Assessoria de alto nível para assuntos estratégicos e especiais.",
-    competencias: [
-      "Assessorar o Presidente em assuntos estratégicos",
-      "Elaborar estudos e pareceres técnicos",
-      "Acompanhar projetos especiais",
-      "Representar o Instituto em missões específicas"
-    ],
-    responsavel: "Assessor Especial"
-  },
-  {
     id: "controle-interno",
     name: "Controle Interno",
     shortName: "CI",
@@ -93,36 +77,6 @@ const orgUnits: OrgUnit[] = [
       "Elaborar relatórios de controle"
     ],
     responsavel: "Chefe de Controle Interno"
-  },
-  {
-    id: "comissao-contratacao",
-    name: "Comissão de Contratação",
-    shortName: "CPL",
-    level: "assessoria",
-    parent: "presidencia",
-    description: "Responsável pelos processos licitatórios e de contratação do Instituto.",
-    competencias: [
-      "Conduzir processos licitatórios",
-      "Analisar propostas e documentação",
-      "Julgar recursos administrativos",
-      "Emitir atos de adjudicação"
-    ],
-    responsavel: "Presidente da CPL"
-  },
-  {
-    id: "assessoria-comunicacao",
-    name: "Assessoria de Comunicação",
-    shortName: "ASCOM",
-    level: "assessoria",
-    parent: "presidencia",
-    description: "Responsável pela comunicação institucional e relacionamento com a imprensa.",
-    competencias: [
-      "Coordenar a comunicação institucional",
-      "Gerenciar redes sociais e portal",
-      "Produzir conteúdo informativo",
-      "Atender a imprensa"
-    ],
-    responsavel: "Assessor de Comunicação"
   },
   // NÍVEL DE EXECUÇÃO INSTRUMENTAL
   {
@@ -141,67 +95,7 @@ const orgUnits: OrgUnit[] = [
     ],
     responsavel: "Diretor Administrativo e Financeiro"
   },
-  {
-    id: "dicof",
-    name: "Divisão de Contabilidade, Orçamento e Finanças",
-    shortName: "DiCOF",
-    level: "coordenacao",
-    parent: "diraf",
-    description: "Gestão contábil, orçamentária e financeira do Instituto.",
-    competencias: [
-      "Efetuar e controlar arrecadações e pagamentos",
-      "Controlar contas a receber e a pagar",
-      "Executar a escrituração contábil",
-      "Elaborar balancetes e balanços"
-    ],
-    responsavel: "Chefe de Divisão"
-  },
-  {
-    id: "diagp",
-    name: "Divisão Administrativa e Gestão Patrimonial",
-    shortName: "DiAGP",
-    level: "coordenacao",
-    parent: "diraf",
-    description: "Gestão administrativa, patrimonial e logística.",
-    competencias: [
-      "Elaborar cronograma de aquisição de material",
-      "Promover cadastro e tombamento de bens",
-      "Coordenar serviços de transporte",
-      "Promover publicação de atos oficiais"
-    ],
-    responsavel: "Chefe de Divisão"
-  },
-  {
-    id: "drh",
-    name: "Divisão de Recursos Humanos",
-    shortName: "DRH",
-    level: "coordenacao",
-    parent: "diraf",
-    description: "Gestão de pessoal, folha de pagamento e desenvolvimento de servidores.",
-    competencias: [
-      "Propor normas relativas à área de pessoal",
-      "Processar atos relativos aos servidores",
-      "Elaborar folha de pagamento",
-      "Coordenar programas de estágio"
-    ],
-    responsavel: "Chefe de Divisão"
-  },
-  {
-    id: "diti",
-    name: "Divisão de Tecnologia da Informação",
-    shortName: "DiTI",
-    level: "coordenacao",
-    parent: "diraf",
-    description: "Gestão de tecnologia, sistemas e infraestrutura digital.",
-    competencias: [
-      "Gerenciar infraestrutura de TI",
-      "Desenvolver e manter sistemas",
-      "Garantir segurança da informação",
-      "Prestar suporte técnico"
-    ],
-    responsavel: "Chefe de Divisão"
-  },
-  // NÍVEL DE EXECUÇÃO PROGRAMÁTICA - DIESP
+  // NÍVEL DE EXECUÇÃO PROGRAMÁTICA
   {
     id: "diesp",
     name: "Diretoria de Esporte",
@@ -219,63 +113,6 @@ const orgUnits: OrgUnit[] = [
     responsavel: "Diretor de Esporte"
   },
   {
-    id: "digel",
-    name: "Divisão de Gestão de Esporte e Lazer",
-    shortName: "DiGEL",
-    level: "coordenacao",
-    parent: "diesp",
-    description: "Promoção do esporte comunitário e atividades de lazer.",
-    competencias: [
-      "Promover desporto comunitário",
-      "Desenvolver atividades de lazer",
-      "Fomentar qualidade de vida através do esporte"
-    ],
-    responsavel: "Chefe de Divisão"
-  },
-  {
-    id: "dire",
-    name: "Divisão de Esporte de Alto Rendimento",
-    shortName: "DiRE",
-    level: "coordenacao",
-    parent: "diesp",
-    description: "Apoio ao esporte de alto rendimento e organizações esportivas.",
-    competencias: [
-      "Apoiar atletas de alto rendimento",
-      "Articular com organizações esportivas",
-      "Promover competições estaduais e nacionais"
-    ],
-    responsavel: "Chefe de Divisão"
-  },
-  {
-    id: "diede",
-    name: "Divisão de Educação e Desporto Estudantil",
-    shortName: "DiEDE",
-    level: "coordenacao",
-    parent: "diesp",
-    description: "Promoção do esporte educacional e de base.",
-    competencias: [
-      "Promover esporte educacional nas escolas",
-      "Desenvolver esporte de base",
-      "Organizar jogos escolares"
-    ],
-    responsavel: "Chefe de Divisão"
-  },
-  {
-    id: "digi",
-    name: "Divisão de Gestão Inclusiva e Qualidade de Vida",
-    shortName: "DiGI",
-    level: "coordenacao",
-    parent: "diesp",
-    description: "Promoção da inclusão social através do esporte e paradesporto.",
-    competencias: [
-      "Promover esporte inclusivo",
-      "Desenvolver paradesporto",
-      "Fomentar qualidade de vida"
-    ],
-    responsavel: "Chefe de Divisão"
-  },
-  // NÍVEL DE EXECUÇÃO PROGRAMÁTICA - DIJUV
-  {
     id: "dijuv",
     name: "Diretoria da Juventude",
     shortName: "DIJUV",
@@ -289,34 +126,6 @@ const orgUnits: OrgUnit[] = [
       "Desenvolver programas de inclusão"
     ],
     responsavel: "Diretor da Juventude"
-  },
-  {
-    id: "dipp",
-    name: "Divisão de Programas e Projetos",
-    shortName: "DiPP",
-    level: "coordenacao",
-    parent: "dijuv",
-    description: "Gestão de programas e projetos voltados à juventude.",
-    competencias: [
-      "Desenvolver programas para juventude",
-      "Gerenciar projetos temáticos",
-      "Articular com Centro de Referência da Juventude"
-    ],
-    responsavel: "Chefe de Divisão"
-  },
-  {
-    id: "dapt",
-    name: "Divisão de Articulação de Políticas Transversais",
-    shortName: "DAPT",
-    level: "coordenacao",
-    parent: "dijuv",
-    description: "Articulação de políticas transversais e relações institucionais.",
-    competencias: [
-      "Articular políticas transversais",
-      "Promover relações institucionais",
-      "Defender direitos da juventude"
-    ],
-    responsavel: "Chefe de Divisão"
   }
 ];
 
@@ -391,10 +200,8 @@ const OrganogramaPage = () => {
 
         {isExpanded && children.length > 0 && (
           <div className="relative mt-4">
-            {/* Vertical line from parent */}
             <div className="absolute left-1/2 -top-4 w-px h-4 bg-border" />
             
-            {/* Horizontal line connecting children */}
             {children.length > 1 && (
               <div 
                 className="absolute top-0 h-px bg-border"
@@ -406,9 +213,8 @@ const OrganogramaPage = () => {
             )}
             
             <div className="flex gap-8 justify-center">
-              {children.map((child, index) => (
+              {children.map((child) => (
                 <div key={child.id} className="relative">
-                  {/* Vertical line to child */}
                   <div className="absolute left-1/2 -top-4 w-px h-4 bg-border" />
                   {renderOrgUnit(child, depth + 1)}
                 </div>
@@ -423,8 +229,8 @@ const OrganogramaPage = () => {
   const presidencia = orgUnits.find(u => u.id === "presidencia")!;
 
   return (
-    <MainLayout>
-      <div className="container mx-auto px-4 py-8">
+    <ModuleLayout module="governanca">
+      <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <Badge variant="outline" className="mb-4">
             <Scale className="w-3 h-3 mr-1" />
@@ -506,15 +312,14 @@ const OrganogramaPage = () => {
           </CardContent>
         </Card>
 
-        {/* Dialog de Detalhes */}
+        {/* Dialog de detalhes */}
         <Dialog open={!!selectedUnit} onOpenChange={() => setSelectedUnit(null)}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                {selectedUnit?.level === "presidencia" && <Building2 className="w-5 h-5 text-primary" />}
-                {selectedUnit?.level === "assessoria" && <Shield className="w-5 h-5 text-secondary" />}
-                {selectedUnit?.level === "diretoria" && <Briefcase className="w-5 h-5 text-accent" />}
-                {selectedUnit?.level === "coordenacao" && <FileText className="w-5 h-5 text-muted-foreground" />}
+                {selectedUnit?.level === "presidencia" && <Building2 className="w-5 h-5" />}
+                {selectedUnit?.level === "assessoria" && <Shield className="w-5 h-5" />}
+                {selectedUnit?.level === "diretoria" && <Briefcase className="w-5 h-5" />}
                 {selectedUnit?.name}
               </DialogTitle>
               <DialogDescription>
@@ -526,37 +331,28 @@ const OrganogramaPage = () => {
               <div className="space-y-4">
                 {selectedUnit.responsavel && (
                   <div>
-                    <h4 className="font-semibold text-sm text-muted-foreground mb-1">Responsável</h4>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Responsável</h4>
                     <p>{selectedUnit.responsavel}</p>
                   </div>
                 )}
                 
                 <div>
                   <h4 className="font-semibold text-sm text-muted-foreground mb-2">Competências</h4>
-                  <ul className="space-y-2">
+                  <ul className="space-y-1 text-sm">
                     {selectedUnit.competencias.map((comp, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-sm">
-                        <span className="text-primary mt-1">•</span>
+                      <li key={idx} className="flex items-start gap-2">
+                        <span className="text-primary">•</span>
                         {comp}
                       </li>
                     ))}
                   </ul>
                 </div>
-
-                {selectedUnit.parent && (
-                  <div>
-                    <h4 className="font-semibold text-sm text-muted-foreground mb-1">Vinculação</h4>
-                    <p className="text-sm">
-                      {orgUnits.find(u => u.id === selectedUnit.parent)?.name}
-                    </p>
-                  </div>
-                )}
               </div>
             )}
           </DialogContent>
         </Dialog>
       </div>
-    </MainLayout>
+    </ModuleLayout>
   );
 };
 

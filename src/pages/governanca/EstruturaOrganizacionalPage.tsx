@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MainLayout } from '@/components/layout/MainLayout';
+import { ModuleLayout } from '@/components/layout/ModuleLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -15,8 +15,6 @@ import {
   Briefcase,
   Target,
   Layers,
-  FileText,
-  ArrowLeft,
   FileDown
 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -138,18 +136,8 @@ export default function EstruturaOrganizacionalPage() {
   const getNucleoNome = (sigla: string) => NUCLEOS_COMPLETOS[sigla] || sigla;
 
   return (
-    <MainLayout>
-      <div className="container mx-auto py-8 px-4 max-w-6xl">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-          <Link to="/governanca" className="hover:text-primary flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" />
-            Governança
-          </Link>
-          <span>/</span>
-          <span className="text-foreground">Estrutura Organizacional</span>
-        </div>
-
+    <ModuleLayout module="governanca">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3 mb-2">
@@ -396,11 +384,11 @@ export default function EstruturaOrganizacionalPage() {
                         <AccordionTrigger className="text-sm font-medium hover:no-underline">
                           <span className="flex items-center gap-2">
                             <Badge variant="outline" className="font-mono text-xs">{divisao.nome}</Badge>
-                            <span className="text-xs text-muted-foreground truncate">{divisao.descricao}</span>
                           </span>
                         </AccordionTrigger>
                         <AccordionContent>
                           <div className="pl-4 py-2 space-y-2">
+                            <p className="text-xs text-muted-foreground">{divisao.descricao}</p>
                             {divisao.nucleos.map((nucleo, nIdx) => (
                               <div key={nIdx} className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <span className="w-2 h-2 rounded-full bg-info" />
@@ -413,10 +401,6 @@ export default function EstruturaOrganizacionalPage() {
                       </AccordionItem>
                     ))}
                   </Accordion>
-
-                  <p className="mt-4 text-xs text-muted-foreground text-right">
-                    Total: {resumo?.por_diretoria?.['DIESP']?.quantidade || 13} cargos
-                  </p>
                 </CardContent>
               </Card>
 
@@ -424,7 +408,7 @@ export default function EstruturaOrganizacionalPage() {
               <Card className="border-l-4 border-l-success">
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Badge className="bg-success text-primary-foreground">DIJUV</Badge>
+                    <Badge className="bg-success text-success-foreground">DIJUV</Badge>
                     Diretoria da Juventude
                   </CardTitle>
                   <CardDescription className="text-xs">
@@ -445,11 +429,11 @@ export default function EstruturaOrganizacionalPage() {
                         <AccordionTrigger className="text-sm font-medium hover:no-underline">
                           <span className="flex items-center gap-2">
                             <Badge variant="outline" className="font-mono text-xs">{divisao.nome}</Badge>
-                            <span className="text-xs text-muted-foreground truncate">{divisao.descricao}</span>
                           </span>
                         </AccordionTrigger>
                         <AccordionContent>
                           <div className="pl-4 py-2 space-y-2">
+                            <p className="text-xs text-muted-foreground">{divisao.descricao}</p>
                             {divisao.nucleos.map((nucleo, nIdx) => (
                               <div key={nIdx} className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <span className="w-2 h-2 rounded-full bg-success" />
@@ -462,104 +446,12 @@ export default function EstruturaOrganizacionalPage() {
                       </AccordionItem>
                     ))}
                   </Accordion>
-
-                  <p className="mt-4 text-xs text-muted-foreground text-right">
-                    Total: {resumo?.por_diretoria?.['DIJUV']?.quantidade || 6} cargos
-                  </p>
                 </CardContent>
               </Card>
             </div>
           </section>
         </div>
-
-        {/* Diagrama Visual Simplificado */}
-        <Card className="mt-8 bg-muted/30">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Network className="h-5 w-5 text-primary" />
-              Diagrama de Vínculos
-            </CardTitle>
-            <CardDescription>Representação visual da hierarquia e subordinação</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col items-center space-y-4">
-              {/* Presidência */}
-              <div className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-bold text-center">
-                PRESIDÊNCIA
-              </div>
-              <div className="w-px h-6 bg-border" />
-              
-              {/* Linha de Assessoramento */}
-              <div className="w-full max-w-3xl">
-                <div className="text-center text-xs text-muted-foreground mb-2">Assessoramento</div>
-                <div className="flex justify-center flex-wrap gap-2">
-                  {['Gabinete', 'Assessoria Jurídica', 'Assessoria Especial', 'ASCOM', 'Controle Interno', 'CPL'].map((item, idx) => (
-                    <Badge key={idx} variant="secondary" className="text-xs">{item}</Badge>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="w-px h-6 bg-border" />
-              
-              {/* Diretorias */}
-              <div className="grid grid-cols-3 gap-4 w-full max-w-3xl">
-                <div className="text-center">
-                  <div className="px-4 py-2 bg-accent text-accent-foreground rounded-lg font-semibold text-sm">
-                    DIRAF
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Instrumental</p>
-                </div>
-                <div className="text-center">
-                  <div className="px-4 py-2 bg-info text-primary-foreground rounded-lg font-semibold text-sm">
-                    DIESP
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Programática</p>
-                </div>
-                <div className="text-center">
-                  <div className="px-4 py-2 bg-success text-primary-foreground rounded-lg font-semibold text-sm">
-                    DIJUV
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Programática</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Rodapé Legal */}
-        <Card className="mt-8 border-dashed">
-          <CardContent className="py-4">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="font-medium text-foreground">Base Legal</p>
-                  <p className="text-sm text-muted-foreground">
-                    Lei nº 2.301, de 29 de dezembro de 2025 — Dispõe sobre a criação do IDJUV
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <a href="/documentos/LEI_2301_29-12-2025.pdf" target="_blank" rel="noopener noreferrer">
-                  <Badge variant="outline" className="cursor-pointer hover:bg-muted">
-                    <FileText className="h-3 w-3 mr-1" />
-                    Ver Lei Completa
-                  </Badge>
-                </a>
-                <Link to="/transparencia/cargos">
-                  <Badge variant="outline" className="cursor-pointer hover:bg-muted">
-                    <Users className="h-3 w-3 mr-1" />
-                    Ver Cargos
-                  </Badge>
-                </Link>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-3">
-              Última atualização: {resumo?.ultima_atualizacao || '29/12/2025'}
-            </p>
-          </CardContent>
-        </Card>
       </div>
-    </MainLayout>
+    </ModuleLayout>
   );
 }
