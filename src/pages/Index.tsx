@@ -5,7 +5,7 @@ import {
   AlertTriangle, CheckCircle2, Clock, FileText, BookOpen,
   Briefcase, TrendingUp, DollarSign
 } from "lucide-react";
-import { MainLayout } from "@/components/layout/MainLayout";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -106,7 +106,7 @@ const Index = () => {
   }, []);
 
   return (
-    <MainLayout>
+    <AdminLayout title="Portal de Governança" description="Sistema integrado de gestão do IDJUV">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         {/* Background com gradiente institucional */}
@@ -424,7 +424,7 @@ const Index = () => {
           </div>
         </div>
       </section>
-    </MainLayout>
+    </AdminLayout>
   );
 };
 
