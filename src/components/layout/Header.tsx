@@ -144,17 +144,14 @@ export function Header() {
               )}
             </Button>
             
-            {/* Mostrar UserMenu se logado, ou link para Área Restrita se não */}
-            {isAuthenticated ? (
-              <UserMenu showRoleBadge={false} />
-            ) : (
-              <Link 
-                to="/auth" 
-                className="text-xs font-medium px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors"
-              >
-                Área Restrita
-              </Link>
-            )}
+            {/* Link para Área Restrita + UserMenu se logado */}
+            <Link 
+              to={isAuthenticated ? "/sistema" : "/auth"} 
+              className="text-xs font-medium px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors"
+            >
+              {isAuthenticated ? "Sistema" : "Área Restrita"}
+            </Link>
+            {isAuthenticated && <UserMenu showRoleBadge={false} />}
           </div>
         </div>
       </div>
