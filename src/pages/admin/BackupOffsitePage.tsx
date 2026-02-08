@@ -3,7 +3,7 @@
 // ============================================
 
 import { useState } from 'react';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -86,7 +86,7 @@ export default function BackupOffsitePage() {
   const lastSuccessful = history?.find(b => b.status === 'success');
 
   return (
-    <AdminLayout title="Backup Offsite" description="Gerenciamento de backups externos">
+    <ModuleLayout module="admin">
       <div className="space-y-6">
         {/* Status Cards */}
         <div className="grid gap-4 md:grid-cols-4">
@@ -455,6 +455,6 @@ export default function BackupOffsitePage() {
           </TabsContent>
         </Tabs>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

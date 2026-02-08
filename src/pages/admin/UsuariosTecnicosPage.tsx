@@ -3,7 +3,7 @@
 // ============================================
 
 import React, { useState } from 'react';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from '@/components/layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useUsuarios } from '@/hooks/useUsuarios';
 import { Button } from '@/components/ui/button';
@@ -115,7 +115,7 @@ export default function UsuariosTecnicosPage() {
 
   return (
     <ProtectedRoute allowedRoles={['admin', 'ti_admin']}>
-      <AdminLayout>
+      <ModuleLayout module="admin">
         <div className="container mx-auto py-8 px-4 space-y-6">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -353,7 +353,7 @@ export default function UsuariosTecnicosPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </AdminLayout>
+      </ModuleLayout>
     </ProtectedRoute>
   );
 }

@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -204,17 +204,17 @@ export default function UsuarioDetalhePage() {
 
   if (loading) {
     return (
-      <AdminLayout title="Carregando..." description="">
+      <ModuleLayout module="admin">
         <div className="flex items-center justify-center py-24">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
 
   if (!usuario) {
     return (
-      <AdminLayout title="Usuário não encontrado" description="">
+      <ModuleLayout module="admin">
         <div className="flex flex-col items-center justify-center py-24 gap-4">
           <AlertTriangle className="h-12 w-12 text-muted-foreground" />
           <p className="text-muted-foreground">Usuário não encontrado ou sem permissão de acesso.</p>
@@ -223,7 +223,7 @@ export default function UsuarioDetalhePage() {
             Voltar para lista
           </Button>
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
 
@@ -236,10 +236,7 @@ export default function UsuarioDetalhePage() {
     : undefined;
 
   return (
-    <AdminLayout 
-      title="Detalhes do Usuário" 
-      description="Visualize e gerencie as informações do usuário"
-    >
+    <ModuleLayout module="admin">
       <div className="space-y-6">
         {/* Header com botão voltar e informações do usuário */}
         <div className="flex flex-col md:flex-row md:items-start gap-4">
@@ -607,6 +604,6 @@ export default function UsuarioDetalhePage() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

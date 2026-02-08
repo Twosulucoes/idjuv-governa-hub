@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -219,17 +219,17 @@ export default function CheckinReuniaoPage() {
 
   if (loadingReuniao) {
     return (
-      <AdminLayout>
+      <ModuleLayout module="admin">
         <div className="flex items-center justify-center min-h-[60vh]">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
 
   if (!reuniao) {
     return (
-      <AdminLayout>
+      <ModuleLayout module="admin">
         <div className="text-center py-12">
           <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-xl font-semibold mb-2">Reunião não encontrada</h2>
@@ -241,14 +241,14 @@ export default function CheckinReuniaoPage() {
             </Button>
           </Link>
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
 
   const dataReuniao = new Date(reuniao.data_reuniao + "T00:00:00");
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="admin">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
@@ -512,6 +512,6 @@ export default function CheckinReuniaoPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

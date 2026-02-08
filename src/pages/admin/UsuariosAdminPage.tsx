@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from '@/components/layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -84,10 +84,7 @@ export default function UsuariosAdminPage() {
   };
 
   return (
-    <AdminLayout 
-      title="Administração de Usuários" 
-      description="Gerencie os usuários e seus acessos ao sistema"
-    >
+    <ModuleLayout module="admin">
       <div className="space-y-6">
         {/* Aviso institucional */}
         <Alert>
@@ -295,6 +292,6 @@ export default function UsuariosAdminPage() {
           onSuccess={() => fetchUsuarios()}
         />
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -112,10 +112,7 @@ export default function ReunioesPage() {
   );
 
   return (
-    <AdminLayout 
-      title="Reuniões" 
-      description="Gerencie as reuniões e convocações"
-    >
+    <ModuleLayout module="admin">
       {/* Mobile-first sticky header com busca */}
       <div className="sticky top-0 z-10 -mx-4 -mt-4 lg:-mx-6 lg:-mt-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b px-4 py-3 lg:px-6 lg:py-4 mb-4 lg:mb-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -232,7 +229,7 @@ export default function ReunioesPage() {
         onAplicar={setFiltros}
         onLimpar={() => setFiltros(filtrosIniciais)}
       />
-    </AdminLayout>
+    </ModuleLayout>
   );
 }
 

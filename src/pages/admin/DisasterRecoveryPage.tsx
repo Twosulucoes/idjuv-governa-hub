@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AdminLayout } from "@/components/admin";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -97,7 +97,7 @@ const DisasterRecoveryPage = () => {
   const schemaUrl = "/disaster-recovery/schema-completo.sql";
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="admin">
       <div className="space-y-6 pb-10">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -483,7 +483,7 @@ BACKUP_ENCRYPTION_KEY=sua_chave_hex_64_caracteres`}
           </TabsContent>
         </Tabs>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 };
 

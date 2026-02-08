@@ -17,7 +17,7 @@ import {
   BookOpen,
   type LucideIcon,
 } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { menuConfig, getAllRouteItems } from "@/config/menu.config";
@@ -144,7 +144,7 @@ export default function AdminDashboardPage() {
   }, [allItems, favorites]);
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="admin">
       <div className="space-y-6">
         {/* Page Header */}
         <div>
@@ -468,6 +468,6 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

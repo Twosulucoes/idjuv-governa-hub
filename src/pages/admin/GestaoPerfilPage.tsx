@@ -3,7 +3,7 @@
 // ============================================
 // Sistema de 3 perfis fixos: Super Admin, Gestor, Servidor
 
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -31,10 +31,7 @@ export default function GestaoPerfilPage() {
   const { perfis, loading } = useAdminPerfis();
 
   return (
-    <AdminLayout 
-      title="Perfis do Sistema" 
-      description="Os 3 perfis institucionais de acesso"
-    >
+    <ModuleLayout module="admin">
       <div className="space-y-6">
         {/* Aviso institucional */}
         <Alert>
@@ -152,6 +149,6 @@ export default function GestaoPerfilPage() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

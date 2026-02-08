@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AdminLayout } from '@/components/admin';
+import { ModuleLayout } from '@/components/layout';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import { PermissionGate, AdminOnly, ManagerOnly, DisabledWithPermission } from '@/components/auth';
@@ -82,7 +82,7 @@ const ControleAcessoAdminPage: React.FC = () => {
   ];
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="admin">
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -315,7 +315,7 @@ const ControleAcessoAdminPage: React.FC = () => {
           </Button>
         </div>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 };
 

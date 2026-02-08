@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { AdminLayout } from "@/components/admin";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -122,7 +122,7 @@ export default function CalibradorSegadPage() {
   };
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="admin">
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -346,6 +346,6 @@ export default function CalibradorSegadPage() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }
