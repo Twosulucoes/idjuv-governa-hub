@@ -25,7 +25,7 @@ import { FederacoesErrorBoundary } from '@/components/federacoes/FederacoesError
 import { MandatoExpiradoBadge, isMandatoExpirado } from '@/components/federacoes/MandatoExpiradoBadge';
 import { FederacaoParceriasTab } from '@/components/federacoes/FederacaoParceriasTab';
 
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from "@/components/layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -176,7 +176,7 @@ export default function GestaoFederacoesPage() {
 
   return (
     <FederacoesErrorBoundary>
-    <AdminLayout>
+    <ModuleLayout module="governanca">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -348,7 +348,7 @@ export default function GestaoFederacoesPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
     </FederacoesErrorBoundary>
   );
 }

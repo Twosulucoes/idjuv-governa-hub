@@ -10,7 +10,7 @@
 import { Link } from "react-router-dom";
 import { useModuleRouter, getModuleHomeRoute, MODULE_PRIORITY } from "@/hooks/useModuleRouter";
 import { MODULES_CONFIG, MODULO_COR_CLASSES, type Modulo } from "@/shared/config/modules.config";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -60,18 +60,18 @@ export default function ModuleHubPage() {
 
   if (isLoading) {
     return (
-      <AdminLayout title="Carregando...">
+      <ModuleLayout module="admin">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Skeleton key={i} className="h-40 rounded-xl" />
           ))}
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="admin">
       <div className="space-y-8">
         {/* Header */}
         <div>
@@ -193,6 +193,6 @@ export default function ModuleHubPage() {
           </section>
         )}
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

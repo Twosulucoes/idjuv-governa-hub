@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from "@/components/layout";
 import { ProtectedRoute } from '@/components/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -1255,9 +1255,9 @@ function RelatoriosUnidadesLocaisContent() {
 export default function RelatoriosUnidadesLocaisPage() {
   return (
     <ProtectedRoute allowedRoles={['manager', 'admin']}>
-      <AdminLayout>
+      <ModuleLayout module="patrimonio">
         <RelatoriosUnidadesLocaisContent />
-      </AdminLayout>
+      </ModuleLayout>
     </ProtectedRoute>
   );
 }

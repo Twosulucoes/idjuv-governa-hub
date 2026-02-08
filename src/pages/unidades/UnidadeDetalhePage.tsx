@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { AdminLayout } from "@/components/admin/AdminLayout";
-import { AdminBreadcrumbs } from "@/components/admin/AdminBreadcrumbs";
+import { ModuleLayout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -106,36 +105,30 @@ function UnidadeDetalheContent() {
 
   if (loading) {
     return (
-      <AdminLayout>
+      <ModuleLayout module="patrimonio">
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
 
   if (!unidade) {
     return (
-      <AdminLayout>
+      <ModuleLayout module="patrimonio">
         <div className="text-center py-12">
           <p className="text-muted-foreground">Unidade não encontrada</p>
           <Button variant="link" onClick={() => navigate("/unidades")}>
             Voltar para lista
           </Button>
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="patrimonio">
       <div className="space-y-6">
-        <AdminBreadcrumbs items={[
-          { label: "Admin", href: "/admin" },
-          { label: "Unidades Locais", href: "/unidades" },
-          { label: unidade?.nome_unidade || "Detalhes" }
-        ]} />
-
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="flex items-start gap-4">
@@ -390,7 +383,7 @@ function UnidadeDetalheContent() {
           />
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }
 

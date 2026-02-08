@@ -3,7 +3,7 @@
   * Hub unificado com categorias: Simples, Operacionais, Avançados
   */
  import React, { useState, useEffect, useMemo } from 'react';
- import { AdminLayout } from '@/components/admin/AdminLayout';
+ import { ModuleLayout } from "@/components/layout";
  import { ProtectedRoute } from '@/components/auth';
  import { supabase } from '@/integrations/supabase/client';
  import { toast } from 'sonner';
@@ -471,12 +471,12 @@
    );
  }
  
- export default function RelatoriosCentralPage() {
-   return (
-     <ProtectedRoute>
-       <AdminLayout>
-         <RelatoriosCentralContent />
-       </AdminLayout>
+export default function RelatoriosCentralPage() {
+  return (
+    <ProtectedRoute>
+      <ModuleLayout module="patrimonio">
+        <RelatoriosCentralContent />
+       </ModuleLayout>
      </ProtectedRoute>
    );
  }

@@ -1,4 +1,4 @@
-import { AdminLayout } from "@/components/admin";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ export default function FolhaBloqueadaPage() {
   const navigate = useNavigate();
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="rh">
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
         <Card className="max-w-2xl w-full border-dashed border-2 border-muted-foreground/30">
           <CardHeader className="text-center pb-2">
@@ -101,6 +101,6 @@ export default function FolhaBloqueadaPage() {
           para ativação em fases futuras do projeto.
         </p>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }
