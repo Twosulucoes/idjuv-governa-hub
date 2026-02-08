@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import { Users, ArrowLeft, Download } from "lucide-react";
-import { MainLayout } from "@/components/layout/MainLayout";
+import { Users, Download } from "lucide-react";
+import { ModuleLayout } from "@/components/layout/ModuleLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -51,15 +51,6 @@ const legendaRaci = [
   { letra: "I", nome: "Informado", descricao: "Quem é informado", cor: "bg-muted" },
 ];
 
-function getBadgeVariant(letra: string) {
-  switch (letra) {
-    case "R": return "default";
-    case "A": return "default";
-    case "C": return "secondary";
-    default: return "outline";
-  }
-}
-
 function getBadgeClass(letra: string) {
   switch (letra) {
     case "R": return "bg-primary";
@@ -71,242 +62,218 @@ function getBadgeClass(letra: string) {
 
 export default function MatrizRaciPage() {
   return (
-    <MainLayout>
-      {/* Cabeçalho */}
-      <section className="bg-primary text-primary-foreground py-12">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center gap-3 text-sm mb-4 opacity-80">
-            <Link to="/" className="hover:underline">Início</Link>
-            <span>/</span>
-            <Link to="/governanca" className="hover:underline">Governança</Link>
-            <span>/</span>
-            <span>Matriz RACI</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-accent rounded-xl flex items-center justify-center">
-              <Users className="w-8 h-8 text-accent-foreground" />
-            </div>
-            <div>
-              <h1 className="font-serif text-3xl lg:text-4xl font-bold">Matriz RACI</h1>
-              <p className="opacity-90 mt-1">
-                Responsabilidades e papéis nos processos administrativos
-              </p>
-            </div>
-          </div>
+    <ModuleLayout module="governanca">
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-8">
+          <Badge variant="outline" className="mb-4">
+            <Users className="w-3 h-3 mr-1" />
+            Governança
+          </Badge>
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Matriz RACI
+          </h1>
+          <p className="text-muted-foreground">
+            Responsabilidades e papéis nos processos administrativos
+          </p>
         </div>
-      </section>
 
-      {/* Conteúdo */}
-      <section className="py-12">
-        <div className="container mx-auto px-4">
-          <div className="max-w-6xl mx-auto">
-            {/* Legenda */}
-            <Card className="mb-8">
-              <CardHeader>
-                <div className="flex items-center justify-between">
+        {/* Legenda */}
+        <Card className="mb-8">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Legenda RACI</CardTitle>
+                <CardDescription>Papéis e responsabilidades por processo</CardDescription>
+              </div>
+              <Button variant="outline" size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                Baixar PDF
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {legendaRaci.map((item) => (
+                <div key={item.letra} className="flex items-center gap-3">
+                  <Badge className={item.cor}>{item.letra}</Badge>
                   <div>
-                    <CardTitle>Legenda RACI</CardTitle>
-                    <CardDescription>Papéis e responsabilidades por processo</CardDescription>
+                    <p className="font-medium text-sm">{item.nome}</p>
+                    <p className="text-xs text-muted-foreground">{item.descricao}</p>
                   </div>
-                  <Button variant="outline" size="sm">
-                    <Download className="w-4 h-4 mr-2" />
-                    Baixar PDF
-                  </Button>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {legendaRaci.map((item) => (
-                    <div key={item.letra} className="flex items-center gap-3">
-                      <Badge className={item.cor}>{item.letra}</Badge>
-                      <div>
-                        <p className="font-medium text-sm">{item.nome}</p>
-                        <p className="text-xs text-muted-foreground">{item.descricao}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <Separator className="my-4" />
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
-                  <div><strong>PRES</strong> – Presidência</div>
-                  <div><strong>DIRAF</strong> – Dir. Administrativa</div>
-                  <div><strong>CI</strong> – Controle Interno</div>
-                  <div><strong>UD</strong> – Unidade Demandante</div>
-                  <div><strong>FISC</strong> – Fiscal de Contrato</div>
-                </div>
-              </CardContent>
-            </Card>
+              ))}
+            </div>
+            <Separator className="my-4" />
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
+              <div><strong>PRES</strong> – Presidência</div>
+              <div><strong>DIRAF</strong> – Dir. Administrativa</div>
+              <div><strong>CI</strong> – Controle Interno</div>
+              <div><strong>UD</strong> – Unidade Demandante</div>
+              <div><strong>FISC</strong> – Fiscal de Contrato</div>
+            </div>
+          </CardContent>
+        </Card>
 
-            {/* Compras e Contratações */}
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Compras e Contratações (Lei 14.133)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Processo</TableHead>
-                      <TableHead className="text-center">PRES</TableHead>
-                      <TableHead className="text-center">DIRAF</TableHead>
-                      <TableHead className="text-center">CI</TableHead>
-                      <TableHead className="text-center">UD</TableHead>
-                      <TableHead className="text-center">FISC</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {matrizCompras.map((row) => (
-                      <TableRow key={row.processo}>
-                        <TableCell className="font-medium">{row.processo}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getBadgeClass(row.PRES)}>{row.PRES}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getBadgeClass(row.DIRAF)}>{row.DIRAF}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getBadgeClass(row.CI)}>{row.CI}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getBadgeClass(row.UD)}>{row.UD}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getBadgeClass(row.FISC)}>{row.FISC}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+        {/* Compras e Contratações */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Compras e Contratações (Lei 14.133)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Processo</TableHead>
+                  <TableHead className="text-center">PRES</TableHead>
+                  <TableHead className="text-center">DIRAF</TableHead>
+                  <TableHead className="text-center">CI</TableHead>
+                  <TableHead className="text-center">UD</TableHead>
+                  <TableHead className="text-center">FISC</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {matrizCompras.map((row) => (
+                  <TableRow key={row.processo}>
+                    <TableCell className="font-medium">{row.processo}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={getBadgeClass(row.PRES)}>{row.PRES}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={getBadgeClass(row.DIRAF)}>{row.DIRAF}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={getBadgeClass(row.CI)}>{row.CI}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={getBadgeClass(row.UD)}>{row.UD}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={getBadgeClass(row.FISC)}>{row.FISC}</Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
 
-            {/* Diárias e Viagens */}
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Diárias e Viagens</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Processo</TableHead>
-                      <TableHead className="text-center">PRES</TableHead>
-                      <TableHead className="text-center">DIRAF</TableHead>
-                      <TableHead className="text-center">CI</TableHead>
-                      <TableHead className="text-center">UD</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {matrizDiarias.map((row) => (
-                      <TableRow key={row.processo}>
-                        <TableCell className="font-medium">{row.processo}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getBadgeClass(row.PRES)}>{row.PRES}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getBadgeClass(row.DIRAF)}>{row.DIRAF}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getBadgeClass(row.CI)}>{row.CI}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getBadgeClass(row.UD)}>{row.UD}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+        {/* Diárias e Viagens */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Diárias e Viagens</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Processo</TableHead>
+                  <TableHead className="text-center">PRES</TableHead>
+                  <TableHead className="text-center">DIRAF</TableHead>
+                  <TableHead className="text-center">CI</TableHead>
+                  <TableHead className="text-center">UD</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {matrizDiarias.map((row) => (
+                  <TableRow key={row.processo}>
+                    <TableCell className="font-medium">{row.processo}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={getBadgeClass(row.PRES)}>{row.PRES}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={getBadgeClass(row.DIRAF)}>{row.DIRAF}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={getBadgeClass(row.CI)}>{row.CI}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={getBadgeClass(row.UD)}>{row.UD}</Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
 
-            {/* Patrimônio */}
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Patrimônio e Almoxarifado</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Processo</TableHead>
-                      <TableHead className="text-center">PRES</TableHead>
-                      <TableHead className="text-center">DIRAF</TableHead>
-                      <TableHead className="text-center">CI</TableHead>
-                      <TableHead className="text-center">UD</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {matrizPatrimonio.map((row) => (
-                      <TableRow key={row.processo}>
-                        <TableCell className="font-medium">{row.processo}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getBadgeClass(row.PRES)}>{row.PRES}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getBadgeClass(row.DIRAF)}>{row.DIRAF}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getBadgeClass(row.CI)}>{row.CI}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getBadgeClass(row.UD)}>{row.UD}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+        {/* Patrimônio */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Patrimônio e Almoxarifado</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Processo</TableHead>
+                  <TableHead className="text-center">PRES</TableHead>
+                  <TableHead className="text-center">DIRAF</TableHead>
+                  <TableHead className="text-center">CI</TableHead>
+                  <TableHead className="text-center">UD</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {matrizPatrimonio.map((row) => (
+                  <TableRow key={row.processo}>
+                    <TableCell className="font-medium">{row.processo}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={getBadgeClass(row.PRES)}>{row.PRES}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={getBadgeClass(row.DIRAF)}>{row.DIRAF}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={getBadgeClass(row.CI)}>{row.CI}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={getBadgeClass(row.UD)}>{row.UD}</Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
 
-            {/* Integridade */}
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle>Integridade e Ética</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Processo</TableHead>
-                      <TableHead className="text-center">PRES</TableHead>
-                      <TableHead className="text-center">DIRAF</TableHead>
-                      <TableHead className="text-center">CI</TableHead>
-                      <TableHead className="text-center">UD</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {matrizIntegridade.map((row) => (
-                      <TableRow key={row.processo}>
-                        <TableCell className="font-medium">{row.processo}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getBadgeClass(row.PRES)}>{row.PRES}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getBadgeClass(row.DIRAF)}>{row.DIRAF}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getBadgeClass(row.CI)}>{row.CI}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge className={getBadgeClass(row.UD)}>{row.UD}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-
-            {/* Voltar */}
-            <Button asChild variant="outline">
-              <Link to="/governanca">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Voltar para Governança
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-    </MainLayout>
+        {/* Integridade */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Integridade e Ética</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Processo</TableHead>
+                  <TableHead className="text-center">PRES</TableHead>
+                  <TableHead className="text-center">DIRAF</TableHead>
+                  <TableHead className="text-center">CI</TableHead>
+                  <TableHead className="text-center">UD</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {matrizIntegridade.map((row) => (
+                  <TableRow key={row.processo}>
+                    <TableCell className="font-medium">{row.processo}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={getBadgeClass(row.PRES)}>{row.PRES}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={getBadgeClass(row.DIRAF)}>{row.DIRAF}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={getBadgeClass(row.CI)}>{row.CI}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={getBadgeClass(row.UD)}>{row.UD}</Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    </ModuleLayout>
   );
 }
