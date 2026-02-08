@@ -1,6 +1,6 @@
 // ============================================
 // DIALOG PARA CRIAR USUÁRIO COM RBAC
-// Integra seleção de role e módulos
+// Suporta: Usuário-Servidor e Usuário Técnico
 // ============================================
 
 import React, { useState, useEffect } from 'react';
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useUsuarios } from '@/hooks/useUsuarios';
 import { 
@@ -27,7 +28,9 @@ import {
   Key,
   Eye,
   EyeOff,
-  Shield
+  Shield,
+  Briefcase,
+  Users
 } from 'lucide-react';
 import { AppRole, Modulo, ROLE_LABELS, MODULOS, MODULO_LABELS } from '@/types/rbac';
 
@@ -56,14 +59,22 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
   onSuccess
 }) => {
   const { toast } = useToast();
-  const { criarUsuarioParaServidor } = useUsuarios();
+  const { criarUsuarioParaServidor, criarUsuarioTecnico } = useUsuarios();
   
-  // Estados
+  // Tab selecionada
+  const [tipoUsuario, setTipoUsuario] = useState<'servidor' | 'tecnico'>('servidor');
+  
+  // Estados para Servidor
   const [servidores, setServidores] = useState<ServidorOption[]>([]);
   const [isLoadingServidores, setIsLoadingServidores] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  
   const [selectedServidor, setSelectedServidor] = useState<ServidorOption | null>(null);
+  
+  // Estados para Técnico
+  const [tecnicoNome, setTecnicoNome] = useState('');
+  const [tecnicoEmail, setTecnicoEmail] = useState('');
+  
+  // Estados compartilhados
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<AppRole>('user');
   const [selectedModulos, setSelectedModulos] = useState<Modulo[]>([]);
@@ -162,16 +173,23 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
   useEffect(() => {
     if (open) {
       loadServidores();
-      setSelectedServidor(null);
-      setEmail('');
-      setRole('user');
-      setSelectedModulos([]);
-      setSearchTerm('');
-      setSenhaGerada(null);
-      setUsuarioCriado(null);
-      setShowPassword(false);
+      resetForm();
     }
   }, [open]);
+
+  const resetForm = () => {
+    setTipoUsuario('servidor');
+    setSelectedServidor(null);
+    setEmail('');
+    setRole('user');
+    setSelectedModulos([]);
+    setSearchTerm('');
+    setSenhaGerada(null);
+    setUsuarioCriado(null);
+    setShowPassword(false);
+    setTecnicoNome('');
+    setTecnicoEmail('');
+  };
 
   const handleSelectServidor = (servidor: ServidorOption) => {
     setSelectedServidor(servidor);
@@ -186,7 +204,7 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
     );
   };
 
-  const handleCriar = async () => {
+  const handleCriarServidor = async () => {
     if (!selectedServidor) {
       toast({
         variant: "destructive",
@@ -214,7 +232,6 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
         modulos: selectedModulos
       });
 
-      // Se foi apenas atualização (usuário já existia)
       if (resultado.usuarioAtualizado) {
         toast({
           title: "Permissões atualizadas!",
@@ -225,7 +242,6 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
         return;
       }
 
-      // Usuário novo criado com sucesso
       setSenhaGerada(resultado.senhaTemporaria);
       setUsuarioCriado({
         nome: selectedServidor.nome_completo,
@@ -242,6 +258,55 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
       // Erros já tratados no hook
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleCriarTecnico = async () => {
+    if (!tecnicoNome.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Informe o nome",
+        description: "É necessário informar o nome do usuário técnico."
+      });
+      return;
+    }
+
+    if (!tecnicoEmail.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Informe o email",
+        description: "É necessário informar o email do usuário técnico."
+      });
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      await criarUsuarioTecnico.mutateAsync({
+        email: tecnicoEmail,
+        fullName: tecnicoNome,
+        role
+      });
+
+      toast({
+        title: "Usuário técnico criado!",
+        description: "Um email de confirmação foi enviado."
+      });
+      
+      onSuccess?.();
+      onOpenChange(false);
+    } catch (error: any) {
+      // Erros já tratados no hook
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleCriar = () => {
+    if (tipoUsuario === 'servidor') {
+      handleCriarServidor();
+    } else {
+      handleCriarTecnico();
     }
   };
 
@@ -267,10 +332,11 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
     }
   };
 
-  // Módulos disponíveis (excluindo admin para não-admins)
-  const modulosDisponiveis = role === 'admin' 
-    ? MODULOS.filter(m => m !== 'admin') // Admin tem acesso total
-    : MODULOS.filter(m => m !== 'admin');
+  const modulosDisponiveis = MODULOS.filter(m => m !== 'admin');
+
+  const canCreate = tipoUsuario === 'servidor' 
+    ? selectedServidor && email 
+    : tecnicoNome.trim() && tecnicoEmail.trim();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -285,14 +351,14 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
             ) : (
               <>
                 <UserPlus className="h-5 w-5 text-primary" />
-                Criar Usuário para Servidor
+                Criar Novo Usuário
               </>
             )}
           </DialogTitle>
           <DialogDescription>
             {senhaGerada 
-              ? 'Copie a senha temporária e informe ao servidor'
-              : 'Selecione um servidor ativo para criar acesso ao sistema'}
+              ? 'Copie a senha temporária e informe ao usuário'
+              : 'Escolha o tipo de usuário e preencha os dados'}
           </DialogDescription>
         </DialogHeader>
 
@@ -302,13 +368,13 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
             <Alert className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
               <CheckCircle className="h-4 w-4 text-green-600" />
               <AlertDescription className="text-green-800 dark:text-green-200">
-                O usuário foi criado com sucesso. Informe os dados abaixo ao servidor.
+                O usuário foi criado com sucesso. Informe os dados abaixo.
               </AlertDescription>
             </Alert>
 
             <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Servidor</Label>
+                <Label className="text-muted-foreground">Nome</Label>
                 <div className="font-medium">{usuarioCriado.nome}</div>
               </div>
               
@@ -344,7 +410,7 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  O servidor deverá alterar esta senha no primeiro acesso.
+                  O usuário deverá alterar esta senha no primeiro acesso.
                 </p>
               </div>
             </div>
@@ -359,96 +425,167 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
           </div>
         ) : (
           <div className="space-y-6 py-4">
-            {/* Busca */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nome, CPF ou matrícula..."
-                className="pl-10"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+            {/* Tabs para tipo de usuário */}
+            <Tabs value={tipoUsuario} onValueChange={(v) => setTipoUsuario(v as 'servidor' | 'tecnico')}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="servidor" className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Usuário-Servidor
+                </TabsTrigger>
+                <TabsTrigger value="tecnico" className="flex items-center gap-2">
+                  <Briefcase className="h-4 w-4" />
+                  Usuário Técnico
+                </TabsTrigger>
+              </TabsList>
 
-            {/* Lista de servidores */}
-            {isLoadingServidores ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              </div>
-            ) : servidoresDisponiveis.length === 0 ? (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  {searchTerm 
-                    ? 'Nenhum servidor encontrado com os termos de busca.'
-                    : 'Todos os servidores ativos já possuem usuário no sistema.'}
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-2">
-                {servidoresDisponiveis.map((servidor) => (
-                  <div
-                    key={servidor.id}
-                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                      selectedServidor?.id === servidor.id
-                        ? 'bg-primary/10 border-primary'
-                        : 'hover:bg-accent/50'
-                    }`}
-                    onClick={() => handleSelectServidor(servidor)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <div className="font-medium">{servidor.nome_completo}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {servidor.matricula && `Mat: ${servidor.matricula}`}
-                            {servidor.matricula && servidor.cargo_nome && ' • '}
-                            {servidor.cargo_nome}
-                          </div>
-                        </div>
-                      </div>
-                      {selectedServidor?.id === servidor.id && (
-                        <CheckCircle className="h-5 w-5 text-primary" />
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+              {/* Tab Servidor */}
+              <TabsContent value="servidor" className="space-y-4 mt-4">
+                <Alert>
+                  <Users className="h-4 w-4" />
+                  <AlertDescription>
+                    Vincula uma conta de acesso a um servidor cadastrado no sistema de RH.
+                  </AlertDescription>
+                </Alert>
 
-            {/* Servidor selecionado - Formulário */}
-            {selectedServidor && (
-              <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">Servidor selecionado</Badge>
-                  <span className="font-medium">{selectedServidor.nome_completo}</span>
+                {/* Busca */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nome, CPF ou matrícula..."
+                    className="pl-10"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
                 </div>
 
-                {/* Email */}
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email de acesso</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="email@exemplo.com"
-                      className="pl-10"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
+                {/* Lista de servidores */}
+                {isLoadingServidores ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
+                ) : servidoresDisponiveis.length === 0 ? (
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      {searchTerm 
+                        ? 'Nenhum servidor encontrado com os termos de busca.'
+                        : 'Todos os servidores ativos já possuem usuário no sistema.'}
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-2">
+                    {servidoresDisponiveis.map((servidor) => (
+                      <div
+                        key={servidor.id}
+                        className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                          selectedServidor?.id === servidor.id
+                            ? 'bg-primary/10 border-primary'
+                            : 'hover:bg-accent/50'
+                        }`}
+                        onClick={() => handleSelectServidor(servidor)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <User className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <div className="font-medium">{servidor.nome_completo}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {servidor.matricula && `Mat: ${servidor.matricula}`}
+                                {servidor.matricula && servidor.cargo_nome && ' • '}
+                                {servidor.cargo_nome}
+                              </div>
+                            </div>
+                          </div>
+                          {selectedServidor?.id === servidor.id && (
+                            <CheckCircle className="h-5 w-5 text-primary" />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Formulário do servidor selecionado */}
+                {selectedServidor && (
+                  <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">Servidor selecionado</Badge>
+                      <span className="font-medium">{selectedServidor.nome_completo}</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="email-servidor">Email de acesso</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="email-servidor"
+                          type="email"
+                          placeholder="email@exemplo.com"
+                          className="pl-10"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Tab Técnico */}
+              <TabsContent value="tecnico" className="space-y-4 mt-4">
+                <Alert>
+                  <Briefcase className="h-4 w-4" />
+                  <AlertDescription>
+                    Usuário não vinculado a servidor. Ideal para técnicos de TI, consultores externos, etc.
+                  </AlertDescription>
+                </Alert>
+
+                <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+                  <div className="space-y-2">
+                    <Label htmlFor="tecnico-nome">Nome completo</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="tecnico-nome"
+                        placeholder="Nome do usuário"
+                        className="pl-10"
+                        value={tecnicoNome}
+                        onChange={(e) => setTecnicoNome(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="tecnico-email">Email de acesso</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="tecnico-email"
+                        type="email"
+                        placeholder="email@exemplo.com"
+                        className="pl-10"
+                        value={tecnicoEmail}
+                        onChange={(e) => setTecnicoEmail(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            {/* Configuração de Role e Módulos - Compartilhada */}
+            {(tipoUsuario === 'servidor' ? selectedServidor : (tecnicoNome && tecnicoEmail)) && (
+              <div className="space-y-4 p-4 border rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <span className="font-medium">Permissões</span>
                 </div>
 
                 {/* Role */}
                 <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Shield className="h-4 w-4" />
-                    Nível de acesso (Role)
-                  </Label>
+                  <Label>Nível de acesso</Label>
                   <Select value={role} onValueChange={(v) => setRole(v as AppRole)}>
                     <SelectTrigger>
                       <SelectValue />
@@ -467,24 +604,18 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
                 </div>
 
                 {/* Módulos - só mostra se não for admin */}
-                {role !== 'admin' && (
+                {role !== 'admin' && tipoUsuario === 'servidor' && (
                   <div className="space-y-2">
                     <Label>Módulos de acesso</Label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 border rounded-md">
                       {modulosDisponiveis.map((modulo) => (
-                        <div
-                          key={modulo}
-                          className="flex items-center space-x-2"
-                        >
+                        <div key={modulo} className="flex items-center space-x-2">
                           <Checkbox
                             id={`modulo-${modulo}`}
                             checked={selectedModulos.includes(modulo)}
                             onCheckedChange={() => toggleModulo(modulo)}
                           />
-                          <label
-                            htmlFor={`modulo-${modulo}`}
-                            className="text-sm cursor-pointer"
-                          >
+                          <label htmlFor={`modulo-${modulo}`} className="text-sm cursor-pointer">
                             {MODULO_LABELS[modulo]}
                           </label>
                         </div>
@@ -515,7 +646,7 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
               </Button>
               <Button 
                 onClick={handleCriar} 
-                disabled={!selectedServidor || !email || isCreating}
+                disabled={!canCreate || isCreating}
               >
                 {isCreating ? (
                   <>

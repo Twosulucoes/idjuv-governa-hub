@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +20,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAdminUsuarios } from '@/hooks/useAdminUsuarios';
 import { UsuarioPerfilTab } from '@/components/admin/UsuarioPerfilTab';
 import { UsuarioModulosTab } from '@/components/admin/UsuarioModulosTab';
@@ -41,6 +53,7 @@ import {
   Mail,
   Calendar,
   Lock,
+  Trash2,
 } from 'lucide-react';
 
 export default function UsuarioDetalhePage() {
@@ -61,6 +74,11 @@ export default function UsuarioDetalhePage() {
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
+  
+  // Estados para exclusão
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   // Buscar usuário atual
   const usuario = usuarios.find(u => u.id === id) || null;
@@ -133,6 +151,54 @@ export default function UsuarioDetalhePage() {
         title: 'Copiado!',
         description: 'Senha copiada para a área de transferência.'
       });
+    }
+  };
+
+  // Função para excluir usuário via edge function
+  const handleDeleteUser = async () => {
+    if (!usuario) return;
+    
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId: usuario.id }
+      });
+
+      if (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao excluir usuário',
+          description: error.message
+        });
+        return;
+      }
+
+      if (data?.error) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro',
+          description: data.error
+        });
+        return;
+      }
+
+      toast({
+        title: 'Usuário excluído',
+        description: `O usuário ${usuario.email} foi excluído permanentemente.`
+      });
+
+      // Navegar de volta para a lista
+      navigate('/admin/usuarios');
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Ocorreu um erro ao excluir o usuário.'
+      });
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+      setDeleteConfirmText('');
     }
   };
 
@@ -306,6 +372,31 @@ export default function UsuarioDetalhePage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Excluir Usuário */}
+          {!isProtected && (
+            <Card className="border-destructive/50">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-destructive">Excluir Usuário</div>
+                    <div className="text-sm text-muted-foreground">
+                      Remove permanentemente a conta e todos os acessos
+                    </div>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setDeleteDialogOpen(true)}
+                    disabled={deleting}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Excluir
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Tabs simplificadas: Perfil + Módulos */}
@@ -457,6 +548,64 @@ export default function UsuarioDetalhePage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* AlertDialog de confirmação de exclusão */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                <Trash2 className="h-5 w-5" />
+                Excluir Usuário Permanentemente
+              </AlertDialogTitle>
+              <AlertDialogDescription className="space-y-4">
+                <p>
+                  Você está prestes a excluir permanentemente o usuário 
+                  <strong> {usuario?.full_name || usuario?.email}</strong>.
+                </p>
+                <p className="text-destructive font-medium">
+                  Esta ação é irreversível! O usuário perderá todo o acesso ao sistema.
+                </p>
+                <div className="space-y-2 pt-2">
+                  <Label htmlFor="delete-confirm">
+                    Digite <strong>EXCLUIR</strong> para confirmar:
+                  </Label>
+                  <Input
+                    id="delete-confirm"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder="EXCLUIR"
+                    className="font-mono"
+                  />
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => {
+                setDeleteConfirmText('');
+                setDeleteDialogOpen(false);
+              }}>
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteUser}
+                disabled={deleteConfirmText !== 'EXCLUIR' || deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Excluir Permanentemente
+                  </>
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AdminLayout>
   );
