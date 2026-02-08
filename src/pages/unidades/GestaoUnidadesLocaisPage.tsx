@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
-import { AdminBreadcrumbs } from "@/components/admin/AdminBreadcrumbs";
+import { ModuleLayout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -127,14 +126,8 @@ function GestaoUnidadesLocaisContent() {
   }
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="patrimonio">
       <div className="space-y-6">
-        <AdminBreadcrumbs items={[
-          { label: "Admin", href: "/admin" },
-          { label: "Cadastros" },
-          { label: "Unidades Locais" }
-        ]} />
-
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Unidades Locais</h1>
@@ -353,7 +346,7 @@ function GestaoUnidadesLocaisContent() {
           />
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }
 

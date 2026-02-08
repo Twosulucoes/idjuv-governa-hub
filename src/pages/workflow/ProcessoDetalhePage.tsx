@@ -3,7 +3,7 @@
  */
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { AdminLayout } from '@/components/admin';
+import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -54,31 +54,31 @@ export default function ProcessoDetalhePage() {
 
   if (loadingProcesso) {
     return (
-      <AdminLayout>
+      <ModuleLayout module="workflow">
         <div className="space-y-4">
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-60 w-full" />
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
 
   if (!processo) {
     return (
-      <AdminLayout>
+      <ModuleLayout module="workflow">
         <div className="text-center py-12">
           <h2 className="text-xl font-semibold">Processo não encontrado</h2>
           <Button className="mt-4" onClick={() => navigate('/admin/workflow')}>
             Voltar para lista
           </Button>
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="workflow">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
@@ -395,6 +395,6 @@ export default function ProcessoDetalhePage() {
         onOpenChange={setMovimentacaoDialogOpen}
         processoId={id!}
       />
-    </AdminLayout>
+    </ModuleLayout>
   );
 }
