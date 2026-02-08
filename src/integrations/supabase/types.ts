@@ -18984,6 +18984,7 @@ export type Database = {
         | "gestores_escolares"
         | "integridade"
         | "admin"
+        | "federacoes"
       app_permission:
         | "users.read"
         | "users.create"
@@ -19765,6 +19766,7 @@ export const Constants = {
         "gestores_escolares",
         "integridade",
         "admin",
+        "federacoes",
       ],
       app_permission: [
         "users.read",

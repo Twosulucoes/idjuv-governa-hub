@@ -137,6 +137,7 @@ export const MODULO_ICONES: Record<Modulo, string> = {
   comunicacao: '📢',
   programas: '🎓',
   gestores_escolares: '🏫',
+  federacoes: '🏆',
 };
 
 // Labels para perfis

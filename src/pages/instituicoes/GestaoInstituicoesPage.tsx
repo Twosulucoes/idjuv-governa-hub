@@ -1,30 +1,31 @@
- import { useState } from 'react';
- import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
- import { Button } from '@/components/ui/button';
- import { Input } from '@/components/ui/input';
- import {
-   Select,
-   SelectContent,
-   SelectItem,
-   SelectTrigger,
-   SelectValue,
- } from '@/components/ui/select';
- import {
-   AlertDialog,
-   AlertDialogAction,
-   AlertDialogCancel,
-   AlertDialogContent,
-   AlertDialogDescription,
-   AlertDialogFooter,
-   AlertDialogHeader,
-   AlertDialogTitle,
- } from '@/components/ui/alert-dialog';
- import { Plus, Search, Building2, Users, Landmark, Loader2 } from 'lucide-react';
- import { useInstituicoes } from '@/hooks/useInstituicoes';
- import { InstituicaoCard } from '@/components/instituicoes/InstituicaoCard';
- import { InstituicaoFormDialog } from '@/components/instituicoes/InstituicaoFormDialog';
- import type { TipoInstituicao, StatusInstituicao, Instituicao } from '@/types/instituicoes';
- import { TIPO_INSTITUICAO_LABELS, STATUS_INSTITUICAO_LABELS } from '@/types/instituicoes';
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Plus, Search, Building2, Users, Landmark, Loader2 } from 'lucide-react';
+import { useInstituicoes } from '@/hooks/useInstituicoes';
+import { InstituicaoCard } from '@/components/instituicoes/InstituicaoCard';
+import { InstituicaoFormDialog } from '@/components/instituicoes/InstituicaoFormDialog';
+import type { TipoInstituicao, StatusInstituicao, Instituicao } from '@/types/instituicoes';
+import { TIPO_INSTITUICAO_LABELS, STATUS_INSTITUICAO_LABELS } from '@/types/instituicoes';
+import { ModuleLayout } from '@/components/layout';
  
  export default function GestaoInstituicoesPage() {
    const [showForm, setShowForm] = useState(false);
@@ -76,8 +77,9 @@
      orgaos: instituicoes.filter((i) => i.tipo_instituicao === 'orgao_publico').length,
    };
  
-   return (
-     <div className="container mx-auto py-6 space-y-6">
+  return (
+    <ModuleLayout module="federacoes">
+      <div className="space-y-6">
        {/* Header */}
        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
          <div>
@@ -245,6 +247,7 @@
            </AlertDialogFooter>
          </AlertDialogContent>
        </AlertDialog>
-     </div>
-   );
- }
+      </div>
+    </ModuleLayout>
+  );
+}
