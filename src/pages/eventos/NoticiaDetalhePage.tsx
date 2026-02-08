@@ -169,7 +169,7 @@ export default function NoticiaDetalhePage() {
           <div className="container mx-auto max-w-4xl">
             <Button
               variant="ghost"
-            onClick={() => navigate("/selecoes")}
+            onClick={() => navigate("/programas/selecoes")}
               className="text-white hover:bg-white/10"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -282,7 +282,7 @@ export default function NoticiaDetalhePage() {
         >
           <Button
             variant="outline"
-            onClick={() => navigate("/selecoes")}
+            onClick={() => navigate("/programas/selecoes")}
             className="rounded-full px-6 font-bold tracking-wide"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
