@@ -100,8 +100,11 @@ import ControlePacotesFrequenciaPage from "./pages/rh/ControlePacotesFrequenciaP
 import MeuContrachequePage from "./pages/rh/MeuContrachequePage";
 import ConsultaContrachequesPage from "./pages/rh/ConsultaContrachequesPage";
 
-// Folha de Pagamento (FASE FUTURA - Bloqueado)
+// Folha de Pagamento
 import FolhaBloqueadaPage from "./pages/folha/FolhaBloqueadaPage";
+import GestaoFolhaPagamentoPage from "./pages/folha/GestaoFolhaPagamentoPage";
+import ConfiguracaoFolhaPage from "./pages/folha/ConfiguracaoFolhaPage";
+import FolhaDetalhePage from "./pages/folha/FolhaDetalhePage";
 
 // Unidades Locais
 import GestaoUnidadesLocaisPage from "./pages/unidades/GestaoUnidadesLocaisPage";
@@ -596,11 +599,14 @@ const App = () => (
               } />
               
               {/* ============================================ */}
-              {/* FOLHA DE PAGAMENTO - FASE FUTURA (Bloqueado) */}
+              {/* FOLHA DE PAGAMENTO */}
               {/* ============================================ */}
-              <Route path="/folha/configuracao" element={<ProtectedRoute><FolhaBloqueadaPage /></ProtectedRoute>} />
-              <Route path="/folha/gestao" element={<ProtectedRoute><FolhaBloqueadaPage /></ProtectedRoute>} />
-              <Route path="/folha/:id" element={<ProtectedRoute><FolhaBloqueadaPage /></ProtectedRoute>} />
+              <Route path="/folha" element={<ProtectedRoute><GestaoFolhaPagamentoPage /></ProtectedRoute>} />
+              <Route path="/folha/fichas" element={<ProtectedRoute><GestaoFolhaPagamentoPage /></ProtectedRoute>} />
+              <Route path="/folha/rubricas" element={<ProtectedRoute><ConfiguracaoFolhaPage /></ProtectedRoute>} />
+              <Route path="/folha/configuracao" element={<ProtectedRoute><ConfiguracaoFolhaPage /></ProtectedRoute>} />
+              <Route path="/folha/gestao" element={<ProtectedRoute><GestaoFolhaPagamentoPage /></ProtectedRoute>} />
+              <Route path="/folha/:id" element={<ProtectedRoute><FolhaDetalhePage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* PROCESSOS - Com permissões mapeadas */}

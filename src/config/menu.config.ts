@@ -263,6 +263,14 @@ export const menuConfig: MenuSection[] = [
         priority: 1,
       },
       {
+        id: "lotacoes",
+        label: "Lotações",
+        route: "/lotacoes",
+        icon: Users2,
+        permission: "rh.visualizar",
+        priority: 1.5,
+      },
+      {
         id: "movimentacoes",
         label: "Movimentações",
         route: "/rh/designacoes",
@@ -335,6 +343,34 @@ export const menuConfig: MenuSection[] = [
         route: "/rh/viagens",
         icon: Plane,
         permission: "rh.visualizar",
+      },
+      {
+        id: "folha-pagamento",
+        label: "Folha de Pagamento",
+        icon: Receipt,
+        children: [
+          {
+            id: "folha-dashboard",
+            label: "Painel da Folha",
+            route: "/folha",
+            icon: BarChart3,
+            permission: "rh.aprovar",
+          },
+          {
+            id: "folha-fichas",
+            label: "Fichas Financeiras",
+            route: "/folha/fichas",
+            icon: FileText,
+            permission: "rh.aprovar",
+          },
+          {
+            id: "folha-rubricas",
+            label: "Rubricas",
+            route: "/folha/rubricas",
+            icon: Settings,
+            permission: "rh.aprovar",
+          },
+        ],
       },
       {
         id: "contracheques-submenu",
@@ -609,13 +645,6 @@ export const menuConfig: MenuSection[] = [
             label: "Cargos",
             route: "/cargos",
             icon: Briefcase,
-            permission: "governanca.visualizar",
-          },
-          {
-            id: "lotacoes",
-            label: "Lotações",
-            route: "/lotacoes",
-            icon: Users2,
             permission: "governanca.visualizar",
           },
         ],

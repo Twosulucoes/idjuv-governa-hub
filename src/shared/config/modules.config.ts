@@ -73,10 +73,10 @@ export const MODULES_CONFIG: ModuleConfig[] = [
   {
     codigo: 'rh',
     nome: 'Recursos Humanos',
-    descricao: 'Servidores, frequência, férias, portarias, folha',
+    descricao: 'Servidores, frequência, férias, portarias, folha, lotações',
     icone: Users,
     cor: 'blue',
-    rotas: ['/rh', '/folha', '/curriculo'],
+    rotas: ['/rh', '/folha', '/curriculo', '/lotacoes'],
     menuSectionIds: ['rh'],
   },
   {
@@ -127,10 +127,10 @@ export const MODULES_CONFIG: ModuleConfig[] = [
   {
     codigo: 'governanca',
     nome: 'Governança',
-    descricao: 'Estrutura, organograma, cargos, lotações',
+    descricao: 'Estrutura, organograma, cargos',
     icone: Building2,
     cor: 'indigo',
-    rotas: ['/governanca', '/organograma', '/cargos', '/lotacoes'],
+    rotas: ['/governanca', '/organograma', '/cargos'],
     menuSectionIds: ['governanca'],
   },
   {
