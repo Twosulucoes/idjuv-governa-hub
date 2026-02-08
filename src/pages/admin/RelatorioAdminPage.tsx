@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AdminLayout } from "@/components/admin";
+import { ModuleLayout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -157,7 +157,7 @@ export default function RelatorioAdminPage() {
 
   return (
     <ProtectedRoute allowedRoles={["admin"]}>
-      <AdminLayout>
+      <ModuleLayout module="admin">
         <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -337,7 +337,7 @@ export default function RelatorioAdminPage() {
             Exibindo {servidoresFiltrados.length} de {servidores.length} servidores
           </div>
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     </ProtectedRoute>
   );
 }

@@ -1,4 +1,4 @@
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Signature, Settings } from "lucide-react";
@@ -7,7 +7,7 @@ import { AssinaturaConfigTab } from "@/components/reunioes/AssinaturaConfigTab";
 
 export default function ConfiguracaoReunioesPage() {
   return (
-    <AdminLayout>
+    <ModuleLayout module="admin">
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -44,6 +44,6 @@ export default function ConfiguracaoReunioesPage() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

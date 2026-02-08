@@ -1,4 +1,4 @@
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,7 @@ export default function SobreSistemaPage() {
   const { nomeOficial, nomeCurto } = useDadosOficiais();
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="admin">
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header institucional */}
         <div className="text-center space-y-4">
@@ -109,6 +109,6 @@ export default function SobreSistemaPage() {
           Versão 1.0.0 • {new Date().getFullYear()}
         </p>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -50,23 +50,17 @@ export default function DatabaseSchemaPage() {
 
   if (isLoading) {
     return (
-      <AdminLayout 
-        title="Visualização do Banco de Dados" 
-        description="Carregando informações do schema..."
-      >
+      <ModuleLayout module="admin">
         <div className="flex items-center justify-center h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
 
   if (isError || !data) {
     return (
-      <AdminLayout 
-        title="Visualização do Banco de Dados" 
-        description="Erro ao carregar informações"
-      >
+      <ModuleLayout module="admin">
         <Card>
           <CardContent className="flex flex-col items-center justify-center h-[400px] gap-4">
             <AlertTriangle className="h-12 w-12 text-destructive" />
@@ -77,7 +71,7 @@ export default function DatabaseSchemaPage() {
             </Button>
           </CardContent>
         </Card>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
 
@@ -85,10 +79,7 @@ export default function DatabaseSchemaPage() {
   const discoveryInfo = data.discovery;
 
   return (
-    <AdminLayout 
-      title="Visualização do Banco de Dados" 
-      description="Mapa completo das tabelas, relacionamentos e estatísticas do sistema"
-    >
+    <ModuleLayout module="admin">
       <div className="space-y-6">
         {/* Indicador de Descoberta Automática */}
         {discoveryInfo?.mode === 'automatic' && (
@@ -337,6 +328,6 @@ export default function DatabaseSchemaPage() {
           onNavigateToTable={handleNavigateToTable}
         />
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

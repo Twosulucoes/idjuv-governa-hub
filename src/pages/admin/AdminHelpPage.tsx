@@ -16,7 +16,7 @@ import {
   Clock,
   type LucideIcon,
 } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -353,7 +353,7 @@ export default function AdminHelpPage() {
   });
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="admin">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -608,6 +608,6 @@ export default function AdminHelpPage() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

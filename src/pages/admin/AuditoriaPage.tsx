@@ -3,7 +3,7 @@
 // ============================================
 
 import { useState, useEffect } from 'react';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -162,10 +162,7 @@ export default function AuditoriaPage() {
   };
 
   return (
-    <AdminLayout 
-      title="Auditoria do Sistema" 
-      description="Visualize todos os registros de atividades do sistema"
-    >
+    <ModuleLayout module="admin">
       {/* Cards de resumo */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card>
@@ -416,6 +413,6 @@ export default function AuditoriaPage() {
           )}
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

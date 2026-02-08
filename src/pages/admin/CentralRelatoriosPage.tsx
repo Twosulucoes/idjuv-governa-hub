@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -514,7 +514,7 @@ export default function CentralRelatoriosPage() {
   };
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="admin">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -701,6 +701,6 @@ export default function CentralRelatoriosPage() {
           )}
         </ScrollArea>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }
