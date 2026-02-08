@@ -22,7 +22,7 @@
    Clock,
  } from 'lucide-react';
  
- import { AdminLayout } from '@/components/admin/AdminLayout';
+ import { ModuleLayout } from '@/components/layout';
  import { CalendarioFederacaoTab } from '@/components/federacoes/CalendarioFederacaoTab';
  import { FederacoesErrorBoundary } from '@/components/federacoes/FederacoesErrorBoundary';
  import { MandatoExpiradoBadge, isMandatoExpirado } from '@/components/federacoes/MandatoExpiradoBadge';
@@ -199,42 +199,42 @@
      deleteMutation.mutate();
    };
  
-   if (isLoading) {
-     return (
-       <AdminLayout>
-         <div className="space-y-6">
-           <div className="flex items-center gap-4">
-             <Skeleton className="h-10 w-24" />
-             <Skeleton className="h-8 w-64" />
-           </div>
-           <Skeleton className="h-96 w-full" />
-         </div>
-       </AdminLayout>
-     );
-   }
+    if (isLoading) {
+      return (
+        <ModuleLayout module="governanca">
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <Skeleton className="h-10 w-24" />
+              <Skeleton className="h-8 w-64" />
+            </div>
+            <Skeleton className="h-96 w-full" />
+          </div>
+        </ModuleLayout>
+      );
+    }
  
-   if (isError || !federacao) {
-     return (
-       <AdminLayout>
-         <div className="flex flex-col items-center justify-center py-16">
-           <h2 className="text-xl font-semibold text-foreground mb-2">Federação não encontrada</h2>
-           <p className="text-muted-foreground mb-4">O registro solicitado não existe ou foi removido.</p>
-           <Button onClick={() => navigate('/admin/federacoes')}>
-             <ArrowLeft className="h-4 w-4 mr-2" />
-             Voltar para lista
-           </Button>
-         </div>
-       </AdminLayout>
-     );
-   }
+    if (isError || !federacao) {
+      return (
+        <ModuleLayout module="governanca">
+          <div className="flex flex-col items-center justify-center py-16">
+            <h2 className="text-xl font-semibold text-foreground mb-2">Federação não encontrada</h2>
+            <p className="text-muted-foreground mb-4">O registro solicitado não existe ou foi removido.</p>
+            <Button onClick={() => navigate('/admin/federacoes')}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar para lista
+            </Button>
+          </div>
+        </ModuleLayout>
+      );
+    }
  
    const statusInfo = getStatusConfig(federacao.status);
    const StatusIcon = statusInfo.icon;
  
    return (
-     <FederacoesErrorBoundary>
-       <AdminLayout>
-         <div className="space-y-6">
+      <FederacoesErrorBoundary>
+        <ModuleLayout module="governanca">
+          <div className="space-y-6">
            {/* Header */}
            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
              <div className="flex items-center gap-4">
@@ -563,7 +563,7 @@
              federacao={federacao}
            />
          </div>
-       </AdminLayout>
+       </ModuleLayout>
      </FederacoesErrorBoundary>
    );
  }
