@@ -2,17 +2,20 @@
  * MODULE SIDEBAR
  * 
  * Sidebar específica de cada módulo com navegação contextual
+ * Suporta colapso para maximizar área de conteúdo
  * 
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ChevronDown, ChevronRight, LayoutDashboard } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronLeft, LayoutDashboard, PanelLeftClose, PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MODULE_MENUS, type ModuleMenuItem } from "@/config/module-menus.config";
 import type { Modulo } from "@/shared/config/modules.config";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Collapsible,
   CollapsibleContent,
@@ -21,9 +24,11 @@ import {
 
 interface ModuleSidebarProps {
   module: Modulo;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export function ModuleSidebar({ module }: ModuleSidebarProps) {
+export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse }: ModuleSidebarProps) {
   const location = useLocation();
   const menuConfig = MODULE_MENUS[module];
   const [openItems, setOpenItems] = useState<string[]>([]);
@@ -45,7 +50,34 @@ export function ModuleSidebar({ module }: ModuleSidebarProps) {
     );
   };
 
-  const renderMenuItem = (item: ModuleMenuItem, depth = 0) => {
+  // Renderiza item do menu (versão colapsada - apenas ícone)
+  const renderCollapsedMenuItem = (item: ModuleMenuItem) => {
+    const Icon = item.icon;
+    const isItemActive = isActive(item.route);
+
+    return (
+      <Tooltip key={item.id}>
+        <TooltipTrigger asChild>
+          <Link
+            to={item.route}
+            className={cn(
+              "flex items-center justify-center w-10 h-10 rounded-md transition-colors",
+              "hover:bg-accent hover:text-accent-foreground",
+              isItemActive && "bg-primary text-primary-foreground"
+            )}
+          >
+            <Icon className="h-4 w-4" />
+          </Link>
+        </TooltipTrigger>
+        <TooltipContent side="right" sideOffset={8}>
+          <p>{item.label}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
+
+  // Renderiza item do menu (versão expandida - completa)
+  const renderExpandedMenuItem = (item: ModuleMenuItem, depth = 0) => {
     const hasChildren = item.children && item.children.length > 0;
     const isItemActive = isActive(item.route);
     const isOpen = openItems.includes(item.id);
@@ -78,7 +110,7 @@ export function ModuleSidebar({ module }: ModuleSidebarProps) {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="ml-4 border-l border-border pl-2 mt-1 space-y-1">
-              {item.children?.map((child) => renderMenuItem(child, depth + 1))}
+              {item.children?.map((child) => renderExpandedMenuItem(child, depth + 1))}
             </div>
           </CollapsibleContent>
         </Collapsible>
@@ -102,9 +134,78 @@ export function ModuleSidebar({ module }: ModuleSidebarProps) {
     );
   };
 
+  // Versão colapsada da sidebar
+  if (isCollapsed) {
+    return (
+      <aside className="w-14 border-r border-border bg-card flex-shrink-0 flex flex-col">
+        {/* Botão de expandir */}
+        <div className="p-2 border-b border-border">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onToggleCollapse}
+                className="w-10 h-10"
+              >
+                <PanelLeft className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Expandir menu</TooltipContent>
+          </Tooltip>
+        </div>
+
+        <ScrollArea className="flex-1">
+          <div className="p-2 space-y-1 flex flex-col items-center">
+            {/* Dashboard do módulo */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  to={menuConfig.dashboard.route}
+                  className={cn(
+                    "flex items-center justify-center w-10 h-10 rounded-md transition-colors",
+                    "hover:bg-accent hover:text-accent-foreground",
+                    isActive(menuConfig.dashboard.route) && "bg-primary text-primary-foreground"
+                  )}
+                >
+                  <LayoutDashboard className="h-4 w-4" />
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">{menuConfig.dashboard.label}</TooltipContent>
+            </Tooltip>
+
+            {/* Separator */}
+            <div className="h-px w-6 bg-border my-2" />
+
+            {/* Menu items */}
+            {menuConfig.items.map((item) => renderCollapsedMenuItem(item))}
+          </div>
+        </ScrollArea>
+      </aside>
+    );
+  }
+
+  // Versão expandida da sidebar
   return (
-    <aside className="w-56 border-r border-border bg-card flex-shrink-0">
-      <ScrollArea className="h-full">
+    <aside className="w-56 border-r border-border bg-card flex-shrink-0 flex flex-col">
+      {/* Botão de colapsar */}
+      <div className="p-2 border-b border-border flex justify-end">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggleCollapse}
+              className="h-8 w-8"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Recolher menu</TooltipContent>
+        </Tooltip>
+      </div>
+
+      <ScrollArea className="flex-1">
         <div className="p-4 space-y-1">
           {/* Dashboard do módulo */}
           <Link
@@ -123,7 +224,7 @@ export function ModuleSidebar({ module }: ModuleSidebarProps) {
           <div className="h-px bg-border my-2" />
 
           {/* Menu items */}
-          {menuConfig.items.map((item) => renderMenuItem(item))}
+          {menuConfig.items.map((item) => renderExpandedMenuItem(item))}
         </div>
       </ScrollArea>
     </aside>
