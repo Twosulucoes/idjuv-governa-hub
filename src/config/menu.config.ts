@@ -908,7 +908,7 @@ export const menuConfig: MenuSection[] = [
       {
         id: "demandas-ascom",
         label: "Demandas",
-        route: "/admin/ascom/demandas",
+        route: "/ascom/demandas",
         icon: ClipboardList,
       },
     ],

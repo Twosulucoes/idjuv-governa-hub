@@ -158,11 +158,11 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionCode | PermissionCode[]
   '/admin/aprovacoes': 'aprovacoes.visualizar',
   
   // ============================================
-  // ASCOM
+  // ASCOM / COMUNICAÇÃO
   // ============================================
-  '/admin/ascom/demandas': 'ascom.demandas.visualizar',
-  '/admin/ascom/demandas/nova': 'ascom.demandas.criar',
-  '/admin/ascom/demandas/:id': 'ascom.demandas.visualizar',
+  '/ascom/demandas': 'ascom.demandas.visualizar',
+  '/ascom/demandas/nova': 'ascom.demandas.criar',
+  '/ascom/demandas/:id': 'ascom.demandas.visualizar',
   
   // ============================================
   // FEDERAÇÕES ESPORTIVAS

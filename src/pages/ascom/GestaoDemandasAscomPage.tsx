@@ -22,7 +22,7 @@ import {
   Eye
 } from 'lucide-react';
 
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -132,7 +132,7 @@ export default function GestaoDemandasAscomPage() {
     demandasFiltradas.filter(d => d.status === status);
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="comunicacao">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -142,7 +142,7 @@ export default function GestaoDemandasAscomPage() {
               Gerencie as solicitações de comunicação institucional
             </p>
           </div>
-          <Button onClick={() => navigate('/admin/ascom/demandas/nova')}>
+          <Button onClick={() => navigate('/ascom/demandas/nova')}>
             <Plus className="h-4 w-4 mr-2" />
             Nova Demanda
           </Button>
@@ -267,7 +267,7 @@ export default function GestaoDemandasAscomPage() {
                         <TableRow 
                           key={demanda.id}
                           className="cursor-pointer hover:bg-accent/50"
-                          onClick={() => navigate(`/admin/ascom/demandas/${demanda.id}`)}
+                          onClick={() => navigate(`/ascom/demandas/${demanda.id}`)}
                         >
                           <TableCell className="font-mono text-sm">
                             {demanda.numero_demanda}
@@ -348,7 +348,7 @@ export default function GestaoDemandasAscomPage() {
                             <Card 
                               key={demanda.id}
                               className="cursor-pointer hover:shadow-md transition-shadow"
-                              onClick={() => navigate(`/admin/ascom/demandas/${demanda.id}`)}
+                              onClick={() => navigate(`/ascom/demandas/${demanda.id}`)}
                             >
                               <CardContent className="p-3">
                                 <div className="flex items-start justify-between gap-2 mb-2">
@@ -399,6 +399,6 @@ export default function GestaoDemandasAscomPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }
