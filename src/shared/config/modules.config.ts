@@ -39,7 +39,8 @@ export const MODULOS = [
   'transparencia',
   'comunicacao',
   'programas',
-  'gestores_escolares', // Novo módulo para JER
+  'gestores_escolares',
+  'federacoes', // Módulo exclusivo para Federações Esportivas
 ] as const;
 
 export type Modulo = typeof MODULOS[number];
@@ -125,11 +126,11 @@ export const MODULES_CONFIG: ModuleConfig[] = [
   {
     codigo: 'governanca',
     nome: 'Governança',
-    descricao: 'Estrutura, organograma, cargos, federações',
+    descricao: 'Estrutura, organograma, cargos, lotações',
     icone: Building2,
     cor: 'indigo',
-    rotas: ['/governanca', '/organograma', '/cargos', '/lotacoes', '/admin/federacoes', '/admin/instituicoes'],
-    menuSectionIds: ['governanca', 'espacos-federacoes'],
+    rotas: ['/governanca', '/organograma', '/cargos', '/lotacoes'],
+    menuSectionIds: ['governanca'],
   },
   {
     codigo: 'integridade',
@@ -175,6 +176,15 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     cor: 'amber',
     rotas: ['/cadastrogestores/admin', '/gestores-escolares'],
     menuSectionIds: ['gestores-escolares'],
+  },
+  {
+    codigo: 'federacoes',
+    nome: 'Federações',
+    descricao: 'Federações esportivas e instituições parceiras',
+    icone: Building2,
+    cor: 'orange',
+    rotas: ['/admin/federacoes', '/admin/instituicoes', '/federacoes'],
+    menuSectionIds: ['espacos-federacoes'],
   },
 ];
 

@@ -36,12 +36,13 @@ const MODULE_HOME_ROUTES: Record<Modulo, string> = {
   contratos: '/contratos',
   financeiro: '/financeiro',
   patrimonio: '/patrimonio',
-  governanca: '/governanca', // Usa página existente
-  integridade: '/integridade', // Usa página existente
-  transparencia: '/transparencia', // Usa página existente (pública)
+  governanca: '/governanca',
+  integridade: '/integridade',
+  transparencia: '/transparencia',
   comunicacao: '/comunicacao',
-  programas: '/programas/bolsa-atleta', // Redirect para subpágina
+  programas: '/programas/bolsa-atleta',
   gestores_escolares: '/gestores-escolares',
+  federacoes: '/admin/federacoes',
 };
 
 /**
@@ -61,6 +62,7 @@ export const MODULE_PRIORITY: Modulo[] = [
   'comunicacao',
   'integridade',
   'gestores_escolares',
+  'federacoes',
 ];
 
 export function useModuleRouter(): ModuleRouterResult {
