@@ -66,7 +66,7 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     icone: Settings,
     cor: 'slate',
     rotas: ['/admin'],
-    menuSectionIds: ['admin'],
+    menuSectionIds: ['admin', 'sistema'],
   },
   {
     codigo: 'rh',
@@ -92,7 +92,7 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     descricao: 'Licitações e processos de aquisição',
     icone: ShoppingCart,
     cor: 'orange',
-    rotas: ['/processos/compras', '/processos/diarias', '/processos/convenios', '/processos/veiculos'],
+    rotas: ['/processos/compras', '/processos/diarias', '/processos/convenios', '/processos/veiculos', '/compras'],
     menuSectionIds: ['compras-contratos'],
   },
   {
@@ -102,7 +102,7 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     icone: FileText,
     cor: 'amber',
     rotas: ['/contratos'],
-    menuSectionIds: [], // Usa mesma seção de compras-contratos
+    menuSectionIds: ['compras-contratos'],
   },
   {
     codigo: 'financeiro',
@@ -120,7 +120,7 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     icone: Package,
     cor: 'cyan',
     rotas: ['/inventario', '/unidades', '/processos/patrimonio', '/processos/almoxarifado'],
-    menuSectionIds: ['inventario'],
+    menuSectionIds: ['inventario', 'unidades'],
   },
   {
     codigo: 'governanca',
@@ -173,8 +173,8 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     descricao: 'Credenciamento de gestores para Jogos Escolares',
     icone: School,
     cor: 'amber',
-    rotas: ['/cadastrogestores/admin'],
-    menuSectionIds: [],
+    rotas: ['/cadastrogestores/admin', '/gestores-escolares'],
+    menuSectionIds: ['gestores-escolares'],
   },
 ];
 
