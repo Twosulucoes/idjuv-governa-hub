@@ -78,7 +78,16 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "servidores", label: "Servidores", icon: Users, route: "/rh/servidores" },
       { id: "lotacoes", label: "Lotações", icon: Users, route: "/lotacoes" },
       { id: "designacoes", label: "Designações", icon: UserCog, route: "/rh/designacoes" },
-      { id: "portarias", label: "Portarias", icon: FileText, route: "/rh/portarias" },
+      { 
+        id: "portarias", 
+        label: "Portarias", 
+        icon: FileText, 
+        route: "/rh/portarias",
+        children: [
+          { id: "portarias-central", label: "Central", icon: FileText, route: "/rh/portarias" },
+          { id: "portarias-atribuicao", label: "Atribuição", icon: UserCog, route: "/rh/portarias/atribuicao" },
+        ]
+      },
       { 
         id: "frequencia", 
         label: "Frequência", 

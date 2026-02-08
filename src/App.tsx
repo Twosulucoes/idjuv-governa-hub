@@ -93,6 +93,7 @@ import RelatoriosRHPage from "./pages/rh/RelatoriosRHPage";
 import ModelosDocumentosPage from "./pages/rh/ModelosDocumentosPage";
 import GestaoDesignacoesPage from "./pages/rh/GestaoDesignacoesPage";
 import CentralPortariasPage from "./pages/rh/CentralPortariasPage";
+import AtribuicaoPortariasPage from "./pages/rh/AtribuicaoPortariasPage";
 import DiagnosticoPendenciasServidoresPage from "./pages/rh/DiagnosticoPendenciasServidoresPage";
 import ExportacaoPlanilhaPage from "./pages/rh/ExportacaoPlanilhaPage";
 import AniversariantesPage from "./pages/rh/AniversariantesPage";
@@ -550,6 +551,11 @@ const App = () => (
               <Route path="/rh/portarias" element={
                 <ProtectedRoute requiredPermissions="rh.portarias.visualizar">
                   <CentralPortariasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/portarias/atribuicao" element={
+                <ProtectedRoute requiredPermissions="rh.portarias.visualizar">
+                  <AtribuicaoPortariasPage />
                 </ProtectedRoute>
               } />
               <Route path="/rh/relatorios" element={
