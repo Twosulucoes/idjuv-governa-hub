@@ -43,6 +43,7 @@ const MODULE_HOME_ROUTES: Record<Modulo, string> = {
   programas: '/programas/bolsa-atleta',
   gestores_escolares: '/gestores-escolares',
   organizacoes: '/admin/federacoes',
+  gabinete: '/gabinete',
 };
 
 /**
@@ -50,6 +51,7 @@ const MODULE_HOME_ROUTES: Record<Modulo, string> = {
  */
 export const MODULE_PRIORITY: Modulo[] = [
   'admin',
+  'gabinete',
   'rh',
   'financeiro',
   'compras',
