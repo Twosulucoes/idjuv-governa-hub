@@ -4,7 +4,7 @@
 
 import { useState, useMemo } from 'react';
 import { Download, FileSpreadsheet, BarChart3, PieChart, TrendingUp, School, Users, Clock, CheckCircle } from 'lucide-react';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -90,10 +90,18 @@ export default function RelatoriosGestoresPage() {
   const isLoading = loadingGestores || loadingEscolas;
 
   return (
-    <AdminLayout 
-      title="Relatórios" 
-      description="Gestores Escolares - Jogos Escolares de Roraima"
-    >
+    <ModuleLayout module="gestores_escolares">
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <BarChart3 className="h-6 w-6 text-amber-500" />
+            Relatórios
+          </h1>
+          <p className="text-muted-foreground">
+            Gestores Escolares - Jogos Escolares de Roraima
+          </p>
+        </div>
       {/* Cards de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
@@ -227,6 +235,7 @@ export default function RelatoriosGestoresPage() {
           </div>
         </CardContent>
       </Card>
-    </AdminLayout>
+      </div>
+    </ModuleLayout>
   );
 }

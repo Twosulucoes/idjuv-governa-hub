@@ -161,6 +161,7 @@ import ConsultaGestorPage from "./pages/cadastrogestores/ConsultaGestorPage";
 import AdminGestoresPage from "./pages/cadastrogestores/AdminGestoresPage";
 import ImportarEscolasPage from "./pages/cadastrogestores/ImportarEscolasPage";
 import RelatoriosGestoresPage from "./pages/cadastrogestores/RelatoriosGestoresPage";
+import AuditoriaWorkflowPage from "./pages/cadastrogestores/AuditoriaWorkflowPage";
 
 // Workflow (SEI-like)
 import GestaoProcessosPage from "./pages/workflow/GestaoProcessosPage";
@@ -373,6 +374,11 @@ const App = () => (
               <Route path="/cadastrogestores/relatorios" element={
                 <ProtectedRoute requiredPermissions="gestores_escolares.admin">
                   <RelatoriosGestoresPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/cadastrogestores/auditoria" element={
+                <ProtectedRoute requiredPermissions="gestores_escolares.admin">
+                  <AuditoriaWorkflowPage />
                 </ProtectedRoute>
               } />
               
