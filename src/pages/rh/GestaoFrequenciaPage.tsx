@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AdminLayout } from "@/components/admin";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -93,7 +93,7 @@ export default function GestaoFrequenciaPage() {
   const anos = Array.from({ length: 5 }, (_, i) => anoAtual - i);
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="rh">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -327,6 +327,6 @@ export default function GestaoFrequenciaPage() {
         ano={ano}
         mes={mes}
       />
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

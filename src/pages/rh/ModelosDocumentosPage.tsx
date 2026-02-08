@@ -1,4 +1,4 @@
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -113,7 +113,7 @@ export default function ModelosDocumentosPage() {
   }, {} as Record<string, DocumentoModelo[]>);
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="rh">
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Modelos de Documentos</h1>
@@ -172,6 +172,6 @@ export default function ModelosDocumentosPage() {
           </div>
         ))}
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

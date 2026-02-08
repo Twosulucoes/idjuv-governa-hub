@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -849,7 +849,7 @@ export default function RelatoriosRHPage() {
 
   return (
     <ProtectedRoute allowedRoles={["admin", "manager"]}>
-      <AdminLayout>
+      <ModuleLayout module="rh">
         <div className="container mx-auto py-8 px-4">
           {/* Header */}
           <div className="flex items-center gap-3 mb-8">
@@ -1236,7 +1236,7 @@ export default function RelatoriosRHPage() {
             </Card>
           </div>
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     </ProtectedRoute>
   );
 }

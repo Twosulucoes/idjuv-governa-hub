@@ -9,7 +9,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -210,7 +210,7 @@ export default function CentralPortariasPage() {
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="rh">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -448,6 +448,6 @@ export default function CentralPortariasPage() {
         portaria={selectedPortaria}
         onSuccess={() => refetch()}
       />
-    </AdminLayout>
+    </ModuleLayout>
   );
 }
