@@ -81,7 +81,7 @@ const MenuContext = createContext<MenuContextType | undefined>(undefined);
 export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const { isLoading: authLoading, isAuthenticated, isSuperAdmin, hasPermission: authHasPermission } = useAuth();
-  const { modulosAutorizados, loading: modulosLoading, temAcessoModulo } = useModulosUsuario();
+  const { modulosAutorizados, loading: modulosLoading, temAcessoModulo, refetch: refetchModulos } = useModulosUsuario();
   
   // Estado local
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -89,6 +89,19 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [openSections, setOpenSections] = useState<string[]>([]);
   const [openItems, setOpenItems] = useState<string[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [, forceUpdate] = useState(0);
+
+  // Listener para mudanças no Dev Mode - força recálculo do menu
+  useEffect(() => {
+    const handleDevModeChange = () => {
+      console.log('[MenuContext] Dev mode changed - refetching modules');
+      refetchModulos();
+      forceUpdate(prev => prev + 1);
+    };
+    
+    window.addEventListener('dev-mode-changed', handleDevModeChange);
+    return () => window.removeEventListener('dev-mode-changed', handleDevModeChange);
+  }, [refetchModulos]);
 
   // Carregar favoritos do localStorage
   useEffect(() => {
