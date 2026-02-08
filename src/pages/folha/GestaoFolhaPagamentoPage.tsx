@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AdminLayout } from "@/components/admin";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -55,7 +55,7 @@ export default function GestaoFolhaPagamentoPage() {
   };
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="rh">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -356,6 +356,6 @@ export default function GestaoFolhaPagamentoPage() {
           competenciaMes={folhaHistorico.mes}
         />
       )}
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

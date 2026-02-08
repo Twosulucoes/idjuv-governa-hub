@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { AdminLayout } from "@/components/admin";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -143,17 +143,17 @@ export default function FolhaDetalhePage() {
 
   if (loadingFolha || loadingConfig) {
     return (
-      <AdminLayout>
+      <ModuleLayout module="rh">
         <div className="flex items-center justify-center py-24">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
 
   if (!folha) {
     return (
-      <AdminLayout>
+      <ModuleLayout module="rh">
         <div className="text-center py-24">
           <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
           <h2 className="text-xl font-semibold mb-2">Folha não encontrada</h2>
@@ -165,7 +165,7 @@ export default function FolhaDetalhePage() {
             Voltar para Gestão
           </Button>
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
 
@@ -180,7 +180,7 @@ export default function FolhaDetalhePage() {
   const podeGerarESocial = status !== "previa" && (fichas?.length || 0) > 0;
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="rh">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -822,6 +822,6 @@ export default function FolhaDetalhePage() {
           fichaId={fichaDetalheId}
         />
       )}
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

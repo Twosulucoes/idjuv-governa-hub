@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AdminLayout } from "@/components/admin";
+import { ModuleLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -114,7 +114,7 @@ export default function GestaoPreCadastrosPage() {
   };
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="rh">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -435,6 +435,6 @@ export default function GestaoPreCadastrosPage() {
         onConverter={converter}
         isConverting={isConverting}
       />
-    </AdminLayout>
+    </ModuleLayout>
   );
 }
