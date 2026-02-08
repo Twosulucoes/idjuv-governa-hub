@@ -3,7 +3,7 @@
  * Permite ao RH consultar contracheques de todos os servidores
  */
 import { useState } from 'react';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -165,7 +165,7 @@ export default function ConsultaContrachequesPage() {
   const descontos = detalhe?.itens?.filter(i => i.tipo === 'desconto') || [];
   
   return (
-    <AdminLayout>
+    <ModuleLayout module="rh">
       <div className="space-y-6">
         {/* Cabeçalho */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -536,6 +536,6 @@ export default function ConsultaContrachequesPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

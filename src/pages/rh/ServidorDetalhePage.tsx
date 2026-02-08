@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -206,11 +206,11 @@ export default function ServidorDetalheePage() {
   if (isLoading) {
     return (
       <ProtectedRoute allowedRoles={["admin", "manager"]}>
-        <AdminLayout>
+        <ModuleLayout module="rh">
           <div className="flex items-center justify-center h-[60vh]">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        </AdminLayout>
+        </ModuleLayout>
       </ProtectedRoute>
     );
   }
@@ -218,21 +218,21 @@ export default function ServidorDetalheePage() {
   if (!servidor) {
     return (
       <ProtectedRoute allowedRoles={["admin", "manager"]}>
-        <AdminLayout>
+        <ModuleLayout module="rh">
           <div className="container mx-auto py-8 px-4 text-center">
             <p className="text-muted-foreground">Servidor não encontrado.</p>
             <Button className="mt-4" onClick={() => navigate('/rh/servidores')}>
               Voltar
             </Button>
           </div>
-        </AdminLayout>
+        </ModuleLayout>
       </ProtectedRoute>
     );
   }
 
   return (
     <ProtectedRoute allowedRoles={["admin", "manager"]}>
-      <AdminLayout>
+      <ModuleLayout module="rh">
         <div className="container mx-auto py-8 px-4">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
@@ -640,7 +640,7 @@ export default function ServidorDetalheePage() {
             </TabsContent>
           </Tabs>
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     </ProtectedRoute>
   );
 }

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { gerarMatricula } from "@/lib/matriculaUtils";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -591,18 +591,18 @@ export default function ServidorFormPage() {
   if (isEditing && isLoadingServidor) {
     return (
       <ProtectedRoute allowedRoles={["admin"]}>
-        <AdminLayout>
+        <ModuleLayout module="rh">
           <div className="flex items-center justify-center h-[60vh]">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        </AdminLayout>
+        </ModuleLayout>
       </ProtectedRoute>
     );
   }
 
   return (
     <ProtectedRoute allowedRoles={["admin"]}>
-      <AdminLayout>
+      <ModuleLayout module="rh">
         <div className="container mx-auto py-8 px-4 max-w-5xl">
 {/* Header */}
           <div className="flex items-center justify-between gap-4 mb-8">
@@ -1492,7 +1492,7 @@ export default function ServidorFormPage() {
             </div>
           </form>
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     </ProtectedRoute>
   );
 }

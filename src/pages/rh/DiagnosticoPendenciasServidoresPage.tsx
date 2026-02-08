@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { AdminLayout } from "@/components/admin";
+import { ModuleLayout } from "@/components/layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -395,7 +395,7 @@ export default function DiagnosticoPendenciasServidoresPage() {
   };
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="rh">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -597,7 +597,7 @@ export default function DiagnosticoPendenciasServidoresPage() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }
 

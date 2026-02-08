@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AdminLayout } from "@/components/admin";
+import { ModuleLayout } from "@/components/layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -41,7 +41,7 @@ export default function ConfiguracaoFrequenciaPage() {
   ];
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="rh">
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -128,8 +128,8 @@ export default function ConfiguracaoFrequenciaPage() {
           <TabsContent value="agrupamentos" className="mt-0">
             <AgrupamentosUnidadesTab />
           </TabsContent>
-        </Tabs>
+      </Tabs>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

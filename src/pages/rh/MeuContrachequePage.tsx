@@ -3,7 +3,7 @@
  * Visualização dos contracheques do próprio servidor logado
  */
 import { useState } from 'react';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -93,18 +93,18 @@ export default function MeuContrachequePage() {
   
   if (loadingServidor) {
     return (
-      <AdminLayout>
+      <ModuleLayout module="rh">
         <div className="space-y-6">
           <Skeleton className="h-10 w-64" />
           <Skeleton className="h-96 w-full" />
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
   
   if (!servidor) {
     return (
-      <AdminLayout>
+      <ModuleLayout module="rh">
         <div className="space-y-6">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <FileText className="h-6 w-6 text-primary" />
@@ -119,12 +119,12 @@ export default function MeuContrachequePage() {
             </AlertDescription>
           </Alert>
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
   
   return (
-    <AdminLayout>
+    <ModuleLayout module="rh">
       <div className="space-y-6">
         {/* Cabeçalho */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -248,6 +248,6 @@ export default function MeuContrachequePage() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

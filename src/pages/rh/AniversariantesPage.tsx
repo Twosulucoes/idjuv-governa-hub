@@ -17,7 +17,7 @@ import {
   Download
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -204,7 +204,7 @@ export default function AniversariantesPage() {
 
   return (
     <ProtectedRoute>
-      <AdminLayout>
+      <ModuleLayout module="rh">
         <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -445,7 +445,7 @@ export default function AniversariantesPage() {
             </div>
           )}
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     </ProtectedRoute>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -252,7 +252,7 @@ export default function ExportacaoPlanilhaPage() {
 
   return (
     <ProtectedRoute allowedRoles={["admin", "rh"]}>
-      <AdminLayout>
+      <ModuleLayout module="rh">
         <div className="space-y-4">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -551,7 +551,7 @@ export default function ExportacaoPlanilhaPage() {
             </div>
           </div>
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     </ProtectedRoute>
   );
 }
