@@ -9,7 +9,7 @@ import {
   ClipboardCheck, Plus, Search, Eye, Play, Pause, CheckCircle2,
   Calendar, Users, BarChart3, AlertTriangle, QrCode
 } from "lucide-react";
-import { MainLayout } from "@/components/layout/MainLayout";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,7 +61,7 @@ export default function CampanhasInventarioPage() {
   const anos = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
   return (
-    <MainLayout>
+    <ModuleLayout module="patrimonio">
       {/* Header */}
       <section className="bg-secondary text-secondary-foreground py-6">
         <div className="container mx-auto px-4">
@@ -236,6 +236,6 @@ export default function CampanhasInventarioPage() {
           )}
         </div>
       </section>
-    </MainLayout>
+    </ModuleLayout>
   );
 }

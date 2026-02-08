@@ -9,7 +9,7 @@ import {
   FileX, Plus, Search, Eye, Check, X,
   Package, Calendar, User, AlertTriangle
 } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -85,7 +85,7 @@ export default function BaixasPatrimonioPage() {
     value ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value) : '-';
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="patrimonio">
       {/* Header */}
       <section className="bg-secondary text-secondary-foreground py-6">
         <div className="container mx-auto px-4">
@@ -249,6 +249,6 @@ export default function BaixasPatrimonioPage() {
         open={dialogNovaBaixaOpen}
         onOpenChange={setDialogNovaBaixaOpen}
       />
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

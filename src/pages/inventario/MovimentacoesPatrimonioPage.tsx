@@ -9,7 +9,7 @@ import {
   TrendingUp, Plus, Search, Filter, Eye, Check, X,
   ArrowRight, Building2, User, Calendar, Package
 } from "lucide-react";
-import { MainLayout } from "@/components/layout/MainLayout";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,7 +80,7 @@ export default function MovimentacoesPatrimonioPage() {
   };
 
   return (
-    <MainLayout>
+    <ModuleLayout module="patrimonio">
       {/* Header */}
       <section className="bg-secondary text-secondary-foreground py-6">
         <div className="container mx-auto px-4">
@@ -253,6 +253,6 @@ export default function MovimentacoesPatrimonioPage() {
         open={dialogNovaMovimentacaoOpen}
         onOpenChange={setDialogNovaMovimentacaoOpen}
       />
-    </MainLayout>
+    </ModuleLayout>
   );
 }

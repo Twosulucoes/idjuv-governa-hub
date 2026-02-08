@@ -5,7 +5,7 @@
 
 import { Link, useParams } from "react-router-dom";
 import { Package, ArrowLeft, Edit } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,18 +18,18 @@ export default function BemDetalhePage() {
 
   if (isLoading) {
     return (
-      <AdminLayout>
+      <ModuleLayout module="patrimonio">
         <div className="container mx-auto px-4 py-8 space-y-4">
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-64 w-full" />
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
 
   if (error || !bem) {
     return (
-      <AdminLayout>
+      <ModuleLayout module="patrimonio">
         <div className="container mx-auto px-4 py-8">
           <Card>
             <CardContent className="py-12 text-center">
@@ -43,12 +43,12 @@ export default function BemDetalhePage() {
             </CardContent>
           </Card>
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="patrimonio">
       <section className="bg-secondary text-secondary-foreground py-6">
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-2 text-sm mb-3 opacity-80">
@@ -63,7 +63,9 @@ export default function BemDetalhePage() {
               <Package className="w-8 h-8" />
               <div>
                 <h1 className="font-serif text-2xl font-bold">{bem.descricao}</h1>
-                <p className="opacity-90 text-sm font-mono">{bem.numero_patrimonio}</p>
+                <p className="opacity-90 text-sm">
+                  Patrimônio: {bem.numero_patrimonio}
+                </p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -74,7 +76,7 @@ export default function BemDetalhePage() {
                 </Link>
               </Button>
               <Button asChild>
-                <Link to={`/inventario/bens/${id}/editar`}>
+                <Link to={`/inventario/bens/${bem.id}/editar`}>
                   <Edit className="w-4 h-4 mr-2" />
                   Editar
                 </Link>
@@ -86,67 +88,78 @@ export default function BemDetalhePage() {
 
       <section className="py-6">
         <div className="container mx-auto px-4 space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
+          {/* Informações Gerais */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Informações Gerais</CardTitle>
+              <CardHeader className="pb-2">
+                <CardDescription>Categoria</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Categoria</span>
-                  <Badge variant="outline" className="capitalize">
-                    {bem.categoria_bem?.replace('_', ' ') || '-'}
-                  </Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Situação</span>
-                  <Badge>{bem.situacao || '-'}</Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Marca</span>
-                  <span>{bem.marca || '-'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Modelo</span>
-                  <span>{bem.modelo || '-'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Nº Série</span>
-                  <span className="font-mono text-sm">{bem.numero_serie || '-'}</span>
-                </div>
+              <CardContent>
+                <Badge variant="secondary" className="capitalize">
+                  {bem.categoria_bem?.replace('_', ' ') || '-'}
+                </Badge>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Dados Financeiros</CardTitle>
+              <CardHeader className="pb-2">
+                <CardDescription>Situação</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Valor de Aquisição</span>
-                  <span className="font-semibold">
-                    {bem.valor_aquisicao 
-                      ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(bem.valor_aquisicao)
-                      : '-'
-                    }
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Data de Aquisição</span>
-                  <span>{bem.data_aquisicao || '-'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Estado de Conservação</span>
-                  <Badge variant="outline">{bem.estado_conservacao || '-'}</Badge>
-                </div>
+              <CardContent>
+                <Badge>{bem.situacao || 'Cadastrado'}</Badge>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardDescription>Valor de Aquisição</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-lg font-semibold">
+                  {bem.valor_aquisicao 
+                    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(bem.valor_aquisicao)
+                    : '-'}
+                </p>
               </CardContent>
             </Card>
           </div>
 
+          {/* Detalhes */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Detalhes do Bem</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <dt className="text-muted-foreground">Marca</dt>
+                  <dd className="font-medium">{bem.marca || '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Modelo</dt>
+                  <dd className="font-medium">{bem.modelo || '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Nº Série</dt>
+                  <dd className="font-medium">{bem.numero_serie || '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Estado de Conservação</dt>
+                  <dd className="font-medium capitalize">{bem.estado_conservacao || '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Data de Aquisição</dt>
+                  <dd className="font-medium">{bem.data_aquisicao || '-'}</dd>
+                </div>
+              </dl>
+            </CardContent>
+          </Card>
+
+          {/* Observações */}
           {bem.observacao && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Observações</CardTitle>
+                <CardTitle>Observações</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">{bem.observacao}</p>
@@ -155,6 +168,6 @@ export default function BemDetalhePage() {
           )}
         </div>
       </section>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

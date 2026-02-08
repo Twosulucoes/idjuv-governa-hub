@@ -193,6 +193,7 @@ import {
   ManutencoesBensPage,
   BaixasPatrimonioPage,
   PlaceholderDetalhePage,
+  RelatoriosPatrimonioPage,
 } from "./pages/inventario";
 
 const queryClient = new QueryClient();
@@ -681,6 +682,11 @@ const App = () => (
               <Route path="/inventario/baixas" element={
                 <ProtectedRoute requiredPermissions="patrimonio.criar">
                   <BaixasPatrimonioPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/relatorios" element={
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
+                  <RelatoriosPatrimonioPage />
                 </ProtectedRoute>
               } />
               
