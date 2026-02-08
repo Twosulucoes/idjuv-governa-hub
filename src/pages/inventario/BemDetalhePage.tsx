@@ -5,7 +5,7 @@
 
 import { Link, useParams } from "react-router-dom";
 import { Package, ArrowLeft, Edit } from "lucide-react";
-import { MainLayout } from "@/components/layout/MainLayout";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,18 +18,18 @@ export default function BemDetalhePage() {
 
   if (isLoading) {
     return (
-      <MainLayout>
+      <AdminLayout>
         <div className="container mx-auto px-4 py-8 space-y-4">
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-64 w-full" />
         </div>
-      </MainLayout>
+      </AdminLayout>
     );
   }
 
   if (error || !bem) {
     return (
-      <MainLayout>
+      <AdminLayout>
         <div className="container mx-auto px-4 py-8">
           <Card>
             <CardContent className="py-12 text-center">
@@ -43,12 +43,12 @@ export default function BemDetalhePage() {
             </CardContent>
           </Card>
         </div>
-      </MainLayout>
+      </AdminLayout>
     );
   }
 
   return (
-    <MainLayout>
+    <AdminLayout>
       <section className="bg-secondary text-secondary-foreground py-6">
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-2 text-sm mb-3 opacity-80">
@@ -155,6 +155,6 @@ export default function BemDetalhePage() {
           )}
         </div>
       </section>
-    </MainLayout>
+    </AdminLayout>
   );
 }

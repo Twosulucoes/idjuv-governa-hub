@@ -4,7 +4,7 @@ import {
   Building2, ArrowLeft, ArrowRight, CheckCircle2, Circle, 
   FileText, AlertTriangle, Download, Users, Clock, ClipboardList
 } from "lucide-react";
-import { MainLayout } from "@/components/layout/MainLayout";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -51,7 +51,7 @@ export default function PatrimonioProcessoPage() {
   const canProceed = obrigatoriosChecked === obrigatoriosCount;
 
   return (
-    <MainLayout>
+    <AdminLayout>
       {/* Cabeçalho */}
       <section className="bg-secondary text-secondary-foreground py-12">
         <div className="container mx-auto px-4">
@@ -224,6 +224,6 @@ export default function PatrimonioProcessoPage() {
           </div>
         </div>
       </section>
-    </MainLayout>
+    </AdminLayout>
   );
 }
