@@ -5,8 +5,9 @@
  * - Menu lateral colapsável (desktop)
  * - Drawer hamburger (mobile)
  * - TopBar com breadcrumb e alertas
+ * - DevModeSwitcher para testes (quando ativo)
  * 
- * @version 3.0.0 - Novo sistema de menu RBAC institucional
+ * @version 3.1.0 - Adicionado DevModeSwitcher
  */
 
 import { useState } from "react";
@@ -17,6 +18,7 @@ import { TopBarMobile } from "@/components/navigation/TopBarMobile";
 import { AdminSearch } from "./AdminSearch";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMenu } from "@/contexts/MenuContext";
+import { DevModeSwitcher } from "@/components/dev/DevModeSwitcher";
 
 export interface AdminLayoutProps {
   children: React.ReactNode;
@@ -85,6 +87,9 @@ function AdminLayoutContent({ children, title, description }: AdminLayoutProps) 
 
       {/* Modal de Busca */}
       <AdminSearch open={searchOpen} onOpenChange={setSearchOpen} />
+      
+      {/* Dev Mode Switcher */}
+      <DevModeSwitcher />
     </SidebarProvider>
   );
 }
