@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { format } from 'date-fns';
 import { CalendarIcon, Upload, X, Send, Save } from 'lucide-react';
 
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -239,7 +239,7 @@ export default function NovaDemandaAscomPage() {
         toast.success('Rascunho salvo com sucesso!');
       }
 
-      navigate(`/admin/ascom/demandas/${demanda.id}`);
+      navigate(`/ascom/demandas/${demanda.id}`);
     } catch (error) {
       console.error('Erro ao criar demanda:', error);
       toast.error('Erro ao criar demanda');
@@ -249,7 +249,7 @@ export default function NovaDemandaAscomPage() {
   };
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="comunicacao">
       <div className="max-w-4xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Nova Demanda ASCOM</h1>
@@ -710,7 +710,7 @@ export default function NovaDemandaAscomPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate('/admin/ascom/demandas')}
+                onClick={() => navigate('/ascom/demandas')}
                 disabled={isSubmitting}
               >
                 Cancelar
@@ -736,6 +736,6 @@ export default function NovaDemandaAscomPage() {
           </form>
         </Form>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

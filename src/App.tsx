@@ -384,19 +384,19 @@ const App = () => (
               } />
               
               {/* ============================================ */}
-              {/* ASCOM - Com permissões mapeadas */}
+              {/* ASCOM / COMUNICAÇÃO - Com permissões mapeadas */}
               {/* ============================================ */}
-              <Route path="/admin/ascom/demandas" element={
+              <Route path="/ascom/demandas" element={
                 <ProtectedRoute requiredPermissions="ascom.demandas.visualizar">
                   <GestaoDemandasAscomPage />
                 </ProtectedRoute>
               } />
-              <Route path="/admin/ascom/demandas/nova" element={
+              <Route path="/ascom/demandas/nova" element={
                 <ProtectedRoute requiredPermissions="ascom.demandas.criar">
                   <NovaDemandaAscomPage />
                 </ProtectedRoute>
               } />
-              <Route path="/admin/ascom/demandas/:id" element={
+              <Route path="/ascom/demandas/:id" element={
                 <ProtectedRoute requiredPermissions="ascom.demandas.visualizar">
                   <DetalheDemandaAscomPage />
                 </ProtectedRoute>

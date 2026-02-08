@@ -443,7 +443,7 @@ const CATALOGO_RELATORIOS: RelatorioItem[] = [
     id: 'ascom-demandas',
     nome: 'Demandas de Comunicação',
     descricao: 'Solicitações e demandas da ASCOM',
-    rota: '/admin/ascom/demandas',
+    rota: '/ascom/demandas',
     permissao: 'ascom.demandas.visualizar',
     modulo: 'ascom',
     tipo: 'pagina',

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MainLayout } from "@/components/layout/MainLayout";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -195,37 +195,20 @@ const GestaoDenunciasPage = () => {
   };
 
   return (
-    <MainLayout>
-      {/* Header */}
-      <section className="bg-gradient-to-br from-primary/10 via-primary/5 to-background py-12">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-            <Link to="/" className="hover:text-primary transition-colors">Início</Link>
-            <span>/</span>
-            <Link to="/integridade" className="hover:text-primary transition-colors">Integridade</Link>
-            <span>/</span>
-            <span className="text-foreground">Gestão de Denúncias</span>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-primary/10 rounded-xl">
-                <Shield className="h-8 w-8 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-foreground">Gestão de Denúncias</h1>
-                <p className="text-muted-foreground mt-1">Acompanhamento e tratamento de denúncias recebidas</p>
-              </div>
+    <ModuleLayout module="integridade">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-primary/10 rounded-xl">
+              <Shield className="h-8 w-8 text-primary" />
             </div>
-            <Button variant="outline" asChild>
-              <Link to="/integridade">
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Voltar
-              </Link>
-            </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Gestão de Denúncias</h1>
+              <p className="text-muted-foreground mt-1">Acompanhamento e tratamento de denúncias recebidas</p>
+            </div>
           </div>
         </div>
-      </section>
 
       {/* Stats Dashboard */}
       <section className="py-8 border-b">
@@ -566,7 +549,8 @@ const GestaoDenunciasPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </MainLayout>
+      </div>
+    </ModuleLayout>
   );
 };
 

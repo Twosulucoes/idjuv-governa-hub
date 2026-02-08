@@ -28,7 +28,7 @@ import {
   Plus
 } from 'lucide-react';
 
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -201,37 +201,37 @@ export default function DetalheDemandaAscomPage() {
 
   if (loading) {
     return (
-      <AdminLayout>
+      <ModuleLayout module="comunicacao">
         <div className="space-y-6">
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-[400px] w-full" />
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
 
   if (!demandaAtual) {
     return (
-      <AdminLayout>
+      <ModuleLayout module="comunicacao">
         <div className="text-center py-12">
           <h2 className="text-xl font-semibold">Demanda não encontrada</h2>
-          <Button onClick={() => navigate('/admin/ascom/demandas')} className="mt-4">
+          <Button onClick={() => navigate('/ascom/demandas')} className="mt-4">
             Voltar
           </Button>
         </div>
-      </AdminLayout>
+      </ModuleLayout>
     );
   }
 
   const demanda = demandaAtual;
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="comunicacao">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/admin/ascom/demandas')}>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/ascom/demandas')}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
@@ -786,6 +786,6 @@ export default function DetalheDemandaAscomPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }
