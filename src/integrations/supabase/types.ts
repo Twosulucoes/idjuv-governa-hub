@@ -10242,6 +10242,56 @@ export type Database = {
           },
         ]
       }
+      gestores_escolares_historico: {
+        Row: {
+          acao: string
+          created_at: string
+          detalhes: Json | null
+          gestor_id: string
+          id: string
+          ip_address: unknown
+          status_anterior: string | null
+          status_novo: string
+          usuario_email: string | null
+          usuario_id: string | null
+          usuario_nome: string | null
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          detalhes?: Json | null
+          gestor_id: string
+          id?: string
+          ip_address?: unknown
+          status_anterior?: string | null
+          status_novo: string
+          usuario_email?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          detalhes?: Json | null
+          gestor_id?: string
+          id?: string
+          ip_address?: unknown
+          status_anterior?: string | null
+          status_novo?: string
+          usuario_email?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gestores_escolares_historico_gestor_id_fkey"
+            columns: ["gestor_id"]
+            isOneToOne: false
+            referencedRelation: "gestores_escolares"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       historico_conteudo_oficial: {
         Row: {
           conteudo: string
@@ -18215,6 +18265,38 @@ export type Database = {
           unidade_id: string | null
         }
         Relationships: []
+      }
+      v_gestores_workflow_auditoria: {
+        Row: {
+          acao: string | null
+          alerta_parado: boolean | null
+          data_acao: string | null
+          data_criacao: string | null
+          detalhes: Json | null
+          dias_no_status_atual: number | null
+          escola_municipio: string | null
+          escola_nome: string | null
+          gestor_cpf: string | null
+          gestor_email: string | null
+          gestor_id: string | null
+          gestor_nome: string | null
+          historico_id: string | null
+          responsavel: string | null
+          status_anterior: string | null
+          status_atual: string | null
+          status_novo: string | null
+          ultima_atualizacao: string | null
+          usuario_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gestores_escolares_historico_gestor_id_fkey"
+            columns: ["gestor_id"]
+            isOneToOne: false
+            referencedRelation: "gestores_escolares"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_historico_bem_completo: {
         Row: {
