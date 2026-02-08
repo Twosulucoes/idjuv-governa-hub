@@ -211,6 +211,18 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "lista", label: "Programas", icon: Trophy, route: "/programas/lista" },
       { id: "acoes", label: "Ações", icon: ClipboardList, route: "/programas/acoes" },
       { id: "beneficiarios", label: "Beneficiários", icon: Users, route: "/programas/beneficiarios" },
+      { 
+        id: "selecoes", 
+        label: "Seleções Estudantis", 
+        icon: Trophy, 
+        route: "/programas/selecoes",
+        children: [
+          { id: "selecoes-hotsite", label: "Hot Site", icon: Globe, route: "/programas/selecoes" },
+          { id: "selecoes-inscricoes", label: "Inscrições", icon: Users, route: "/programas/selecoes/admin/inscricoes" },
+          { id: "selecoes-config", label: "Configuração", icon: Settings, route: "/programas/selecoes/admin/configuracao" },
+          { id: "selecoes-relatorios", label: "Relatórios", icon: BarChart3, route: "/programas/selecoes/admin/relatorios" },
+        ]
+      },
     ],
   },
 

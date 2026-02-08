@@ -64,6 +64,11 @@ import JuventudeCidadaPage from "./pages/programas/JuventudeCidadaPage";
 import EsporteComunidadePage from "./pages/programas/EsporteComunidadePage";
 import JovemEmpreendedorPage from "./pages/programas/JovemEmpreendedorPage";
 import JogosEscolaresPage from "./pages/programas/JogosEscolaresPage";
+import { 
+  GestaoInscricoesPage as GestaoInscricoesSelecaoPage,
+  ConfiguracaoEventoPage as ConfiguracaoEventoSelecaoPage,
+  RelatoriosSelecaoPage
+} from "./pages/programas/selecoes";
 import CargosRemuneracaoPage from "./pages/transparencia/CargosRemuneracaoPage";
 import LicitacoesPublicasPage from "./pages/transparencia/LicitacoesPublicasPage";
 import ExecucaoOrcamentariaPage from "./pages/transparencia/ExecucaoOrcamentariaPage";
@@ -217,18 +222,21 @@ const App = () => (
               {/* Rota secreta para preview do portal público */}
               <Route path="/portal-preview-idjuv-2026" element={<PortalPreviewPage />} />
               
-              {/* Hot site - Seletiva Seleções Estudantis (público) */}
+              {/* Hot site - Seletiva Seleções Estudantis (público) - Rota principal movida para /programas/selecoes */}
               <Route path="/selecoes-v1" element={<SeletivaEstudantilPage />} />
-              <Route path="/selecoes" element={<SeletivaEstudantilV2Page />} />
-              <Route path="/selecao" element={<SeletivaEstudantilV2Page />} />
-              <Route path="/seleções" element={<SeletivaEstudantilV2Page />} />
-              <Route path="/selecões" element={<SeletivaEstudantilV2Page />} />
-              <Route path="/SELECOES" element={<SeletivaEstudantilV2Page />} />
-              <Route path="/SELEÇÕES" element={<SeletivaEstudantilV2Page />} />
-              <Route path="/SELECAO" element={<SeletivaEstudantilV2Page />} />
-              <Route path="/Selecoes" element={<SeletivaEstudantilV2Page />} />
-              <Route path="/Selecao" element={<SeletivaEstudantilV2Page />} />
-              <Route path="/selecoes/noticia/:slug" element={<NoticiaDetalhePage />} />
+              <Route path="/programas/selecoes" element={<SeletivaEstudantilV2Page />} />
+              <Route path="/programas/selecoes/noticia/:slug" element={<NoticiaDetalhePage />} />
+              {/* Redirecionamentos de URLs antigas/alternativas */}
+              <Route path="/selecoes" element={<Navigate to="/programas/selecoes" replace />} />
+              <Route path="/selecao" element={<Navigate to="/programas/selecoes" replace />} />
+              <Route path="/seleções" element={<Navigate to="/programas/selecoes" replace />} />
+              <Route path="/selecões" element={<Navigate to="/programas/selecoes" replace />} />
+              <Route path="/SELECOES" element={<Navigate to="/programas/selecoes" replace />} />
+              <Route path="/SELEÇÕES" element={<Navigate to="/programas/selecoes" replace />} />
+              <Route path="/SELECAO" element={<Navigate to="/programas/selecoes" replace />} />
+              <Route path="/Selecoes" element={<Navigate to="/programas/selecoes" replace />} />
+              <Route path="/Selecao" element={<Navigate to="/programas/selecoes" replace />} />
+              <Route path="/selecoes/noticia/:slug" element={<Navigate to="/programas/selecoes" replace />} />
               
               {/* Pré-cadastro (mantido mas não linkado) */}
               <Route path="/curriculo" element={<MiniCurriculoPage />} />
@@ -890,6 +898,23 @@ const App = () => (
               <Route path="/programas/juventude-cidada" element={<ProtectedRoute><JuventudeCidadaPage /></ProtectedRoute>} />
               <Route path="/programas/esporte-comunidade" element={<ProtectedRoute><EsporteComunidadePage /></ProtectedRoute>} />
               <Route path="/programas/jovem-empreendedor" element={<ProtectedRoute><JovemEmpreendedorPage /></ProtectedRoute>} />
+              
+              {/* Seleções Estudantis - Gestão Administrativa */}
+              <Route path="/programas/selecoes/admin/inscricoes" element={
+                <ProtectedRoute requiredPermissions="programas.visualizar">
+                  <GestaoInscricoesSelecaoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/programas/selecoes/admin/configuracao" element={
+                <ProtectedRoute requiredPermissions="programas.visualizar">
+                  <ConfiguracaoEventoSelecaoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/programas/selecoes/admin/relatorios" element={
+                <ProtectedRoute requiredPermissions="programas.visualizar">
+                  <RelatoriosSelecaoPage />
+                </ProtectedRoute>
+              } />
               <Route path="/programas/jogos-escolares" element={<ProtectedRoute><JogosEscolaresPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
