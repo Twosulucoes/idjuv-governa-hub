@@ -16784,6 +16784,7 @@ export type Database = {
           cnh_primeira_habilitacao: string | null
           cnh_uf: string | null
           cnh_validade: string | null
+          codigo_interno: string | null
           contato_emergencia_nome: string | null
           contato_emergencia_parentesco: string | null
           cpf: string
@@ -16895,6 +16896,7 @@ export type Database = {
           cnh_primeira_habilitacao?: string | null
           cnh_uf?: string | null
           cnh_validade?: string | null
+          codigo_interno?: string | null
           contato_emergencia_nome?: string | null
           contato_emergencia_parentesco?: string | null
           cpf: string
@@ -17006,6 +17008,7 @@ export type Database = {
           cnh_primeira_habilitacao?: string | null
           cnh_uf?: string | null
           cnh_validade?: string | null
+          codigo_interno?: string | null
           contato_emergencia_nome?: string | null
           contato_emergencia_parentesco?: string | null
           cpf?: string

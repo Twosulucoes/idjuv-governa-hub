@@ -252,6 +252,11 @@ export default function ServidorDetalheePage() {
                   <Badge className={SITUACAO_COLORS[servidor.situacao as SituacaoFuncional]}>
                     {SITUACAO_LABELS[servidor.situacao as SituacaoFuncional]}
                   </Badge>
+                  {(servidor as any).codigo_interno && (
+                    <Badge variant="outline" className="font-mono bg-muted/50">
+                      {(servidor as any).codigo_interno}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-muted-foreground mt-1">
                   {servidor.cargo?.nome || 'Sem cargo'} • {lotacaoVigente?.unidade?.sigla || lotacaoVigente?.unidade?.nome || servidor.unidade?.sigla || servidor.unidade?.nome || 'Sem lotação'}
