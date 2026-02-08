@@ -113,7 +113,7 @@ import MeuPerfilPage from "./pages/MeuPerfilPage";
 import TrocaSenhaObrigatoriaPage from "./pages/TrocaSenhaObrigatoriaPage";
 import UsuariosAdminPage from "./pages/admin/UsuariosAdminPage";
 import UsuarioDetalhePage from "./pages/admin/UsuarioDetalhePage";
-import ServidoresAcessoPage from "./pages/admin/ServidoresAcessoPage";
+
 import GestaoDocumentosPage from "./pages/admin/GestaoDocumentosPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminHelpPage from "./pages/admin/AdminHelpPage";
@@ -279,12 +279,7 @@ const App = () => (
               <Route path="/acesso" element={<ProtectedRoute><ControleAcessoAdminPage /></ProtectedRoute>} />
               
               {/* Com permissões mapeadas em ROUTE_PERMISSIONS */}
-              <Route path="/admin/servidores-acesso" element={
-                <ProtectedRoute requiredPermissions="admin.usuarios">
-                  <ServidoresAcessoPage />
-                </ProtectedRoute>
-              } />
-<Route path="/admin/usuarios" element={
+              <Route path="/admin/usuarios" element={
                 <ProtectedRoute requiredPermissions="admin.usuarios">
                   <UsuariosAdminPage />
                 </ProtectedRoute>
