@@ -365,7 +365,7 @@ const App = () => (
                   <AdminGestoresPage />
                 </ProtectedRoute>
               } />
-              <Route path="/cadastrogestores/admin/escolas" element={
+              <Route path="/cadastrogestores/escolas" element={
                 <ProtectedRoute requiredPermissions="gestores_escolares.admin">
                   <ImportarEscolasPage />
                 </ProtectedRoute>
