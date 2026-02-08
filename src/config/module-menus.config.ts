@@ -252,7 +252,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     items: [
       { id: "usuarios", label: "Usuários", icon: Users, route: "/admin/usuarios" },
       { id: "auditoria", label: "Auditoria", icon: Shield, route: "/admin/auditoria" },
-      { id: "banco-dados", label: "Banco de Dados", icon: Database, route: "/admin/banco-dados" },
+      { id: "banco-dados", label: "Banco de Dados", icon: Database, route: "/admin/database" },
       { id: "backup", label: "Backup", icon: Archive, route: "/admin/backup" },
       { id: "ajuda", label: "Ajuda", icon: HelpCircle, route: "/admin/ajuda" },
     ],
