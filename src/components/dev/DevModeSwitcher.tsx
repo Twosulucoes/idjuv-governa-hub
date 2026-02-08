@@ -4,11 +4,11 @@
  * Componente para alternar entre roles e módulos em tempo real para testes.
  * Aparece apenas em ambiente de desenvolvimento ou quando ativado via localStorage.
  * 
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import { useState, useEffect } from 'react';
-import { Settings2, Shield, ShieldCheck, User, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Settings2, Shield, ShieldCheck, User, ChevronDown, ChevronUp, X, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
-import { MODULOS, type Modulo } from '@/shared/config/modules.config';
+import { MODULOS, MODULES_CONFIG, type Modulo } from '@/shared/config/modules.config';
 import type { AppRole } from '@/types/rbac';
 
 const STORAGE_KEY = 'dev-mode-overrides';
@@ -33,6 +33,12 @@ const ROLES: { value: AppRole; label: string; icon: React.ReactNode }[] = [
   { value: 'manager', label: 'Gestor', icon: <Shield className="w-4 h-4" /> },
   { value: 'user', label: 'Usuário', icon: <User className="w-4 h-4" /> },
 ];
+
+// Helper para obter o nome amigável do módulo
+function getModuleName(codigo: Modulo): string {
+  const config = MODULES_CONFIG.find(m => m.codigo === codigo);
+  return config?.nome || codigo;
+}
 
 // Hook para usar os overrides de dev mode
 export function useDevModeOverrides() {
@@ -86,7 +92,7 @@ export function DevModeSwitcher() {
     }
   }, []);
 
-  // Salvar mudanças
+  // Salvar mudanças e disparar evento
   const saveOverrides = (role: AppRole | null, modules: Modulo[], superAdmin: boolean) => {
     const overrides: DevModeOverrides = {
       role,
@@ -95,7 +101,7 @@ export function DevModeSwitcher() {
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides));
     
-    // Disparar evento para atualizar outros componentes
+    // Disparar evento para atualizar outros componentes IMEDIATAMENTE
     window.dispatchEvent(new CustomEvent('dev-mode-changed', { detail: overrides }));
   };
 
@@ -137,15 +143,20 @@ export function DevModeSwitcher() {
     setIsEnabled(checked);
     localStorage.setItem(DEV_MODE_ENABLED_KEY, String(checked));
     
-    if (!checked) {
+    if (checked) {
+      // Ao ativar, inicializar com role user e sem módulos
+      setSelectedRole('user');
+      setSelectedModules([]);
+      setIsSuperAdmin(false);
+      saveOverrides('user', [], false);
+    } else {
       localStorage.removeItem(STORAGE_KEY);
       setSelectedRole(null);
       setSelectedModules([]);
       setIsSuperAdmin(false);
+      // Disparar evento para desativar
+      window.dispatchEvent(new CustomEvent('dev-mode-changed', { detail: null }));
     }
-    
-    // Recarregar página para aplicar mudanças
-    window.location.reload();
   };
 
   const handleReset = () => {
@@ -155,21 +166,52 @@ export function DevModeSwitcher() {
     setSelectedModules([]);
     setIsSuperAdmin(false);
     setIsEnabled(false);
-    window.location.reload();
+    window.dispatchEvent(new CustomEvent('dev-mode-changed', { detail: null }));
   };
 
   if (!isAuthenticated) return null;
 
+  // Label do role selecionado
+  const roleLabel = ROLES.find(r => r.value === selectedRole)?.label || 'Nenhum';
+  const modulesLabel = selectedModules.map(m => getModuleName(m)).join(', ');
+
   return (
     <>
+      {/* Banner de aviso quando Dev Mode está ativo */}
+      {isEnabled && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-amber-500 text-amber-950 py-1.5 px-4 text-sm font-medium flex items-center justify-center gap-2 shadow-md">
+          <AlertTriangle className="w-4 h-4" />
+          <span>
+            Modo Simulação: <strong>{isSuperAdmin ? 'Super Admin' : roleLabel}</strong>
+            {!isSuperAdmin && selectedModules.length > 0 && (
+              <span className="ml-1 opacity-90">
+                ({selectedModules.length} módulo{selectedModules.length > 1 ? 's' : ''})
+              </span>
+            )}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-2 h-6 px-2 text-amber-950 hover:text-amber-900 hover:bg-amber-400"
+            onClick={handleReset}
+          >
+            Desativar
+          </Button>
+        </div>
+      )}
+
       {/* Botão flutuante */}
       <Button
         variant="outline"
         size="icon"
-        className="fixed bottom-4 right-4 z-50 rounded-full w-12 h-12 shadow-lg bg-background border-2 border-primary/50 hover:border-primary"
+        className={`fixed bottom-4 right-4 z-50 rounded-full w-12 h-12 shadow-lg bg-background border-2 ${
+          isEnabled 
+            ? 'border-amber-500 hover:border-amber-600' 
+            : 'border-primary/50 hover:border-primary'
+        }`}
         onClick={() => setIsOpen(!isOpen)}
       >
-        <Settings2 className={`w-5 h-5 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+        <Settings2 className={`w-5 h-5 transition-transform ${isOpen ? 'rotate-90' : ''} ${isEnabled ? 'text-amber-600' : ''}`} />
       </Button>
 
       {/* Painel */}
@@ -179,7 +221,7 @@ export function DevModeSwitcher() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Settings2 className="w-4 h-4" />
-                Dev Mode
+                Dev Mode - Simulação
               </CardTitle>
               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsOpen(false)}>
                 <X className="w-4 h-4" />
@@ -249,24 +291,28 @@ export function DevModeSwitcher() {
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-2 pt-2">
-                  <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto">
-                    {MODULOS.map((modulo) => (
+                  <div className="grid grid-cols-1 gap-1 max-h-48 overflow-y-auto">
+                    {MODULES_CONFIG.map((config) => (
                       <div
-                        key={modulo}
-                        className="flex items-center gap-2 p-1.5 rounded hover:bg-muted/50"
+                        key={config.codigo}
+                        className={`flex items-center gap-2 p-2 rounded hover:bg-muted/50 cursor-pointer ${
+                          selectedModules.includes(config.codigo) ? 'bg-primary/10' : ''
+                        }`}
+                        onClick={() => !isSuperAdmin && handleModuleToggle(config.codigo)}
                       >
                         <Switch
-                          id={`mod-${modulo}`}
-                          checked={selectedModules.includes(modulo)}
-                          onCheckedChange={() => handleModuleToggle(modulo)}
+                          id={`mod-${config.codigo}`}
+                          checked={selectedModules.includes(config.codigo)}
+                          onCheckedChange={() => handleModuleToggle(config.codigo)}
                           disabled={isSuperAdmin}
                           className="scale-75"
                         />
+                        <config.icone className="w-4 h-4 text-muted-foreground" />
                         <Label
-                          htmlFor={`mod-${modulo}`}
-                          className="text-xs cursor-pointer truncate"
+                          htmlFor={`mod-${config.codigo}`}
+                          className="text-xs cursor-pointer flex-1"
                         >
-                          {modulo}
+                          {config.nome}
                         </Label>
                       </div>
                     ))}
@@ -276,18 +322,21 @@ export function DevModeSwitcher() {
 
               {/* Status atual */}
               <div className="pt-2 border-t">
-                <p className="text-xs text-muted-foreground mb-2">Status atual:</p>
+                <p className="text-xs text-muted-foreground mb-2">Status simulado:</p>
                 <div className="flex flex-wrap gap-1">
                   {isSuperAdmin && (
-                    <Badge variant="default" className="text-xs">Super Admin</Badge>
+                    <Badge variant="default" className="text-xs bg-amber-600">Super Admin</Badge>
                   )}
                   {selectedRole && !isSuperAdmin && (
-                    <Badge variant="secondary" className="text-xs">{selectedRole}</Badge>
+                    <Badge variant="secondary" className="text-xs">{roleLabel}</Badge>
                   )}
                   {selectedModules.length > 0 && !isSuperAdmin && (
                     <Badge variant="outline" className="text-xs">
-                      {selectedModules.length} módulos
+                      {selectedModules.length} módulo{selectedModules.length > 1 ? 's' : ''}
                     </Badge>
+                  )}
+                  {!isSuperAdmin && selectedModules.length === 0 && (
+                    <Badge variant="destructive" className="text-xs">Sem módulos</Badge>
                   )}
                 </div>
               </div>
