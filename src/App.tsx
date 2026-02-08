@@ -97,6 +97,7 @@ import AtribuicaoPortariasPage from "./pages/rh/AtribuicaoPortariasPage";
 import DiagnosticoPendenciasServidoresPage from "./pages/rh/DiagnosticoPendenciasServidoresPage";
 import ExportacaoPlanilhaPage from "./pages/rh/ExportacaoPlanilhaPage";
 import AniversariantesPage from "./pages/rh/AniversariantesPage";
+import GestaoLotacaoPage from "./pages/rh/GestaoLotacaoPage";
 import ControlePacotesFrequenciaPage from "./pages/rh/ControlePacotesFrequenciaPage";
 import MeuContrachequePage from "./pages/rh/MeuContrachequePage";
 import ConsultaContrachequesPage from "./pages/rh/ConsultaContrachequesPage";
@@ -490,6 +491,11 @@ const App = () => (
               <Route path="/lotacoes" element={
                 <ProtectedRoute requiredPermissions="rh.lotacoes.visualizar">
                   <GestaoLotacoesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/gestao-lotacao" element={
+                <ProtectedRoute requiredPermissions="rh.lotacoes.visualizar">
+                  <GestaoLotacaoPage />
                 </ProtectedRoute>
               } />
               
