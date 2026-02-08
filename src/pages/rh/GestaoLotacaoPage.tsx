@@ -243,12 +243,15 @@ export default function GestaoLotacaoPage() {
                 {/* Unidade */}
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground">Unidade</label>
-                  <Select value={unidadeFiltro} onValueChange={setUnidadeFiltro}>
+                  <Select 
+                    value={unidadeFiltro || "_all"} 
+                    onValueChange={(v) => setUnidadeFiltro(v === "_all" ? "" : v)}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Todas as unidades" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todas as unidades</SelectItem>
+                      <SelectItem value="_all">Todas as unidades</SelectItem>
                       {unidades.map((u: any) => (
                         <SelectItem key={u.id} value={u.id}>
                           {u.sigla && `${u.sigla} - `}{u.nome}
