@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -117,7 +117,7 @@ const VeiculosProcessoPage: React.FC = () => {
   };
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="patrimonio">
       <div className="container mx-auto py-8 px-4">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
@@ -394,7 +394,7 @@ const VeiculosProcessoPage: React.FC = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 };
 

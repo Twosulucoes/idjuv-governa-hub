@@ -5,7 +5,7 @@
 
 import { Link, useParams, useLocation } from "react-router-dom";
 import { ArrowLeft, Construction } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -33,7 +33,7 @@ export default function PlaceholderDetalheFinanceiroPage() {
   }
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="financeiro">
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center gap-2 text-sm mb-6 text-muted-foreground">
           <Link to="/financeiro" className="hover:underline">Financeiro</Link>
@@ -59,6 +59,6 @@ export default function PlaceholderDetalheFinanceiroPage() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

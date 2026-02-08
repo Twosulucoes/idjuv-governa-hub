@@ -4,7 +4,7 @@ import {
   Package, ArrowLeft, ArrowRight, CheckCircle2, Circle, 
   FileText, AlertTriangle, Download, Users, Clock, ClipboardList
 } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -41,7 +41,7 @@ export default function AlmoxarifadoProcessoPage() {
   const canProceed = obrigatoriosChecked === obrigatoriosCount;
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="patrimonio">
       {/* Cabeçalho */}
       <section className="bg-secondary text-secondary-foreground py-12">
         <div className="container mx-auto px-4">
@@ -248,6 +248,6 @@ export default function AlmoxarifadoProcessoPage() {
           </div>
         </div>
       </section>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }

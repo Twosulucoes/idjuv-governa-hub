@@ -3,7 +3,7 @@
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AdminLayout } from '@/components/admin';
+import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,7 +48,7 @@ export default function GestaoProcessosPage() {
   const totalConcluidos = processos?.filter(p => p.status === 'concluido').length || 0;
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="workflow">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -242,6 +242,6 @@ export default function GestaoProcessosPage() {
         open={novoDialogOpen} 
         onOpenChange={setNovoDialogOpen}
       />
-    </AdminLayout>
+    </ModuleLayout>
   );
 }
