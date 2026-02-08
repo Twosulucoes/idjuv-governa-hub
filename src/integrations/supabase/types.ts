@@ -5745,6 +5745,7 @@ export type Database = {
           numero: string
           observacoes: string | null
           provimento_id: string | null
+          responsavel_id: string | null
           servidores_ids: string[] | null
           status: Database["public"]["Enums"]["status_documento"]
           tipo: Database["public"]["Enums"]["tipo_documento"]
@@ -5776,6 +5777,7 @@ export type Database = {
           numero: string
           observacoes?: string | null
           provimento_id?: string | null
+          responsavel_id?: string | null
           servidores_ids?: string[] | null
           status?: Database["public"]["Enums"]["status_documento"]
           tipo?: Database["public"]["Enums"]["tipo_documento"]
@@ -5807,6 +5809,7 @@ export type Database = {
           numero?: string
           observacoes?: string | null
           provimento_id?: string | null
+          responsavel_id?: string | null
           servidores_ids?: string[] | null
           status?: Database["public"]["Enums"]["status_documento"]
           tipo?: Database["public"]["Enums"]["tipo_documento"]
@@ -5842,6 +5845,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["provimento_id"]
+          },
+          {
+            foreignKeyName: "documentos_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "documentos_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "documentos_unidade_id_fkey"

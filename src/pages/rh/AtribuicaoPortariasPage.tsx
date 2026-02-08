@@ -98,7 +98,7 @@ function usePortariasPendentes(filtros: FiltrosPortaria) {
         .from('documentos')
         .select(`
           id, numero, titulo, categoria, status, data_documento, 
-          data_vigencia_fim, created_at, servidores_ids, responsavel_id,
+          data_vigencia_fim, created_at, servidores_ids,
           unidade:estrutura_organizacional(id, nome, sigla),
           cargo:cargos(id, nome, sigla)
         `)
@@ -110,15 +110,15 @@ function usePortariasPendentes(filtros: FiltrosPortaria) {
         query = query.or(`numero.ilike.%${filtros.busca}%,titulo.ilike.%${filtros.busca}%`);
       }
       if (filtros.tipo && filtros.tipo !== 'all') {
-        query = query.eq('categoria', filtros.tipo);
+        query = query.eq('categoria', filtros.tipo as any);
       }
-      if (filtros.status && filtros.status !== 'all' as any) {
+      if (filtros.status) {
         query = query.eq('status', filtros.status);
       }
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as unknown as PortariaPendente[];
+      return (data || []) as unknown as PortariaPendente[];
     },
   });
 }
@@ -128,56 +128,69 @@ function useServidoresComCarga() {
   return useQuery({
     queryKey: ['servidores-carga-trabalho'],
     queryFn: async () => {
-      // Buscar servidores ativos
+      // Buscar servidores ativos (usando nomes corretos das colunas da view)
       const { data: servidores, error: errServ } = await supabase
         .from('v_servidores_situacao')
-        .select('id, nome_completo, cargo_atual, unidade_atual')
+        .select('id, nome_completo, cargo_nome, unidade_nome')
         .eq('situacao', 'ativo')
         .order('nome_completo');
 
       if (errServ) throw errServ;
 
-      // Buscar contagem de portarias por servidor (status não finalizados)
-      const { data: contagens, error: errCont } = await supabase
+      // Buscar contagem de portarias atribuídas usando servidores_ids
+      const { data: documentos, error: errCont } = await supabase
         .from('documentos')
-        .select('responsavel_id')
+        .select('servidores_ids')
         .eq('tipo', 'portaria')
         .in('status', ['minuta', 'aguardando_assinatura', 'assinado', 'aguardando_publicacao']);
 
       if (errCont) throw errCont;
 
-      // Calcular carga por servidor
+      // Calcular carga por servidor (contando aparições em servidores_ids)
       const cargaPorServidor: Record<string, number> = {};
-      contagens?.forEach((doc: { responsavel_id?: string }) => {
-        if (doc.responsavel_id) {
-          cargaPorServidor[doc.responsavel_id] = (cargaPorServidor[doc.responsavel_id] || 0) + 1;
-        }
+      documentos?.forEach((doc: { servidores_ids?: string[] | null }) => {
+        doc.servidores_ids?.forEach((id) => {
+          cargaPorServidor[id] = (cargaPorServidor[id] || 0) + 1;
+        });
       });
 
-      return servidores?.map((s) => ({
+      return (servidores || []).map((s: any) => ({
         id: s.id,
         nome_completo: s.nome_completo,
-        cargo_atual: s.cargo_atual,
-        unidade_atual: s.unidade_atual,
+        cargo_atual: s.cargo_nome,
+        unidade_atual: s.unidade_nome,
         portarias_atribuidas: cargaPorServidor[s.id] || 0,
         carga_maxima: 10, // Limite configurável
-      })) || [];
+      })) as ServidorDisponivel[];
     },
   });
 }
 
-// Hook para atribuir responsável à portaria
+// Hook para atribuir responsável à portaria (atualiza servidores_ids)
 function useAtribuirResponsavel() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ portariaIds, responsavelId }: { portariaIds: string[]; responsavelId: string }) => {
-      const { error } = await supabase
-        .from('documentos')
-        .update({ responsavel_id: responsavelId })
-        .in('id', portariaIds);
-
-      if (error) throw error;
+      // Atualiza servidores_ids para incluir o responsável
+      // Para cada portaria, adiciona o servidor ao array se ainda não estiver
+      for (const portariaId of portariaIds) {
+        const { data: doc } = await supabase
+          .from('documentos')
+          .select('servidores_ids')
+          .eq('id', portariaId)
+          .single();
+        
+        const idsAtuais = doc?.servidores_ids || [];
+        if (!idsAtuais.includes(responsavelId)) {
+          const { error } = await supabase
+            .from('documentos')
+            .update({ servidores_ids: [...idsAtuais, responsavelId] })
+            .eq('id', portariaId);
+          
+          if (error) throw error;
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['portarias-pendentes-atribuicao'] });
