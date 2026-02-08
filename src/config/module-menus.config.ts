@@ -76,6 +76,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     dashboard: { label: "Painel RH", route: "/rh" },
     items: [
       { id: "servidores", label: "Servidores", icon: Users, route: "/rh/servidores" },
+      { id: "lotacoes", label: "Lotações", icon: Users, route: "/lotacoes" },
       { id: "designacoes", label: "Designações", icon: UserCog, route: "/rh/designacoes" },
       { id: "portarias", label: "Portarias", icon: FileText, route: "/rh/portarias" },
       { 
@@ -92,6 +93,17 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "ferias", label: "Férias", icon: Calendar, route: "/rh/ferias" },
       { id: "licencas", label: "Licenças", icon: FileText, route: "/rh/licencas" },
       { id: "viagens", label: "Viagens", icon: Plane, route: "/rh/viagens" },
+      { 
+        id: "folha-pagamento", 
+        label: "Folha de Pagamento", 
+        icon: Receipt, 
+        route: "/folha",
+        children: [
+          { id: "folha-dashboard", label: "Painel", icon: BarChart3, route: "/folha" },
+          { id: "folha-fichas", label: "Fichas Financeiras", icon: FileText, route: "/folha/fichas" },
+          { id: "folha-rubricas", label: "Rubricas", icon: Settings, route: "/folha/rubricas" },
+        ]
+      },
       { id: "contracheques", label: "Contracheques", icon: Receipt, route: "/rh/contracheques" },
       { id: "aniversariantes", label: "Aniversariantes", icon: Cake, route: "/rh/aniversariantes" },
       { id: "pendencias", label: "Pendências", icon: AlertTriangle, route: "/rh/pendencias" },
