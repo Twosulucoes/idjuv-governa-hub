@@ -11,7 +11,24 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import EmBrevePage from "./pages/EmBrevePage";
 import PortalPreviewPage from "./pages/PortalPreviewPage";
 import ApresentacaoPage from "./pages/ApresentacaoPage";
-import SistemaPage from "./pages/Index";
+import LegacySistemaPage from "./pages/Index";
+import SistemaEntryPage from "./pages/sistema/SistemaEntryPage";
+
+// Module Dashboards
+import {
+  RHDashboardPage,
+  FinanceiroDashboardPage,
+  PatrimonioDashboardPage,
+  ComprasDashboardPage,
+  ContratosDashboardPage,
+  GovernancaDashboardPage,
+  WorkflowDashboardPage,
+  TransparenciaDashboardPage,
+  ComunicacaoDashboardPage,
+  ProgramasDashboardPage,
+  IntegridadeDashboardPage,
+  GestoresEscolaresDashboardPage,
+} from "./pages/modulos";
 import NotFound from "./pages/NotFound";
 import GovernancaPage from "./pages/GovernancaPage";
 import ProcessosPage from "./pages/ProcessosPage";
@@ -227,11 +244,25 @@ const App = () => (
               {/* (Sem mapeamento em ROUTE_PERMISSIONS) */}
               {/* ============================================ */}
               
-              <Route path="/sistema" element={<ProtectedRoute><SistemaPage /></ProtectedRoute>} />
+              <Route path="/sistema" element={<ProtectedRoute><SistemaEntryPage /></ProtectedRoute>} />
+              <Route path="/sistema/legado" element={<ProtectedRoute><LegacySistemaPage /></ProtectedRoute>} />
               <Route path="/apresentacao" element={<ProtectedRoute><ApresentacaoPage /></ProtectedRoute>} />
               <Route path="/noticias" element={<ProtectedRoute><NoticiasPage /></ProtectedRoute>} />
               <Route path="/meu-perfil" element={<ProtectedRoute><MeuPerfilPage /></ProtectedRoute>} />
               <Route path="/trocar-senha-obrigatoria" element={<ProtectedRoute><TrocaSenhaObrigatoriaPage /></ProtectedRoute>} />
+              
+              {/* ============================================ */}
+              {/* DASHBOARDS DE MÓDULOS */}
+              {/* ============================================ */}
+              
+              <Route path="/rh" element={<ProtectedRoute><RHDashboardPage /></ProtectedRoute>} />
+              <Route path="/financeiro" element={<ProtectedRoute><FinanceiroDashboardPage /></ProtectedRoute>} />
+              <Route path="/patrimonio" element={<ProtectedRoute><PatrimonioDashboardPage /></ProtectedRoute>} />
+              <Route path="/compras" element={<ProtectedRoute><ComprasDashboardPage /></ProtectedRoute>} />
+              <Route path="/contratos" element={<ProtectedRoute><ContratosDashboardPage /></ProtectedRoute>} />
+              <Route path="/workflow" element={<ProtectedRoute><WorkflowDashboardPage /></ProtectedRoute>} />
+              <Route path="/comunicacao" element={<ProtectedRoute><ComunicacaoDashboardPage /></ProtectedRoute>} />
+              <Route path="/gestores-escolares" element={<ProtectedRoute><GestoresEscolaresDashboardPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* ADMIN - Com permissões mapeadas */}
