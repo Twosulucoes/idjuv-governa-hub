@@ -145,6 +145,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "requisicoes", label: "Requisições", icon: ClipboardList, route: "/inventario/requisicoes" },
       { id: "manutencoes", label: "Manutenções", icon: Wrench, route: "/inventario/manutencoes" },
       { id: "baixas", label: "Baixas", icon: Trash2, route: "/inventario/baixas" },
+      { id: "relatorios", label: "Relatórios", icon: BarChart3, route: "/inventario/relatorios" },
     ],
   },
 

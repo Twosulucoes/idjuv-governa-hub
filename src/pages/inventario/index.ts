@@ -13,3 +13,4 @@ export { default as RequisicoesMaterialPage } from './RequisicoesMaterialPage';
 export { default as ManutencoesBensPage } from './ManutencoesBensPage';
 export { default as BaixasPatrimonioPage } from './BaixasPatrimonioPage';
 export { default as PlaceholderDetalhePage } from './PlaceholderDetalhePage';
+export { default as RelatoriosPatrimonioPage } from './RelatoriosPatrimonioPage';

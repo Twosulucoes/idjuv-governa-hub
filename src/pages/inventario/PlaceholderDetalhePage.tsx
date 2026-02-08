@@ -5,7 +5,7 @@
 
 import { Link, useParams, useLocation } from "react-router-dom";
 import { ArrowLeft, Construction } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -39,7 +39,7 @@ export default function PlaceholderDetalhePage() {
   }
 
   return (
-    <AdminLayout>
+    <ModuleLayout module="patrimonio">
       <section className="bg-secondary text-secondary-foreground py-6">
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-2 text-sm mb-3 opacity-80">
@@ -82,6 +82,6 @@ export default function PlaceholderDetalhePage() {
           </Card>
         </div>
       </section>
-    </AdminLayout>
+    </ModuleLayout>
   );
 }
