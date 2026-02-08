@@ -54,6 +54,7 @@ interface ServidorCompleto {
   nome_completo: string;
   cpf: string;
   matricula?: string;
+  codigo_interno?: string;
   foto_url?: string;
   tipo_servidor?: TipoServidor;
   situacao: SituacaoFuncional;
@@ -93,6 +94,7 @@ export default function GestaoServidoresPage() {
           nome_completo,
           cpf,
           matricula,
+          codigo_interno,
           foto_url,
           tipo_servidor,
           situacao,
@@ -133,7 +135,8 @@ export default function GestaoServidoresPage() {
     const matchesSearch = 
       s.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.cpf?.includes(searchTerm) ||
-      s.matricula?.toLowerCase().includes(searchTerm.toLowerCase());
+      s.matricula?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.codigo_interno?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesTipoServidor = filterTipoServidor === "all" || s.tipo_servidor === filterTipoServidor;
     const matchesSituacao = filterSituacao === "all" || s.situacao === filterSituacao;
@@ -373,6 +376,7 @@ export default function GestaoServidoresPage() {
                           <div>
                             <p className="font-medium">{servidor.nome_completo}</p>
                             <p className="text-xs text-muted-foreground">
+                              {servidor.codigo_interno && <span className="font-mono mr-2">{servidor.codigo_interno}</span>}
                               {servidor.matricula ? `Mat: ${servidor.matricula}` : formatCPF(servidor.cpf)}
                             </p>
                           </div>
