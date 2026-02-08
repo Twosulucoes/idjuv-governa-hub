@@ -386,6 +386,11 @@ const App = () => (
               {/* ============================================ */}
               {/* ASCOM / COMUNICAÇÃO - Com permissões mapeadas */}
               {/* ============================================ */}
+              <Route path="/ascom" element={
+                <ProtectedRoute>
+                  <ComunicacaoDashboardPage />
+                </ProtectedRoute>
+              } />
               <Route path="/ascom/demandas" element={
                 <ProtectedRoute requiredPermissions="ascom.demandas.visualizar">
                   <GestaoDemandasAscomPage />
@@ -762,14 +767,31 @@ const App = () => (
               <Route path="/manuais/convenios" element={<ProtectedRoute><ManuaisPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
-              {/* INTEGRIDADE - Apenas autenticação */}
+              {/* INTEGRIDADE - Com dashboard modular */}
               {/* ============================================ */}
-              <Route path="/integridade" element={<ProtectedRoute><IntegridadePage /></ProtectedRoute>} />
+              <Route path="/integridade" element={
+                <ProtectedRoute requiredPermissions="integridade.visualizar">
+                  <IntegridadeDashboardPage />
+                </ProtectedRoute>
+              } />
               <Route path="/integridade/denuncias" element={<ProtectedRoute><DenunciasPage /></ProtectedRoute>} />
-              <Route path="/integridade/gestao-denuncias" element={<ProtectedRoute><GestaoDenunciasPage /></ProtectedRoute>} />
-              <Route path="/integridade/codigo-etica" element={<ProtectedRoute><IntegridadePage /></ProtectedRoute>} />
-              <Route path="/integridade/conflito" element={<ProtectedRoute><IntegridadePage /></ProtectedRoute>} />
-              <Route path="/integridade/politica" element={<ProtectedRoute><IntegridadePage /></ProtectedRoute>} />
+              <Route path="/integridade/gestao-denuncias" element={
+                <ProtectedRoute requiredPermissions="integridade.gerenciar">
+                  <GestaoDenunciasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/integridade/codigo-etica" element={<ProtectedRoute><IntegridadeDashboardPage /></ProtectedRoute>} />
+              <Route path="/integridade/conflito" element={<ProtectedRoute><IntegridadeDashboardPage /></ProtectedRoute>} />
+              <Route path="/integridade/politica" element={<ProtectedRoute><IntegridadeDashboardPage /></ProtectedRoute>} />
+              
+              {/* ============================================ */}
+              {/* PROGRAMAS - Com dashboard modular */}
+              {/* ============================================ */}
+              <Route path="/programas" element={
+                <ProtectedRoute requiredPermissions="programas.visualizar">
+                  <ProgramasDashboardPage />
+                </ProtectedRoute>
+              } />
               
               {/* ============================================ */}
               {/* TRANSPARÊNCIA - Rotas PÚBLICAS (LGPD-Safe) */}
@@ -782,7 +804,17 @@ const App = () => (
               <Route path="/transparencia/orcamento" element={<ExecucaoOrcamentariaPage />} />
               <Route path="/transparencia/patrimonio" element={<PatrimonioPublicoPage />} />
               <Route path="/transparencia/lai" element={<PortalLAIPage />} />
-              <Route path="/transparencia/relatorios" element={<ProtectedRoute><TransparenciaPage /></ProtectedRoute>} />
+              {/* Gestão de Transparência - Dashboard administrativo */}
+              <Route path="/transparencia/admin" element={
+                <ProtectedRoute requiredPermissions="transparencia.visualizar">
+                  <TransparenciaDashboardPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/transparencia/relatorios" element={
+                <ProtectedRoute requiredPermissions="transparencia.visualizar">
+                  <TransparenciaDashboardPage />
+                </ProtectedRoute>
+              } />
               
               {/* ============================================ */}
               {/* FINANCEIRO (ERP) - Com permissões mapeadas */}

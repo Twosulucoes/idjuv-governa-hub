@@ -23,7 +23,7 @@ const MODULE_ROUTES: Record<Modulo, string> = {
   patrimonio: "/inventario",
   governanca: "/governanca",
   integridade: "/integridade",
-  transparencia: "/transparencia",
+  transparencia: "/transparencia/admin",
   comunicacao: "/ascom",
   programas: "/programas",
   gestores_escolares: "/cadastrogestores/admin",
