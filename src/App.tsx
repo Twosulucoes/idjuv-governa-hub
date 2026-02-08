@@ -160,6 +160,7 @@ import FormularioGestorPage from "./pages/cadastrogestores/FormularioGestorPage"
 import ConsultaGestorPage from "./pages/cadastrogestores/ConsultaGestorPage";
 import AdminGestoresPage from "./pages/cadastrogestores/AdminGestoresPage";
 import ImportarEscolasPage from "./pages/cadastrogestores/ImportarEscolasPage";
+import RelatoriosGestoresPage from "./pages/cadastrogestores/RelatoriosGestoresPage";
 
 // Workflow (SEI-like)
 import GestaoProcessosPage from "./pages/workflow/GestaoProcessosPage";
@@ -360,13 +361,18 @@ const App = () => (
               {/* GESTORES ESCOLARES - Admin */}
               {/* ============================================ */}
               <Route path="/cadastrogestores/admin" element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredPermissions="gestores_escolares.admin">
                   <AdminGestoresPage />
                 </ProtectedRoute>
               } />
               <Route path="/cadastrogestores/admin/escolas" element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredPermissions="gestores_escolares.admin">
                   <ImportarEscolasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/cadastrogestores/relatorios" element={
+                <ProtectedRoute requiredPermissions="gestores_escolares.admin">
+                  <RelatoriosGestoresPage />
                 </ProtectedRoute>
               } />
               
