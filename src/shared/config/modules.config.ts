@@ -41,6 +41,7 @@ export const MODULOS = [
   'programas',
   'gestores_escolares',
   'organizacoes', // Módulo para Federações, Instituições, Associações e Entes
+  'gabinete', // Módulo para Gabinete da Presidência
 ] as const;
 
 export type Modulo = typeof MODULOS[number];
@@ -186,6 +187,15 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     rotas: ['/admin/federacoes', '/admin/instituicoes', '/organizacoes'],
     menuSectionIds: ['espacos-federacoes'],
   },
+  {
+    codigo: 'gabinete',
+    nome: 'Gabinete',
+    descricao: 'Pré-cadastros, portarias, ordens de missão e workflow',
+    icone: Building2,
+    cor: 'violet',
+    rotas: ['/gabinete', '/formularios/ordem-missao', '/formularios/relatorio-viagem', '/curriculo/pre-cadastros'],
+    menuSectionIds: ['gabinete'],
+  },
 ];
 
 // ================================
@@ -231,6 +241,7 @@ export const MODULO_COR_CLASSES: Record<string, string> = {
   pink: 'bg-pink-100 text-pink-800 dark:bg-pink-800 dark:text-pink-200',
   rose: 'bg-rose-100 text-rose-800 dark:bg-rose-800 dark:text-rose-200',
   emerald: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-800 dark:text-emerald-200',
+  violet: 'bg-violet-100 text-violet-800 dark:bg-violet-800 dark:text-violet-200',
 };
 
 /**

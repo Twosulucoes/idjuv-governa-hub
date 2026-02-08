@@ -29,6 +29,7 @@ import {
   IntegridadeDashboardPage,
   GestoresEscolaresDashboardPage,
 } from "./pages/modulos";
+import GabineteDashboardPage from "./pages/gabinete/GabineteDashboardPage";
 import NotFound from "./pages/NotFound";
 import GovernancaPage from "./pages/GovernancaPage";
 import ProcessosPage from "./pages/ProcessosPage";
@@ -274,6 +275,7 @@ const App = () => (
               <Route path="/workflow" element={<ProtectedRoute><WorkflowDashboardPage /></ProtectedRoute>} />
               <Route path="/comunicacao" element={<ProtectedRoute><ComunicacaoDashboardPage /></ProtectedRoute>} />
               <Route path="/gestores-escolares" element={<ProtectedRoute><GestoresEscolaresDashboardPage /></ProtectedRoute>} />
+              <Route path="/gabinete" element={<ProtectedRoute><GabineteDashboardPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* ADMIN - Com permissões mapeadas */}

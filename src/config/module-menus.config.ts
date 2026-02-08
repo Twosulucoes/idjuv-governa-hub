@@ -247,6 +247,18 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     ],
   },
 
+  // Gabinete da Presidência
+  gabinete: {
+    dashboard: { label: "Painel do Gabinete", route: "/gabinete" },
+    items: [
+      { id: "pre-cadastros", label: "Pré-Cadastros", icon: Users, route: "/curriculo/pre-cadastros" },
+      { id: "portarias", label: "Portarias", icon: FileText, route: "/rh/portarias" },
+      { id: "ordem-missao", label: "Ordem de Missão", icon: Plane, route: "/formularios/ordem-missao" },
+      { id: "relatorio-viagem", label: "Relatório de Viagem", icon: FileCheck, route: "/formularios/relatorio-viagem" },
+      { id: "workflow-rh", label: "Workflow RH", icon: Workflow, route: "/gabinete/workflow-rh" },
+    ],
+  },
+
   // Admin
   admin: {
     dashboard: { label: "Painel Admin", route: "/admin" },
