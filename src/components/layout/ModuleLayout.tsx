@@ -3,8 +3,9 @@
  * 
  * Layout modular para cada área do sistema
  * Substitui o AdminLayout compartilhado por um layout específico por módulo
+ * Suporta sidebar colapsável para maximizar área de trabalho
  * 
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { ReactNode } from "react";
@@ -12,6 +13,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ModuleSwitcher } from "./ModuleSwitcher";
 import { ModuleSidebar } from "./ModuleSidebar";
 import { ModuleHeader } from "./ModuleHeader";
+import { useSidebarCollapse } from "@/hooks/useSidebarCollapse";
 import type { Modulo } from "@/shared/config/modules.config";
 
 interface ModuleLayoutProps {
@@ -22,6 +24,8 @@ interface ModuleLayoutProps {
 }
 
 export function ModuleLayout({ children, module, title, description }: ModuleLayoutProps) {
+  const { isCollapsed, toggle } = useSidebarCollapse(false);
+
   return (
     <TooltipProvider>
       <div className="min-h-screen flex flex-col bg-background">
@@ -35,8 +39,12 @@ export function ModuleLayout({ children, module, title, description }: ModuleLay
             <ModuleSwitcher />
           </aside>
 
-          {/* Module Sidebar (navegação do módulo) */}
-          <ModuleSidebar module={module} />
+          {/* Module Sidebar (navegação do módulo) - Colapsável */}
+          <ModuleSidebar 
+            module={module} 
+            isCollapsed={isCollapsed}
+            onToggleCollapse={toggle}
+          />
 
           {/* Page Content */}
           <main className="flex-1 overflow-auto p-6">
