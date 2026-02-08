@@ -1,31 +1,19 @@
 /**
  * DASHBOARD - GESTORES ESCOLARES
- * Consome dados reais do banco de dados
+ * Usa ModuleLayout para navegação modular
  */
 
-import { School, Users, FileCheck, ClipboardList, Search, Download, BarChart3, Loader2 } from "lucide-react";
-import { ModuleDashboard, type ModuleStat, type ModuleQuickAction, type ModuleMenuItem } from "@/components/modules";
+import { School, Users, FileCheck, ClipboardList, Search, Download, BarChart3 } from "lucide-react";
+import { ModuleLayout } from "@/components/layout";
 import { useGestoresEscolaresDashboardStats } from "@/hooks/dashboard";
-
-const quickActions: ModuleQuickAction[] = [
-  { label: "Gestão de Cadastros", description: "Administrar gestores", href: "/cadastrogestores/admin", icon: ClipboardList, variant: "default" },
-  { label: "Importar Escolas", description: "Carregar lista", href: "/cadastrogestores/admin/escolas", icon: Download },
-  { label: "Consultar", description: "Buscar gestor", href: "/cadastrogestores/consulta", icon: Search },
-  { label: "Relatórios", description: "Estatísticas", href: "/cadastrogestores/relatorios", icon: BarChart3 },
-];
-
-const menuItems: ModuleMenuItem[] = [
-  { label: "Gestão de Cadastros", href: "/cadastrogestores/admin" },
-  { label: "Importar Escolas", href: "/cadastrogestores/admin/escolas" },
-  { label: "Consulta Pública", href: "/cadastrogestores/consulta" },
-  { label: "Relatórios", href: "/cadastrogestores/relatorios" },
-];
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 export default function GestoresEscolaresDashboardPage() {
   const { data: stats, isLoading } = useGestoresEscolaresDashboardStats();
 
-  // Stats dinâmicos baseados no BD
-  const dynamicStats: ModuleStat[] = [
+  const statCards = [
     { 
       label: "Gestores Cadastrados", 
       value: isLoading ? "..." : String(stats?.gestoresCadastrados || 0), 
@@ -36,7 +24,7 @@ export default function GestoresEscolaresDashboardPage() {
       label: "Escolas", 
       value: isLoading ? "..." : String(stats?.escolas || 0), 
       icon: School,
-      href: "/cadastrogestores/admin/escolas"
+      href: "/cadastrogestores/escolas"
     },
     { 
       label: "Pendentes", 
@@ -50,15 +38,82 @@ export default function GestoresEscolaresDashboardPage() {
     },
   ];
 
+  const quickActions = [
+    { label: "Gestão de Cadastros", description: "Administrar gestores", href: "/cadastrogestores/admin", icon: ClipboardList },
+    { label: "Importar Escolas", description: "Carregar lista", href: "/cadastrogestores/escolas", icon: Download },
+    { label: "Consultar", description: "Buscar gestor", href: "/cadastrogestores/consulta", icon: Search },
+    { label: "Relatórios", description: "Estatísticas", href: "/cadastrogestores/relatorios", icon: BarChart3 },
+  ];
+
   return (
-    <ModuleDashboard
-      title="Gestores Escolares"
-      description="Credenciamento para Jogos Escolares"
-      icon={School}
-      color="amber"
-      stats={dynamicStats}
-      quickActions={quickActions}
-      menuItems={menuItems}
-    />
+    <ModuleLayout module="gestores_escolares">
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+            <School className="h-8 w-8 text-amber-500" />
+            Gestores Escolares
+          </h1>
+          <p className="text-muted-foreground">Credenciamento para Jogos Escolares</p>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {statCards.map((stat) => {
+            const Icon = stat.icon;
+            const content = (
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    {stat.label}
+                  </CardTitle>
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stat.value}</div>
+                </CardContent>
+              </Card>
+            );
+
+            return stat.href ? (
+              <Link key={stat.label} to={stat.href}>
+                {content}
+              </Link>
+            ) : (
+              <div key={stat.label}>{content}</div>
+            );
+          })}
+        </div>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Ações Rápidas</CardTitle>
+            <CardDescription>Acesse as principais funcionalidades</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {quickActions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <Button
+                    key={action.label}
+                    variant="outline"
+                    className="h-auto py-4 flex flex-col items-center gap-2"
+                    asChild
+                  >
+                    <Link to={action.href}>
+                      <Icon className="h-6 w-6" />
+                      <span className="font-medium">{action.label}</span>
+                      <span className="text-xs text-muted-foreground">{action.description}</span>
+                    </Link>
+                  </Button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </ModuleLayout>
   );
 }
