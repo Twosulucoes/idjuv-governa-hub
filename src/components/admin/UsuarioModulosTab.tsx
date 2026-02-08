@@ -6,7 +6,7 @@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info, Loader2 } from 'lucide-react';
+import { Info, Loader2, Lock } from 'lucide-react';
 import { MODULES_CONFIG, type Modulo, getModuloCorClass } from '@/shared/config/modules.config';
 import type { UsuarioAdmin } from '@/types/rbac';
 
@@ -14,11 +14,25 @@ interface UsuarioModulosTabProps {
   usuario: UsuarioAdmin;
   saving: boolean;
   onToggleModulo: (modulo: Modulo, temAtualmente: boolean) => void;
+  isProtected?: boolean;
 }
 
-export function UsuarioModulosTab({ usuario, saving, onToggleModulo }: UsuarioModulosTabProps) {
+export function UsuarioModulosTab({ usuario, saving, onToggleModulo, isProtected = false }: UsuarioModulosTabProps) {
   // Admin (role 'admin') tem acesso a tudo automaticamente
   const ehSuperAdmin = usuario.role === 'admin';
+
+  // Se for protegido, mostrar apenas aviso
+  if (isProtected) {
+    return (
+      <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+        <Lock className="h-4 w-4 text-amber-600" />
+        <AlertDescription className="text-amber-800 dark:text-amber-200">
+          Este é o <strong>Super Administrador principal</strong> do sistema. 
+          Seus módulos estão protegidos e não podem ser alterados.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   if (ehSuperAdmin) {
     return (

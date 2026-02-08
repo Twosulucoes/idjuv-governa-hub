@@ -23,7 +23,8 @@ import { UsuarioPerfilTab } from '@/components/admin/UsuarioPerfilTab';
 import { UsuarioModulosTab } from '@/components/admin/UsuarioModulosTab';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { PERFIL_LABELS, PERFIL_CORES, type PerfilCodigo, type Modulo } from '@/types/rbac';
+import { PERFIL_LABELS, PERFIL_CORES, ROLE_LABELS, ROLE_COLORS, type PerfilCodigo, type Modulo, type AppRole } from '@/types/rbac';
+import { isProtectedAdmin } from '@/shared/config/protected-users.config';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
@@ -39,6 +40,7 @@ import {
   User,
   Mail,
   Calendar,
+  Lock,
 } from 'lucide-react';
 
 export default function UsuarioDetalhePage() {
@@ -159,6 +161,9 @@ export default function UsuarioDetalhePage() {
     );
   }
 
+  // Verificar se é o admin protegido
+  const isProtected = isProtectedAdmin(usuario.id);
+
   // Mapear role para PerfilCodigo para exibição
   const perfilCodigo: PerfilCodigo | undefined = usuario.role 
     ? (usuario.role === 'admin' ? 'super_admin' : usuario.role === 'manager' ? 'gestor' : 'servidor')
@@ -193,9 +198,14 @@ export default function UsuarioDetalhePage() {
                 </Avatar>
                 
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-xl font-semibold truncate">
-                    {usuario.full_name || 'Sem nome'}
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-semibold truncate">
+                      {usuario.full_name || 'Sem nome'}
+                    </h2>
+                    {isProtected && (
+                      <Lock className="h-4 w-4 text-amber-500" />
+                    )}
+                  </div>
                   <p className="text-muted-foreground truncate">
                     {usuario.email}
                   </p>
@@ -214,6 +224,12 @@ export default function UsuarioDetalhePage() {
                         Bloqueado
                       </Badge>
                     )}
+                    {isProtected && (
+                      <Badge variant="outline" className="text-amber-600 border-amber-300">
+                        <Lock className="h-3 w-3 mr-1" />
+                        Super Admin Protegido
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
@@ -230,14 +246,18 @@ export default function UsuarioDetalhePage() {
                 <div>
                   <div className="font-medium">Status do Usuário</div>
                   <div className="text-sm text-muted-foreground">
-                    {usuario.is_active ? 'Usuário pode acessar o sistema' : 'Acesso ao sistema bloqueado'}
+                    {isProtected 
+                      ? 'Super Admin protegido - não pode ser bloqueado'
+                      : usuario.is_active 
+                        ? 'Usuário pode acessar o sistema' 
+                        : 'Acesso ao sistema bloqueado'}
                   </div>
                 </div>
                 <Button
                   variant={usuario.is_active ? 'destructive' : 'default'}
                   size="sm"
                   onClick={handleToggleStatus}
-                  disabled={saving}
+                  disabled={saving || isProtected}
                 >
                   {usuario.is_active ? (
                     <>
@@ -383,6 +403,7 @@ export default function UsuarioDetalhePage() {
                   usuario={usuario}
                   saving={saving}
                   onDefinirPerfil={handleDefinirPerfil}
+                  isProtected={isProtected}
                 />
               </CardContent>
             </Card>
@@ -405,6 +426,7 @@ export default function UsuarioDetalhePage() {
                   usuario={usuario}
                   saving={saving}
                   onToggleModulo={handleToggleModulo}
+                  isProtected={isProtected}
                 />
               </CardContent>
             </Card>

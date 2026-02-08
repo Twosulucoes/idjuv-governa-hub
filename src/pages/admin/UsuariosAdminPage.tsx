@@ -15,17 +15,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAdminUsuarios } from '@/hooks/useAdminUsuarios';
 import { QuickModuloToggle } from '@/components/admin/QuickModuloToggle';
 import { CriarUsuarioDialog } from '@/components/admin/CriarUsuarioDialog';
-import { PERFIL_LABELS, PERFIL_CORES, type PerfilCodigo, type UsuarioAdmin, type Modulo } from '@/types/rbac';
+import { PERFIL_LABELS, PERFIL_CORES, ROLE_TO_PERFIL, ROLE_LABELS, ROLE_COLORS, type PerfilCodigo, type UsuarioAdmin, type Modulo, type AppRole } from '@/types/rbac';
+import { isProtectedAdmin } from '@/shared/config/protected-users.config';
 import { 
   Search, 
   Info,
   Loader2,
   RefreshCw,
   Shield,
+  ShieldCheck,
   UserCheck,
   User,
   ChevronRight,
   UserPlus,
+  Lock,
 } from 'lucide-react';
 
 export default function UsuariosAdminPage() {
@@ -58,11 +61,11 @@ export default function UsuariosAdminPage() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const getPerfilIcon = (codigo: PerfilCodigo | undefined) => {
-    switch (codigo) {
-      case 'super_admin': return <Shield className="h-4 w-4" />;
-      case 'gestor': return <UserCheck className="h-4 w-4" />;
-      case 'servidor': return <User className="h-4 w-4" />;
+  const getRoleIcon = (role: AppRole | undefined) => {
+    switch (role) {
+      case 'admin': return <Shield className="h-4 w-4" />;
+      case 'manager': return <UserCheck className="h-4 w-4" />;
+      case 'user': return <User className="h-4 w-4" />;
       default: return null;
     }
   };
@@ -166,9 +169,11 @@ export default function UsuariosAdminPage() {
         ) : (
           <div className="space-y-3">
             {usuariosFiltrados.map((usuario) => {
-              const perfilCodigo = usuario.perfil?.perfil?.codigo as PerfilCodigo | undefined;
               const isExpanded = expandedUser === usuario.id;
-              const isSuperAdmin = perfilCodigo === 'super_admin';
+              const isAdmin = usuario.role === 'admin';
+              const isProtected = isProtectedAdmin(usuario.id);
+              // Pode editar módulos se: não for o admin protegido
+              const canEditModules = !isProtected;
               
               return (
                 <Card 
@@ -192,6 +197,9 @@ export default function UsuariosAdminPage() {
                           <span className="font-medium truncate">
                             {usuario.full_name || 'Sem nome'}
                           </span>
+                          {isProtected && (
+                            <Lock className="h-3 w-3 text-amber-500" />
+                          )}
                           {!usuario.is_active && (
                             <Badge variant="destructive" className="text-xs">
                               Bloqueado
@@ -203,33 +211,40 @@ export default function UsuariosAdminPage() {
                         </div>
                       </div>
 
-                      {/* Perfil */}
+                      {/* Role (novo sistema) */}
                       <div className="hidden sm:flex items-center gap-2 shrink-0">
-                        {perfilCodigo ? (
-                          <Badge className={PERFIL_CORES[perfilCodigo]}>
-                            {getPerfilIcon(perfilCodigo)}
-                            <span className="ml-1">{PERFIL_LABELS[perfilCodigo]}</span>
+                        {usuario.role ? (
+                          <Badge className={ROLE_COLORS[usuario.role]}>
+                            {getRoleIcon(usuario.role)}
+                            <span className="ml-1">{ROLE_LABELS[usuario.role]}</span>
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="text-muted-foreground">
-                            Sem perfil
+                            Sem role
                           </Badge>
                         )}
                       </div>
 
                       {/* Toggle Módulos / Detalhes */}
                       <div className="flex items-center gap-2 shrink-0">
-                        {!isSuperAdmin && (
+                        {canEditModules && (
                           <Button
                             variant={isExpanded ? "secondary" : "outline"}
                             size="sm"
                             onClick={(e) => handleToggleExpand(e, usuario.id)}
                             className="text-xs"
                           >
-                            {usuario.modulos.length > 0 
-                              ? `${usuario.modulos.length} módulo(s)` 
-                              : 'Módulos'}
+                            {isAdmin 
+                              ? 'Admin'
+                              : usuario.modulos.length > 0 
+                                ? `${usuario.modulos.length} módulo(s)` 
+                                : 'Módulos'}
                           </Button>
+                        )}
+                        {isProtected && (
+                          <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
+                            Protegido
+                          </Badge>
                         )}
                         <Button
                           variant="ghost"
@@ -242,19 +257,28 @@ export default function UsuariosAdminPage() {
                     </div>
 
                     {/* Área expandida de módulos */}
-                    {isExpanded && !isSuperAdmin && (
+                    {isExpanded && canEditModules && (
                       <div className="mt-4 pt-4 border-t">
-                        <p className="text-xs text-muted-foreground mb-2">
-                          Clique para ativar/desativar módulos:
-                        </p>
-                        <QuickModuloToggle
-                          modulosAtivos={usuario.modulos}
-                          onToggle={(modulo, temAtualmente) => 
-                            handleToggleModulo(usuario.id, modulo, temAtualmente)
-                          }
-                          disabled={saving}
-                          isSuperAdmin={false}
-                        />
+                        {isAdmin ? (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <ShieldCheck className="h-4 w-4 text-primary" />
+                            <span>Administrador tem acesso a todos os módulos automaticamente.</span>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Clique para ativar/desativar módulos:
+                            </p>
+                            <QuickModuloToggle
+                              modulosAtivos={usuario.modulos}
+                              onToggle={(modulo, temAtualmente) => 
+                                handleToggleModulo(usuario.id, modulo, temAtualmente)
+                              }
+                              disabled={saving}
+                              isSuperAdmin={false}
+                            />
+                          </>
+                        )}
                       </div>
                     )}
                   </CardContent>
