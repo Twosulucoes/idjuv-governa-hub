@@ -9,7 +9,7 @@ import {
   Wrench, Plus, Search, Eye, Package, Calendar, 
   User, CheckCircle2, Clock, AlertTriangle
 } from "lucide-react";
-import { MainLayout } from "@/components/layout/MainLayout";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,7 +77,7 @@ export default function ManutencoesBensPage() {
     value ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value) : '-';
 
   return (
-    <MainLayout>
+    <AdminLayout>
       {/* Header */}
       <section className="bg-secondary text-secondary-foreground py-6">
         <div className="container mx-auto px-4">
@@ -228,6 +228,6 @@ export default function ManutencoesBensPage() {
         open={dialogNovaManutencaoOpen}
         onOpenChange={setDialogNovaManutencaoOpen}
       />
-    </MainLayout>
+    </AdminLayout>
   );
 }

@@ -8,7 +8,7 @@ import {
   Package, Boxes, TrendingUp, AlertTriangle, ClipboardCheck,
   Wrench, FileX, ArrowRight, BarChart3, QrCode
 } from "lucide-react";
-import { MainLayout } from "@/components/layout/MainLayout";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +27,7 @@ export default function DashboardInventarioPage() {
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
   return (
-    <MainLayout>
+    <AdminLayout>
       {/* Header */}
       <section className="bg-secondary text-secondary-foreground py-8">
         <div className="container mx-auto px-4">
@@ -362,6 +362,6 @@ export default function DashboardInventarioPage() {
           </div>
         </section>
       )}
-    </MainLayout>
+    </AdminLayout>
   );
 }

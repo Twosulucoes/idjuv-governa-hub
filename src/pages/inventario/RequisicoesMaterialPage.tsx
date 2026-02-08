@@ -9,7 +9,7 @@ import {
   ClipboardList, Plus, Search, Eye, Check, X,
   User, Building2, Calendar, Package
 } from "lucide-react";
-import { MainLayout } from "@/components/layout/MainLayout";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,7 +69,7 @@ export default function RequisicoesMaterialPage() {
   };
 
   return (
-    <MainLayout>
+    <AdminLayout>
       {/* Header */}
       <section className="bg-secondary text-secondary-foreground py-6">
         <div className="container mx-auto px-4">
@@ -221,6 +221,6 @@ export default function RequisicoesMaterialPage() {
         open={dialogNovaRequisicaoOpen} 
         onOpenChange={setDialogNovaRequisicaoOpen} 
       />
-    </MainLayout>
+    </AdminLayout>
   );
 }
