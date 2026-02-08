@@ -12,8 +12,6 @@ import {
   Users, 
   Clock, 
   CheckCircle, 
-  AlertTriangle,
-  ChevronDown,
   Eye,
   UserPlus,
   Phone,
@@ -22,7 +20,7 @@ import {
   School,
   RefreshCw
 } from 'lucide-react';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -143,10 +141,18 @@ export default function AdminGestoresPage() {
   };
 
   return (
-    <AdminLayout 
-      title="Credenciamento de Gestores" 
-      description="Jogos Escolares de Roraima - Controle de Pré-cadastros"
-    >
+    <ModuleLayout module="gestores_escolares">
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <Users className="h-6 w-6 text-amber-500" />
+            Credenciamento de Gestores
+          </h1>
+          <p className="text-muted-foreground">
+            Jogos Escolares de Roraima - Controle de Pré-cadastros
+          </p>
+        </div>
       {/* Cards de Métricas */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <Card>
@@ -251,7 +257,7 @@ export default function AdminGestoresPage() {
         </Select>
 
         <div className="flex gap-2">
-          <Link to="/cadastrogestores/admin/escolas">
+          <Link to="/cadastrogestores/escolas">
             <Button variant="outline">
               <School className="h-4 w-4 mr-2" />
               Escolas
@@ -374,14 +380,15 @@ export default function AdminGestoresPage() {
         </CardContent>
       </Card>
 
-      {/* Dialog de Detalhes */}
-      {gestorSelecionado && (
-        <GestorDetalhesDialog
-          gestorId={gestorSelecionado}
-          open={!!gestorSelecionado}
-          onOpenChange={(open) => !open && setGestorSelecionado(null)}
-        />
-      )}
-    </AdminLayout>
+        {/* Dialog de Detalhes */}
+        {gestorSelecionado && (
+          <GestorDetalhesDialog
+            gestorId={gestorSelecionado}
+            open={!!gestorSelecionado}
+            onOpenChange={(open) => !open && setGestorSelecionado(null)}
+          />
+        )}
+      </div>
+    </ModuleLayout>
   );
 }
