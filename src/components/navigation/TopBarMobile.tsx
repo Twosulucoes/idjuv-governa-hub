@@ -11,7 +11,7 @@ import { useLocation } from "react-router-dom";
 import { Menu, Bell, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
+import { UserMenu } from "@/components/auth/UserMenu";
 interface TopBarMobileProps {
   onOpenMenu: () => void;
   alertas?: number;
@@ -93,6 +93,9 @@ export function TopBarMobile({
           </span>
         )}
       </Button>
+
+      {/* Menu Usuário */}
+      <UserMenu showRoleBadge={false} />
     </header>
   );
 }
