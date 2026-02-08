@@ -78,7 +78,7 @@ import { ModuleLayout } from '@/components/layout';
    };
  
   return (
-    <ModuleLayout module="federacoes">
+    <ModuleLayout module="organizacoes">
       <div className="space-y-6">
        {/* Header */}
        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

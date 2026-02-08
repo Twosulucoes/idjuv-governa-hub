@@ -40,7 +40,7 @@ export const MODULOS = [
   'comunicacao',
   'programas',
   'gestores_escolares',
-  'federacoes', // Módulo exclusivo para Federações Esportivas
+  'organizacoes', // Módulo para Federações, Instituições, Associações e Entes
 ] as const;
 
 export type Modulo = typeof MODULOS[number];
@@ -178,12 +178,12 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     menuSectionIds: ['gestores-escolares'],
   },
   {
-    codigo: 'federacoes',
-    nome: 'Federações',
-    descricao: 'Federações esportivas e instituições parceiras',
+    codigo: 'organizacoes',
+    nome: 'Organizações',
+    descricao: 'Federações, instituições, associações e entes parceiros',
     icone: Building2,
     cor: 'orange',
-    rotas: ['/admin/federacoes', '/admin/instituicoes', '/federacoes'],
+    rotas: ['/admin/federacoes', '/admin/instituicoes', '/organizacoes'],
     menuSectionIds: ['espacos-federacoes'],
   },
 ];

@@ -201,7 +201,7 @@
  
     if (isLoading) {
       return (
-        <ModuleLayout module="federacoes">
+        <ModuleLayout module="organizacoes">
           <div className="space-y-6">
             <div className="flex items-center gap-4">
               <Skeleton className="h-10 w-24" />
@@ -215,7 +215,7 @@
  
     if (isError || !federacao) {
       return (
-        <ModuleLayout module="federacoes">
+        <ModuleLayout module="organizacoes">
           <div className="flex flex-col items-center justify-center py-16">
             <h2 className="text-xl font-semibold text-foreground mb-2">Federação não encontrada</h2>
             <p className="text-muted-foreground mb-4">O registro solicitado não existe ou foi removido.</p>
@@ -233,7 +233,7 @@
  
    return (
       <FederacoesErrorBoundary>
-        <ModuleLayout module="federacoes">
+        <ModuleLayout module="organizacoes">
           <div className="space-y-6">
            {/* Header */}
            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

@@ -237,9 +237,9 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     ],
   },
 
-  // Federações
-  federacoes: {
-    dashboard: { label: "Federações", route: "/admin/federacoes" },
+  // Organizações (Federações, Instituições, Associações)
+  organizacoes: {
+    dashboard: { label: "Organizações", route: "/admin/federacoes" },
     items: [
       { id: "federacoes", label: "Federações", icon: Trophy, route: "/admin/federacoes" },
       { id: "instituicoes", label: "Instituições", icon: Building2, route: "/admin/instituicoes" },

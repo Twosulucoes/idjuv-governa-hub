@@ -42,7 +42,7 @@ const MODULE_HOME_ROUTES: Record<Modulo, string> = {
   comunicacao: '/comunicacao',
   programas: '/programas/bolsa-atleta',
   gestores_escolares: '/gestores-escolares',
-  federacoes: '/admin/federacoes',
+  organizacoes: '/admin/federacoes',
 };
 
 /**
@@ -62,7 +62,7 @@ export const MODULE_PRIORITY: Modulo[] = [
   'comunicacao',
   'integridade',
   'gestores_escolares',
-  'federacoes',
+  'organizacoes',
 ];
 
 export function useModuleRouter(): ModuleRouterResult {

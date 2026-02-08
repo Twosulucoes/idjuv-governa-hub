@@ -18985,6 +18985,7 @@ export type Database = {
         | "integridade"
         | "admin"
         | "federacoes"
+        | "organizacoes"
       app_permission:
         | "users.read"
         | "users.create"
@@ -19767,6 +19768,7 @@ export const Constants = {
         "integridade",
         "admin",
         "federacoes",
+        "organizacoes",
       ],
       app_permission: [
         "users.read",
