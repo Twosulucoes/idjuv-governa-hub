@@ -7,19 +7,22 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Info, Shield, UserCheck, User, Loader2 } from 'lucide-react';
+import { Info, Shield, UserCheck, User, Loader2, Lock } from 'lucide-react';
 import { 
   PERFIL_LABELS, 
   PERFIL_DESCRICOES, 
   PERFIL_CORES,
+  ROLE_LABELS,
   type PerfilCodigo, 
-  type UsuarioAdmin 
+  type UsuarioAdmin,
+  type AppRole
 } from '@/types/rbac';
 
 interface UsuarioPerfilTabProps {
   usuario: UsuarioAdmin;
   saving: boolean;
   onDefinirPerfil: (perfilCodigo: PerfilCodigo) => void;
+  isProtected?: boolean;
 }
 
 // Ícones para cada perfil
@@ -29,7 +32,7 @@ const PERFIL_ICONS: Record<PerfilCodigo, React.ReactNode> = {
   servidor: <User className="h-5 w-5 text-green-500" />,
 };
 
-export function UsuarioPerfilTab({ usuario, saving, onDefinirPerfil }: UsuarioPerfilTabProps) {
+export function UsuarioPerfilTab({ usuario, saving, onDefinirPerfil, isProtected = false }: UsuarioPerfilTabProps) {
   // Mapear role do novo sistema para PerfilCodigo legado
   const perfilAtual = usuario.role 
     ? (usuario.role === 'admin' ? 'super_admin' : usuario.role === 'manager' ? 'gestor' : 'servidor')
@@ -38,6 +41,30 @@ export function UsuarioPerfilTab({ usuario, saving, onDefinirPerfil }: UsuarioPe
 
   // Opções de perfil disponíveis (exceto super_admin que é especial)
   const perfisDisponiveis: PerfilCodigo[] = ['gestor', 'servidor'];
+
+  // Se for protegido, mostrar apenas aviso
+  if (isProtected) {
+    return (
+      <div className="space-y-6">
+        <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+          <Lock className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800 dark:text-amber-200">
+            Este é o <strong>Super Administrador principal</strong> do sistema. 
+            Seu perfil está protegido e não pode ser alterado.
+          </AlertDescription>
+        </Alert>
+
+        {perfilAtual && (
+          <div className="pt-4 border-t">
+            <div className="text-sm text-muted-foreground mb-2">Perfil atual:</div>
+            <Badge className={PERFIL_CORES[perfilAtual]}>
+              {PERFIL_LABELS[perfilAtual]}
+            </Badge>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
