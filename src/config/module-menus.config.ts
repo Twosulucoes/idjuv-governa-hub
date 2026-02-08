@@ -220,6 +220,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "gestores", label: "Gestores", icon: School, route: "/cadastrogestores/admin" },
       { id: "escolas", label: "Escolas", icon: Building2, route: "/cadastrogestores/escolas" },
       { id: "relatorios", label: "Relatórios", icon: BarChart3, route: "/cadastrogestores/relatorios" },
+      { id: "auditoria", label: "Auditoria", icon: Shield, route: "/cadastrogestores/auditoria" },
     ],
   },
 
