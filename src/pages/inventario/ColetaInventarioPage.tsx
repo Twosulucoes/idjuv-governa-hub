@@ -240,7 +240,7 @@ export default function ColetaInventarioPage() {
             <AlertDescription className="flex items-center justify-between flex-wrap gap-2">
               <span>Use o app mobile para escanear QR Codes e trabalhar offline.</span>
               <Button asChild size="sm" variant="outline">
-                <Link to={`/coleta-mobile?campanha=${id}`}>
+                <Link to={`/patrimonio-mobile?campanha=${id}`}>
                   <Smartphone className="w-4 h-4 mr-2" />
                   Abrir App Mobile
                 </Link>

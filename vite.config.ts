@@ -17,15 +17,15 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'IDJUV Patrimônio',
+        name: 'IDJUV Patrimônio Mobile',
         short_name: 'Patrimônio',
-        description: 'Gestão de Patrimônio e Inventário - IDJUV',
+        description: 'App Mobile Unificado - Cadastro, Coleta, Movimentação e Baixa',
         theme_color: '#1e40af',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
-        start_url: '/cadastro-mobile',
+        start_url: '/patrimonio-mobile',
         icons: [
           {
             src: 'pwa-192x192.png',
