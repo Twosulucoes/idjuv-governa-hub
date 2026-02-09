@@ -1,18 +1,11 @@
-import jsPDF from "jspdf";
+import { PDFDocument, PDFForm, PDFTextField, PDFCheckBox } from "pdf-lib";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Servidor, Dependente } from "@/types/rh";
 import { SEGAD_ESTADO_CIVIL, SEGAD_TIPO_PCD, SEGAD_RACA_COR } from "@/types/rh";
-import { carregarConfiguracao, CampoSegad } from "@/config/segadFieldsConfig";
 
-// Importar imagens das páginas do formulário original
-import fichaPage1 from "@/assets/ficha-cadastro-page1.jpg";
-import fichaPage2 from "@/assets/ficha-cadastro-page2.jpg";
-import fichaPage3 from "@/assets/ficha-cadastro-page3.jpg";
-import fichaPage4 from "@/assets/ficha-cadastro-page4.jpg";
-import fichaPage5 from "@/assets/ficha-cadastro-page5.jpg";
-import fichaPage6 from "@/assets/ficha-cadastro-page6.jpg";
-import fichaPage7 from "@/assets/ficha-cadastro-page7.jpg";
+// Importar o PDF editável original
+import fichaCadastroPdfUrl from "@/assets/FICHA-CADASTRO-GERAL - NOVO (2).pdf";
 
 interface DadosCompletos {
   servidor: Servidor;
@@ -24,18 +17,6 @@ interface DadosCompletos {
 // =============================================
 // FUNÇÕES AUXILIARES
 // =============================================
-
-function truncarTexto(doc: jsPDF, texto: string, maxWidth: number): string {
-  if (!texto) return "";
-  const textWidth = doc.getTextWidth(texto);
-  if (textWidth <= maxWidth) return texto;
-  
-  let truncated = texto;
-  while (doc.getTextWidth(truncated + "...") > maxWidth && truncated.length > 0) {
-    truncated = truncated.slice(0, -1);
-  }
-  return truncated + "...";
-}
 
 function formatCPF(cpf: string): string {
   if (!cpf) return "";
@@ -72,7 +53,6 @@ function formatPhone(phone: string | undefined): string {
   return phone;
 }
 
-// Funções de conversão para códigos SEGAD
 function getSegadEstadoCivil(valor: string | undefined): string {
   if (!valor) return "";
   const key = valor.toLowerCase().trim();
@@ -92,371 +72,310 @@ function getSegadRacaCor(valor: string | undefined): string {
   return SEGAD_RACA_COR[key] || valor.toUpperCase();
 }
 
-// Buscar campo por ID na configuração
-function getCampo(campos: CampoSegad[], id: string): CampoSegad | undefined {
-  return campos.find(c => c.id === id);
-}
-
-// Limpar área antes de escrever (cobre instruções do template)
-function limparArea(doc: jsPDF, x: number, y: number, width: number, height: number): void {
-  doc.setFillColor(255, 255, 255);
-  doc.rect(x, y - height + 1, width, height, 'F');
-}
-
-// Renderizar texto em posição específica
-function renderTexto(
-  doc: jsPDF,
-  campos: CampoSegad[],
-  id: string,
-  valor: string | undefined
-): void {
-  const campo = getCampo(campos, id);
-  if (!campo || !valor) return;
-  
-  const texto = campo.maxWidth 
-    ? truncarTexto(doc, valor.toUpperCase(), campo.maxWidth)
-    : valor.toUpperCase();
-  
-  // Limpar área antes de escrever (para cobrir instruções do template)
-  if (campo.maxWidth) {
-    limparArea(doc, campo.x - 1, campo.y, campo.maxWidth + 2, 4);
+// =============================================
+// HELPER: Preencher campo de texto com segurança
+// =============================================
+function fillTextField(form: PDFForm, fieldName: string, value: string | undefined): void {
+  if (!value) return;
+  try {
+    const field = form.getTextField(fieldName);
+    field.setText(value.toUpperCase());
+  } catch {
+    // Campo não encontrado - ignorar silenciosamente
+    console.warn(`Campo de texto não encontrado no PDF: ${fieldName}`);
   }
+}
+
+function fillCheckBox(form: PDFForm, fieldName: string, checked: boolean): void {
+  try {
+    const field = form.getCheckBox(fieldName);
+    if (checked) {
+      field.check();
+    } else {
+      field.uncheck();
+    }
+  } catch {
+    console.warn(`Checkbox não encontrado no PDF: ${fieldName}`);
+  }
+}
+
+// =============================================
+// FUNÇÃO: Listar todos os campos do PDF (para debug/mapeamento)
+// =============================================
+export async function listarCamposPdf(): Promise<{ name: string; type: string }[]> {
+  const pdfBytes = await fetch(fichaCadastroPdfUrl).then(res => res.arrayBuffer());
+  const pdfDoc = await PDFDocument.load(pdfBytes);
+  const form = pdfDoc.getForm();
+  const fields = form.getFields();
   
-  doc.setTextColor(0, 0, 0);
-  doc.text(texto, campo.x, campo.y);
-}
-
-// Renderizar checkbox com X (apenas o X, sem limpar área para não cobrir o quadrado do checkbox)
-function renderCheckbox(doc: jsPDF, campos: CampoSegad[], id: string, marcado: boolean): void {
-  const campo = getCampo(campos, id);
-  if (!campo || !marcado) return;
-  doc.setTextColor(0, 0, 0);
-  doc.text("X", campo.x, campo.y);
+  return fields.map(field => ({
+    name: field.getName(),
+    type: field.constructor.name,
+  }));
 }
 
 // =============================================
-// GERADOR PRINCIPAL
+// GERADOR PRINCIPAL - Preenche o PDF editável original
 // =============================================
 
-export function gerarFichaCadastroGeral(dados: DadosCompletos): jsPDF {
-  const doc = new jsPDF("p", "mm", "a4");
+export async function gerarFichaCadastroGeral(dados: DadosCompletos): Promise<Uint8Array> {
   const { servidor, cargo, unidade, dependentes } = dados;
-  const campos = carregarConfiguracao();
 
-  // Dimensões da página A4
-  const pageWidth = 210;
-  const pageHeight = 297;
+  // Carregar o PDF editável original
+  const pdfBytes = await fetch(fichaCadastroPdfUrl).then(res => res.arrayBuffer());
+  const pdfDoc = await PDFDocument.load(pdfBytes);
+  const form = pdfDoc.getForm();
 
-  // Configuração de fonte para preenchimento
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(0, 0, 0);
+  // Listar campos disponíveis para log/debug
+  const fields = form.getFields();
+  console.log("Campos encontrados no PDF:", fields.map(f => `${f.getName()} (${f.constructor.name})`));
 
-  // Data atual formatada
   const dataAtual = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
   const dataLocalTexto = `Boa Vista-RR, ${dataAtual}`;
 
   // =============================================
-  // PÁGINA 1 - DADOS DE IDENTIFICAÇÃO, DOCUMENTAÇÃO, ESCOLARIDADE, DADOS FUNCIONAIS
+  // PÁGINA 1 - DADOS DE IDENTIFICAÇÃO
   // =============================================
-  doc.addImage(fichaPage1, "JPEG", 0, 0, pageWidth, pageHeight);
-
-  // === DADOS DE IDENTIFICAÇÃO ===
-  renderTexto(doc, campos, 'nome_completo', servidor.nome_completo);
-  renderCheckbox(doc, campos, 'sexo_m', servidor.sexo === "M");
-  renderCheckbox(doc, campos, 'sexo_f', servidor.sexo === "F");
-  renderTexto(doc, campos, 'estado_civil', getSegadEstadoCivil(servidor.estado_civil));
-  renderTexto(doc, campos, 'raca_cor', getSegadRacaCor(servidor.raca_cor));
-  renderCheckbox(doc, campos, 'pcd_sim', servidor.pcd === true);
-  renderCheckbox(doc, campos, 'pcd_nao', servidor.pcd !== true);
-  renderTexto(doc, campos, 'nacionalidade', servidor.nacionalidade || "BRASILEIRA");
-  renderTexto(doc, campos, 'pcd_tipo', getSegadTipoPcd(servidor.pcd_tipo, servidor.pcd === true));
   
+  // Dados de Identificação
+  fillTextField(form, "NOME", servidor.nome_completo);
+  fillTextField(form, "Nome", servidor.nome_completo);
+  fillTextField(form, "nome", servidor.nome_completo);
+  
+  // Sexo
+  fillCheckBox(form, "SEXO_M", servidor.sexo === "M");
+  fillCheckBox(form, "SEXO_F", servidor.sexo === "F");
+  fillCheckBox(form, "Sexo_M", servidor.sexo === "M");
+  fillCheckBox(form, "Sexo_F", servidor.sexo === "F");
+  
+  // Estado Civil
+  fillTextField(form, "ESTADO_CIVIL", getSegadEstadoCivil(servidor.estado_civil));
+  fillTextField(form, "ESTADO CIVIL", getSegadEstadoCivil(servidor.estado_civil));
+  fillTextField(form, "Estado Civil", getSegadEstadoCivil(servidor.estado_civil));
+  
+  // Raça/Cor
+  fillTextField(form, "RACA_COR", getSegadRacaCor(servidor.raca_cor));
+  fillTextField(form, "RAÇA/COR", getSegadRacaCor(servidor.raca_cor));
+  fillTextField(form, "Raça/Cor", getSegadRacaCor(servidor.raca_cor));
+  
+  // PCD
+  fillCheckBox(form, "PCD_SIM", servidor.pcd === true);
+  fillCheckBox(form, "PCD_NAO", servidor.pcd !== true);
+  fillCheckBox(form, "PCD SIM", servidor.pcd === true);
+  fillCheckBox(form, "PCD NÃO", servidor.pcd !== true);
+  
+  // Nacionalidade
+  fillTextField(form, "NACIONALIDADE", servidor.nacionalidade || "BRASILEIRA");
+  fillTextField(form, "Nacionalidade", servidor.nacionalidade || "BRASILEIRA");
+  
+  // Tipo PCD
+  fillTextField(form, "TIPO_PCD", getSegadTipoPcd(servidor.pcd_tipo, servidor.pcd === true));
+  fillTextField(form, "TIPO DE P.C.D", getSegadTipoPcd(servidor.pcd_tipo, servidor.pcd === true));
+  
+  // Naturalidade
   const naturalidade = servidor.naturalidade_cidade 
     ? `${servidor.naturalidade_cidade} - ${servidor.naturalidade_uf || ""}`
     : "";
-  renderTexto(doc, campos, 'naturalidade', naturalidade);
+  fillTextField(form, "NATURALIDADE", naturalidade);
+  fillTextField(form, "Naturalidade", naturalidade);
   
-  renderCheckbox(doc, campos, 'molestia_nao', true); // Por padrão, não possui moléstia
+  // Moléstia grave
+  fillCheckBox(form, "MOLESTIA_NAO", true);
+  fillCheckBox(form, "MOLÉSTIA NÃO", true);
   
-  const campoDataNasc = getCampo(campos, 'data_nascimento');
-  if (campoDataNasc) {
-    doc.text(formatDate(servidor.data_nascimento), campoDataNasc.x, campoDataNasc.y);
-  }
+  // Data nascimento
+  fillTextField(form, "DATA_NASCIMENTO", formatDate(servidor.data_nascimento));
+  fillTextField(form, "DATA DE NASCIMENTO", formatDate(servidor.data_nascimento));
+  fillTextField(form, "Data de Nascimento", formatDate(servidor.data_nascimento));
   
-  renderTexto(doc, campos, 'tipo_sanguineo', servidor.tipo_sanguineo);
-  renderTexto(doc, campos, 'nome_mae', servidor.nome_mae);
-  renderTexto(doc, campos, 'nome_pai', servidor.nome_pai);
+  // Tipo sanguíneo
+  fillTextField(form, "TIPO_SANGUINEO", servidor.tipo_sanguineo);
+  fillTextField(form, "TIPO SANGUÍNEO/RH", servidor.tipo_sanguineo);
+  
+  // Filiação
+  fillTextField(form, "NOME_MAE", servidor.nome_mae);
+  fillTextField(form, "NOME DA MÃE", servidor.nome_mae);
+  fillTextField(form, "NOME_PAI", servidor.nome_pai);
+  fillTextField(form, "NOME DO PAI", servidor.nome_pai);
 
-  // === DOCUMENTAÇÃO ===
-  const campoCpf = getCampo(campos, 'cpf');
-  if (campoCpf) {
-    doc.text(formatCPF(servidor.cpf), campoCpf.x, campoCpf.y);
-  }
-  
-  renderTexto(doc, campos, 'pis_pasep', servidor.pis_pasep);
-  renderTexto(doc, campos, 'rg', servidor.rg);
+  // =============================================
+  // DOCUMENTAÇÃO
+  // =============================================
+  fillTextField(form, "CPF", formatCPF(servidor.cpf));
+  fillTextField(form, "cpf", formatCPF(servidor.cpf));
+  fillTextField(form, "PIS_PASEP", servidor.pis_pasep);
+  fillTextField(form, "PIS/PASEP", servidor.pis_pasep);
+  fillTextField(form, "RG", servidor.rg);
+  fillTextField(form, "DOC. DE IDENTIDADE N.", servidor.rg);
   
   const rgOrgaoUf = `${servidor.rg_orgao_expedidor || ""} / ${servidor.rg_uf || ""}`;
-  renderTexto(doc, campos, 'rg_orgao_uf', rgOrgaoUf);
+  fillTextField(form, "RG_ORGAO", rgOrgaoUf);
+  fillTextField(form, "ORGÃO EXPEDIDOR", rgOrgaoUf);
   
-  const campoRgData = getCampo(campos, 'rg_data_emissao');
-  if (campoRgData) {
-    doc.text(formatDate(servidor.rg_data_emissao), campoRgData.x, campoRgData.y);
-  }
+  fillTextField(form, "RG_DATA", formatDate(servidor.rg_data_emissao));
+  fillTextField(form, "DATA DE EXPEDIÇÃO", formatDate(servidor.rg_data_emissao));
   
-  renderTexto(doc, campos, 'reservista', servidor.certificado_reservista);
-  renderTexto(doc, campos, 'reservista_orgao', servidor.reservista_orgao);
+  // Reservista
+  fillTextField(form, "RESERVISTA", servidor.certificado_reservista);
+  fillTextField(form, "CART. DE RESERVISTA N.", servidor.certificado_reservista);
+  fillTextField(form, "RESERVISTA_ORGAO", servidor.reservista_orgao);
+  fillTextField(form, "RESERVISTA_DATA", formatDate(servidor.reservista_data_emissao));
+  fillTextField(form, "RESERVISTA_CATEGORIA", servidor.reservista_categoria);
+  fillTextField(form, "RESERVISTA_ANO", servidor.reservista_ano?.toString());
   
-  const campoReservistaData = getCampo(campos, 'reservista_data');
-  if (campoReservistaData) {
-    doc.text(formatDate(servidor.reservista_data_emissao), campoReservistaData.x, campoReservistaData.y);
-  }
+  // Título eleitor
+  fillTextField(form, "TITULO_ELEITOR", servidor.titulo_eleitor);
+  fillTextField(form, "TÍTULO DE ELEITOR N.", servidor.titulo_eleitor);
+  fillTextField(form, "TITULO_SECAO", servidor.titulo_secao);
+  fillTextField(form, "SEÇÃO", servidor.titulo_secao);
+  fillTextField(form, "TITULO_ZONA", servidor.titulo_zona);
+  fillTextField(form, "ZONA", servidor.titulo_zona);
+  fillTextField(form, "TITULO_DATA", formatDate(servidor.titulo_data_emissao));
+  fillTextField(form, "TITULO_CIDADE", servidor.titulo_cidade_votacao);
+  fillTextField(form, "CIDADE DE VOTAÇÃO", servidor.titulo_cidade_votacao);
+  fillTextField(form, "TITULO_UF", servidor.titulo_uf_votacao);
   
-  renderTexto(doc, campos, 'reservista_categoria', servidor.reservista_categoria);
-  renderTexto(doc, campos, 'reservista_ano', servidor.reservista_ano?.toString());
-  renderTexto(doc, campos, 'titulo_eleitor', servidor.titulo_eleitor);
-  renderTexto(doc, campos, 'titulo_secao', servidor.titulo_secao);
-  renderTexto(doc, campos, 'titulo_zona', servidor.titulo_zona);
-  
-  const campoTituloData = getCampo(campos, 'titulo_data');
-  if (campoTituloData) {
-    doc.text(formatDate(servidor.titulo_data_emissao), campoTituloData.x, campoTituloData.y);
-  }
-  
-  renderTexto(doc, campos, 'titulo_cidade', servidor.titulo_cidade_votacao);
-  renderTexto(doc, campos, 'titulo_uf', servidor.titulo_uf_votacao);
-  renderTexto(doc, campos, 'ctps_numero', servidor.ctps_numero);
-  renderTexto(doc, campos, 'ctps_serie', servidor.ctps_serie);
-  renderTexto(doc, campos, 'ctps_uf', servidor.ctps_uf);
-  
-  const campoCtpsData = getCampo(campos, 'ctps_data');
-  if (campoCtpsData) {
-    doc.text(formatDate(servidor.ctps_data_emissao), campoCtpsData.x, campoCtpsData.y);
-  }
-
-  // === ESCOLARIDADE ===
-  renderTexto(doc, campos, 'escolaridade', servidor.escolaridade);
-  renderTexto(doc, campos, 'formacao', servidor.formacao_academica);
-  renderTexto(doc, campos, 'instituicao', servidor.instituicao_ensino);
-
-  // === DADOS FUNCIONAIS ===
-  renderCheckbox(doc, campos, 'ocupa_vaga_pcd_sim', servidor.pcd === true);
-  renderCheckbox(doc, campos, 'ocupa_vaga_pcd_nao', servidor.pcd !== true);
-  renderTexto(doc, campos, 'lotacao', unidade?.nome);
-  renderTexto(doc, campos, 'cargo', cargo?.nome);
-  renderTexto(doc, campos, 'codigo_cargo', cargo?.sigla);
-  renderCheckbox(doc, campos, 'quadro_efetivo_nao', true); // Por padrão
-  renderTexto(doc, campos, 'matricula', servidor.matricula);
-  renderCheckbox(doc, campos, 'servidor_federal_nao', true); // Por padrão
-
-  // === CNH ===
-  renderTexto(doc, campos, 'cnh_numero', servidor.cnh_numero);
-  
-  const campoCnhValidade = getCampo(campos, 'cnh_validade');
-  if (campoCnhValidade) {
-    doc.text(formatDate(servidor.cnh_validade), campoCnhValidade.x, campoCnhValidade.y);
-  }
-  
-  const campoCnhExpedicao = getCampo(campos, 'cnh_expedicao');
-  if (campoCnhExpedicao) {
-    doc.text(formatDate(servidor.cnh_data_expedicao), campoCnhExpedicao.x, campoCnhExpedicao.y);
-  }
-  
-  renderTexto(doc, campos, 'cnh_uf', servidor.cnh_uf);
-  
-  const campoCnhPrimeiraHab = getCampo(campos, 'cnh_primeira_hab');
-  if (campoCnhPrimeiraHab) {
-    doc.text(formatDate(servidor.cnh_primeira_habilitacao), campoCnhPrimeiraHab.x, campoCnhPrimeiraHab.y);
-  }
-  
-  renderTexto(doc, campos, 'cnh_categoria', servidor.cnh_categoria);
+  // CTPS
+  fillTextField(form, "CTPS_NUMERO", servidor.ctps_numero);
+  fillTextField(form, "CARTEIRA DE TRABALHO", servidor.ctps_numero);
+  fillTextField(form, "CTPS_SERIE", servidor.ctps_serie);
+  fillTextField(form, "SÉRIE DA CTPS", servidor.ctps_serie);
+  fillTextField(form, "CTPS_UF", servidor.ctps_uf);
+  fillTextField(form, "CTPS_DATA", formatDate(servidor.ctps_data_emissao));
 
   // =============================================
-  // PÁGINA 2 - ESTRANGEIROS, ENDEREÇO, DADOS BANCÁRIOS
+  // ESCOLARIDADE
   // =============================================
-  doc.addPage();
-  doc.addImage(fichaPage2, "JPEG", 0, 0, pageWidth, pageHeight);
-
-  // === ENDEREÇO E CONTATOS ===
-  const campoCep = getCampo(campos, 'cep');
-  if (campoCep) {
-    doc.text(formatCEP(servidor.endereco_cep || ""), campoCep.x, campoCep.y);
-  }
-  
-  renderTexto(doc, campos, 'logradouro', servidor.endereco_logradouro);
-  renderTexto(doc, campos, 'numero', servidor.endereco_numero);
-  renderTexto(doc, campos, 'bairro', servidor.endereco_bairro);
-  renderTexto(doc, campos, 'municipio', servidor.endereco_cidade);
-  renderTexto(doc, campos, 'complemento', servidor.endereco_complemento);
-  renderTexto(doc, campos, 'estado_uf', servidor.endereco_uf);
-  
-  const campoCelular = getCampo(campos, 'celular');
-  if (campoCelular) {
-    doc.text(formatPhone(servidor.telefone_celular), campoCelular.x, campoCelular.y);
-  }
-  
-  // Email em lowercase
-  const campoEmail = getCampo(campos, 'email');
-  if (campoEmail && servidor.email_pessoal) {
-    const emailTrunc = truncarTexto(doc, servidor.email_pessoal.toLowerCase(), campoEmail.maxWidth || 85);
-    doc.text(emailTrunc, campoEmail.x, campoEmail.y);
-  }
-
-  // === DADOS BANCÁRIOS ===
-  renderTexto(doc, campos, 'banco_codigo', servidor.banco_codigo);
-  renderTexto(doc, campos, 'banco_nome', servidor.banco_nome);
-  renderTexto(doc, campos, 'banco_agencia', servidor.banco_agencia);
-  renderTexto(doc, campos, 'banco_conta', servidor.banco_conta);
-
-  // DATA E LOCAL
-  const campoDataP2 = getCampo(campos, 'data_local_p2');
-  if (campoDataP2) {
-    doc.text(dataLocalTexto, campoDataP2.x, campoDataP2.y);
-  }
+  fillTextField(form, "ESCOLARIDADE", servidor.escolaridade);
+  fillTextField(form, "GRAU DE INSTRUÇÃO", servidor.escolaridade);
+  fillTextField(form, "FORMACAO", servidor.formacao_academica);
+  fillTextField(form, "CURSO", servidor.formacao_academica);
+  fillTextField(form, "INSTITUICAO", servidor.instituicao_ensino);
+  fillTextField(form, "ORGÃO/INSTITUIÇÃO", servidor.instituicao_ensino);
 
   // =============================================
-  // PÁGINA 3 - DECLARAÇÃO DE GRAU DE PARENTESCO
+  // DADOS FUNCIONAIS
   // =============================================
-  doc.addPage();
-  doc.addImage(fichaPage3, "JPEG", 0, 0, pageWidth, pageHeight);
-
-  renderTexto(doc, campos, 'nome_p3', servidor.nome_completo);
+  fillCheckBox(form, "OCUPA_VAGA_PCD_SIM", servidor.pcd === true);
+  fillCheckBox(form, "OCUPA_VAGA_PCD_NAO", servidor.pcd !== true);
+  fillTextField(form, "LOTACAO", unidade?.nome);
+  fillTextField(form, "LOTAÇÃO ATUAL", unidade?.nome);
+  fillTextField(form, "CARGO", cargo?.nome);
+  fillTextField(form, "CARGO/FUNÇÃO", cargo?.nome);
+  fillTextField(form, "COD_CARGO", cargo?.sigla);
+  fillTextField(form, "COD. CARGO/FUNÇÃO", cargo?.sigla);
+  fillCheckBox(form, "QUADRO_EFETIVO_NAO", true);
+  fillTextField(form, "MATRICULA", servidor.matricula);
+  fillTextField(form, "MATRÍCULA", servidor.matricula);
+  fillCheckBox(form, "SERVIDOR_FEDERAL_NAO", true);
   
-  const campoCpfP3 = getCampo(campos, 'cpf_p3');
-  if (campoCpfP3) {
-    doc.text(formatCPF(servidor.cpf), campoCpfP3.x, campoCpfP3.y);
-  }
-  
-  renderCheckbox(doc, campos, 'parentesco_nao', true); // Por padrão não possui
-  
-  const campoDataP3 = getCampo(campos, 'data_local_p3');
-  if (campoDataP3) {
-    doc.text(dataLocalTexto, campoDataP3.x, campoDataP3.y);
-  }
-
-  // =============================================
-  // PÁGINA 4 - DECLARAÇÃO DE ACUMULAÇÃO DE CARGOS
-  // =============================================
-  doc.addPage();
-  doc.addImage(fichaPage4, "JPEG", 0, 0, pageWidth, pageHeight);
-
-  renderTexto(doc, campos, 'nome_p4', servidor.nome_completo);
-  
-  const campoCpfP4 = getCampo(campos, 'cpf_p4');
-  if (campoCpfP4) {
-    doc.text(formatCPF(servidor.cpf), campoCpfP4.x, campoCpfP4.y);
-  }
-  
-  renderTexto(doc, campos, 'cargo_p4', cargo?.nome);
-  renderCheckbox(doc, campos, 'nao_acumula', true);
-  
-  const campoDataP4 = getCampo(campos, 'data_local_p4');
-  if (campoDataP4) {
-    doc.text(dataLocalTexto, campoDataP4.x, campoDataP4.y);
-  }
+  // CNH
+  fillTextField(form, "CNH_NUMERO", servidor.cnh_numero);
+  fillTextField(form, "CNH nº.", servidor.cnh_numero);
+  fillTextField(form, "CNH_VALIDADE", formatDate(servidor.cnh_validade));
+  fillTextField(form, "DATA DE VALIDADE", formatDate(servidor.cnh_validade));
+  fillTextField(form, "CNH_EXPEDICAO", formatDate(servidor.cnh_data_expedicao));
+  fillTextField(form, "CNH_UF", servidor.cnh_uf);
+  fillTextField(form, "CNH_PRIMEIRA_HAB", formatDate(servidor.cnh_primeira_habilitacao));
+  fillTextField(form, "DATA DA PRIMEIRA HABILITAÇÃO", formatDate(servidor.cnh_primeira_habilitacao));
+  fillTextField(form, "CNH_CATEGORIA", servidor.cnh_categoria);
+  fillTextField(form, "CATEGORIA DA HABILITAÇÃO", servidor.cnh_categoria);
 
   // =============================================
-  // PÁGINA 5 - DECLARAÇÃO DE BENS DO SERVIDOR
+  // PÁGINA 2 - ENDEREÇO E CONTATOS
   // =============================================
-  doc.addPage();
-  doc.addImage(fichaPage5, "JPEG", 0, 0, pageWidth, pageHeight);
-
-  renderTexto(doc, campos, 'nome_p5', servidor.nome_completo);
+  fillTextField(form, "CEP", formatCEP(servidor.endereco_cep || ""));
+  fillTextField(form, "LOGRADOURO", servidor.endereco_logradouro);
+  fillTextField(form, "NUMERO", servidor.endereco_numero);
+  fillTextField(form, "NÚMERO", servidor.endereco_numero);
+  fillTextField(form, "BAIRRO", servidor.endereco_bairro);
+  fillTextField(form, "MUNICIPIO", servidor.endereco_cidade);
+  fillTextField(form, "MUNICÍPIO", servidor.endereco_cidade);
+  fillTextField(form, "COMPLEMENTO", servidor.endereco_complemento);
+  fillTextField(form, "ESTADO_UF", servidor.endereco_uf);
+  fillTextField(form, "ESTADO/UF", servidor.endereco_uf);
+  fillTextField(form, "CELULAR", formatPhone(servidor.telefone_celular));
+  fillTextField(form, "CELULAR (DDD)", formatPhone(servidor.telefone_celular));
+  fillTextField(form, "EMAIL", servidor.email_pessoal?.toLowerCase());
+  fillTextField(form, "E-MAIL", servidor.email_pessoal?.toLowerCase());
   
-  const campoCpfP5 = getCampo(campos, 'cpf_p5');
-  if (campoCpfP5) {
-    doc.text(formatCPF(servidor.cpf), campoCpfP5.x, campoCpfP5.y);
-  }
-  
-  renderTexto(doc, campos, 'cargo_p5', cargo?.nome);
-  renderCheckbox(doc, campos, 'nao_possui_bens', true);
-  
-  const campoDataP5 = getCampo(campos, 'data_local_p5');
-  if (campoDataP5) {
-    doc.text(dataLocalTexto, campoDataP5.x, campoDataP5.y);
-  }
+  // Dados Bancários
+  fillTextField(form, "BANCO_CODIGO", servidor.banco_codigo);
+  fillTextField(form, "CÓDIGO DO BANCO", servidor.banco_codigo);
+  fillTextField(form, "BANCO_NOME", servidor.banco_nome);
+  fillTextField(form, "NOME DO BANCO", servidor.banco_nome);
+  fillTextField(form, "BANCO_AGENCIA", servidor.banco_agencia);
+  fillTextField(form, "AGÊNCIA", servidor.banco_agencia);
+  fillTextField(form, "BANCO_CONTA", servidor.banco_conta);
+  fillTextField(form, "CONTA CORRENTE", servidor.banco_conta);
 
   // =============================================
-  // PÁGINA 6 - DECLARAÇÃO DE BENS DO CÔNJUGE
+  // PÁGINA 3 - DECLARAÇÃO DE PARENTESCO
   // =============================================
-  doc.addPage();
-  doc.addImage(fichaPage6, "JPEG", 0, 0, pageWidth, pageHeight);
+  // Tentamos vários nomes possíveis para campos repetidos em páginas diferentes
+  fillCheckBox(form, "PARENTESCO_NAO", true);
+  fillCheckBox(form, "NÃO", true);
 
-  renderTexto(doc, campos, 'nome_p6', servidor.nome_completo);
-  
-  const campoCpfP6 = getCampo(campos, 'cpf_p6');
-  if (campoCpfP6) {
-    doc.text(formatCPF(servidor.cpf), campoCpfP6.x, campoCpfP6.y);
-  }
-  
-  renderTexto(doc, campos, 'cargo_p6', cargo?.nome);
-  
-  // Verifica estado civil para determinar qual checkbox marcar
+  // =============================================
+  // PÁGINA 4 - DECLARAÇÃO DE ACUMULAÇÃO
+  // =============================================
+  fillCheckBox(form, "NAO_ACUMULA", true);
+  fillCheckBox(form, "NÃO ACUMULA CARGOS", true);
+
+  // =============================================
+  // PÁGINA 5 - DECLARAÇÃO DE BENS
+  // =============================================
+  fillCheckBox(form, "NAO_POSSUI_BENS", true);
+  fillCheckBox(form, "DECLARO QUE NÃO POSSUO", true);
+
+  // =============================================
+  // PÁGINA 6 - DECLARAÇÃO DE BENS CÔNJUGE
+  // =============================================
   const estadoCivilLower = servidor.estado_civil?.toLowerCase() || "";
   const isSolteiro = estadoCivilLower.includes("solteiro") || !servidor.estado_civil;
   
-  renderCheckbox(doc, campos, 'nao_possui_conjuge', isSolteiro);
-  renderCheckbox(doc, campos, 'nao_possui_bens_conjuge', !isSolteiro);
-  
-  const campoDataP6 = getCampo(campos, 'data_local_p6');
-  if (campoDataP6) {
-    doc.text(dataLocalTexto, campoDataP6.x, campoDataP6.y);
+  if (isSolteiro) {
+    fillCheckBox(form, "NAO_POSSUI_CONJUGE", true);
+  } else {
+    fillCheckBox(form, "NAO_POSSUI_BENS_CONJUGE", true);
   }
 
   // =============================================
   // PÁGINA 7 - DECLARAÇÃO DE DEPENDENTES
   // =============================================
-  doc.addPage();
-  doc.addImage(fichaPage7, "JPEG", 0, 0, pageWidth, pageHeight);
-
-  renderTexto(doc, campos, 'nome_p7', servidor.nome_completo);
-  
-  const campoCpfP7 = getCampo(campos, 'cpf_p7');
-  if (campoCpfP7) {
-    doc.text(formatCPF(servidor.cpf), campoCpfP7.x, campoCpfP7.y);
-  }
-  
-  renderTexto(doc, campos, 'cargo_p7', cargo?.nome);
-
-  // Preencher dependentes se houver
   if (dependentes && dependentes.length > 0) {
-    renderCheckbox(doc, campos, 'possui_dependentes', true);
-
+    fillCheckBox(form, "POSSUI_DEPENDENTES", true);
+    fillCheckBox(form, "POSSUO DEPENDENTE(S)", true);
+    
     dependentes.slice(0, 4).forEach((dep, idx) => {
-      const depNum = idx + 1;
-      
-      const campoNome = getCampo(campos, `dep_${depNum}_nome`);
-      if (campoNome && dep.nome) {
-        const nomeTrunc = truncarTexto(doc, dep.nome.toUpperCase(), campoNome.maxWidth || 70);
-        doc.text(nomeTrunc, campoNome.x, campoNome.y);
-      }
-      
-      const campoCpfDep = getCampo(campos, `dep_${depNum}_cpf`);
-      if (campoCpfDep && dep.cpf) {
-        doc.text(formatCPF(dep.cpf), campoCpfDep.x, campoCpfDep.y);
-      }
-      
-      const campoDataDep = getCampo(campos, `dep_${depNum}_data`);
-      if (campoDataDep && dep.data_nascimento) {
-        doc.text(formatDate(dep.data_nascimento), campoDataDep.x, campoDataDep.y);
-      }
+      const num = idx + 1;
+      fillTextField(form, `DEP_${num}_NOME`, dep.nome);
+      fillTextField(form, `DEP_${num}_CPF`, dep.cpf ? formatCPF(dep.cpf) : undefined);
+      fillTextField(form, `DEP_${num}_DATA`, formatDate(dep.data_nascimento));
     });
   } else {
-    renderCheckbox(doc, campos, 'nao_possui_dependentes', true);
+    fillCheckBox(form, "NAO_POSSUI_DEPENDENTES", true);
+    fillCheckBox(form, "NÃO POSSUO DEPENDENTE(S)", true);
   }
 
-  // Data e Local
-  const campoDataP7 = getCampo(campos, 'data_local_p7');
-  if (campoDataP7) {
-    doc.text(dataLocalTexto, campoDataP7.x, campoDataP7.y);
-  }
+  // Flatten o formulário para que os dados fiquem fixos no PDF
+  form.flatten();
 
-  return doc;
+  // Salvar o PDF preenchido
+  const filledPdfBytes = await pdfDoc.save();
+  return filledPdfBytes;
 }
 
 export async function downloadFichaCadastroGeral(dados: DadosCompletos): Promise<void> {
-  const doc = gerarFichaCadastroGeral(dados);
-  const nomeArquivo = `Ficha_Cadastro_SEGAD_${dados.servidor.nome_completo?.replace(/\s+/g, "_") || "servidor"}.pdf`;
-  doc.save(nomeArquivo);
+  const pdfBytes = await gerarFichaCadastroGeral(dados);
+  const blob = new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `Ficha_Cadastro_SEGAD_${dados.servidor.nome_completo?.replace(/\s+/g, "_") || "servidor"}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
