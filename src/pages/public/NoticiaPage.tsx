@@ -153,7 +153,7 @@ export default function NoticiaPage() {
           <p className="text-muted-foreground mb-6">
             A notícia que você procura não existe ou foi removida.
           </p>
-          <Link to="/noticias">
+          <Link to="/noticias-portal">
             <Button>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar para Notícias
@@ -172,7 +172,7 @@ export default function NoticiaPage() {
           <nav className="flex items-center gap-2 text-sm text-muted-foreground">
             <Link to="/" className="hover:text-foreground">Início</Link>
             <ChevronRight className="h-4 w-4" />
-            <Link to="/noticias" className="hover:text-foreground">Notícias</Link>
+            <Link to="/noticias-portal" className="hover:text-foreground">Notícias</Link>
             <ChevronRight className="h-4 w-4" />
             <span className="text-foreground truncate max-w-[200px]">{noticia.titulo}</span>
           </nav>
@@ -185,7 +185,7 @@ export default function NoticiaPage() {
           animate={{ opacity: 1, y: 0 }}
         >
           {/* Voltar */}
-          <Link to="/noticias" className="inline-flex items-center text-muted-foreground hover:text-foreground mb-6">
+          <Link to="/noticias-portal" className="inline-flex items-center text-muted-foreground hover:text-foreground mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar para Notícias
           </Link>
@@ -303,7 +303,7 @@ export default function NoticiaPage() {
             <h2 className="text-2xl font-bold mb-6">Notícias Relacionadas</h2>
             <div className="grid md:grid-cols-2 gap-6">
               {relacionadas.map((rel: any) => (
-                <Link key={rel.id} to={`/noticias/${rel.slug}`}>
+                <Link key={rel.id} to={`/noticias-portal/${rel.slug}`}>
                   <Card className="overflow-hidden group hover:shadow-md transition-shadow">
                     <div className="flex">
                       <div className="w-32 h-24 flex-shrink-0 bg-muted">
