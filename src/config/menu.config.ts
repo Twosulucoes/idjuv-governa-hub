@@ -1096,7 +1096,7 @@ export const menuConfig: MenuSection[] = [
         label: "Páginas Públicas",
         route: "/admin/paginas",
         icon: Globe,
-        permission: "admin.config",
+        // Visível para todos os admins
       },
       {
         id: "configuracoes",
