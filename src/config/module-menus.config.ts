@@ -280,7 +280,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
   gabinete: {
     dashboard: { label: "Painel do Gabinete", route: "/gabinete" },
     items: [
-      { id: "pre-cadastros", label: "Pré-Cadastros", icon: Users, route: "/curriculo/pre-cadastros" },
+      { id: "pre-cadastros", label: "Pré-Cadastros", icon: Users, route: "/gabinete/pre-cadastros" },
       { 
         id: "portarias", 
         label: "Central de Portarias", 
