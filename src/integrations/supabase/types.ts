@@ -14400,6 +14400,60 @@ export type Database = {
           },
         ]
       }
+      portal_diretoria: {
+        Row: {
+          ativo: boolean | null
+          bio: string | null
+          cargo: string
+          created_at: string | null
+          data_posse: string | null
+          decreto_nomeacao: string | null
+          email: string | null
+          foto_url: string | null
+          id: string
+          linkedin_url: string | null
+          nome: string
+          ordem_exibicao: number | null
+          telefone: string | null
+          unidade: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          bio?: string | null
+          cargo: string
+          created_at?: string | null
+          data_posse?: string | null
+          decreto_nomeacao?: string | null
+          email?: string | null
+          foto_url?: string | null
+          id?: string
+          linkedin_url?: string | null
+          nome: string
+          ordem_exibicao?: number | null
+          telefone?: string | null
+          unidade?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          bio?: string | null
+          cargo?: string
+          created_at?: string | null
+          data_posse?: string | null
+          decreto_nomeacao?: string | null
+          email?: string | null
+          foto_url?: string | null
+          id?: string
+          linkedin_url?: string | null
+          nome?: string
+          ordem_exibicao?: number | null
+          telefone?: string | null
+          unidade?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       portarias_servidor: {
         Row: {
           ano: number

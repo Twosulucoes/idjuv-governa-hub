@@ -5,7 +5,10 @@
 import { PortalHeader } from "./portal/components/PortalHeader";
 import { PortalHero } from "./portal/components/PortalHero";
 import { PortalStats } from "./portal/components/PortalStats";
+import { PortalDiretoria } from "./portal/components/PortalDiretoria";
+import { PortalInfrastructure } from "./portal/components/PortalInfrastructure";
 import { PortalPrograms } from "./portal/components/PortalPrograms";
+import { PortalEsports } from "./portal/components/PortalEsports";
 import { PortalNews } from "./portal/components/PortalNews";
 import { PortalContact } from "./portal/components/PortalContact";
 import { PortalFooter } from "./portal/components/PortalFooter";
@@ -34,8 +37,17 @@ export default function PortalPreviewPage() {
       {/* Stats Section */}
       <PortalStats />
 
+      {/* Diretoria Section - Nova seção com dados do BD */}
+      <PortalDiretoria />
+
       {/* Programs Section */}
       <PortalPrograms />
+
+      {/* Infrastructure Section - Nova seção */}
+      <PortalInfrastructure />
+
+      {/* E-Sports Section - Nova seção */}
+      <PortalEsports />
 
       {/* News Section */}
       <PortalNews />
