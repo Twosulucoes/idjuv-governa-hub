@@ -7,7 +7,8 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { 
   Package, Plus, Search, Filter, Eye, Edit, QrCode,
-  ArrowLeft, Building2, User, Calendar, Tag, MoreHorizontal
+  ArrowLeft, Building2, User, Calendar, Tag, MoreHorizontal,
+  PackagePlus, ArrowRightLeft
 } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +25,8 @@ import { useBensPatrimoniais, useCreateBem } from "@/hooks/usePatrimonio";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { CadastroLoteDialog } from "@/components/inventario/CadastroLoteDialog";
+import { MovimentacaoLoteDialog } from "@/components/inventario/MovimentacaoLoteDialog";
 
 const CATEGORIAS_BEM = [
   { value: 'mobiliario', label: 'Mobiliário' },
@@ -57,6 +60,8 @@ export default function BensPatrimoniaisPage() {
   const [filtroSituacao, setFiltroSituacao] = useState<string>("");
   const [filtroCategoria, setFiltroCategoria] = useState<string>("");
   const [modalAberto, setModalAberto] = useState(searchParams.get('acao') === 'novo');
+  const [cadastroLoteOpen, setCadastroLoteOpen] = useState(false);
+  const [movimentacaoLoteOpen, setMovimentacaoLoteOpen] = useState(false);
 
   const { data: bens, isLoading } = useBensPatrimoniais({
     situacao: filtroSituacao || undefined,
@@ -193,13 +198,22 @@ export default function BensPatrimoniaisPage() {
                 <p className="opacity-90 text-sm">Cadastro e gestão de bens permanentes</p>
               </div>
             </div>
-            <Dialog open={modalAberto} onOpenChange={setModalAberto}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Novo Bem
-                </Button>
-              </DialogTrigger>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setCadastroLoteOpen(true)}>
+                <PackagePlus className="w-4 h-4 mr-2" />
+                Lote
+              </Button>
+              <Button variant="outline" onClick={() => setMovimentacaoLoteOpen(true)}>
+                <ArrowRightLeft className="w-4 h-4 mr-2" />
+                Mov. Lote
+              </Button>
+              <Dialog open={modalAberto} onOpenChange={setModalAberto}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Novo Bem
+                  </Button>
+                </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Cadastrar Bem Patrimonial</DialogTitle>
@@ -361,9 +375,14 @@ export default function BensPatrimoniaisPage() {
                 </div>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
         </div>
       </section>
+
+      {/* Dialogs de Lote */}
+      <CadastroLoteDialog open={cadastroLoteOpen} onOpenChange={setCadastroLoteOpen} />
+      <MovimentacaoLoteDialog open={movimentacaoLoteOpen} onOpenChange={setMovimentacaoLoteOpen} />
 
       {/* Filtros */}
       <section className="py-4 border-b">

@@ -3,10 +3,11 @@
  * Visão geral do módulo com KPIs e ações rápidas
  */
 
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { 
   Package, Boxes, TrendingUp, AlertTriangle, ClipboardCheck,
-  Wrench, FileX, ArrowRight, BarChart3, QrCode
+  Wrench, FileX, ArrowRight, BarChart3, QrCode, PackagePlus, ArrowRightLeft
 } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,8 +16,13 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useEstatisticasPatrimonio, useCampanhasInventario } from "@/hooks/usePatrimonio";
 import { useEstatisticasAlmoxarifado } from "@/hooks/useAlmoxarifado";
+import { CadastroLoteDialog } from "@/components/inventario/CadastroLoteDialog";
+import { MovimentacaoLoteDialog } from "@/components/inventario/MovimentacaoLoteDialog";
 
 export default function DashboardInventarioPage() {
+  const [cadastroLoteOpen, setCadastroLoteOpen] = useState(false);
+  const [movimentacaoLoteOpen, setMovimentacaoLoteOpen] = useState(false);
+  
   const { data: estatisticasPatrimonio, isLoading: loadingPatrimonio } = useEstatisticasPatrimonio();
   const { data: estatisticasAlmoxarifado, isLoading: loadingAlmoxarifado } = useEstatisticasAlmoxarifado();
   const { data: campanhas } = useCampanhasInventario(new Date().getFullYear());
@@ -172,18 +178,26 @@ export default function DashboardInventarioPage() {
       <section className="py-6">
         <div className="container mx-auto px-4">
           <h2 className="font-serif text-xl font-bold mb-4">Ações Rápidas</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
             <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
               <Link to="/inventario/bens?acao=novo">
                 <Package className="w-5 h-5" />
                 <span>Novo Bem</span>
               </Link>
             </Button>
+            <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={() => setCadastroLoteOpen(true)}>
+              <PackagePlus className="w-5 h-5" />
+              <span>Cadastro em Lote</span>
+            </Button>
             <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
               <Link to="/inventario/movimentacoes?acao=nova">
                 <TrendingUp className="w-5 h-5" />
                 <span>Movimentação</span>
               </Link>
+            </Button>
+            <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={() => setMovimentacaoLoteOpen(true)}>
+              <ArrowRightLeft className="w-5 h-5" />
+              <span>Mov. em Lote</span>
             </Button>
             <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
               <Link to="/inventario/requisicoes?acao=nova">
@@ -200,6 +214,10 @@ export default function DashboardInventarioPage() {
           </div>
         </div>
       </section>
+
+      {/* Dialogs de Lote */}
+      <CadastroLoteDialog open={cadastroLoteOpen} onOpenChange={setCadastroLoteOpen} />
+      <MovimentacaoLoteDialog open={movimentacaoLoteOpen} onOpenChange={setMovimentacaoLoteOpen} />
 
       {/* Módulos */}
       <section className="py-6">
