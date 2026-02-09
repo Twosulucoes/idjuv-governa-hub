@@ -175,7 +175,7 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     descricao: 'Credenciamento de gestores para Jogos Escolares',
     icone: School,
     cor: 'amber',
-    rotas: ['/cadastrogestores/admin', '/gestores-escolares'],
+    rotas: ['/cadastrogestores/admin', '/gestores-escolares', '/cadastrogestores'],
     menuSectionIds: ['gestores-escolares'],
   },
   {
