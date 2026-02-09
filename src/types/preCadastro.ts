@@ -15,8 +15,15 @@ export interface Dependente {
   cpf: string;
   data_nascimento: string;
   parentesco: string;
+  sexo?: string;
   certidao_tipo?: string;
   termo_guarda?: boolean;
+  declarar_ir?: boolean;
+  declarar_previdencia?: boolean;
+  pcd?: boolean;
+  pcd_tipo?: string;
+  universitario?: boolean;
+  salario_familia?: boolean;
 }
 
 export type StatusPreCadastro = 'rascunho' | 'enviado' | 'aprovado' | 'rejeitado' | 'convertido';
@@ -94,6 +101,19 @@ export interface PreCadastro {
   cnh_data_expedicao?: string;
   cnh_primeira_habilitacao?: string;
   cnh_uf?: string;
+  
+  // Moléstia Grave
+  molestia_grave?: boolean;
+  
+  // Dados de Estrangeiro
+  estrangeiro_data_chegada?: string;
+  estrangeiro_data_limite_permanencia?: string;
+  estrangeiro_registro_nacional?: string;
+  estrangeiro_ano_chegada?: number;
+  
+  // Primeiro Emprego
+  ano_inicio_primeiro_emprego?: number;
+  ano_fim_primeiro_emprego?: number;
   
   // Acumulação de Cargo
   acumula_cargo?: boolean;

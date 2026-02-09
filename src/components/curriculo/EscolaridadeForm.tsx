@@ -85,6 +85,36 @@ export function EscolaridadeForm({ dados, onChange }: Props) {
           </div>
         </div>
 
+        {/* Primeiro Emprego (SEGAD) */}
+        <div className="p-4 border rounded-lg space-y-4">
+          <h4 className="font-medium text-sm text-muted-foreground">Primeiro Emprego</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="ano_inicio_primeiro_emprego">Ano Início do Primeiro Emprego</Label>
+              <Input
+                id="ano_inicio_primeiro_emprego"
+                type="number"
+                min="1950"
+                max={new Date().getFullYear()}
+                value={dados.ano_inicio_primeiro_emprego || ""}
+                onChange={(e) => handleChange("ano_inicio_primeiro_emprego", parseInt(e.target.value) || 0)}
+                placeholder="Ano"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="ano_fim_primeiro_emprego">Ano Fim do Primeiro Emprego</Label>
+              <Input
+                id="ano_fim_primeiro_emprego"
+                type="number"
+                min="1950"
+                max={new Date().getFullYear()}
+                value={dados.ano_fim_primeiro_emprego || ""}
+                onChange={(e) => handleChange("ano_fim_primeiro_emprego", parseInt(e.target.value) || 0)}
+                placeholder="Ano"
+              />
+            </div>
+          </div>
+        </div>
         {/* Registro Profissional */}
         <div className="p-4 border rounded-lg space-y-4">
           <h4 className="font-medium text-sm text-muted-foreground">Registro em Conselho Profissional</h4>
