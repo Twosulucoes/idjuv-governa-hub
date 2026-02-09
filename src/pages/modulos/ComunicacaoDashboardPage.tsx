@@ -34,14 +34,14 @@ export default function ComunicacaoDashboardPage() {
       label: "Eventos (Mês)", 
       value: isLoading ? "..." : String(stats?.eventosMes || 0), 
       icon: Calendar,
-      href: "/ascom/calendario"
+      href: "/comunicacao/calendario"
     },
   ];
 
   const quickActions = [
     { label: "Nova Demanda", description: "Solicitar comunicação", href: "/ascom/demandas/nova", icon: Send },
     { label: "Minhas Demandas", description: "Acompanhar solicitações", href: "/ascom/demandas?minhas=true", icon: Clock },
-    { label: "Agenda", description: "Eventos programados", href: "/ascom/calendario", icon: Calendar },
+    { label: "Agenda", description: "Eventos programados", href: "/comunicacao/calendario", icon: Calendar },
     { label: "Galeria", description: "Mídia e imagens", href: "/ascom/galeria", icon: Image },
   ];
 
