@@ -3,7 +3,7 @@
  * Modal para gerenciar arquivos de mídia (imagens, vídeos)
  */
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -12,7 +12,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,8 +39,7 @@ import {
   Copy,
   ImagePlus,
   Video,
-  File,
-  Calendar
+  File
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -78,18 +76,17 @@ export function MediaLibrary({
   const [busca, setBusca] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedItems, setSelectedItems] = useState<MediaItem[]>([]);
-  const [uploading, setUploading] = useState(false);
   const [uploadUrl, setUploadUrl] = useState("");
   const [uploadAlt, setUploadAlt] = useState("");
   const [activeTab, setActiveTab] = useState<"biblioteca" | "upload">("biblioteca");
   const [tipoFiltro, setTipoFiltro] = useState<string>("all");
 
-  // Buscar mídias do banco
+  // Buscar mídias do banco usando raw query para evitar problemas de tipos
   const { data: medias = [], isLoading } = useQuery({
     queryKey: ["cms-media", tipoFiltro],
     queryFn: async () => {
       let query = supabase
-        .from("cms_media")
+        .from("cms_media" as any)
         .select("*")
         .order("created_at", { ascending: false });
 
@@ -99,7 +96,7 @@ export function MediaLibrary({
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as MediaItem[];
+      return (data || []) as unknown as MediaItem[];
     },
     enabled: open
   });
@@ -119,7 +116,7 @@ export function MediaLibrary({
       const filename = input.filename || input.url.split("/").pop()?.split("?")[0] || "arquivo";
 
       const { data, error } = await supabase
-        .from("cms_media")
+        .from("cms_media" as any)
         .insert({
           url: input.url,
           filename,
@@ -130,7 +127,7 @@ export function MediaLibrary({
         .single();
 
       if (error) throw error;
-      return data;
+      return data as unknown as MediaItem;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cms-media"] });
@@ -139,7 +136,7 @@ export function MediaLibrary({
       setUploadAlt("");
       setActiveTab("biblioteca");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error("Erro ao adicionar mídia: " + error.message);
     }
   });
@@ -147,14 +144,14 @@ export function MediaLibrary({
   // Deletar mídia
   const deleteMedia = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("cms_media").delete().eq("id", id);
+      const { error } = await supabase.from("cms_media" as any).delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cms-media"] });
       toast.success("Mídia removida!");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error("Erro ao remover: " + error.message);
     }
   });
@@ -201,13 +198,6 @@ export function MediaLibrary({
     const matchTipo = filterType === "all" || m.tipo === filterType;
     return matchBusca && matchTipo;
   });
-
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return "-";
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
 
   const getTipoIcon = (tipo: string) => {
     switch (tipo) {
