@@ -181,6 +181,10 @@ import AuditoriaWorkflowPage from "./pages/cadastrogestores/AuditoriaWorkflowPag
 import GestaoProcessosPage from "./pages/workflow/GestaoProcessosPage";
 import ProcessoDetalhePage from "./pages/workflow/ProcessoDetalhePage";
 
+// Mobile - Coleta de Inventário
+import ColetaMobilePage from "./pages/mobile/ColetaMobilePage";
+import InstalarAppPage from "./pages/mobile/InstalarAppPage";
+
 // Financeiro (ERP)
 import {
   DashboardFinanceiroPage,
@@ -317,6 +321,17 @@ const App = () => (
                   <ConsultaGestorPage />
                 </PublicPageGuard>
               } />
+              
+              {/* ============================================ */}
+              {/* ROTAS MOBILE PWA */}
+              {/* ============================================ */}
+              
+              <Route path="/coleta-mobile" element={
+                <ProtectedRoute>
+                  <ColetaMobilePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/instalar" element={<InstalarAppPage />} />
               
               {/* ============================================ */}
               {/* ROTAS PROTEGIDAS - Apenas autenticação */}
