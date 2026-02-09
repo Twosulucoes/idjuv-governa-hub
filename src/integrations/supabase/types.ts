@@ -15019,6 +15019,8 @@ export type Database = {
       }
       pre_cadastros: {
         Row: {
+          acumula_cargo: boolean | null
+          acumulo_descricao: string | null
           ano_conclusao: number | null
           banco_agencia: string | null
           banco_codigo: string | null
@@ -15035,6 +15037,8 @@ export type Database = {
           cnh_validade: string | null
           codigo_acesso: string
           conselho_numero: string | null
+          contato_emergencia_nome: string | null
+          contato_emergencia_parentesco: string | null
           convertido_em: string | null
           convertido_por: string | null
           cpf: string
@@ -15081,6 +15085,7 @@ export type Database = {
           habilidades: string[] | null
           id: string
           idiomas: Json | null
+          indicacao: string | null
           instituicao_ensino: string | null
           ip_envio: string | null
           nacionalidade: string | null
@@ -15108,6 +15113,7 @@ export type Database = {
           sexo: string | null
           status: string | null
           telefone_celular: string | null
+          telefone_emergencia: string | null
           telefone_fixo: string | null
           tipo_sanguineo: string | null
           titulo_cidade_votacao: string | null
@@ -15119,6 +15125,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          acumula_cargo?: boolean | null
+          acumulo_descricao?: string | null
           ano_conclusao?: number | null
           banco_agencia?: string | null
           banco_codigo?: string | null
@@ -15135,6 +15143,8 @@ export type Database = {
           cnh_validade?: string | null
           codigo_acesso: string
           conselho_numero?: string | null
+          contato_emergencia_nome?: string | null
+          contato_emergencia_parentesco?: string | null
           convertido_em?: string | null
           convertido_por?: string | null
           cpf: string
@@ -15181,6 +15191,7 @@ export type Database = {
           habilidades?: string[] | null
           id?: string
           idiomas?: Json | null
+          indicacao?: string | null
           instituicao_ensino?: string | null
           ip_envio?: string | null
           nacionalidade?: string | null
@@ -15208,6 +15219,7 @@ export type Database = {
           sexo?: string | null
           status?: string | null
           telefone_celular?: string | null
+          telefone_emergencia?: string | null
           telefone_fixo?: string | null
           tipo_sanguineo?: string | null
           titulo_cidade_votacao?: string | null
@@ -15219,6 +15231,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          acumula_cargo?: boolean | null
+          acumulo_descricao?: string | null
           ano_conclusao?: number | null
           banco_agencia?: string | null
           banco_codigo?: string | null
@@ -15235,6 +15249,8 @@ export type Database = {
           cnh_validade?: string | null
           codigo_acesso?: string
           conselho_numero?: string | null
+          contato_emergencia_nome?: string | null
+          contato_emergencia_parentesco?: string | null
           convertido_em?: string | null
           convertido_por?: string | null
           cpf?: string
@@ -15281,6 +15297,7 @@ export type Database = {
           habilidades?: string[] | null
           id?: string
           idiomas?: Json | null
+          indicacao?: string | null
           instituicao_ensino?: string | null
           ip_envio?: string | null
           nacionalidade?: string | null
@@ -15308,6 +15325,7 @@ export type Database = {
           sexo?: string | null
           status?: string | null
           telefone_celular?: string | null
+          telefone_emergencia?: string | null
           telefone_fixo?: string | null
           tipo_sanguineo?: string | null
           titulo_cidade_votacao?: string | null
