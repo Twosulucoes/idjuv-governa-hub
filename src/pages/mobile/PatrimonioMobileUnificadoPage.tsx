@@ -20,7 +20,7 @@ import {
   ArrowLeft, Camera, CheckCircle2, Printer, X,
   Building2, Tag, Loader2, Info, ChevronRight, FileText,
   RefreshCw, MapPin, AlertTriangle, ArrowRightLeft, Trash2,
-  QrCode, Search, Menu, CloudOff, Home
+  QrCode, Search, Menu, CloudOff, Home, PackagePlus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -673,6 +673,22 @@ export default function PatrimonioMobileUnificadoPage() {
               </Card>
             );
           })}
+
+          {/* Link para operações em lote (desktop/tablet) */}
+          <Card className="mt-4 border-dashed">
+            <Link to="/inventario/bens">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                  <PackagePlus className="w-6 h-6 text-muted-foreground" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium">Cadastro em Lote</p>
+                  <p className="text-sm text-muted-foreground">Acesse via desktop para operações em massa</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground" />
+              </CardContent>
+            </Link>
+          </Card>
 
           {unidadeLocalId && (
             <Alert className="mt-4">
