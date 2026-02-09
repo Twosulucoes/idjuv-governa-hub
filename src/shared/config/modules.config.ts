@@ -193,7 +193,7 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     descricao: 'Pré-cadastros, portarias, ordens de missão e workflow',
     icone: Building2,
     cor: 'violet',
-    rotas: ['/gabinete', '/formularios/ordem-missao', '/formularios/relatorio-viagem', '/curriculo/pre-cadastros'],
+    rotas: ['/gabinete', '/gabinete/portarias', '/formularios/ordem-missao', '/formularios/relatorio-viagem', '/curriculo/pre-cadastros'],
     menuSectionIds: ['gabinete'],
   },
 ];

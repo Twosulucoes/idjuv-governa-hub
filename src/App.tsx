@@ -93,7 +93,7 @@ import RelatoriosRHPage from "./pages/rh/RelatoriosRHPage";
 import ModelosDocumentosPage from "./pages/rh/ModelosDocumentosPage";
 import GestaoDesignacoesPage from "./pages/rh/GestaoDesignacoesPage";
 import CentralPortariasPage from "./pages/rh/CentralPortariasPage";
-import AtribuicaoPortariasPage from "./pages/rh/AtribuicaoPortariasPage";
+import PendenciasPortariasPage from "./pages/rh/PendenciasPortariasPage";
 import DiagnosticoPendenciasServidoresPage from "./pages/rh/DiagnosticoPendenciasServidoresPage";
 import ExportacaoPlanilhaPage from "./pages/rh/ExportacaoPlanilhaPage";
 import AniversariantesPage from "./pages/rh/AniversariantesPage";
@@ -281,6 +281,16 @@ const App = () => (
               <Route path="/comunicacao" element={<ProtectedRoute><ComunicacaoDashboardPage /></ProtectedRoute>} />
               <Route path="/gestores-escolares" element={<ProtectedRoute><GestoresEscolaresDashboardPage /></ProtectedRoute>} />
               <Route path="/gabinete" element={<ProtectedRoute><GabineteDashboardPage /></ProtectedRoute>} />
+              <Route path="/gabinete/portarias" element={
+                <ProtectedRoute>
+                  <CentralPortariasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/gabinete/portarias/consulta" element={
+                <ProtectedRoute>
+                  <CentralPortariasPage />
+                </ProtectedRoute>
+              } />
               
               {/* ============================================ */}
               {/* ADMIN - Com permissões mapeadas */}
@@ -554,16 +564,15 @@ const App = () => (
                   <GestaoDesignacoesPage />
                 </ProtectedRoute>
               } />
-              <Route path="/rh/portarias" element={
+              {/* Portarias RH - Agora apenas pendências (Central foi movida para Gabinete) */}
+              <Route path="/rh/portarias" element={<Navigate to="/rh/portarias/pendencias" replace />} />
+              <Route path="/rh/portarias/pendencias" element={
                 <ProtectedRoute requiredPermissions="rh.portarias.visualizar">
-                  <CentralPortariasPage />
+                  <PendenciasPortariasPage />
                 </ProtectedRoute>
               } />
-              <Route path="/rh/portarias/atribuicao" element={
-                <ProtectedRoute requiredPermissions="rh.portarias.visualizar">
-                  <AtribuicaoPortariasPage />
-                </ProtectedRoute>
-              } />
+              {/* Rota legacy de atribuição redireciona para gabinete */}
+              <Route path="/rh/portarias/atribuicao" element={<Navigate to="/gabinete/portarias" replace />} />
               <Route path="/rh/relatorios" element={
                 <ProtectedRoute requiredPermissions="rh.relatorios.visualizar">
                   <RelatoriosRHPage />

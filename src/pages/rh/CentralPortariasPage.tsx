@@ -210,14 +210,14 @@ export default function CentralPortariasPage() {
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
   return (
-    <ModuleLayout module="rh">
+    <ModuleLayout module="gabinete">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">Central de Portarias</h1>
             <p className="text-muted-foreground">
-              Gerencie todas as portarias de pessoal em um só lugar
+              Cadastre e gerencie portarias de pessoal - Gabinete da Presidência
             </p>
           </div>
           <div className="flex items-center gap-2">
