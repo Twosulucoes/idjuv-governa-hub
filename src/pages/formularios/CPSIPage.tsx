@@ -3,10 +3,11 @@
  * LC 182/2021 (Marco Legal das Startups)
  * 
  * Gera: DFD, ETP e TR para processo de aquisição de soluções inovadoras
+ * Integra IA para: preenchimento automático, assistência por campo e revisão
  */
 
 import { useState } from 'react';
-import { FileText, Download, ArrowLeft, Lightbulb, ClipboardList, BookOpen } from 'lucide-react';
+import { FileText, Download, ArrowLeft, Lightbulb, ClipboardList, BookOpen, Sparkles, Wand2, CheckCircle, Loader2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
@@ -18,11 +19,175 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { generateDFD, generateETP, generateTR } from '@/lib/pdfCPSI';
 import type { DFDData, ETPData, TRData } from '@/lib/pdfCPSI';
+import { useAICPSI } from '@/hooks/useAICPSI';
+
+// ============ AI FIELD WRAPPER ============
+
+interface AIFieldProps {
+  label: string;
+  fieldName: string;
+  children: React.ReactNode;
+  isLoading: boolean;
+  onGenerate: () => void;
+}
+
+const AIField = ({ label, fieldName, children, isLoading, onGenerate }: AIFieldProps) => (
+  <div className="space-y-2">
+    <div className="flex items-center justify-between">
+      <label className="text-sm font-medium">{label}</label>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={onGenerate}
+        disabled={isLoading}
+        className="h-7 px-2 text-xs text-primary hover:text-primary"
+      >
+        {isLoading ? (
+          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+        ) : (
+          <Wand2 className="h-3 w-3 mr-1" />
+        )}
+        {isLoading ? 'Gerando...' : 'IA'}
+      </Button>
+    </div>
+    {children}
+  </div>
+);
+
+// ============ AI TOOLBAR ============
+
+interface AIToolbarProps {
+  onFillAll: () => void;
+  onReview: () => void;
+  isFillingAll: boolean;
+  isReviewing: boolean;
+}
+
+const AIToolbar = ({ onFillAll, onReview, isFillingAll, isReviewing }: AIToolbarProps) => (
+  <div className="flex flex-wrap gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+    <div className="flex items-center gap-1.5 mr-2">
+      <Sparkles className="h-4 w-4 text-primary" />
+      <span className="text-sm font-medium text-primary">Assistente IA</span>
+    </div>
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={onFillAll}
+      disabled={isFillingAll || isReviewing}
+      className="h-8"
+    >
+      {isFillingAll ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1.5" />}
+      {isFillingAll ? 'Preenchendo...' : 'Preencher Tudo'}
+    </Button>
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={onReview}
+      disabled={isFillingAll || isReviewing}
+      className="h-8"
+    >
+      {isReviewing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5 mr-1.5" />}
+      {isReviewing ? 'Revisando...' : 'Revisar com IA'}
+    </Button>
+  </div>
+);
+
+// ============ AI FILL DIALOG ============
+
+interface AIFillDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (context: string) => void;
+  isLoading: boolean;
+  docName: string;
+}
+
+const AIFillDialog = ({ isOpen, onClose, onSubmit, isLoading, docName }: AIFillDialogProps) => {
+  const [context, setContext] = useState('');
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <Card className="w-full max-w-lg mx-4">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Preenchimento Automático</CardTitle>
+            </div>
+            <Button variant="ghost" size="sm" onClick={onClose} disabled={isLoading}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <CardDescription>
+            Descreva brevemente a necessidade e a IA preencherá todos os campos do {docName}.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Textarea
+            value={context}
+            onChange={e => setContext(e.target.value)}
+            placeholder="Ex: Contratação de sistema de governança digital integrado para o Instituto da Juventude de Roraima (IDJuv), incluindo módulos de RH, licitações, patrimônio, contratos, financeiro e transparência, com IA generativa nativa para automação de documentos oficiais."
+            className="min-h-[120px]"
+          />
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={onClose} disabled={isLoading}>Cancelar</Button>
+            <Button onClick={() => onSubmit(context)} disabled={!context.trim() || isLoading}>
+              {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wand2 className="h-4 w-4 mr-2" />}
+              {isLoading ? 'Gerando...' : 'Gerar com IA'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// ============ AI REVIEW PANEL ============
+
+interface AIReviewPanelProps {
+  isReviewing: boolean;
+  reviewResult: string;
+  onClose: () => void;
+}
+
+const AIReviewPanel = ({ isReviewing, reviewResult, onClose }: AIReviewPanelProps) => {
+  if (!reviewResult && !isReviewing) return null;
+
+  return (
+    <Card className="border-primary/30 bg-primary/5">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-primary" />
+            <CardTitle className="text-base">Revisão da IA</CardTitle>
+            {isReviewing && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+          </div>
+          {!isReviewing && (
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="prose prose-sm max-w-none text-sm whitespace-pre-wrap">
+          {reviewResult || 'Analisando documento...'}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 // ============ COMPONENTE DFD ============
 
 const DFDForm = () => {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showFillDialog, setShowFillDialog] = useState(false);
   const [formData, setFormData] = useState<DFDData>({
     areaRequisitante: '',
     responsavel: '',
@@ -35,8 +200,23 @@ const DFDForm = () => {
     observacoes: '',
   });
 
+  const ai = useAICPSI({ documentType: 'dfd' });
+
   const update = (field: keyof DFDData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleFillAll = (context: string) => {
+    ai.fillAll(context, (fields) => {
+      setFormData(prev => ({ ...prev, ...fields }));
+      setShowFillDialog(false);
+    });
+  };
+
+  const handleFillField = (field: keyof DFDData, label: string) => {
+    ai.fillField(field, label, formData[field] || '', formData as unknown as Record<string, string>, (value) => {
+      update(field, value);
+    });
   };
 
   const handleGenerate = async () => {
@@ -57,53 +237,78 @@ const DFDForm = () => {
 
   return (
     <div className="space-y-6">
+      <AIToolbar
+        onFillAll={() => setShowFillDialog(true)}
+        onReview={() => ai.review(formData as unknown as Record<string, string>)}
+        isFillingAll={ai.isFillingAll}
+        isReviewing={ai.isReviewing}
+      />
+
+      <AIFillDialog
+        isOpen={showFillDialog}
+        onClose={() => setShowFillDialog(false)}
+        onSubmit={handleFillAll}
+        isLoading={ai.isFillingAll}
+        docName="DFD"
+      />
+
+      <AIReviewPanel
+        isReviewing={ai.isReviewing}
+        reviewResult={ai.reviewResult}
+        onClose={() => ai.setReviewResult('')}
+      />
+
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">1. Identificação da Demanda</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Área Requisitante *</label>
+          <AIField label="Área Requisitante *" fieldName="areaRequisitante" isLoading={ai.fillingField === 'areaRequisitante'} onGenerate={() => handleFillField('areaRequisitante', 'Área Requisitante')}>
             <Input value={formData.areaRequisitante} onChange={e => update('areaRequisitante', e.target.value)} placeholder="Ex: DIRAF" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Responsável *</label>
+          </AIField>
+          <AIField label="Responsável *" fieldName="responsavel" isLoading={ai.fillingField === 'responsavel'} onGenerate={() => handleFillField('responsavel', 'Responsável')}>
             <Input value={formData.responsavel} onChange={e => update('responsavel', e.target.value)} placeholder="Nome completo" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Cargo/Função</label>
+          </AIField>
+          <AIField label="Cargo/Função" fieldName="cargo" isLoading={ai.fillingField === 'cargo'} onGenerate={() => handleFillField('cargo', 'Cargo/Função')}>
             <Input value={formData.cargo} onChange={e => update('cargo', e.target.value)} placeholder="Ex: Diretor Administrativo" />
-          </div>
+          </AIField>
         </div>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">2. Problema Identificado *</h3>
-        <Textarea value={formData.problemaIdentificado} onChange={e => update('problemaIdentificado', e.target.value)}
-          placeholder="Descreva o problema que a administração enfrenta e que motiva a busca por solução inovadora" className="min-h-[120px]" />
+        <AIField label="" fieldName="problemaIdentificado" isLoading={ai.fillingField === 'problemaIdentificado'} onGenerate={() => handleFillField('problemaIdentificado', 'Problema Identificado')}>
+          <Textarea value={formData.problemaIdentificado} onChange={e => update('problemaIdentificado', e.target.value)}
+            placeholder="Descreva o problema que a administração enfrenta e que motiva a busca por solução inovadora" className="min-h-[120px]" />
+        </AIField>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">3. Necessidade da Contratação *</h3>
-        <Textarea value={formData.necessidade} onChange={e => update('necessidade', e.target.value)}
-          placeholder="Explique por que soluções tradicionais não atendem e qual a necessidade específica" className="min-h-[100px]" />
+        <AIField label="" fieldName="necessidade" isLoading={ai.fillingField === 'necessidade'} onGenerate={() => handleFillField('necessidade', 'Necessidade da Contratação')}>
+          <Textarea value={formData.necessidade} onChange={e => update('necessidade', e.target.value)}
+            placeholder="Explique por que soluções tradicionais não atendem e qual a necessidade específica" className="min-h-[100px]" />
+        </AIField>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">4. Alinhamento Estratégico</h3>
-        <Textarea value={formData.alinhamentoEstrategico} onChange={e => update('alinhamentoEstrategico', e.target.value)}
-          placeholder="Relação com o planejamento estratégico, PPA, LOA ou metas institucionais" className="min-h-[80px]" />
+        <AIField label="" fieldName="alinhamentoEstrategico" isLoading={ai.fillingField === 'alinhamentoEstrategico'} onGenerate={() => handleFillField('alinhamentoEstrategico', 'Alinhamento Estratégico')}>
+          <Textarea value={formData.alinhamentoEstrategico} onChange={e => update('alinhamentoEstrategico', e.target.value)}
+            placeholder="Relação com o planejamento estratégico, PPA, LOA ou metas institucionais" className="min-h-[80px]" />
+        </AIField>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">5. Resultados Esperados</h3>
-        <Textarea value={formData.resultadosEsperados} onChange={e => update('resultadosEsperados', e.target.value)}
-          placeholder="Quais resultados mensuráveis são esperados com a solução inovadora" className="min-h-[80px]" />
+        <AIField label="" fieldName="resultadosEsperados" isLoading={ai.fillingField === 'resultadosEsperados'} onGenerate={() => handleFillField('resultadosEsperados', 'Resultados Esperados')}>
+          <Textarea value={formData.resultadosEsperados} onChange={e => update('resultadosEsperados', e.target.value)}
+            placeholder="Quais resultados mensuráveis são esperados com a solução inovadora" className="min-h-[80px]" />
+        </AIField>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Previsão de Contratação</label>
+        <AIField label="Previsão de Contratação" fieldName="previsaoContratacao" isLoading={ai.fillingField === 'previsaoContratacao'} onGenerate={() => handleFillField('previsaoContratacao', 'Previsão de Contratação')}>
           <Input value={formData.previsaoContratacao} onChange={e => update('previsaoContratacao', e.target.value)} placeholder="Ex: 2º semestre de 2026" />
-        </div>
+        </AIField>
       </div>
 
       <div className="space-y-2">
@@ -124,6 +329,7 @@ const DFDForm = () => {
 
 const ETPForm = () => {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showFillDialog, setShowFillDialog] = useState(false);
   const [formData, setFormData] = useState<ETPData>({
     descricaoNecessidade: '',
     areaRequisitante: '',
@@ -146,8 +352,23 @@ const ETPForm = () => {
     observacoes: '',
   });
 
+  const ai = useAICPSI({ documentType: 'etp' });
+
   const update = (field: keyof ETPData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleFillAll = (context: string) => {
+    ai.fillAll(context, (fields) => {
+      setFormData(prev => ({ ...prev, ...fields }));
+      setShowFillDialog(false);
+    });
+  };
+
+  const handleFillField = (field: keyof ETPData, label: string) => {
+    ai.fillField(field, label, formData[field] || '', formData as unknown as Record<string, string>, (value) => {
+      update(field, value);
+    });
   };
 
   const handleGenerate = async () => {
@@ -168,122 +389,137 @@ const ETPForm = () => {
 
   return (
     <div className="space-y-6">
+      <AIToolbar
+        onFillAll={() => setShowFillDialog(true)}
+        onReview={() => ai.review(formData as unknown as Record<string, string>)}
+        isFillingAll={ai.isFillingAll}
+        isReviewing={ai.isReviewing}
+      />
+
+      <AIFillDialog
+        isOpen={showFillDialog}
+        onClose={() => setShowFillDialog(false)}
+        onSubmit={handleFillAll}
+        isLoading={ai.isFillingAll}
+        docName="ETP"
+      />
+
+      <AIReviewPanel
+        isReviewing={ai.isReviewing}
+        reviewResult={ai.reviewResult}
+        onClose={() => ai.setReviewResult('')}
+      />
+
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">1. Descrição da Necessidade *</h3>
-        <Textarea value={formData.descricaoNecessidade} onChange={e => update('descricaoNecessidade', e.target.value)}
-          placeholder="Descreva a necessidade que se pretende atender com a contratação" className="min-h-[100px]" />
+        <AIField label="" fieldName="descricaoNecessidade" isLoading={ai.fillingField === 'descricaoNecessidade'} onGenerate={() => handleFillField('descricaoNecessidade', 'Descrição da Necessidade')}>
+          <Textarea value={formData.descricaoNecessidade} onChange={e => update('descricaoNecessidade', e.target.value)}
+            placeholder="Descreva a necessidade que se pretende atender com a contratação" className="min-h-[100px]" />
+        </AIField>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">2. Área Requisitante</h3>
-        <Input value={formData.areaRequisitante} onChange={e => update('areaRequisitante', e.target.value)} placeholder="Ex: DIRAF - Diretoria Administrativa e Financeira" />
+        <AIField label="" fieldName="areaRequisitante" isLoading={ai.fillingField === 'areaRequisitante'} onGenerate={() => handleFillField('areaRequisitante', 'Área Requisitante')}>
+          <Input value={formData.areaRequisitante} onChange={e => update('areaRequisitante', e.target.value)} placeholder="Ex: DIRAF - Diretoria Administrativa e Financeira" />
+        </AIField>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">3. Requisitos da Contratação</h3>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Requisitos Técnicos</label>
+        <AIField label="Requisitos Técnicos" fieldName="requisitosTecnicos" isLoading={ai.fillingField === 'requisitosTecnicos'} onGenerate={() => handleFillField('requisitosTecnicos', 'Requisitos Técnicos')}>
           <Textarea value={formData.requisitosTecnicos} onChange={e => update('requisitosTecnicos', e.target.value)}
             placeholder="Arquitetura cloud-native, SaaS, API RESTful, segurança LGPD, etc." className="min-h-[80px]" />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Requisitos de Negócio</label>
+        </AIField>
+        <AIField label="Requisitos de Negócio" fieldName="requisitosNegocio" isLoading={ai.fillingField === 'requisitosNegocio'} onGenerate={() => handleFillField('requisitosNegocio', 'Requisitos de Negócio')}>
           <Textarea value={formData.requisitosNegocio} onChange={e => update('requisitosNegocio', e.target.value)}
             placeholder="Módulos funcionais, integrações, workflows, relatórios, etc." className="min-h-[80px]" />
-        </div>
+        </AIField>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">4. Estimativa de Valor</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Valor Estimado</label>
+          <AIField label="Valor Estimado" fieldName="estimativaValor" isLoading={ai.fillingField === 'estimativaValor'} onGenerate={() => handleFillField('estimativaValor', 'Valor Estimado')}>
             <Input value={formData.estimativaValor} onChange={e => update('estimativaValor', e.target.value)} placeholder="R$ 0,00" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Metodologia</label>
+          </AIField>
+          <AIField label="Metodologia" fieldName="metodologiaEstimativa" isLoading={ai.fillingField === 'metodologiaEstimativa'} onGenerate={() => handleFillField('metodologiaEstimativa', 'Metodologia de Estimativa')}>
             <Input value={formData.metodologiaEstimativa} onChange={e => update('metodologiaEstimativa', e.target.value)} placeholder="Pesquisa de mercado, benchmarking, etc." />
-          </div>
+          </AIField>
         </div>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">5. Justificativa da Contratação</h3>
-        <Textarea value={formData.justificativaContratacao} onChange={e => update('justificativaContratacao', e.target.value)}
-          placeholder="Demonstre por que é necessário contratar solução inovadora via CPSI" className="min-h-[100px]" />
+        <AIField label="" fieldName="justificativaContratacao" isLoading={ai.fillingField === 'justificativaContratacao'} onGenerate={() => handleFillField('justificativaContratacao', 'Justificativa da Contratação')}>
+          <Textarea value={formData.justificativaContratacao} onChange={e => update('justificativaContratacao', e.target.value)}
+            placeholder="Demonstre por que é necessário contratar solução inovadora via CPSI" className="min-h-[100px]" />
+        </AIField>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">6. Descrição da Solução *</h3>
-        <Textarea value={formData.descricaoSolucao} onChange={e => update('descricaoSolucao', e.target.value)}
-          placeholder="Descreva a solução inovadora pretendida (sistema de governança digital, portal, etc.)" className="min-h-[100px]" />
+        <AIField label="" fieldName="descricaoSolucao" isLoading={ai.fillingField === 'descricaoSolucao'} onGenerate={() => handleFillField('descricaoSolucao', 'Descrição da Solução')}>
+          <Textarea value={formData.descricaoSolucao} onChange={e => update('descricaoSolucao', e.target.value)}
+            placeholder="Descreva a solução inovadora pretendida (sistema de governança digital, portal, etc.)" className="min-h-[100px]" />
+        </AIField>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">7. Parâmetros de Inovação (LC 182/2021)</h3>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Diferencial Inovador</label>
+        <AIField label="Diferencial Inovador" fieldName="diferencialInovador" isLoading={ai.fillingField === 'diferencialInovador'} onGenerate={() => handleFillField('diferencialInovador', 'Diferencial Inovador')}>
           <Textarea value={formData.diferencialInovador} onChange={e => update('diferencialInovador', e.target.value)}
             placeholder="IA generativa, automação de processos, transparência ativa nativa, etc." className="min-h-[80px]" />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Ganho de Eficiência</label>
+        </AIField>
+        <AIField label="Ganho de Eficiência" fieldName="ganhoEficiencia" isLoading={ai.fillingField === 'ganhoEficiencia'} onGenerate={() => handleFillField('ganhoEficiencia', 'Ganho de Eficiência')}>
           <Textarea value={formData.ganhoEficiencia} onChange={e => update('ganhoEficiencia', e.target.value)}
             placeholder="Redução de tempo, eliminação de retrabalho, economia de recursos, etc." className="min-h-[60px]" />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Base Comparativa</label>
+        </AIField>
+        <AIField label="Base Comparativa" fieldName="baseComparativa" isLoading={ai.fillingField === 'baseComparativa'} onGenerate={() => handleFillField('baseComparativa', 'Base Comparativa')}>
           <Textarea value={formData.baseComparativa} onChange={e => update('baseComparativa', e.target.value)}
             placeholder="Compare com soluções tradicionais disponíveis no mercado" className="min-h-[60px]" />
-        </div>
+        </AIField>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">8. Demonstração em Ambiente Real</h3>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Ambiente de Teste</label>
+        <AIField label="Ambiente de Teste" fieldName="ambienteTeste" isLoading={ai.fillingField === 'ambienteTeste'} onGenerate={() => handleFillField('ambienteTeste', 'Ambiente de Teste')}>
           <Textarea value={formData.ambienteTeste} onChange={e => update('ambienteTeste', e.target.value)}
             placeholder="Descreva o ambiente onde a solução será testada (setores, processos, usuários)" className="min-h-[60px]" />
-        </div>
+        </AIField>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Critérios de Avaliação</label>
+          <AIField label="Critérios de Avaliação" fieldName="criteriosAvaliacao" isLoading={ai.fillingField === 'criteriosAvaliacao'} onGenerate={() => handleFillField('criteriosAvaliacao', 'Critérios de Avaliação')}>
             <Textarea value={formData.criteriosAvaliacao} onChange={e => update('criteriosAvaliacao', e.target.value)}
               placeholder="KPIs, métricas de sucesso, indicadores" className="min-h-[60px]" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Prazo do Teste</label>
+          </AIField>
+          <AIField label="Prazo do Teste" fieldName="prazoTeste" isLoading={ai.fillingField === 'prazoTeste'} onGenerate={() => handleFillField('prazoTeste', 'Prazo do Teste')}>
             <Input value={formData.prazoTeste} onChange={e => update('prazoTeste', e.target.value)} placeholder="Ex: 12 meses" />
-          </div>
+          </AIField>
         </div>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">9. Análise de Riscos</h3>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Riscos Identificados</label>
+        <AIField label="Riscos Identificados" fieldName="riscos" isLoading={ai.fillingField === 'riscos'} onGenerate={() => handleFillField('riscos', 'Riscos Identificados')}>
           <Textarea value={formData.riscos} onChange={e => update('riscos', e.target.value)}
             placeholder="Liste os principais riscos da contratação" className="min-h-[80px]" />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Medidas de Mitigação</label>
+        </AIField>
+        <AIField label="Medidas de Mitigação" fieldName="mitigacao" isLoading={ai.fillingField === 'mitigacao'} onGenerate={() => handleFillField('mitigacao', 'Medidas de Mitigação')}>
           <Textarea value={formData.mitigacao} onChange={e => update('mitigacao', e.target.value)}
             placeholder="Ações para mitigar cada risco identificado" className="min-h-[80px]" />
-        </div>
+        </AIField>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">10. Viabilidade</h3>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Viabilidade Técnica</label>
+        <AIField label="Viabilidade Técnica" fieldName="viabilidadeTecnica" isLoading={ai.fillingField === 'viabilidadeTecnica'} onGenerate={() => handleFillField('viabilidadeTecnica', 'Viabilidade Técnica')}>
           <Textarea value={formData.viabilidadeTecnica} onChange={e => update('viabilidadeTecnica', e.target.value)}
             placeholder="Demonstre a viabilidade técnica da solução" className="min-h-[60px]" />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Viabilidade Orçamentária</label>
+        </AIField>
+        <AIField label="Viabilidade Orçamentária" fieldName="viabilidadeOrcamentaria" isLoading={ai.fillingField === 'viabilidadeOrcamentaria'} onGenerate={() => handleFillField('viabilidadeOrcamentaria', 'Viabilidade Orçamentária')}>
           <Textarea value={formData.viabilidadeOrcamentaria} onChange={e => update('viabilidadeOrcamentaria', e.target.value)}
             placeholder="Fonte de recursos, dotação orçamentária" className="min-h-[60px]" />
-        </div>
+        </AIField>
       </div>
 
       <div className="space-y-2">
@@ -304,6 +540,7 @@ const ETPForm = () => {
 
 const TRForm = () => {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showFillDialog, setShowFillDialog] = useState(false);
   const [formData, setFormData] = useState<TRData>({
     objeto: '',
     justificativa: '',
@@ -325,8 +562,23 @@ const TRForm = () => {
     observacoes: '',
   });
 
+  const ai = useAICPSI({ documentType: 'tr' });
+
   const update = (field: keyof TRData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleFillAll = (context: string) => {
+    ai.fillAll(context, (fields) => {
+      setFormData(prev => ({ ...prev, ...fields }));
+      setShowFillDialog(false);
+    });
+  };
+
+  const handleFillField = (field: keyof TRData, label: string) => {
+    ai.fillField(field, label, formData[field] || '', formData as unknown as Record<string, string>, (value) => {
+      update(field, value);
+    });
   };
 
   const handleGenerate = async () => {
@@ -347,123 +599,139 @@ const TRForm = () => {
 
   return (
     <div className="space-y-6">
+      <AIToolbar
+        onFillAll={() => setShowFillDialog(true)}
+        onReview={() => ai.review(formData as unknown as Record<string, string>)}
+        isFillingAll={ai.isFillingAll}
+        isReviewing={ai.isReviewing}
+      />
+
+      <AIFillDialog
+        isOpen={showFillDialog}
+        onClose={() => setShowFillDialog(false)}
+        onSubmit={handleFillAll}
+        isLoading={ai.isFillingAll}
+        docName="Termo de Referência"
+      />
+
+      <AIReviewPanel
+        isReviewing={ai.isReviewing}
+        reviewResult={ai.reviewResult}
+        onClose={() => ai.setReviewResult('')}
+      />
+
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">1. Objeto *</h3>
-        <Textarea value={formData.objeto} onChange={e => update('objeto', e.target.value)}
-          placeholder="Contratação de solução tecnológica inovadora para sistema de governança digital..." className="min-h-[80px]" />
+        <AIField label="" fieldName="objeto" isLoading={ai.fillingField === 'objeto'} onGenerate={() => handleFillField('objeto', 'Objeto')}>
+          <Textarea value={formData.objeto} onChange={e => update('objeto', e.target.value)}
+            placeholder="Contratação de solução tecnológica inovadora para sistema de governança digital..." className="min-h-[80px]" />
+        </AIField>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">2. Justificativa *</h3>
-        <Textarea value={formData.justificativa} onChange={e => update('justificativa', e.target.value)}
-          placeholder="Justifique a contratação demonstrando o interesse público e a necessidade institucional" className="min-h-[100px]" />
+        <AIField label="" fieldName="justificativa" isLoading={ai.fillingField === 'justificativa'} onGenerate={() => handleFillField('justificativa', 'Justificativa')}>
+          <Textarea value={formData.justificativa} onChange={e => update('justificativa', e.target.value)}
+            placeholder="Justifique a contratação demonstrando o interesse público e a necessidade institucional" className="min-h-[100px]" />
+        </AIField>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">3. Fundamentação Legal</h3>
-        <Textarea value={formData.fundamentacaoLegal} onChange={e => update('fundamentacaoLegal', e.target.value)}
-          className="min-h-[60px]" />
+        <AIField label="" fieldName="fundamentacaoLegal" isLoading={ai.fillingField === 'fundamentacaoLegal'} onGenerate={() => handleFillField('fundamentacaoLegal', 'Fundamentação Legal')}>
+          <Textarea value={formData.fundamentacaoLegal} onChange={e => update('fundamentacaoLegal', e.target.value)}
+            className="min-h-[60px]" />
+        </AIField>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">4. Descrição Detalhada</h3>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Descrição da Solução</label>
+        <AIField label="Descrição da Solução" fieldName="descricaoDetalhada" isLoading={ai.fillingField === 'descricaoDetalhada'} onGenerate={() => handleFillField('descricaoDetalhada', 'Descrição Detalhada')}>
           <Textarea value={formData.descricaoDetalhada} onChange={e => update('descricaoDetalhada', e.target.value)}
             placeholder="Descreva em detalhe a solução pretendida, funcionalidades e integrações" className="min-h-[100px]" />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Módulos do Sistema</label>
+        </AIField>
+        <AIField label="Módulos do Sistema" fieldName="modulosSistema" isLoading={ai.fillingField === 'modulosSistema'} onGenerate={() => handleFillField('modulosSistema', 'Módulos do Sistema')}>
           <Textarea value={formData.modulosSistema} onChange={e => update('modulosSistema', e.target.value)}
             placeholder="RH, Financeiro, Patrimônio, Licitações, Contratos, Governança, Transparência, etc." className="min-h-[80px]" />
-        </div>
+        </AIField>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">5. Requisitos Técnicos</h3>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Requisitos Funcionais</label>
+        <AIField label="Requisitos Funcionais" fieldName="requisitosTecnicos" isLoading={ai.fillingField === 'requisitosTecnicos'} onGenerate={() => handleFillField('requisitosTecnicos', 'Requisitos Técnicos')}>
           <Textarea value={formData.requisitosTecnicos} onChange={e => update('requisitosTecnicos', e.target.value)}
             placeholder="Funcionalidades obrigatórias que a solução deve atender" className="min-h-[80px]" />
-        </div>
+        </AIField>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Segurança</label>
+          <AIField label="Segurança" fieldName="requisitosSeguranca" isLoading={ai.fillingField === 'requisitosSeguranca'} onGenerate={() => handleFillField('requisitosSeguranca', 'Requisitos de Segurança')}>
             <Textarea value={formData.requisitosSeguranca} onChange={e => update('requisitosSeguranca', e.target.value)}
               placeholder="LGPD, criptografia, RBAC, auditoria, backup" className="min-h-[60px]" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Desempenho</label>
+          </AIField>
+          <AIField label="Desempenho" fieldName="requisitosDesempenho" isLoading={ai.fillingField === 'requisitosDesempenho'} onGenerate={() => handleFillField('requisitosDesempenho', 'Requisitos de Desempenho')}>
             <Textarea value={formData.requisitosDesempenho} onChange={e => update('requisitosDesempenho', e.target.value)}
               placeholder="SLA, uptime, tempo de resposta, escalabilidade" className="min-h-[60px]" />
-          </div>
+          </AIField>
         </div>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">6. Metodologia de Avaliação</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Métricas</label>
+          <AIField label="Métricas" fieldName="metricas" isLoading={ai.fillingField === 'metricas'} onGenerate={() => handleFillField('metricas', 'Métricas')}>
             <Textarea value={formData.metricas} onChange={e => update('metricas', e.target.value)}
               placeholder="KPIs para avaliar o desempenho da solução" className="min-h-[60px]" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Critérios de Aceite</label>
+          </AIField>
+          <AIField label="Critérios de Aceite" fieldName="criteriosAceite" isLoading={ai.fillingField === 'criteriosAceite'} onGenerate={() => handleFillField('criteriosAceite', 'Critérios de Aceite')}>
             <Textarea value={formData.criteriosAceite} onChange={e => update('criteriosAceite', e.target.value)}
               placeholder="Condições mínimas para aceite da solução" className="min-h-[60px]" />
-          </div>
+          </AIField>
         </div>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">7. Prazo de Execução</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Prazo</label>
+          <AIField label="Prazo" fieldName="prazoExecucao" isLoading={ai.fillingField === 'prazoExecucao'} onGenerate={() => handleFillField('prazoExecucao', 'Prazo de Execução')}>
             <Input value={formData.prazoExecucao} onChange={e => update('prazoExecucao', e.target.value)} placeholder="Ex: 12 meses" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Cronograma</label>
+          </AIField>
+          <AIField label="Cronograma" fieldName="cronograma" isLoading={ai.fillingField === 'cronograma'} onGenerate={() => handleFillField('cronograma', 'Cronograma')}>
             <Textarea value={formData.cronograma} onChange={e => update('cronograma', e.target.value)}
               placeholder="Fases, marcos e entregas" className="min-h-[60px]" />
-          </div>
+          </AIField>
         </div>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">8. Valor e Pagamento</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Valor Estimado</label>
+          <AIField label="Valor Estimado" fieldName="valorEstimado" isLoading={ai.fillingField === 'valorEstimado'} onGenerate={() => handleFillField('valorEstimado', 'Valor Estimado')}>
             <Input value={formData.valorEstimado} onChange={e => update('valorEstimado', e.target.value)} placeholder="R$ 0,00" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Condições de Pagamento</label>
+          </AIField>
+          <AIField label="Condições de Pagamento" fieldName="condicoesPagamento" isLoading={ai.fillingField === 'condicoesPagamento'} onGenerate={() => handleFillField('condicoesPagamento', 'Condições de Pagamento')}>
             <Textarea value={formData.condicoesPagamento} onChange={e => update('condicoesPagamento', e.target.value)}
               placeholder="Mensal, por entrega, etc." className="min-h-[60px]" />
-          </div>
+          </AIField>
         </div>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">9. Obrigações das Partes</h3>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Obrigações da Contratada</label>
+        <AIField label="Obrigações da Contratada" fieldName="obrigatoesContratada" isLoading={ai.fillingField === 'obrigatoesContratada'} onGenerate={() => handleFillField('obrigatoesContratada', 'Obrigações da Contratada')}>
           <Textarea value={formData.obrigatoesContratada} onChange={e => update('obrigatoesContratada', e.target.value)}
             placeholder="Entrega, suporte, SLA, treinamento, documentação, etc." className="min-h-[80px]" />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Obrigações da Contratante</label>
+        </AIField>
+        <AIField label="Obrigações da Contratante" fieldName="obrigatoesContratante" isLoading={ai.fillingField === 'obrigatoesContratante'} onGenerate={() => handleFillField('obrigatoesContratante', 'Obrigações da Contratante')}>
           <Textarea value={formData.obrigatoesContratante} onChange={e => update('obrigatoesContratante', e.target.value)}
             placeholder="Fornecer dados, ambiente, designar fiscal, efetuar pagamento, etc." className="min-h-[80px]" />
-        </div>
+        </AIField>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold border-b pb-2">10. Sanções</h3>
-        <Textarea value={formData.sancoes} onChange={e => update('sancoes', e.target.value)}
-          placeholder="Penalidades aplicáveis conforme Lei 14.133/2021" className="min-h-[80px]" />
+        <AIField label="" fieldName="sancoes" isLoading={ai.fillingField === 'sancoes'} onGenerate={() => handleFillField('sancoes', 'Sanções')}>
+          <Textarea value={formData.sancoes} onChange={e => update('sancoes', e.target.value)}
+            placeholder="Penalidades aplicáveis conforme Lei 14.133/2021" className="min-h-[80px]" />
+        </AIField>
       </div>
 
       <div className="space-y-2">
@@ -499,12 +767,16 @@ const CPSIPage = () => {
                   <Lightbulb className="h-6 w-6 text-primary" />
                 </div>
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <CardTitle>CPSI — Contrato Público de Solução Inovadora</CardTitle>
                     <Badge variant="secondary" className="text-xs">LC 182/2021</Badge>
+                    <Badge className="text-xs bg-primary/20 text-primary border-primary/30">
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      IA Integrada
+                    </Badge>
                   </div>
                   <CardDescription>
-                    Gere os documentos necessários para abrir processo de contratação de soluções inovadoras
+                    Gere os documentos necessários para abrir processo de contratação de soluções inovadoras — com assistência de IA
                   </CardDescription>
                 </div>
               </div>
@@ -530,7 +802,8 @@ const CPSIPage = () => {
                 </TabsList>
 
                 <div className="mt-4 p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-                  <strong>Fluxo recomendado:</strong> DFD → ETP → TR (conforme IN SEGES/MP nº 5/2017, art. 20)
+                  <strong>Fluxo recomendado:</strong> DFD → ETP → TR (conforme IN SEGES/MP nº 5/2017, art. 20) &nbsp;|&nbsp;
+                  <Sparkles className="h-3.5 w-3.5 inline" /> Use os botões de IA para preencher campos automaticamente ou revisar o documento.
                 </div>
 
                 <TabsContent value="dfd" className="mt-6">
