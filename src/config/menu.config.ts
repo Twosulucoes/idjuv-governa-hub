@@ -937,7 +937,7 @@ export const menuConfig: MenuSection[] = [
       {
         id: "gab-pre-cadastros",
         label: "Pré-Cadastros",
-        route: "/curriculo/pre-cadastros",
+        route: "/gabinete/pre-cadastros",
         icon: Users,
       },
       {
