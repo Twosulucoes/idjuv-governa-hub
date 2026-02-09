@@ -15,7 +15,7 @@ interface HeaderPublicoProps {
 
 export function HeaderPublico({ 
   titulo = "Credenciamento de Gestores Escolares",
-  subtitulo = "Jogos Escolares de Roraima - JER 2025"
+  subtitulo = "Jogos Escolares de Roraima - JER's 2026"
 }: HeaderPublicoProps) {
   const logoIdjuv = useLogoIdjuv();
 
