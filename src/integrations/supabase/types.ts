@@ -2246,6 +2246,204 @@ export type Database = {
         }
         Relationships: []
       }
+      cms_banners: {
+        Row: {
+          ativo: boolean | null
+          created_at: string
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string | null
+          destino: Database["public"]["Enums"]["cms_destino"]
+          id: string
+          imagem_mobile_url: string | null
+          imagem_url: string
+          link_externo: boolean | null
+          link_texto: string | null
+          link_url: string | null
+          ordem: number | null
+          posicao: string | null
+          subtitulo: string | null
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          destino?: Database["public"]["Enums"]["cms_destino"]
+          id?: string
+          imagem_mobile_url?: string | null
+          imagem_url: string
+          link_externo?: boolean | null
+          link_texto?: string | null
+          link_url?: string | null
+          ordem?: number | null
+          posicao?: string | null
+          subtitulo?: string | null
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          destino?: Database["public"]["Enums"]["cms_destino"]
+          id?: string
+          imagem_mobile_url?: string | null
+          imagem_url?: string
+          link_externo?: boolean | null
+          link_texto?: string | null
+          link_url?: string | null
+          ordem?: number | null
+          posicao?: string | null
+          subtitulo?: string | null
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cms_categorias: {
+        Row: {
+          ativo: boolean | null
+          cor: string | null
+          created_at: string
+          descricao: string | null
+          destino: Database["public"]["Enums"]["cms_destino"] | null
+          icone: string | null
+          id: string
+          nome: string
+          ordem: number | null
+          slug: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          cor?: string | null
+          created_at?: string
+          descricao?: string | null
+          destino?: Database["public"]["Enums"]["cms_destino"] | null
+          icone?: string | null
+          id?: string
+          nome: string
+          ordem?: number | null
+          slug: string
+        }
+        Update: {
+          ativo?: boolean | null
+          cor?: string | null
+          created_at?: string
+          descricao?: string | null
+          destino?: Database["public"]["Enums"]["cms_destino"] | null
+          icone?: string | null
+          id?: string
+          nome?: string
+          ordem?: number | null
+          slug?: string
+        }
+        Relationships: []
+      }
+      cms_conteudos: {
+        Row: {
+          aprovador_id: string | null
+          autor_id: string | null
+          autor_nome: string | null
+          categoria: string | null
+          conteudo: string | null
+          conteudo_html: string | null
+          created_at: string
+          data_aprovacao: string | null
+          data_expiracao: string | null
+          data_publicacao: string | null
+          destaque: boolean | null
+          destino: Database["public"]["Enums"]["cms_destino"]
+          id: string
+          imagem_destaque_alt: string | null
+          imagem_destaque_url: string | null
+          meta_description: string | null
+          meta_title: string | null
+          ordem: number | null
+          resumo: string | null
+          revisor_id: string | null
+          revisor_nome: string | null
+          slug: string
+          status: string
+          subtitulo: string | null
+          tags: string[] | null
+          tipo: Database["public"]["Enums"]["cms_tipo_conteudo"]
+          titulo: string
+          updated_at: string
+          video_url: string | null
+          visualizacoes: number | null
+        }
+        Insert: {
+          aprovador_id?: string | null
+          autor_id?: string | null
+          autor_nome?: string | null
+          categoria?: string | null
+          conteudo?: string | null
+          conteudo_html?: string | null
+          created_at?: string
+          data_aprovacao?: string | null
+          data_expiracao?: string | null
+          data_publicacao?: string | null
+          destaque?: boolean | null
+          destino?: Database["public"]["Enums"]["cms_destino"]
+          id?: string
+          imagem_destaque_alt?: string | null
+          imagem_destaque_url?: string | null
+          meta_description?: string | null
+          meta_title?: string | null
+          ordem?: number | null
+          resumo?: string | null
+          revisor_id?: string | null
+          revisor_nome?: string | null
+          slug: string
+          status?: string
+          subtitulo?: string | null
+          tags?: string[] | null
+          tipo?: Database["public"]["Enums"]["cms_tipo_conteudo"]
+          titulo: string
+          updated_at?: string
+          video_url?: string | null
+          visualizacoes?: number | null
+        }
+        Update: {
+          aprovador_id?: string | null
+          autor_id?: string | null
+          autor_nome?: string | null
+          categoria?: string | null
+          conteudo?: string | null
+          conteudo_html?: string | null
+          created_at?: string
+          data_aprovacao?: string | null
+          data_expiracao?: string | null
+          data_publicacao?: string | null
+          destaque?: boolean | null
+          destino?: Database["public"]["Enums"]["cms_destino"]
+          id?: string
+          imagem_destaque_alt?: string | null
+          imagem_destaque_url?: string | null
+          meta_description?: string | null
+          meta_title?: string | null
+          ordem?: number | null
+          resumo?: string | null
+          revisor_id?: string | null
+          revisor_nome?: string | null
+          slug?: string
+          status?: string
+          subtitulo?: string | null
+          tags?: string[] | null
+          tipo?: Database["public"]["Enums"]["cms_tipo_conteudo"]
+          titulo?: string
+          updated_at?: string
+          video_url?: string | null
+          visualizacoes?: number | null
+        }
+        Relationships: []
+      }
       coletas_inventario: {
         Row: {
           bem_id: string
@@ -18872,6 +19070,7 @@ export type Database = {
         Args: { _module_name?: string; _user_id: string }
         Returns: boolean
       }
+      can_manage_cms: { Args: never; Returns: boolean }
       can_view_audit: { Args: { _user_id: string }; Returns: boolean }
       can_view_indicacao: { Args: { _user_id: string }; Returns: boolean }
       consultar_protocolo_sic: {
@@ -19242,6 +19441,26 @@ export type Database = {
         | "cessao"
         | "ferias"
         | "licenca"
+      cms_destino:
+        | "portal_home"
+        | "portal_noticias"
+        | "portal_eventos"
+        | "portal_programas"
+        | "selecoes_estudantis"
+        | "jogos_escolares"
+        | "esports"
+        | "institucional"
+        | "transparencia"
+        | "redes_sociais"
+      cms_tipo_conteudo:
+        | "noticia"
+        | "comunicado"
+        | "banner"
+        | "destaque"
+        | "evento"
+        | "galeria"
+        | "video"
+        | "documento"
       decisao_despacho:
         | "deferido"
         | "indeferido"
@@ -20033,6 +20252,28 @@ export const Constants = {
         "cessao",
         "ferias",
         "licenca",
+      ],
+      cms_destino: [
+        "portal_home",
+        "portal_noticias",
+        "portal_eventos",
+        "portal_programas",
+        "selecoes_estudantis",
+        "jogos_escolares",
+        "esports",
+        "institucional",
+        "transparencia",
+        "redes_sociais",
+      ],
+      cms_tipo_conteudo: [
+        "noticia",
+        "comunicado",
+        "banner",
+        "destaque",
+        "evento",
+        "galeria",
+        "video",
+        "documento",
       ],
       decisao_despacho: [
         "deferido",

@@ -73,6 +73,8 @@ import {
   CMSNoticiasPage as CMSNoticiasSelecaoPage,
   CMSGaleriaPage as CMSGaleriaSelecaoPage
 } from "./pages/programas/selecoes";
+import CMSConteudosPage from "./pages/comunicacao/CMSConteudosPage";
+import CMSBannersPage from "./pages/comunicacao/CMSBannersPage";
 import CargosRemuneracaoPage from "./pages/transparencia/CargosRemuneracaoPage";
 import LicitacoesPublicasPage from "./pages/transparencia/LicitacoesPublicasPage";
 import ExecucaoOrcamentariaPage from "./pages/transparencia/ExecucaoOrcamentariaPage";
@@ -358,6 +360,16 @@ const App = () => (
               <Route path="/contratos" element={<ProtectedRoute><ContratosDashboardPage /></ProtectedRoute>} />
               <Route path="/workflow" element={<ProtectedRoute><WorkflowDashboardPage /></ProtectedRoute>} />
               <Route path="/comunicacao" element={<ProtectedRoute><ComunicacaoDashboardPage /></ProtectedRoute>} />
+              <Route path="/comunicacao/cms/conteudos" element={
+                <ProtectedRoute requiredPermissions="comunicacao.visualizar">
+                  <CMSConteudosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/comunicacao/cms/banners" element={
+                <ProtectedRoute requiredPermissions="comunicacao.visualizar">
+                  <CMSBannersPage />
+                </ProtectedRoute>
+              } />
               <Route path="/gestores-escolares" element={<ProtectedRoute><GestoresEscolaresDashboardPage /></ProtectedRoute>} />
               <Route path="/gabinete" element={<ProtectedRoute><GabineteDashboardPage /></ProtectedRoute>} />
               <Route path="/gabinete/portarias" element={
