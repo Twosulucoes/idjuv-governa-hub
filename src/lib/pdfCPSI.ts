@@ -178,17 +178,17 @@ export const generateDFD = async (data: DFDData): Promise<string> => {
   y = addMultiLineField(doc, '', data.dataPretendida, y, config);
 
   // Seção 7 - Quantidade
-  y = verificarQuebraPagina(doc, y, 15, config);
+  y = verificarQuebraPagina(doc, y, 30, config);
   y = adicionarSecao(doc, 'QUANTIDADE', y, 7);
   y = addMultiLineField(doc, '', data.quantidade, y, config);
 
   // Seção 8 - Grau de prioridade
-  y = verificarQuebraPagina(doc, y, 15, config);
+  y = verificarQuebraPagina(doc, y, 30, config);
   y = adicionarSecao(doc, 'GRAU DE PRIORIDADE DA CONTRATAÇÃO', y, 8);
   y = addMultiLineField(doc, '', data.grauPrioridade, y, config);
 
   // Seção 9 - Correlação
-  y = verificarQuebraPagina(doc, y, 15, config);
+  y = verificarQuebraPagina(doc, y, 30, config);
   y = adicionarSecao(doc, 'CORRELAÇÃO OU INTERDEPENDÊNCIA COM OUTRO DFD', y, 9);
   y = addMultiLineField(doc, '', data.correlacaoDFD, y, config);
 
