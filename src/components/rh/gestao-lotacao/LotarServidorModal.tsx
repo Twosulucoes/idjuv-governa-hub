@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Building2, AlertCircle, CheckCircle, FileText } from "lucide-react";
+import { Loader2, Building2, AlertCircle, CheckCircle, FileText, AlertTriangle } from "lucide-react";
 import { 
   useLotarServidor, 
   useCargosVagos, 
@@ -29,6 +29,11 @@ import {
 } from "@/hooks/useGestaoLotacao";
 import { format } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  isCargoChefiaByName,
+  requerJustificativaLotacao,
+  MIN_JUSTIFICATIVA_LOTACAO_ALTERNATIVA,
+} from "@/constants/cargos-chefia";
 
 interface Props {
   servidor: ServidorGestao | null;
@@ -55,6 +60,7 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
   const [portariaId, setPortariaId] = useState("");
   const [atoNumeroManual, setAtoNumeroManual] = useState("");
   const [observacao, setObservacao] = useState("");
+  const [justificativaLotacaoAlternativa, setJustificativaLotacaoAlternativa] = useState("");
 
   // Buscar unidades compatíveis com o cargo selecionado
   const { data: unidadesCompativeis = [], isLoading: loadingUnidades } = useUnidadesCompativeisCargo(cargoId || null);
@@ -62,6 +68,16 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
   // Filtrar cargos com vagas e portarias por tipo
   const cargosComVagas = cargos.filter(c => c.vagas_disponiveis > 0);
   const cargoSelecionado = cargos.find(c => c.id === cargoId);
+  
+  // Obter a unidade selecionada para validação
+  const unidadeSelecionada = unidadesCompativeis.find((u: any) => u.id === unidadeId);
+  
+  // Verificar se é cargo de chefia e se requer justificativa
+  const isChefia = useMemo(() => isCargoChefiaByName(cargoSelecionado?.nome), [cargoSelecionado?.nome]);
+  const precisaJustificativa = useMemo(
+    () => requerJustificativaLotacao(cargoSelecionado?.nome, unidadeSelecionada?.tipo),
+    [cargoSelecionado?.nome, unidadeSelecionada?.tipo]
+  );
   
   // Filtrar portarias pelo tipo de ato selecionado
   const portariasFiltradas = portarias.filter((p: any) => {
@@ -90,6 +106,7 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
     setPortariaId("");
     setAtoNumeroManual("");
     setObservacao("");
+    setJustificativaLotacaoAlternativa("");
   };
 
   // Obter número do ato (da portaria selecionada ou manual)
@@ -105,6 +122,20 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
     e.preventDefault();
     if (!servidor || !cargoId || !unidadeId || !dataInicio) return;
 
+    // Validar justificativa para lotação alternativa de cargo de chefia
+    if (precisaJustificativa) {
+      if (!justificativaLotacaoAlternativa || justificativaLotacaoAlternativa.trim().length < MIN_JUSTIFICATIVA_LOTACAO_ALTERNATIVA) {
+        return; // O formulário já mostra o erro via validação visual
+      }
+    }
+
+    // Montar observação incluindo justificativa de lotação alternativa se aplicável
+    let observacaoFinal = observacao || "";
+    if (precisaJustificativa && justificativaLotacaoAlternativa) {
+      const prefixo = `[LOTAÇÃO ALTERNATIVA - ${cargoSelecionado?.nome}] `;
+      observacaoFinal = prefixo + justificativaLotacaoAlternativa + (observacaoFinal ? `\n\n${observacaoFinal}` : "");
+    }
+
     await lotarServidor.mutateAsync({
       servidorId: servidor.id,
       cargoId,
@@ -112,7 +143,7 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
       dataInicio,
       atoNumero: getAtoNumero() || undefined,
       atoTipo: atoTipo || undefined,
-      observacao: observacao || undefined,
+      observacao: observacaoFinal || undefined,
     });
 
     resetForm();
@@ -300,6 +331,53 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
             </div>
           )}
 
+          {/* Alerta e Justificativa para Lotação Alternativa */}
+          {precisaJustificativa && (
+            <div className="space-y-2">
+              <Alert variant="destructive" className="bg-warning/10 border-warning text-warning-foreground">
+                <AlertTriangle className="h-4 w-4 text-warning" />
+                <AlertDescription className="text-sm">
+                  <strong>Atenção:</strong> O cargo "{cargoSelecionado?.nome}" normalmente é lotado em unidade de tipo diferente de "{unidadeSelecionada?.tipo}". 
+                  É necessário justificar esta lotação alternativa.
+                </AlertDescription>
+              </Alert>
+              <Label className="flex items-center gap-2 text-warning">
+                <AlertTriangle className="h-4 w-4" />
+                Justificativa da Lotação Alternativa *
+              </Label>
+              <Textarea
+                value={justificativaLotacaoAlternativa}
+                onChange={(e) => setJustificativaLotacaoAlternativa(e.target.value)}
+                placeholder={`Justifique a lotação deste cargo de chefia em unidade diferente do tipo padrão (mínimo ${MIN_JUSTIFICATIVA_LOTACAO_ALTERNATIVA} caracteres)...`}
+                rows={3}
+                className={
+                  justificativaLotacaoAlternativa.trim().length > 0 && 
+                  justificativaLotacaoAlternativa.trim().length < MIN_JUSTIFICATIVA_LOTACAO_ALTERNATIVA
+                    ? "border-destructive"
+                    : ""
+                }
+                required
+              />
+              <p className={`text-xs ${
+                justificativaLotacaoAlternativa.trim().length < MIN_JUSTIFICATIVA_LOTACAO_ALTERNATIVA 
+                  ? "text-destructive" 
+                  : "text-muted-foreground"
+              }`}>
+                {justificativaLotacaoAlternativa.trim().length}/{MIN_JUSTIFICATIVA_LOTACAO_ALTERNATIVA} caracteres mínimos
+              </p>
+            </div>
+          )}
+
+          {/* Indicador de Cargo de Chefia */}
+          {isChefia && !precisaJustificativa && unidadeSelecionada && (
+            <Alert variant="default" className="bg-success/10 border-success/30">
+              <CheckCircle className="h-4 w-4 text-success" />
+              <AlertDescription className="text-sm text-success">
+                Lotação compatível: cargo de chefia "{cargoSelecionado?.nome}" em unidade do tipo "{unidadeSelecionada?.tipo}".
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Observação */}
           <div className="space-y-2">
             <Label>Observação</Label>
@@ -317,7 +395,13 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
             </Button>
             <Button 
               type="submit" 
-              disabled={!cargoId || !unidadeId || !dataInicio || lotarServidor.isPending}
+              disabled={
+                !cargoId || 
+                !unidadeId || 
+                !dataInicio || 
+                lotarServidor.isPending ||
+                (precisaJustificativa && justificativaLotacaoAlternativa.trim().length < MIN_JUSTIFICATIVA_LOTACAO_ALTERNATIVA)
+              }
               className="bg-success hover:bg-success/90"
             >
               {lotarServidor.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
