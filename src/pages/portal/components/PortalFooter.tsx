@@ -16,14 +16,22 @@ import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
 import logoGoverno from "@/assets/logo-governo-roraima.jpg";
 import { useDadosOficiais } from "@/hooks/useDadosOficiais";
 
+// Configuração das redes sociais oficiais do IDJUV
+const SOCIAL_CONFIG = {
+  instagram: "idjuv_rr",
+  facebook: "idjuvrr",
+  youtube: "@idjuv_rr",
+  twitter: "idjuv_rr",
+};
+
 export function PortalFooter() {
   const { nomeOficial, nomeCurto } = useDadosOficiais();
 
   const socialLinks = [
-    { icon: Facebook, href: "#", label: "Facebook" },
-    { icon: Instagram, href: "#", label: "Instagram" },
-    { icon: Youtube, href: "#", label: "YouTube" },
-    { icon: Twitter, href: "#", label: "Twitter" },
+    { icon: Facebook, href: `https://facebook.com/${SOCIAL_CONFIG.facebook}`, label: "Facebook" },
+    { icon: Instagram, href: `https://instagram.com/${SOCIAL_CONFIG.instagram}`, label: "Instagram" },
+    { icon: Youtube, href: `https://youtube.com/${SOCIAL_CONFIG.youtube}`, label: "YouTube" },
+    { icon: Twitter, href: `https://twitter.com/${SOCIAL_CONFIG.twitter}`, label: "Twitter" },
   ];
 
   const quickLinks = [

@@ -4,10 +4,11 @@
 
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Calendar, Clock, Share2, Trophy, GraduationCap, Newspaper, User } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, Trophy, GraduationCap, Newspaper, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { ShareButtons } from "@/components/social/ShareButtons";
 
 interface Noticia {
   id: string;
@@ -137,17 +138,7 @@ export default function NoticiaDetalhePage() {
   const displayNoticia = noticia || noticiaExemplo;
   const Icon = getCategoriaIcon(displayNoticia.categoria);
 
-  const handleShare = async () => {
-    if (navigator.share) {
-      await navigator.share({
-        title: displayNoticia.titulo,
-        text: displayNoticia.resumo || "",
-        url: window.location.href,
-      });
-    } else {
-      await navigator.clipboard.writeText(window.location.href);
-    }
-  };
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
 
   if (isLoading) {
     return (
@@ -232,15 +223,14 @@ export default function NoticiaDetalhePage() {
               {displayNoticia.autor_nome}
             </div>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleShare}
-            className="ml-auto rounded-full"
-          >
-            <Share2 className="w-4 h-4 mr-2" />
-            Compartilhar
-          </Button>
+          <div className="ml-auto">
+            <ShareButtons 
+              url={shareUrl}
+              title={displayNoticia.titulo}
+              description={displayNoticia.resumo || ""}
+              size="sm"
+            />
+          </div>
         </motion.div>
 
         {/* Resumo */}
