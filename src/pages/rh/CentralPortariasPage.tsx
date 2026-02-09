@@ -46,7 +46,7 @@ import {
   RegistrarPublicacaoDialog,
   RegistrarAssinaturaDialog,
 } from '@/components/portarias';
-import { NovaPortariaUnificada } from '@/components/portarias/NovaPortariaUnificada';
+import { NovaPortariaSimplificada } from '@/components/portarias/NovaPortariaSimplificada';
 import { RelatorioPortariasDialog } from '@/components/portarias/RelatorioPortariasDialog';
 import { CentralRelatoriosDialog } from '@/components/relatorios/CentralRelatoriosDialog';
 import { supabase } from '@/integrations/supabase/client';
@@ -332,14 +332,14 @@ export default function CentralPortariasPage() {
       </div>
 
       {/* Dialogs */}
-      <NovaPortariaUnificada
+      <NovaPortariaSimplificada
         open={novaPortariaOpen}
         onOpenChange={setNovaPortariaOpen}
         onSuccess={() => refetch()}
       />
 
-      {/* Dialog Editar Portaria (usa o mesmo formulário unificado) */}
-      <NovaPortariaUnificada
+      {/* Dialog Editar Portaria */}
+      <NovaPortariaSimplificada
         open={editPortariaOpen}
         onOpenChange={setEditPortariaOpen}
         onSuccess={() => refetch()}
