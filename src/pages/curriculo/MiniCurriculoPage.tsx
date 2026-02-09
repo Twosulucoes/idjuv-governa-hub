@@ -23,6 +23,7 @@ import {
   ChecklistForm,
   DadosBancariosForm,
   DependentesForm,
+  DeclaracaoEmergenciaForm,
   RevisaoForm,
   OrientacoesDocumentosCard,
 } from "@/components/curriculo";
@@ -38,10 +39,11 @@ const STEPS = [
   { id: 4, title: "Previdência", description: "NIS/PIS/PASEP" },
   { id: 5, title: "Escolaridade", description: "Formação e habilitação" },
   { id: 6, title: "Aptidões", description: "Habilidades e experiência" },
-  { id: 7, title: "Checklist", description: "Documentos necessários" },
-  { id: 8, title: "Dados Bancários", description: "Conta para crédito" },
-  { id: 9, title: "Dependentes", description: "Para dedução de IR" },
-  { id: 10, title: "Revisão", description: "Conferir e enviar" },
+  { id: 7, title: "Declarações", description: "Acumulação e emergência" },
+  { id: 8, title: "Checklist", description: "Documentos necessários" },
+  { id: 9, title: "Dados Bancários", description: "Conta para crédito" },
+  { id: 10, title: "Dependentes", description: "Para dedução de IR" },
+  { id: 11, title: "Revisão", description: "Conferir e enviar" },
 ];
 
 export default function MiniCurriculoPage() {
@@ -162,12 +164,14 @@ export default function MiniCurriculoPage() {
       case 6:
         return <AptidoesForm dados={formData} onChange={setFormData} />;
       case 7:
-        return <ChecklistForm dados={formData} onChange={setFormData} />;
+        return <DeclaracaoEmergenciaForm dados={formData} onChange={setFormData} />;
       case 8:
-        return <DadosBancariosForm dados={formData} onChange={setFormData} />;
+        return <ChecklistForm dados={formData} onChange={setFormData} />;
       case 9:
-        return <DependentesForm dados={formData} onChange={setFormData} />;
+        return <DadosBancariosForm dados={formData} onChange={setFormData} />;
       case 10:
+        return <DependentesForm dados={formData} onChange={setFormData} />;
+      case 11:
         return <RevisaoForm dados={formData} />;
       default:
         return null;

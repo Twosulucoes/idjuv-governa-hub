@@ -65,16 +65,37 @@ function mapPreCadastroToServidor(
   if (pc.nacionalidade) servidor.nacionalidade = pc.nacionalidade;
   if (pc.naturalidade_cidade) servidor.naturalidade_cidade = pc.naturalidade_cidade;
   if (pc.naturalidade_uf) servidor.naturalidade_uf = pc.naturalidade_uf;
+  if (pc.raca_cor) servidor.raca_cor = pc.raca_cor;
+  if (pc.pcd !== undefined) servidor.pcd = pc.pcd;
+  if (pc.pcd_tipo) servidor.pcd_tipo = pc.pcd_tipo;
+  if (pc.nome_mae) servidor.nome_mae = pc.nome_mae;
+  if (pc.nome_pai) servidor.nome_pai = pc.nome_pai;
+  if (pc.tipo_sanguineo) servidor.tipo_sanguineo = pc.tipo_sanguineo;
   
   // Documentos - usando APENAS campos que existem em servidores
   if (pc.pis_pasep) servidor.pis_pasep = pc.pis_pasep;
   if (pc.titulo_eleitor) servidor.titulo_eleitor = pc.titulo_eleitor;
   if (pc.titulo_zona) servidor.titulo_zona = pc.titulo_zona;
   if (pc.titulo_secao) servidor.titulo_secao = pc.titulo_secao;
+  if (pc.titulo_cidade_votacao) servidor.titulo_cidade_votacao = pc.titulo_cidade_votacao;
+  if (pc.titulo_uf_votacao) servidor.titulo_uf_votacao = pc.titulo_uf_votacao;
+  if (pc.titulo_data_emissao) servidor.titulo_data_emissao = pc.titulo_data_emissao;
   if (pc.cnh_numero) servidor.cnh_numero = pc.cnh_numero;
   if (pc.cnh_categoria) servidor.cnh_categoria = pc.cnh_categoria;
   if (pc.cnh_validade) servidor.cnh_validade = pc.cnh_validade;
+  if (pc.cnh_data_expedicao) servidor.cnh_data_expedicao = pc.cnh_data_expedicao;
+  if (pc.cnh_primeira_habilitacao) servidor.cnh_primeira_habilitacao = pc.cnh_primeira_habilitacao;
+  if (pc.cnh_uf) servidor.cnh_uf = pc.cnh_uf;
   if (pc.certificado_reservista) servidor.certificado_reservista = pc.certificado_reservista;
+  if (pc.reservista_orgao) servidor.reservista_orgao = pc.reservista_orgao;
+  if (pc.reservista_data_emissao) servidor.reservista_data_emissao = pc.reservista_data_emissao;
+  if (pc.reservista_categoria) servidor.reservista_categoria = pc.reservista_categoria;
+  if (pc.reservista_ano) servidor.reservista_ano = pc.reservista_ano;
+  if (pc.ctps_numero) servidor.ctps_numero = pc.ctps_numero;
+  if (pc.ctps_serie) servidor.ctps_serie = pc.ctps_serie;
+  if (pc.ctps_uf) servidor.ctps_uf = pc.ctps_uf;
+  if (pc.ctps_data_emissao) servidor.ctps_data_emissao = pc.ctps_data_emissao;
+  if (pc.rg_data_emissao) servidor.rg_data_emissao = pc.rg_data_emissao;
   
   // Contato
   if (pc.email) {
@@ -83,6 +104,9 @@ function mapPreCadastroToServidor(
   }
   if (pc.telefone_celular) servidor.telefone_celular = pc.telefone_celular;
   if (pc.telefone_fixo) servidor.telefone_fixo = pc.telefone_fixo;
+  if (pc.telefone_emergencia) servidor.telefone_emergencia = pc.telefone_emergencia;
+  if (pc.contato_emergencia_nome) servidor.contato_emergencia_nome = pc.contato_emergencia_nome;
+  if (pc.contato_emergencia_parentesco) servidor.contato_emergencia_parentesco = pc.contato_emergencia_parentesco;
   
   // Endereço
   if (pc.endereco_cep) servidor.endereco_cep = pc.endereco_cep;
@@ -106,6 +130,13 @@ function mapPreCadastroToServidor(
   if (pc.banco_conta) servidor.banco_conta = pc.banco_conta;
   if (pc.banco_tipo_conta) servidor.banco_tipo_conta = pc.banco_tipo_conta;
   
+  // Acumulação de cargo
+  if (pc.acumula_cargo !== undefined) servidor.acumula_cargo = pc.acumula_cargo;
+  if (pc.acumulo_descricao) servidor.acumulo_descricao = pc.acumulo_descricao;
+  if (pc.indicacao) servidor.indicacao = pc.indicacao;
+  
+  // Dependentes (JSON)
+  if (pc.dependentes && pc.dependentes.length > 0) servidor.dependentes = pc.dependentes;
   // Dados do vínculo (sempre presentes)
   servidor.matricula = extras.matricula;
   servidor.tipo_servidor = extras.tipoServidor;

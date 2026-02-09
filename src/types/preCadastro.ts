@@ -95,6 +95,18 @@ export interface PreCadastro {
   cnh_primeira_habilitacao?: string;
   cnh_uf?: string;
   
+  // Acumulação de Cargo
+  acumula_cargo?: boolean;
+  acumulo_descricao?: string;
+  
+  // Indicação
+  indicacao?: string;
+  
+  // Contato de Emergência
+  telefone_emergencia?: string;
+  contato_emergencia_nome?: string;
+  contato_emergencia_parentesco?: string;
+  
   // Aptidões e Características
   habilidades?: string[];
   idiomas?: Idioma[];

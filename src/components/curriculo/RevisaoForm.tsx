@@ -255,6 +255,43 @@ export function RevisaoForm({ dados }: Props) {
         </Card>
       )}
 
+      {/* Declarações */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Declarações</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <span className="text-muted-foreground">Acumula Cargo Público:</span>
+              <p className="font-medium">{dados.acumula_cargo ? "Sim" : "Não"}</p>
+            </div>
+            {dados.acumula_cargo && (
+              <div>
+                <span className="text-muted-foreground">Descrição:</span>
+                <p className="font-medium">{dados.acumulo_descricao || "-"}</p>
+              </div>
+            )}
+            {dados.indicacao && (
+              <div>
+                <span className="text-muted-foreground">Indicação:</span>
+                <p className="font-medium">{dados.indicacao}</p>
+              </div>
+            )}
+          </div>
+          {dados.contato_emergencia_nome && (
+            <div className="pt-2 border-t">
+              <span className="text-muted-foreground">Contato de Emergência:</span>
+              <p className="font-medium">
+                {dados.contato_emergencia_nome}
+                {dados.contato_emergencia_parentesco && ` (${dados.contato_emergencia_parentesco})`}
+                {dados.telefone_emergencia && ` - ${dados.telefone_emergencia}`}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Dados Bancários */}
       <Card>
         <CardHeader className="pb-3">

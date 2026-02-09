@@ -7,6 +7,7 @@ export { AptidoesForm } from "./AptidoesForm";
 export { ChecklistForm } from "./ChecklistForm";
 export { DadosBancariosForm } from "./DadosBancariosForm";
 export { DependentesForm } from "./DependentesForm";
+export { DeclaracaoEmergenciaForm } from "./DeclaracaoEmergenciaForm";
 export { RevisaoForm } from "./RevisaoForm";
 export { OrientacoesDocumentosCard } from "./OrientacoesDocumentosCard";
 export { PendenciasPreCadastroDialog } from "./PendenciasPreCadastroDialog";
