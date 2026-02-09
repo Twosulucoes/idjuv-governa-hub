@@ -166,7 +166,7 @@ export default function NoticiasPublicasPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Link to={`/noticias/${noticia.slug}`}>
+                <Link to={`/noticias-portal/${noticia.slug}`}>
                   <Card className="overflow-hidden group h-full hover:shadow-lg transition-shadow">
                     <div className="aspect-video relative overflow-hidden">
                       {noticia.imagem_destaque_url ? (
@@ -247,7 +247,7 @@ export default function NoticiasPublicasPage() {
           >
             {noticiasPaginadas.map((noticia) => (
               <motion.div key={noticia.id} variants={itemVariants}>
-                <Link to={`/noticias/${noticia.slug}`}>
+                <Link to={`/noticias-portal/${noticia.slug}`}>
                   <Card className="overflow-hidden group h-full hover:shadow-md transition-shadow">
                     <div className="aspect-video relative overflow-hidden bg-muted">
                       {noticia.imagem_destaque_url ? (
