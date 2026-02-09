@@ -3350,6 +3350,92 @@ export type Database = {
           },
         ]
       }
+      config_paginas_historico: {
+        Row: {
+          acao: string
+          created_at: string
+          dados_anteriores: Json | null
+          dados_novos: Json | null
+          id: string
+          pagina_id: string
+          usuario_id: string | null
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          id?: string
+          pagina_id: string
+          usuario_id?: string | null
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          id?: string
+          pagina_id?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_paginas_historico_pagina_id_fkey"
+            columns: ["pagina_id"]
+            isOneToOne: false
+            referencedRelation: "config_paginas_publicas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      config_paginas_publicas: {
+        Row: {
+          alterado_por: string | null
+          ativo: boolean
+          codigo: string
+          created_at: string
+          descricao: string | null
+          em_manutencao: boolean
+          id: string
+          mensagem_manutencao: string | null
+          nome: string
+          previsao_retorno: string | null
+          rota: string
+          titulo_manutencao: string | null
+          updated_at: string
+        }
+        Insert: {
+          alterado_por?: string | null
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          descricao?: string | null
+          em_manutencao?: boolean
+          id?: string
+          mensagem_manutencao?: string | null
+          nome: string
+          previsao_retorno?: string | null
+          rota: string
+          titulo_manutencao?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alterado_por?: string | null
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          descricao?: string | null
+          em_manutencao?: boolean
+          id?: string
+          mensagem_manutencao?: string | null
+          nome?: string
+          previsao_retorno?: string | null
+          rota?: string
+          titulo_manutencao?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       config_parametros_meta: {
         Row: {
           ativo: boolean | null
