@@ -93,12 +93,14 @@ export function SeletivaNoticiasV2() {
   const navigate = useNavigate();
   
   const { data: noticias, isLoading } = useQuery({
-    queryKey: ["noticias-eventos-esportivos"],
+    queryKey: ["cms-noticias-selecoes"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("noticias_eventos_esportivos")
+        .from("cms_conteudos")
         .select("id, titulo, slug, resumo, categoria, imagem_destaque_url, data_publicacao, destaque")
         .eq("status", "publicado")
+        .eq("tipo", "noticia")
+        .eq("destino", "selecoes_estudantis")
         .order("data_publicacao", { ascending: false })
         .limit(4);
 
