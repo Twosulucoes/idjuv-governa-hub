@@ -155,7 +155,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     items: [
       { id: "bens", label: "Bens Patrimoniais", icon: Package, route: "/inventario/bens" },
       { id: "cadastro-simplificado", label: "Cadastro Rápido", icon: Plus, route: "/inventario/cadastro-simplificado" },
-      { id: "cadastro-mobile", label: "📱 App Cadastro Mobile", icon: Smartphone, route: "/cadastro-mobile" },
+      { id: "patrimonio-mobile", label: "📱 App Mobile (PWA)", icon: Smartphone, route: "/patrimonio-mobile" },
       { id: "movimentacoes", label: "Movimentações", icon: TrendingUp, route: "/inventario/movimentacoes" },
       { id: "campanhas", label: "Campanhas", icon: ClipboardCheck, route: "/inventario/campanhas" },
       { id: "almoxarifado", label: "Almoxarifado", icon: Boxes, route: "/inventario/almoxarifado" },

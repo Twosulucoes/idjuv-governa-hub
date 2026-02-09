@@ -189,9 +189,8 @@ import AuditoriaWorkflowPage from "./pages/cadastrogestores/AuditoriaWorkflowPag
 import GestaoProcessosPage from "./pages/workflow/GestaoProcessosPage";
 import ProcessoDetalhePage from "./pages/workflow/ProcessoDetalhePage";
 
-// Mobile - Coleta de Inventário
-import ColetaMobilePage from "./pages/mobile/ColetaMobilePage";
-import CadastroBemMobilePage from "./pages/mobile/CadastroBemMobilePage";
+// Mobile - Patrimônio Unificado (PWA)
+import PatrimonioMobileUnificadoPage from "./pages/mobile/PatrimonioMobileUnificadoPage";
 import InstalarAppPage from "./pages/mobile/InstalarAppPage";
 
 // Financeiro (ERP)
@@ -358,16 +357,14 @@ const App = () => (
               {/* ROTAS MOBILE PWA */}
               {/* ============================================ */}
               
-              <Route path="/coleta-mobile" element={
+              <Route path="/patrimonio-mobile" element={
                 <ProtectedRoute>
-                  <ColetaMobilePage />
+                  <PatrimonioMobileUnificadoPage />
                 </ProtectedRoute>
               } />
-              <Route path="/cadastro-mobile" element={
-                <ProtectedRoute>
-                  <CadastroBemMobilePage />
-                </ProtectedRoute>
-              } />
+              {/* Redirect legacy routes to unified app */}
+              <Route path="/coleta-mobile" element={<Navigate to="/patrimonio-mobile" replace />} />
+              <Route path="/cadastro-mobile" element={<Navigate to="/patrimonio-mobile" replace />} />
               <Route path="/instalar" element={<InstalarAppPage />} />
               
               {/* ============================================ */}
