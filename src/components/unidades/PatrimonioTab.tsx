@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -13,266 +12,274 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { Plus, Package, Loader2, Edit, Trash2 } from "lucide-react";
-import {
-  PatrimonioUnidade,
-  EstadoConservacao,
-  SituacaoPatrimonio,
-  ESTADO_CONSERVACAO_LABELS,
-  SITUACAO_PATRIMONIO_LABELS,
-} from "@/types/unidadesLocais";
+import { Package, Loader2, Eye, Search, ExternalLink } from "lucide-react";
 
 interface PatrimonioTabProps {
   unidadeId: string;
 }
 
-const CATEGORIAS_PATRIMONIO = [
-  "Equipamento Esportivo",
-  "Mobiliário",
-  "Equipamento de Áudio/Vídeo",
-  "Equipamento de Informática",
-  "Veículo",
-  "Máquinas e Equipamentos",
-  "Outros",
-];
+interface BemPatrimonial {
+  id: string;
+  numero_patrimonio: string;
+  descricao: string;
+  categoria_bem: string | null;
+  marca: string | null;
+  modelo: string | null;
+  estado_conservacao: string | null;
+  situacao: string | null;
+  valor_aquisicao: number | null;
+  data_aquisicao: string | null;
+  responsavel?: { id: string; nome_completo: string } | null;
+}
+
+const ESTADO_COLORS: Record<string, string> = {
+  otimo: "bg-success text-success-foreground",
+  bom: "bg-info text-info-foreground",
+  regular: "bg-warning text-warning-foreground",
+  ruim: "bg-destructive/80 text-destructive-foreground",
+  inservivel: "bg-destructive text-destructive-foreground",
+};
+
+const SITUACAO_COLORS: Record<string, string> = {
+  ativo: "bg-success/20 text-success border-success/40",
+  em_uso: "bg-success/20 text-success border-success/40",
+  em_manutencao: "bg-warning/20 text-warning border-warning/40",
+  cedido: "bg-info/20 text-info border-info/40",
+  baixado: "bg-destructive/20 text-destructive border-destructive/40",
+  inservivel: "bg-muted text-muted-foreground",
+};
+
+const CATEGORIA_LABELS: Record<string, string> = {
+  mobiliario: "Mobiliário",
+  informatica: "Equipamentos de TI",
+  equipamento_esportivo: "Equip. Esportivo",
+  veiculo: "Veículo",
+  eletrodomestico: "Eletrodoméstico",
+  outros: "Outros",
+};
 
 export function PatrimonioTab({ unidadeId }: PatrimonioTabProps) {
-  const [itens, setItens] = useState<PatrimonioUnidade[]>([]);
+  const [bens, setBens] = useState<BemPatrimonial[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [editingItem, setEditingItem] = useState<PatrimonioUnidade | null>(null);
-  
-  const [formData, setFormData] = useState({
-    item: "",
-    numero_tombo: "",
-    categoria: "",
-    quantidade: "1",
-    estado_conservacao: "bom" as EstadoConservacao,
-    situacao: "em_uso" as SituacaoPatrimonio,
-    descricao: "",
-    valor_estimado: "",
-    data_aquisicao: "",
-    observacoes: "",
-  });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [stats, setStats] = useState({ total: 0, valorTotal: 0 });
 
   useEffect(() => {
-    loadPatrimonio();
+    loadBens();
   }, [unidadeId]);
 
-  async function loadPatrimonio() {
+  async function loadBens() {
+    setLoading(true);
     try {
       const { data, error } = await supabase
-        .from("patrimonio_unidade")
-        .select("*")
+        .from("bens_patrimoniais")
+        .select(`
+          id,
+          numero_patrimonio,
+          descricao,
+          categoria_bem,
+          marca,
+          modelo,
+          estado_conservacao,
+          situacao,
+          valor_aquisicao,
+          data_aquisicao,
+          responsavel:servidores!bens_patrimoniais_responsavel_id_fkey(id, nome_completo)
+        `)
         .eq("unidade_local_id", unidadeId)
-        .order("item");
+        .neq("situacao", "baixado")
+        .order("numero_patrimonio");
 
       if (error) throw error;
-      setItens(data as PatrimonioUnidade[]);
+
+      setBens((data || []) as BemPatrimonial[]);
+
+      // Calcular estatísticas
+      const total = data?.length || 0;
+      const valorTotal = data?.reduce((sum, b) => sum + (b.valor_aquisicao || 0), 0) || 0;
+      setStats({ total, valorTotal });
     } catch (error) {
-      console.error("Erro ao carregar patrimônio:", error);
+      console.error("Erro ao carregar bens:", error);
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
+  const filteredBens = bens.filter((b) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      b.numero_patrimonio?.toLowerCase().includes(term) ||
+      b.descricao?.toLowerCase().includes(term) ||
+      b.marca?.toLowerCase().includes(term) ||
+      b.modelo?.toLowerCase().includes(term)
+    );
+  });
 
-    try {
-      const { data: userData } = await supabase.auth.getUser();
-
-      const payload = {
-        unidade_local_id: unidadeId,
-        item: formData.item,
-        numero_tombo: formData.numero_tombo || null,
-        categoria: formData.categoria || null,
-        quantidade: parseInt(formData.quantidade) || 1,
-        estado_conservacao: formData.estado_conservacao,
-        situacao: formData.situacao,
-        descricao: formData.descricao || null,
-        valor_estimado: formData.valor_estimado ? parseFloat(formData.valor_estimado) : null,
-        data_aquisicao: formData.data_aquisicao || null,
-        observacoes: formData.observacoes || null,
-        updated_by: userData.user?.id,
-      };
-
-      if (editingItem) {
-        const { error } = await supabase
-          .from("patrimonio_unidade")
-          .update(payload)
-          .eq("id", editingItem.id);
-        if (error) throw error;
-        toast.success("Item atualizado com sucesso!");
-      } else {
-        const { error } = await supabase
-          .from("patrimonio_unidade")
-          .insert({ ...payload, created_by: userData.user?.id });
-        if (error) throw error;
-        toast.success("Item cadastrado com sucesso!");
-      }
-
-      setShowForm(false);
-      resetForm();
-      loadPatrimonio();
-    } catch (error: any) {
-      console.error("Erro ao salvar item:", error);
-      toast.error(error.message || "Erro ao salvar item");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDelete(item: PatrimonioUnidade) {
-    if (!confirm(`Deseja realmente excluir "${item.item}"?`)) return;
-
-    try {
-      const { error } = await supabase
-        .from("patrimonio_unidade")
-        .delete()
-        .eq("id", item.id);
-
-      if (error) throw error;
-      toast.success("Item excluído com sucesso!");
-      loadPatrimonio();
-    } catch (error: any) {
-      console.error("Erro ao excluir item:", error);
-      toast.error(error.message || "Erro ao excluir item");
-    }
-  }
-
-  function handleEdit(item: PatrimonioUnidade) {
-    setEditingItem(item);
-    setFormData({
-      item: item.item,
-      numero_tombo: item.numero_tombo || "",
-      categoria: item.categoria || "",
-      quantidade: item.quantidade.toString(),
-      estado_conservacao: item.estado_conservacao,
-      situacao: item.situacao,
-      descricao: item.descricao || "",
-      valor_estimado: item.valor_estimado?.toString() || "",
-      data_aquisicao: item.data_aquisicao || "",
-      observacoes: item.observacoes || "",
-    });
-    setShowForm(true);
-  }
-
-  function resetForm() {
-    setEditingItem(null);
-    setFormData({
-      item: "",
-      numero_tombo: "",
-      categoria: "",
-      quantidade: "1",
-      estado_conservacao: "bom",
-      situacao: "em_uso",
-      descricao: "",
-      valor_estimado: "",
-      data_aquisicao: "",
-      observacoes: "",
-    });
-  }
-
-  const getEstadoColor = (estado: EstadoConservacao) => {
-    const colors: Record<EstadoConservacao, string> = {
-      otimo: "bg-success text-success-foreground",
-      bom: "bg-info text-info-foreground",
-      regular: "bg-warning text-warning-foreground",
-      ruim: "bg-destructive/80 text-destructive-foreground",
-      inservivel: "bg-destructive text-destructive-foreground",
-    };
-    return colors[estado];
+  const formatCurrency = (value: number | null) => {
+    if (!value) return "-";
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold flex items-center gap-2">
-          <Package className="h-5 w-5" />
-          Patrimônio da Unidade
-        </h3>
-        <Button onClick={() => setShowForm(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Item
+      {/* Header com estatísticas */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Package className="h-5 w-5" />
+            Bens Patrimoniais da Unidade
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            {stats.total} {stats.total === 1 ? "bem" : "bens"} • Valor total:{" "}
+            {formatCurrency(stats.valorTotal)}
+          </p>
+        </div>
+        <Button asChild variant="outline">
+          <Link to={`/inventario/bens?unidade_local_id=${unidadeId}`}>
+            <ExternalLink className="mr-2 h-4 w-4" />
+            Ver no Inventário
+          </Link>
         </Button>
       </div>
 
+      {/* Cards de resumo */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Total de Bens</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{stats.total}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Valor Total</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{formatCurrency(stats.valorTotal)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Ativos</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-success">
+              {bens.filter((b) => b.situacao === "ativo" || b.situacao === "em_uso").length}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Em Manutenção</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-warning">
+              {bens.filter((b) => b.situacao === "em_manutencao").length}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Busca */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por patrimônio, descrição..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
+      {/* Tabela */}
       <Card>
         <CardContent className="p-0">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : itens.length === 0 ? (
+          ) : filteredBens.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              Nenhum item de patrimônio cadastrado
+              {searchTerm
+                ? "Nenhum bem encontrado com este termo"
+                : "Nenhum bem patrimonial vinculado a esta unidade"}
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Tombo</TableHead>
+                  <TableHead>Patrimônio</TableHead>
+                  <TableHead>Descrição</TableHead>
                   <TableHead>Categoria</TableHead>
-                  <TableHead>Qtd</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Situação</TableHead>
-                  <TableHead className="w-[100px]">Ações</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="w-[80px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {itens.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.item}</TableCell>
-                    <TableCell>{item.numero_tombo || "-"}</TableCell>
-                    <TableCell>{item.categoria || "-"}</TableCell>
-                    <TableCell>{item.quantidade}</TableCell>
-                    <TableCell>
-                      <Badge className={getEstadoColor(item.estado_conservacao)}>
-                        {ESTADO_CONSERVACAO_LABELS[item.estado_conservacao]}
-                      </Badge>
+                {filteredBens.map((bem) => (
+                  <TableRow key={bem.id}>
+                    <TableCell className="font-mono font-medium">
+                      {bem.numero_patrimonio}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">
-                        {SITUACAO_PATRIMONIO_LABELS[item.situacao]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(item)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(item)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                      <div>
+                        <p className="font-medium truncate max-w-[200px]">{bem.descricao}</p>
+                        {(bem.marca || bem.modelo) && (
+                          <p className="text-xs text-muted-foreground">
+                            {[bem.marca, bem.modelo].filter(Boolean).join(" - ")}
+                          </p>
+                        )}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {bem.categoria_bem
+                        ? CATEGORIA_LABELS[bem.categoria_bem] || bem.categoria_bem
+                        : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {bem.estado_conservacao ? (
+                        <Badge
+                          className={
+                            ESTADO_COLORS[bem.estado_conservacao] || "bg-muted"
+                          }
+                        >
+                          {bem.estado_conservacao.charAt(0).toUpperCase() +
+                            bem.estado_conservacao.slice(1)}
+                        </Badge>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {bem.situacao ? (
+                        <Badge
+                          variant="outline"
+                          className={SITUACAO_COLORS[bem.situacao] || ""}
+                        >
+                          {bem.situacao.replace("_", " ").toUpperCase()}
+                        </Badge>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(bem.valor_aquisicao)}
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" asChild>
+                        <Link to={`/inventario/bens/${bem.id}`}>
+                          <Eye className="h-4 w-4" />
+                        </Link>
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -281,166 +288,6 @@ export function PatrimonioTab({ unidadeId }: PatrimonioTabProps) {
           )}
         </CardContent>
       </Card>
-
-      {/* Dialog de Formulário */}
-      <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editingItem ? "Editar Item" : "Novo Item de Patrimônio"}
-            </DialogTitle>
-            <DialogDescription>
-              Cadastre os bens patrimoniais da unidade
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Item/Descrição *</Label>
-                <Input
-                  value={formData.item}
-                  onChange={(e) => setFormData({ ...formData, item: e.target.value })}
-                  placeholder="Ex: Mesa de Escritório"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Número de Tombo</Label>
-                <Input
-                  value={formData.numero_tombo}
-                  onChange={(e) => setFormData({ ...formData, numero_tombo: e.target.value })}
-                  placeholder="Ex: 12345"
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label>Categoria</Label>
-                <Select
-                  value={formData.categoria}
-                  onValueChange={(v) => setFormData({ ...formData, categoria: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIAS_PATRIMONIO.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Quantidade</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={formData.quantidade}
-                  onChange={(e) => setFormData({ ...formData, quantidade: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Valor Estimado (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.valor_estimado}
-                  onChange={(e) => setFormData({ ...formData, valor_estimado: e.target.value })}
-                  placeholder="0,00"
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label>Estado de Conservação</Label>
-                <Select
-                  value={formData.estado_conservacao}
-                  onValueChange={(v) =>
-                    setFormData({ ...formData, estado_conservacao: v as EstadoConservacao })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(ESTADO_CONSERVACAO_LABELS).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Situação</Label>
-                <Select
-                  value={formData.situacao}
-                  onValueChange={(v) =>
-                    setFormData({ ...formData, situacao: v as SituacaoPatrimonio })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(SITUACAO_PATRIMONIO_LABELS).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Data de Aquisição</Label>
-                <Input
-                  type="date"
-                  value={formData.data_aquisicao}
-                  onChange={(e) => setFormData({ ...formData, data_aquisicao: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Observações</Label>
-              <Textarea
-                value={formData.observacoes}
-                onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                placeholder="Observações adicionais..."
-                rows={2}
-              />
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowForm(false);
-                  resetForm();
-                }}
-                disabled={saving}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={saving}>
-                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {editingItem ? "Salvar Alterações" : "Cadastrar Item"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
