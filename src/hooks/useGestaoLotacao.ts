@@ -267,62 +267,51 @@ export function useUnidadesGestao() {
 }
 
 // Hook para buscar unidades compatíveis com um cargo específico
+// Usa a tabela composicao_cargos (do formulário de cargos) como referência principal
 export function useUnidadesCompativeisCargo(cargoId: string | null) {
   return useQuery({
     queryKey: ["unidades-compativeis", cargoId],
     queryFn: async () => {
       if (!cargoId) return [];
 
-      // Buscar configuração de compatibilidade do cargo
-      const { data: compatibilidade, error: compErr } = await supabase
-        .from("cargo_unidade_compatibilidade")
-        .select("tipo_unidade, unidade_especifica_id")
+      // 1. Buscar composição do cargo (definida no formulário de cargos)
+      const { data: composicao, error: compErr } = await supabase
+        .from("composicao_cargos")
+        .select("unidade_id, quantidade_vagas")
         .eq("cargo_id", cargoId);
 
       if (compErr) throw compErr;
 
-      // Se não há configuração específica, retornar todas as unidades
-      if (!compatibilidade || compatibilidade.length === 0) {
-        const { data, error } = await supabase
+      // 2. Se há composição definida, retornar apenas essas unidades
+      if (composicao && composicao.length > 0) {
+        const unidadeIds = composicao.map((c: any) => c.unidade_id);
+        
+        const { data: unidades, error: unidErr } = await supabase
           .from("estrutura_organizacional")
           .select("id, nome, sigla, tipo")
           .eq("ativo", true)
+          .in("id", unidadeIds)
           .order("nome");
-        if (error) throw error;
-        return data;
+
+        if (unidErr) throw unidErr;
+        
+        // Adicionar info de vagas por unidade
+        return unidades?.map((u: any) => {
+          const comp = composicao.find((c: any) => c.unidade_id === u.id);
+          return {
+            ...u,
+            vagas_na_unidade: comp?.quantidade_vagas || 0,
+          };
+        }) || [];
       }
 
-      // Coletar tipos de unidade e IDs específicos
-      const tiposPermitidos: string[] = [];
-      const idsEspecificos: string[] = [];
-
-      compatibilidade.forEach((c: any) => {
-        if (c.unidade_especifica_id) {
-          idsEspecificos.push(c.unidade_especifica_id);
-        }
-        if (c.tipo_unidade) {
-          tiposPermitidos.push(c.tipo_unidade);
-        }
-      });
-
-      // Query base
-      let query = supabase
+      // 3. Se não há composição, retornar todas as unidades (sem restrição)
+      const { data, error } = await supabase
         .from("estrutura_organizacional")
         .select("id, nome, sigla, tipo")
         .eq("ativo", true)
         .order("nome");
 
-      // Aplicar filtros
-      if (idsEspecificos.length > 0 && tiposPermitidos.length > 0) {
-        // Unidades específicas OU tipos permitidos
-        query = query.or(`id.in.(${idsEspecificos.join(',')}),tipo.in.(${tiposPermitidos.join(',')})`);
-      } else if (idsEspecificos.length > 0) {
-        query = query.in("id", idsEspecificos);
-      } else if (tiposPermitidos.length > 0) {
-        query = query.in("tipo", tiposPermitidos as ("assessoria" | "coordenacao" | "departamento" | "diretoria" | "divisao" | "nucleo" | "presidencia" | "secao" | "setor")[]);
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
