@@ -79,16 +79,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "gestao-lotacao", label: "Gestão de Lotação", icon: Building2, route: "/rh/gestao-lotacao" },
       { id: "lotacoes", label: "Lotações (Legado)", icon: Users, route: "/lotacoes" },
       { id: "designacoes", label: "Designações", icon: UserCog, route: "/rh/designacoes" },
-      { 
-        id: "portarias", 
-        label: "Portarias", 
-        icon: FileText, 
-        route: "/rh/portarias",
-        children: [
-          { id: "portarias-central", label: "Central", icon: FileText, route: "/rh/portarias" },
-          { id: "portarias-atribuicao", label: "Atribuição", icon: UserCog, route: "/rh/portarias/atribuicao" },
-        ]
-      },
+      { id: "portarias-pendencias", label: "Portarias (Pendências)", icon: FileText, route: "/rh/portarias/pendencias" },
       { 
         id: "frequencia", 
         label: "Frequência", 
@@ -274,7 +265,16 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     dashboard: { label: "Painel do Gabinete", route: "/gabinete" },
     items: [
       { id: "pre-cadastros", label: "Pré-Cadastros", icon: Users, route: "/curriculo/pre-cadastros" },
-      { id: "portarias", label: "Portarias", icon: FileText, route: "/rh/portarias" },
+      { 
+        id: "portarias", 
+        label: "Central de Portarias", 
+        icon: FileText, 
+        route: "/gabinete/portarias",
+        children: [
+          { id: "portarias-cadastro", label: "Cadastrar Portaria", icon: FileText, route: "/gabinete/portarias" },
+          { id: "portarias-consulta", label: "Consultar Portarias", icon: Eye, route: "/gabinete/portarias/consulta" },
+        ]
+      },
       { id: "ordem-missao", label: "Ordem de Missão", icon: Plane, route: "/formularios/ordem-missao" },
       { id: "relatorio-viagem", label: "Relatório de Viagem", icon: FileCheck, route: "/formularios/relatorio-viagem" },
       { id: "workflow-rh", label: "Workflow RH", icon: Workflow, route: "/gabinete/workflow-rh" },

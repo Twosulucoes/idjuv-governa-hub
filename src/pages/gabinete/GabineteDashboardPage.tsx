@@ -23,10 +23,10 @@ const quickActions = [
     color: "text-blue-600",
   },
   {
-    title: "Portarias",
-    description: "Emissão e gestão de portarias",
+    title: "Central de Portarias",
+    description: "Cadastrar e consultar portarias",
     icon: FileText,
-    route: "/rh/portarias",
+    route: "/gabinete/portarias",
     color: "text-amber-600",
   },
   {
