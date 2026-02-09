@@ -75,6 +75,7 @@ type FormData = {
   rg: string;
   rg_orgao_expedidor: string;
   rg_uf: string;
+  rg_data_emissao: string;
   data_nascimento: string;
   sexo: string;
   estado_civil: string;
@@ -87,6 +88,7 @@ type FormData = {
   nome_mae: string;
   nome_pai: string;
   tipo_sanguineo: string;
+  molestia_grave: boolean;
   email_pessoal: string;
   email_institucional: string;
   telefone_fixo: string;
@@ -134,6 +136,14 @@ type FormData = {
   acumulo_descricao: string;
   observacoes: string;
   indicacao: string;
+  // Estrangeiro
+  estrangeiro_data_chegada: string;
+  estrangeiro_data_limite_permanencia: string;
+  estrangeiro_registro_nacional: string;
+  estrangeiro_ano_chegada: string;
+  // Primeiro emprego
+  ano_inicio_primeiro_emprego: string;
+  ano_fim_primeiro_emprego: string;
   // Segundo vínculo
   possui_vinculo_externo: boolean;
   vinculo_externo_esfera: string;
@@ -158,6 +168,7 @@ const initialFormData: FormData = {
   rg: '',
   rg_orgao_expedidor: '',
   rg_uf: '',
+  rg_data_emissao: '',
   data_nascimento: '',
   sexo: '',
   estado_civil: '',
@@ -170,6 +181,7 @@ const initialFormData: FormData = {
   nome_mae: '',
   nome_pai: '',
   tipo_sanguineo: '',
+  molestia_grave: false,
   email_pessoal: '',
   email_institucional: '',
   telefone_fixo: '',
@@ -217,6 +229,14 @@ const initialFormData: FormData = {
   acumulo_descricao: '',
   observacoes: '',
   indicacao: '',
+  // Estrangeiro
+  estrangeiro_data_chegada: '',
+  estrangeiro_data_limite_permanencia: '',
+  estrangeiro_registro_nacional: '',
+  estrangeiro_ano_chegada: '',
+  // Primeiro emprego
+  ano_inicio_primeiro_emprego: '',
+  ano_fim_primeiro_emprego: '',
   // Segundo vínculo
   possui_vinculo_externo: false,
   vinculo_externo_esfera: '',
@@ -298,6 +318,7 @@ export default function ServidorFormPage() {
         rg: servidor.rg || '',
         rg_orgao_expedidor: servidor.rg_orgao_expedidor || '',
         rg_uf: servidor.rg_uf || '',
+        rg_data_emissao: servidor.rg_data_emissao || '',
         data_nascimento: servidor.data_nascimento || '',
         sexo: servidor.sexo || '',
         estado_civil: servidor.estado_civil || '',
@@ -310,6 +331,7 @@ export default function ServidorFormPage() {
         nome_mae: servidor.nome_mae || '',
         nome_pai: servidor.nome_pai || '',
         tipo_sanguineo: servidor.tipo_sanguineo || '',
+        molestia_grave: servidor.molestia_grave || false,
         email_pessoal: servidor.email_pessoal || '',
         email_institucional: servidor.email_institucional || '',
         telefone_fixo: servidor.telefone_fixo || '',
@@ -357,6 +379,14 @@ export default function ServidorFormPage() {
         acumulo_descricao: servidor.acumulo_descricao || '',
         observacoes: servidor.observacoes || '',
         indicacao: servidor.indicacao || '',
+        // Estrangeiro
+        estrangeiro_data_chegada: servidor.estrangeiro_data_chegada || '',
+        estrangeiro_data_limite_permanencia: servidor.estrangeiro_data_limite_permanencia || '',
+        estrangeiro_registro_nacional: servidor.estrangeiro_registro_nacional || '',
+        estrangeiro_ano_chegada: servidor.estrangeiro_ano_chegada?.toString() || '',
+        // Primeiro emprego
+        ano_inicio_primeiro_emprego: servidor.ano_inicio_primeiro_emprego?.toString() || '',
+        ano_fim_primeiro_emprego: servidor.ano_fim_primeiro_emprego?.toString() || '',
         // Segundo vínculo
         possui_vinculo_externo: servidor.possui_vinculo_externo || false,
         vinculo_externo_esfera: servidor.vinculo_externo_esfera || '',
@@ -392,6 +422,7 @@ export default function ServidorFormPage() {
         rg: data.rg || null,
         rg_orgao_expedidor: data.rg_orgao_expedidor || null,
         rg_uf: data.rg_uf || null,
+        rg_data_emissao: data.rg_data_emissao || null,
         data_nascimento: data.data_nascimento || null,
         sexo: data.sexo || null,
         estado_civil: data.estado_civil || null,
@@ -404,6 +435,7 @@ export default function ServidorFormPage() {
         nome_mae: data.nome_mae || null,
         nome_pai: data.nome_pai || null,
         tipo_sanguineo: data.tipo_sanguineo || null,
+        molestia_grave: data.molestia_grave,
         email_pessoal: data.email_pessoal || null,
         email_institucional: data.email_institucional || null,
         telefone_fixo: data.telefone_fixo || null,
@@ -452,6 +484,14 @@ export default function ServidorFormPage() {
         acumulo_descricao: data.acumulo_descricao || null,
         observacoes: data.observacoes || null,
         indicacao: data.indicacao || null,
+        // Estrangeiro
+        estrangeiro_data_chegada: data.estrangeiro_data_chegada || null,
+        estrangeiro_data_limite_permanencia: data.estrangeiro_data_limite_permanencia || null,
+        estrangeiro_registro_nacional: data.estrangeiro_registro_nacional || null,
+        estrangeiro_ano_chegada: parseInt(data.estrangeiro_ano_chegada) || null,
+        // Primeiro emprego
+        ano_inicio_primeiro_emprego: parseInt(data.ano_inicio_primeiro_emprego) || null,
+        ano_fim_primeiro_emprego: parseInt(data.ano_fim_primeiro_emprego) || null,
         // Segundo vínculo
         possui_vinculo_externo: data.possui_vinculo_externo,
         vinculo_externo_esfera: data.vinculo_externo_esfera || null,
@@ -867,6 +907,35 @@ export default function ServidorFormPage() {
                       )}
                     </div>
 
+                    {/* Tipo Sanguíneo e Moléstia Grave */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label>Tipo Sanguíneo</Label>
+                        <Select value={formData.tipo_sanguineo} onValueChange={(v) => updateField('tipo_sanguineo', v)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {TIPOS_SANGUINEOS.map(ts => (
+                              <SelectItem key={ts} value={ts}>{ts}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Moléstia Grave</Label>
+                        <Select value={formData.molestia_grave ? "sim" : "nao"} onValueChange={(v) => updateField('molestia_grave', v === 'sim')}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="nao">Não</SelectItem>
+                            <SelectItem value="sim">Sim</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
                     {/* Nome dos Pais */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
@@ -886,6 +955,49 @@ export default function ServidorFormPage() {
                         />
                       </div>
                     </div>
+
+                    {/* Dados de Estrangeiro */}
+                    {formData.nacionalidade && formData.nacionalidade.toUpperCase() !== 'BRASILEIRA' && (
+                      <>
+                        <Separator />
+                        <h4 className="text-sm font-semibold text-muted-foreground">Dados de Estrangeiro</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label>Data de Chegada ao País</Label>
+                            <Input
+                              type="date"
+                              value={formData.estrangeiro_data_chegada}
+                              onChange={(e) => updateField('estrangeiro_data_chegada', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label>Data Limite de Permanência</Label>
+                            <Input
+                              type="date"
+                              value={formData.estrangeiro_data_limite_permanencia}
+                              onChange={(e) => updateField('estrangeiro_data_limite_permanencia', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label>Registro Nacional de Estrangeiro (RNE)</Label>
+                            <UppercaseInput
+                              value={formData.estrangeiro_registro_nacional}
+                              onChange={(value) => updateField('estrangeiro_registro_nacional', value)}
+                            />
+                          </div>
+                          <div>
+                            <Label>Ano de Chegada</Label>
+                            <Input
+                              type="number"
+                              min="1900"
+                              max={new Date().getFullYear()}
+                              value={formData.estrangeiro_ano_chegada}
+                              onChange={(e) => updateField('estrangeiro_ano_chegada', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
 
                     <Separator />
 
@@ -999,6 +1111,14 @@ export default function ServidorFormPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                      </div>
+                      <div>
+                        <Label>Data de Emissão do RG</Label>
+                        <Input
+                          type="date"
+                          value={formData.rg_data_emissao}
+                          onChange={(e) => updateField('rg_data_emissao', e.target.value)}
+                        />
                       </div>
                       <div>
                         <Label>PIS/PASEP</Label>
@@ -1292,6 +1412,35 @@ export default function ServidorFormPage() {
                           type="number"
                           value={formData.ano_conclusao}
                           onChange={(e) => updateField('ano_conclusao', e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Primeiro Emprego */}
+                    <h4 className="text-sm font-semibold text-muted-foreground">Primeiro Emprego</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Ano de Início</Label>
+                        <Input
+                          type="number"
+                          min="1950"
+                          max={new Date().getFullYear()}
+                          value={formData.ano_inicio_primeiro_emprego}
+                          onChange={(e) => updateField('ano_inicio_primeiro_emprego', e.target.value)}
+                          placeholder="Ano"
+                        />
+                      </div>
+                      <div>
+                        <Label>Ano de Término</Label>
+                        <Input
+                          type="number"
+                          min="1950"
+                          max={new Date().getFullYear()}
+                          value={formData.ano_fim_primeiro_emprego}
+                          onChange={(e) => updateField('ano_fim_primeiro_emprego', e.target.value)}
+                          placeholder="Ano"
                         />
                       </div>
                     </div>
