@@ -257,8 +257,13 @@ export const gerarCabecalhoInstitucional = async (
   const logoY = 9;
   const logoMargemX = 12;
   
-  // Calcular dimensões das logos baseadas na altura padrão
+  // Calcular dimensões das logos
   const logoConfig = getLogosPDF(ALTURA_LOGOS);
+  // Logo do Governo reduzida em 50%
+  const alturaLogoGoverno = ALTURA_LOGOS * 0.5;
+  const logoGovernoConfig = getLogosPDF(alturaLogoGoverno);
+  // Centralizar verticalmente a logo menor do governo
+  const logoGovernoY = logoY + (ALTURA_LOGOS - alturaLogoGoverno) / 2;
   
   if (variante === 'escuro') {
     // ===== VARIANTE ESCURA (padrão) =====
@@ -273,9 +278,9 @@ export const gerarCabecalhoInstitucional = async (
           logos.governo.data,
           'JPEG',
           logoMargemX,
-          logoY,
-          logoConfig.governo.width,
-          logoConfig.governo.height
+          logoGovernoY,
+          logoGovernoConfig.governo.width,
+          logoGovernoConfig.governo.height
         );
       } catch (e) { /* silently fail */ }
     }
@@ -325,9 +330,9 @@ export const gerarCabecalhoInstitucional = async (
           logos.governo.data,
           'JPEG',
           logoMargemX,
-          logoY,
-          logoConfig.governo.width,
-          logoConfig.governo.height
+          logoGovernoY,
+          logoGovernoConfig.governo.width,
+          logoGovernoConfig.governo.height
         );
       } catch (e) { /* silently fail */ }
     }
