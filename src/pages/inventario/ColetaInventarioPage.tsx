@@ -1,13 +1,15 @@
 /**
  * PÁGINA: COLETA DE INVENTÁRIO
  * Interface para conferência de bens via busca ou QR Code
+ * 
+ * NOTA: Para coleta em campo, use o app mobile em /coleta-mobile
  */
 
 import { useState, useEffect, useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, QrCode, Search, CheckCircle2, AlertTriangle,
-  Package, MapPin, User, Camera, Save, X, Clock
+  Package, MapPin, User, Camera, Save, X, Clock, Smartphone
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -19,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -225,6 +228,25 @@ export default function ColetaInventarioPage() {
               </Button>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Banner App Mobile */}
+      <section className="py-4 border-b bg-primary/5">
+        <div className="container mx-auto px-4">
+          <Alert>
+            <Smartphone className="w-4 h-4" />
+            <AlertTitle>Coleta em campo?</AlertTitle>
+            <AlertDescription className="flex items-center justify-between flex-wrap gap-2">
+              <span>Use o app mobile para escanear QR Codes e trabalhar offline.</span>
+              <Button asChild size="sm" variant="outline">
+                <Link to={`/coleta-mobile?campanha=${id}`}>
+                  <Smartphone className="w-4 h-4 mr-2" />
+                  Abrir App Mobile
+                </Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
         </div>
       </section>
 
