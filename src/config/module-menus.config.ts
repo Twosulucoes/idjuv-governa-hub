@@ -33,6 +33,7 @@ import {
   Building2,
   Scale,
   Shield,
+  Plus,
   Eye,
   Globe,
   Megaphone,
@@ -152,6 +153,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     dashboard: { label: "Painel de Patrimônio", route: "/inventario" },
     items: [
       { id: "bens", label: "Bens Patrimoniais", icon: Package, route: "/inventario/bens" },
+      { id: "cadastro-simplificado", label: "Cadastro Rápido", icon: Plus, route: "/inventario/cadastro-simplificado" },
       { id: "movimentacoes", label: "Movimentações", icon: TrendingUp, route: "/inventario/movimentacoes" },
       { id: "campanhas", label: "Campanhas", icon: ClipboardCheck, route: "/inventario/campanhas" },
       { id: "almoxarifado", label: "Almoxarifado", icon: Boxes, route: "/inventario/almoxarifado" },
