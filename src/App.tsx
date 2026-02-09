@@ -161,6 +161,7 @@ import DetalheDemandaAscomPage from "./pages/ascom/DetalheDemandaAscomPage";
 import SolicitacaoPublicaAscomPage from "./pages/ascom/SolicitacaoPublicaAscomPage";
 import ConsultaProtocoloAscomPage from "./pages/ascom/ConsultaProtocoloAscomPage";
 import AniversariantesComunicacaoPage from "./pages/comunicacao/AniversariantesComunicacaoPage";
+import CalendarioComunicacaoPage from "./pages/comunicacao/CalendarioComunicacaoPage";
 
 // Federações
 import CadastroFederacaoPage from "./pages/federacoes/CadastroFederacaoPage";
@@ -550,6 +551,11 @@ const App = () => (
               <Route path="/ascom/demandas/:id" element={
                 <ProtectedRoute requiredPermissions="ascom.demandas.visualizar">
                   <DetalheDemandaAscomPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/comunicacao/calendario" element={
+                <ProtectedRoute>
+                  <CalendarioComunicacaoPage />
                 </ProtectedRoute>
               } />
               <Route path="/comunicacao/aniversariantes" element={

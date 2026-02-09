@@ -989,6 +989,12 @@ export const menuConfig: MenuSection[] = [
     priority: 12,
     items: [
       {
+        id: "calendario-comunicacao",
+        label: "Calendário",
+        route: "/comunicacao/calendario",
+        icon: Calendar,
+      },
+      {
         id: "demandas-ascom",
         label: "Demandas",
         route: "/ascom/demandas",
