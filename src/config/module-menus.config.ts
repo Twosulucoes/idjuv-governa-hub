@@ -214,6 +214,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     items: [
       { id: "demandas", label: "Demandas", icon: Megaphone, route: "/ascom/demandas" },
       { id: "nova-demanda", label: "Nova Demanda", icon: FileText, route: "/ascom/demandas/nova" },
+      { id: "aniversariantes", label: "Aniversariantes", icon: Cake, route: "/comunicacao/aniversariantes" },
       { id: "calendario", label: "Calendário", icon: Calendar, route: "/ascom/calendario" },
     ],
   },
@@ -286,6 +287,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     dashboard: { label: "Painel Admin", route: "/admin" },
     items: [
       { id: "usuarios", label: "Usuários", icon: Users, route: "/admin/usuarios" },
+      { id: "paginas-publicas", label: "Páginas Públicas", icon: Globe, route: "/admin/paginas" },
       { id: "auditoria", label: "Auditoria", icon: Shield, route: "/admin/auditoria" },
       { id: "banco-dados", label: "Banco de Dados", icon: Database, route: "/admin/database" },
       { id: "backup", label: "Backup", icon: Archive, route: "/admin/backup" },
