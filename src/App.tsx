@@ -444,7 +444,7 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/admin/paginas" element={
-                <ProtectedRoute requiredPermissions="admin.config">
+                <ProtectedRoute>
                   <GerenciadorPaginasPage />
                 </ProtectedRoute>
               } />
