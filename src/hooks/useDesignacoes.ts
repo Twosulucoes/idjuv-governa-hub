@@ -108,6 +108,12 @@ export function useCreateDesignacao() {
   });
 }
 
+/**
+ * Aprovar designação - SINCRONIZADO
+ * 1. Atualiza status para aprovada
+ * 2. Registra no histórico funcional
+ * 3. Gera portaria na tabela documentos (NÃO mais em portarias_servidor)
+ */
 export function useAprovarDesignacao() {
   const queryClient = useQueryClient();
 
@@ -120,7 +126,9 @@ export function useAprovarDesignacao() {
         .from("designacoes")
         .select(`
           *,
-          servidor:servidores!designacoes_servidor_id_fkey(id, nome_completo)
+          servidor:servidores!designacoes_servidor_id_fkey(id, nome_completo),
+          unidade_origem:estrutura_organizacional!designacoes_unidade_origem_id_fkey(id, nome, sigla),
+          unidade_destino:estrutura_organizacional!designacoes_unidade_destino_id_fkey(id, nome, sigla)
         `)
         .eq("id", designacaoId)
         .single();
@@ -141,68 +149,78 @@ export function useAprovarDesignacao() {
       if (updateError) throw updateError;
       
       // 3. Criar registro no histórico funcional
-      const { data: historicoData, error: historicoError } = await supabase
-        .from("historico_funcional")
-        .insert({
-          servidor_id: designacao.servidor_id,
-          tipo: "designacao",
-          data_evento: designacao.data_inicio,
-          data_vigencia_inicio: designacao.data_inicio,
-          data_vigencia_fim: designacao.data_fim || null,
-          unidade_anterior_id: designacao.unidade_origem_id,
-          unidade_nova_id: designacao.unidade_destino_id,
-          portaria_numero: designacao.ato_numero || null,
-          portaria_data: designacao.ato_data || null,
-          diario_oficial_numero: designacao.ato_doe_numero || null,
-          diario_oficial_data: designacao.ato_doe_data || null,
-          descricao: `Designação temporária de ${designacao.servidor?.nome_completo || 'servidor'}`,
-          fundamentacao_legal: designacao.justificativa || null,
-          created_by: userData?.user?.id,
-        })
-        .select("id")
-        .single();
-      
-      if (historicoError) {
-        console.error("Erro ao criar histórico funcional:", historicoError);
-        // Não falhar se o histórico não puder ser criado
-      }
-      
-      // 4. Criar portaria vinculada ao servidor (se houver dados do ato)
-      if (designacao.ato_numero) {
-        const ano = designacao.ato_data 
-          ? new Date(designacao.ato_data).getFullYear() 
-          : new Date().getFullYear();
-        
-        const { error: portariaError } = await supabase
-          .from("portarias_servidor")
+      try {
+        await supabase
+          .from("historico_funcional")
           .insert({
             servidor_id: designacao.servidor_id,
             tipo: "designacao",
-            numero: designacao.ato_numero,
-            ano: ano,
-            data_publicacao: designacao.ato_data || new Date().toISOString().split("T")[0],
-            assunto: `Designação para ${designacao.unidade_destino_id}`,
-            ementa: `Designar temporariamente ${designacao.servidor?.nome_completo || 'servidor'} para exercer funções em outra unidade`,
+            data_evento: designacao.data_inicio,
             data_vigencia_inicio: designacao.data_inicio,
             data_vigencia_fim: designacao.data_fim || null,
+            unidade_anterior_id: designacao.unidade_origem_id,
+            unidade_nova_id: designacao.unidade_destino_id,
+            portaria_numero: designacao.ato_numero || null,
+            portaria_data: designacao.ato_data || null,
             diario_oficial_numero: designacao.ato_doe_numero || null,
             diario_oficial_data: designacao.ato_doe_data || null,
-            historico_id: historicoData?.id || null,
-            status: "vigente",
+            descricao: `Designação temporária de ${designacao.servidor?.nome_completo || 'servidor'} para ${designacao.unidade_destino?.sigla || designacao.unidade_destino?.nome || 'outra unidade'}`,
+            fundamentacao_legal: designacao.justificativa || null,
             created_by: userData?.user?.id,
           });
+      } catch (e) {
+        console.error("Erro ao criar histórico funcional:", e);
+      }
+      
+      // 4. Gerar portaria na tabela documentos (NÃO mais em portarias_servidor)
+      if (designacao.ato_numero || true) {
+        const nomeServidor = designacao.servidor?.nome_completo || 'Servidor';
+        const unidadeDestinoNome = designacao.unidade_destino?.sigla || designacao.unidade_destino?.nome || 'outra unidade';
         
-        if (portariaError) {
-          console.error("Erro ao criar portaria:", portariaError);
-          // Não falhar se a portaria não puder ser criada
+        try {
+          const ano = designacao.ato_data 
+            ? new Date(designacao.ato_data).getFullYear() 
+            : new Date().getFullYear();
+          
+          // Gerar número automático
+          let numero: string | null = null;
+          try {
+            const { data: numData } = await supabase.rpc("gerar_numero_portaria", { p_ano: ano });
+            numero = numData as string;
+          } catch {
+            numero = designacao.ato_numero || `PENDENTE/${ano}`;
+          }
+
+          await supabase
+            .from("documentos")
+            .insert({
+              tipo: "portaria",
+              categoria: "designacao",
+              status: "minuta",
+              titulo: `Designação - ${nomeServidor}`,
+              ementa: `Designa ${nomeServidor} para exercício no(a) ${unidadeDestinoNome}.`,
+              numero: numero || `PENDENTE/${ano}`,
+              data_documento: designacao.ato_data || designacao.data_inicio,
+              servidores_ids: [designacao.servidor_id],
+              unidade_id: designacao.unidade_destino_id,
+              designacao_id: designacaoId,
+              created_by: userData?.user?.id,
+            });
+        } catch (e) {
+          console.error("Erro ao criar portaria na tabela documentos:", e);
         }
       }
+
+      return designacao;
     },
-    onSuccess: () => {
+    onSuccess: (designacao) => {
       queryClient.invalidateQueries({ queryKey: ["designacoes"] });
-      queryClient.invalidateQueries({ queryKey: ["historico-funcional"] });
-      queryClient.invalidateQueries({ queryKey: ["portarias-servidor"] });
-      toast.success("Designação aprovada com sucesso! Histórico e portaria registrados.");
+      queryClient.invalidateQueries({ queryKey: ["designacoes-servidor", designacao.servidor_id] });
+      queryClient.invalidateQueries({ queryKey: ["designacao-ativa", designacao.servidor_id] });
+      queryClient.invalidateQueries({ queryKey: ["historico-funcional", designacao.servidor_id] });
+      queryClient.invalidateQueries({ queryKey: ["portarias-servidor", designacao.servidor_id] });
+      queryClient.invalidateQueries({ queryKey: ["portarias"] });
+      toast.success("Designação aprovada! Histórico e portaria registrados automaticamente.");
     },
     onError: (error: any) => {
       toast.error(`Erro ao aprovar designação: ${error.message}`);
@@ -239,6 +257,12 @@ export function useRejeitarDesignacao() {
   });
 }
 
+/**
+ * Encerrar designação - SINCRONIZADO
+ * 1. Atualiza designação para encerrada
+ * 2. Registra dispensa no histórico funcional
+ * 3. Revoga portaria na tabela documentos (NÃO mais em portarias_servidor)
+ */
 export function useEncerrarDesignacao() {
   const queryClient = useQueryClient();
 
@@ -252,7 +276,9 @@ export function useEncerrarDesignacao() {
         .from("designacoes")
         .select(`
           *,
-          servidor:servidores!designacoes_servidor_id_fkey(id, nome_completo)
+          servidor:servidores!designacoes_servidor_id_fkey(id, nome_completo),
+          unidade_origem:estrutura_organizacional!designacoes_unidade_origem_id_fkey(id, nome, sigla),
+          unidade_destino:estrutura_organizacional!designacoes_unidade_destino_id_fkey(id, nome, sigla)
         `)
         .eq("id", designacaoId)
         .single();
@@ -272,44 +298,46 @@ export function useEncerrarDesignacao() {
       if (updateError) throw updateError;
       
       // 3. Criar registro de dispensa no histórico funcional
-      const { error: historicoError } = await supabase
-        .from("historico_funcional")
-        .insert({
-          servidor_id: designacao.servidor_id,
-          tipo: "dispensa",
-          data_evento: dataEncerramento,
-          unidade_anterior_id: designacao.unidade_destino_id,
-          unidade_nova_id: designacao.unidade_origem_id,
-          descricao: `Dispensa de designação temporária de ${designacao.servidor?.nome_completo || 'servidor'}`,
-          created_by: userData?.user?.id,
-        });
-      
-      if (historicoError) {
-        console.error("Erro ao criar histórico de dispensa:", historicoError);
+      try {
+        await supabase
+          .from("historico_funcional")
+          .insert({
+            servidor_id: designacao.servidor_id,
+            tipo: "dispensa",
+            data_evento: dataEncerramento,
+            unidade_anterior_id: designacao.unidade_destino_id,
+            unidade_nova_id: designacao.unidade_origem_id,
+            descricao: `Dispensa de designação temporária de ${designacao.servidor?.nome_completo || 'servidor'}`,
+            created_by: userData?.user?.id,
+          });
+      } catch (e) {
+        console.error("Erro ao criar histórico de dispensa:", e);
       }
       
-      // 4. Atualizar portaria vinculada para revogada (se existir)
-      if (designacao.ato_numero) {
-        const { error: portariaError } = await supabase
-          .from("portarias_servidor")
+      // 4. Revogar portaria na tabela documentos (não mais em portarias_servidor)
+      try {
+        await supabase
+          .from("documentos")
           .update({
-            status: "revogada",
-            data_vigencia_fim: dataEncerramento,
+            status: "revogado",
           })
-          .eq("servidor_id", designacao.servidor_id)
-          .eq("tipo", "designacao")
-          .eq("numero", designacao.ato_numero)
-          .eq("status", "vigente");
-        
-        if (portariaError) {
-          console.error("Erro ao revogar portaria:", portariaError);
-        }
+          .eq("designacao_id", designacaoId)
+          .eq("tipo", "portaria")
+          .eq("categoria", "designacao")
+          .in("status", ["minuta", "vigente", "publicado", "assinado"]);
+      } catch (e) {
+        console.error("Erro ao revogar portaria:", e);
       }
+
+      return designacao;
     },
-    onSuccess: () => {
+    onSuccess: (designacao) => {
       queryClient.invalidateQueries({ queryKey: ["designacoes"] });
-      queryClient.invalidateQueries({ queryKey: ["historico-funcional"] });
-      queryClient.invalidateQueries({ queryKey: ["portarias-servidor"] });
+      queryClient.invalidateQueries({ queryKey: ["designacoes-servidor", designacao.servidor_id] });
+      queryClient.invalidateQueries({ queryKey: ["designacao-ativa", designacao.servidor_id] });
+      queryClient.invalidateQueries({ queryKey: ["historico-funcional", designacao.servidor_id] });
+      queryClient.invalidateQueries({ queryKey: ["portarias-servidor", designacao.servidor_id] });
+      queryClient.invalidateQueries({ queryKey: ["portarias"] });
       toast.success("Designação encerrada com sucesso!");
     },
     onError: (error: any) => {
