@@ -139,13 +139,7 @@ export default function PendenciasPortariasPage() {
             <p className="text-muted-foreground">
               Acompanhe portarias que precisam de ação do RH
             </p>
-          </div>
-          <Button asChild variant="outline">
-            <Link to="/gabinete/portarias">
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Ir para Central de Portarias
-            </Link>
-          </Button>
+        </div>
         </div>
 
         {/* Cards de resumo */}
