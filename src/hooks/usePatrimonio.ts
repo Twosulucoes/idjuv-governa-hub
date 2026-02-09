@@ -75,20 +75,55 @@ export function useBemPatrimonial(id: string | undefined) {
     queryKey: ['bem-patrimonial', id],
     queryFn: async () => {
       if (!id) return null;
+      
+      // Query simplificada sem joins que podem falhar
       const { data, error } = await supabase
         .from('bens_patrimoniais')
-        .select(`
-          *,
-          responsavel:servidores!bens_patrimoniais_responsavel_id_fkey(id, nome_completo, cpf),
-          unidade:estrutura_organizacional!bens_patrimoniais_unidade_id_fkey(id, nome, sigla),
-          unidade_local:unidades_locais!bens_patrimoniais_unidade_local_id_fkey(id, nome_unidade, codigo_unidade, municipio, tipo_unidade),
-          fornecedor:fornecedores!bens_patrimoniais_fornecedor_id_fkey(id, razao_social, cnpj)
-        `)
+        .select('*')
         .eq('id', id)
         .maybeSingle();
 
       if (error) throw error;
-      return data;
+      if (!data) return null;
+
+      // Buscar dados relacionados separadamente para evitar erro 400
+      let responsavel = null;
+      let unidadeLocal = null;
+      let fornecedor = null;
+
+      if (data.responsavel_id) {
+        const { data: respData } = await supabase
+          .from('servidores')
+          .select('id, nome_completo, cpf')
+          .eq('id', data.responsavel_id)
+          .maybeSingle();
+        responsavel = respData;
+      }
+
+      if (data.unidade_local_id) {
+        const { data: ulData } = await supabase
+          .from('unidades_locais')
+          .select('id, nome_unidade, codigo_unidade, municipio, tipo_unidade')
+          .eq('id', data.unidade_local_id)
+          .maybeSingle();
+        unidadeLocal = ulData;
+      }
+
+      if (data.fornecedor_id) {
+        const { data: fornData } = await supabase
+          .from('fornecedores')
+          .select('id, razao_social, cnpj')
+          .eq('id', data.fornecedor_id)
+          .maybeSingle();
+        fornecedor = fornData;
+      }
+
+      return {
+        ...data,
+        responsavel,
+        unidade_local: unidadeLocal,
+        fornecedor,
+      };
     },
     enabled: !!id,
   });
