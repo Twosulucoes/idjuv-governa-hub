@@ -2444,6 +2444,134 @@ export type Database = {
         }
         Relationships: []
       }
+      cms_galeria_fotos: {
+        Row: {
+          created_at: string
+          galeria_id: string
+          id: string
+          legenda: string | null
+          ordem: number
+          thumbnail_url: string | null
+          titulo: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          galeria_id: string
+          id?: string
+          legenda?: string | null
+          ordem?: number
+          thumbnail_url?: string | null
+          titulo?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string
+          galeria_id?: string
+          id?: string
+          legenda?: string | null
+          ordem?: number
+          thumbnail_url?: string | null
+          titulo?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cms_galeria_fotos_galeria_id_fkey"
+            columns: ["galeria_id"]
+            isOneToOne: false
+            referencedRelation: "cms_galerias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cms_galerias: {
+        Row: {
+          autor_id: string | null
+          autor_nome: string | null
+          categoria: string | null
+          created_at: string
+          data_publicacao: string | null
+          descricao: string | null
+          destino: string
+          id: string
+          imagem_capa_url: string | null
+          slug: string
+          status: string
+          titulo: string
+          updated_at: string
+          visualizacoes: number | null
+        }
+        Insert: {
+          autor_id?: string | null
+          autor_nome?: string | null
+          categoria?: string | null
+          created_at?: string
+          data_publicacao?: string | null
+          descricao?: string | null
+          destino?: string
+          id?: string
+          imagem_capa_url?: string | null
+          slug: string
+          status?: string
+          titulo: string
+          updated_at?: string
+          visualizacoes?: number | null
+        }
+        Update: {
+          autor_id?: string | null
+          autor_nome?: string | null
+          categoria?: string | null
+          created_at?: string
+          data_publicacao?: string | null
+          descricao?: string | null
+          destino?: string
+          id?: string
+          imagem_capa_url?: string | null
+          slug?: string
+          status?: string
+          titulo?: string
+          updated_at?: string
+          visualizacoes?: number | null
+        }
+        Relationships: []
+      }
+      cms_media: {
+        Row: {
+          alt_text: string | null
+          created_at: string
+          created_by: string | null
+          filename: string
+          id: string
+          tamanho_bytes: number | null
+          tipo: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          alt_text?: string | null
+          created_at?: string
+          created_by?: string | null
+          filename: string
+          id?: string
+          tamanho_bytes?: number | null
+          tipo?: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          alt_text?: string | null
+          created_at?: string
+          created_by?: string | null
+          filename?: string
+          id?: string
+          tamanho_bytes?: number | null
+          tipo?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       coletas_inventario: {
         Row: {
           bem_id: string

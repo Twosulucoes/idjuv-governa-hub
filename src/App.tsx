@@ -75,6 +75,9 @@ import {
 } from "./pages/programas/selecoes";
 import CMSConteudosPage from "./pages/comunicacao/CMSConteudosPage";
 import CMSBannersPage from "./pages/comunicacao/CMSBannersPage";
+import CMSGaleriasPage from "./pages/comunicacao/CMSGaleriasPage";
+import CMSEditorPage from "./pages/comunicacao/CMSEditorPage";
+import { NoticiasPublicasPage, NoticiaPage, GaleriasPublicasPage, GaleriaPage } from "./pages/public";
 import CargosRemuneracaoPage from "./pages/transparencia/CargosRemuneracaoPage";
 import LicitacoesPublicasPage from "./pages/transparencia/LicitacoesPublicasPage";
 import ExecucaoOrcamentariaPage from "./pages/transparencia/ExecucaoOrcamentariaPage";
