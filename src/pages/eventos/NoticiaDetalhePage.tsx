@@ -110,17 +110,25 @@ export default function NoticiaDetalhePage() {
   const navigate = useNavigate();
 
   const { data: noticia, isLoading } = useQuery({
-    queryKey: ["noticia-detalhe", slug],
+    queryKey: ["cms-noticia-detalhe", slug],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("noticias_eventos_esportivos")
-        .select("*")
+        .from("cms_conteudos")
+        .select("id, titulo, slug, resumo, conteudo, conteudo_html, categoria, imagem_destaque_url, data_publicacao, autor_nome")
         .eq("slug", slug)
         .eq("status", "publicado")
-        .single();
+        .eq("tipo", "noticia")
+        .maybeSingle();
 
       if (error) throw error;
-      return data as Noticia;
+      // Usar conteudo_html se disponível, senão conteudo
+      if (data) {
+        return {
+          ...data,
+          conteudo: data.conteudo_html || data.conteudo
+        } as Noticia;
+      }
+      return null;
     },
     enabled: !!slug,
   });
