@@ -412,6 +412,16 @@ const App = () => (
                   <CentralPortariasPage />
                 </ProtectedRoute>
               } />
+              <Route path="/gabinete/pre-cadastros" element={
+                <ProtectedRoute allowedRoles={["manager", "admin"]}>
+                  <GestaoPreCadastrosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/gabinete/pre-cadastros/pendencias" element={
+                <ProtectedRoute allowedRoles={["manager", "admin"]}>
+                  <DiagnosticoPendenciasPage />
+                </ProtectedRoute>
+              } />
               
               {/* ============================================ */}
               {/* ADMIN - Com permissões mapeadas */}
