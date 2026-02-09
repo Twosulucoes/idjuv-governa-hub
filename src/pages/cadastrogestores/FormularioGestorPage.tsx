@@ -3,7 +3,7 @@
  * /cadastrogestores
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,12 +21,11 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from 'cmdk';
 import { useEscolasJer } from '@/hooks/useEscolasJer';
 import { useGestoresEscolares } from '@/hooks/useGestoresEscolares';
 import { validarCPF, formatarCPF, formatarCelular } from '@/types/gestoresEscolares';
@@ -52,8 +51,18 @@ export default function FormularioGestorPage() {
   const [enviado, setEnviado] = useState(false);
   const [gestorCriado, setGestorCriado] = useState<{ nome: string; escola: string } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [buscaEscola, setBuscaEscola] = useState('');
+  const [escolaAberta, setEscolaAberta] = useState(false);
 
   const { escolasDisponiveis, isLoading: loadingEscolas } = useEscolasJer();
+
+  const escolasFiltradas = useMemo(() => {
+    if (!buscaEscola) return escolasDisponiveis;
+    const termo = buscaEscola.toLowerCase();
+    return escolasDisponiveis.filter(
+      (e) => e.nome.toLowerCase().includes(termo) || (e.municipio && e.municipio.toLowerCase().includes(termo))
+    );
+  }, [escolasDisponiveis, buscaEscola]);
   const { criarGestor } = useGestoresEscolares();
 
   const form = useForm<FormData>({
@@ -169,31 +178,69 @@ export default function FormularioGestorPage() {
                 <FormField
                   control={form.control}
                   name="escola_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Escola *</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        disabled={loadingEscolas}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione a escola" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {escolasDisponiveis.map((escola) => (
-                            <SelectItem key={escola.id} value={escola.id}>
-                              {escola.nome}
-                              {escola.municipio && ` - ${escola.municipio}`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const escolaSelecionada = escolasDisponiveis.find((e) => e.id === field.value);
+                    return (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Escola *</FormLabel>
+                        <Popover open={escolaAberta} onOpenChange={setEscolaAberta}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className={`w-full justify-between font-normal ${!field.value ? 'text-muted-foreground' : ''}`}
+                                disabled={loadingEscolas}
+                              >
+                                {escolaSelecionada
+                                  ? `${escolaSelecionada.nome}${escolaSelecionada.municipio ? ` - ${escolaSelecionada.municipio}` : ''}`
+                                  : 'Buscar escola...'}
+                                <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                            <div className="flex flex-col">
+                              <div className="p-2">
+                                <Input
+                                  placeholder="Digite o nome da escola..."
+                                  value={buscaEscola}
+                                  onChange={(e) => setBuscaEscola(e.target.value)}
+                                  autoFocus
+                                />
+                              </div>
+                              <div className="max-h-60 overflow-y-auto">
+                                {escolasFiltradas.length === 0 ? (
+                                  <p className="p-3 text-sm text-muted-foreground text-center">Nenhuma escola encontrada.</p>
+                                ) : (
+                                  escolasFiltradas.map((escola) => (
+                                    <button
+                                      key={escola.id}
+                                      type="button"
+                                      className={`w-full text-left px-3 py-2 text-sm hover:bg-accent cursor-pointer ${
+                                        field.value === escola.id ? 'bg-accent font-medium' : ''
+                                      }`}
+                                      onClick={() => {
+                                        field.onChange(escola.id);
+                                        setEscolaAberta(false);
+                                        setBuscaEscola('');
+                                      }}
+                                    >
+                                      {escola.nome}
+                                      {escola.municipio && (
+                                        <span className="text-muted-foreground"> - {escola.municipio}</span>
+                                      )}
+                                    </button>
+                                  ))
+                                )}
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
 
                 {/* Nome */}
@@ -229,6 +276,7 @@ export default function FormularioGestorPage() {
                             value={formatarCPF(field.value)}
                             onChange={handleCpfChange}
                             maxLength={14}
+                            inputMode="numeric"
                           />
                         </FormControl>
                         <FormMessage />
@@ -243,7 +291,7 @@ export default function FormularioGestorPage() {
                       <FormItem>
                         <FormLabel>RG</FormLabel>
                         <FormControl>
-                          <Input placeholder="Número do RG" {...field} />
+                          <Input placeholder="Número do RG" inputMode="numeric" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -298,6 +346,7 @@ export default function FormularioGestorPage() {
                             value={formatarCelular(field.value)}
                             onChange={handleCelularChange}
                             maxLength={15}
+                            inputMode="numeric"
                           />
                         </FormControl>
                         <FormMessage />
