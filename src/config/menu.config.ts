@@ -1086,6 +1086,13 @@ export const menuConfig: MenuSection[] = [
         permission: "admin.auditoria",
       },
       {
+        id: "paginas-publicas",
+        label: "Páginas Públicas",
+        route: "/admin/paginas",
+        icon: Globe,
+        permission: "admin.config",
+      },
+      {
         id: "configuracoes",
         label: "Configurações",
         route: "/admin/configuracoes",

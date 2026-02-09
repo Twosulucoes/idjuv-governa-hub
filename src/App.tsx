@@ -144,6 +144,7 @@ import RelatorioAdminPage from "./pages/admin/RelatorioAdminPage";
 import CalibradorSegadPage from "./pages/admin/CalibradorSegadPage";
 import CentralRelatoriosPage from "./pages/admin/CentralRelatoriosPage";
 import SobreSistemaPage from "./pages/admin/SobreSistemaPage";
+import GerenciadorPaginasPage from "./pages/admin/GerenciadorPaginasPage";
 
 // ASCOM
 import GestaoDemandasAscomPage from "./pages/ascom/GestaoDemandasAscomPage";
@@ -381,6 +382,11 @@ const App = () => (
               <Route path="/admin/pre-cadastros/pendencias" element={
                 <ProtectedRoute requiredPermissions="rh.precadastros.visualizar">
                   <DiagnosticoPendenciasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/paginas" element={
+                <ProtectedRoute requiredPermissions="admin.config">
+                  <GerenciadorPaginasPage />
                 </ProtectedRoute>
               } />
               
