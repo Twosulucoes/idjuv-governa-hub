@@ -79,7 +79,10 @@ export function useCadastroBemSimplificado() {
         .eq("status", "ativa")
         .order("nome_unidade");
 
-      if (error) throw error;
+      if (error) {
+        console.error("Erro ao buscar unidades:", error);
+        throw error;
+      }
       return data || [];
     },
   });
