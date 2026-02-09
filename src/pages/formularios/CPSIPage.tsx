@@ -377,23 +377,18 @@ const ETPForm = () => {
   const [showFillDialog, setShowFillDialog] = useState(false);
   const [formData, setFormData] = useState<ETPData>({
     descricaoNecessidade: '',
-    areaRequisitante: '',
-    requisitosTecnicos: '',
-    requisitosNegocio: '',
-    estimativaValor: '',
-    metodologiaEstimativa: '',
-    justificativaContratacao: '',
+    alinhamentoPlanejamento: '',
+    requisitos: '',
+    levantamentoMercado: '',
     descricaoSolucao: '',
-    diferencialInovador: '',
-    ganhoEficiencia: '',
-    baseComparativa: '',
-    ambienteTeste: '',
-    criteriosAvaliacao: '',
-    prazoTeste: '',
-    riscos: '',
-    mitigacao: '',
-    viabilidadeTecnica: '',
-    viabilidadeOrcamentaria: '',
+    estimativaQuantidades: '',
+    estimativaValores: '',
+    justificativaParcelamento: '',
+    contratacoesCorrelatas: '',
+    resultadosPretendidos: '',
+    providenciasPrevias: '',
+    impactosAmbientais: '',
+    posicionamentoConclusivo: '',
     observacoes: '',
   });
 
@@ -417,8 +412,8 @@ const ETPForm = () => {
   };
 
   const handleGenerate = async () => {
-    if (!formData.descricaoNecessidade || !formData.descricaoSolucao) {
-      toast.error('Preencha os campos obrigatórios');
+    if (!formData.descricaoNecessidade || !formData.estimativaQuantidades || !formData.estimativaValores || !formData.justificativaParcelamento || !formData.posicionamentoConclusivo) {
+      toast.error('Preencha os campos obrigatórios (I, VI, VII, VIII e XIII)');
       return;
     }
     setIsGenerating(true);
@@ -455,115 +450,111 @@ const ETPForm = () => {
         onClose={() => ai.setReviewResult('')}
       />
 
+      <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-200">
+        <strong>§ 3º — Campos obrigatórios:</strong> I (Necessidade), VI (Quantidades), VII (Valores), VIII (Parcelamento) e XIII (Posicionamento conclusivo). Os demais incisos, quando não contemplados, devem conter justificativa.
+      </div>
+
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold border-b pb-2">1. Descrição da Necessidade *</h3>
-        <AIField label="" fieldName="descricaoNecessidade" isLoading={ai.fillingField === 'descricaoNecessidade'} onGenerate={() => handleFillField('descricaoNecessidade', 'Descrição da Necessidade')}>
+        <h3 className="text-lg font-semibold border-b pb-2">I — Descrição da Necessidade da Contratação *</h3>
+        <AIField label="" fieldName="descricaoNecessidade" isLoading={ai.fillingField === 'descricaoNecessidade'} onGenerate={() => handleFillField('descricaoNecessidade', 'Descrição da Necessidade da Contratação (Art. 9º, I)')}>
           <Textarea value={formData.descricaoNecessidade} onChange={e => update('descricaoNecessidade', e.target.value)}
-            placeholder="Descreva a necessidade que se pretende atender com a contratação" className="min-h-[100px]" />
+            placeholder="Descreva a necessidade da contratação, considerando o problema a ser resolvido sob a perspectiva do interesse público" className="min-h-[120px]" />
         </AIField>
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold border-b pb-2">2. Área Requisitante</h3>
-        <AIField label="" fieldName="areaRequisitante" isLoading={ai.fillingField === 'areaRequisitante'} onGenerate={() => handleFillField('areaRequisitante', 'Área Requisitante')}>
-          <Input value={formData.areaRequisitante} onChange={e => update('areaRequisitante', e.target.value)} placeholder="Ex: DIRAF - Diretoria Administrativa e Financeira" />
+        <h3 className="text-lg font-semibold border-b pb-2">II — Alinhamento com o Planejamento</h3>
+        <AIField label="" fieldName="alinhamentoPlanejamento" isLoading={ai.fillingField === 'alinhamentoPlanejamento'} onGenerate={() => handleFillField('alinhamentoPlanejamento', 'Alinhamento com o Planejamento e PCA (Art. 9º, II)')}>
+          <Textarea value={formData.alinhamentoPlanejamento} onChange={e => update('alinhamentoPlanejamento', e.target.value)}
+            placeholder="Demonstre o alinhamento entre a contratação e o planejamento do órgão, bem como a previsão no PCA, ou justifique a ausência" className="min-h-[100px]" />
         </AIField>
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold border-b pb-2">3. Requisitos da Contratação</h3>
-        <AIField label="Requisitos Técnicos" fieldName="requisitosTecnicos" isLoading={ai.fillingField === 'requisitosTecnicos'} onGenerate={() => handleFillField('requisitosTecnicos', 'Requisitos Técnicos')}>
-          <Textarea value={formData.requisitosTecnicos} onChange={e => update('requisitosTecnicos', e.target.value)}
-            placeholder="Arquitetura cloud-native, SaaS, API RESTful, segurança LGPD, etc." className="min-h-[80px]" />
-        </AIField>
-        <AIField label="Requisitos de Negócio" fieldName="requisitosNegocio" isLoading={ai.fillingField === 'requisitosNegocio'} onGenerate={() => handleFillField('requisitosNegocio', 'Requisitos de Negócio')}>
-          <Textarea value={formData.requisitosNegocio} onChange={e => update('requisitosNegocio', e.target.value)}
-            placeholder="Módulos funcionais, integrações, workflows, relatórios, etc." className="min-h-[80px]" />
+        <h3 className="text-lg font-semibold border-b pb-2">III — Requisitos da Contratação</h3>
+        <AIField label="" fieldName="requisitos" isLoading={ai.fillingField === 'requisitos'} onGenerate={() => handleFillField('requisitos', 'Requisitos necessários e suficientes à escolha da solução (Art. 9º, III)')}>
+          <Textarea value={formData.requisitos} onChange={e => update('requisitos', e.target.value)}
+            placeholder="Descreva os requisitos necessários e suficientes à escolha da solução, prevendo critérios e práticas de sustentabilidade" className="min-h-[100px]" />
         </AIField>
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold border-b pb-2">4. Estimativa de Valor</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <AIField label="Valor Estimado" fieldName="estimativaValor" isLoading={ai.fillingField === 'estimativaValor'} onGenerate={() => handleFillField('estimativaValor', 'Valor Estimado')}>
-            <Input value={formData.estimativaValor} onChange={e => update('estimativaValor', e.target.value)} placeholder="R$ 0,00" />
-          </AIField>
-          <AIField label="Metodologia" fieldName="metodologiaEstimativa" isLoading={ai.fillingField === 'metodologiaEstimativa'} onGenerate={() => handleFillField('metodologiaEstimativa', 'Metodologia de Estimativa')}>
-            <Input value={formData.metodologiaEstimativa} onChange={e => update('metodologiaEstimativa', e.target.value)} placeholder="Pesquisa de mercado, benchmarking, etc." />
-          </AIField>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold border-b pb-2">5. Justificativa da Contratação</h3>
-        <AIField label="" fieldName="justificativaContratacao" isLoading={ai.fillingField === 'justificativaContratacao'} onGenerate={() => handleFillField('justificativaContratacao', 'Justificativa da Contratação')}>
-          <Textarea value={formData.justificativaContratacao} onChange={e => update('justificativaContratacao', e.target.value)}
-            placeholder="Demonstre por que é necessário contratar solução inovadora via CPSI" className="min-h-[100px]" />
+        <h3 className="text-lg font-semibold border-b pb-2">IV — Levantamento de Mercado</h3>
+        <AIField label="" fieldName="levantamentoMercado" isLoading={ai.fillingField === 'levantamentoMercado'} onGenerate={() => handleFillField('levantamentoMercado', 'Levantamento de Mercado com prospecção e análise de alternativas (Art. 9º, IV)')}>
+          <Textarea value={formData.levantamentoMercado} onChange={e => update('levantamentoMercado', e.target.value)}
+            placeholder="Prospecção e análise das alternativas possíveis, justificativa técnica e econômica da escolha (contratações similares, tecnologias, consulta pública, custos vs. benefícios)" className="min-h-[120px]" />
         </AIField>
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold border-b pb-2">6. Descrição da Solução *</h3>
-        <AIField label="" fieldName="descricaoSolucao" isLoading={ai.fillingField === 'descricaoSolucao'} onGenerate={() => handleFillField('descricaoSolucao', 'Descrição da Solução')}>
+        <h3 className="text-lg font-semibold border-b pb-2">V — Descrição da Solução Final</h3>
+        <AIField label="" fieldName="descricaoSolucao" isLoading={ai.fillingField === 'descricaoSolucao'} onGenerate={() => handleFillField('descricaoSolucao', 'Descrição da solução final como um todo (Art. 9º, V)')}>
           <Textarea value={formData.descricaoSolucao} onChange={e => update('descricaoSolucao', e.target.value)}
-            placeholder="Descreva a solução inovadora pretendida (sistema de governança digital, portal, etc.)" className="min-h-[100px]" />
+            placeholder="Descrição da solução como um todo, incluindo exigências de insumos, garantia, manutenção e assistência técnica, com justificativas técnica e econômica" className="min-h-[100px]" />
         </AIField>
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold border-b pb-2">7. Parâmetros de Inovação (LC 182/2021)</h3>
-        <AIField label="Diferencial Inovador" fieldName="diferencialInovador" isLoading={ai.fillingField === 'diferencialInovador'} onGenerate={() => handleFillField('diferencialInovador', 'Diferencial Inovador')}>
-          <Textarea value={formData.diferencialInovador} onChange={e => update('diferencialInovador', e.target.value)}
-            placeholder="IA generativa, automação de processos, transparência ativa nativa, etc." className="min-h-[80px]" />
-        </AIField>
-        <AIField label="Ganho de Eficiência" fieldName="ganhoEficiencia" isLoading={ai.fillingField === 'ganhoEficiencia'} onGenerate={() => handleFillField('ganhoEficiencia', 'Ganho de Eficiência')}>
-          <Textarea value={formData.ganhoEficiencia} onChange={e => update('ganhoEficiencia', e.target.value)}
-            placeholder="Redução de tempo, eliminação de retrabalho, economia de recursos, etc." className="min-h-[60px]" />
-        </AIField>
-        <AIField label="Base Comparativa" fieldName="baseComparativa" isLoading={ai.fillingField === 'baseComparativa'} onGenerate={() => handleFillField('baseComparativa', 'Base Comparativa')}>
-          <Textarea value={formData.baseComparativa} onChange={e => update('baseComparativa', e.target.value)}
-            placeholder="Compare com soluções tradicionais disponíveis no mercado" className="min-h-[60px]" />
+        <h3 className="text-lg font-semibold border-b pb-2">VI — Estimativa das Quantidades *</h3>
+        <AIField label="" fieldName="estimativaQuantidades" isLoading={ai.fillingField === 'estimativaQuantidades'} onGenerate={() => handleFillField('estimativaQuantidades', 'Estimativa das quantidades com memórias de cálculo (Art. 9º, VI)')}>
+          <Textarea value={formData.estimativaQuantidades} onChange={e => update('estimativaQuantidades', e.target.value)}
+            placeholder="Estimativa das quantidades a serem contratadas, acompanhada das memórias de cálculo e documentos de suporte (§ 4º: priorizar históricos de consumo e PCA)" className="min-h-[100px]" />
         </AIField>
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold border-b pb-2">8. Demonstração em Ambiente Real</h3>
-        <AIField label="Ambiente de Teste" fieldName="ambienteTeste" isLoading={ai.fillingField === 'ambienteTeste'} onGenerate={() => handleFillField('ambienteTeste', 'Ambiente de Teste')}>
-          <Textarea value={formData.ambienteTeste} onChange={e => update('ambienteTeste', e.target.value)}
-            placeholder="Descreva o ambiente onde a solução será testada (setores, processos, usuários)" className="min-h-[60px]" />
-        </AIField>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <AIField label="Critérios de Avaliação" fieldName="criteriosAvaliacao" isLoading={ai.fillingField === 'criteriosAvaliacao'} onGenerate={() => handleFillField('criteriosAvaliacao', 'Critérios de Avaliação')}>
-            <Textarea value={formData.criteriosAvaliacao} onChange={e => update('criteriosAvaliacao', e.target.value)}
-              placeholder="KPIs, métricas de sucesso, indicadores" className="min-h-[60px]" />
-          </AIField>
-          <AIField label="Prazo do Teste" fieldName="prazoTeste" isLoading={ai.fillingField === 'prazoTeste'} onGenerate={() => handleFillField('prazoTeste', 'Prazo do Teste')}>
-            <Input value={formData.prazoTeste} onChange={e => update('prazoTeste', e.target.value)} placeholder="Ex: 12 meses" />
-          </AIField>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold border-b pb-2">9. Análise de Riscos</h3>
-        <AIField label="Riscos Identificados" fieldName="riscos" isLoading={ai.fillingField === 'riscos'} onGenerate={() => handleFillField('riscos', 'Riscos Identificados')}>
-          <Textarea value={formData.riscos} onChange={e => update('riscos', e.target.value)}
-            placeholder="Liste os principais riscos da contratação" className="min-h-[80px]" />
-        </AIField>
-        <AIField label="Medidas de Mitigação" fieldName="mitigacao" isLoading={ai.fillingField === 'mitigacao'} onGenerate={() => handleFillField('mitigacao', 'Medidas de Mitigação')}>
-          <Textarea value={formData.mitigacao} onChange={e => update('mitigacao', e.target.value)}
-            placeholder="Ações para mitigar cada risco identificado" className="min-h-[80px]" />
+        <h3 className="text-lg font-semibold border-b pb-2">VII — Estimativa de Valores *</h3>
+        <AIField label="" fieldName="estimativaValores" isLoading={ai.fillingField === 'estimativaValores'} onGenerate={() => handleFillField('estimativaValores', 'Estimativa dos valores unitários e globais (Art. 9º, VII)')}>
+          <Textarea value={formData.estimativaValores} onChange={e => update('estimativaValores', e.target.value)}
+            placeholder="Estimativa dos valores unitários e globais da contratação para avaliar a viabilidade econômica da opção escolhida" className="min-h-[100px]" />
         </AIField>
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold border-b pb-2">10. Viabilidade</h3>
-        <AIField label="Viabilidade Técnica" fieldName="viabilidadeTecnica" isLoading={ai.fillingField === 'viabilidadeTecnica'} onGenerate={() => handleFillField('viabilidadeTecnica', 'Viabilidade Técnica')}>
-          <Textarea value={formData.viabilidadeTecnica} onChange={e => update('viabilidadeTecnica', e.target.value)}
-            placeholder="Demonstre a viabilidade técnica da solução" className="min-h-[60px]" />
+        <h3 className="text-lg font-semibold border-b pb-2">VIII — Justificativa para o Parcelamento ou Não *</h3>
+        <AIField label="" fieldName="justificativaParcelamento" isLoading={ai.fillingField === 'justificativaParcelamento'} onGenerate={() => handleFillField('justificativaParcelamento', 'Justificativas para o parcelamento ou não da contratação (Art. 9º, VIII)')}>
+          <Textarea value={formData.justificativaParcelamento} onChange={e => update('justificativaParcelamento', e.target.value)}
+            placeholder="Justifique o parcelamento ou a contratação integral da solução" className="min-h-[80px]" />
         </AIField>
-        <AIField label="Viabilidade Orçamentária" fieldName="viabilidadeOrcamentaria" isLoading={ai.fillingField === 'viabilidadeOrcamentaria'} onGenerate={() => handleFillField('viabilidadeOrcamentaria', 'Viabilidade Orçamentária')}>
-          <Textarea value={formData.viabilidadeOrcamentaria} onChange={e => update('viabilidadeOrcamentaria', e.target.value)}
-            placeholder="Fonte de recursos, dotação orçamentária" className="min-h-[60px]" />
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold border-b pb-2">IX — Contratações Correlatas e/ou Interdependentes</h3>
+        <AIField label="" fieldName="contratacoesCorrelatas" isLoading={ai.fillingField === 'contratacoesCorrelatas'} onGenerate={() => handleFillField('contratacoesCorrelatas', 'Contratações correlatas e/ou interdependentes (Art. 9º, IX)')}>
+          <Textarea value={formData.contratacoesCorrelatas} onChange={e => update('contratacoesCorrelatas', e.target.value)}
+            placeholder="Contratações cujos objetos sejam similares (correlatas) ou cuja execução possa afetar ou ser afetada por esta contratação (interdependentes)" className="min-h-[80px]" />
+        </AIField>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold border-b pb-2">X — Resultados Pretendidos</h3>
+        <AIField label="" fieldName="resultadosPretendidos" isLoading={ai.fillingField === 'resultadosPretendidos'} onGenerate={() => handleFillField('resultadosPretendidos', 'Resultados pretendidos em termos de efetividade e economicidade (Art. 9º, X)')}>
+          <Textarea value={formData.resultadosPretendidos} onChange={e => update('resultadosPretendidos', e.target.value)}
+            placeholder="Resultados em termos de efetividade, economicidade, melhor aproveitamento dos recursos e desenvolvimento nacional sustentável" className="min-h-[80px]" />
+        </AIField>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold border-b pb-2">XI — Providências Prévias à Celebração do Contrato</h3>
+        <AIField label="" fieldName="providenciasPrevias" isLoading={ai.fillingField === 'providenciasPrevias'} onGenerate={() => handleFillField('providenciasPrevias', 'Providências prévias à celebração do contrato (Art. 9º, XI)')}>
+          <Textarea value={formData.providenciasPrevias} onChange={e => update('providenciasPrevias', e.target.value)}
+            placeholder="Providências prévias incluindo capacitação de servidores para fiscalização e gestão contratual ou adequação do ambiente da organização" className="min-h-[80px]" />
+        </AIField>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold border-b pb-2">XII — Impactos Ambientais</h3>
+        <AIField label="" fieldName="impactosAmbientais" isLoading={ai.fillingField === 'impactosAmbientais'} onGenerate={() => handleFillField('impactosAmbientais', 'Impactos ambientais e medidas preventivas/corretivas (Art. 9º, XII)')}>
+          <Textarea value={formData.impactosAmbientais} onChange={e => update('impactosAmbientais', e.target.value)}
+            placeholder="Impactos ambientais e respectivas medidas preventivas e corretivas, incluindo requisitos de baixo consumo de energia e logística reversa, quando aplicável" className="min-h-[80px]" />
+        </AIField>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold border-b pb-2">XIII — Posicionamento Conclusivo sobre a Viabilidade *</h3>
+        <AIField label="" fieldName="posicionamentoConclusivo" isLoading={ai.fillingField === 'posicionamentoConclusivo'} onGenerate={() => handleFillField('posicionamentoConclusivo', 'Posicionamento conclusivo sobre viabilidade, razoabilidade e adequação (Art. 9º, XIII)')}>
+          <Textarea value={formData.posicionamentoConclusivo} onChange={e => update('posicionamentoConclusivo', e.target.value)}
+            placeholder="Posicionamento conclusivo sobre a viabilidade, razoabilidade e adequação da contratação para o atendimento da necessidade a que se destina" className="min-h-[100px]" />
         </AIField>
       </div>
 
@@ -862,7 +853,7 @@ const CPSIPage = () => {
                 <TabsContent value="etp" className="mt-6">
                   <div className="mb-4">
                     <h2 className="text-xl font-semibold">Estudo Técnico Preliminar</h2>
-                    <p className="text-sm text-muted-foreground">Análise técnica conforme IN SEGES/MP nº 5/2017 com parâmetros de inovação (LC 182/2021)</p>
+                    <p className="text-sm text-muted-foreground">Art. 9º do Decreto Estadual — 13 incisos obrigatórios e condicionais (§ 3º)</p>
                   </div>
                   <ETPForm />
                 </TabsContent>
