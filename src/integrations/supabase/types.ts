@@ -19262,6 +19262,10 @@ export type Database = {
       gerar_codigo_pre_cadastro: { Args: never; Returns: string }
       gerar_link_frequencia: { Args: never; Returns: string }
       gerar_numero_portaria: { Args: { p_ano?: number }; Returns: string }
+      gerar_numero_tombamento: {
+        Args: { p_unidade_local_id: string }
+        Returns: string
+      }
       gerar_protocolo_cedencia: {
         Args: { p_unidade_id: string }
         Returns: string
