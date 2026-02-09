@@ -65,7 +65,8 @@ export function useCalendarioComunicacao({ mes, ano }: UseCalendarioComunicacaoO
         .select("id, titulo, prazo_entrega, status, prioridade, categoria")
         .gte("prazo_entrega", inicioMesStr)
         .lte("prazo_entrega", fimMesStr)
-        .not("status", "in", "(concluida,cancelada,arquivada)");
+        // status_demanda_ascom não possui "arquivada"; excluir apenas status finais
+        .not("status", "in", "(concluida,cancelada)");
 
       if (error) throw error;
 
