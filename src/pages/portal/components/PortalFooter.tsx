@@ -141,15 +141,15 @@ export function PortalFooter() {
               transition={{ delay: 0.3 }}
             >
               <h4 className="font-semibold text-lg mb-6">Governo de Roraima</h4>
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-4">
+              <div className="bg-white rounded-xl p-4 mb-4">
                 <img 
                   src={logoGoverno} 
-                  alt="Governo de Roraima" 
+                  alt="Governo de Roraima"
                   className="h-12 w-auto mx-auto"
                 />
               </div>
               <p className="text-primary-foreground/70 text-sm text-center">
-                Autarquia vinculada à Secretaria de Estado do Trabalho e Bem-Estar Social
+                Autarquia vinculada à Secretaria de Estado da Educação e Desporto – SEED
               </p>
             </motion.div>
           </div>

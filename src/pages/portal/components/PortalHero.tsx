@@ -112,17 +112,32 @@ export function PortalHero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.5 }}
-            className="text-lg md:text-xl text-white/80 mb-10 max-w-3xl mx-auto leading-relaxed"
+            className="text-lg md:text-xl text-white/80 mb-6 max-w-3xl mx-auto leading-relaxed"
           >
-            Instituto de Desporto, Juventude e Lazer de Roraima — promovendo inclusão social, 
-            desenvolvimento esportivo e cidadania para a juventude roraimense.
+            Autarquia vinculada à Secretaria de Estado da Educação e Desporto (SEED), 
+            promovendo o desenvolvimento esportivo, o lazer e a inclusão social da juventude roraimense.
           </motion.p>
+
+          {/* Info Badge */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+            className="flex flex-wrap justify-center gap-3 mb-10"
+          >
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/90 text-sm">
+              📍 Sede: Parque Anauá, Boa Vista
+            </span>
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/90 text-sm">
+              📅 Criado em 29/12/2025
+            </span>
+          </motion.div>
 
           {/* CTA Buttons */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
+            transition={{ duration: 0.8, delay: 0.7 }}
             className="flex flex-col sm:flex-row gap-4 justify-center items-center"
           >
             <Button 
@@ -139,7 +154,7 @@ export function PortalHero() {
               className="border-white/30 text-white hover:bg-white/10 px-8 py-6 text-lg rounded-full backdrop-blur-sm"
             >
               <Play className="mr-2 w-5 h-5" />
-              Assista ao Vídeo
+              Conheça o Proesporte
             </Button>
           </motion.div>
         </motion.div>

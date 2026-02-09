@@ -3,7 +3,7 @@
  */
 
 import { motion } from "framer-motion";
-import { ArrowRight, Trophy, Heart, Award, Building2, Calendar, GraduationCap } from "lucide-react";
+import { ArrowRight, Trophy, Heart, Award, Users, Calendar, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import illustrationBolsa from "@/assets/portal/illustration-bolsa-atleta.jpg";
 import illustrationYouth from "@/assets/portal/illustration-youth.jpg";
@@ -76,42 +76,42 @@ function ProgramCard({ title, description, icon: Icon, image, color, delay, feat
 export function PortalPrograms() {
   const programs = [
     {
-      title: "Bolsa Atleta",
-      description: "Programa de incentivo financeiro para atletas de alto rendimento do estado de Roraima, apoiando talentos em diversas modalidades esportivas para competições nacionais e internacionais.",
+      title: "Proesporte",
+      description: "Programa estadual de fomento ao esporte de alto rendimento. Oferece incentivos fiscais para empresas que investem em projetos esportivos aprovados pelo IDJuv.",
       icon: Trophy,
       image: illustrationBolsa,
+      color: "bg-primary",
+      featured: true,
+    },
+    {
+      title: "Bolsa Atleta Estadual",
+      description: "Apoio financeiro mensal para atletas de alto rendimento que representam Roraima em competições nacionais e internacionais.",
+      icon: Award,
+      image: illustrationYouth,
       color: "bg-amber-500",
       featured: true,
     },
     {
-      title: "Juventude Cidadã",
-      description: "Formação integral e inclusão social para jovens através de atividades esportivas, culturais e educacionais.",
-      icon: Heart,
-      image: illustrationYouth,
-      color: "bg-rose-500",
-      featured: true,
-    },
-    {
-      title: "Federações Esportivas",
-      description: "Apoio técnico e financeiro às federações estaduais de diversas modalidades.",
-      icon: Award,
+      title: "Apoio às Federações",
+      description: "Suporte técnico e financeiro às federações esportivas estaduais para realização de competições e formação de atletas.",
+      icon: Users,
       color: "bg-blue-500",
     },
     {
-      title: "Espaços Esportivos",
-      description: "Gestão e manutenção de arenas, ginásios e centros esportivos públicos.",
-      icon: Building2,
-      color: "bg-emerald-500",
+      title: "Juventude Ativa",
+      description: "Programas de inclusão social através do esporte para jovens em situação de vulnerabilidade.",
+      icon: Heart,
+      color: "bg-rose-500",
     },
     {
       title: "Eventos Esportivos",
-      description: "Organização do calendário esportivo estadual com competições e festivais.",
+      description: "Organização e apoio ao calendário esportivo estadual com competições em diversas modalidades.",
       icon: Calendar,
       color: "bg-purple-500",
     },
     {
-      title: "Capacitação",
-      description: "Cursos e treinamentos para profissionais do esporte e gestores esportivos.",
+      title: "Capacitação Esportiva",
+      description: "Cursos e formações para técnicos, árbitros e gestores esportivos em todo o estado.",
       icon: GraduationCap,
       color: "bg-teal-500",
     },
