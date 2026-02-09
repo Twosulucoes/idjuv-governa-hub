@@ -19,7 +19,7 @@ const quickActions = [
     title: "Pré-Cadastros",
     description: "Currículos recebidos para análise",
     icon: Users,
-    route: "/curriculo/pre-cadastros",
+    route: "/gabinete/pre-cadastros",
     color: "text-blue-600",
   },
   {
