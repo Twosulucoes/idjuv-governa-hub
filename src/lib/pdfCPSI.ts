@@ -37,34 +37,32 @@ export interface DFDData {
 }
 
 export interface ETPData {
-  // 1. Descrição da necessidade
+  // I - Descrição da necessidade (OBRIGATÓRIO - §3º)
   descricaoNecessidade: string;
-  // 2. Área requisitante
-  areaRequisitante: string;
-  // 3. Descrição dos requisitos
-  requisitosTecnicos: string;
-  requisitosNegocio: string;
-  // 4. Estimativa de valor
-  estimativaValor: string;
-  metodologiaEstimativa: string;
-  // 5. Justificativa da contratação
-  justificativaContratacao: string;
-  // 6. Descrição da solução
+  // II - Alinhamento com planejamento / PCA
+  alinhamentoPlanejamento: string;
+  // III - Requisitos da solução (sustentabilidade)
+  requisitos: string;
+  // IV - Levantamento de mercado
+  levantamentoMercado: string;
+  // V - Descrição da solução final
   descricaoSolucao: string;
-  // 7. Parâmetros de inovação
-  diferencialInovador: string;
-  ganhoEficiencia: string;
-  baseComparativa: string;
-  // 8. Demonstração em ambiente real
-  ambienteTeste: string;
-  criteriosAvaliacao: string;
-  prazoTeste: string;
-  // 9. Análise de riscos
-  riscos: string;
-  mitigacao: string;
-  // 10. Viabilidade
-  viabilidadeTecnica: string;
-  viabilidadeOrcamentaria: string;
+  // VI - Estimativa de quantidades (OBRIGATÓRIO - §3º)
+  estimativaQuantidades: string;
+  // VII - Estimativa de valores (OBRIGATÓRIO - §3º)
+  estimativaValores: string;
+  // VIII - Justificativa parcelamento (OBRIGATÓRIO - §3º)
+  justificativaParcelamento: string;
+  // IX - Contratações correlatas/interdependentes
+  contratacoesCorrelatas: string;
+  // X - Resultados pretendidos
+  resultadosPretendidos: string;
+  // XI - Providências prévias
+  providenciasPrevias: string;
+  // XII - Impactos ambientais
+  impactosAmbientais: string;
+  // XIII - Posicionamento conclusivo (OBRIGATÓRIO - §3º)
+  posicionamentoConclusivo: string;
   observacoes?: string;
 }
 
@@ -249,16 +247,19 @@ export const generateETP = async (data: ETPData): Promise<string> => {
   let y = yInicial;
 
   const sections: { title: string; num: number; fields: [string, string][] }[] = [
-    { title: 'DESCRIÇÃO DA NECESSIDADE', num: 1, fields: [['', data.descricaoNecessidade]] },
-    { title: 'ÁREA REQUISITANTE', num: 2, fields: [['', data.areaRequisitante]] },
-    { title: 'REQUISITOS DA CONTRATAÇÃO', num: 3, fields: [['Requisitos Técnicos:', data.requisitosTecnicos], ['Requisitos de Negócio:', data.requisitosNegocio]] },
-    { title: 'ESTIMATIVA DE VALOR', num: 4, fields: [['Valor Estimado:', data.estimativaValor], ['Metodologia:', data.metodologiaEstimativa]] },
-    { title: 'JUSTIFICATIVA DA CONTRATAÇÃO', num: 5, fields: [['', data.justificativaContratacao]] },
-    { title: 'DESCRIÇÃO DA SOLUÇÃO', num: 6, fields: [['', data.descricaoSolucao]] },
-    { title: 'PARÂMETROS DE INOVAÇÃO (LC 182/2021)', num: 7, fields: [['Diferencial Inovador:', data.diferencialInovador], ['Ganho de Eficiência:', data.ganhoEficiencia], ['Base Comparativa:', data.baseComparativa]] },
-    { title: 'DEMONSTRAÇÃO EM AMBIENTE REAL', num: 8, fields: [['Ambiente de Teste:', data.ambienteTeste], ['Critérios de Avaliação:', data.criteriosAvaliacao], ['Prazo do Teste:', data.prazoTeste]] },
-    { title: 'ANÁLISE DE RISCOS', num: 9, fields: [['Riscos Identificados:', data.riscos], ['Medidas de Mitigação:', data.mitigacao]] },
-    { title: 'VIABILIDADE', num: 10, fields: [['Viabilidade Técnica:', data.viabilidadeTecnica], ['Viabilidade Orçamentária:', data.viabilidadeOrcamentaria]] },
+    { title: 'DESCRIÇÃO DA NECESSIDADE DA CONTRATAÇÃO (Art. 9º, I)', num: 1, fields: [['', data.descricaoNecessidade]] },
+    { title: 'ALINHAMENTO COM O PLANEJAMENTO (Art. 9º, II)', num: 2, fields: [['', data.alinhamentoPlanejamento]] },
+    { title: 'REQUISITOS DA CONTRATAÇÃO (Art. 9º, III)', num: 3, fields: [['', data.requisitos]] },
+    { title: 'LEVANTAMENTO DE MERCADO (Art. 9º, IV)', num: 4, fields: [['', data.levantamentoMercado]] },
+    { title: 'DESCRIÇÃO DA SOLUÇÃO (Art. 9º, V)', num: 5, fields: [['', data.descricaoSolucao]] },
+    { title: 'ESTIMATIVA DAS QUANTIDADES (Art. 9º, VI)', num: 6, fields: [['', data.estimativaQuantidades]] },
+    { title: 'ESTIMATIVA DE VALORES (Art. 9º, VII)', num: 7, fields: [['', data.estimativaValores]] },
+    { title: 'JUSTIFICATIVA PARA O PARCELAMENTO OU NÃO (Art. 9º, VIII)', num: 8, fields: [['', data.justificativaParcelamento]] },
+    { title: 'CONTRATAÇÕES CORRELATAS E/OU INTERDEPENDENTES (Art. 9º, IX)', num: 9, fields: [['', data.contratacoesCorrelatas]] },
+    { title: 'RESULTADOS PRETENDIDOS (Art. 9º, X)', num: 10, fields: [['', data.resultadosPretendidos]] },
+    { title: 'PROVIDÊNCIAS PRÉVIAS (Art. 9º, XI)', num: 11, fields: [['', data.providenciasPrevias]] },
+    { title: 'IMPACTOS AMBIENTAIS (Art. 9º, XII)', num: 12, fields: [['', data.impactosAmbientais]] },
+    { title: 'POSICIONAMENTO CONCLUSIVO SOBRE A VIABILIDADE (Art. 9º, XIII)', num: 13, fields: [['', data.posicionamentoConclusivo]] },
   ];
 
   for (const section of sections) {
@@ -271,7 +272,7 @@ export const generateETP = async (data: ETPData): Promise<string> => {
 
   if (data.observacoes) {
     y = verificarQuebraPagina(doc, y, 15, config);
-    y = adicionarSecao(doc, 'OBSERVAÇÕES', y, 11);
+    y = adicionarSecao(doc, 'OBSERVAÇÕES', y, 14);
     y = addMultiLineField(doc, '', data.observacoes, y, config);
   }
 
