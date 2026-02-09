@@ -18,13 +18,15 @@ import {
   Mail,
   MoreHorizontal,
   School,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import {
   Table,
@@ -153,7 +155,20 @@ export default function AdminGestoresPage() {
             Jogos Escolares de Roraima - Controle de Pré-cadastros
           </p>
         </div>
-      {/* Cards de Métricas */}
+
+        {/* Alerta de novos cadastros aguardando */}
+        {metricas.aguardando > 0 && (
+          <Alert variant="destructive" className="border-amber-500 bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200">
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
+            <AlertTitle className="text-amber-800 dark:text-amber-200">
+              {metricas.aguardando} novo{metricas.aguardando > 1 ? 's' : ''} pré-cadastro{metricas.aguardando > 1 ? 's' : ''} aguardando!
+            </AlertTitle>
+            <AlertDescription className="text-amber-700 dark:text-amber-300">
+              Existem gestores aguardando processamento. Clique em "Assumir Tarefa" para iniciar o atendimento.
+            </AlertDescription>
+          </Alert>
+        )}
+
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <Card>
           <CardContent className="pt-4">
