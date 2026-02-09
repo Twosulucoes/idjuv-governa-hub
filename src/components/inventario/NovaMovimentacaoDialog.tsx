@@ -104,8 +104,21 @@ export function NovaMovimentacaoDialog({ open, onOpenChange }: NovaMovimentacaoD
     },
   });
 
-  // Obter unidade de origem do bem selecionado
-  const bemSelecionado = bens?.find(b => b.id === form.watch("bem_id"));
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      bem_id: "",
+      tipo_movimentacao: "",
+      unidade_local_destino_id: "",
+      responsavel_destino_id: "",
+      motivo: "",
+      observacoes: "",
+    },
+  });
+
+  // Obter unidade de origem do bem selecionado (movido para após declaração do form)
+  const bemIdSelecionado = form.watch("bem_id");
+  const bemSelecionado = bens?.find(b => b.id === bemIdSelecionado);
 
   const createMovimentacao = useMutation({
     mutationFn: async (formData: FormData) => {
@@ -135,18 +148,6 @@ export function NovaMovimentacaoDialog({ open, onOpenChange }: NovaMovimentacaoD
     },
     onError: (error: Error) => {
       toast.error(`Erro ao registrar movimentação: ${error.message}`);
-    },
-  });
-
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      bem_id: "",
-      tipo_movimentacao: "",
-      unidade_local_destino_id: "",
-      responsavel_destino_id: "",
-      motivo: "",
-      observacoes: "",
     },
   });
 
