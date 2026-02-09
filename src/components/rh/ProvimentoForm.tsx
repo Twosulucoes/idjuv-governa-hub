@@ -747,12 +747,12 @@ export function ProvimentoForm({
 
                   <Separator />
 
-                  {/* Aviso: Portaria via Central */}
-                  <Alert className="bg-primary/5 border-primary/20">
-                    <AlertTriangle className="h-4 w-4 text-primary" />
+                  {/* Info: Portaria automática */}
+                  <Alert className="bg-success/5 border-success/20">
+                    <CheckCircle2 className="h-4 w-4 text-success" />
                     <AlertDescription>
-                      A <strong>Portaria de Nomeação</strong> deve ser gerada pela{" "}
-                      <strong>Central de Portarias</strong> após registrar este provimento.
+                      A <strong>Minuta de Portaria de Nomeação</strong> será gerada automaticamente
+                      ao registrar este provimento e ficará disponível na Central de Portarias do Gabinete.
                     </AlertDescription>
                   </Alert>
 
