@@ -926,13 +926,67 @@ export const menuConfig: MenuSection[] = [
     ],
   },
 
-  // ========== 11. COMUNICAÇÃO (ASCOM) ==========
+  // ========== 11. GABINETE ==========
+  {
+    id: "gabinete",
+    label: "Gabinete da Presidência",
+    labelShort: "Gabinete",
+    icon: Landmark,
+    priority: 11,
+    items: [
+      {
+        id: "gab-pre-cadastros",
+        label: "Pré-Cadastros",
+        route: "/curriculo/pre-cadastros",
+        icon: Users,
+      },
+      {
+        id: "gab-portarias",
+        label: "Central de Portarias",
+        icon: FileText,
+        children: [
+          {
+            id: "portarias-cadastro",
+            label: "Cadastrar Portaria",
+            route: "/gabinete/portarias",
+            icon: FileText,
+          },
+          {
+            id: "portarias-consulta",
+            label: "Consultar Portarias",
+            route: "/gabinete/portarias/consulta",
+            icon: Eye,
+          },
+        ],
+      },
+      {
+        id: "gab-ordem-missao",
+        label: "Ordem de Missão",
+        route: "/formularios/ordem-missao",
+        icon: Plane,
+      },
+      {
+        id: "gab-relatorio-viagem",
+        label: "Relatório de Viagem",
+        route: "/formularios/relatorio-viagem",
+        icon: FileCheck,
+      },
+      {
+        id: "gab-workflow-rh",
+        label: "Workflow RH",
+        route: "/gabinete/workflow-rh",
+        icon: Workflow,
+      },
+    ],
+  },
+
+  // ========== 12. COMUNICAÇÃO (ASCOM) ==========
   {
     id: "ascom",
     label: "Comunicação",
     labelShort: "ASCOM",
     icon: Megaphone,
-    priority: 11,
+    priority: 12,
     items: [
       {
         id: "demandas-ascom",
@@ -943,13 +997,42 @@ export const menuConfig: MenuSection[] = [
     ],
   },
 
-  // ========== 12. ADMINISTRAÇÃO (RESTRITO) ==========
+  // ========== 13. GESTORES ESCOLARES ==========
+  {
+    id: "gestores-escolares",
+    label: "Gestores Escolares",
+    labelShort: "JER",
+    icon: School,
+    priority: 13,
+    items: [
+      {
+        id: "ger-gestores",
+        label: "Gestores",
+        route: "/cadastrogestores/admin",
+        icon: School,
+      },
+      {
+        id: "ger-escolas",
+        label: "Escolas",
+        route: "/cadastrogestores/escolas",
+        icon: Building2,
+      },
+      {
+        id: "ger-relatorios",
+        label: "Relatórios",
+        route: "/cadastrogestores/relatorios",
+        icon: BarChart3,
+      },
+    ],
+  },
+
+  // ========== 14. ADMINISTRAÇÃO (RESTRITO) ==========
   {
     id: "admin",
     label: "Administração",
     labelShort: "Admin",
     icon: Settings,
-    priority: 12,
+    priority: 14,
     items: [
       {
         id: "central-relatorios",
