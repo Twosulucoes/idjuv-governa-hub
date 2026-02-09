@@ -20,14 +20,19 @@ import jsPDF from 'jspdf';
 // ============ INTERFACES ============
 
 export interface DFDData {
-  areaRequisitante: string;
-  responsavel: string;
-  cargo: string;
-  problemaIdentificado: string;
-  necessidade: string;
-  alinhamentoEstrategico: string;
-  resultadosEsperados: string;
-  previsaoContratacao: string;
+  orgaoEntidade: string;
+  setorRequisitante: string;
+  responsavelNome: string;
+  responsavelCargo: string;
+  responsavelMatricula: string;
+  responsavelContato: string;
+  descricaoDemanda: string;
+  justificativaNecessidade: string;
+  estimativaValor: string;
+  dataPretendida: string;
+  quantidade: string;
+  grauPrioridade: string;
+  correlacaoDFD: string;
   observacoes?: string;
 }
 
@@ -132,8 +137,8 @@ export const generateDFD = async (data: DFDData): Promise<string> => {
   const numero = generateDocumentNumber('DFD-CPSI');
   
   const config: ConfiguracaoDocumento = {
-    titulo: 'DOCUMENTO DE FORMALIZAÇÃO DE DEMANDA',
-    subtitulo: 'Contrato Público de Solução Inovadora — LC 182/2021',
+    titulo: 'DOCUMENTO DE FORMALIZAÇÃO DE DEMANDA - DFD',
+    subtitulo: 'LC 182/2021 | IN SEGES/MP nº 5/2017',
     numero,
     variante: 'claro',
   };
@@ -141,55 +146,87 @@ export const generateDFD = async (data: DFDData): Promise<string> => {
   const { doc, yInicial } = await criarDocumentoInstitucional(config);
   let y = yInicial;
 
-  // Seção 1
-  y = adicionarSecao(doc, 'IDENTIFICAÇÃO DA DEMANDA', y, 1);
-  y = addMultiLineField(doc, 'Área Requisitante:', data.areaRequisitante, y, config);
-  y = addMultiLineField(doc, 'Responsável:', data.responsavel, y, config);
-  y = addMultiLineField(doc, 'Cargo/Função:', data.cargo, y, config);
+  // Seção 1 - Identificação
+  y = adicionarSecao(doc, 'IDENTIFICAÇÃO', y, 1);
+  y = addMultiLineField(doc, 'Órgão ou Entidade:', data.orgaoEntidade, y, config);
+  y = addMultiLineField(doc, 'Setor Requisitante (Unidade/Setor/Departamento):', data.setorRequisitante, y, config);
 
-  // Seção 2
+  // Seção 2 - Responsável pela Demanda
+  y = verificarQuebraPagina(doc, y, 25, config);
+  y = adicionarSecao(doc, 'RESPONSÁVEL PELA DEMANDA', y, 2);
+  y = addMultiLineField(doc, 'Nome:', data.responsavelNome, y, config);
+  y = addMultiLineField(doc, 'Cargo:', data.responsavelCargo, y, config);
+  y = addMultiLineField(doc, 'Matrícula Funcional:', data.responsavelMatricula, y, config);
+  y = addMultiLineField(doc, 'E-mail e/ou telefone institucional:', data.responsavelContato, y, config);
+
+  // Seção 3 - Descrição da demanda
   y = verificarQuebraPagina(doc, y, 20, config);
-  y = adicionarSecao(doc, 'PROBLEMA IDENTIFICADO', y, 2);
-  y = addMultiLineField(doc, '', data.problemaIdentificado, y, config);
+  y = adicionarSecao(doc, 'DESCRIÇÃO DA DEMANDA', y, 3);
+  y = addMultiLineField(doc, '', data.descricaoDemanda, y, config);
 
-  // Seção 3
+  // Seção 4 - Justificativa
   y = verificarQuebraPagina(doc, y, 20, config);
-  y = adicionarSecao(doc, 'NECESSIDADE DA CONTRATAÇÃO', y, 3);
-  y = addMultiLineField(doc, '', data.necessidade, y, config);
+  y = adicionarSecao(doc, 'JUSTIFICATIVA DA NECESSIDADE DA CONTRATAÇÃO', y, 4);
+  y = addMultiLineField(doc, '', data.justificativaNecessidade, y, config);
 
-  // Seção 4
+  // Seção 5 - Estimativa preliminar de valor
   y = verificarQuebraPagina(doc, y, 20, config);
-  y = adicionarSecao(doc, 'ALINHAMENTO ESTRATÉGICO', y, 4);
-  y = addMultiLineField(doc, '', data.alinhamentoEstrategico, y, config);
+  y = adicionarSecao(doc, 'ESTIMATIVA PRELIMINAR DO VALOR DA CONTRATAÇÃO', y, 5);
+  y = addMultiLineField(doc, '', data.estimativaValor, y, config);
 
-  // Seção 5
-  y = verificarQuebraPagina(doc, y, 20, config);
-  y = adicionarSecao(doc, 'RESULTADOS ESPERADOS', y, 5);
-  y = addMultiLineField(doc, '', data.resultadosEsperados, y, config);
-
-  // Seção 6
+  // Seção 6 - Data pretendida
   y = verificarQuebraPagina(doc, y, 15, config);
-  y = adicionarSecao(doc, 'PREVISÃO DE CONTRATAÇÃO', y, 6);
-  y = addMultiLineField(doc, '', data.previsaoContratacao, y, config);
+  y = adicionarSecao(doc, 'DATA PRETENDIDA PARA A CONCLUSÃO DA CONTRATAÇÃO', y, 6);
+  y = addMultiLineField(doc, '', data.dataPretendida, y, config);
+
+  // Seção 7 - Quantidade
+  y = verificarQuebraPagina(doc, y, 15, config);
+  y = adicionarSecao(doc, 'QUANTIDADE', y, 7);
+  y = addMultiLineField(doc, '', data.quantidade, y, config);
+
+  // Seção 8 - Grau de prioridade
+  y = verificarQuebraPagina(doc, y, 15, config);
+  y = adicionarSecao(doc, 'GRAU DE PRIORIDADE DA CONTRATAÇÃO', y, 8);
+  y = addMultiLineField(doc, '', data.grauPrioridade, y, config);
+
+  // Seção 9 - Correlação
+  y = verificarQuebraPagina(doc, y, 15, config);
+  y = adicionarSecao(doc, 'CORRELAÇÃO OU INTERDEPENDÊNCIA COM OUTRO DFD', y, 9);
+  y = addMultiLineField(doc, '', data.correlacaoDFD, y, config);
 
   if (data.observacoes) {
     y = verificarQuebraPagina(doc, y, 15, config);
-    y = adicionarSecao(doc, 'OBSERVAÇÕES', y, 7);
+    y = adicionarSecao(doc, 'OBSERVAÇÕES', y, 10);
     y = addMultiLineField(doc, '', data.observacoes, y, config);
   }
 
-  // Assinaturas
+  // Nota de conformidade
+  y = verificarQuebraPagina(doc, y, 25, config);
+  y += 5;
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8);
+  doc.setTextColor(CORES_INSTITUCIONAIS.textoMedio.r, CORES_INSTITUCIONAIS.textoMedio.g, CORES_INSTITUCIONAIS.textoMedio.b);
+  const notaLines = doc.splitTextToSize(
+    'Em conformidade com a norma que rege o tema, encaminhe-se à autoridade competente para análise de conveniência e oportunidade para a contratação e demais providências cabíveis.',
+    doc.internal.pageSize.width - MARGENS.esquerda - MARGENS.direita
+  );
+  for (const line of notaLines) {
+    y = verificarQuebraPagina(doc, y, 5, config);
+    doc.text(line, MARGENS.esquerda, y);
+    y += 4;
+  }
+
+  // Assinatura
   y = verificarQuebraPagina(doc, y, 40, config);
   y += 15;
   doc.setLineWidth(0.3);
   doc.setDrawColor(CORES_INSTITUCIONAIS.bordaMedia.r, CORES_INSTITUCIONAIS.bordaMedia.g, CORES_INSTITUCIONAIS.bordaMedia.b);
-  doc.line(30, y, 90, y);
-  doc.line(120, y, 180, y);
+  doc.line(55, y, 155, y);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(CORES_INSTITUCIONAIS.textoMedio.r, CORES_INSTITUCIONAIS.textoMedio.g, CORES_INSTITUCIONAIS.textoMedio.b);
-  doc.text('Responsável pela Demanda', 60, y + 5, { align: 'center' });
-  doc.text('Autoridade Competente', 150, y + 5, { align: 'center' });
+  doc.text(data.responsavelNome || 'Nome', 105, y + 5, { align: 'center' });
+  doc.text(`${data.responsavelCargo || 'Cargo'} — ${data.orgaoEntidade || 'Órgão'}`, 105, y + 9, { align: 'center' });
 
   finalizarDocumentoInstitucional(doc, config);
   doc.save(`DFD_CPSI_${numero.replace('/', '-')}.pdf`);
