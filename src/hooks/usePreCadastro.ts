@@ -135,6 +135,19 @@ function mapPreCadastroToServidor(
   if (pc.acumulo_descricao) servidor.acumulo_descricao = pc.acumulo_descricao;
   if (pc.indicacao) servidor.indicacao = pc.indicacao;
   
+  // Moléstia grave
+  if (pc.molestia_grave !== undefined) servidor.molestia_grave = pc.molestia_grave;
+  
+  // Estrangeiro
+  if (pc.estrangeiro_data_chegada) servidor.estrangeiro_data_chegada = pc.estrangeiro_data_chegada;
+  if (pc.estrangeiro_data_limite_permanencia) servidor.estrangeiro_data_limite_permanencia = pc.estrangeiro_data_limite_permanencia;
+  if (pc.estrangeiro_registro_nacional) servidor.estrangeiro_registro_nacional = pc.estrangeiro_registro_nacional;
+  if (pc.estrangeiro_ano_chegada) servidor.estrangeiro_ano_chegada = pc.estrangeiro_ano_chegada;
+  
+  // Primeiro emprego
+  if (pc.ano_inicio_primeiro_emprego) servidor.ano_inicio_primeiro_emprego = pc.ano_inicio_primeiro_emprego;
+  if (pc.ano_fim_primeiro_emprego) servidor.ano_fim_primeiro_emprego = pc.ano_fim_primeiro_emprego;
+  
   // Dependentes (JSON)
   if (pc.dependentes && pc.dependentes.length > 0) servidor.dependentes = pc.dependentes;
   // Dados do vínculo (sempre presentes)
