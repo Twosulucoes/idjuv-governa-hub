@@ -282,6 +282,25 @@ export function DadosPessoaisForm({ dados, onChange, codigoAtual, onRecuperarPre
           )}
         </div>
 
+        {/* Moléstia Grave */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="molestia_grave">Moléstia Grave</Label>
+            <Select
+              value={dados.molestia_grave === true ? "sim" : dados.molestia_grave === false ? "nao" : ""}
+              onValueChange={(value) => handleChange("molestia_grave", value === "sim" ? "true" : "false")}
+            >
+              <SelectTrigger id="molestia_grave">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nao">Não</SelectItem>
+                <SelectItem value="sim">Sim</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
         {/* Tipo Sanguíneo */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="grid gap-2">
@@ -405,6 +424,56 @@ export function DadosPessoaisForm({ dados, onChange, codigoAtual, onRecuperarPre
             placeholder="(00) 0000-0000"
           />
         </div>
+
+        {/* Dados de Estrangeiro */}
+        {dados.nacionalidade && dados.nacionalidade.toLowerCase() !== "brasileira" && (
+          <div className="p-4 border rounded-lg space-y-4">
+            <h4 className="font-medium text-sm text-muted-foreground">Dados de Estrangeiro</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="estrangeiro_data_chegada">Data de Chegada no País</Label>
+                <Input
+                  id="estrangeiro_data_chegada"
+                  type="date"
+                  value={dados.estrangeiro_data_chegada || ""}
+                  onChange={(e) => handleChange("estrangeiro_data_chegada", e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="estrangeiro_data_limite_permanencia">Data Limite de Permanência</Label>
+                <Input
+                  id="estrangeiro_data_limite_permanencia"
+                  type="date"
+                  value={dados.estrangeiro_data_limite_permanencia || ""}
+                  onChange={(e) => handleChange("estrangeiro_data_limite_permanencia", e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="estrangeiro_registro_nacional">Registro Nacional de Estrangeiro nº</Label>
+                <Input
+                  id="estrangeiro_registro_nacional"
+                  value={dados.estrangeiro_registro_nacional || ""}
+                  onChange={(e) => handleChange("estrangeiro_registro_nacional", e.target.value)}
+                  placeholder="Número do RNE"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="estrangeiro_ano_chegada">Ano de Chegada no País</Label>
+                <Input
+                  id="estrangeiro_ano_chegada"
+                  type="number"
+                  min="1900"
+                  max={new Date().getFullYear()}
+                  value={dados.estrangeiro_ano_chegada || ""}
+                  onChange={(e) => handleChange("estrangeiro_ano_chegada", e.target.value)}
+                  placeholder="Ano"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

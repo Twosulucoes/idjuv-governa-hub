@@ -21,8 +21,15 @@ const DEPENDENTE_VAZIO: Dependente = {
   cpf: "",
   data_nascimento: "",
   parentesco: "",
+  sexo: "",
   certidao_tipo: "",
   termo_guarda: false,
+  declarar_ir: false,
+  declarar_previdencia: false,
+  pcd: false,
+  pcd_tipo: "",
+  universitario: false,
+  salario_familia: false,
 };
 
 export function DependentesForm({ dados, onChange }: Props) {
@@ -66,13 +73,20 @@ export function DependentesForm({ dados, onChange }: Props) {
                       <div>
                         <p className="font-medium">{dep.nome}</p>
                         <p className="text-sm text-muted-foreground">
-                          {dep.parentesco} • CPF: {dep.cpf}
+                          {dep.parentesco} • CPF: {dep.cpf} {dep.sexo ? `• ${dep.sexo === "M" ? "Masc." : "Fem."}` : ""}
                         </p>
                         {dep.data_nascimento && (
                           <p className="text-xs text-muted-foreground">
                             Nascimento: {formatDateBR(dep.data_nascimento)}
                           </p>
                         )}
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {dep.declarar_ir && <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">IR</span>}
+                          {dep.declarar_previdencia && <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">Previdência</span>}
+                          {dep.salario_familia && <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">Sal. Família</span>}
+                          {dep.pcd && <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">PCD{dep.pcd_tipo ? `: ${dep.pcd_tipo}` : ""}</span>}
+                          {dep.universitario && <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">Universitário</span>}
+                        </div>
                       </div>
                     </div>
                     <Button
@@ -110,7 +124,7 @@ export function DependentesForm({ dados, onChange }: Props) {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="dep_cpf">CPF *</Label>
                   <MaskedInput
@@ -134,6 +148,24 @@ export function DependentesForm({ dados, onChange }: Props) {
                       setNovoDependente({ ...novoDependente, data_nascimento: e.target.value })
                     }
                   />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="dep_sexo">Sexo</Label>
+                  <Select
+                    value={novoDependente.sexo || ""}
+                    onValueChange={(value) =>
+                      setNovoDependente({ ...novoDependente, sexo: value })
+                    }
+                  >
+                    <SelectTrigger id="dep_sexo">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="M">Masculino</SelectItem>
+                      <SelectItem value="F">Feminino</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -175,6 +207,99 @@ export function DependentesForm({ dados, onChange }: Props) {
                       <SelectItem value="casamento">Certidão de Casamento</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+
+              {/* Declarações SEGAD */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="dep_ir"
+                    checked={novoDependente.declarar_ir}
+                    onCheckedChange={(checked) =>
+                      setNovoDependente({ ...novoDependente, declarar_ir: !!checked })
+                    }
+                  />
+                  <Label htmlFor="dep_ir" className="text-sm font-normal">
+                    Declarar para fins de IR
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="dep_previdencia"
+                    checked={novoDependente.declarar_previdencia}
+                    onCheckedChange={(checked) =>
+                      setNovoDependente({ ...novoDependente, declarar_previdencia: !!checked })
+                    }
+                  />
+                  <Label htmlFor="dep_previdencia" className="text-sm font-normal">
+                    Declarar para fins previdenciários
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="dep_salario_familia"
+                    checked={novoDependente.salario_familia}
+                    onCheckedChange={(checked) =>
+                      setNovoDependente({ ...novoDependente, salario_familia: !!checked })
+                    }
+                  />
+                  <Label htmlFor="dep_salario_familia" className="text-sm font-normal">
+                    Dependente para salário família
+                  </Label>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="dep_pcd"
+                    checked={novoDependente.pcd}
+                    onCheckedChange={(checked) =>
+                      setNovoDependente({ ...novoDependente, pcd: !!checked, pcd_tipo: !checked ? "" : novoDependente.pcd_tipo })
+                    }
+                  />
+                  <Label htmlFor="dep_pcd" className="text-sm font-normal">
+                    Pessoa com Deficiência (PCD)
+                  </Label>
+                </div>
+
+                {novoDependente.pcd && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="dep_pcd_tipo">Tipo de PCD</Label>
+                    <Select
+                      value={novoDependente.pcd_tipo || ""}
+                      onValueChange={(value) =>
+                        setNovoDependente({ ...novoDependente, pcd_tipo: value })
+                      }
+                    >
+                      <SelectTrigger id="dep_pcd_tipo">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Física">Física</SelectItem>
+                        <SelectItem value="Auditiva">Auditiva</SelectItem>
+                        <SelectItem value="Visual">Visual</SelectItem>
+                        <SelectItem value="Intelectual">Intelectual</SelectItem>
+                        <SelectItem value="Múltipla">Múltipla</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="dep_universitario"
+                    checked={novoDependente.universitario}
+                    onCheckedChange={(checked) =>
+                      setNovoDependente({ ...novoDependente, universitario: !!checked })
+                    }
+                  />
+                  <Label htmlFor="dep_universitario" className="text-sm font-normal">
+                    É universitário(a)
+                  </Label>
                 </div>
               </div>
 

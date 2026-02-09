@@ -174,10 +174,14 @@ export async function gerarFichaCadastroGeral(dados: DadosCompletos): Promise<Ui
   
   // Radio Groups da Página 1
   fillRadio(form, "RD_PCD_FICHA_CADASTRAL", servidor.pcd === true ? "SIM" : "NÃO");
-  fillRadio(form, "RD_MOLESTIA_GRAVE_FICHA_CADASTRAL", "NÃO");
+  fillRadio(form, "RD_MOLESTIA_GRAVE_FICHA_CADASTRAL", (servidor as any).molestia_grave === true ? "SIM" : "NÃO");
   fillRadio(form, "RD_VAGA_PCD_FICHA_CADASTRAL", servidor.pcd === true ? "SIM" : "NÃO");
   fillRadio(form, "RD_EFETIVO_FICHA_CADASTRAL", "NÃO");
   fillRadio(form, "RD_FEDERAL_FICHA_CADASTRAL", "NÃO");
+  
+  // Primeiro Emprego
+  fillText(form, "TXT_ANO_INICIO_EMPREGO_FICHA_CADASTRAL", (servidor as any).ano_inicio_primeiro_emprego?.toString());
+  fillText(form, "TXT_ANO_FIM_EMPREGO_FICHA_CADASTRAL", (servidor as any).ano_fim_primeiro_emprego?.toString());
   
   // Dados de Identificação
   fillText(form, "TXT_NACIONALIDADE_FICHA_CADASTRAL", servidor.nacionalidade?.toUpperCase() || "BRASILEIRA");
@@ -236,6 +240,14 @@ export async function gerarFichaCadastroGeral(dados: DadosCompletos): Promise<Ui
   // =============================================
   // PÁGINA 2 - ESTRANGEIROS, ENDEREÇO, DADOS BANCÁRIOS (campos 51-67)
   // =============================================
+  
+  // Estrangeiros
+  fillText(form, "DT_CHEGADA_ESTRANGEIRO_FICHA_CADASTRAL", formatDate((servidor as any).estrangeiro_data_chegada));
+  fillText(form, "DT_LIMITE_PERMANENCIA_FICHA_CADASTRAL", formatDate((servidor as any).estrangeiro_data_limite_permanencia));
+  fillText(form, "TXT_RNE_FICHA_CADASTRAL", (servidor as any).estrangeiro_registro_nacional);
+  fillText(form, "TXT_ANO_CHEGADA_FICHA_CADASTRAL", (servidor as any).estrangeiro_ano_chegada?.toString());
+  
+  // Endereço
   fillText(form, "TXT_CEP_FICHA_CADASTRAL", formatCEP(servidor.endereco_cep || ""));
   fillText(form, "TXT_LOGRADOURO_FICHA_CADASTRAL", servidor.endereco_logradouro?.toUpperCase());
   fillText(form, "TXT_NUMERO_FICHA_CADASTRAL", servidor.endereco_numero);
@@ -301,6 +313,27 @@ export async function gerarFichaCadastroGeral(dados: DadosCompletos): Promise<Ui
       
       fillText(form, `DT_NASCIMENTO_DEP${n}_DEPENDENTES`, formatDate(dep.data_nascimento));
       fillRadio(form, `RD_SEXO_DEP${n}_DEPENDENTES`, (dep as any).sexo === "M" ? "M" : "F");
+      
+      // Parentesco
+      fillText(form, `TXT_PARENTESCO_DEP${n}_DEPENDENTES`, dep.parentesco?.toUpperCase());
+      
+      // Declarar para fins de IR
+      fillRadio(form, `RD_IR_DEP${n}_DEPENDENTES`, (dep as any).declarar_ir ? "SIM" : "NÃO");
+      
+      // Declarar para fins previdenciários
+      fillRadio(form, `RD_PREVIDENCIA_DEP${n}_DEPENDENTES`, (dep as any).declarar_previdencia ? "SIM" : "NÃO");
+      
+      // PCD do dependente
+      fillRadio(form, `RD_PCD_DEP${n}_DEPENDENTES`, (dep as any).pcd ? "SIM" : "NÃO");
+      if ((dep as any).pcd && (dep as any).pcd_tipo) {
+        fillText(form, `TXT_TIPO_PCD_DEP${n}_DEPENDENTES`, (dep as any).pcd_tipo?.toUpperCase());
+      }
+      
+      // Universitário
+      fillRadio(form, `RD_UNIVERSITARIO_DEP${n}_DEPENDENTES`, (dep as any).universitario ? "SIM" : "NÃO");
+      
+      // Salário Família
+      fillRadio(form, `RD_SALARIO_FAMILIA_DEP${n}_DEPENDENTES`, (dep as any).salario_familia ? "SIM" : "NÃO");
     });
   } else {
     fillCheckbox(form, "CK_POSSUI_DEP_DEPENDENTES", false);
