@@ -8,3 +8,4 @@ export { RetificarPortariaDialog } from './RetificarPortariaDialog';
 export { GerarPortariaManualDialog } from './GerarPortariaManualDialog';
 export { PortariaColetivaDialog } from './PortariaColetivaDialog';
 export { SelecionarServidoresTable } from './SelecionarServidoresTable';
+export { NovaPortariaSimplificada } from './NovaPortariaSimplificada';
