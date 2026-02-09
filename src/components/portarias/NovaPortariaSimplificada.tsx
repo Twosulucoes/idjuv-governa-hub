@@ -173,12 +173,21 @@ export function NovaPortariaSimplificada({
 
     setIsUploading(true);
     try {
-      const fileName = `portarias/${Date.now()}_${file.name}`;
-      const { error: uploadError } = await supabase.storage
+      // Sanitize filename to avoid special characters
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const fileName = `portarias/${Date.now()}_${safeName}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('documentos')
-        .upload(fileName, file);
+        .upload(fileName, file, {
+          contentType: 'application/pdf',
+          upsert: false,
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error details:', JSON.stringify(uploadError));
+        throw new Error(uploadError.message || 'Falha no upload');
+      }
 
       const { data: urlData } = supabase.storage
         .from('documentos')
@@ -187,9 +196,9 @@ export function NovaPortariaSimplificada({
       setArquivoUrl(urlData.publicUrl);
       setArquivoNome(file.name);
       toast.success('Arquivo anexado!');
-    } catch (err) {
-      console.error(err);
-      toast.error('Erro ao fazer upload do arquivo');
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      toast.error(err.message || 'Erro ao fazer upload do arquivo');
     } finally {
       setIsUploading(false);
     }
