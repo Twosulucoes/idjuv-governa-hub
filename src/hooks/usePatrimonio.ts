@@ -85,7 +85,8 @@ export function useBemPatrimonial(id: string | undefined) {
           fornecedor:fornecedores!bens_patrimoniais_fornecedor_id_fkey(id, razao_social, cnpj)
         `)
         .eq('id', id)
-        .single();
+        .maybeSingle();
+
       if (error) throw error;
       return data;
     },
