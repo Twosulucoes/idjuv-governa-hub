@@ -17298,6 +17298,8 @@ export type Database = {
           acumula_cargo: boolean | null
           acumulo_descricao: string | null
           ano_conclusao: number | null
+          ano_fim_primeiro_emprego: number | null
+          ano_inicio_primeiro_emprego: number | null
           ativo: boolean | null
           banco_agencia: string | null
           banco_codigo: string | null
@@ -17346,6 +17348,10 @@ export type Database = {
           endereco_uf: string | null
           escolaridade: string | null
           estado_civil: string | null
+          estrangeiro_ano_chegada: number | null
+          estrangeiro_data_chegada: string | null
+          estrangeiro_data_limite_permanencia: string | null
+          estrangeiro_registro_nacional: string | null
           formacao_academica: string | null
           foto_url: string | null
           funcao_exercida: string | null
@@ -17354,6 +17360,7 @@ export type Database = {
           indicacao: string | null
           instituicao_ensino: string | null
           matricula: string | null
+          molestia_grave: boolean | null
           nacionalidade: string | null
           naturalidade_cidade: string | null
           naturalidade_uf: string | null
@@ -17410,6 +17417,8 @@ export type Database = {
           acumula_cargo?: boolean | null
           acumulo_descricao?: string | null
           ano_conclusao?: number | null
+          ano_fim_primeiro_emprego?: number | null
+          ano_inicio_primeiro_emprego?: number | null
           ativo?: boolean | null
           banco_agencia?: string | null
           banco_codigo?: string | null
@@ -17458,6 +17467,10 @@ export type Database = {
           endereco_uf?: string | null
           escolaridade?: string | null
           estado_civil?: string | null
+          estrangeiro_ano_chegada?: number | null
+          estrangeiro_data_chegada?: string | null
+          estrangeiro_data_limite_permanencia?: string | null
+          estrangeiro_registro_nacional?: string | null
           formacao_academica?: string | null
           foto_url?: string | null
           funcao_exercida?: string | null
@@ -17466,6 +17479,7 @@ export type Database = {
           indicacao?: string | null
           instituicao_ensino?: string | null
           matricula?: string | null
+          molestia_grave?: boolean | null
           nacionalidade?: string | null
           naturalidade_cidade?: string | null
           naturalidade_uf?: string | null
@@ -17522,6 +17536,8 @@ export type Database = {
           acumula_cargo?: boolean | null
           acumulo_descricao?: string | null
           ano_conclusao?: number | null
+          ano_fim_primeiro_emprego?: number | null
+          ano_inicio_primeiro_emprego?: number | null
           ativo?: boolean | null
           banco_agencia?: string | null
           banco_codigo?: string | null
@@ -17570,6 +17586,10 @@ export type Database = {
           endereco_uf?: string | null
           escolaridade?: string | null
           estado_civil?: string | null
+          estrangeiro_ano_chegada?: number | null
+          estrangeiro_data_chegada?: string | null
+          estrangeiro_data_limite_permanencia?: string | null
+          estrangeiro_registro_nacional?: string | null
           formacao_academica?: string | null
           foto_url?: string | null
           funcao_exercida?: string | null
@@ -17578,6 +17598,7 @@ export type Database = {
           indicacao?: string | null
           instituicao_ensino?: string | null
           matricula?: string | null
+          molestia_grave?: boolean | null
           nacionalidade?: string | null
           naturalidade_cidade?: string | null
           naturalidade_uf?: string | null
