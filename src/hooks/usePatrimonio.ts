@@ -355,7 +355,7 @@ export function useUnidadesLocaisPatrimonio() {
       const response = await (supabase as any)
         .from('unidades_locais')
         .select('id, nome_unidade, codigo_unidade, municipio, tipo_unidade')
-        .eq('ativo', true)
+        .eq('status', 'ativa')
         .order('nome_unidade');
       if (response.error) throw response.error;
       return (response.data || []) as UnidadeLocalSimples[];
