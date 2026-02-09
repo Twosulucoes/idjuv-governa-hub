@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { useCampanhasInventario } from "@/hooks/usePatrimonio";
+import { NovaCampanhaDialog } from "@/components/inventario/NovaCampanhaDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -236,6 +237,9 @@ export default function CampanhasInventarioPage() {
           )}
         </div>
       </section>
+
+      {/* Dialog Nova Campanha */}
+      <NovaCampanhaDialog />
     </ModuleLayout>
   );
 }

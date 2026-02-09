@@ -202,6 +202,8 @@ import {
   BemDetalhePage,
   MovimentacoesPatrimonioPage,
   CampanhasInventarioPage,
+  CampanhaDetalhePage,
+  ColetaInventarioPage,
   AlmoxarifadoEstoquePage,
   RequisicoesMaterialPage,
   ManutencoesBensPage,
@@ -815,12 +817,12 @@ const App = () => (
               } />
               <Route path="/inventario/campanhas/:id" element={
                 <ProtectedRoute requiredPermissions="patrimonio.visualizar">
-                  <PlaceholderDetalhePage />
+                  <CampanhaDetalhePage />
                 </ProtectedRoute>
               } />
               <Route path="/inventario/campanhas/:id/coleta" element={
                 <ProtectedRoute requiredPermissions="patrimonio.tramitar">
-                  <PlaceholderDetalhePage />
+                  <ColetaInventarioPage />
                 </ProtectedRoute>
               } />
               <Route path="/inventario/movimentacoes/:id" element={
