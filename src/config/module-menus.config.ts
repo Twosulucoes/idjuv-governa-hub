@@ -226,7 +226,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
         ]
       },
       { id: "aniversariantes", label: "Aniversariantes", icon: Cake, route: "/comunicacao/aniversariantes" },
-      { id: "calendario", label: "Calendário", icon: Calendar, route: "/ascom/calendario" },
+      { id: "calendario", label: "Calendário", icon: Calendar, route: "/comunicacao/calendario" },
     ],
   },
 
