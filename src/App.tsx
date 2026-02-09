@@ -69,7 +69,9 @@ import JogosEscolaresPage from "./pages/programas/JogosEscolaresPage";
 import { 
   GestaoInscricoesPage as GestaoInscricoesSelecaoPage,
   ConfiguracaoEventoPage as ConfiguracaoEventoSelecaoPage,
-  RelatoriosSelecaoPage
+  RelatoriosSelecaoPage,
+  CMSNoticiasPage as CMSNoticiasSelecaoPage,
+  CMSGaleriaPage as CMSGaleriaSelecaoPage
 } from "./pages/programas/selecoes";
 import CargosRemuneracaoPage from "./pages/transparencia/CargosRemuneracaoPage";
 import LicitacoesPublicasPage from "./pages/transparencia/LicitacoesPublicasPage";
@@ -1058,6 +1060,16 @@ const App = () => (
               <Route path="/programas/selecoes/admin/relatorios" element={
                 <ProtectedRoute requiredPermissions="programas.visualizar">
                   <RelatoriosSelecaoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/programas/selecoes/admin/noticias" element={
+                <ProtectedRoute requiredPermissions="programas.visualizar">
+                  <CMSNoticiasSelecaoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/programas/selecoes/admin/galeria" element={
+                <ProtectedRoute requiredPermissions="programas.visualizar">
+                  <CMSGaleriaSelecaoPage />
                 </ProtectedRoute>
               } />
               <Route path="/programas/jogos-escolares" element={<ProtectedRoute><JogosEscolaresPage /></ProtectedRoute>} />
