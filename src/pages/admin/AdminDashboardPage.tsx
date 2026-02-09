@@ -15,55 +15,18 @@ import {
   Plane,
   ChevronRight,
   BookOpen,
+  Loader2,
   type LucideIcon,
 } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { menuConfig, getAllRouteItems } from "@/config/menu.config";
+import { useAdminDashboardStats } from "@/hooks/admin/useAdminDashboardStats";
 
 const RECENT_PAGES_KEY = "admin-recent-pages";
 const FAVORITES_KEY = "menu-favorites-v3";
-
-interface QuickStat {
-  label: string;
-  value: string;
-  trend?: string;
-  trendUp?: boolean;
-  icon: LucideIcon;
-  href: string;
-}
-
-const quickStats: QuickStat[] = [
-  {
-    label: "Servidores Ativos",
-    value: "45",
-    trend: "+2 este mês",
-    trendUp: true,
-    icon: Users,
-    href: "/rh/servidores",
-  },
-  {
-    label: "Unidades",
-    value: "12",
-    icon: Building2,
-    href: "/organograma",
-  },
-  {
-    label: "Documentos",
-    value: "128",
-    trend: "+15 esta semana",
-    trendUp: true,
-    icon: FileText,
-    href: "/admin/documentos",
-  },
-  {
-    label: "Cargos",
-    value: "28",
-    icon: Briefcase,
-    href: "/cargos",
-  },
-];
 
 interface QuickLink {
   label: string;
@@ -110,6 +73,41 @@ interface SearchableItem {
 export default function AdminDashboardPage() {
   const [recentPages, setRecentPages] = useState<string[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
+  
+  // Buscar estatísticas reais do banco de dados
+  const { data: stats, isLoading: statsLoading } = useAdminDashboardStats();
+  
+  // Estatísticas dinâmicas baseadas nos dados do BD
+  const quickStats = useMemo(() => [
+    {
+      label: "Servidores Ativos",
+      value: stats?.servidoresAtivos ?? 0,
+      trend: stats?.servidoresTrend,
+      trendUp: true,
+      icon: Users,
+      href: "/rh/servidores",
+    },
+    {
+      label: "Unidades",
+      value: stats?.unidades ?? 0,
+      icon: Building2,
+      href: "/organograma",
+    },
+    {
+      label: "Documentos",
+      value: stats?.documentos ?? 0,
+      trend: stats?.documentosTrend,
+      trendUp: true,
+      icon: FileText,
+      href: "/admin/documentos",
+    },
+    {
+      label: "Cargos",
+      value: stats?.cargos ?? 0,
+      icon: Briefcase,
+      href: "/cargos",
+    },
+  ], [stats]);
   
   // Converte itens do menu para formato de busca
   const allItems = useMemo((): SearchableItem[] => {
@@ -168,8 +166,12 @@ export default function AdminDashboardPage() {
                   <stat.icon className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stat.value}</div>
-                  {stat.trend && (
+                  {statsLoading ? (
+                    <Skeleton className="h-8 w-16" />
+                  ) : (
+                    <div className="text-2xl font-bold">{stat.value}</div>
+                  )}
+                  {stat.trend && !statsLoading && (
                     <p
                       className={`text-xs ${
                         stat.trendUp ? "text-green-600" : "text-muted-foreground"
