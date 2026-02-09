@@ -129,7 +129,7 @@ export function useCadastroBemSimplificado() {
           fornecedor_cnpj_cpf: payload.fornecedor_cnpj_cpf,
           observacao: payload.observacao,
           unidade_local_id: payload.unidade_local_id,
-          situacao: "em_uso",
+          situacao: "ativo",
           data_aquisicao: new Date().toISOString().split("T")[0],
           valor_aquisicao: 0, // Não obrigatório no cadastro simplificado
           codigo_qr: numeroPatrimonio, // Usa o mesmo número para QR
