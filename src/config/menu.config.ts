@@ -994,6 +994,12 @@ export const menuConfig: MenuSection[] = [
         route: "/ascom/demandas",
         icon: ClipboardList,
       },
+      {
+        id: "aniversariantes-ascom",
+        label: "Aniversariantes",
+        route: "/comunicacao/aniversariantes",
+        icon: Cake,
+      },
     ],
   },
 
