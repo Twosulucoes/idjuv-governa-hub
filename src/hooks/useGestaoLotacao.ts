@@ -266,6 +266,88 @@ export function useUnidadesGestao() {
   });
 }
 
+// Hook para buscar unidades compatíveis com um cargo específico
+export function useUnidadesCompativeisCargo(cargoId: string | null) {
+  return useQuery({
+    queryKey: ["unidades-compativeis", cargoId],
+    queryFn: async () => {
+      if (!cargoId) return [];
+
+      // Buscar configuração de compatibilidade do cargo
+      const { data: compatibilidade, error: compErr } = await supabase
+        .from("cargo_unidade_compatibilidade")
+        .select("tipo_unidade, unidade_especifica_id")
+        .eq("cargo_id", cargoId);
+
+      if (compErr) throw compErr;
+
+      // Se não há configuração específica, retornar todas as unidades
+      if (!compatibilidade || compatibilidade.length === 0) {
+        const { data, error } = await supabase
+          .from("estrutura_organizacional")
+          .select("id, nome, sigla, tipo")
+          .eq("ativo", true)
+          .order("nome");
+        if (error) throw error;
+        return data;
+      }
+
+      // Coletar tipos de unidade e IDs específicos
+      const tiposPermitidos: string[] = [];
+      const idsEspecificos: string[] = [];
+
+      compatibilidade.forEach((c: any) => {
+        if (c.unidade_especifica_id) {
+          idsEspecificos.push(c.unidade_especifica_id);
+        }
+        if (c.tipo_unidade) {
+          tiposPermitidos.push(c.tipo_unidade);
+        }
+      });
+
+      // Query base
+      let query = supabase
+        .from("estrutura_organizacional")
+        .select("id, nome, sigla, tipo")
+        .eq("ativo", true)
+        .order("nome");
+
+      // Aplicar filtros
+      if (idsEspecificos.length > 0 && tiposPermitidos.length > 0) {
+        // Unidades específicas OU tipos permitidos
+        query = query.or(`id.in.(${idsEspecificos.join(',')}),tipo.in.(${tiposPermitidos.join(',')})`);
+      } else if (idsEspecificos.length > 0) {
+        query = query.in("id", idsEspecificos);
+      } else if (tiposPermitidos.length > 0) {
+        query = query.in("tipo", tiposPermitidos as ("assessoria" | "coordenacao" | "departamento" | "diretoria" | "divisao" | "nucleo" | "presidencia" | "secao" | "setor")[]);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!cargoId,
+  });
+}
+
+// Hook para buscar portarias cadastradas para vincular ao ato
+export function usePortariasParaAto() {
+  return useQuery({
+    queryKey: ["portarias-para-ato"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("documentos")
+        .select("id, numero, titulo, categoria, data_documento, status")
+        .eq("tipo", "portaria")
+        .order("data_documento", { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 // Mutation: Lotar servidor
 export function useLotarServidor() {
   const queryClient = useQueryClient();

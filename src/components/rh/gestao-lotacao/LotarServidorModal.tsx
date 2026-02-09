@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,8 +19,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Building2, AlertCircle, CheckCircle } from "lucide-react";
-import { useLotarServidor, useCargosVagos, useUnidadesGestao, type ServidorGestao } from "@/hooks/useGestaoLotacao";
+import { Loader2, Building2, AlertCircle, CheckCircle, FileText } from "lucide-react";
+import { 
+  useLotarServidor, 
+  useCargosVagos, 
+  useUnidadesCompativeisCargo,
+  usePortariasParaAto,
+  type ServidorGestao 
+} from "@/hooks/useGestaoLotacao";
 import { format } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -30,29 +36,69 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
+// Tipos de ato disponíveis (vinculados à Central de Portarias)
+const TIPOS_ATO = [
+  { value: "portaria", label: "Portaria" },
+  { value: "decreto", label: "Decreto" },
+  { value: "ordem_servico", label: "Ordem de Serviço" },
+] as const;
+
 export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
   const lotarServidor = useLotarServidor();
   const { data: cargos = [], isLoading: loadingCargos } = useCargosVagos();
-  const { data: unidades = [], isLoading: loadingUnidades } = useUnidadesGestao();
+  const { data: portarias = [], isLoading: loadingPortarias } = usePortariasParaAto();
 
   const [cargoId, setCargoId] = useState("");
   const [unidadeId, setUnidadeId] = useState("");
   const [dataInicio, setDataInicio] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [atoNumero, setAtoNumero] = useState("");
   const [atoTipo, setAtoTipo] = useState("");
+  const [portariaId, setPortariaId] = useState("");
+  const [atoNumeroManual, setAtoNumeroManual] = useState("");
   const [observacao, setObservacao] = useState("");
 
-  // Filtrar apenas cargos com vagas
+  // Buscar unidades compatíveis com o cargo selecionado
+  const { data: unidadesCompativeis = [], isLoading: loadingUnidades } = useUnidadesCompativeisCargo(cargoId || null);
+
+  // Filtrar cargos com vagas e portarias por tipo
   const cargosComVagas = cargos.filter(c => c.vagas_disponiveis > 0);
   const cargoSelecionado = cargos.find(c => c.id === cargoId);
+  
+  // Filtrar portarias pelo tipo de ato selecionado
+  const portariasFiltradas = portarias.filter((p: any) => {
+    if (!atoTipo) return true;
+    // Portarias da Central (tipo "portaria" no campo tipo)
+    if (atoTipo === "portaria") return true;
+    return false;
+  });
+
+  // Limpar unidade quando cargo mudar
+  useEffect(() => {
+    setUnidadeId("");
+  }, [cargoId]);
+
+  // Limpar portaria quando tipo de ato mudar
+  useEffect(() => {
+    setPortariaId("");
+    setAtoNumeroManual("");
+  }, [atoTipo]);
 
   const resetForm = () => {
     setCargoId("");
     setUnidadeId("");
     setDataInicio(format(new Date(), "yyyy-MM-dd"));
-    setAtoNumero("");
     setAtoTipo("");
+    setPortariaId("");
+    setAtoNumeroManual("");
     setObservacao("");
+  };
+
+  // Obter número do ato (da portaria selecionada ou manual)
+  const getAtoNumero = () => {
+    if (portariaId) {
+      const portaria = portarias.find((p: any) => p.id === portariaId);
+      return portaria?.numero || "";
+    }
+    return atoNumeroManual;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,7 +110,7 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
       cargoId,
       unidadeId,
       dataInicio,
-      atoNumero: atoNumero || undefined,
+      atoNumero: getAtoNumero() || undefined,
       atoTipo: atoTipo || undefined,
       observacao: observacao || undefined,
     });
@@ -77,7 +123,7 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
@@ -94,7 +140,7 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
           <Alert variant="default" className="bg-primary/5 border-primary/20">
             <CheckCircle className="h-4 w-4 text-primary" />
             <AlertDescription className="text-sm">
-              Apenas cargos com vagas disponíveis são exibidos. A validação de vaga é feita em tempo real antes de salvar.
+              Apenas cargos com vagas são exibidos. As unidades são filtradas conforme o cargo selecionado.
             </AlertDescription>
           </Alert>
 
@@ -131,25 +177,40 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
             )}
           </div>
 
-          {/* Unidade */}
+          {/* Unidade - Filtrada por cargo */}
           <div className="space-y-2">
             <Label>Unidade de Lotação *</Label>
-            <Select value={unidadeId} onValueChange={setUnidadeId}>
+            <Select 
+              value={unidadeId} 
+              onValueChange={setUnidadeId}
+              disabled={!cargoId}
+            >
               <SelectTrigger>
-                <SelectValue placeholder="Selecione a unidade" />
+                <SelectValue placeholder={cargoId ? "Selecione a unidade" : "Selecione um cargo primeiro"} />
               </SelectTrigger>
               <SelectContent>
                 {loadingUnidades ? (
-                  <div className="p-2 text-center text-muted-foreground">Carregando...</div>
+                  <div className="p-2 text-center text-muted-foreground">Carregando unidades...</div>
+                ) : unidadesCompativeis.length === 0 ? (
+                  <div className="p-2 text-center text-muted-foreground">Nenhuma unidade disponível para este cargo</div>
                 ) : (
-                  unidades.map((u: any) => (
+                  unidadesCompativeis.map((u: any) => (
                     <SelectItem key={u.id} value={u.id}>
-                      {u.sigla && `${u.sigla} - `}{u.nome}
+                      <div className="flex items-center gap-2">
+                        {u.sigla && <Badge variant="outline" className="text-xs">{u.sigla}</Badge>}
+                        <span>{u.nome}</span>
+                        <span className="text-xs text-muted-foreground">({u.tipo})</span>
+                      </div>
                     </SelectItem>
                   ))
                 )}
               </SelectContent>
             </Select>
+            {cargoId && !loadingUnidades && (
+              <p className="text-xs text-muted-foreground">
+                {unidadesCompativeis.length} unidade(s) disponível(is) para este cargo
+              </p>
+            )}
           </div>
 
           {/* Data de Início */}
@@ -163,30 +224,81 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
             />
           </div>
 
-          {/* Ato (opcional) */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Tipo do Ato</Label>
-              <Select value={atoTipo} onValueChange={setAtoTipo}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="portaria">Portaria</SelectItem>
-                  <SelectItem value="decreto">Decreto</SelectItem>
-                  <SelectItem value="ordem_servico">Ordem de Serviço</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Tipo de Ato - Vinculado à Central de Portarias */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Tipo do Ato (Central de Portarias)
+            </Label>
+            <Select value={atoTipo} onValueChange={setAtoTipo}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o tipo de ato" />
+              </SelectTrigger>
+              <SelectContent>
+                {TIPOS_ATO.map((tipo) => (
+                  <SelectItem key={tipo.value} value={tipo.value}>
+                    {tipo.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Número do Ato - Seleção de Portaria ou Manual */}
+          {atoTipo && (
             <div className="space-y-2">
               <Label>Número do Ato</Label>
-              <Input
-                value={atoNumero}
-                onChange={(e) => setAtoNumero(e.target.value)}
-                placeholder="Ex: 001/2026"
-              />
+              {atoTipo === "portaria" ? (
+                <>
+                  <Select value={portariaId} onValueChange={setPortariaId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma portaria cadastrada" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {loadingPortarias ? (
+                        <div className="p-2 text-center text-muted-foreground">Carregando portarias...</div>
+                      ) : portariasFiltradas.length === 0 ? (
+                        <div className="p-2 text-center text-muted-foreground">Nenhuma portaria encontrada</div>
+                      ) : (
+                        portariasFiltradas.map((p: any) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{p.numero}</span>
+                              <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                                {p.titulo || p.categoria}
+                              </span>
+                              <Badge variant="outline" className="text-xs">
+                                {p.status}
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Selecione uma portaria da Central de Portarias ou{" "}
+                    <button
+                      type="button"
+                      className="text-primary underline"
+                      onClick={() => {
+                        setPortariaId("");
+                        setAtoTipo("manual");
+                      }}
+                    >
+                      digite manualmente
+                    </button>
+                  </p>
+                </>
+              ) : (
+                <Input
+                  value={atoNumeroManual}
+                  onChange={(e) => setAtoNumeroManual(e.target.value)}
+                  placeholder="Ex: 001/2026"
+                />
+              )}
             </div>
-          </div>
+          )}
 
           {/* Observação */}
           <div className="space-y-2">
