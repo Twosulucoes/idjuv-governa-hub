@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { PublicPageGuard } from "@/components/public/PublicPageGuard";
 
 // Pages
 import EmBrevePage from "./pages/EmBrevePage";
@@ -221,18 +222,39 @@ const App = () => (
             <Routes>
               {/* ============================================ */}
               {/* ROTAS PÚBLICAS - Sem autenticação */}
+              {/* Com PublicPageGuard para verificar status de manutenção */}
               {/* ============================================ */}
-              <Route path="/" element={<EmBrevePage />} />
+              <Route path="/" element={
+                <PublicPageGuard rota="/">
+                  <EmBrevePage />
+                </PublicPageGuard>
+              } />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/acesso-negado" element={<AccessDeniedPage />} />
               
               {/* Rota secreta para preview do portal público */}
-              <Route path="/portal-preview-idjuv-2026" element={<PortalPreviewPage />} />
+              <Route path="/portal-preview-idjuv-2026" element={
+                <PublicPageGuard rota="/portal-preview-idjuv-2026">
+                  <PortalPreviewPage />
+                </PublicPageGuard>
+              } />
               
-              {/* Hot site - Seletiva Seleções Estudantis (público) - Rota principal movida para /programas/selecoes */}
-              <Route path="/selecoes-v1" element={<SeletivaEstudantilPage />} />
-              <Route path="/programas/selecoes" element={<SeletivaEstudantilV2Page />} />
-              <Route path="/programas/selecoes/noticia/:slug" element={<NoticiaDetalhePage />} />
+              {/* Hot site - Seletiva Seleções Estudantis (público) */}
+              <Route path="/selecoes-v1" element={
+                <PublicPageGuard rota="/programas/selecoes" fallbackRota="/programas/selecoes">
+                  <SeletivaEstudantilPage />
+                </PublicPageGuard>
+              } />
+              <Route path="/programas/selecoes" element={
+                <PublicPageGuard rota="/programas/selecoes">
+                  <SeletivaEstudantilV2Page />
+                </PublicPageGuard>
+              } />
+              <Route path="/programas/selecoes/noticia/:slug" element={
+                <PublicPageGuard rota="/programas/selecoes" fallbackRota="/programas/selecoes">
+                  <NoticiaDetalhePage />
+                </PublicPageGuard>
+              } />
               {/* Redirecionamentos de URLs antigas/alternativas */}
               <Route path="/selecoes" element={<Navigate to="/programas/selecoes" replace />} />
               <Route path="/selecao" element={<Navigate to="/programas/selecoes" replace />} />
@@ -245,17 +267,53 @@ const App = () => (
               <Route path="/Selecao" element={<Navigate to="/programas/selecoes" replace />} />
               <Route path="/selecoes/noticia/:slug" element={<Navigate to="/programas/selecoes" replace />} />
               
-              {/* Pré-cadastro (mantido mas não linkado) */}
-              <Route path="/curriculo" element={<MiniCurriculoPage />} />
-              <Route path="/curriculo/sucesso" element={<MiniCurriculoSucessoPage />} />
-              <Route path="/curriculo/:codigo" element={<MiniCurriculoPage />} />
-              <Route path="/ascom/solicitar" element={<SolicitacaoPublicaAscomPage />} />
-              <Route path="/ascom/consultar" element={<ConsultaProtocoloAscomPage />} />
-              <Route path="/federacoes/cadastro" element={<CadastroFederacaoPage />} />
+              {/* Pré-cadastro / Currículo */}
+              <Route path="/curriculo" element={
+                <PublicPageGuard rota="/curriculo">
+                  <MiniCurriculoPage />
+                </PublicPageGuard>
+              } />
+              <Route path="/curriculo/sucesso" element={
+                <PublicPageGuard rota="/curriculo" fallbackRota="/curriculo">
+                  <MiniCurriculoSucessoPage />
+                </PublicPageGuard>
+              } />
+              <Route path="/curriculo/:codigo" element={
+                <PublicPageGuard rota="/curriculo" fallbackRota="/curriculo">
+                  <MiniCurriculoPage />
+                </PublicPageGuard>
+              } />
+              
+              {/* ASCOM público */}
+              <Route path="/ascom/solicitar" element={
+                <PublicPageGuard rota="/ascom/solicitar">
+                  <SolicitacaoPublicaAscomPage />
+                </PublicPageGuard>
+              } />
+              <Route path="/ascom/consultar" element={
+                <PublicPageGuard rota="/ascom/consultar">
+                  <ConsultaProtocoloAscomPage />
+                </PublicPageGuard>
+              } />
+              
+              {/* Federações - Cadastro público */}
+              <Route path="/federacoes/cadastro" element={
+                <PublicPageGuard rota="/federacoes/cadastro">
+                  <CadastroFederacaoPage />
+                </PublicPageGuard>
+              } />
               
               {/* Credenciamento Gestores Escolares - JER */}
-              <Route path="/cadastrogestores" element={<FormularioGestorPage />} />
-              <Route path="/cadastrogestores/consulta" element={<ConsultaGestorPage />} />
+              <Route path="/cadastrogestores" element={
+                <PublicPageGuard rota="/cadastrogestores">
+                  <FormularioGestorPage />
+                </PublicPageGuard>
+              } />
+              <Route path="/cadastrogestores/consulta" element={
+                <PublicPageGuard rota="/cadastrogestores" fallbackRota="/cadastrogestores">
+                  <ConsultaGestorPage />
+                </PublicPageGuard>
+              } />
               
               {/* ============================================ */}
               {/* ROTAS PROTEGIDAS - Apenas autenticação */}
@@ -839,14 +897,43 @@ const App = () => (
               {/* ============================================ */}
               {/* TRANSPARÊNCIA - Rotas PÚBLICAS (LGPD-Safe) */}
               {/* Portal de Transparência: acesso público, sem login */}
+              {/* Com PublicPageGuard para verificar status de manutenção */}
               {/* ============================================ */}
-              <Route path="/transparencia" element={<TransparenciaPage />} />
-              <Route path="/transparencia/cargos" element={<CargosRemuneracaoPage />} />
-              <Route path="/transparencia/licitacoes" element={<LicitacoesPublicasPage />} />
-              <Route path="/transparencia/contratos" element={<LicitacoesPublicasPage />} />
-              <Route path="/transparencia/orcamento" element={<ExecucaoOrcamentariaPage />} />
-              <Route path="/transparencia/patrimonio" element={<PatrimonioPublicoPage />} />
-              <Route path="/transparencia/lai" element={<PortalLAIPage />} />
+              <Route path="/transparencia" element={
+                <PublicPageGuard rota="/transparencia">
+                  <TransparenciaPage />
+                </PublicPageGuard>
+              } />
+              <Route path="/transparencia/cargos" element={
+                <PublicPageGuard rota="/transparencia/cargos" fallbackRota="/transparencia">
+                  <CargosRemuneracaoPage />
+                </PublicPageGuard>
+              } />
+              <Route path="/transparencia/licitacoes" element={
+                <PublicPageGuard rota="/transparencia/licitacoes" fallbackRota="/transparencia">
+                  <LicitacoesPublicasPage />
+                </PublicPageGuard>
+              } />
+              <Route path="/transparencia/contratos" element={
+                <PublicPageGuard rota="/transparencia/contratos" fallbackRota="/transparencia">
+                  <LicitacoesPublicasPage />
+                </PublicPageGuard>
+              } />
+              <Route path="/transparencia/orcamento" element={
+                <PublicPageGuard rota="/transparencia/orcamento" fallbackRota="/transparencia">
+                  <ExecucaoOrcamentariaPage />
+                </PublicPageGuard>
+              } />
+              <Route path="/transparencia/patrimonio" element={
+                <PublicPageGuard rota="/transparencia/patrimonio" fallbackRota="/transparencia">
+                  <PatrimonioPublicoPage />
+                </PublicPageGuard>
+              } />
+              <Route path="/transparencia/lai" element={
+                <PublicPageGuard rota="/transparencia/lai" fallbackRota="/transparencia">
+                  <PortalLAIPage />
+                </PublicPageGuard>
+              } />
               {/* Gestão de Transparência - Dashboard administrativo */}
               <Route path="/transparencia/admin" element={
                 <ProtectedRoute requiredPermissions="transparencia.visualizar">
