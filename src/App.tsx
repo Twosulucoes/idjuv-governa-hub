@@ -191,6 +191,7 @@ import ProcessoDetalhePage from "./pages/workflow/ProcessoDetalhePage";
 
 // Mobile - Coleta de Inventário
 import ColetaMobilePage from "./pages/mobile/ColetaMobilePage";
+import CadastroBemMobilePage from "./pages/mobile/CadastroBemMobilePage";
 import InstalarAppPage from "./pages/mobile/InstalarAppPage";
 
 // Financeiro (ERP)
@@ -360,6 +361,11 @@ const App = () => (
               <Route path="/coleta-mobile" element={
                 <ProtectedRoute>
                   <ColetaMobilePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/cadastro-mobile" element={
+                <ProtectedRoute>
+                  <CadastroBemMobilePage />
                 </ProtectedRoute>
               } />
               <Route path="/instalar" element={<InstalarAppPage />} />

@@ -17,15 +17,15 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'IDJUV Inventário',
-        short_name: 'Inventário',
-        description: 'Coleta de Inventário Patrimonial - IDJUV',
+        name: 'IDJUV Patrimônio',
+        short_name: 'Patrimônio',
+        description: 'Gestão de Patrimônio e Inventário - IDJUV',
         theme_color: '#1e40af',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
-        start_url: '/coleta-mobile',
+        start_url: '/cadastro-mobile',
         icons: [
           {
             src: 'pwa-192x192.png',
