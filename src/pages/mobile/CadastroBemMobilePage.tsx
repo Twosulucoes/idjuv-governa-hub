@@ -227,9 +227,9 @@ export default function CadastroBemMobilePage() {
       return;
     }
     
-    // Validações específicas para bem existente
-    if (tipoCadastro === "existente" && !fotoCapturada) {
-      toast.error("Foto obrigatória", { description: "Tire uma foto do bem para comprovação" });
+    // Foto obrigatória para ambos os tipos
+    if (!fotoCapturada) {
+      toast.error("Foto obrigatória", { description: "Tire uma foto do bem para registro" });
       return;
     }
 
