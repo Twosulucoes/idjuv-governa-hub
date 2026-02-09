@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -19,16 +20,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Building2, CheckCircle, FileText, Info } from "lucide-react";
+import { Loader2, Building2, FileText, AlertCircle } from "lucide-react";
 import { 
   useLotarServidor, 
-  useCargosVagos, 
-  useUnidadesCompativeisCargo,
   usePortariasParaAto,
   type ServidorGestao 
 } from "@/hooks/useGestaoLotacao";
 import { format } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   servidor: ServidorGestao | null;
@@ -43,9 +43,19 @@ const TIPOS_ATO = [
   { value: "ordem_servico", label: "Ordem de Serviço" },
 ] as const;
 
+interface ComposicaoCargo {
+  id: string;
+  unidade_id: string;
+  quantidade_vagas: number | null;
+  unidade: {
+    id: string;
+    nome: string;
+    sigla: string | null;
+  } | null;
+}
+
 export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
   const lotarServidor = useLotarServidor();
-  const { data: cargos = [], isLoading: loadingCargos } = useCargosVagos();
   const { data: portarias = [], isLoading: loadingPortarias } = usePortariasParaAto();
 
   const [cargoId, setCargoId] = useState("");
@@ -56,37 +66,168 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
   const [atoNumeroManual, setAtoNumeroManual] = useState("");
   const [observacao, setObservacao] = useState("");
 
-  // Buscar unidades compatíveis com o cargo selecionado (baseado na composicao_cargos)
-  const { data: unidadesCompativeis = [], isLoading: loadingUnidades } = useUnidadesCompativeisCargo(cargoId || null);
+  // Buscar cargos com vagas disponíveis
+  const { data: cargos = [], isLoading: loadingCargos } = useQuery({
+    queryKey: ["cargos-vagas-lotacao"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cargos")
+        .select("id, nome, sigla, quantidade_vagas")
+        .eq("ativo", true)
+        .order("nome");
+      if (error) throw error;
 
-  // Filtrar cargos com vagas e portarias por tipo
+      // Buscar lotações ativas por cargo
+      const { data: lotacoes } = await supabase
+        .from("lotacoes")
+        .select("cargo_id")
+        .eq("ativo", true);
+
+      const contagemPorCargo: Record<string, number> = {};
+      (lotacoes || []).forEach((l) => {
+        if (l.cargo_id) {
+          contagemPorCargo[l.cargo_id] = (contagemPorCargo[l.cargo_id] || 0) + 1;
+        }
+      });
+
+      return (data || []).map((c) => ({
+        ...c,
+        vagas_ocupadas: contagemPorCargo[c.id] || 0,
+        vagas_disponiveis: c.quantidade_vagas - (contagemPorCargo[c.id] || 0),
+      }));
+    },
+    enabled: open,
+  });
+
+  // Buscar composição do cargo (unidades vinculadas)
+  const { data: composicaoCargo, isLoading: loadingComposicao } = useQuery({
+    queryKey: ["composicao-cargo-lotacao", cargoId],
+    queryFn: async () => {
+      if (!cargoId) return [];
+
+      const { data, error } = await supabase
+        .from("composicao_cargos")
+        .select(`
+          id,
+          unidade_id,
+          quantidade_vagas,
+          unidade:estrutura_organizacional(id, nome, sigla)
+        `)
+        .eq("cargo_id", cargoId);
+
+      if (error) throw error;
+      return (data || []) as ComposicaoCargo[];
+    },
+    enabled: !!cargoId,
+  });
+
+  // Buscar lotações ativas para o cargo selecionado
+  const { data: lotacoesAtivas } = useQuery({
+    queryKey: ["lotacoes-ativas-cargo", cargoId],
+    queryFn: async () => {
+      if (!cargoId) return {};
+
+      const { data, error } = await supabase
+        .from("lotacoes")
+        .select("unidade_id")
+        .eq("cargo_id", cargoId)
+        .eq("ativo", true);
+
+      if (error) throw error;
+
+      const contagem: Record<string, number> = {};
+      (data || []).forEach((lot) => {
+        if (lot.unidade_id) {
+          contagem[lot.unidade_id] = (contagem[lot.unidade_id] || 0) + 1;
+        }
+      });
+      return contagem;
+    },
+    enabled: !!cargoId,
+  });
+
+  // Buscar todas as unidades (fallback)
+  const { data: todasUnidades } = useQuery({
+    queryKey: ["unidades-ativas-lotacao"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("estrutura_organizacional")
+        .select("id, nome, sigla, tipo")
+        .eq("ativo", true)
+        .order("nome");
+      if (error) throw error;
+      return data;
+    },
+    enabled: open,
+  });
+
+  // Determinar unidades disponíveis baseado na composição do cargo
+  const unidadesDisponiveis = useMemo(() => {
+    if (!cargoId) return [];
+
+    // Se tem composição definida, usar as unidades da composição
+    if (composicaoCargo && composicaoCargo.length > 0) {
+      return composicaoCargo
+        .filter((c) => c.unidade !== null)
+        .map((c) => {
+          const vagasTotal = c.quantidade_vagas || 0;
+          const vagasOcupadas = lotacoesAtivas?.[c.unidade_id] || 0;
+          const vagasDisponiveis = vagasTotal - vagasOcupadas;
+
+          return {
+            id: c.unidade!.id,
+            nome: c.unidade!.nome,
+            sigla: c.unidade!.sigla,
+            tipo: null as string | null,
+            vagasTotal,
+            vagasOcupadas,
+            vagasDisponiveis,
+            fromComposicao: true,
+          };
+        });
+    }
+
+    // Fallback: mostrar todas as unidades
+    return (todasUnidades || []).map((u) => ({
+      ...u,
+      vagasTotal: null as number | null,
+      vagasOcupadas: 0,
+      vagasDisponiveis: null as number | null,
+      fromComposicao: false,
+    }));
+  }, [cargoId, composicaoCargo, lotacoesAtivas, todasUnidades]);
+
+  // Informações da unidade selecionada
+  const unidadeSelecionada = useMemo(() => {
+    return unidadesDisponiveis.find((u) => u.id === unidadeId);
+  }, [unidadesDisponiveis, unidadeId]);
+
+  const semVagasNaUnidade = unidadeSelecionada?.vagasDisponiveis !== null && 
+    unidadeSelecionada?.vagasDisponiveis !== undefined &&
+    unidadeSelecionada.vagasDisponiveis <= 0;
+
+  // Filtrar cargos com vagas
   const cargosComVagas = cargos.filter(c => c.vagas_disponiveis > 0);
   const cargoSelecionado = cargos.find(c => c.id === cargoId);
-  
-  // Obter a unidade selecionada
-  const unidadeSelecionada = unidadesCompativeis.find((u: any) => u.id === unidadeId);
-  
-  // Verificar se o cargo tem distribuição definida
-  const temDistribuicaoDefinida = unidadesCompativeis.length > 0 && unidadesCompativeis.some((u: any) => u.vagas_na_unidade);
-  
+
   // Filtrar portarias pelo tipo de ato selecionado
   const portariasFiltradas = portarias.filter((p: any) => {
     if (!atoTipo) return true;
-    // Portarias da Central (tipo "portaria" no campo tipo)
     if (atoTipo === "portaria") return true;
     return false;
   });
 
-  // Limpar unidade quando cargo mudar
-  useEffect(() => {
+  // Handlers com reset
+  const handleCargoChange = (value: string) => {
+    setCargoId(value);
     setUnidadeId("");
-  }, [cargoId]);
+  };
 
-  // Limpar portaria quando tipo de ato mudar
-  useEffect(() => {
+  const handleAtoTipoChange = (value: string) => {
+    setAtoTipo(value);
     setPortariaId("");
     setAtoNumeroManual("");
-  }, [atoTipo]);
+  };
 
   const resetForm = () => {
     setCargoId("");
@@ -98,7 +239,7 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
     setObservacao("");
   };
 
-  // Obter número do ato (da portaria selecionada ou manual)
+  // Obter número do ato
   const getAtoNumero = () => {
     if (portariaId) {
       const portaria = portarias.find((p: any) => p.id === portariaId);
@@ -127,6 +268,9 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
 
   if (!servidor) return null;
 
+  const loadingUnidades = loadingComposicao;
+  const temComposicaoDefinida = composicaoCargo && composicaoCargo.length > 0;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
@@ -142,18 +286,10 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Alerta sobre validação */}
-          <Alert variant="default" className="bg-primary/5 border-primary/20">
-            <CheckCircle className="h-4 w-4 text-primary" />
-            <AlertDescription className="text-sm">
-              Apenas cargos com vagas são exibidos. As unidades são filtradas conforme o cargo selecionado.
-            </AlertDescription>
-          </Alert>
-
           {/* Cargo */}
           <div className="space-y-2">
             <Label>Cargo *</Label>
-            <Select value={cargoId} onValueChange={setCargoId}>
+            <Select value={cargoId} onValueChange={handleCargoChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um cargo com vagas" />
               </SelectTrigger>
@@ -166,8 +302,8 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
                   cargosComVagas.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       <div className="flex items-center gap-2">
-                        <span>{c.sigla} - {c.nome}</span>
-                        <Badge variant="outline" className="text-xs bg-success/10 text-success">
+                        <span>{c.sigla ? `${c.sigla} - ${c.nome}` : c.nome}</span>
+                        <Badge variant="secondary" className="text-xs">
                           {c.vagas_disponiveis} vaga{c.vagas_disponiveis > 1 ? 's' : ''}
                         </Badge>
                       </div>
@@ -183,7 +319,7 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
             )}
           </div>
 
-          {/* Unidade - Filtrada por cargo */}
+          {/* Unidade */}
           <div className="space-y-2">
             <Label>Unidade de Lotação *</Label>
             <Select 
@@ -197,27 +333,56 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
               <SelectContent>
                 {loadingUnidades ? (
                   <div className="p-2 text-center text-muted-foreground">Carregando unidades...</div>
-                ) : unidadesCompativeis.length === 0 ? (
-                  <div className="p-2 text-center text-muted-foreground">Nenhuma unidade disponível para este cargo</div>
+                ) : unidadesDisponiveis.length === 0 ? (
+                  <div className="p-2 text-center text-muted-foreground">Nenhuma unidade disponível</div>
                 ) : (
-                  unidadesCompativeis.map((u: any) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      <div className="flex items-center gap-2">
-                        {u.sigla && <Badge variant="outline" className="text-xs">{u.sigla}</Badge>}
-                        <span>{u.nome}</span>
-                        <span className="text-xs text-muted-foreground">({u.tipo})</span>
-                      </div>
-                    </SelectItem>
-                  ))
+                  unidadesDisponiveis.map((u) => {
+                    const semVagas = u.vagasDisponiveis !== null && u.vagasDisponiveis <= 0;
+                    return (
+                      <SelectItem key={u.id} value={u.id} disabled={semVagas}>
+                        <div className="flex items-center gap-2">
+                          <span>{u.sigla ? `${u.sigla} - ${u.nome}` : u.nome}</span>
+                          {u.tipo && <span className="text-xs text-muted-foreground">({u.tipo})</span>}
+                          {u.vagasDisponiveis !== null && (
+                            <Badge 
+                              variant={u.vagasDisponiveis > 0 ? "secondary" : "destructive"} 
+                              className="text-xs"
+                            >
+                              {u.vagasDisponiveis} vaga{u.vagasDisponiveis !== 1 ? 's' : ''}
+                            </Badge>
+                          )}
+                        </div>
+                      </SelectItem>
+                    );
+                  })
                 )}
               </SelectContent>
             </Select>
-            {cargoId && !loadingUnidades && (
+            {cargoId && !loadingUnidades && !temComposicaoDefinida && (
+              <p className="text-xs text-amber-600">
+                Este cargo não possui unidades vinculadas na composição. Mostrando todas as unidades.
+              </p>
+            )}
+            {cargoId && !loadingUnidades && temComposicaoDefinida && (
               <p className="text-xs text-muted-foreground">
-                {unidadesCompativeis.length} unidade(s) disponível(is) para este cargo
+                {unidadesDisponiveis.length} unidade(s) definida(s) para este cargo
               </p>
             )}
           </div>
+
+          {/* Alerta de sem vagas */}
+          {semVagasNaUnidade && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Não há vagas disponíveis para este cargo nesta unidade.
+                <br />
+                <span className="text-xs">
+                  Vagas totais: {unidadeSelecionada?.vagasTotal} | Ocupadas: {unidadeSelecionada?.vagasOcupadas}
+                </span>
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Data de Início */}
           <div className="space-y-2">
@@ -230,13 +395,13 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
             />
           </div>
 
-          {/* Tipo de Ato - Vinculado à Central de Portarias */}
+          {/* Tipo de Ato */}
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
-              Tipo do Ato (Central de Portarias)
+              Tipo do Ato
             </Label>
-            <Select value={atoTipo} onValueChange={setAtoTipo}>
+            <Select value={atoTipo} onValueChange={handleAtoTipoChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o tipo de ato" />
               </SelectTrigger>
@@ -250,7 +415,7 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
             </Select>
           </div>
 
-          {/* Número do Ato - Seleção de Portaria ou Manual */}
+          {/* Número do Ato */}
           {atoTipo && (
             <div className="space-y-2">
               <Label>Número do Ato</Label>
@@ -283,7 +448,7 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Selecione uma portaria da Central de Portarias ou{" "}
+                    Selecione uma portaria ou{" "}
                     <button
                       type="button"
                       className="text-primary underline"
@@ -304,19 +469,6 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
                 />
               )}
             </div>
-          )}
-
-          {/* Informação sobre distribuição do cargo */}
-          {temDistribuicaoDefinida && unidadeSelecionada && (
-            <Alert variant="default" className="bg-primary/5 border-primary/20">
-              <Info className="h-4 w-4 text-primary" />
-              <AlertDescription className="text-sm">
-                Este cargo possui {unidadesCompativeis.length} unidade(s) de lotação definida(s) no cadastro.
-                {unidadeSelecionada.vagas_na_unidade && (
-                  <> A unidade selecionada possui <strong>{unidadeSelecionada.vagas_na_unidade}</strong> vaga(s) prevista(s).</>
-                )}
-              </AlertDescription>
-            </Alert>
           )}
 
           {/* Observação */}
@@ -340,9 +492,10 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
                 !cargoId || 
                 !unidadeId || 
                 !dataInicio || 
+                semVagasNaUnidade ||
                 lotarServidor.isPending
               }
-              className="bg-success hover:bg-success/90"
+              className="bg-primary hover:bg-primary/90"
             >
               {lotarServidor.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Confirmar Lotação
