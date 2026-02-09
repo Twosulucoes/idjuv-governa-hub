@@ -284,6 +284,85 @@ export function useCreateColeta() {
   });
 }
 
+// ========== CRIAR/ATUALIZAR CAMPANHA ==========
+
+type CampanhaInsert = Database['public']['Tables']['campanhas_inventario']['Insert'];
+type CampanhaUpdate = Database['public']['Tables']['campanhas_inventario']['Update'];
+
+export function useCreateCampanhaInventario() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (data: CampanhaInsert) => {
+      const { data: result, error } = await supabase
+        .from('campanhas_inventario')
+        .insert(data)
+        .select()
+        .single();
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['campanhas-inventario'] });
+      toast.success('Campanha criada com sucesso');
+    },
+    onError: (error: Error) => {
+      toast.error(`Erro ao criar campanha: ${error.message}`);
+    },
+  });
+}
+
+export function useUpdateCampanhaStatus() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { data: result, error } = await supabase
+        .from('campanhas_inventario')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['campanhas-inventario'] });
+      queryClient.invalidateQueries({ queryKey: ['campanha-inventario', variables.id] });
+      toast.success('Status da campanha atualizado');
+    },
+    onError: (error: Error) => {
+      toast.error(`Erro ao atualizar status: ${error.message}`);
+    },
+  });
+}
+
+// ========== UNIDADES LOCAIS (para coleta) ==========
+
+interface UnidadeLocalSimples {
+  id: string;
+  nome_unidade: string;
+  codigo_unidade?: string | null;
+  municipio?: string | null;
+  tipo_unidade?: string | null;
+}
+
+export function useUnidadesLocaisPatrimonio() {
+  return useQuery<UnidadeLocalSimples[]>({
+    queryKey: ['unidades-locais-patrimonio'],
+    queryFn: async (): Promise<UnidadeLocalSimples[]> => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await (supabase as any)
+        .from('unidades_locais')
+        .select('id, nome_unidade, codigo_unidade, municipio, tipo_unidade')
+        .eq('ativo', true)
+        .order('nome_unidade');
+      if (response.error) throw response.error;
+      return (response.data || []) as UnidadeLocalSimples[];
+    },
+  });
+}
+
 // ========== MANUTENÇÕES ==========
 
 export function useManutencoesPatrimonio(bemId?: string) {
