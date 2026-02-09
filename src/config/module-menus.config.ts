@@ -214,6 +214,17 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     items: [
       { id: "demandas", label: "Demandas", icon: Megaphone, route: "/ascom/demandas" },
       { id: "nova-demanda", label: "Nova Demanda", icon: FileText, route: "/ascom/demandas/nova" },
+      { 
+        id: "cms", 
+        label: "CMS - Conteúdos", 
+        icon: FileText, 
+        route: "/ascom/cms/noticias",
+        children: [
+          { id: "cms-noticias", label: "Notícias", icon: FileText, route: "/ascom/cms/noticias" },
+          { id: "cms-galerias", label: "Galerias de Fotos", icon: Eye, route: "/ascom/cms/galerias" },
+          { id: "cms-banners", label: "Banners", icon: Megaphone, route: "/ascom/cms/banners" },
+        ]
+      },
       { id: "aniversariantes", label: "Aniversariantes", icon: Cake, route: "/comunicacao/aniversariantes" },
       { id: "calendario", label: "Calendário", icon: Calendar, route: "/ascom/calendario" },
     ],

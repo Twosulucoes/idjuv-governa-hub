@@ -310,6 +310,28 @@ const App = () => (
                 </PublicPageGuard>
               } />
               
+              {/* Portal Público - Notícias e Galerias */}
+              <Route path="/noticias-portal" element={
+                <PublicPageGuard rota="/noticias-portal">
+                  <NoticiasPublicasPage />
+                </PublicPageGuard>
+              } />
+              <Route path="/noticias-portal/:slug" element={
+                <PublicPageGuard rota="/noticias-portal" fallbackRota="/noticias-portal">
+                  <NoticiaPage />
+                </PublicPageGuard>
+              } />
+              <Route path="/galerias" element={
+                <PublicPageGuard rota="/galerias">
+                  <GaleriasPublicasPage />
+                </PublicPageGuard>
+              } />
+              <Route path="/galerias/:slug" element={
+                <PublicPageGuard rota="/galerias" fallbackRota="/galerias">
+                  <GaleriaPage />
+                </PublicPageGuard>
+              } />
+              
               {/* Federações - Cadastro público */}
               <Route path="/federacoes/cadastro" element={
                 <PublicPageGuard rota="/federacoes/cadastro">
@@ -533,6 +555,33 @@ const App = () => (
               <Route path="/comunicacao/aniversariantes" element={
                 <ProtectedRoute>
                   <AniversariantesComunicacaoPage />
+                </ProtectedRoute>
+              } />
+              
+              {/* CMS - Sistema de Gestão de Conteúdo */}
+              <Route path="/ascom/cms/noticias" element={
+                <ProtectedRoute requiredPermissions="ascom.cms.visualizar">
+                  <CMSConteudosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/ascom/cms/noticias/nova" element={
+                <ProtectedRoute requiredPermissions="ascom.cms.criar">
+                  <CMSEditorPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/ascom/cms/noticias/:id/editar" element={
+                <ProtectedRoute requiredPermissions="ascom.cms.editar">
+                  <CMSEditorPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/ascom/cms/galerias" element={
+                <ProtectedRoute requiredPermissions="ascom.cms.visualizar">
+                  <CMSGaleriasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/ascom/cms/banners" element={
+                <ProtectedRoute requiredPermissions="ascom.cms.visualizar">
+                  <CMSBannersPage />
                 </ProtectedRoute>
               } />
               
