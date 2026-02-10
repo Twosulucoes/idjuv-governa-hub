@@ -309,4 +309,12 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "ajuda", label: "Ajuda", icon: HelpCircle, route: "/admin/ajuda" },
     ],
   },
+
+  // Patrimônio Mobile (PWA)
+  patrimonio_mobile: {
+    dashboard: { label: "App Patrimônio", route: "/patrimonio-mobile" },
+    items: [
+      { id: "instalar", label: "Instalar App", icon: Smartphone, route: "/instalar" },
+    ],
+  },
 };

@@ -19542,6 +19542,7 @@ export type Database = {
         | "federacoes"
         | "organizacoes"
         | "gabinete"
+        | "patrimonio_mobile"
       app_permission:
         | "users.read"
         | "users.create"
@@ -20346,6 +20347,7 @@ export const Constants = {
         "federacoes",
         "organizacoes",
         "gabinete",
+        "patrimonio_mobile",
       ],
       app_permission: [
         "users.read",

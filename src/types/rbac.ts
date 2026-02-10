@@ -139,6 +139,7 @@ export const MODULO_ICONES: Record<Modulo, string> = {
   gestores_escolares: '🏫',
   organizacoes: '🏛️',
   gabinete: '🏢',
+  patrimonio_mobile: '📱',
 };
 
 // Labels para perfis

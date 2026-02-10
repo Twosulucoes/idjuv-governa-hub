@@ -195,7 +195,7 @@ export function useAdminRBAC(): UseAdminRBACReturn {
     try {
       const { error } = await supabase
         .from('user_modules')
-        .insert({ user_id: userId, module });
+        .insert({ user_id: userId, module } as any);
       
       if (error && !error.message.includes('duplicate')) throw error;
     } catch (err: any) {
@@ -214,7 +214,7 @@ export function useAdminRBAC(): UseAdminRBACReturn {
         .from('user_modules')
         .delete()
         .eq('user_id', userId)
-        .eq('module', module);
+        .eq('module', module as any);
       
       if (error) throw error;
     } catch (err: any) {
@@ -244,7 +244,7 @@ export function useAdminRBAC(): UseAdminRBACReturn {
         
         const { error } = await supabase
           .from('user_modules')
-          .insert(inserts);
+          .insert(inserts as any);
         
         if (error) throw error;
       }
