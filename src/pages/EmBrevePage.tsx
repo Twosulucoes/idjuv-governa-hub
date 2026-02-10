@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Rocket, Lock, Sparkles, LogIn, FileText } from "lucide-react";
+import { Rocket, Lock, Sparkles, LogIn } from "lucide-react";
 import { Link } from "react-router-dom";
 import logoIdjuv from "@/assets/logo-idjuv-oficial.png";
 
@@ -65,12 +65,6 @@ export default function EmBrevePage() {
               <Link to="/auth">
                 <LogIn className="h-4 w-4" />
                 Entrar no Sistema
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="w-full gap-2">
-              <Link to="/curriculo">
-                <FileText className="h-4 w-4" />
-                Pré-Cadastro de Currículo
               </Link>
             </Button>
             <p className="text-xs text-muted-foreground/60">
