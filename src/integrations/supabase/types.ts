@@ -18691,6 +18691,7 @@ export type Database = {
           id: string
           justificativa: string | null
           meio_transporte: string | null
+          numero_sei_diarias: string | null
           observacoes: string | null
           passagem_aerea: boolean | null
           portaria_data: string | null
@@ -18702,10 +18703,15 @@ export type Database = {
           relatorio_url: string | null
           servidor_id: string
           status: string | null
+          tipo_onus: string
           updated_at: string | null
           valor_diaria: number | null
           valor_total: number | null
           veiculo_oficial: boolean | null
+          workflow_diraf_concluido_em: string | null
+          workflow_diraf_observacoes: string | null
+          workflow_diraf_solicitado_em: string | null
+          workflow_diraf_status: string | null
         }
         Insert: {
           created_at?: string | null
@@ -18719,6 +18725,7 @@ export type Database = {
           id?: string
           justificativa?: string | null
           meio_transporte?: string | null
+          numero_sei_diarias?: string | null
           observacoes?: string | null
           passagem_aerea?: boolean | null
           portaria_data?: string | null
@@ -18730,10 +18737,15 @@ export type Database = {
           relatorio_url?: string | null
           servidor_id: string
           status?: string | null
+          tipo_onus?: string
           updated_at?: string | null
           valor_diaria?: number | null
           valor_total?: number | null
           veiculo_oficial?: boolean | null
+          workflow_diraf_concluido_em?: string | null
+          workflow_diraf_observacoes?: string | null
+          workflow_diraf_solicitado_em?: string | null
+          workflow_diraf_status?: string | null
         }
         Update: {
           created_at?: string | null
@@ -18747,6 +18759,7 @@ export type Database = {
           id?: string
           justificativa?: string | null
           meio_transporte?: string | null
+          numero_sei_diarias?: string | null
           observacoes?: string | null
           passagem_aerea?: boolean | null
           portaria_data?: string | null
@@ -18758,10 +18771,15 @@ export type Database = {
           relatorio_url?: string | null
           servidor_id?: string
           status?: string | null
+          tipo_onus?: string
           updated_at?: string | null
           valor_diaria?: number | null
           valor_total?: number | null
           veiculo_oficial?: boolean | null
+          workflow_diraf_concluido_em?: string | null
+          workflow_diraf_observacoes?: string | null
+          workflow_diraf_solicitado_em?: string | null
+          workflow_diraf_status?: string | null
         }
         Relationships: [
           {
