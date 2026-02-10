@@ -42,6 +42,7 @@ export const MODULOS = [
   'gestores_escolares',
   'organizacoes', // Módulo para Federações, Instituições, Associações e Entes
   'gabinete', // Módulo para Gabinete da Presidência
+  'patrimonio_mobile', // Módulo exclusivo para App Mobile (PWA) de Patrimônio
 ] as const;
 
 export type Modulo = typeof MODULOS[number];
@@ -195,6 +196,15 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     cor: 'violet',
     rotas: ['/gabinete', '/gabinete/portarias', '/gabinete/pre-cadastros', '/formularios/ordem-missao', '/formularios/relatorio-viagem'],
     menuSectionIds: ['gabinete'],
+  },
+  {
+    codigo: 'patrimonio_mobile',
+    nome: 'Patrimônio Mobile',
+    descricao: 'App móvel para coleta de inventário e cadastro em campo',
+    icone: Package,
+    cor: 'cyan',
+    rotas: ['/patrimonio-mobile', '/instalar'],
+    menuSectionIds: ['patrimonio-mobile'],
   },
 ];
 
