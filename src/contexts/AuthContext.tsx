@@ -235,14 +235,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      // Limpar sessão anterior para evitar conflito entre usuários no mesmo navegador
+      // Limpar TODA sessão anterior para evitar conflito entre usuários
       try {
-        await supabase.auth.signOut();
-        setUser(null);
-        setSession(null);
+        await supabase.auth.signOut({ scope: 'local' });
       } catch {
-        // Ignora erro de signOut - pode não haver sessão ativa
+        // Ignora erro de signOut
       }
+      // Limpar dados residuais do navegador
+      clearOldSessions();
+      setUser(null);
+      setSession(null);
 
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -317,7 +319,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
+      // Limpar todos os dados de autenticação do navegador
+      clearOldSessions();
       setUser(null);
       setSession(null);
       
@@ -327,6 +331,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     } catch (error) {
       console.error('Erro ao sair:', error);
+      // Mesmo com erro, limpar estado local
+      clearOldSessions();
+      setUser(null);
+      setSession(null);
     }
   };
 
