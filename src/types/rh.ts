@@ -322,9 +322,28 @@ export interface Servidor {
   matricula?: string;
   situacao: SituacaoFuncional;
   data_admissao?: string;
+  data_posse?: string;
+  data_exercicio?: string;
   data_desligamento?: string;
   carga_horaria?: number;
   regime_juridico?: string;
+  tipo_servidor?: string;
+  vinculo?: string;
+  orgao_origem?: string;
+  funcao_exercida?: string;
+  
+  // Primeiro Emprego
+  ano_inicio_primeiro_emprego?: number;
+  ano_fim_primeiro_emprego?: number;
+  
+  // Moléstia Grave
+  molestia_grave?: boolean;
+  
+  // Estrangeiro
+  estrangeiro_data_chegada?: string;
+  estrangeiro_data_limite_permanencia?: string;
+  estrangeiro_registro_nacional?: string;
+  estrangeiro_ano_chegada?: number;
   
   // Remuneração
   remuneracao_bruta?: number;

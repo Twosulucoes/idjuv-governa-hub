@@ -163,6 +163,9 @@ export async function gerarFichaCadastroGeral(dados: DadosCompletos): Promise<Ui
   fillText(form, "TXT_DATA_ASSINATURA_FICHA_CADASTRAL", dataLocalTexto);
   fillRadio(form, "RD_SEXO_SERVIDOR_FICHA_CADASTRAL", servidor.sexo === "M" ? "M" : "F");
   
+  // Nome Social
+  fillText(form, "TXT_NOME_SOCIAL_FICHA_CADASTRAL", servidor.nome_social?.toUpperCase());
+  
   // Dropdowns da Página 1
   fillDropdown(form, "CBX_ESTADO_CIVIL_FICHA_CADASTRAL", getSegadEstadoCivil(servidor.estado_civil));
   fillDropdown(form, "CBX_RACA_FICHA_CADASTRAL", getSegadRacaCor(servidor.raca_cor));
@@ -174,14 +177,14 @@ export async function gerarFichaCadastroGeral(dados: DadosCompletos): Promise<Ui
   
   // Radio Groups da Página 1
   fillRadio(form, "RD_PCD_FICHA_CADASTRAL", servidor.pcd === true ? "SIM" : "NÃO");
-  fillRadio(form, "RD_MOLESTIA_GRAVE_FICHA_CADASTRAL", (servidor as any).molestia_grave === true ? "SIM" : "NÃO");
+  fillRadio(form, "RD_MOLESTIA_GRAVE_FICHA_CADASTRAL", servidor.molestia_grave === true ? "SIM" : "NÃO");
   fillRadio(form, "RD_VAGA_PCD_FICHA_CADASTRAL", servidor.pcd === true ? "SIM" : "NÃO");
   fillRadio(form, "RD_EFETIVO_FICHA_CADASTRAL", "NÃO");
   fillRadio(form, "RD_FEDERAL_FICHA_CADASTRAL", "NÃO");
   
   // Primeiro Emprego
-  fillText(form, "TXT_ANO_INICIO_EMPREGO_FICHA_CADASTRAL", (servidor as any).ano_inicio_primeiro_emprego?.toString());
-  fillText(form, "TXT_ANO_FIM_EMPREGO_FICHA_CADASTRAL", (servidor as any).ano_fim_primeiro_emprego?.toString());
+  fillText(form, "TXT_ANO_INICIO_EMPREGO_FICHA_CADASTRAL", servidor.ano_inicio_primeiro_emprego?.toString());
+  fillText(form, "TXT_ANO_FIM_EMPREGO_FICHA_CADASTRAL", servidor.ano_fim_primeiro_emprego?.toString());
   
   // Dados de Identificação
   fillText(form, "TXT_NACIONALIDADE_FICHA_CADASTRAL", servidor.nacionalidade?.toUpperCase() || "BRASILEIRA");
@@ -220,8 +223,10 @@ export async function gerarFichaCadastroGeral(dados: DadosCompletos): Promise<Ui
   fillText(form, "DT_EXPED_CTPS_FICHA_CADASTRAL", formatDate(servidor.ctps_data_emissao));
   
   // Escolaridade
+  fillDropdown(form, "CBX_ESCOLARIDADE_FICHA_CADASTRAL", servidor.escolaridade);
   fillText(form, "TXT_CURSO_FICHA_CADASTRAL", servidor.formacao_academica?.toUpperCase());
   fillText(form, "TXT_CURSO_ENTIDADE_FICHA_CADASTRAL", servidor.instituicao_ensino?.toUpperCase());
+  fillText(form, "TXT_ANO_CONCLUSAO_FICHA_CADASTRAL", servidor.ano_conclusao?.toString());
   
   // Dados Funcionais
   fillText(form, "TXT_LOTACAO_FICHA_CADASTRAL", unidade?.nome?.toUpperCase());
@@ -229,6 +234,19 @@ export async function gerarFichaCadastroGeral(dados: DadosCompletos): Promise<Ui
   fillText(form, "TXT_COD_CARGO_FUNCAO_FICHA_CADASTRAL", cargo?.sigla);
   fillText(form, "TXT_CARGO_EFETIVO_FICHA_CADASTRAL", cargoNome);
   fillText(form, "TXT_MATRICULA_EFETIVA_FICHA_CADASTRAL", servidor.matricula);
+  fillText(form, "TXT_FUNCAO_EXERCIDA_FICHA_CADASTRAL", servidor.funcao_exercida?.toUpperCase());
+  fillText(form, "TXT_REGIME_JURIDICO_FICHA_CADASTRAL", servidor.regime_juridico?.toUpperCase());
+  fillText(form, "TXT_CARGA_HORARIA_FICHA_CADASTRAL", servidor.carga_horaria ? `${servidor.carga_horaria}h` : undefined);
+  fillText(form, "TXT_ORGAO_ORIGEM_FICHA_CADASTRAL", servidor.orgao_origem?.toUpperCase());
+  
+  // Datas funcionais
+  fillText(form, "DT_ADMISSAO_FICHA_CADASTRAL", formatDate(servidor.data_admissao));
+  fillText(form, "DT_POSSE_FICHA_CADASTRAL", formatDate(servidor.data_posse));
+  fillText(form, "DT_EXERCICIO_FICHA_CADASTRAL", formatDate(servidor.data_exercicio));
+  
+  // Tipo Servidor / Vínculo
+  fillDropdown(form, "CBX_TIPO_SERVIDOR_FICHA_CADASTRAL", servidor.tipo_servidor?.toUpperCase());
+  fillDropdown(form, "CBX_VINCULO_FICHA_CADASTRAL", servidor.vinculo?.toUpperCase());
   
   // CNH
   fillText(form, "TXT_CNH_FICHA_CADASTRAL", servidor.cnh_numero);
@@ -242,10 +260,10 @@ export async function gerarFichaCadastroGeral(dados: DadosCompletos): Promise<Ui
   // =============================================
   
   // Estrangeiros
-  fillText(form, "DT_CHEGADA_ESTRANGEIRO_FICHA_CADASTRAL", formatDate((servidor as any).estrangeiro_data_chegada));
-  fillText(form, "DT_LIMITE_PERMANENCIA_FICHA_CADASTRAL", formatDate((servidor as any).estrangeiro_data_limite_permanencia));
-  fillText(form, "TXT_RNE_FICHA_CADASTRAL", (servidor as any).estrangeiro_registro_nacional);
-  fillText(form, "TXT_ANO_CHEGADA_FICHA_CADASTRAL", (servidor as any).estrangeiro_ano_chegada?.toString());
+  fillText(form, "DT_CHEGADA_ESTRANGEIRO_FICHA_CADASTRAL", formatDate(servidor.estrangeiro_data_chegada));
+  fillText(form, "DT_LIMITE_PERMANENCIA_FICHA_CADASTRAL", formatDate(servidor.estrangeiro_data_limite_permanencia));
+  fillText(form, "TXT_RNE_FICHA_CADASTRAL", servidor.estrangeiro_registro_nacional);
+  fillText(form, "TXT_ANO_CHEGADA_FICHA_CADASTRAL", servidor.estrangeiro_ano_chegada?.toString());
   
   // Endereço
   fillText(form, "TXT_CEP_FICHA_CADASTRAL", formatCEP(servidor.endereco_cep || ""));
@@ -255,14 +273,24 @@ export async function gerarFichaCadastroGeral(dados: DadosCompletos): Promise<Ui
   fillText(form, "TXT_MUNICIPIO_FICHA_CADASTRAL", servidor.endereco_cidade?.toUpperCase());
   fillText(form, "TXT_COMPLEMENTO_FICHA_CADASTRAL", servidor.endereco_complemento?.toUpperCase());
   fillText(form, "TXT_UF_ENDERECO_FICHA_CADASTRAL", servidor.endereco_uf);
+  
+  // Telefones
   fillText(form, "TXT_CELULAR_FICHA_CADASTRAL", formatPhone(servidor.telefone_celular));
+  fillText(form, "TXT_TELEFONE_FIXO_FICHA_CADASTRAL", formatPhone(servidor.telefone_fixo));
+  fillText(form, "TXT_TELEFONE_EMERGENCIA_FICHA_CADASTRAL", formatPhone(servidor.telefone_emergencia));
+  fillText(form, "TXT_CONTATO_EMERGENCIA_NOME_FICHA_CADASTRAL", servidor.contato_emergencia_nome?.toUpperCase());
+  fillText(form, "TXT_CONTATO_EMERGENCIA_PARENTESCO_FICHA_CADASTRAL", servidor.contato_emergencia_parentesco?.toUpperCase());
+  
+  // Emails
   fillText(form, "TXT_EMAIL_FICHA_CADASTRAL", servidor.email_pessoal?.toLowerCase());
+  fillText(form, "TXT_EMAIL_INSTITUCIONAL_FICHA_CADASTRAL", servidor.email_institucional?.toLowerCase());
   
   // Dados Bancários
   fillText(form, "TXT_COD_BANCO_FICHA_CADASTRAL", servidor.banco_codigo);
   fillText(form, "TXT_BANCO_FICHA_CADASTRAL", servidor.banco_nome?.toUpperCase());
   fillText(form, "TXT_AGENCIA_FICHA_CADASTRAL", servidor.banco_agencia);
   fillText(form, "TXT_CONTA_CORRENTE_FICHA_CADASTRAL", servidor.banco_conta);
+  fillDropdown(form, "CBX_TIPO_CONTA_FICHA_CADASTRAL", servidor.banco_tipo_conta?.toUpperCase());
 
   // =============================================
   // PÁGINA 3 - DECLARAÇÃO DE PARENTESCO (campos 68-94)
@@ -270,29 +298,33 @@ export async function gerarFichaCadastroGeral(dados: DadosCompletos): Promise<Ui
   // Os dados do servidor (nome/CPF) já são globais via campos 248-251
   // Checkboxes de vínculo
   fillCheckbox(form, "CK_VINCULO_PARENTESCO", false);
-  fillCheckbox(form, "CK_GRAU_PARENTESCO_GOV_PARENTESCO", false); // Não possui parentesco
-  fillCheckbox(form, "CK_CASADO_GOV_PARENTESCO", false); // Não possui relação conjugal
+  fillCheckbox(form, "CK_GRAU_PARENTESCO_GOV_PARENTESCO", false);
+  fillCheckbox(form, "CK_CASADO_GOV_PARENTESCO", false);
 
   // =============================================
   // PÁGINA 4 - DECLARAÇÃO DE ACUMULAÇÃO (campos 95-131)
   // =============================================
   fillText(form, "TXT_CARGO_SERVIDOR_ACUMULO_CARGO", cargoNome);
-  fillCheckbox(form, "CK_ACUMULACAO_ACUMULO_CARGO", false); // Não acumula (checkbox de "SIM acumula")
-  fillCheckbox(form, "CK_ACUMULACAO", true); // Checkbox de "NÃO acumula"
+  
+  if (servidor.acumula_cargo === true) {
+    fillCheckbox(form, "CK_ACUMULACAO_ACUMULO_CARGO", true);  // SIM acumula
+    fillCheckbox(form, "CK_ACUMULACAO", false);                // NÃO acumula
+    fillText(form, "TXT_DESCRICAO_ACUMULO_CARGO", servidor.acumulo_descricao?.toUpperCase());
+  } else {
+    fillCheckbox(form, "CK_ACUMULACAO_ACUMULO_CARGO", false);
+    fillCheckbox(form, "CK_ACUMULACAO", true);  // NÃO acumula
+  }
 
   // =============================================
   // PÁGINA 5 - DECLARAÇÃO DE BENS DO SERVIDOR (campos 132-151)
   // =============================================
   fillText(form, "TXT_CARGO_SERVIDOR_BENS_SERVIDOR", cargoNome);
-  fillCheckbox(form, "CK_POSSUI_BEN_BENS_SERVIDOR", false); // Marcar como não possui bens
+  fillCheckbox(form, "CK_POSSUI_BEN_BENS_SERVIDOR", false);
 
   // =============================================
   // PÁGINA 6 - DECLARAÇÃO DE BENS DO CÔNJUGE (campos 164-197)
   // =============================================
   fillText(form, "TXT_CARGO_SERVIDOR_BENS_CONJUGE", cargoNome);
-  
-  const estadoCivilLower = servidor.estado_civil?.toLowerCase() || "";
-  const isSolteiro = estadoCivilLower.includes("solteiro") || !servidor.estado_civil;
   fillCheckbox(form, "CK_POSSUI_BEN_BENS_CONJUGE", false);
 
   // =============================================
@@ -306,33 +338,20 @@ export async function gerarFichaCadastroGeral(dados: DadosCompletos): Promise<Ui
     dependentes.slice(0, 4).forEach((dep, idx) => {
       const n = idx + 1;
       fillText(form, `TXT_NOME_DEP${n}_DEPENDENTES`, dep.nome?.toUpperCase());
-      // CPF tem nome irregular: DEP2 não tem _DEPENDENTES suffix
       if (n === 1) fillText(form, "TXT_CPF_DEP1_DEPENDENTES", dep.cpf ? formatCPF(dep.cpf) : undefined);
       else if (n === 2) fillText(form, "TXT_CPF_DEP2", dep.cpf ? formatCPF(dep.cpf) : undefined);
       else fillText(form, `TXT_CPF_DEP${n}_DEPENDENTES`, dep.cpf ? formatCPF(dep.cpf) : undefined);
       
       fillText(form, `DT_NASCIMENTO_DEP${n}_DEPENDENTES`, formatDate(dep.data_nascimento));
       fillRadio(form, `RD_SEXO_DEP${n}_DEPENDENTES`, (dep as any).sexo === "M" ? "M" : "F");
-      
-      // Parentesco
       fillText(form, `TXT_PARENTESCO_DEP${n}_DEPENDENTES`, dep.parentesco?.toUpperCase());
-      
-      // Declarar para fins de IR
       fillRadio(form, `RD_IR_DEP${n}_DEPENDENTES`, (dep as any).declarar_ir ? "SIM" : "NÃO");
-      
-      // Declarar para fins previdenciários
       fillRadio(form, `RD_PREVIDENCIA_DEP${n}_DEPENDENTES`, (dep as any).declarar_previdencia ? "SIM" : "NÃO");
-      
-      // PCD do dependente
       fillRadio(form, `RD_PCD_DEP${n}_DEPENDENTES`, (dep as any).pcd ? "SIM" : "NÃO");
       if ((dep as any).pcd && (dep as any).pcd_tipo) {
         fillText(form, `TXT_TIPO_PCD_DEP${n}_DEPENDENTES`, (dep as any).pcd_tipo?.toUpperCase());
       }
-      
-      // Universitário
       fillRadio(form, `RD_UNIVERSITARIO_DEP${n}_DEPENDENTES`, (dep as any).universitario ? "SIM" : "NÃO");
-      
-      // Salário Família
       fillRadio(form, `RD_SALARIO_FAMILIA_DEP${n}_DEPENDENTES`, (dep as any).salario_familia ? "SIM" : "NÃO");
     });
   } else {
