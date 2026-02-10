@@ -27,19 +27,24 @@ export const getConnectionInfo = () => ({
  * Limpa sessões antigas/corrompidas
  */
 export const clearOldSessions = () => {
-  const keysToRemove = [
-    'idjuv-external-auth',
-  ];
-  
-  keysToRemove.forEach(key => {
-    try {
-      localStorage.removeItem(key);
-    } catch (e) {
-      // Ignora erro
+  try {
+    // Remove todas as chaves do Supabase/auth do localStorage
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (
+        key.startsWith('sb-') ||
+        key.includes('supabase') ||
+        key === 'idjuv-external-auth'
+      )) {
+        keysToRemove.push(key);
+      }
     }
-  });
-  
-  console.log('[IDJUV] Sessões antigas removidas');
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    console.log('[IDJUV] Sessões antigas removidas:', keysToRemove.length);
+  } catch (e) {
+    console.warn('[IDJUV] Erro ao limpar sessões:', e);
+  }
 };
 
 // Exportar como alias para compatibilidade
