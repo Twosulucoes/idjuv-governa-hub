@@ -44,6 +44,7 @@ const MODULE_HOME_ROUTES: Record<Modulo, string> = {
   gestores_escolares: '/gestores-escolares',
   organizacoes: '/admin/federacoes',
   gabinete: '/gabinete',
+  patrimonio_mobile: '/patrimonio-mobile',
 };
 
 /**
@@ -65,6 +66,7 @@ export const MODULE_PRIORITY: Modulo[] = [
   'integridade',
   'gestores_escolares',
   'organizacoes',
+  'patrimonio_mobile',
 ];
 
 export function useModuleRouter(): ModuleRouterResult {
