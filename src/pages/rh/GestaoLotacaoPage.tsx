@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ModuleLayout } from "@/components/layout/ModuleLayout";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -31,7 +32,6 @@ import {
   History,
   RefreshCw,
   Filter,
-  LayoutDashboard,
   Briefcase,
 } from "lucide-react";
 import {
@@ -103,40 +103,15 @@ export default function GestaoLotacaoPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-3">
-            <LayoutDashboard className="h-6 w-6 text-primary" />
-            <div>
-              <h1 className="text-lg font-semibold">Gestão de Lotação</h1>
-              <p className="text-xs text-muted-foreground">Sistema de Gestão Inteligente</p>
-            </div>
-          </div>
+    <ModuleLayout module="rh" title="Gestão de Lotação" description="Sistema de Gestão Inteligente de Lotações">
+      <div className="flex items-center justify-end gap-3 mb-6">
+        <Button onClick={handleCruzamento} variant="outline" className="gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Cruzar Dados
+        </Button>
+      </div>
 
-          {/* Busca Global */}
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome ou matrícula..."
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-
-          {/* Botão de Cruzamento */}
-          <Button onClick={handleCruzamento} className="gap-2">
-            <RefreshCw className="h-4 w-4" />
-            Cruzar Dados
-          </Button>
-        </div>
-      </header>
-
-      {/* Conteúdo Principal */}
-      <div className="container px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
           {/* Coluna Esquerda - Filtros e Estatísticas */}
           <aside className="space-y-6">
             {/* Estatísticas */}
@@ -480,7 +455,6 @@ export default function GestaoLotacaoPage() {
             </Card>
           </main>
         </div>
-      </div>
 
       {/* Modais */}
       <LotarServidorModal
@@ -498,6 +472,6 @@ export default function GestaoLotacaoPage() {
         open={modalHistorico}
         onOpenChange={setModalHistorico}
       />
-    </div>
+    </ModuleLayout>
   );
 }
