@@ -17,15 +17,15 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'IDJUV Patrimônio Mobile',
-        short_name: 'Patrimônio',
-        description: 'App Mobile Unificado - Cadastro, Coleta, Movimentação e Baixa',
+        name: 'IDJUV - Sistema de Governança',
+        short_name: 'IDJUV',
+        description: 'Sistema de Governança e Gestão do Instituto de Desporto, Juventude e Lazer de Roraima',
         theme_color: '#1e40af',
         background_color: '#ffffff',
         display: 'standalone',
-        orientation: 'portrait',
+        orientation: 'any',
         scope: '/',
-        start_url: '/patrimonio-mobile',
+        start_url: '/',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -48,6 +48,7 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10MB
+        navigateFallbackDenylist: [/^\/~oauth/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
