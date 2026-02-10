@@ -17293,6 +17293,86 @@ export type Database = {
           },
         ]
       }
+      servidor_tag_vinculos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          servidor_id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          servidor_id: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          servidor_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "servidor_tag_vinculos_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servidor_tag_vinculos_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "servidor_tag_vinculos_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servidor_tag_vinculos_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "servidor_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      servidor_tags: {
+        Row: {
+          cor: string
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          id: string
+          nome: string
+        }
+        Insert: {
+          cor?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+        }
+        Update: {
+          cor?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
       servidores: {
         Row: {
           acumula_cargo: boolean | null
