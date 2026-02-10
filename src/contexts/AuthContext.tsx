@@ -235,6 +235,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
+      // Limpar sessão anterior para evitar conflito entre usuários no mesmo navegador
+      try {
+        await supabase.auth.signOut();
+        setUser(null);
+        setSession(null);
+      } catch {
+        // Ignora erro de signOut - pode não haver sessão ativa
+      }
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password
