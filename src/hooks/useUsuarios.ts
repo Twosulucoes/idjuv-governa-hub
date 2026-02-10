@@ -166,7 +166,7 @@ export function useUsuarios() {
 
         if (modulos.length > 0) {
           const modulosInsert = modulos.map(m => ({ user_id: userId, module: m }));
-          await supabase.from('user_modules').insert(modulosInsert);
+          await supabase.from('user_modules').insert(modulosInsert as any);
         }
 
         return { authData: { user: { id: userId } }, senhaTemporaria: null, usuarioAtualizado: true };
@@ -228,7 +228,7 @@ export function useUsuarios() {
 
             if (modulos.length > 0) {
               const modulosInsert = modulos.map(m => ({ user_id: userId, module: m }));
-              await supabase.from('user_modules').insert(modulosInsert);
+              await supabase.from('user_modules').insert(modulosInsert as any);
             }
 
             return { authData: { user: { id: userId } }, senhaTemporaria: null, usuarioAtualizado: true };
@@ -248,7 +248,7 @@ export function useUsuarios() {
       // Atribuir módulos
       if (modulos.length > 0) {
         const modulosInsert = modulos.map(m => ({ user_id: userId, module: m }));
-        await supabase.from('user_modules').insert(modulosInsert);
+        await supabase.from('user_modules').insert(modulosInsert as any);
       }
 
       return { authData, senhaTemporaria, usuarioAtualizado: false };

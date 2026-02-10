@@ -121,7 +121,7 @@ export function useAdminUsuarios() {
     try {
       const { error } = await supabase
         .from('user_modules')
-        .insert({ user_id: userId, module: modulo });
+        .insert({ user_id: userId, module: modulo } as any);
 
       if (error && !error.message.includes('duplicate')) throw error;
 
@@ -143,7 +143,7 @@ export function useAdminUsuarios() {
         .from('user_modules')
         .delete()
         .eq('user_id', userId)
-        .eq('module', modulo);
+        .eq('module', modulo as any);
 
       if (error) throw error;
 
