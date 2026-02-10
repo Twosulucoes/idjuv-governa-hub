@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { TipoLotacao } from "@/types/servidor";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 // Tipos para o sistema de gestão
 export interface ServidorGestao {
@@ -421,13 +423,93 @@ export function useLotarServidor() {
         .single();
 
       if (error) throw error;
+
+      // 4. Criar provimento automático
+      try {
+        await supabase.from("provimentos").insert({
+          servidor_id: servidorId,
+          cargo_id: cargoId,
+          unidade_id: unidadeId,
+          status: 'ativo',
+          data_nomeacao: dataInicio,
+          data_posse: dataInicio,
+          data_exercicio: dataInicio,
+          ato_nomeacao_numero: atoNumero || null,
+          ato_nomeacao_data: atoData || null,
+          ato_nomeacao_tipo: atoTipo || null,
+        });
+      } catch (provErr) {
+        console.error("[Lotação] Erro ao criar provimento:", provErr);
+      }
+
+      // 5. Registrar no histórico funcional
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        
+        // Buscar nomes do cargo e unidade para descrição
+        const [cargoRes, unidadeRes, servidorRes] = await Promise.all([
+          supabase.from("cargos").select("nome, sigla").eq("id", cargoId).maybeSingle(),
+          supabase.from("estrutura_organizacional").select("nome, sigla").eq("id", unidadeId).maybeSingle(),
+          supabase.from("servidores").select("nome_completo").eq("id", servidorId).maybeSingle(),
+        ]);
+
+        const cargoNome = cargoRes.data?.sigla 
+          ? `${cargoRes.data.sigla} - ${cargoRes.data.nome}` 
+          : cargoRes.data?.nome || 'N/A';
+        const unidadeSigla = unidadeRes.data?.sigla || unidadeRes.data?.nome || '';
+
+        await supabase.from("historico_funcional").insert({
+          servidor_id: servidorId,
+          tipo: "nomeacao",
+          data_evento: dataInicio,
+          data_vigencia_inicio: dataInicio,
+          cargo_novo_id: cargoId,
+          unidade_nova_id: unidadeId,
+          portaria_numero: atoNumero || null,
+          portaria_data: atoData || null,
+          descricao: `Lotação e nomeação para cargo ${cargoNome}${unidadeSigla ? ` na ${unidadeSigla}` : ''}`,
+          created_by: userData?.user?.id,
+        });
+
+        // 6. Gerar minuta de portaria
+        const nomeServidor = servidorRes.data?.nome_completo || 'Servidor';
+        const dataDoc = dataInicio;
+        const ano = new Date(dataDoc).getFullYear();
+
+        let numero = `PENDENTE/${ano}`;
+        try {
+          const { data: numData } = await supabase.rpc("gerar_numero_portaria", { p_ano: ano });
+          if (numData) numero = numData as string;
+        } catch { /* keep default */ }
+
+        await supabase.from("documentos").insert({
+          tipo: "portaria",
+          categoria: "nomeacao",
+          status: "minuta",
+          titulo: `Portaria de Nomeação - ${nomeServidor}`,
+          ementa: `Nomeia ${nomeServidor} para o cargo de ${cargoNome}${unidadeSigla ? ` na ${unidadeSigla}` : ''}.`,
+          numero,
+          data_documento: dataDoc,
+          servidores_ids: [servidorId],
+          cargo_id: cargoId,
+          unidade_id: unidadeId,
+          created_by: userData?.user?.id,
+        });
+      } catch (histErr) {
+        console.error("[Lotação] Erro ao registrar histórico/portaria:", histErr);
+      }
+
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["servidores-gestao"] });
       queryClient.invalidateQueries({ queryKey: ["estatisticas-lotacao"] });
       queryClient.invalidateQueries({ queryKey: ["cargos-vagos"] });
-      toast.success("Servidor lotado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["provimentos", variables.servidorId] });
+      queryClient.invalidateQueries({ queryKey: ["historico-funcional", variables.servidorId] });
+      queryClient.invalidateQueries({ queryKey: ["portarias"] });
+      queryClient.invalidateQueries({ queryKey: ["servidores-rh"] });
+      toast.success("Servidor lotado com sucesso! Provimento e histórico registrados.");
     },
     onError: (error: any) => {
       toast.error(error.message || "Erro ao lotar servidor");
