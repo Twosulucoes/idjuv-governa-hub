@@ -119,6 +119,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
   financeiro: {
     dashboard: { label: "Painel Financeiro", route: "/financeiro" },
     items: [
+      { id: "qdd", label: "QDD - Detalhamento", icon: FileText, route: "/financeiro/qdd" },
       { id: "orcamento", label: "Orçamento", icon: Wallet, route: "/financeiro/orcamento" },
       { id: "empenhos", label: "Empenhos", icon: FileText, route: "/financeiro/empenhos" },
       { id: "liquidacoes", label: "Liquidações", icon: FileCheck, route: "/financeiro/liquidacoes" },

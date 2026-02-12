@@ -169,14 +169,24 @@ export interface Dotacao {
   natureza_despesa_id?: string | null;
   fonte_recurso_id?: string | null;
   codigo_dotacao: string;
+  paoe?: string | null;
+  regional?: string | null;
+  cod_acompanhamento?: string | null;
+  idu?: string | null;
+  tro?: string | null;
   valor_inicial: number;
   valor_suplementado: number;
   valor_reduzido: number;
-  valor_atual: number; // computed
+  valor_atual: number;
+  valor_bloqueado: number;
+  valor_reserva: number;
+  valor_ped: number;
   valor_empenhado: number;
   valor_liquidado: number;
+  valor_em_liquidacao: number;
   valor_pago: number;
-  saldo_disponivel: number; // computed
+  saldo_disponivel: number;
+  valor_restos_pagar: number;
   bloqueado: boolean;
   motivo_bloqueio?: string | null;
   ativo: boolean;
