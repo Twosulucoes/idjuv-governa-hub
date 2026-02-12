@@ -520,6 +520,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
+    // During HMR/hot reload, context may temporarily be undefined
+    // Return a safe fallback instead of crashing
+    if (import.meta.hot) {
+      console.warn('[Auth] Context not found - likely HMR reload, returning safe defaults');
+      return {
+        user: null,
+        isLoading: true,
+        isAuthenticated: false,
+        isConfigured: true,
+        isSuperAdmin: false,
+        signIn: async () => ({ error: new Error('Context not ready') }),
+        signUp: async () => ({ error: new Error('Context not ready') }),
+        signOut: async () => {},
+        resetPassword: async () => ({ error: new Error('Context not ready') }),
+        updatePassword: async () => ({ error: new Error('Context not ready') }),
+        hasPermission: () => false,
+        hasAnyPermission: () => false,
+        hasAllPermissions: () => false,
+        getUserPermissions: () => [],
+        getPermissoesDetalhadas: () => [],
+        refreshUser: async () => {},
+        refreshPermissions: async () => {},
+      } as AuthContextType;
+    }
     throw new Error('useAuth deve ser usado dentro de um AuthProvider');
   }
   return context;
