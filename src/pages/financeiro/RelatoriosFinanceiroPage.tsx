@@ -1,3 +1,4 @@
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,6 +75,7 @@ const categorias = [...new Set(relatorios.map((r) => r.categoria))];
 
 export default function RelatoriosFinanceiroPage() {
   return (
+    <ModuleLayout module="financeiro">
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Relatórios Financeiros</h1>
@@ -121,5 +123,6 @@ export default function RelatoriosFinanceiroPage() {
         </div>
       ))}
     </div>
+    </ModuleLayout>
   );
 }
