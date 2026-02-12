@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ModuleLayout } from "@/components/layout";
+import LiquidacaoFormDialog from "@/components/financeiro/LiquidacaoFormDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ const statusLabels: Record<string, string> = {
 export default function LiquidacoesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
+  const [formOpen, setFormOpen] = useState(false);
   
   const { data: liquidacoes, isLoading } = useLiquidacoes();
 
@@ -61,7 +63,7 @@ export default function LiquidacoesPage() {
             Gestão de liquidações e atesto de despesas
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => setFormOpen(true)}>
           <Plus className="h-4 w-4" />
           Nova Liquidação
         </Button>
@@ -156,6 +158,7 @@ export default function LiquidacoesPage() {
         </CardContent>
       </Card>
     </div>
+    <LiquidacaoFormDialog open={formOpen} onOpenChange={setFormOpen} />
     </ModuleLayout>
   );
 }

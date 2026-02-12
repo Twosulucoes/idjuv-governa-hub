@@ -3,6 +3,7 @@
  */
 
 import { useState } from "react";
+import PagamentoFormDialog from "@/components/financeiro/PagamentoFormDialog";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ export default function PagamentosPage() {
   
   const [filtroStatus, setFiltroStatus] = useState(statusParam);
   const [busca, setBusca] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
   
   const { data: pagamentos, isLoading } = usePagamentos({ 
     status: filtroStatus && filtroStatus !== "todos" ? filtroStatus : undefined 
@@ -79,11 +81,9 @@ export default function PagamentosPage() {
               Gestão de ordens de pagamento
             </p>
           </div>
-          <Button asChild>
-            <Link to="/financeiro/pagamentos?acao=novo">
+          <Button onClick={() => setFormOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Novo Pagamento
-            </Link>
           </Button>
         </div>
 
@@ -237,6 +237,7 @@ export default function PagamentosPage() {
             </Table>
           </CardContent>
         </Card>
+        <PagamentoFormDialog open={formOpen} onOpenChange={setFormOpen} />
       </div>
     </ModuleLayout>
   );
