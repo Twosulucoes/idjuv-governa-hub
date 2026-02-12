@@ -226,8 +226,6 @@ export default function QDDPage() {
           // Build codigo_dotacao
           const codigoDotacao = `${row.natureza}.${row.fonte}.${row.idu || 'Não'}`;
 
-          const valorAtual = row.atual || (row.inicial + (row.suplementado || 0) - (row.anulado || 0));
-
           const { error } = await supabase
             .from('fin_dotacoes')
             .insert({
@@ -244,7 +242,6 @@ export default function QDDPage() {
               valor_inicial: row.inicial || 0,
               valor_suplementado: row.suplementado || 0,
               valor_reduzido: row.anulado || 0,
-              valor_atual: valorAtual,
               valor_bloqueado: row.bloqueado || 0,
               valor_reserva: row.reserva || 0,
               valor_ped: row.ped || 0,
@@ -252,7 +249,6 @@ export default function QDDPage() {
               valor_liquidado: row.liquidado || 0,
               valor_em_liquidacao: row.em_liquidacao || 0,
               valor_pago: row.pago || 0,
-              saldo_disponivel: row.disponivel || (valorAtual - (row.empenhado || 0)),
               valor_restos_pagar: row.restos || 0,
               ativo: true,
             } as any);
