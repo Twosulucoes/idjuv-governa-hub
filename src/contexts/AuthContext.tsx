@@ -106,6 +106,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         check_user_id: userId
       });
 
+      console.log('[Auth] RPC permissoes resultado:', { permissoesData, error, userId });
+
       if (error) {
         console.error('[Auth] Erro ao buscar permissões:', error);
         return { permissions: [], permissoesDetalhadas: [], isSuperAdmin };
@@ -115,6 +117,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const permissions: PermissionCode[] = permissoesDetalhadas
         .map(p => p.funcao_codigo)
         .filter(Boolean);
+      
+      console.log('[Auth] Permissões carregadas:', permissions);
 
       return { permissions, permissoesDetalhadas, isSuperAdmin };
     } catch (error) {
