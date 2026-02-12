@@ -8603,72 +8603,102 @@ export type Database = {
           acao_id: string | null
           ativo: boolean | null
           bloqueado: boolean | null
+          cod_acompanhamento: string | null
           codigo_dotacao: string
           created_at: string | null
           created_by: string | null
           exercicio: number
           fonte_recurso_id: string | null
           id: string
+          idu: string | null
           motivo_bloqueio: string | null
           natureza_despesa_id: string | null
+          paoe: string | null
           programa_id: string | null
+          regional: string | null
           saldo_disponivel: number | null
+          tro: string | null
           unidade_orcamentaria_id: string | null
           updated_at: string | null
           valor_atual: number | null
+          valor_bloqueado: number | null
+          valor_em_liquidacao: number | null
           valor_empenhado: number | null
           valor_inicial: number
           valor_liquidado: number | null
           valor_pago: number | null
+          valor_ped: number | null
           valor_reduzido: number | null
+          valor_reserva: number | null
+          valor_restos_pagar: number | null
           valor_suplementado: number | null
         }
         Insert: {
           acao_id?: string | null
           ativo?: boolean | null
           bloqueado?: boolean | null
+          cod_acompanhamento?: string | null
           codigo_dotacao: string
           created_at?: string | null
           created_by?: string | null
           exercicio: number
           fonte_recurso_id?: string | null
           id?: string
+          idu?: string | null
           motivo_bloqueio?: string | null
           natureza_despesa_id?: string | null
+          paoe?: string | null
           programa_id?: string | null
+          regional?: string | null
           saldo_disponivel?: number | null
+          tro?: string | null
           unidade_orcamentaria_id?: string | null
           updated_at?: string | null
           valor_atual?: number | null
+          valor_bloqueado?: number | null
+          valor_em_liquidacao?: number | null
           valor_empenhado?: number | null
           valor_inicial?: number
           valor_liquidado?: number | null
           valor_pago?: number | null
+          valor_ped?: number | null
           valor_reduzido?: number | null
+          valor_reserva?: number | null
+          valor_restos_pagar?: number | null
           valor_suplementado?: number | null
         }
         Update: {
           acao_id?: string | null
           ativo?: boolean | null
           bloqueado?: boolean | null
+          cod_acompanhamento?: string | null
           codigo_dotacao?: string
           created_at?: string | null
           created_by?: string | null
           exercicio?: number
           fonte_recurso_id?: string | null
           id?: string
+          idu?: string | null
           motivo_bloqueio?: string | null
           natureza_despesa_id?: string | null
+          paoe?: string | null
           programa_id?: string | null
+          regional?: string | null
           saldo_disponivel?: number | null
+          tro?: string | null
           unidade_orcamentaria_id?: string | null
           updated_at?: string | null
           valor_atual?: number | null
+          valor_bloqueado?: number | null
+          valor_em_liquidacao?: number | null
           valor_empenhado?: number | null
           valor_inicial?: number
           valor_liquidado?: number | null
           valor_pago?: number | null
+          valor_ped?: number | null
           valor_reduzido?: number | null
+          valor_reserva?: number | null
+          valor_restos_pagar?: number | null
           valor_suplementado?: number | null
         }
         Relationships: [
