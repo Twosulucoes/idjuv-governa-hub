@@ -306,6 +306,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "auditoria", label: "Auditoria", icon: Shield, route: "/admin/auditoria" },
       { id: "banco-dados", label: "Banco de Dados", icon: Database, route: "/admin/database" },
       { id: "backup", label: "Backup", icon: Archive, route: "/admin/backup" },
+      { id: "modulos", label: "Gestão de Módulos", icon: Package, route: "/admin/modulos" },
       { id: "ajuda", label: "Ajuda", icon: HelpCircle, route: "/admin/ajuda" },
     ],
   },

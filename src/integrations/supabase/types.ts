@@ -12930,6 +12930,42 @@ export type Database = {
         }
         Relationships: []
       }
+      module_settings: {
+        Row: {
+          description: string | null
+          display_name: string | null
+          enabled: boolean
+          features: Json | null
+          id: string
+          module_code: string
+          settings: Json | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          description?: string | null
+          display_name?: string | null
+          enabled?: boolean
+          features?: Json | null
+          id?: string
+          module_code: string
+          settings?: Json | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          description?: string | null
+          display_name?: string | null
+          enabled?: boolean
+          features?: Json | null
+          id?: string
+          module_code?: string
+          settings?: Json | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       movimentacoes_bem: {
         Row: {
           bem_id: string

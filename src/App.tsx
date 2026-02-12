@@ -154,6 +154,7 @@ import CalibradorSegadPage from "./pages/admin/CalibradorSegadPage";
 import CentralRelatoriosPage from "./pages/admin/CentralRelatoriosPage";
 import SobreSistemaPage from "./pages/admin/SobreSistemaPage";
 import GerenciadorPaginasPage from "./pages/admin/GerenciadorPaginasPage";
+import GestaoModulosPage from "./pages/admin/GestaoModulosPage";
 
 // ASCOM / Comunicação
 import GestaoDemandasAscomPage from "./pages/ascom/GestaoDemandasAscomPage";
@@ -436,6 +437,7 @@ const App = () => (
               <Route path="/admin/relatorio" element={<ProtectedRoute><RelatorioAdminPage /></ProtectedRoute>} />
               <Route path="/admin/central-relatorios" element={<ProtectedRoute><CentralRelatoriosPage /></ProtectedRoute>} />
               <Route path="/admin/sobre" element={<ProtectedRoute><SobreSistemaPage /></ProtectedRoute>} />
+              <Route path="/admin/modulos" element={<ProtectedRoute><GestaoModulosPage /></ProtectedRoute>} />
               <Route path="/acesso" element={<ProtectedRoute><ControleAcessoAdminPage /></ProtectedRoute>} />
               
               {/* Com permissões mapeadas em ROUTE_PERMISSIONS */}
