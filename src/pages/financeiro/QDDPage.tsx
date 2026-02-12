@@ -8,6 +8,7 @@
  */
 
 import { useState, useMemo, useCallback } from "react";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -334,6 +335,7 @@ export default function QDDPage() {
   }
 
   return (
+    <ModuleLayout module="financeiro">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -618,5 +620,6 @@ export default function QDDPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </ModuleLayout>
   );
 }

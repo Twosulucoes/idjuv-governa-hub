@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ export default function ContasBancariasPage() {
   const saldoTotal = contas?.reduce((acc, conta) => acc + (conta.saldo_atual || 0), 0) || 0;
 
   return (
+    <ModuleLayout module="financeiro">
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -158,5 +160,6 @@ export default function ContasBancariasPage() {
         </CardContent>
       </Card>
     </div>
+    </ModuleLayout>
   );
 }
