@@ -135,6 +135,39 @@ export default function GestaoModulosPage() {
     }
   };
 
+  // Toggle a feature within a module (add/remove from disabled list)
+  const toggleFeature = async (moduleCode: string, featureId: string, disable: boolean) => {
+    const current = moduleSettings.find(m => m.module_code === moduleCode);
+    const currentFeatures: string[] = Array.isArray(current?.features) ? current.features as string[] : [];
+    
+    const newFeatures = disable
+      ? [...currentFeatures.filter(f => f !== featureId), featureId]
+      : currentFeatures.filter(f => f !== featureId);
+
+    setSaving(moduleCode);
+    try {
+      const { error } = await supabase
+        .from('module_settings')
+        .update({ features: newFeatures } as any)
+        .eq('module_code', moduleCode);
+
+      if (error) throw error;
+
+      setModuleSettings(prev =>
+        prev.map(m => m.module_code === moduleCode ? { ...m, features: newFeatures } : m)
+      );
+
+      toast({
+        title: disable ? "Funcionalidade desativada" : "Funcionalidade ativada",
+        description: `Alteração salva com sucesso.`,
+      });
+    } catch (error: any) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } finally {
+      setSaving(null);
+    }
+  };
+
   // Save module description
   const saveDescription = async (moduleCode: string) => {
     setSaving(moduleCode);
@@ -413,20 +446,58 @@ export default function GestaoModulosPage() {
                         <Settings className="h-4 w-4" />
                         Funcionalidades ({selectedMenu?.items.length || 0})
                       </h4>
-                      <div className="space-y-1.5">
+                      <p className="text-xs text-muted-foreground">
+                        Ative ou desative funcionalidades individuais. Itens desativados não aparecerão no menu lateral.
+                      </p>
+                      <div className="space-y-1">
                         {selectedMenu?.items.map(item => {
                           const ItemIcon = item.icon;
+                          const disabledFeatures: string[] = Array.isArray(selectedSettings?.features) ? selectedSettings.features as string[] : [];
+                          const isDisabled = disabledFeatures.includes(item.id);
                           return (
-                            <div key={item.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 text-sm">
-                              <ItemIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium">{item.label}</p>
-                                <p className="text-xs text-muted-foreground font-mono truncate">{item.route}</p>
+                            <div key={item.id}>
+                              <div className={cn(
+                                "flex items-center gap-3 p-2.5 rounded-md text-sm border",
+                                isDisabled ? "opacity-50 border-dashed bg-muted/30" : "border-transparent hover:bg-muted/50"
+                              )}>
+                                <Switch
+                                  checked={!isDisabled}
+                                  onCheckedChange={(checked) => toggleFeature(selectedConfig.codigo, item.id, !checked)}
+                                  className="shrink-0"
+                                />
+                                <ItemIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium">{item.label}</p>
+                                  <p className="text-xs text-muted-foreground font-mono truncate">{item.route}</p>
+                                </div>
+                                {item.children && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    +{item.children.length} sub
+                                  </Badge>
+                                )}
                               </div>
-                              {item.children && (
-                                <Badge variant="secondary" className="text-xs">
-                                  +{item.children.length} sub
-                                </Badge>
+                              {/* Sub-items */}
+                              {item.children && !isDisabled && (
+                                <div className="ml-10 mt-1 space-y-1 border-l border-border pl-3">
+                                  {item.children.map(child => {
+                                    const ChildIcon = child.icon;
+                                    const isChildDisabled = disabledFeatures.includes(child.id);
+                                    return (
+                                      <div key={child.id} className={cn(
+                                        "flex items-center gap-3 p-2 rounded-md text-sm",
+                                        isChildDisabled ? "opacity-50" : "hover:bg-muted/50"
+                                      )}>
+                                        <Switch
+                                          checked={!isChildDisabled}
+                                          onCheckedChange={(checked) => toggleFeature(selectedConfig.codigo, child.id, !checked)}
+                                          className="shrink-0 scale-90"
+                                        />
+                                        <ChildIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                        <span className={cn("text-xs", isChildDisabled && "line-through")}>{child.label}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               )}
                             </div>
                           );

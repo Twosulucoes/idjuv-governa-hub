@@ -3,11 +3,12 @@
  * 
  * Sidebar específica de cada módulo com navegação contextual
  * Suporta colapso para maximizar área de conteúdo
+ * Filtra funcionalidades desabilitadas via module_settings
  * 
- * @version 2.0.0
+ * @version 2.1.0
  */
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ChevronDown, ChevronRight, ChevronLeft, LayoutDashboard, PanelLeftClose, PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { useModuleSettings } from "@/hooks/useModuleSettings";
 
 interface ModuleSidebarProps {
   module: Modulo;
@@ -32,6 +34,25 @@ export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse }:
   const location = useLocation();
   const menuConfig = MODULE_MENUS[module];
   const [openItems, setOpenItems] = useState<string[]>([]);
+  const { getDisabledFeatures } = useModuleSettings();
+
+  // Filter out disabled features
+  const filteredItems = useMemo(() => {
+    const disabled = getDisabledFeatures(module);
+    if (disabled.length === 0) return menuConfig?.items || [];
+    
+    return (menuConfig?.items || [])
+      .filter(item => !disabled.includes(item.id))
+      .map(item => {
+        if (item.children) {
+          return {
+            ...item,
+            children: item.children.filter(child => !disabled.includes(child.id)),
+          };
+        }
+        return item;
+      });
+  }, [menuConfig, module, getDisabledFeatures]);
 
   if (!menuConfig) {
     return null;
@@ -178,7 +199,7 @@ export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse }:
             <div className="h-px w-6 bg-border my-2" />
 
             {/* Menu items */}
-            {menuConfig.items.map((item) => renderCollapsedMenuItem(item))}
+            {filteredItems.map((item) => renderCollapsedMenuItem(item))}
           </div>
         </ScrollArea>
       </aside>
@@ -224,7 +245,7 @@ export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse }:
           <div className="h-px bg-border my-2" />
 
           {/* Menu items */}
-          {menuConfig.items.map((item) => renderExpandedMenuItem(item))}
+          {filteredItems.map((item) => renderExpandedMenuItem(item))}
         </div>
       </ScrollArea>
     </aside>
