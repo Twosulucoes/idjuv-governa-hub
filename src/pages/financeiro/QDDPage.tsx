@@ -50,6 +50,7 @@ import {
   TrendingUp,
   DollarSign,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { formatCurrency } from "@/lib/formatters";
 import { useDotacoes } from "@/hooks/useFinanceiro";
 import { supabase } from "@/integrations/supabase/client";
@@ -362,6 +363,11 @@ export default function QDDPage() {
           <Button variant="outline" size="sm" onClick={exportToXLSX}>
             <Download className="h-4 w-4 mr-2" />
             Exportar
+          </Button>
+          <Button size="sm" asChild>
+            <Link to="/financeiro/alteracoes-orcamentarias">
+              Alterações Orçamentárias
+            </Link>
           </Button>
         </div>
       </div>

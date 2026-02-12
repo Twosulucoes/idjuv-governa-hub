@@ -49,6 +49,7 @@ import {
   type LucideIcon,
   FolderOpen,
   Smartphone,
+  ArrowRightLeft,
 } from "lucide-react";
 import type { Modulo } from "@/shared/config/modules.config";
 
@@ -121,6 +122,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     items: [
       { id: "qdd", label: "QDD - Detalhamento", icon: FileText, route: "/financeiro/qdd" },
       { id: "orcamento", label: "Orçamento", icon: Wallet, route: "/financeiro/orcamento" },
+      { id: "alteracoes", label: "Alterações Orçamentárias", icon: ArrowRightLeft, route: "/financeiro/alteracoes-orcamentarias" },
       { id: "empenhos", label: "Empenhos", icon: FileText, route: "/financeiro/empenhos" },
       { id: "liquidacoes", label: "Liquidações", icon: FileCheck, route: "/financeiro/liquidacoes" },
       { id: "pagamentos", label: "Pagamentos", icon: Receipt, route: "/financeiro/pagamentos" },

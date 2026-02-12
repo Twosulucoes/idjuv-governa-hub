@@ -208,6 +208,7 @@ import {
   RelatoriosFinanceiroPage,
   PlaceholderDetalheFinanceiroPage,
   QDDPage,
+  AlteracoesOrcamentariasPage,
 } from "./pages/financeiro";
 
 // Inventário e Patrimônio
@@ -1081,6 +1082,11 @@ const App = () => (
               <Route path="/financeiro/qdd" element={
                 <ProtectedRoute requiredPermissions="orcamento.visualizar">
                   <QDDPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/alteracoes-orcamentarias" element={
+                <ProtectedRoute requiredPermissions="orcamento.criar">
+                  <AlteracoesOrcamentariasPage />
                 </ProtectedRoute>
               } />
               <Route path="/financeiro/solicitacoes" element={
