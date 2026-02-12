@@ -3,6 +3,7 @@
  */
 
 import { useState } from "react";
+import EmpenhoFormDialog from "@/components/financeiro/EmpenhoFormDialog";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ export default function EmpenhosPage() {
   
   const [filtroStatus, setFiltroStatus] = useState(statusParam);
   const [busca, setBusca] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
   
   const { data: empenhos, isLoading } = useEmpenhos({ 
     status: filtroStatus && filtroStatus !== "todos" ? filtroStatus : undefined 
@@ -73,11 +75,9 @@ export default function EmpenhosPage() {
               Gestão de notas de empenho
             </p>
           </div>
-          <Button asChild>
-            <Link to="/financeiro/empenhos?acao=novo">
+          <Button onClick={() => setFormOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Novo Empenho
-            </Link>
           </Button>
         </div>
 
@@ -206,6 +206,7 @@ export default function EmpenhosPage() {
             </Table>
           </CardContent>
         </Card>
+        <EmpenhoFormDialog open={formOpen} onOpenChange={setFormOpen} />
       </div>
     </ModuleLayout>
   );
