@@ -749,6 +749,16 @@ export const TIPO_EMPENHO_LABELS: Record<TipoEmpenho, string> = {
   global: 'Global',
 };
 
+export const TIPO_ALTERACAO_LABELS: Record<TipoAlteracaoOrcamentaria, string> = {
+  suplementacao: 'Suplementação',
+  reducao: 'Redução',
+  remanejamento: 'Remanejamento',
+  transposicao: 'Transposição',
+  transferencia: 'Transferência',
+  credito_especial: 'Crédito Especial',
+  credito_extraordinario: 'Crédito Extraordinário',
+};
+
 export const TIPO_RECEITA_LABELS: Record<TipoReceita, string> = {
   repasse_tesouro: 'Repasse do Tesouro',
   convenio: 'Convênio',

@@ -10,3 +10,4 @@ export { default as OrcamentoPage } from "./OrcamentoPage";
 export { default as RelatoriosFinanceiroPage } from "./RelatoriosFinanceiroPage";
 export { default as PlaceholderDetalheFinanceiroPage } from "./PlaceholderDetalheFinanceiroPage";
 export { default as QDDPage } from "./QDDPage";
+export { default as AlteracoesOrcamentariasPage } from "./AlteracoesOrcamentariasPage";
