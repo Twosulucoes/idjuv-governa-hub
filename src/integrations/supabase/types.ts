@@ -12960,6 +12960,42 @@ export type Database = {
         }
         Relationships: []
       }
+      module_permissions_catalog: {
+        Row: {
+          action_type: string
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          label: string
+          module_code: string
+          permission_code: string
+          sort_order: number | null
+        }
+        Insert: {
+          action_type?: string
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          label: string
+          module_code: string
+          permission_code: string
+          sort_order?: number | null
+        }
+        Update: {
+          action_type?: string
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          label?: string
+          module_code?: string
+          permission_code?: string
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
       module_settings: {
         Row: {
           description: string | null
@@ -18580,6 +18616,7 @@ export type Database = {
           created_by: string | null
           id: string
           module: Database["public"]["Enums"]["app_module"]
+          permissions: string[] | null
           user_id: string
         }
         Insert: {
@@ -18587,6 +18624,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           module: Database["public"]["Enums"]["app_module"]
+          permissions?: string[] | null
           user_id: string
         }
         Update: {
@@ -18594,6 +18632,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           module?: Database["public"]["Enums"]["app_module"]
+          permissions?: string[] | null
           user_id?: string
         }
         Relationships: []

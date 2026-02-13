@@ -12,6 +12,7 @@ import { ModuleLayout } from "@/components/layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { MODULES_CONFIG, MODULO_COR_CLASSES, type Modulo } from "@/shared/config/modules.config";
+import ModulePermissionsManager from "@/components/admin/ModulePermissionsManager";
 import { MODULE_MENUS } from "@/config/module-menus.config";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -21,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -381,145 +383,169 @@ export default function GestaoModulosPage() {
                   </div>
                 </DialogHeader>
 
-                <ScrollArea className="max-h-[60vh]">
-                  <div className="space-y-6 pr-4">
-                    {/* Status */}
-                    <div className="flex items-center justify-between p-3 rounded-lg border">
-                      <div className="flex items-center gap-2">
-                        {selectedSettings.enabled ? (
-                          <Power className="h-4 w-4 text-primary" />
-                        ) : (
-                          <PowerOff className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        <span className="font-medium text-sm">
-                          {selectedSettings.enabled ? "Módulo Ativo" : "Módulo Inativo"}
-                        </span>
-                      </div>
-                      <Switch
-                        checked={selectedSettings.enabled}
-                        onCheckedChange={(checked) => toggleModule(selectedConfig.codigo, checked)}
-                        disabled={selectedConfig.codigo === 'admin'}
-                      />
-                    </div>
+                <Tabs defaultValue="config" className="mt-2">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="config">
+                      <Settings className="h-4 w-4 mr-2" />
+                      Configuração
+                    </TabsTrigger>
+                    <TabsTrigger value="permissions">
+                      <Users className="h-4 w-4 mr-2" />
+                      Permissões
+                    </TabsTrigger>
+                  </TabsList>
 
-                    {/* Description Edit */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Descrição</label>
-                      <Textarea
-                        value={editDescription}
-                        onChange={(e) => setEditDescription(e.target.value)}
-                        placeholder="Descrição do módulo..."
-                        rows={2}
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => saveDescription(selectedConfig.codigo)}
-                        disabled={saving === selectedConfig.codigo}
-                      >
-                        <Save className="h-4 w-4 mr-2" />
-                        Salvar Descrição
-                      </Button>
-                    </div>
+                  <TabsContent value="config">
+                    <ScrollArea className="max-h-[55vh]">
+                      <div className="space-y-6 pr-4">
+                        {/* Status */}
+                        <div className="flex items-center justify-between p-3 rounded-lg border">
+                          <div className="flex items-center gap-2">
+                            {selectedSettings.enabled ? (
+                              <Power className="h-4 w-4 text-primary" />
+                            ) : (
+                              <PowerOff className="h-4 w-4 text-muted-foreground" />
+                            )}
+                            <span className="font-medium text-sm">
+                              {selectedSettings.enabled ? "Módulo Ativo" : "Módulo Inativo"}
+                            </span>
+                          </div>
+                          <Switch
+                            checked={selectedSettings.enabled}
+                            onCheckedChange={(checked) => toggleModule(selectedConfig.codigo, checked)}
+                            disabled={selectedConfig.codigo === 'admin'}
+                          />
+                        </div>
 
-                    <Separator />
+                        {/* Description Edit */}
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Descrição</label>
+                          <Textarea
+                            value={editDescription}
+                            onChange={(e) => setEditDescription(e.target.value)}
+                            placeholder="Descrição do módulo..."
+                            rows={2}
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => saveDescription(selectedConfig.codigo)}
+                            disabled={saving === selectedConfig.codigo}
+                          >
+                            <Save className="h-4 w-4 mr-2" />
+                            Salvar Descrição
+                          </Button>
+                        </div>
 
-                    {/* Routes */}
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium flex items-center gap-2">
-                        <Eye className="h-4 w-4" />
-                        Rotas do Módulo
-                      </h4>
-                      <div className="flex flex-wrap gap-1.5">
-                        {selectedConfig.rotas.map(rota => (
-                          <Badge key={rota} variant="outline" className="text-xs font-mono">
-                            {rota}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
+                        <Separator />
 
-                    <Separator />
+                        {/* Routes */}
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-medium flex items-center gap-2">
+                            <Eye className="h-4 w-4" />
+                            Rotas do Módulo
+                          </h4>
+                          <div className="flex flex-wrap gap-1.5">
+                            {selectedConfig.rotas.map(rota => (
+                              <Badge key={rota} variant="outline" className="text-xs font-mono">
+                                {rota}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
 
-                    {/* Features / Menu Items */}
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium flex items-center gap-2">
-                        <Settings className="h-4 w-4" />
-                        Funcionalidades ({selectedMenu?.items.length || 0})
-                      </h4>
-                      <p className="text-xs text-muted-foreground">
-                        Ative ou desative funcionalidades individuais. Itens desativados não aparecerão no menu lateral.
-                      </p>
-                      <div className="space-y-1">
-                        {selectedMenu?.items.map(item => {
-                          const ItemIcon = item.icon;
-                          const disabledFeatures: string[] = Array.isArray(selectedSettings?.features) ? selectedSettings.features as string[] : [];
-                          const isDisabled = disabledFeatures.includes(item.id);
-                          return (
-                            <div key={item.id}>
-                              <div className={cn(
-                                "flex items-center gap-3 p-2.5 rounded-md text-sm border",
-                                isDisabled ? "opacity-50 border-dashed bg-muted/30" : "border-transparent hover:bg-muted/50"
-                              )}>
-                                <Switch
-                                  checked={!isDisabled}
-                                  onCheckedChange={(checked) => toggleFeature(selectedConfig.codigo, item.id, !checked)}
-                                  className="shrink-0"
-                                />
-                                <ItemIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium">{item.label}</p>
-                                  <p className="text-xs text-muted-foreground font-mono truncate">{item.route}</p>
+                        <Separator />
+
+                        {/* Features / Menu Items */}
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-medium flex items-center gap-2">
+                            <Settings className="h-4 w-4" />
+                            Funcionalidades ({selectedMenu?.items.length || 0})
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            Ative ou desative funcionalidades individuais. Itens desativados não aparecerão no menu lateral.
+                          </p>
+                          <div className="space-y-1">
+                            {selectedMenu?.items.map(item => {
+                              const ItemIcon = item.icon;
+                              const disabledFeatures: string[] = Array.isArray(selectedSettings?.features) ? selectedSettings.features as string[] : [];
+                              const isDisabled = disabledFeatures.includes(item.id);
+                              return (
+                                <div key={item.id}>
+                                  <div className={cn(
+                                    "flex items-center gap-3 p-2.5 rounded-md text-sm border",
+                                    isDisabled ? "opacity-50 border-dashed bg-muted/30" : "border-transparent hover:bg-muted/50"
+                                  )}>
+                                    <Switch
+                                      checked={!isDisabled}
+                                      onCheckedChange={(checked) => toggleFeature(selectedConfig.codigo, item.id, !checked)}
+                                      className="shrink-0"
+                                    />
+                                    <ItemIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-medium">{item.label}</p>
+                                      <p className="text-xs text-muted-foreground font-mono truncate">{item.route}</p>
+                                    </div>
+                                    {item.children && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        +{item.children.length} sub
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {item.children && !isDisabled && (
+                                    <div className="ml-10 mt-1 space-y-1 border-l border-border pl-3">
+                                      {item.children.map(child => {
+                                        const ChildIcon = child.icon;
+                                        const isChildDisabled = disabledFeatures.includes(child.id);
+                                        return (
+                                          <div key={child.id} className={cn(
+                                            "flex items-center gap-3 p-2 rounded-md text-sm",
+                                            isChildDisabled ? "opacity-50" : "hover:bg-muted/50"
+                                          )}>
+                                            <Switch
+                                              checked={!isChildDisabled}
+                                              onCheckedChange={(checked) => toggleFeature(selectedConfig.codigo, child.id, !checked)}
+                                              className="shrink-0 scale-90"
+                                            />
+                                            <ChildIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                            <span className={cn("text-xs", isChildDisabled && "line-through")}>{child.label}</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
                                 </div>
-                                {item.children && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    +{item.children.length} sub
-                                  </Badge>
-                                )}
-                              </div>
-                              {/* Sub-items */}
-                              {item.children && !isDisabled && (
-                                <div className="ml-10 mt-1 space-y-1 border-l border-border pl-3">
-                                  {item.children.map(child => {
-                                    const ChildIcon = child.icon;
-                                    const isChildDisabled = disabledFeatures.includes(child.id);
-                                    return (
-                                      <div key={child.id} className={cn(
-                                        "flex items-center gap-3 p-2 rounded-md text-sm",
-                                        isChildDisabled ? "opacity-50" : "hover:bg-muted/50"
-                                      )}>
-                                        <Switch
-                                          checked={!isChildDisabled}
-                                          onCheckedChange={(checked) => toggleFeature(selectedConfig.codigo, child.id, !checked)}
-                                          className="shrink-0 scale-90"
-                                        />
-                                        <ChildIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                        <span className={cn("text-xs", isChildDisabled && "line-through")}>{child.label}</span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Users */}
+                        <Separator />
+                        <div className="flex items-center gap-2 text-sm">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-muted-foreground">
+                            {getUserCount(selectedConfig.codigo)} usuário(s) com acesso a este módulo
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-muted-foreground">
+                          Última atualização: {new Date(selectedSettings.updated_at).toLocaleString('pt-BR')}
+                        </p>
                       </div>
-                    </div>
+                    </ScrollArea>
+                  </TabsContent>
 
-                    {/* Users */}
-                    <Separator />
-                    <div className="flex items-center gap-2 text-sm">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">
-                        {getUserCount(selectedConfig.codigo)} usuário(s) com acesso a este módulo
-                      </span>
-                    </div>
-
-                    {/* Last update */}
-                    <p className="text-xs text-muted-foreground">
-                      Última atualização: {new Date(selectedSettings.updated_at).toLocaleString('pt-BR')}
-                    </p>
-                  </div>
-                </ScrollArea>
+                  <TabsContent value="permissions">
+                    <ScrollArea className="max-h-[55vh]">
+                      <div className="pr-4">
+                        <ModulePermissionsManager
+                          moduleCode={selectedConfig.codigo}
+                          moduleName={selectedConfig.nome}
+                        />
+                      </div>
+                    </ScrollArea>
+                  </TabsContent>
+                </Tabs>
               </>
             )}
           </DialogContent>
