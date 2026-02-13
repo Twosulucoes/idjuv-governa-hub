@@ -251,7 +251,7 @@ export default function ExportacaoPlanilhaPage() {
   };
 
   return (
-    <ProtectedRoute allowedRoles={["admin", "rh"]}>
+    <ProtectedRoute requiredModule="rh">
       <ModuleLayout module="rh">
         <div className="space-y-4">
           {/* Header */}

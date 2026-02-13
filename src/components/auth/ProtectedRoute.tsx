@@ -1,69 +1,59 @@
 // ============================================
-// COMPONENTE DE ROTA PROTEGIDA - FASE 7
+// COMPONENTE DE ROTA PROTEGIDA - RBAC 2026
 // ============================================
-// Baseado EXCLUSIVAMENTE em permissões do banco (RBAC)
-// Mantém compatibilidade com allowedRoles para migração gradual
-// Sistema de módulos removido - usar apenas perfis/permissões
+// Verificação em 3 níveis:
+// 1. Autenticação (sessão válida)
+// 2. Módulo (user_modules) - via requiredModule
+// 3. Permissão granular (listar_permissoes_usuario) - via requiredPermissions
+// Super Admin (role=admin) tem bypass total
 
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { PermissionCode, ROUTE_PERMISSIONS, AppRole } from '@/types/auth';
+import { PermissionCode, ROUTE_PERMISSIONS } from '@/types/auth';
 import { useModulosUsuario } from '@/hooks/useModulosUsuario';
+import type { Modulo } from '@/shared/config/modules.config';
+import type { AppRole } from '@/types/rbac';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   
-  /**
-   * Requer autenticação (default: true)
-   */
+  /** Requer autenticação (default: true) */
   requireAuth?: boolean;
   
-  /**
-   * Roles permitidos - verificados diretamente contra o role do usuário no banco
-   */
+  /** Módulo requerido - verificado contra user_modules */
+  requiredModule?: Modulo;
+  
+  /** Roles permitidos - verificados contra user_roles */
   allowedRoles?: AppRole | AppRole[];
   
-  /**
-   * Permissões requeridas para acessar a rota
-   */
+  /** Permissões granulares requeridas */
   requiredPermissions?: PermissionCode | PermissionCode[];
   
-  /**
-   * Modo de verificação de permissões: 'any' ou 'all'
-   */
+  /** Modo de verificação: 'any' ou 'all' */
   permissionMode?: 'any' | 'all';
   
-  /**
-   * Página de redirecionamento quando não autenticado
-   */
+  /** Página de redirecionamento quando não autenticado */
   loginPath?: string;
   
-  /**
-   * Página de redirecionamento quando sem permissão
-   */
+  /** Página de redirecionamento quando sem permissão */
   accessDeniedPath?: string;
   
-  /**
-   * Componente personalizado de loading
-   */
+  /** Componente personalizado de loading */
   loadingComponent?: React.ReactNode;
   
-  /**
-   * Callback quando acesso negado (antes do redirect)
-   */
+  /** Callback quando acesso negado */
   onAccessDenied?: () => void;
   
-  /**
-   * Se true, usa o mapeamento automático de rota para permissão
-   */
+  /** Se true, usa o mapeamento automático de rota para permissão */
   useRouteMapping?: boolean;
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requireAuth = true,
+  requiredModule,
   allowedRoles,
   requiredPermissions,
   permissionMode = 'any',
@@ -81,13 +71,16 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     hasAnyPermission, 
     hasAllPermissions 
   } = useAuth();
-  const { role: userRole, loading: roleLoading } = useModulosUsuario();
+  const { 
+    role: userRole, 
+    loading: roleLoading, 
+    temAcessoModulo 
+  } = useModulosUsuario();
   const location = useLocation();
 
   // ============================================
   // LOADING STATE
   // ============================================
-
   if (isLoading || roleLoading) {
     return loadingComponent || (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -100,41 +93,48 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // ============================================
-  // VERIFICAÇÃO DE AUTENTICAÇÃO
+  // 1. VERIFICAÇÃO DE AUTENTICAÇÃO
   // ============================================
-
   if (requireAuth && !isAuthenticated) {
     return <Navigate to={loginPath} state={{ from: location }} replace />;
   }
 
   // ============================================
-  // VERIFICAÇÃO DE TROCA OBRIGATÓRIA DE SENHA
+  // 2. TROCA OBRIGATÓRIA DE SENHA
   // ============================================
-
   if (user?.requiresPasswordChange && location.pathname !== '/trocar-senha-obrigatoria') {
     return <Navigate to="/trocar-senha-obrigatoria" replace />;
   }
 
-  // Super Admin tem acesso total
-  if (isSuperAdmin) {
+  // ============================================
+  // 3. SUPER ADMIN BYPASS (role=admin no banco)
+  // ============================================
+  if (isSuperAdmin || userRole === 'admin') {
     return <>{children}</>;
   }
 
   // ============================================
-  // VERIFICAÇÃO DE ROLES (comparação direta)
+  // 4. VERIFICAÇÃO DE MÓDULO (user_modules)
   // ============================================
+  if (requiredModule) {
+    if (!temAcessoModulo(requiredModule)) {
+      onAccessDenied?.();
+      return <Navigate to={accessDeniedPath} state={{ from: location }} replace />;
+    }
+  }
 
+  // ============================================
+  // 5. VERIFICAÇÃO DE ROLES (user_roles)
+  // ============================================
   if (allowedRoles) {
     const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
-    
-    // Verificar se o role do usuário está na lista permitida
     const hasRole = userRole && roles.includes(userRole as AppRole);
     
     if (hasRole) {
       return <>{children}</>;
     }
     
-    // Se não tem o role e não há permissões para verificar, negar acesso
+    // Se não tem o role e não há permissões para verificar, negar
     if (!requiredPermissions && !useRouteMapping) {
       onAccessDenied?.();
       return <Navigate to={accessDeniedPath} state={{ from: location }} replace />;
@@ -142,9 +142,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // ============================================
-  // VERIFICAÇÃO DE PERMISSÕES
+  // 6. VERIFICAÇÃO DE PERMISSÕES GRANULARES
   // ============================================
-
   let permissionsToCheck: PermissionCode[] = [];
 
   if (requiredPermissions) {
@@ -178,7 +177,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // ============================================
   // RENDERIZAR CHILDREN
   // ============================================
-
   return <>{children}</>;
 };
 

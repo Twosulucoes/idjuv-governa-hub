@@ -362,7 +362,7 @@ const App = () => (
               {/* ============================================ */}
               
               <Route path="/patrimonio-mobile" element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredModule="patrimonio_mobile">
                   <PatrimonioMobileUnificadoPage />
                 </ProtectedRoute>
               } />
@@ -387,42 +387,42 @@ const App = () => (
               {/* DASHBOARDS DE MÓDULOS */}
               {/* ============================================ */}
               
-              <Route path="/rh" element={<ProtectedRoute><RHDashboardPage /></ProtectedRoute>} />
-              <Route path="/financeiro" element={<ProtectedRoute><FinanceiroDashboardPage /></ProtectedRoute>} />
-              <Route path="/patrimonio" element={<ProtectedRoute><PatrimonioDashboardPage /></ProtectedRoute>} />
-              <Route path="/compras" element={<ProtectedRoute><ComprasDashboardPage /></ProtectedRoute>} />
-              <Route path="/contratos" element={<ProtectedRoute><ContratosDashboardPage /></ProtectedRoute>} />
-              <Route path="/workflow" element={<ProtectedRoute><WorkflowDashboardPage /></ProtectedRoute>} />
-              <Route path="/comunicacao" element={<ProtectedRoute><ComunicacaoDashboardPage /></ProtectedRoute>} />
+              <Route path="/rh" element={<ProtectedRoute requiredModule="rh"><RHDashboardPage /></ProtectedRoute>} />
+              <Route path="/financeiro" element={<ProtectedRoute requiredModule="financeiro"><FinanceiroDashboardPage /></ProtectedRoute>} />
+              <Route path="/patrimonio" element={<ProtectedRoute requiredModule="patrimonio"><PatrimonioDashboardPage /></ProtectedRoute>} />
+              <Route path="/compras" element={<ProtectedRoute requiredModule="compras"><ComprasDashboardPage /></ProtectedRoute>} />
+              <Route path="/contratos" element={<ProtectedRoute requiredModule="contratos"><ContratosDashboardPage /></ProtectedRoute>} />
+              <Route path="/workflow" element={<ProtectedRoute requiredModule="workflow"><WorkflowDashboardPage /></ProtectedRoute>} />
+              <Route path="/comunicacao" element={<ProtectedRoute requiredModule="comunicacao"><ComunicacaoDashboardPage /></ProtectedRoute>} />
               <Route path="/comunicacao/cms/conteudos" element={
-                <ProtectedRoute requiredPermissions="comunicacao.visualizar">
+                <ProtectedRoute requiredModule="comunicacao" requiredPermissions="comunicacao.visualizar">
                   <CMSConteudosPage />
                 </ProtectedRoute>
               } />
               <Route path="/comunicacao/cms/banners" element={
-                <ProtectedRoute requiredPermissions="comunicacao.visualizar">
+                <ProtectedRoute requiredModule="comunicacao" requiredPermissions="comunicacao.visualizar">
                   <CMSBannersPage />
                 </ProtectedRoute>
               } />
-              <Route path="/gestores-escolares" element={<ProtectedRoute><GestoresEscolaresDashboardPage /></ProtectedRoute>} />
-              <Route path="/gabinete" element={<ProtectedRoute><GabineteDashboardPage /></ProtectedRoute>} />
+              <Route path="/gestores-escolares" element={<ProtectedRoute requiredModule="gestores_escolares"><GestoresEscolaresDashboardPage /></ProtectedRoute>} />
+              <Route path="/gabinete" element={<ProtectedRoute requiredModule="gabinete"><GabineteDashboardPage /></ProtectedRoute>} />
               <Route path="/gabinete/portarias" element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredModule="gabinete">
                   <CentralPortariasPage />
                 </ProtectedRoute>
               } />
               <Route path="/gabinete/portarias/consulta" element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredModule="gabinete">
                   <CentralPortariasPage />
                 </ProtectedRoute>
               } />
               <Route path="/gabinete/pre-cadastros" element={
-                <ProtectedRoute allowedRoles={["manager", "admin"]}>
+                <ProtectedRoute requiredModule="gabinete" allowedRoles={["manager", "admin"]}>
                   <GestaoPreCadastrosPage />
                 </ProtectedRoute>
               } />
               <Route path="/gabinete/pre-cadastros/pendencias" element={
-                <ProtectedRoute allowedRoles={["manager", "admin"]}>
+                <ProtectedRoute requiredModule="gabinete" allowedRoles={["manager", "admin"]}>
                   <DiagnosticoPendenciasPage />
                 </ProtectedRoute>
               } />
@@ -432,15 +432,15 @@ const App = () => (
               {/* ============================================ */}
               
               {/* Apenas autenticação (sem mapeamento específico) */}
-              <Route path="/admin" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
-              <Route path="/admin/ajuda" element={<ProtectedRoute><AdminHelpPage /></ProtectedRoute>} />
-              <Route path="/admin/documentos" element={<ProtectedRoute><GestaoDocumentosPage /></ProtectedRoute>} />
-              <Route path="/admin/acesso" element={<ProtectedRoute><ControleAcessoAdminPage /></ProtectedRoute>} />
-              <Route path="/admin/relatorio" element={<ProtectedRoute><RelatorioAdminPage /></ProtectedRoute>} />
-              <Route path="/admin/central-relatorios" element={<ProtectedRoute><CentralRelatoriosPage /></ProtectedRoute>} />
-              <Route path="/admin/sobre" element={<ProtectedRoute><SobreSistemaPage /></ProtectedRoute>} />
-              <Route path="/admin/modulos" element={<ProtectedRoute><GestaoModulosPage /></ProtectedRoute>} />
-              <Route path="/acesso" element={<ProtectedRoute><ControleAcessoAdminPage /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute requiredModule="admin"><AdminDashboardPage /></ProtectedRoute>} />
+              <Route path="/admin/ajuda" element={<ProtectedRoute requiredModule="admin"><AdminHelpPage /></ProtectedRoute>} />
+              <Route path="/admin/documentos" element={<ProtectedRoute requiredModule="admin"><GestaoDocumentosPage /></ProtectedRoute>} />
+              <Route path="/admin/acesso" element={<ProtectedRoute requiredModule="admin"><ControleAcessoAdminPage /></ProtectedRoute>} />
+              <Route path="/admin/relatorio" element={<ProtectedRoute requiredModule="admin"><RelatorioAdminPage /></ProtectedRoute>} />
+              <Route path="/admin/central-relatorios" element={<ProtectedRoute requiredModule="admin"><CentralRelatoriosPage /></ProtectedRoute>} />
+              <Route path="/admin/sobre" element={<ProtectedRoute requiredModule="admin"><SobreSistemaPage /></ProtectedRoute>} />
+              <Route path="/admin/modulos" element={<ProtectedRoute requiredModule="admin"><GestaoModulosPage /></ProtectedRoute>} />
+              <Route path="/acesso" element={<ProtectedRoute requiredModule="admin"><ControleAcessoAdminPage /></ProtectedRoute>} />
               
               {/* Com permissões mapeadas em ROUTE_PERMISSIONS */}
               <Route path="/admin/usuarios" element={
@@ -614,11 +614,11 @@ const App = () => (
               {/* FEDERAÇÕES - Apenas autenticação */}
               {/* (rota real é /admin/federacoes, não /federacoes) */}
               {/* ============================================ */}
-              <Route path="/admin/federacoes" element={<ProtectedRoute><GestaoFederacoesPage /></ProtectedRoute>} />
-              <Route path="/admin/federacoes/:id" element={<ProtectedRoute><FederacaoDetalhePage /></ProtectedRoute>} />
+              <Route path="/admin/federacoes" element={<ProtectedRoute requiredModule="organizacoes"><GestaoFederacoesPage /></ProtectedRoute>} />
+              <Route path="/admin/federacoes/:id" element={<ProtectedRoute requiredModule="organizacoes"><FederacaoDetalhePage /></ProtectedRoute>} />
               
                {/* INSTITUIÇÕES */}
-               <Route path="/admin/instituicoes" element={<ProtectedRoute><GestaoInstituicoesPage /></ProtectedRoute>} />
+               <Route path="/admin/instituicoes" element={<ProtectedRoute requiredModule="organizacoes"><GestaoInstituicoesPage /></ProtectedRoute>} />
  
               {/* ============================================ */}
               {/* GOVERNANÇA - Com permissões mapeadas */}
@@ -665,8 +665,8 @@ const App = () => (
               {/* ORGANOGRAMA - Apenas autenticação */}
               {/* (rotas reais não batem com ROUTE_PERMISSIONS) */}
               {/* ============================================ */}
-              <Route path="/organograma" element={<ProtectedRoute><OrganogramaPage /></ProtectedRoute>} />
-              <Route path="/organograma/gestao" element={<ProtectedRoute><GestaoOrganogramaPage /></ProtectedRoute>} />
+              <Route path="/organograma" element={<ProtectedRoute requiredModule="governanca"><OrganogramaPage /></ProtectedRoute>} />
+              <Route path="/organograma/gestao" element={<ProtectedRoute requiredModule="governanca"><GestaoOrganogramaPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* CARGOS / LOTAÇÕES - Com permissões mapeadas */}
@@ -691,12 +691,12 @@ const App = () => (
               {/* UNIDADES LOCAIS - Apenas autenticação */}
               {/* (rotas reais não batem com ROUTE_PERMISSIONS) */}
               {/* ============================================ */}
-              <Route path="/unidades" element={<ProtectedRoute><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
-              <Route path="/unidades/gestao" element={<ProtectedRoute><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
-              <Route path="/unidades/relatorios" element={<ProtectedRoute><RelatoriosUnidadesLocaisPage /></ProtectedRoute>} />
-               <Route path="/unidades/central-relatorios" element={<ProtectedRoute><RelatoriosCentralPage /></ProtectedRoute>} />
-              <Route path="/unidades/cedencia" element={<ProtectedRoute><RelatoriosCedenciaPage /></ProtectedRoute>} />
-              <Route path="/unidades/:id" element={<ProtectedRoute><UnidadeDetalhePage /></ProtectedRoute>} />
+              <Route path="/unidades" element={<ProtectedRoute requiredModule="patrimonio"><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
+              <Route path="/unidades/gestao" element={<ProtectedRoute requiredModule="patrimonio"><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
+              <Route path="/unidades/relatorios" element={<ProtectedRoute requiredModule="patrimonio"><RelatoriosUnidadesLocaisPage /></ProtectedRoute>} />
+               <Route path="/unidades/central-relatorios" element={<ProtectedRoute requiredModule="patrimonio"><RelatoriosCentralPage /></ProtectedRoute>} />
+              <Route path="/unidades/cedencia" element={<ProtectedRoute requiredModule="patrimonio"><RelatoriosCedenciaPage /></ProtectedRoute>} />
+              <Route path="/unidades/:id" element={<ProtectedRoute requiredModule="patrimonio"><UnidadeDetalhePage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* RH - Com permissões mapeadas */}

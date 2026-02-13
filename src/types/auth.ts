@@ -372,47 +372,20 @@ export const ACCESS_SCOPE_LABELS: Record<AccessScope, string> = {
 };
 
 // ============================================
-// TIPOS LEGADOS (MANTER PARA COMPATIBILIDADE)
+// TIPOS LEGADOS (COMPATIBILIDADE)
 // ============================================
 // @deprecated - Usar PermissionCode em vez de AppPermission
 export type AppPermission = string;
 
-// @deprecated - Usar isSuperAdmin do AuthUser para verificar admin
-export type AppRole = 
-  | 'admin' 
-  | 'manager' 
-  | 'user' 
-  | 'guest'
-  | 'presidencia'
-  | 'diraf'
-  | 'rh'
-  | 'ti_admin'
-  | 'gabinete'
-  | 'controle_interno'
-  | 'juridico'
-  | 'cpl'
-  | 'ascom'
-  | 'cadastrador_local'
-  | 'cadastrador_setor'
-  | 'cadastrador_leitura';
+// @deprecated - Usar AppRole de @/types/rbac
+// Re-exportar para compatibilidade de imports existentes
+export type { AppRole } from '@/types/rbac';
+import type { AppRole } from '@/types/rbac';
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   admin: 'Administrador',
   manager: 'Gerente',
   user: 'Usuário',
-  guest: 'Convidado',
-  presidencia: 'Presidência',
-  diraf: 'DIRAF',
-  rh: 'Recursos Humanos',
-  ti_admin: 'TI - Administrador',
-  gabinete: 'Gabinete',
-  controle_interno: 'Controle Interno',
-  juridico: 'Jurídico',
-  cpl: 'CPL',
-  ascom: 'ASCOM',
-  cadastrador_local: 'Cadastrador Local',
-  cadastrador_setor: 'Cadastrador de Setor',
-  cadastrador_leitura: 'Cadastrador (Leitura)'
 };
 
 export const PERMISSION_LABELS: Record<string, string> = {
@@ -424,22 +397,9 @@ export const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
   admin: 'Acesso total ao sistema',
   manager: 'Acesso moderado com algumas restrições',
   user: 'Acesso básico',
-  guest: 'Acesso apenas leitura',
-  presidencia: 'Autorização máxima - pode aprovar e delegar',
-  diraf: 'Gestão administrativa e financeira',
-  rh: 'Gestão de recursos humanos',
-  ti_admin: 'Administração técnica do sistema',
-  gabinete: 'Chefia de gabinete',
-  controle_interno: 'Auditoria e controle interno',
-  juridico: 'Assessoria jurídica',
-  cpl: 'Comissão de licitação',
-  ascom: 'Assessoria de comunicação',
-  cadastrador_local: 'Cadastro na unidade local',
-  cadastrador_setor: 'Cadastro no setor',
-  cadastrador_leitura: 'Apenas visualização'
 };
-export const APPROVER_ROLES: AppRole[] = ['presidencia', 'admin'];
-export const ADMIN_ROLES: AppRole[] = ['admin', 'ti_admin', 'presidencia'];
+export const APPROVER_ROLES: AppRole[] = ['admin'];
+export const ADMIN_ROLES: AppRole[] = ['admin'];
 
 // ============================================
 // TIPOS PARA AUDITORIA E APROVAÇÕES
