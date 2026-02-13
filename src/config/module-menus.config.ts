@@ -313,6 +313,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "banco-dados", label: "Banco de Dados", icon: Database, route: "/admin/database" },
       { id: "backup", label: "Backup", icon: Archive, route: "/admin/backup" },
       { id: "modulos", label: "Gestão de Módulos", icon: Package, route: "/admin/modulos" },
+      { id: "permissoes", label: "Painel de Permissões", icon: Shield, route: "/admin/permissoes" },
       { id: "ajuda", label: "Ajuda", icon: HelpCircle, route: "/admin/ajuda" },
     ],
   },
