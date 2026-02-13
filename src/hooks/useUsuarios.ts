@@ -8,6 +8,28 @@ import { UsuarioSistema, TipoUsuario } from '@/types/usuario';
 import { Modulo, AppRole } from '@/types/rbac';
 import { toast } from 'sonner';
 
+// Helper: busca todas as permissões do catálogo para os módulos e retorna inserts com permissions preenchidas
+async function buildModuleInserts(userId: string, modulos: Modulo[]) {
+  if (modulos.length === 0) return [];
+
+  const { data: catalog } = await supabase
+    .from('module_permissions_catalog')
+    .select('module_code, permission_code')
+    .in('module_code', modulos as string[]);
+
+  const permsByModule = (catalog || []).reduce<Record<string, string[]>>((acc, c: any) => {
+    if (!acc[c.module_code]) acc[c.module_code] = [];
+    acc[c.module_code].push(c.permission_code);
+    return acc;
+  }, {});
+
+  return modulos.map(m => ({
+    user_id: userId,
+    module: m,
+    permissions: permsByModule[m] || [],
+  }));
+}
+
 export function useUsuarios() {
   const queryClient = useQueryClient();
 
@@ -165,7 +187,7 @@ export function useUsuarios() {
           .eq('user_id', userId);
 
         if (modulos.length > 0) {
-          const modulosInsert = modulos.map(m => ({ user_id: userId, module: m }));
+          const modulosInsert = await buildModuleInserts(userId, modulos);
           await supabase.from('user_modules').insert(modulosInsert as any);
         }
 
@@ -227,7 +249,7 @@ export function useUsuarios() {
               .eq('user_id', userId);
 
             if (modulos.length > 0) {
-              const modulosInsert = modulos.map(m => ({ user_id: userId, module: m }));
+              const modulosInsert = await buildModuleInserts(userId, modulos);
               await supabase.from('user_modules').insert(modulosInsert as any);
             }
 
@@ -245,9 +267,9 @@ export function useUsuarios() {
         .from('user_roles')
         .insert({ user_id: userId, role });
 
-      // Atribuir módulos
+      // Atribuir módulos com todas as permissões do catálogo
       if (modulos.length > 0) {
-        const modulosInsert = modulos.map(m => ({ user_id: userId, module: m }));
+        const modulosInsert = await buildModuleInserts(userId, modulos);
         await supabase.from('user_modules').insert(modulosInsert as any);
       }
 
