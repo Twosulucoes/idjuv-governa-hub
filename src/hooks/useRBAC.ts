@@ -193,9 +193,17 @@ export function useAdminRBAC(): UseAdminRBACReturn {
     setIsLoading(true);
     setError(null);
     try {
+      // Buscar todas as permissões do catálogo para o módulo
+      const { data: catalog } = await supabase
+        .from('module_permissions_catalog')
+        .select('permission_code')
+        .eq('module_code', module as string);
+
+      const permissions = (catalog || []).map((c: any) => c.permission_code);
+
       const { error } = await supabase
         .from('user_modules')
-        .insert({ user_id: userId, module } as any);
+        .insert({ user_id: userId, module, permissions } as any);
       
       if (error && !error.message.includes('duplicate')) throw error;
     } catch (err: any) {
@@ -235,11 +243,23 @@ export function useAdminRBAC(): UseAdminRBACReturn {
         .delete()
         .eq('user_id', userId);
       
-      // Inserir novos módulos
+      // Inserir novos módulos com todas as permissões do catálogo
       if (modules.length > 0) {
+        const { data: catalog } = await supabase
+          .from('module_permissions_catalog')
+          .select('module_code, permission_code')
+          .in('module_code', modules as string[]);
+
+        const permsByModule = (catalog || []).reduce<Record<string, string[]>>((acc, c: any) => {
+          if (!acc[c.module_code]) acc[c.module_code] = [];
+          acc[c.module_code].push(c.permission_code);
+          return acc;
+        }, {});
+
         const inserts = modules.map(module => ({
           user_id: userId,
-          module
+          module,
+          permissions: permsByModule[module] || [],
         }));
         
         const { error } = await supabase
