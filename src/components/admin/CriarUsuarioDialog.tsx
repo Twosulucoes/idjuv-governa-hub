@@ -283,7 +283,6 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
       await criarUsuarioTecnico.mutateAsync({
         email: tecnicoEmail,
         fullName: tecnicoNome,
-        role
       });
 
       toast({
@@ -603,8 +602,6 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
                       : `${selectedModulos.length} módulo(s) selecionado(s)`}
                   </p>
                 </div>
-              </div>
-            )}
               </div>
             )}
           </div>
