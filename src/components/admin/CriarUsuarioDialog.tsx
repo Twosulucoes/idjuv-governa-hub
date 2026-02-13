@@ -32,7 +32,7 @@ import {
   Briefcase,
   Users
 } from 'lucide-react';
-import { AppRole, Modulo, ROLE_LABELS, MODULOS, MODULO_LABELS } from '@/types/rbac';
+import { Modulo, MODULOS, MODULO_LABELS } from '@/types/rbac';
 
 interface CriarUsuarioDialogProps {
   open: boolean;
@@ -76,7 +76,6 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
   
   // Estados compartilhados
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<AppRole>('user');
   const [selectedModulos, setSelectedModulos] = useState<Modulo[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   
@@ -181,7 +180,7 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
     setTipoUsuario('servidor');
     setSelectedServidor(null);
     setEmail('');
-    setRole('user');
+    setEmail('');
     setSelectedModulos([]);
     setSearchTerm('');
     setSenhaGerada(null);
@@ -228,7 +227,6 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
       const resultado = await criarUsuarioParaServidor.mutateAsync({
         servidorId: selectedServidor.id,
         email,
-        role,
         modulos: selectedModulos
       });
 
@@ -575,59 +573,38 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
               </TabsContent>
             </Tabs>
 
-            {/* Configuração de Role e Módulos - Compartilhada */}
+            {/* Configuração de Módulos */}
             {(tipoUsuario === 'servidor' ? selectedServidor : (tecnicoNome && tecnicoEmail)) && (
               <div className="space-y-4 p-4 border rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <Shield className="h-4 w-4 text-primary" />
-                  <span className="font-medium">Permissões</span>
+                  <span className="font-medium">Módulos de acesso</span>
                 </div>
 
-                {/* Role */}
                 <div className="space-y-2">
-                  <Label>Nível de acesso</Label>
-                  <Select value={role} onValueChange={(v) => setRole(v as AppRole)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="user">{ROLE_LABELS.user}</SelectItem>
-                      <SelectItem value="manager">{ROLE_LABELS.manager}</SelectItem>
-                      <SelectItem value="admin">{ROLE_LABELS.admin}</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Selecione os módulos</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 border rounded-md">
+                    {(MODULOS as readonly Modulo[]).map((modulo) => (
+                      <div key={modulo} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`modulo-${modulo}`}
+                          checked={selectedModulos.includes(modulo)}
+                          onCheckedChange={() => toggleModulo(modulo)}
+                        />
+                        <label htmlFor={`modulo-${modulo}`} className="text-sm cursor-pointer">
+                          {MODULO_LABELS[modulo]}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    {role === 'admin' && 'Acesso total a todos os módulos'}
-                    {role === 'manager' && 'Pode aprovar processos e gerenciar equipes'}
-                    {role === 'user' && 'Acesso aos módulos selecionados abaixo'}
+                    {selectedModulos.length === 0 
+                      ? 'Nenhum módulo selecionado'
+                      : `${selectedModulos.length} módulo(s) selecionado(s)`}
                   </p>
                 </div>
-
-                {/* Módulos - só mostra se não for admin */}
-                {role !== 'admin' && tipoUsuario === 'servidor' && (
-                  <div className="space-y-2">
-                    <Label>Módulos de acesso</Label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 border rounded-md">
-                      {modulosDisponiveis.map((modulo) => (
-                        <div key={modulo} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`modulo-${modulo}`}
-                            checked={selectedModulos.includes(modulo)}
-                            onCheckedChange={() => toggleModulo(modulo)}
-                          />
-                          <label htmlFor={`modulo-${modulo}`} className="text-sm cursor-pointer">
-                            {MODULO_LABELS[modulo]}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedModulos.length === 0 
-                        ? 'Nenhum módulo selecionado'
-                        : `${selectedModulos.length} módulo(s) selecionado(s)`}
-                    </p>
-                  </div>
-                )}
+              </div>
+            )}
               </div>
             )}
           </div>

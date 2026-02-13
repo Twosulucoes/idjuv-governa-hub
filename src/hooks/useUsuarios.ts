@@ -5,7 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { UsuarioSistema, TipoUsuario } from '@/types/usuario';
-import { Modulo, AppRole } from '@/types/rbac';
+import { Modulo } from '@/types/rbac';
 import { toast } from 'sonner';
 
 // Helper: busca todas as permissões do catálogo para os módulos e retorna inserts com permissions preenchidas
@@ -136,12 +136,10 @@ export function useUsuarios() {
     mutationFn: async ({ 
       servidorId, 
       email, 
-      role = 'user',
       modulos = []
     }: { 
       servidorId: string; 
       email: string; 
-      role?: AppRole;
       modulos?: Modulo[];
     }): Promise<{ authData: any; senhaTemporaria: string | null; usuarioAtualizado?: boolean }> => {
       // Buscar dados do servidor
@@ -175,10 +173,7 @@ export function useUsuarios() {
           })
           .eq('id', userId);
 
-        // Upsert role
-        await supabase
-          .from('user_roles')
-          .upsert({ user_id: userId, role }, { onConflict: 'user_id' });
+        // Limpar módulos antigos e inserir novos
 
         // Limpar módulos antigos e inserir novos
         await supabase
@@ -239,9 +234,6 @@ export function useUsuarios() {
               })
               .eq('id', userId);
 
-            await supabase
-              .from('user_roles')
-              .upsert({ user_id: userId, role }, { onConflict: 'user_id' });
 
             await supabase
               .from('user_modules')
@@ -262,10 +254,6 @@ export function useUsuarios() {
       const userId = authData.user?.id;
       if (!userId) throw new Error('Erro ao obter ID do usuário criado');
 
-      // Atribuir role
-      await supabase
-        .from('user_roles')
-        .insert({ user_id: userId, role });
 
       // Atribuir módulos com todas as permissões do catálogo
       if (modulos.length > 0) {

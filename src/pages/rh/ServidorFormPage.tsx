@@ -630,7 +630,7 @@ export default function ServidorFormPage() {
 
   if (isEditing && isLoadingServidor) {
     return (
-      <ProtectedRoute allowedRoles={["admin"]}>
+      <ProtectedRoute requiredModule="rh">
         <ModuleLayout module="rh">
           <div className="flex items-center justify-center h-[60vh]">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -641,7 +641,7 @@ export default function ServidorFormPage() {
   }
 
   return (
-    <ProtectedRoute allowedRoles={["admin"]}>
+    <ProtectedRoute requiredModule="rh">
       <ModuleLayout module="rh">
         <div className="container mx-auto py-8 px-4 max-w-5xl">
 {/* Header */}

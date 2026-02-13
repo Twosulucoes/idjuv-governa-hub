@@ -1,15 +1,14 @@
 /**
  * Hook para buscar permissões do usuário autenticado
  * 
- * ATUALIZADO: Agora usa as novas tabelas user_roles e user_modules
- * do sistema RBAC simplificado.
+ * Baseado exclusivamente em user_modules e module_permissions_catalog.
+ * Sem conceito de "role".
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { MODULOS, type Modulo } from '@/shared/config/modules.config';
-import type { AppRole } from '@/types/rbac';
 
 export interface PermissaoUsuario {
   funcao_id: string;
@@ -32,8 +31,6 @@ interface UsePermissoesUsuarioReturn {
   temTodasPermissoes: (codigos: string[]) => boolean;
   permissoesPorModulo: Record<string, PermissaoUsuario[]>;
   refetch: () => Promise<void>;
-  // Novo sistema
-  role: AppRole | null;
   modules: Modulo[];
   isAdmin: boolean;
 }
@@ -43,14 +40,12 @@ export function usePermissoesUsuario(): UsePermissoesUsuarioReturn {
   const [permissoes, setPermissoes] = useState<PermissaoUsuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [role, setRole] = useState<AppRole | null>(null);
   const [modules, setModules] = useState<Modulo[]>([]);
 
   const fetchPermissoes = useCallback(async () => {
     if (!isAuthenticated || !user?.id) {
       setPermissoes([]);
       setModules([]);
-      setRole(null);
       setLoading(false);
       return;
     }
@@ -61,9 +56,7 @@ export function usePermissoesUsuario(): UsePermissoesUsuarioReturn {
     try {
       // Super admin tem tudo
       if (isSuperAdmin) {
-        setRole('admin');
         setModules([...MODULOS]);
-        // Gerar permissões sintéticas para todos os módulos
         const todasPermissoes: PermissaoUsuario[] = MODULOS.map(m => ({
           funcao_id: m,
           funcao_codigo: m,
@@ -72,33 +65,6 @@ export function usePermissoesUsuario(): UsePermissoesUsuarioReturn {
           submodulo: null,
           tipo_acao: 'full',
           perfil_nome: 'Super Admin',
-        }));
-        setPermissoes(todasPermissoes);
-        setLoading(false);
-        return;
-      }
-
-      // Buscar role do usuário
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      const userRole = (roleData?.role as AppRole) || null;
-      setRole(userRole);
-
-      // Admin tem todos os módulos
-      if (userRole === 'admin') {
-        setModules([...MODULOS]);
-        const todasPermissoes: PermissaoUsuario[] = MODULOS.map(m => ({
-          funcao_id: m,
-          funcao_codigo: m,
-          funcao_nome: m,
-          modulo: m,
-          submodulo: null,
-          tipo_acao: 'full',
-          perfil_nome: 'Admin',
         }));
         setPermissoes(todasPermissoes);
         setLoading(false);
@@ -125,7 +91,7 @@ export function usePermissoesUsuario(): UsePermissoesUsuarioReturn {
         modulo: m,
         submodulo: null,
         tipo_acao: 'access',
-        perfil_nome: userRole || 'user',
+        perfil_nome: 'Usuário',
       }));
       
       setPermissoes(permissoesDoModulo);
@@ -137,45 +103,35 @@ export function usePermissoesUsuario(): UsePermissoesUsuarioReturn {
     }
   }, [user?.id, isAuthenticated, isSuperAdmin]);
 
-  // Carrega permissões quando usuário muda
   useEffect(() => {
     fetchPermissoes();
   }, [fetchPermissoes]);
 
-  // Verifica se tem uma permissão específica (agora baseado em módulos)
+  const isAdmin = isSuperAdmin || modules.includes('admin' as Modulo);
+
   const temPermissao = useCallback((codigo: string): boolean => {
-    if (isSuperAdmin || role === 'admin') return true;
+    if (isSuperAdmin || modules.includes('admin' as Modulo)) return true;
     
-    // Extrair módulo do código (ex: 'rh.servidores.criar' -> 'rh')
     const modulo = codigo.split('.')[0] as Modulo;
     return modules.includes(modulo);
-  }, [isSuperAdmin, role, modules]);
+  }, [isSuperAdmin, modules]);
 
-  // Verifica se tem pelo menos uma das permissões
   const temAlgumaPermissao = useCallback((codigos: string[]): boolean => {
     return codigos.some(codigo => temPermissao(codigo));
   }, [temPermissao]);
 
-  // Verifica se tem todas as permissões
   const temTodasPermissoes = useCallback((codigos: string[]): boolean => {
     return codigos.every(codigo => temPermissao(codigo));
   }, [temPermissao]);
 
-  // Agrupa permissões por módulo
   const permissoesPorModulo = useMemo(() => {
     const grupos: Record<string, PermissaoUsuario[]> = {};
-    
     permissoes.forEach(p => {
-      if (!grupos[p.modulo]) {
-        grupos[p.modulo] = [];
-      }
+      if (!grupos[p.modulo]) grupos[p.modulo] = [];
       grupos[p.modulo].push(p);
     });
-
     return grupos;
   }, [permissoes]);
-
-  const isAdmin = role === 'admin' || isSuperAdmin;
 
   return {
     permissoes,
@@ -186,7 +142,6 @@ export function usePermissoesUsuario(): UsePermissoesUsuarioReturn {
     temTodasPermissoes,
     permissoesPorModulo,
     refetch: fetchPermissoes,
-    role,
     modules,
     isAdmin,
   };

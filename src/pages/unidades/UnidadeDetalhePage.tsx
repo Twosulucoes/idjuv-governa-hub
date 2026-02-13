@@ -389,7 +389,7 @@ function UnidadeDetalheContent() {
 
 export default function UnidadeDetalhePage() {
   return (
-    <ProtectedRoute allowedRoles={["manager", "admin"]}>
+    <ProtectedRoute requiredModule="patrimonio">
       <UnidadeDetalheContent />
     </ProtectedRoute>
   );

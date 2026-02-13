@@ -70,14 +70,14 @@ export const MODULE_PRIORITY: Modulo[] = [
 ];
 
 export function useModuleRouter(): ModuleRouterResult {
-  const { loading, modulosAutorizados, isSuperAdmin, role } = useModulosUsuario();
+  const { loading, modulosAutorizados, isSuperAdmin } = useModulosUsuario();
   const { isLoading: authLoading } = useAuth();
 
   const result = useMemo((): ModuleRouterResult => {
     const isLoading = loading || authLoading;
     
-    // Admin tem acesso total
-    const isAdmin = isSuperAdmin || role === 'admin';
+    // Super Admin tem acesso total
+    const isAdmin = isSuperAdmin;
     
     // Módulos autorizados
     const authorizedModules = isAdmin 
@@ -119,7 +119,7 @@ export function useModuleRouter(): ModuleRouterResult {
       isMultiModule,
       hasNoModules,
     };
-  }, [loading, authLoading, modulosAutorizados, isSuperAdmin, role]);
+  }, [loading, authLoading, modulosAutorizados, isSuperAdmin]);
 
   return result;
 }

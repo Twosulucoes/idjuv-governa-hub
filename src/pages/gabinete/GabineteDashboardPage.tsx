@@ -153,7 +153,7 @@ function GabineteDashboardContent() {
 
 export default function GabineteDashboardPage() {
   return (
-    <ProtectedRoute allowedRoles={["manager", "admin"]}>
+    <ProtectedRoute requiredModule="gabinete">
       <GabineteDashboardContent />
     </ProtectedRoute>
   );

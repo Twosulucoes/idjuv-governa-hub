@@ -479,7 +479,7 @@ export default function GestaoCargosPage() {
   };
 
   return (
-    <ProtectedRoute allowedRoles={["admin"]}>
+    <ProtectedRoute requiredModule="governanca">
       <ModuleLayout module="governanca">
         <div className="container mx-auto py-8 px-4">
           {/* Header */}

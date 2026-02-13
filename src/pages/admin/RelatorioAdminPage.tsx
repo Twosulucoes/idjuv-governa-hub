@@ -156,7 +156,7 @@ export default function RelatorioAdminPage() {
   };
 
   return (
-    <ProtectedRoute allowedRoles={["admin"]}>
+    <ProtectedRoute requiredModule="admin">
       <ModuleLayout module="admin">
         <div className="space-y-6">
           {/* Header */}

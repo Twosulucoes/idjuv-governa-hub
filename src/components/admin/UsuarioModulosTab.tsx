@@ -18,9 +18,6 @@ interface UsuarioModulosTabProps {
 }
 
 export function UsuarioModulosTab({ usuario, saving, onToggleModulo, isProtected = false }: UsuarioModulosTabProps) {
-  // Admin (role 'admin') tem acesso a tudo automaticamente
-  const ehSuperAdmin = usuario.role === 'admin';
-
   // Se for protegido, mostrar apenas aviso
   if (isProtected) {
     return (
@@ -34,16 +31,6 @@ export function UsuarioModulosTab({ usuario, saving, onToggleModulo, isProtected
     );
   }
 
-  if (ehSuperAdmin) {
-    return (
-      <Alert className="bg-primary/5 border-primary/20">
-        <Info className="h-4 w-4" />
-        <AlertDescription>
-          <strong>Super Administrador</strong> tem acesso a todos os módulos do sistema automaticamente.
-        </AlertDescription>
-      </Alert>
-    );
-  }
 
   return (
     <div className="space-y-4">

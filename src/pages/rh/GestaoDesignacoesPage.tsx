@@ -152,7 +152,7 @@ export default function GestaoDesignacoesPage() {
   };
 
   return (
-    <ProtectedRoute allowedRoles={["admin"]}>
+    <ProtectedRoute requiredModule="rh">
       <ModuleLayout module="rh">
         <div className="container mx-auto py-8 px-4">
           {/* Header */}

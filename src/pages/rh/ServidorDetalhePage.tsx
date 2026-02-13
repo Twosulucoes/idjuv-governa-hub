@@ -205,7 +205,7 @@ export default function ServidorDetalheePage() {
 
   if (isLoading) {
     return (
-      <ProtectedRoute allowedRoles={["admin", "manager"]}>
+      <ProtectedRoute requiredModule="rh">
         <ModuleLayout module="rh">
           <div className="flex items-center justify-center h-[60vh]">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -217,7 +217,7 @@ export default function ServidorDetalheePage() {
 
   if (!servidor) {
     return (
-      <ProtectedRoute allowedRoles={["admin", "manager"]}>
+      <ProtectedRoute requiredModule="rh">
         <ModuleLayout module="rh">
           <div className="container mx-auto py-8 px-4 text-center">
             <p className="text-muted-foreground">Servidor não encontrado.</p>
@@ -231,7 +231,7 @@ export default function ServidorDetalheePage() {
   }
 
   return (
-    <ProtectedRoute allowedRoles={["admin", "manager"]}>
+    <ProtectedRoute requiredModule="rh">
       <ModuleLayout module="rh">
         <div className="container mx-auto py-8 px-4">
           {/* Header */}

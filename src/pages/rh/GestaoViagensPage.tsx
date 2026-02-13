@@ -332,7 +332,7 @@ export default function GestaoViagensPage() {
   const isSemOnus = formData.tipo_onus === 'sem_onus';
 
   return (
-    <ProtectedRoute allowedRoles={["admin"]}>
+    <ProtectedRoute requiredModule="rh">
       <ModuleLayout module="rh">
         <div className="container mx-auto py-8 px-4">
           {/* Header */}

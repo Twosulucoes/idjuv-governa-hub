@@ -25,7 +25,7 @@ import {
   Unlock,
   Info
 } from 'lucide-react';
-import { ROLE_LABELS, PERMISSION_LABELS, AppPermission } from '@/types/auth';
+import { PERMISSION_LABELS, AppPermission } from '@/types/auth';
 
 const ControleAcessoAdminPage: React.FC = () => {
   const navigate = useNavigate();
