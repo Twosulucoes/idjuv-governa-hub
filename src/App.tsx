@@ -155,6 +155,7 @@ import CentralRelatoriosPage from "./pages/admin/CentralRelatoriosPage";
 import SobreSistemaPage from "./pages/admin/SobreSistemaPage";
 import GerenciadorPaginasPage from "./pages/admin/GerenciadorPaginasPage";
 import GestaoModulosPage from "./pages/admin/GestaoModulosPage";
+import PainelPermissoesPage from "./pages/admin/PainelPermissoesPage";
 
 // ASCOM / Comunicação
 import GestaoDemandasAscomPage from "./pages/ascom/GestaoDemandasAscomPage";
@@ -440,6 +441,7 @@ const App = () => (
               <Route path="/admin/central-relatorios" element={<ProtectedRoute requiredModule="admin"><CentralRelatoriosPage /></ProtectedRoute>} />
               <Route path="/admin/sobre" element={<ProtectedRoute requiredModule="admin"><SobreSistemaPage /></ProtectedRoute>} />
               <Route path="/admin/modulos" element={<ProtectedRoute requiredModule="admin"><GestaoModulosPage /></ProtectedRoute>} />
+              <Route path="/admin/permissoes" element={<ProtectedRoute requiredModule="admin"><PainelPermissoesPage /></ProtectedRoute>} />
               <Route path="/acesso" element={<ProtectedRoute requiredModule="admin"><ControleAcessoAdminPage /></ProtectedRoute>} />
               
               {/* Com permissões mapeadas em ROUTE_PERMISSIONS */}
