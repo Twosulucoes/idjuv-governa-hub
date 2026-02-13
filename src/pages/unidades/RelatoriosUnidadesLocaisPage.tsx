@@ -1254,7 +1254,7 @@ function RelatoriosUnidadesLocaisContent() {
 
 export default function RelatoriosUnidadesLocaisPage() {
   return (
-    <ProtectedRoute allowedRoles={['manager', 'admin']}>
+    <ProtectedRoute requiredModule="patrimonio">
       <ModuleLayout module="patrimonio">
         <RelatoriosUnidadesLocaisContent />
       </ModuleLayout>

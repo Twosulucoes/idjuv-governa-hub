@@ -34,8 +34,6 @@ import {
   AuditLog, 
   AuditAction,
   AUDIT_ACTION_LABELS,
-  ROLE_LABELS,
-  AppRole
 } from '@/types/auth';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -303,7 +301,7 @@ export default function AuditoriaPage() {
                     <TableCell>
                       {log.roleAtTime && (
                         <Badge variant="outline">
-                          {ROLE_LABELS[log.roleAtTime as AppRole] || log.roleAtTime}
+                          {log.roleAtTime}
                         </Badge>
                       )}
                     </TableCell>

@@ -1,11 +1,11 @@
 // ============================================
-// COMPONENTE DE ROTA PROTEGIDA - RBAC 2026
+// COMPONENTE DE ROTA PROTEGIDA
 // ============================================
 // Verificação em 3 níveis:
 // 1. Autenticação (sessão válida)
 // 2. Módulo (user_modules) - via requiredModule
 // 3. Permissão granular (listar_permissoes_usuario) - via requiredPermissions
-// Super Admin (role=admin) tem bypass total
+// Super Admin tem bypass total
 
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
@@ -13,7 +13,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { PermissionCode, ROUTE_PERMISSIONS } from '@/types/auth';
 import { useModulosUsuario } from '@/hooks/useModulosUsuario';
 import type { Modulo } from '@/shared/config/modules.config';
-import type { AppRole } from '@/types/rbac';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -24,9 +23,6 @@ interface ProtectedRouteProps {
   
   /** Módulo requerido - verificado contra user_modules */
   requiredModule?: Modulo;
-  
-  /** Roles permitidos - verificados contra user_roles */
-  allowedRoles?: AppRole | AppRole[];
   
   /** Permissões granulares requeridas */
   requiredPermissions?: PermissionCode | PermissionCode[];
@@ -54,7 +50,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requireAuth = true,
   requiredModule,
-  allowedRoles,
   requiredPermissions,
   permissionMode = 'any',
   loginPath = '/auth',
@@ -72,8 +67,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     hasAllPermissions 
   } = useAuth();
   const { 
-    role: userRole, 
-    loading: roleLoading, 
+    loading: moduleLoading, 
     temAcessoModulo 
   } = useModulosUsuario();
   const location = useLocation();
@@ -81,7 +75,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // ============================================
   // LOADING STATE
   // ============================================
-  if (isLoading || roleLoading) {
+  if (isLoading || moduleLoading) {
     return loadingComponent || (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -107,9 +101,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // ============================================
-  // 3. SUPER ADMIN BYPASS (role=admin no banco)
+  // 3. SUPER ADMIN BYPASS
   // ============================================
-  if (isSuperAdmin || userRole === 'admin') {
+  if (isSuperAdmin) {
     return <>{children}</>;
   }
 
@@ -124,25 +118,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // ============================================
-  // 5. VERIFICAÇÃO DE ROLES (user_roles)
-  // ============================================
-  if (allowedRoles) {
-    const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
-    const hasRole = userRole && roles.includes(userRole as AppRole);
-    
-    if (hasRole) {
-      return <>{children}</>;
-    }
-    
-    // Se não tem o role e não há permissões para verificar, negar
-    if (!requiredPermissions && !useRouteMapping) {
-      onAccessDenied?.();
-      return <Navigate to={accessDeniedPath} state={{ from: location }} replace />;
-    }
-  }
-
-  // ============================================
-  // 6. VERIFICAÇÃO DE PERMISSÕES GRANULARES
+  // 5. VERIFICAÇÃO DE PERMISSÕES GRANULARES
   // ============================================
   let permissionsToCheck: PermissionCode[] = [];
 

@@ -418,12 +418,12 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/gabinete/pre-cadastros" element={
-                <ProtectedRoute requiredModule="gabinete" allowedRoles={["manager", "admin"]}>
+                <ProtectedRoute requiredModule="gabinete">
                   <GestaoPreCadastrosPage />
                 </ProtectedRoute>
               } />
               <Route path="/gabinete/pre-cadastros/pendencias" element={
-                <ProtectedRoute requiredModule="gabinete" allowedRoles={["manager", "admin"]}>
+                <ProtectedRoute requiredModule="gabinete">
                   <DiagnosticoPendenciasPage />
                 </ProtectedRoute>
               } />

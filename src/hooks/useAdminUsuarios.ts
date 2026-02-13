@@ -1,12 +1,12 @@
 // ============================================
-// HOOK DE USUÁRIOS (SISTEMA RBAC)
-// Usando as novas tabelas user_roles e user_modules
+// HOOK DE USUÁRIOS (SISTEMA DE MÓDULOS)
+// Gerencia user_modules - sem conceito de role
 // ============================================
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import type { UsuarioAdmin, Modulo, AppRole, PerfilCodigo, PERFIL_TO_ROLE, ROLE_TO_PERFIL } from '@/types/rbac';
+import type { UsuarioAdmin, Modulo } from '@/types/rbac';
 
 export function useAdminUsuarios() {
   const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([]);
@@ -15,12 +15,10 @@ export function useAdminUsuarios() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Buscar todos os usuários com seus roles e módulos
   const fetchUsuarios = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Buscar profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, email, full_name, avatar_url, is_active, tipo_usuario, created_at')
@@ -28,23 +26,13 @@ export function useAdminUsuarios() {
 
       if (profilesError) throw profilesError;
 
-      // Buscar roles dos usuários (nova tabela)
-      const { data: rolesData, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('*');
-
-      if (rolesError) throw rolesError;
-
-      // Buscar módulos dos usuários (nova tabela)
       const { data: modulosData, error: modulosError } = await supabase
         .from('user_modules')
         .select('*');
 
       if (modulosError) throw modulosError;
 
-      // Combinar dados
       const usuariosData: UsuarioAdmin[] = (profiles || []).map(p => {
-        const userRole = (rolesData || []).find((r: any) => r.user_id === p.id);
         const modulosUsuario = (modulosData || [])
           .filter((m: any) => m.user_id === p.id)
           .map((m: any) => m.module as Modulo);
@@ -57,7 +45,6 @@ export function useAdminUsuarios() {
           is_active: p.is_active ?? true,
           tipo_usuario: (p.tipo_usuario || 'servidor') as 'servidor' | 'tecnico',
           created_at: p.created_at,
-          role: userRole?.role as AppRole | undefined,
           modulos: modulosUsuario,
         };
       });
@@ -75,53 +62,21 @@ export function useAdminUsuarios() {
     fetchUsuarios();
   }, [fetchUsuarios]);
 
-  // Definir role do usuário (novo sistema)
-  const definirRole = async (userId: string, role: AppRole | null) => {
-    setSaving(true);
-    try {
-      if (role === null) {
-        // Remover role
-        const { error } = await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', userId);
-        if (error) throw error;
-      } else {
-        // Upsert role
-        const { error } = await supabase
-          .from('user_roles')
-          .upsert({ user_id: userId, role }, { onConflict: 'user_id' });
-        if (error) throw error;
-      }
-
-      toast({ title: 'Role atualizada!' });
-      await fetchUsuarios();
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Erro ao definir role', description: err.message });
-      throw err;
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Compatibilidade: definirPerfil mapeia para definirRole
-  const definirPerfil = async (userId: string, perfilCodigo: PerfilCodigo | null) => {
-    const roleMap: Record<PerfilCodigo, AppRole> = {
-      super_admin: 'admin',
-      gestor: 'manager',
-      servidor: 'user'
-    };
-    const role = perfilCodigo ? roleMap[perfilCodigo] : null;
-    await definirRole(userId, role);
-  };
-
   // Adicionar módulo ao usuário
   const adicionarModulo = async (userId: string, modulo: Modulo) => {
     setSaving(true);
     try {
+      // Buscar permissões do catálogo
+      const { data: catalog } = await supabase
+        .from('module_permissions_catalog')
+        .select('permission_code')
+        .eq('module_code', modulo as string);
+
+      const permissions = (catalog || []).map((c: any) => c.permission_code);
+
       const { error } = await supabase
         .from('user_modules')
-        .insert({ user_id: userId, module: modulo } as any);
+        .insert({ user_id: userId, module: modulo, permissions } as any);
 
       if (error && !error.message.includes('duplicate')) throw error;
 
@@ -198,8 +153,6 @@ export function useAdminUsuarios() {
     saving,
     error,
     fetchUsuarios,
-    definirPerfil,
-    definirRole,
     adicionarModulo,
     removerModulo,
     toggleModulo,

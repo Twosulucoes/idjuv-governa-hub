@@ -848,7 +848,7 @@ export default function RelatoriosRHPage() {
   };
 
   return (
-    <ProtectedRoute allowedRoles={["admin", "manager"]}>
+    <ProtectedRoute requiredModule="rh">
       <ModuleLayout module="rh">
         <div className="container mx-auto py-8 px-4">
           {/* Header */}

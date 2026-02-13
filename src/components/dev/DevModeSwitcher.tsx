@@ -17,22 +17,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
 import { MODULOS, MODULES_CONFIG, type Modulo } from '@/shared/config/modules.config';
-import type { AppRole } from '@/types/rbac';
 
 const STORAGE_KEY = 'dev-mode-overrides';
 const DEV_MODE_ENABLED_KEY = 'dev-mode-enabled';
 
 interface DevModeOverrides {
-  role: AppRole | null;
   modules: Modulo[];
   isSuperAdmin: boolean;
 }
-
-const ROLES: { value: AppRole; label: string; icon: React.ReactNode }[] = [
-  { value: 'admin', label: 'Admin', icon: <ShieldCheck className="w-4 h-4" /> },
-  { value: 'manager', label: 'Gestor', icon: <Shield className="w-4 h-4" /> },
-  { value: 'user', label: 'Usuário', icon: <User className="w-4 h-4" /> },
-];
 
 // Helper para obter o nome amigável do módulo
 function getModuleName(codigo: Modulo): string {
@@ -70,7 +62,7 @@ export function DevModeSwitcher() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEnabled, setIsEnabled] = useState(false);
   
-  const [selectedRole, setSelectedRole] = useState<AppRole | null>(null);
+  const [selectedModules, setSelectedModules] = useState<Modulo[]>([]);
   const [selectedModules, setSelectedModules] = useState<Modulo[]>([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
@@ -83,7 +75,6 @@ export function DevModeSwitcher() {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const overrides: DevModeOverrides = JSON.parse(saved);
-        setSelectedRole(overrides.role);
         setSelectedModules(overrides.modules);
         setIsSuperAdmin(overrides.isSuperAdmin);
       }
@@ -93,26 +84,20 @@ export function DevModeSwitcher() {
   }, []);
 
   // Salvar mudanças e disparar evento
-  const saveOverrides = (role: AppRole | null, modules: Modulo[], superAdmin: boolean) => {
+  const saveOverrides = (modules: Modulo[], superAdmin: boolean) => {
     const overrides: DevModeOverrides = {
-      role,
       modules,
       isSuperAdmin: superAdmin,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides));
-    
-    // Disparar evento para atualizar outros componentes IMEDIATAMENTE
     window.dispatchEvent(new CustomEvent('dev-mode-changed', { detail: overrides }));
   };
 
-  const handleRoleChange = (role: AppRole) => {
-    setSelectedRole(role);
-    
-    // Se selecionar admin, ativar super admin e todos os módulos
-    if (role === 'admin') {
-      setIsSuperAdmin(true);
+  const handleSuperAdminToggle = (checked: boolean) => {
+    setIsSuperAdmin(checked);
+    if (checked) {
       setSelectedModules([...MODULOS]);
-      saveOverrides(role, [...MODULOS], true);
+      saveOverrides([...MODULOS], true);
     } else {
       setIsSuperAdmin(false);
       saveOverrides(role, selectedModules, false);

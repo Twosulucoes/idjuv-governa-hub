@@ -54,7 +54,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ROLE_LABELS } from '@/types/auth';
+
 
 export default function UsuariosTecnicosPage() {
   const { usuariosTecnicos, isLoading, refetch, criarUsuarioTecnico, toggleUsuarioAtivo } = useUsuarios();
@@ -114,7 +114,7 @@ export default function UsuariosTecnicosPage() {
   };
 
   return (
-    <ProtectedRoute allowedRoles={['admin']} requiredModule="admin">
+    <ProtectedRoute requiredModule="admin">
       <ModuleLayout module="admin">
         <div className="container mx-auto py-8 px-4 space-y-6">
           {/* Header */}
@@ -285,7 +285,7 @@ export default function UsuariosTecnicosPage() {
                       <div className="flex items-center gap-3">
                         <div className="text-right hidden md:block">
                           <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
-                            {user.role ? ROLE_LABELS[user.role as keyof typeof ROLE_LABELS] || user.role : 'Sem perfil'}
+                            {user.role || 'Sem perfil'}
                           </Badge>
                           <div className="text-xs text-muted-foreground mt-1">
                             Criado em {format(new Date(user.created_at), "dd/MM/yyyy", { locale: ptBR })}

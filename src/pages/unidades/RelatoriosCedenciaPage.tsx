@@ -551,7 +551,7 @@ function RelatoriosCedenciaContent() {
 
 export default function RelatoriosCedenciaPage() {
   return (
-    <ProtectedRoute allowedRoles={["manager", "admin"]}>
+    <ProtectedRoute requiredModule="patrimonio">
       <RelatoriosCedenciaContent />
     </ProtectedRoute>
   );

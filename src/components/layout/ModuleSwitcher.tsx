@@ -34,10 +34,10 @@ const MODULE_ROUTES: Record<Modulo, string> = {
 
 export function ModuleSwitcher() {
   const location = useLocation();
-  const { modulosAutorizados, isSuperAdmin, role } = useModulosUsuario();
+  const { modulosAutorizados, isSuperAdmin } = useModulosUsuario();
 
   // Determinar módulos disponíveis
-  const availableModules = isSuperAdmin || role === 'admin'
+  const availableModules = isSuperAdmin
     ? MODULES_CONFIG
     : MODULES_CONFIG.filter(m => modulosAutorizados.includes(m.codigo));
 

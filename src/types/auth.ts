@@ -377,29 +377,11 @@ export const ACCESS_SCOPE_LABELS: Record<AccessScope, string> = {
 // @deprecated - Usar PermissionCode em vez de AppPermission
 export type AppPermission = string;
 
-// @deprecated - Usar AppRole de @/types/rbac
-// Re-exportar para compatibilidade de imports existentes
-export type { AppRole } from '@/types/rbac';
-import type { AppRole } from '@/types/rbac';
-
-export const ROLE_LABELS: Record<AppRole, string> = {
-  admin: 'Administrador',
-  manager: 'Gerente',
-  user: 'Usuário',
-};
-
 export const PERMISSION_LABELS: Record<string, string> = {
   // Labels serão carregados dinamicamente do banco
 };
 
 export const PERMISSION_GROUPS = {};
-export const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
-  admin: 'Acesso total ao sistema',
-  manager: 'Acesso moderado com algumas restrições',
-  user: 'Acesso básico',
-};
-export const APPROVER_ROLES: AppRole[] = ['admin'];
-export const ADMIN_ROLES: AppRole[] = ['admin'];
 
 // ============================================
 // TIPOS PARA AUDITORIA E APROVAÇÕES
@@ -450,7 +432,7 @@ export interface AuditLog {
   userAgent?: string;
   orgUnitId?: string;
   orgUnitName?: string;
-  roleAtTime?: AppRole;
+  roleAtTime?: string;
   description?: string;
   metadata?: any;
 }

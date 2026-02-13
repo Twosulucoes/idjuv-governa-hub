@@ -338,7 +338,7 @@ export default function GestaoLicencasPage() {
   };
 
   return (
-    <ProtectedRoute allowedRoles={['admin', 'manager']}>
+    <ProtectedRoute requiredModule="rh">
       <ModuleLayout module="rh">
         <div className="container mx-auto py-6 space-y-6">
           {/* Header */}

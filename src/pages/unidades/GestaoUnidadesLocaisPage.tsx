@@ -352,7 +352,7 @@ function GestaoUnidadesLocaisContent() {
 
 export default function GestaoUnidadesLocaisPage() {
   return (
-    <ProtectedRoute allowedRoles={["manager", "admin"]}>
+    <ProtectedRoute requiredModule="patrimonio">
       <GestaoUnidadesLocaisContent />
     </ProtectedRoute>
   );
