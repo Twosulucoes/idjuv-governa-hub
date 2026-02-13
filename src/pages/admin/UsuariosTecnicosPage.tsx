@@ -114,7 +114,7 @@ export default function UsuariosTecnicosPage() {
   };
 
   return (
-    <ProtectedRoute allowedRoles={['admin', 'ti_admin']}>
+    <ProtectedRoute allowedRoles={['admin']} requiredModule="admin">
       <ModuleLayout module="admin">
         <div className="container mx-auto py-8 px-4 space-y-6">
           {/* Header */}

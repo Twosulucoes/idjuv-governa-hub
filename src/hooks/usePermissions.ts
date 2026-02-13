@@ -6,7 +6,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { PermissionCode, PermissaoUsuario, MODULE_PERMISSIONS, ROLE_LABELS, AppRole } from '@/types/auth';
+import { PermissionCode, PermissaoUsuario, MODULE_PERMISSIONS } from '@/types/auth';
 
 export interface UsePermissionsReturn {
   // Dados do usuário
