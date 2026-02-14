@@ -17,9 +17,9 @@ async function fetchRHStats(): Promise<RHStats> {
   const anoAtual = new Date().getFullYear();
 
   const [servidoresAtivos, emFerias, viagensPendentes, frequenciaData] = await Promise.all([
-    countQuery("servidores", { situacao_atual: "ativo" }),
+    countQuery("servidores", { situacao: "ativo" }),
     countQuery("ferias_servidor", { status: "fruindo" }),
-    countQuery("processos_administrativos", { tipo: "diarias", status: "aberto" }),
+    countQuery("processos_administrativos", { tipo_processo: "diarias", status: "aberto" }),
     selectQuery<{ percentual_presenca: number | null }>(
       "frequencia_mensal",
       "percentual_presenca",
