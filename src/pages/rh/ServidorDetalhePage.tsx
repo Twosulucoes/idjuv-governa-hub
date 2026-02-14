@@ -37,7 +37,8 @@ import {
   ChevronDown,
   FileText,
   Link2,
-  ExternalLink
+  ExternalLink,
+  Building2
 } from "lucide-react";
 import { generateFichaCadastral } from "@/lib/pdfGenerator";
 import { downloadFichaCadastroGeral } from "@/lib/pdfFichaCadastroGeral";
@@ -61,6 +62,7 @@ import { formatDateBR } from "@/lib/formatters";
 import { type TipoServidor } from "@/types/servidor";
 import { HistoricoFuncionalTab } from "@/components/rh/HistoricoFuncionalTab";
 import { ServidorFrequenciaConfigCard } from "@/components/rh/ServidorFrequenciaConfigCard";
+import { DesignacoesUnidadeTab } from "@/components/rh/DesignacoesUnidadeTab";
 
 export default function ServidorDetalheePage() {
   const navigate = useNavigate();
@@ -377,7 +379,7 @@ export default function ServidorDetalheePage() {
           </div>
 
           <Tabs defaultValue="dados" className="space-y-6">
-            <TabsList className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+            <TabsList className="grid grid-cols-2 lg:grid-cols-5 gap-2">
               <TabsTrigger value="dados" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
                 <span className="hidden sm:inline">Dados</span>
@@ -385,6 +387,10 @@ export default function ServidorDetalheePage() {
               <TabsTrigger value="historico" className="flex items-center gap-2">
                 <History className="h-4 w-4" />
                 <span className="hidden sm:inline">Histórico</span>
+              </TabsTrigger>
+              <TabsTrigger value="designacoes" className="flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Designações</span>
               </TabsTrigger>
               <TabsTrigger value="ferias" className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
@@ -553,6 +559,14 @@ export default function ServidorDetalheePage() {
                 servidorId={id!} 
                 servidorNome={servidor.nome_completo}
                 tipoServidor={(servidor as any).tipo_servidor as TipoServidor | undefined}
+              />
+            </TabsContent>
+
+            {/* Designações de Chefia em Unidades Locais */}
+            <TabsContent value="designacoes">
+              <DesignacoesUnidadeTab 
+                servidorId={id!}
+                servidorNome={servidor.nome_completo}
               />
             </TabsContent>
 
