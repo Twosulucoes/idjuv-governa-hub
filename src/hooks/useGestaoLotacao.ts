@@ -434,9 +434,7 @@ export function useLotarServidor() {
           data_nomeacao: dataInicio,
           data_posse: dataInicio,
           data_exercicio: dataInicio,
-          ato_nomeacao_numero: atoNumero || null,
-          ato_nomeacao_data: atoData || null,
-          ato_nomeacao_tipo: atoTipo || null,
+          observacoes: atoNumero ? `Ato: ${atoTipo || 'Portaria'} nº ${atoNumero}${atoData ? ` de ${atoData}` : ''}` : null,
         });
       } catch (provErr) {
         console.error("[Lotação] Erro ao criar provimento:", provErr);
