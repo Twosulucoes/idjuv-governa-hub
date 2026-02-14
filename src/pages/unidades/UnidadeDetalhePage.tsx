@@ -28,7 +28,6 @@ import {
   History,
   Loader2,
   UserCog,
-  Plus,
 } from "lucide-react";
 import {
   UnidadeLocal,
@@ -36,9 +35,9 @@ import {
   TIPO_UNIDADE_LABELS,
   STATUS_UNIDADE_LABELS,
   STATUS_UNIDADE_COLORS,
+  TIPO_ATO_LABELS,
 } from "@/types/unidadesLocais";
 import { UnidadeLocalForm } from "@/components/unidades/UnidadeLocalForm";
-import { NomeacoesTab } from "@/components/unidades/NomeacoesTab";
 import { PatrimonioTab } from "@/components/unidades/PatrimonioTab";
 import { AgendaTab } from "@/components/unidades/AgendaTab";
 import { TermosCessaoTab } from "@/components/unidades/TermosCessaoTab";
@@ -195,10 +194,9 @@ function UnidadeDetalheContent() {
                 <p className="text-muted-foreground italic">
                   Nenhum chefe designado para esta unidade
                 </p>
-                <Button variant="outline" size="sm" onClick={() => setActiveTab("nomeacoes")}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nomear Chefe
-                </Button>
+                <p className="text-xs text-muted-foreground">
+                  A designação é feita pelo módulo RH, na ficha do servidor.
+                </p>
               </div>
             )}
           </CardContent>
@@ -206,14 +204,10 @@ function UnidadeDetalheContent() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="dados" className="flex items-center gap-1">
               <Building2 className="h-4 w-4" />
               <span className="hidden sm:inline">Dados Gerais</span>
-            </TabsTrigger>
-            <TabsTrigger value="nomeacoes" className="flex items-center gap-1">
-              <UserCog className="h-4 w-4" />
-              <span className="hidden sm:inline">Nomeações</span>
             </TabsTrigger>
             <TabsTrigger value="patrimonio" className="flex items-center gap-1">
               <Package className="h-4 w-4" />
@@ -318,9 +312,6 @@ function UnidadeDetalheContent() {
             </div>
           </TabsContent>
 
-          <TabsContent value="nomeacoes" className="mt-6">
-            <NomeacoesTab unidadeId={unidade.id} onUpdate={loadUnidade} />
-          </TabsContent>
 
           <TabsContent value="patrimonio" className="mt-6">
             <PatrimonioTab unidadeId={unidade.id} />
