@@ -158,6 +158,98 @@ export type Database = {
           },
         ]
       }
+      adicionais_tempo_servico: {
+        Row: {
+          ativo: boolean
+          ato_data: string | null
+          ato_numero: string | null
+          created_at: string | null
+          created_by: string | null
+          data_base: string
+          data_concessao: string
+          data_proximo: string | null
+          fundamentacao_legal: string | null
+          id: string
+          observacoes: string | null
+          percentual: number
+          quantidade: number
+          servidor_id: string
+          tipo: string
+          updated_at: string | null
+          valor_adicional: number | null
+          valor_referencia: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          ato_data?: string | null
+          ato_numero?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_base: string
+          data_concessao: string
+          data_proximo?: string | null
+          fundamentacao_legal?: string | null
+          id?: string
+          observacoes?: string | null
+          percentual: number
+          quantidade?: number
+          servidor_id: string
+          tipo: string
+          updated_at?: string | null
+          valor_adicional?: number | null
+          valor_referencia?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          ato_data?: string | null
+          ato_numero?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_base?: string
+          data_concessao?: string
+          data_proximo?: string | null
+          fundamentacao_legal?: string | null
+          id?: string
+          observacoes?: string | null
+          percentual?: number
+          quantidade?: number
+          servidor_id?: string
+          tipo?: string
+          updated_at?: string | null
+          valor_adicional?: number | null
+          valor_referencia?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "adicionais_tempo_servico_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "adicionais_tempo_servico_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "adicionais_tempo_servico_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "adicionais_tempo_servico_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       aditivos_contrato: {
         Row: {
           contrato_id: string
@@ -369,6 +461,13 @@ export type Database = {
             foreignKeyName: "agenda_unidade_aprovador_id_fkey"
             columns: ["aprovador_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_unidade_aprovador_id_fkey"
+            columns: ["aprovador_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -542,6 +641,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "almoxarifados_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "almoxarifados_responsavel_id_fkey"
@@ -940,6 +1046,13 @@ export type Database = {
             foreignKeyName: "avaliacoes_controle_avaliador_id_fkey"
             columns: ["avaliador_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avaliacoes_controle_avaliador_id_fkey"
+            columns: ["avaliador_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -1012,6 +1125,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "avaliacoes_risco_avaliador_id_fkey"
+            columns: ["avaliador_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "avaliacoes_risco_avaliador_id_fkey"
@@ -1594,6 +1714,13 @@ export type Database = {
             foreignKeyName: "bens_patrimoniais_responsavel_id_fkey"
             columns: ["responsavel_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bens_patrimoniais_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -1809,6 +1936,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "campanhas_inventario_responsavel_geral_id_fkey"
+            columns: ["responsavel_geral_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "campanhas_inventario_responsavel_geral_id_fkey"
@@ -2175,6 +2309,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "cessoes_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "cessoes_servidor_id_fkey"
@@ -2666,6 +2807,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "coletas_inventario_responsavel_encontrado_id_fkey"
+            columns: ["responsavel_encontrado_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "coletas_inventario_responsavel_encontrado_id_fkey"
@@ -3596,6 +3744,13 @@ export type Database = {
             foreignKeyName: "config_jornada_padrao_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "config_jornada_padrao_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -3914,6 +4069,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "config_parametros_valores_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "config_parametros_valores_servidor_id_fkey"
@@ -4665,6 +4827,13 @@ export type Database = {
             foreignKeyName: "consignacoes_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consignacoes_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -4951,6 +5120,13 @@ export type Database = {
             foreignKeyName: "contratos_fiscal_id_fkey"
             columns: ["fiscal_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_fiscal_id_fkey"
+            columns: ["fiscal_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -4974,6 +5150,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "contratos_gestor_id_fkey"
+            columns: ["gestor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "contratos_gestor_id_fkey"
@@ -5079,6 +5262,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "controles_internos_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "controles_internos_responsavel_id_fkey"
@@ -5369,6 +5559,13 @@ export type Database = {
             foreignKeyName: "decisoes_administrativas_autoridade_id_fkey"
             columns: ["autoridade_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decisoes_administrativas_autoridade_id_fkey"
+            columns: ["autoridade_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -5521,6 +5718,13 @@ export type Database = {
             foreignKeyName: "demandas_ascom_aprovado_por_id_fkey"
             columns: ["aprovado_por_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demandas_ascom_aprovado_por_id_fkey"
+            columns: ["aprovado_por_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -5542,6 +5746,13 @@ export type Database = {
             foreignKeyName: "demandas_ascom_autorizado_presidencia_por_id_fkey"
             columns: ["autorizado_presidencia_por_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demandas_ascom_autorizado_presidencia_por_id_fkey"
+            columns: ["autorizado_presidencia_por_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -5558,6 +5769,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "demandas_ascom_responsavel_ascom_id_fkey"
+            columns: ["responsavel_ascom_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "demandas_ascom_responsavel_ascom_id_fkey"
@@ -5579,6 +5797,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "demandas_ascom_servidor_solicitante_id_fkey"
+            columns: ["servidor_solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "demandas_ascom_servidor_solicitante_id_fkey"
@@ -5818,6 +6043,13 @@ export type Database = {
             foreignKeyName: "dependentes_irrf_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dependentes_irrf_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -5936,6 +6168,13 @@ export type Database = {
             foreignKeyName: "designacoes_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "designacoes_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -6015,6 +6254,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "despachos_autoridade_id_fkey"
+            columns: ["autoridade_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "despachos_autoridade_id_fkey"
@@ -6276,6 +6522,13 @@ export type Database = {
             foreignKeyName: "documentos_responsavel_id_fkey"
             columns: ["responsavel_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -6444,6 +6697,13 @@ export type Database = {
             foreignKeyName: "documentos_preparatorios_licitacao_aprovado_por_fkey"
             columns: ["aprovado_por"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_preparatorios_licitacao_aprovado_por_fkey"
+            columns: ["aprovado_por"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -6467,6 +6727,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "documentos_preparatorios_licitacao_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "documentos_preparatorios_licitacao_responsavel_id_fkey"
@@ -6819,6 +7086,13 @@ export type Database = {
             foreignKeyName: "encaminhamentos_servidor_destino_id_fkey"
             columns: ["servidor_destino_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "encaminhamentos_servidor_destino_id_fkey"
+            columns: ["servidor_destino_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -7116,6 +7390,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "eventos_esocial_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "eventos_esocial_servidor_id_fkey"
@@ -7768,6 +8049,13 @@ export type Database = {
             foreignKeyName: "ferias_servidor_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ferias_servidor_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -7942,6 +8230,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "fichas_financeiras_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "fichas_financeiras_servidor_id_fkey"
@@ -8238,6 +8533,13 @@ export type Database = {
             foreignKeyName: "fin_adiantamentos_servidor_suprido_id_fkey"
             columns: ["servidor_suprido_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_adiantamentos_servidor_suprido_id_fkey"
+            columns: ["servidor_suprido_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -8502,6 +8804,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "fin_contas_bancarias_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "fin_contas_bancarias_responsavel_id_fkey"
@@ -10068,6 +10377,13 @@ export type Database = {
             foreignKeyName: "fin_solicitacoes_servidor_solicitante_id_fkey"
             columns: ["servidor_solicitante_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_solicitacoes_servidor_solicitante_id_fkey"
+            columns: ["servidor_solicitante_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -10499,6 +10815,13 @@ export type Database = {
             foreignKeyName: "frequencia_arquivos_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "frequencia_arquivos_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -10594,6 +10917,13 @@ export type Database = {
             foreignKeyName: "frequencia_fechamento_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "frequencia_fechamento_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -10680,6 +11010,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "frequencia_mensal_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "frequencia_mensal_servidor_id_fkey"
@@ -11176,6 +11513,13 @@ export type Database = {
             foreignKeyName: "historico_funcional_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historico_funcional_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -11386,6 +11730,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "historico_patrimonio_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "historico_patrimonio_responsavel_id_fkey"
@@ -12137,6 +12488,13 @@ export type Database = {
             foreignKeyName: "itens_retorno_bancario_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itens_retorno_bancario_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -12405,6 +12763,13 @@ export type Database = {
             foreignKeyName: "licencas_afastamentos_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "licencas_afastamentos_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -12494,6 +12859,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "liquidacoes_atestado_por_fkey"
+            columns: ["atestado_por"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "liquidacoes_atestado_por_fkey"
@@ -12609,6 +12981,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "lotacoes_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "lotacoes_servidor_id_fkey"
@@ -12951,6 +13330,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "medicoes_contrato_aprovado_por_fkey"
+            columns: ["aprovado_por"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "medicoes_contrato_aprovado_por_fkey"
@@ -13329,6 +13715,13 @@ export type Database = {
             foreignKeyName: "movimentacoes_bem_responsavel_destino_id_fkey"
             columns: ["responsavel_destino_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_bem_responsavel_destino_id_fkey"
+            columns: ["responsavel_destino_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -13345,6 +13738,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_bem_responsavel_origem_id_fkey"
+            columns: ["responsavel_origem_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "movimentacoes_bem_responsavel_origem_id_fkey"
@@ -13469,6 +13869,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_estoque_servidor_responsavel_id_fkey"
+            columns: ["servidor_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "movimentacoes_estoque_servidor_responsavel_id_fkey"
@@ -13622,6 +14029,13 @@ export type Database = {
             foreignKeyName: "movimentacoes_patrimonio_responsavel_destino_id_fkey"
             columns: ["responsavel_destino_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_patrimonio_responsavel_destino_id_fkey"
+            columns: ["responsavel_destino_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -13638,6 +14052,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_patrimonio_responsavel_origem_id_fkey"
+            columns: ["responsavel_origem_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "movimentacoes_patrimonio_responsavel_origem_id_fkey"
@@ -13882,6 +14303,13 @@ export type Database = {
             foreignKeyName: "movimentacoes_processo_servidor_destino_id_fkey"
             columns: ["servidor_destino_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_processo_servidor_destino_id_fkey"
+            columns: ["servidor_destino_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -13898,6 +14326,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_processo_servidor_origem_id_fkey"
+            columns: ["servidor_origem_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "movimentacoes_processo_servidor_origem_id_fkey"
@@ -13997,6 +14432,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "nomeacoes_chefe_unidade_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "nomeacoes_chefe_unidade_servidor_id_fkey"
@@ -14212,6 +14654,13 @@ export type Database = {
             foreignKeyName: "ocorrencias_patrimonio_responsavel_relato_id_fkey"
             columns: ["responsavel_relato_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencias_patrimonio_responsavel_relato_id_fkey"
+            columns: ["responsavel_relato_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -14262,6 +14711,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "ocorrencias_servidor_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ocorrencias_servidor_servidor_id_fkey"
@@ -14487,6 +14943,13 @@ export type Database = {
             foreignKeyName: "pareceres_tecnicos_autor_id_fkey"
             columns: ["autor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pareceres_tecnicos_autor_id_fkey"
+            columns: ["autor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -14600,6 +15063,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "participantes_reuniao_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "participantes_reuniao_servidor_id_fkey"
@@ -14863,6 +15333,13 @@ export type Database = {
             foreignKeyName: "pensoes_alimenticias_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pensoes_alimenticias_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -15017,6 +15494,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "planos_tratamento_risco_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "planos_tratamento_risco_responsavel_id_fkey"
@@ -15188,6 +15672,13 @@ export type Database = {
             foreignKeyName: "portarias_servidor_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portarias_servidor_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -15315,6 +15806,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "prazos_processo_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "prazos_processo_responsavel_id_fkey"
@@ -15684,6 +16182,13 @@ export type Database = {
             foreignKeyName: "pre_cadastros_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pre_cadastros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -15884,6 +16389,13 @@ export type Database = {
             foreignKeyName: "processos_licitatorios_pregoeiro_id_fkey"
             columns: ["pregoeiro_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_licitatorios_pregoeiro_id_fkey"
+            columns: ["pregoeiro_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -15900,6 +16412,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "processos_licitatorios_servidor_responsavel_id_fkey"
+            columns: ["servidor_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "processos_licitatorios_servidor_responsavel_id_fkey"
@@ -15985,6 +16504,13 @@ export type Database = {
             foreignKeyName: "profiles_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -16062,6 +16588,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "programas_servidor_responsavel_id_fkey"
+            columns: ["servidor_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "programas_servidor_responsavel_id_fkey"
@@ -16242,6 +16775,13 @@ export type Database = {
             foreignKeyName: "provimentos_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provimentos_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -16351,6 +16891,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "publicacoes_lai_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "publicacoes_lai_servidor_id_fkey"
@@ -16696,6 +17243,13 @@ export type Database = {
             foreignKeyName: "registros_ponto_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_ponto_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -16919,6 +17473,13 @@ export type Database = {
             foreignKeyName: "requisicoes_material_responsavel_entrega_id_fkey"
             columns: ["responsavel_entrega_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisicoes_material_responsavel_entrega_id_fkey"
+            columns: ["responsavel_entrega_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -16942,6 +17503,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "requisicoes_material_solicitante_id_fkey"
+            columns: ["solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "requisicoes_material_solicitante_id_fkey"
@@ -17028,6 +17596,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "respostas_checklist_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "respostas_checklist_responsavel_id_fkey"
@@ -17190,6 +17765,13 @@ export type Database = {
             foreignKeyName: "reunioes_organizador_id_fkey"
             columns: ["organizador_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reunioes_organizador_id_fkey"
+            columns: ["organizador_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -17320,6 +17902,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "riscos_institucionais_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "riscos_institucionais_responsavel_id_fkey"
@@ -17596,6 +18185,13 @@ export type Database = {
             foreignKeyName: "servidor_regime_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servidor_regime_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -17637,6 +18233,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "servidor_tag_vinculos_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "servidor_tag_vinculos_servidor_id_fkey"
@@ -18143,6 +18746,13 @@ export type Database = {
             foreignKeyName: "solicitacoes_abono_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_abono_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -18338,6 +18948,13 @@ export type Database = {
             foreignKeyName: "solicitacoes_sic_recurso_respondido_por_fkey"
             columns: ["recurso_respondido_por"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_sic_recurso_respondido_por_fkey"
+            columns: ["recurso_respondido_por"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -18354,6 +18971,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_sic_respondido_por_fkey"
+            columns: ["respondido_por"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "solicitacoes_sic_respondido_por_fkey"
@@ -19111,6 +19735,13 @@ export type Database = {
             foreignKeyName: "viagens_diarias_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "viagens_diarias_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
@@ -19200,6 +19831,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "vinculos_funcionais_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "vinculos_funcionais_servidor_id_fkey"
@@ -19474,6 +20112,36 @@ export type Database = {
         }
         Relationships: []
       }
+      v_relatorio_tce_pessoal: {
+        Row: {
+          anos_servico: number | null
+          carga_horaria: number | null
+          cargo_nome: string | null
+          cpf: string | null
+          data_admissao: string | null
+          data_nascimento: string | null
+          data_posse: string | null
+          descontos: number | null
+          escolaridade: string | null
+          gratificacoes: number | null
+          id: string | null
+          idade: number | null
+          matricula: string | null
+          nome_completo: string | null
+          pcd: boolean | null
+          pcd_tipo: string | null
+          raca_cor: string | null
+          regime_juridico: string | null
+          remuneracao_bruta: number | null
+          remuneracao_liquida: number | null
+          sexo: string | null
+          situacao: Database["public"]["Enums"]["situacao_funcional"] | null
+          tipo_servidor: Database["public"]["Enums"]["tipo_servidor"] | null
+          unidade_nome: string | null
+          unidade_sigla: string | null
+        }
+        Relationships: []
+      }
       v_relatorio_unidades_locais: {
         Row: {
           agendamentos_aprovados: number | null
@@ -19526,6 +20194,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_historico_bem_completo"
             referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "nomeacoes_chefe_unidade_servidor_id_fkey"
+            columns: ["chefe_atual_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "nomeacoes_chefe_unidade_servidor_id_fkey"
@@ -19739,6 +20414,15 @@ export type Database = {
           status: string
         }[]
       }
+      fn_gerar_esocial_s1200: {
+        Args: {
+          p_competencia_ano: number
+          p_competencia_mes: number
+          p_servidor_id: string
+        }
+        Returns: Json
+      }
+      fn_gerar_esocial_s2200: { Args: { p_servidor_id: string }; Returns: Json }
       fn_gerar_numero_financeiro: {
         Args: { p_exercicio?: number; p_tipo: string }
         Returns: string
@@ -19752,6 +20436,18 @@ export type Database = {
         Returns: boolean
       }
       fn_proximo_numero_processo: { Args: { p_ano?: number }; Returns: string }
+      fn_validar_margem_consignavel: {
+        Args: { p_servidor_id: string }
+        Returns: {
+          dentro_limite: boolean
+          margem_disponivel: number
+          margem_total_percentual: number
+          margem_total_valor: number
+          margem_utilizada: number
+          percentual_utilizado: number
+          salario_liquido: number
+        }[]
+      }
       fn_validar_teto_remuneratorio: {
         Args: { p_remuneracao_bruta: number }
         Returns: {
