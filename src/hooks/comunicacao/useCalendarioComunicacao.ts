@@ -10,6 +10,8 @@ import { startOfMonth, endOfMonth, format, parseISO, getMonth, getDate, isValid 
 export type TipoEventoCalendario = 
   | "demanda"
   | "aniversario"
+  | "aniversario_instituicao"
+  | "aniversario_representante"
   | "evento_federacao"
   | "publicacao"
   | "banner";
@@ -31,6 +33,8 @@ export interface EventoCalendario {
 const CORES_EVENTOS: Record<TipoEventoCalendario, string> = {
   demanda: "hsl(var(--primary))",
   aniversario: "hsl(340, 82%, 52%)", // Rosa
+  aniversario_instituicao: "hsl(262, 83%, 58%)", // Roxo
+  aniversario_representante: "hsl(16, 85%, 55%)", // Coral
   evento_federacao: "hsl(142, 76%, 36%)", // Verde
   publicacao: "hsl(221, 83%, 53%)", // Azul
   banner: "hsl(38, 92%, 50%)", // Laranja
@@ -39,6 +43,8 @@ const CORES_EVENTOS: Record<TipoEventoCalendario, string> = {
 const ICONES_EVENTOS: Record<TipoEventoCalendario, string> = {
   demanda: "clipboard-list",
   aniversario: "cake",
+  aniversario_instituicao: "building-2",
+  aniversario_representante: "user-round",
   evento_federacao: "trophy",
   publicacao: "newspaper",
   banner: "image",
@@ -183,6 +189,90 @@ export function useCalendarioComunicacao({ mes, ano }: UseCalendarioComunicacaoO
     },
   });
 
+  // Buscar aniversários de instituições (data de fundação)
+  const { data: aniversariosInstituicao = [], isLoading: loadingAnivInstituicao } = useQuery({
+    queryKey: ["calendario-aniv-instituicao", mes],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("instituicoes")
+        .select("id, nome_razao_social, data_fundacao, tipo_instituicao")
+        .eq("ativo", true)
+        .not("data_fundacao", "is", null);
+
+      if (error) throw error;
+
+      const eventos: EventoCalendario[] = [];
+      (data || []).forEach((inst: any) => {
+        if (!inst.data_fundacao) return;
+        try {
+          const dataFund = parseISO(inst.data_fundacao);
+          if (!isValid(dataFund)) return;
+          if (getMonth(dataFund) !== mes) return;
+
+          const dia = getDate(dataFund);
+          const dataEvento = new Date(ano, mes, dia);
+
+          eventos.push({
+            id: `aniv-inst-${inst.id}`,
+            tipo: "aniversario_instituicao",
+            titulo: inst.nome_razao_social,
+            descricao: `Aniversário de fundação • ${inst.tipo_instituicao || "Instituição"}`,
+            data: dataEvento,
+            cor: CORES_EVENTOS.aniversario_instituicao,
+            icone: ICONES_EVENTOS.aniversario_instituicao,
+            link: `/instituicoes/${inst.id}`,
+            metadata: { tipo_instituicao: inst.tipo_instituicao },
+          });
+        } catch {
+          // Data inválida
+        }
+      });
+      return eventos;
+    },
+  });
+
+  // Buscar aniversários dos representantes das instituições
+  const { data: aniversariosRepresentante = [], isLoading: loadingAnivRepresentante } = useQuery({
+    queryKey: ["calendario-aniv-representante", mes],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("instituicoes")
+        .select("id, nome_razao_social, responsavel_nome, responsavel_data_nascimento")
+        .eq("ativo", true)
+        .not("responsavel_data_nascimento", "is", null);
+
+      if (error) throw error;
+
+      const eventos: EventoCalendario[] = [];
+      (data || []).forEach((inst: any) => {
+        if (!inst.responsavel_data_nascimento || !inst.responsavel_nome) return;
+        try {
+          const dataNasc = parseISO(inst.responsavel_data_nascimento);
+          if (!isValid(dataNasc)) return;
+          if (getMonth(dataNasc) !== mes) return;
+
+          const dia = getDate(dataNasc);
+          const dataEvento = new Date(ano, mes, dia);
+
+          eventos.push({
+            id: `aniv-repr-${inst.id}`,
+            tipo: "aniversario_representante",
+            titulo: inst.responsavel_nome,
+            descricao: `Representante de ${inst.nome_razao_social}`,
+            data: dataEvento,
+            cor: CORES_EVENTOS.aniversario_representante,
+            icone: ICONES_EVENTOS.aniversario_representante,
+            link: `/instituicoes/${inst.id}`,
+            metadata: { instituicao: inst.nome_razao_social },
+          });
+        } catch {
+          // Data inválida
+        }
+      });
+      return eventos;
+    },
+  });
+
   // Buscar banners agendados
   const { data: banners = [], isLoading: loadingBanners } = useQuery({
     queryKey: ["calendario-banners", mes, ano],
@@ -213,6 +303,8 @@ export function useCalendarioComunicacao({ mes, ano }: UseCalendarioComunicacaoO
   const todosEventos = [
     ...demandas,
     ...aniversariantes,
+    ...aniversariosInstituicao,
+    ...aniversariosRepresentante,
     ...eventosFederacao,
     ...publicacoes,
     ...banners,
@@ -231,12 +323,14 @@ export function useCalendarioComunicacao({ mes, ano }: UseCalendarioComunicacaoO
     totalEventos: todosEventos.length,
     demandas: demandas.length,
     aniversariantes: aniversariantes.length,
+    aniversariosInstituicao: aniversariosInstituicao.length,
+    aniversariosRepresentante: aniversariosRepresentante.length,
     eventosFederacao: eventosFederacao.length,
     publicacoes: publicacoes.length,
     banners: banners.length,
   };
 
-  const isLoading = loadingDemandas || loadingAniversariantes || loadingEventos || loadingPublicacoes || loadingBanners;
+  const isLoading = loadingDemandas || loadingAniversariantes || loadingAnivInstituicao || loadingAnivRepresentante || loadingEventos || loadingPublicacoes || loadingBanners;
 
   return {
     eventos: todosEventos,

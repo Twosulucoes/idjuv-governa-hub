@@ -11323,6 +11323,7 @@ export type Database = {
           orgao_vinculado: string | null
           responsavel_cargo: string | null
           responsavel_cpf: string | null
+          responsavel_data_nascimento: string | null
           responsavel_email: string | null
           responsavel_nome: string
           responsavel_telefone: string | null
@@ -11362,6 +11363,7 @@ export type Database = {
           orgao_vinculado?: string | null
           responsavel_cargo?: string | null
           responsavel_cpf?: string | null
+          responsavel_data_nascimento?: string | null
           responsavel_email?: string | null
           responsavel_nome: string
           responsavel_telefone?: string | null
@@ -11401,6 +11403,7 @@ export type Database = {
           orgao_vinculado?: string | null
           responsavel_cargo?: string | null
           responsavel_cpf?: string | null
+          responsavel_data_nascimento?: string | null
           responsavel_email?: string | null
           responsavel_nome?: string
           responsavel_telefone?: string | null
