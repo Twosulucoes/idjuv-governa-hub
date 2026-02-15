@@ -11,3 +11,5 @@ export { default as RelatoriosFinanceiroPage } from "./RelatoriosFinanceiroPage"
 export { default as PlaceholderDetalheFinanceiroPage } from "./PlaceholderDetalheFinanceiroPage";
 export { default as QDDPage } from "./QDDPage";
 export { default as AlteracoesOrcamentariasPage } from "./AlteracoesOrcamentariasPage";
+export { default as RestosAPagarPage } from "./RestosAPagarPage";
+export { default as SubEmpenhosPage } from "./SubEmpenhosPage";
