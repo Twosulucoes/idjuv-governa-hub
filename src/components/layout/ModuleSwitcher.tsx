@@ -51,7 +51,7 @@ export function ModuleSwitcher() {
   };
 
   return (
-    <div className="flex flex-col gap-1 py-2">
+    <div className="flex flex-col md:flex-col flex-wrap gap-1 py-2">
       {availableModules.map((module) => {
         const Icon = module.icone;
         const isActive = isModuleActive(module.codigo);
