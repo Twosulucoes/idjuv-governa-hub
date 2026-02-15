@@ -28,9 +28,11 @@ interface ModuleSidebarProps {
   module: Modulo;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  /** When true, renders content without the outer aside wrapper (for use inside drawers) */
+  bare?: boolean;
 }
 
-export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse }: ModuleSidebarProps) {
+export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse, bare = false }: ModuleSidebarProps) {
   const location = useLocation();
   const menuConfig = MODULE_MENUS[module];
   const [openItems, setOpenItems] = useState<string[]>([]);
@@ -156,7 +158,7 @@ export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse }:
   };
 
   // Versão colapsada da sidebar
-  if (isCollapsed) {
+  if (isCollapsed && !bare) {
     return (
       <aside className="w-14 border-r border-border bg-card flex-shrink-0 flex flex-col">
         {/* Botão de expandir */}
@@ -178,7 +180,6 @@ export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse }:
 
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-1 flex flex-col items-center">
-            {/* Dashboard do módulo */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link
@@ -194,11 +195,7 @@ export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse }:
               </TooltipTrigger>
               <TooltipContent side="right">{menuConfig.dashboard.label}</TooltipContent>
             </Tooltip>
-
-            {/* Separator */}
             <div className="h-px w-6 bg-border my-2" />
-
-            {/* Menu items */}
             {filteredItems.map((item) => renderCollapsedMenuItem(item))}
           </div>
         </ScrollArea>
@@ -206,33 +203,33 @@ export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse }:
     );
   }
 
-  // Versão expandida da sidebar
-  return (
-    <aside className="w-56 border-r border-border bg-card flex-shrink-0 flex flex-col">
-      {/* Botão de colapsar */}
-      <div className="p-2 border-b border-border flex justify-end">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onToggleCollapse}
-              className="h-8 w-8"
-            >
-              <PanelLeftClose className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Recolher menu</TooltipContent>
-        </Tooltip>
-      </div>
+  // Content for expanded sidebar
+  const expandedContent = (
+    <>
+      {!bare && (
+        <div className="p-2 border-b border-border flex justify-end">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onToggleCollapse}
+                className="h-8 w-8"
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Recolher menu</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
 
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-1">
-          {/* Dashboard do módulo */}
           <Link
             to={menuConfig.dashboard.route}
             className={cn(
-              "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+              "flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium transition-colors touch-target-sm",
               "hover:bg-accent hover:text-accent-foreground",
               isActive(menuConfig.dashboard.route) && "bg-primary text-primary-foreground"
             )}
@@ -240,14 +237,22 @@ export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse }:
             <LayoutDashboard className="h-4 w-4" />
             <span>{menuConfig.dashboard.label}</span>
           </Link>
-
-          {/* Separator */}
           <div className="h-px bg-border my-2" />
-
-          {/* Menu items */}
           {filteredItems.map((item) => renderExpandedMenuItem(item))}
         </div>
       </ScrollArea>
+    </>
+  );
+
+  // Bare mode: no wrapping aside (used inside drawer)
+  if (bare) {
+    return <div className="flex flex-col flex-1">{expandedContent}</div>;
+  }
+
+  // Versão expandida da sidebar
+  return (
+    <aside className="w-56 border-r border-border bg-card flex-shrink-0 flex flex-col">
+      {expandedContent}
     </aside>
   );
 }
