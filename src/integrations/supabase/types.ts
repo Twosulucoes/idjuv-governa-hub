@@ -19695,6 +19695,27 @@ export type Database = {
         Args: { p_servidor_id: string }
         Returns: undefined
       }
+      fn_calcular_13_proporcional: {
+        Args: {
+          p_ano: number
+          p_remuneracao_base: number
+          p_servidor_id: string
+        }
+        Returns: {
+          meses_trabalhados: number
+          valor_integral: number
+          valor_proporcional: number
+        }[]
+      }
+      fn_calcular_ferias: {
+        Args: { p_dias_ferias?: number; p_remuneracao_base: number }
+        Returns: {
+          dias: number
+          terco_constitucional: number
+          valor_ferias: number
+          valor_total: number
+        }[]
+      }
       fn_calcular_nivel_parametro: {
         Args: {
           p_servidor_id: string
@@ -19731,6 +19752,15 @@ export type Database = {
         Returns: boolean
       }
       fn_proximo_numero_processo: { Args: { p_ano?: number }; Returns: string }
+      fn_validar_teto_remuneratorio: {
+        Args: { p_remuneracao_bruta: number }
+        Returns: {
+          dentro_teto: boolean
+          percentual_teto: number
+          valor_excedente: number
+          valor_teto: number
+        }[]
+      }
       folha_esta_bloqueada: { Args: { p_folha_id: string }; Returns: boolean }
       gerar_codigo_pre_cadastro: { Args: never; Returns: string }
       gerar_link_frequencia: { Args: never; Returns: string }
