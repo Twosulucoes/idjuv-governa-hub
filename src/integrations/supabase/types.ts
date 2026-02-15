@@ -8603,8 +8603,10 @@ export type Database = {
           acao_id: string | null
           ativo: boolean | null
           bloqueado: boolean | null
+          classificacao_pcasp: string | null
           cod_acompanhamento: string | null
           codigo_dotacao: string
+          conta_contabil_id: string | null
           created_at: string | null
           created_by: string | null
           exercicio: number
@@ -8637,8 +8639,10 @@ export type Database = {
           acao_id?: string | null
           ativo?: boolean | null
           bloqueado?: boolean | null
+          classificacao_pcasp?: string | null
           cod_acompanhamento?: string | null
           codigo_dotacao: string
+          conta_contabil_id?: string | null
           created_at?: string | null
           created_by?: string | null
           exercicio: number
@@ -8671,8 +8675,10 @@ export type Database = {
           acao_id?: string | null
           ativo?: boolean | null
           bloqueado?: boolean | null
+          classificacao_pcasp?: string | null
           cod_acompanhamento?: string | null
           codigo_dotacao?: string
+          conta_contabil_id?: string | null
           created_at?: string | null
           created_by?: string | null
           exercicio?: number
@@ -8707,6 +8713,13 @@ export type Database = {
             columns: ["acao_id"]
             isOneToOne: false
             referencedRelation: "fin_acoes_orcamentarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_dotacoes_conta_contabil_id_fkey"
+            columns: ["conta_contabil_id"]
+            isOneToOne: false
+            referencedRelation: "fin_plano_contas"
             referencedColumns: ["id"]
           },
           {
@@ -8782,6 +8795,8 @@ export type Database = {
       }
       fin_empenhos: {
         Row: {
+          conta_contabil_credito_id: string | null
+          conta_contabil_debito_id: string | null
           contrato_id: string | null
           created_at: string | null
           created_by: string | null
@@ -8813,6 +8828,8 @@ export type Database = {
           valor_pago: number | null
         }
         Insert: {
+          conta_contabil_credito_id?: string | null
+          conta_contabil_debito_id?: string | null
           contrato_id?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -8844,6 +8861,8 @@ export type Database = {
           valor_pago?: number | null
         }
         Update: {
+          conta_contabil_credito_id?: string | null
+          conta_contabil_debito_id?: string | null
           contrato_id?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -8875,6 +8894,20 @@ export type Database = {
           valor_pago?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fin_empenhos_conta_contabil_credito_id_fkey"
+            columns: ["conta_contabil_credito_id"]
+            isOneToOne: false
+            referencedRelation: "fin_plano_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_empenhos_conta_contabil_debito_id_fkey"
+            columns: ["conta_contabil_debito_id"]
+            isOneToOne: false
+            referencedRelation: "fin_plano_contas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fin_empenhos_contrato_id_fkey"
             columns: ["contrato_id"]
@@ -9239,6 +9272,8 @@ export type Database = {
           atestado_por: string | null
           cargo_atestante: string | null
           chave_nfe: string | null
+          conta_contabil_credito_id: string | null
+          conta_contabil_debito_id: string | null
           created_at: string | null
           created_by: string | null
           data_documento: string
@@ -9271,6 +9306,8 @@ export type Database = {
           atestado_por?: string | null
           cargo_atestante?: string | null
           chave_nfe?: string | null
+          conta_contabil_credito_id?: string | null
+          conta_contabil_debito_id?: string | null
           created_at?: string | null
           created_by?: string | null
           data_documento: string
@@ -9303,6 +9340,8 @@ export type Database = {
           atestado_por?: string | null
           cargo_atestante?: string | null
           chave_nfe?: string | null
+          conta_contabil_credito_id?: string | null
+          conta_contabil_debito_id?: string | null
           created_at?: string | null
           created_by?: string | null
           data_documento?: string
@@ -9329,6 +9368,20 @@ export type Database = {
           valor_retencoes?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fin_liquidacoes_conta_contabil_credito_id_fkey"
+            columns: ["conta_contabil_credito_id"]
+            isOneToOne: false
+            referencedRelation: "fin_plano_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_liquidacoes_conta_contabil_debito_id_fkey"
+            columns: ["conta_contabil_debito_id"]
+            isOneToOne: false
+            referencedRelation: "fin_plano_contas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fin_liquidacoes_empenho_id_fkey"
             columns: ["empenho_id"]
@@ -9390,6 +9443,8 @@ export type Database = {
           autorizado_por: string | null
           banco_favorecido: string | null
           conta_bancaria_id: string
+          conta_contabil_credito_id: string | null
+          conta_contabil_debito_id: string | null
           conta_favorecido: string | null
           created_at: string | null
           created_by: string | null
@@ -9424,6 +9479,8 @@ export type Database = {
           autorizado_por?: string | null
           banco_favorecido?: string | null
           conta_bancaria_id: string
+          conta_contabil_credito_id?: string | null
+          conta_contabil_debito_id?: string | null
           conta_favorecido?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -9458,6 +9515,8 @@ export type Database = {
           autorizado_por?: string | null
           banco_favorecido?: string | null
           conta_bancaria_id?: string
+          conta_contabil_credito_id?: string | null
+          conta_contabil_debito_id?: string | null
           conta_favorecido?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -9492,6 +9551,20 @@ export type Database = {
             columns: ["conta_bancaria_id"]
             isOneToOne: false
             referencedRelation: "fin_contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_pagamentos_conta_contabil_credito_id_fkey"
+            columns: ["conta_contabil_credito_id"]
+            isOneToOne: false
+            referencedRelation: "fin_plano_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_pagamentos_conta_contabil_debito_id_fkey"
+            columns: ["conta_contabil_debito_id"]
+            isOneToOne: false
+            referencedRelation: "fin_plano_contas"
             referencedColumns: ["id"]
           },
           {
@@ -9727,6 +9800,80 @@ export type Database = {
           },
         ]
       }
+      fin_restos_pagar: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          data_cancelamento: string | null
+          data_inscricao: string
+          data_prescricao: string | null
+          empenho_id: string
+          exercicio_inscricao: number
+          exercicio_origem: number
+          id: string
+          motivo_cancelamento: string | null
+          observacoes: string | null
+          saldo: number | null
+          status: string
+          tipo: string
+          updated_at: string | null
+          valor_cancelado: number
+          valor_inscrito: number
+          valor_liquidado: number
+          valor_pago: number
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          data_cancelamento?: string | null
+          data_inscricao?: string
+          data_prescricao?: string | null
+          empenho_id: string
+          exercicio_inscricao: number
+          exercicio_origem: number
+          id?: string
+          motivo_cancelamento?: string | null
+          observacoes?: string | null
+          saldo?: number | null
+          status?: string
+          tipo: string
+          updated_at?: string | null
+          valor_cancelado?: number
+          valor_inscrito: number
+          valor_liquidado?: number
+          valor_pago?: number
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          data_cancelamento?: string | null
+          data_inscricao?: string
+          data_prescricao?: string | null
+          empenho_id?: string
+          exercicio_inscricao?: number
+          exercicio_origem?: number
+          id?: string
+          motivo_cancelamento?: string | null
+          observacoes?: string | null
+          saldo?: number | null
+          status?: string
+          tipo?: string
+          updated_at?: string | null
+          valor_cancelado?: number
+          valor_inscrito?: number
+          valor_liquidado?: number
+          valor_pago?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_restos_pagar_empenho_id_fkey"
+            columns: ["empenho_id"]
+            isOneToOne: false
+            referencedRelation: "fin_empenhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_solicitacao_itens: {
         Row: {
           created_at: string | null
@@ -9929,6 +10076,62 @@ export type Database = {
             columns: ["unidade_solicitante_id"]
             isOneToOne: false
             referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_sub_empenhos: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          data_registro: string
+          documento_referencia: string | null
+          empenho_id: string
+          id: string
+          justificativa: string
+          numero: string
+          observacoes: string | null
+          status: string
+          tipo: string
+          updated_at: string | null
+          valor: number
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          data_registro?: string
+          documento_referencia?: string | null
+          empenho_id: string
+          id?: string
+          justificativa: string
+          numero: string
+          observacoes?: string | null
+          status?: string
+          tipo: string
+          updated_at?: string | null
+          valor: number
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          data_registro?: string
+          documento_referencia?: string | null
+          empenho_id?: string
+          id?: string
+          justificativa?: string
+          numero?: string
+          observacoes?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_sub_empenhos_empenho_id_fkey"
+            columns: ["empenho_id"]
+            isOneToOne: false
+            referencedRelation: "fin_empenhos"
             referencedColumns: ["id"]
           },
         ]
@@ -19518,6 +19721,10 @@ export type Database = {
       fn_gerar_numero_financeiro: {
         Args: { p_exercicio?: number; p_tipo: string }
         Returns: string
+      }
+      fn_inscrever_restos_pagar: {
+        Args: { p_exercicio_inscricao?: number; p_exercicio_origem: number }
+        Returns: number
       }
       fn_pode_arquivar_processo: {
         Args: { p_processo_id: string }

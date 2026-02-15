@@ -127,6 +127,8 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "empenhos", label: "Empenhos", icon: FileText, route: "/financeiro/empenhos" },
       { id: "liquidacoes", label: "Liquidações", icon: FileCheck, route: "/financeiro/liquidacoes" },
       { id: "pagamentos", label: "Pagamentos", icon: Receipt, route: "/financeiro/pagamentos" },
+      { id: "sub-empenhos", label: "Sub-Empenhos", icon: FileText, route: "/financeiro/sub-empenhos" },
+      { id: "restos-a-pagar", label: "Restos a Pagar", icon: FileText, route: "/financeiro/restos-a-pagar" },
       { id: "adiantamentos", label: "Adiantamentos", icon: Send, route: "/financeiro/adiantamentos" },
       { id: "contas", label: "Contas Bancárias", icon: Building2, route: "/financeiro/contas-bancarias" },
       { id: "relatorios", label: "Relatórios", icon: BarChart3, route: "/financeiro/relatorios" },

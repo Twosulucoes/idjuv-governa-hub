@@ -795,3 +795,78 @@ export const FORMA_PAGAMENTO_OPTIONS = [
   { value: 'ob', label: 'Ordem Bancária' },
   { value: 'cheque', label: 'Cheque' },
 ];
+
+// ===========================================
+// RESTOS A PAGAR
+// ===========================================
+
+export type StatusRestoPagar = 'inscrito' | 'em_liquidacao' | 'liquidado' | 'pago' | 'cancelado' | 'prescrito';
+export type TipoRestoPagar = 'processado' | 'nao_processado';
+
+export interface RestoPagar {
+  id: string;
+  empenho_id: string;
+  exercicio_origem: number;
+  exercicio_inscricao: number;
+  tipo: TipoRestoPagar;
+  valor_inscrito: number;
+  valor_cancelado: number;
+  valor_liquidado: number;
+  valor_pago: number;
+  saldo: number;
+  status: StatusRestoPagar;
+  data_inscricao: string;
+  data_cancelamento?: string | null;
+  data_prescricao?: string | null;
+  motivo_cancelamento?: string | null;
+  observacoes?: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by?: string | null;
+  // Joins
+  empenho?: Empenho;
+}
+
+export const STATUS_RAP_LABELS: Record<StatusRestoPagar, string> = {
+  inscrito: 'Inscrito',
+  em_liquidacao: 'Em Liquidação',
+  liquidado: 'Liquidado',
+  pago: 'Pago',
+  cancelado: 'Cancelado',
+  prescrito: 'Prescrito',
+};
+
+export const TIPO_RAP_LABELS: Record<TipoRestoPagar, string> = {
+  processado: 'Processado',
+  nao_processado: 'Não Processado',
+};
+
+// ===========================================
+// SUB-EMPENHOS
+// ===========================================
+
+export type TipoSubEmpenho = 'reforco' | 'anulacao';
+export type StatusSubEmpenho = 'ativo' | 'cancelado';
+
+export interface SubEmpenho {
+  id: string;
+  empenho_id: string;
+  numero: string;
+  tipo: TipoSubEmpenho;
+  valor: number;
+  data_registro: string;
+  justificativa: string;
+  documento_referencia?: string | null;
+  status: StatusSubEmpenho;
+  observacoes?: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by?: string | null;
+  // Joins
+  empenho?: Empenho;
+}
+
+export const TIPO_SUB_EMPENHO_LABELS: Record<TipoSubEmpenho, string> = {
+  reforco: 'Reforço',
+  anulacao: 'Anulação',
+};
