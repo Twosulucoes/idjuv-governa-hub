@@ -187,88 +187,102 @@ export default function QDDPage() {
     setImporting(true);
 
     try {
-      // First, get or create naturezas and fontes
       const ex = parseInt(exercicio);
 
-      // Get existing programa
-      const { data: programas } = await supabase
-        .from('fin_programas_orcamentarios')
-        .select('id, codigo, nome')
-        .eq('exercicio', ex);
+      // Get existing data for matching
+      const [{ data: programas }, { data: naturezas }, { data: fontes }, { data: dotacoesExistentes }] = await Promise.all([
+        supabase.from('fin_programas_orcamentarios').select('id, codigo, nome').eq('exercicio', ex),
+        supabase.from('fin_naturezas_despesa').select('id, codigo'),
+        supabase.from('fin_fontes_recurso').select('id, codigo'),
+        supabase.from('fin_dotacoes').select('id, codigo_dotacao, paoe').eq('exercicio', ex),
+      ]);
 
-      // Get existing naturezas
-      const { data: naturezas } = await supabase
-        .from('fin_naturezas_despesa')
-        .select('id, codigo');
-
-      // Get existing fontes
-      const { data: fontes } = await supabase
-        .from('fin_fontes_recurso')
-        .select('id, codigo');
+      // Build set of existing keys for deduplication
+      const existingKeys = new Set(
+        dotacoesExistentes?.map(d => `${d.codigo_dotacao}|${d.paoe || ''}`) || []
+      );
 
       let inserted = 0;
+      let updated = 0;
       let errors = 0;
+      let skipped = 0;
 
       for (const row of importPreview) {
         try {
-          // Extract programa code from string like "030 - Desenvolvimento..."
           const progCode = row.programa?.split(" - ")[0]?.trim();
-          const paoeCode = row.paoe?.split(" - ")[0]?.trim();
-          
-          // Find or skip programa
           const prog = programas?.find(p => p.codigo === progCode);
-
-          // Find natureza
           const nat = naturezas?.find(n => n.codigo === row.natureza);
-
-          // Find fonte  
           const fonteCode = row.fonte?.replace(".", "");
           const fonte = fontes?.find(f => f.codigo === fonteCode || f.codigo === row.fonte);
 
-          // Build codigo_dotacao
           const codigoDotacao = `${row.natureza}.${row.fonte}.${row.idu || 'Não'}`;
+          const chaveDedup = `${codigoDotacao}|${row.paoe || ''}`;
 
-          const { error } = await supabase
-            .from('fin_dotacoes')
-            .insert({
-              exercicio: ex,
-              codigo_dotacao: codigoDotacao,
-              paoe: row.paoe || null,
-              regional: row.regional || null,
-              cod_acompanhamento: row.cod_acomp || '0000',
-              idu: row.idu || 'Não',
-              tro: row.tro || 'No',
-              programa_id: prog?.id || null,
-              natureza_despesa_id: nat?.id || null,
-              fonte_recurso_id: fonte?.id || null,
-              valor_inicial: row.inicial || 0,
-              valor_suplementado: row.suplementado || 0,
-              valor_reduzido: row.anulado || 0,
-              valor_bloqueado: row.bloqueado || 0,
-              valor_reserva: row.reserva || 0,
-              valor_ped: row.ped || 0,
-              valor_empenhado: row.empenhado || 0,
-              valor_liquidado: row.liquidado || 0,
-              valor_em_liquidacao: row.em_liquidacao || 0,
-              valor_pago: row.pago || 0,
-              valor_restos_pagar: row.restos || 0,
-              ativo: true,
-            } as any);
+          const dotacaoData = {
+            exercicio: ex,
+            codigo_dotacao: codigoDotacao,
+            paoe: row.paoe || null,
+            regional: row.regional || null,
+            cod_acompanhamento: row.cod_acomp || '0000',
+            idu: row.idu || 'Não',
+            tro: row.tro || 'No',
+            programa_id: prog?.id || null,
+            natureza_despesa_id: nat?.id || null,
+            fonte_recurso_id: fonte?.id || null,
+            valor_inicial: row.inicial || 0,
+            valor_suplementado: row.suplementado || 0,
+            valor_reduzido: row.anulado || 0,
+            valor_bloqueado: row.bloqueado || 0,
+            valor_reserva: row.reserva || 0,
+            valor_ped: row.ped || 0,
+            valor_empenhado: row.empenhado || 0,
+            valor_liquidado: row.liquidado || 0,
+            valor_em_liquidacao: row.em_liquidacao || 0,
+            valor_pago: row.pago || 0,
+            valor_restos_pagar: row.restos || 0,
+            ativo: true,
+          } as any;
 
-          if (error) {
-            console.error('Erro ao inserir dotação:', error);
-            errors++;
+          if (existingKeys.has(chaveDedup)) {
+            // Update existing dotação
+            const existing = dotacoesExistentes?.find(
+              d => d.codigo_dotacao === codigoDotacao && (d.paoe || '') === (row.paoe || '')
+            );
+            if (existing) {
+              const { error } = await supabase
+                .from('fin_dotacoes')
+                .update(dotacaoData)
+                .eq('id', existing.id);
+              if (error) { errors++; } else { updated++; }
+            } else {
+              skipped++;
+            }
           } else {
-            inserted++;
+            // Insert new
+            const { error } = await supabase
+              .from('fin_dotacoes')
+              .insert(dotacaoData);
+            if (error) {
+              console.error('Erro ao inserir dotação:', error);
+              errors++;
+            } else {
+              inserted++;
+              existingKeys.add(chaveDedup);
+            }
           }
         } catch {
           errors++;
         }
       }
 
+      const parts = [];
+      if (inserted > 0) parts.push(`${inserted} inseridas`);
+      if (updated > 0) parts.push(`${updated} atualizadas`);
+      if (errors > 0) parts.push(`${errors} erros`);
+
       toast({
         title: "Importação concluída",
-        description: `${inserted} dotações importadas${errors > 0 ? `, ${errors} erros` : ""}.`,
+        description: parts.join(", ") + ".",
       });
 
       setImportOpen(false);

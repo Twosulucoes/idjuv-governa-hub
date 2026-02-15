@@ -7,6 +7,7 @@ import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuditLog } from '@/hooks/useAuditLog';
 import type {
   Dotacao,
   SolicitacaoDespesa,
@@ -132,6 +133,7 @@ export function useSolicitacoes(filtros?: { status?: string; exercicio?: number 
 export function useCriarSolicitacao() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { logCreate } = useAuditLog();
   
   return useMutation({
     mutationFn: async (dados: Partial<SolicitacaoDespesa>) => {
@@ -171,7 +173,8 @@ export function useCriarSolicitacao() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      logCreate('fin_solicitacoes', data.id, data, 'financeiro');
       queryClient.invalidateQueries({ queryKey: ['fin_solicitacoes'] });
       toast({ title: 'Solicitação criada com sucesso' });
     },
@@ -221,6 +224,7 @@ export function useEmpenhos(filtros?: { status?: string; exercicio?: number }) {
 export function useCriarEmpenho() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { logCreate } = useAuditLog();
   
   return useMutation({
     mutationFn: async (dados: Partial<Empenho>) => {
@@ -259,7 +263,8 @@ export function useCriarEmpenho() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      logCreate('fin_empenhos', data.id, data, 'financeiro');
       queryClient.invalidateQueries({ queryKey: ['fin_empenhos'] });
       queryClient.invalidateQueries({ queryKey: ['fin_dotacoes'] });
       queryClient.invalidateQueries({ queryKey: ['fin_resumo_orcamentario'] });
@@ -312,6 +317,7 @@ export function useLiquidacoes(filtros?: { status?: string; empenho_id?: string 
 export function useCriarLiquidacao() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { logCreate } = useAuditLog();
   
   return useMutation({
     mutationFn: async (dados: Partial<Liquidacao>) => {
@@ -352,7 +358,8 @@ export function useCriarLiquidacao() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      logCreate('fin_liquidacoes', data.id, data, 'financeiro');
       queryClient.invalidateQueries({ queryKey: ['fin_liquidacoes'] });
       queryClient.invalidateQueries({ queryKey: ['fin_empenhos'] });
       toast({ title: 'Liquidação registrada com sucesso' });
@@ -403,6 +410,7 @@ export function usePagamentos(filtros?: { status?: string; exercicio?: number })
 export function useCriarPagamento() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { logCreate } = useAuditLog();
   
   return useMutation({
     mutationFn: async (dados: Partial<Pagamento>) => {
@@ -442,7 +450,8 @@ export function useCriarPagamento() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      logCreate('fin_pagamentos', data.id, data, 'financeiro');
       queryClient.invalidateQueries({ queryKey: ['fin_pagamentos'] });
       queryClient.invalidateQueries({ queryKey: ['fin_liquidacoes'] });
       queryClient.invalidateQueries({ queryKey: ['fin_empenhos'] });

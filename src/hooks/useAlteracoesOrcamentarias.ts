@@ -5,6 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuditLog } from "@/hooks/useAuditLog";
 import type { AlteracaoOrcamentaria, TipoAlteracaoOrcamentaria } from "@/types/financeiro";
 
 interface FiltrosAlteracao {
@@ -56,6 +57,7 @@ interface CriarAlteracaoInput {
 export function useCriarAlteracaoOrcamentaria() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { logCreate } = useAuditLog();
 
   return useMutation({
     mutationFn: async (dados: CriarAlteracaoInput) => {
@@ -87,7 +89,8 @@ export function useCriarAlteracaoOrcamentaria() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      logCreate('fin_alteracoes_orcamentarias', data.id, data, 'financeiro');
       queryClient.invalidateQueries({ queryKey: ["fin_alteracoes_orcamentarias"] });
       queryClient.invalidateQueries({ queryKey: ["fin_dotacoes"] });
       queryClient.invalidateQueries({ queryKey: ["fin_resumo_orcamentario"] });

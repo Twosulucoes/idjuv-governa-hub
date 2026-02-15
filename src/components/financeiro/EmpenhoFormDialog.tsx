@@ -65,6 +65,7 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
   });
 
   const dotacaoSelecionada = dotacoes?.find((d) => d.id === form.dotacao_id);
+  const valorExcedesSaldo = dotacaoSelecionada && Number(form.valor_empenhado) > dotacaoSelecionada.saldo_disponivel;
 
   const resetForm = () => {
     setForm({
@@ -121,8 +122,9 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
               </SelectContent>
             </Select>
             {dotacaoSelecionada && (
-              <p className="text-xs text-muted-foreground">
+              <p className={`text-xs ${valorExcedesSaldo ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
                 Saldo disponível: <strong>{formatCurrency(dotacaoSelecionada.saldo_disponivel)}</strong>
+                {valorExcedesSaldo && ' — Valor excede o saldo disponível!'}
               </p>
             )}
           </div>
@@ -250,7 +252,7 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
             </Button>
             <Button
               type="submit"
-              disabled={!form.dotacao_id || !form.fornecedor_id || !form.valor_empenhado || !form.objeto || criarEmpenho.isPending}
+              disabled={!form.dotacao_id || !form.fornecedor_id || !form.valor_empenhado || !form.objeto || !!valorExcedesSaldo || criarEmpenho.isPending}
             >
               {criarEmpenho.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Emitir Empenho
