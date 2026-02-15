@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Archive, Ban, FileText, TrendingDown, TrendingUp, AlertTriangle } from 'lucide-react';
+import { ModuleLayout } from '@/components/layout';
 import { useRestosPagar, useResumoRAP, useInscreverRAP, useCancelarRAP } from '@/hooks/useRestosAPagar';
 import { STATUS_RAP_LABELS, TIPO_RAP_LABELS } from '@/types/financeiro';
 
@@ -62,6 +63,7 @@ export default function RestosAPagarPage() {
   };
 
   return (
+    <ModuleLayout module="financeiro">
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -285,5 +287,6 @@ export default function RestosAPagarPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </ModuleLayout>
   );
 }

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Plus, TrendingUp, TrendingDown, Search } from 'lucide-react';
+import { ModuleLayout } from '@/components/layout';
 import { useEmpenhos } from '@/hooks/useFinanceiro';
 import { useSubEmpenhos, useCriarSubEmpenho } from '@/hooks/useSubEmpenhos';
 import { TIPO_SUB_EMPENHO_LABELS } from '@/types/financeiro';
@@ -60,6 +61,7 @@ export default function SubEmpenhosPage() {
   const totalAnulacoes = subEmpenhos?.filter(s => s.tipo === 'anulacao').reduce((sum, s) => sum + s.valor, 0) || 0;
 
   return (
+    <ModuleLayout module="financeiro">
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Sub-Empenhos</h1>
@@ -251,5 +253,6 @@ export default function SubEmpenhosPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </ModuleLayout>
   );
 }
