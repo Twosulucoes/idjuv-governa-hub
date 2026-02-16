@@ -83,6 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [isConfigured] = useState(isSupabaseConfigured());
   const signInInProgressRef = useRef(false);
+  const userRef = useRef<AuthUser | null>(null);
   const { toast } = useToast();
 
   // ============================================
@@ -170,6 +171,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [fetchPermissoes]);
 
   // ============================================
+  // SYNC USER REF
+  // ============================================
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  // ============================================
   // EFEITOS
   // ============================================
 
@@ -200,15 +208,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Se signIn está em progresso, ele já cuida do fetchUserData
           // Evita race condition de dupla chamada
           if (signInInProgressRef.current) {
-            console.log('[Auth] onAuthStateChange ignorado - signIn em progresso');
+            console.log('[Auth] onAuthStateChange BLOQUEADO - signIn em progresso');
             return;
           }
+          
+          // Se já temos um user carregado com o mesmo id, não refazer fetch
+          // Isso evita que o listener sobrescreva dados já carregados pelo signIn
+          const currentUser = userRef.current;
+          if (currentUser?.id === session.user.id) {
+            console.log('[Auth] onAuthStateChange IGNORADO - user já carregado, isSuperAdmin:', currentUser?.isSuperAdmin);
+            return;
+          }
+          
+          console.log('[Auth] onAuthStateChange PROCESSANDO fetch para:', event);
           // Usar setTimeout para evitar deadlock com Supabase
           setTimeout(() => {
             if (!isMounted) return;
+            // Re-checar ref após setTimeout
+            if (signInInProgressRef.current) {
+              console.log('[Auth] onAuthStateChange setTimeout BLOQUEADO - signIn em progresso');
+              return;
+            }
             fetchUserData(session.user).then(userData => {
               if (!isMounted) return;
-              console.log('[Auth] onAuthStateChange userData:', userData?.isSuperAdmin);
+              console.log('[Auth] onAuthStateChange userData carregado:', userData?.isSuperAdmin);
               setUser(userData);
               setIsLoading(false);
             }).catch(() => {
