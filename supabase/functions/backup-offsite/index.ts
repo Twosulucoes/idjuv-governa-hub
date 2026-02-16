@@ -231,7 +231,8 @@ serve(async (req) => {
   }
 
   try {
-    const { action, backupId, backupType, format, tables, since, apiKey } = await req.json();
+    const body = await req.json();
+    const { action, backupId, backupType, format, tables, since, apiKey } = body;
 
     // Clientes Supabase
     const supabaseOrigin = createClient(
@@ -262,8 +263,26 @@ serve(async (req) => {
     // ENDPOINT PÚBLICO PARA CONTINGÊNCIA EXTERNA
     // ============================================
     if (action === 'external-export') {
-      // Validar API key para acesso externo
-      if (!externalApiKey || apiKey !== externalApiKey) {
+      const isLocalExport = body?.localExport === true;
+      
+      // Para exportação local, validar via auth header; para externa, via API key
+      if (isLocalExport) {
+        const authHeader = req.headers.get('Authorization');
+        if (!authHeader) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Não autorizado' }),
+            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user: authUser }, error: authErr } = await supabaseOrigin.auth.getUser(token);
+        if (authErr || !authUser) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Não autenticado' }),
+            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } else if (!externalApiKey || apiKey !== externalApiKey) {
         return new Response(
           JSON.stringify({ success: false, error: 'API key inválida' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

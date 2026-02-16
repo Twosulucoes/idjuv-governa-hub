@@ -220,13 +220,30 @@ export const useBackupOffsite = () => {
     try {
       const data = await invokeBackupFunction('download-manifest', { backupId });
       
-      const blob = new Blob([JSON.stringify(data.manifest, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `manifest_${backupId}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      if (data.url) {
+        // Fetch actual manifest from signed URL
+        const response = await fetch(data.url);
+        if (!response.ok) throw new Error('Falha ao baixar manifest');
+        const manifestContent = await response.text();
+        
+        const blob = new Blob([manifestContent], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `manifest_${backupId}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else if (data.manifest) {
+        const blob = new Blob([JSON.stringify(data.manifest, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `manifest_${backupId}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        throw new Error('Manifest não disponível');
+      }
       
       toast.success('Manifest baixado');
     } catch (error) {
@@ -254,6 +271,54 @@ export const useBackupOffsite = () => {
     }
   }, [invokeBackupFunction]);
 
+  // Exportar dados completos para download local (sem precisar de servidor destino)
+  const exportLocalBackup = useCallback(async (format: string = 'json') => {
+    try {
+      toast.info(`Exportando dados em ${format.toUpperCase()}...`);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Não autenticado');
+
+      const response = await supabase.functions.invoke('backup-offsite', {
+        body: { action: 'external-export', apiKey: '__local__', format, localExport: true },
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+
+      if (response.error) throw new Error(response.error.message);
+      const data: any = response.data;
+      
+      let content: string;
+      let mimeType: string;
+      let extension: string;
+      
+      if (format === 'sql') {
+        content = Object.values(data.data as Record<string, string>).join('\n');
+        mimeType = 'text/sql';
+        extension = 'sql';
+      } else if (format === 'csv') {
+        content = JSON.stringify(data, null, 2);
+        mimeType = 'application/json';
+        extension = 'json'; // CSV tables inside JSON wrapper
+      } else {
+        content = JSON.stringify(data, null, 2);
+        mimeType = 'application/json';
+        extension = 'json';
+      }
+      
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup_idjuv_${new Date().toISOString().slice(0,10)}.${extension}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      toast.success(`Exportação concluída: ${data.tables_count} tabelas, ${data.total_records} registros`);
+    } catch (error) {
+      toast.error(`Erro na exportação: ${(error as Error).message}`);
+    }
+  }, []);
+
   return {
     config,
     configLoading,
@@ -268,6 +333,7 @@ export const useBackupOffsite = () => {
     syncDatabase: syncDatabase.mutate,
     downloadManifest,
     generateDestSchema,
+    exportLocalBackup,
     refetchHistory
   };
 };

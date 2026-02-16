@@ -74,11 +74,13 @@ export default function BackupOffsitePage() {
     cleanupOldBackups,
     downloadManifest,
     generateDestSchema,
+    exportLocalBackup,
     refetchHistory
   } = useBackupOffsite();
 
   const [filterType, setFilterType] = useState<string>('all');
   const [confirmBackup, setConfirmBackup] = useState(false);
+  const [backupFormat, setBackupFormat] = useState<string>('json');
 
   const filteredHistory = history?.filter(b => 
     filterType === 'all' || b.backup_type === filterType
@@ -188,16 +190,34 @@ export default function BackupOffsitePage() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Confirmar Backup</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Deseja executar um backup manual agora? Isso pode levar alguns minutos.
+                      Escolha o formato e confirme a execução do backup.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
+                  <div className="py-4 space-y-3">
+                    <Label>Formato de Exportação</Label>
+                    <Select value={backupFormat} onValueChange={setBackupFormat}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="json">JSON (padrão - restauração rápida)</SelectItem>
+                        <SelectItem value="csv">CSV (compatível com Excel/planilhas)</SelectItem>
+                        <SelectItem value="sql">SQL (PostgreSQL - restauração direta)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {backupFormat === 'json' && 'Formato ideal para restauração automatizada via API.'}
+                      {backupFormat === 'csv' && 'Permite abrir os dados em qualquer planilha ou ferramenta de ETL.'}
+                      {backupFormat === 'sql' && 'Gera INSERTs SQL prontos para execução em qualquer PostgreSQL.'}
+                    </p>
+                  </div>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction onClick={() => {
-                      executeBackup({ backupType: 'manual' });
+                      executeBackup({ backupType: 'manual', format: backupFormat });
                       setConfirmBackup(false);
                     }}>
-                      Executar
+                      Executar Backup ({backupFormat.toUpperCase()})
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -221,6 +241,21 @@ export default function BackupOffsitePage() {
               <Button variant="outline" onClick={() => generateDestSchema()}>
                 <Database className="h-4 w-4 mr-2" />
                 Gerar Schema BD Destino
+              </Button>
+
+              <Button variant="secondary" onClick={() => exportLocalBackup('json')}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar JSON
+              </Button>
+
+              <Button variant="secondary" onClick={() => exportLocalBackup('csv')}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar CSV
+              </Button>
+
+              <Button variant="secondary" onClick={() => exportLocalBackup('sql')}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar SQL
               </Button>
             </div>
           </CardContent>
