@@ -7,6 +7,8 @@ import {
   Search,
   Download,
   BarChart3,
+  AlertTriangle,
+  Pencil,
 } from 'lucide-react';
 
 import { ModuleLayout } from '@/components/layout';
@@ -392,7 +394,7 @@ export default function CentralPortariasPage() {
           if (!open) setSelectedPortaria(null);
         }}
       >
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {selectedPortaria ? `Portaria nº ${selectedPortaria.numero}` : 'Portaria'}
@@ -403,7 +405,8 @@ export default function CentralPortariasPage() {
           </DialogHeader>
 
           {selectedPortaria && (
-            <div className="space-y-3">
+            <div className="space-y-4">
+              {/* Status e Categoria */}
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">
                   {STATUS_PORTARIA_LABELS[selectedPortaria.status]}
@@ -413,17 +416,144 @@ export default function CentralPortariasPage() {
                     {selectedPortaria.categoria}
                   </Badge>
                 )}
-                <span className="text-sm text-muted-foreground">
-                  Data: {new Date(selectedPortaria.data_documento).toLocaleDateString('pt-BR')}
-                </span>
               </div>
 
-              <div className="rounded-lg border bg-muted/20 p-3">
-                <p className="text-sm font-medium mb-2">Conteúdo</p>
-                <pre className="whitespace-pre-wrap text-sm text-muted-foreground max-h-[55vh] overflow-auto">
-                  {selectedPortariaText || '(sem conteúdo)'}
-                </pre>
+              {/* Grid de informações */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Data do Documento</p>
+                  <p className="text-sm font-semibold">
+                    {new Date(selectedPortaria.data_documento).toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Assinatura</p>
+                  <p className="text-sm font-semibold">
+                    {selectedPortaria.data_assinatura
+                      ? new Date(selectedPortaria.data_assinatura).toLocaleDateString('pt-BR')
+                      : <span className="text-muted-foreground font-normal">Não assinada</span>}
+                  </p>
+                  {selectedPortaria.assinante?.full_name && (
+                    <p className="text-xs text-muted-foreground">{selectedPortaria.assinante.full_name}</p>
+                  )}
+                </div>
+
+                <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">DOE (Diário Oficial)</p>
+                  {selectedPortaria.doe_numero || selectedPortaria.doe_data ? (
+                    <>
+                      {selectedPortaria.doe_numero && (
+                        <p className="text-sm font-semibold">Nº {selectedPortaria.doe_numero}</p>
+                      )}
+                      {selectedPortaria.doe_data && (
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(selectedPortaria.doe_data).toLocaleDateString('pt-BR')}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-1 text-warning">
+                      <AlertTriangle className="h-3 w-3" />
+                      <span className="text-xs font-medium">Não informado</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Anexo / Arquivo</p>
+                  {selectedPortaria.arquivo_assinado_url ? (
+                    <a href={selectedPortaria.arquivo_assinado_url} target="_blank" rel="noreferrer"
+                       className="text-sm text-primary underline font-medium">
+                      📎 Arquivo assinado
+                    </a>
+                  ) : selectedPortaria.arquivo_url ? (
+                    <a href={selectedPortaria.arquivo_url} target="_blank" rel="noreferrer"
+                       className="text-sm text-primary underline font-medium">
+                      📎 Arquivo anexado
+                    </a>
+                  ) : (
+                    <div className="flex items-center gap-1 text-warning">
+                      <AlertTriangle className="h-3 w-3" />
+                      <span className="text-xs font-medium">Sem anexo</span>
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Servidor / Cargo / Unidade */}
+              {(selectedPortaria.servidor || selectedPortaria.cargo || selectedPortaria.unidade) && (
+                <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">Vínculos</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {selectedPortaria.servidor && (
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase">Servidor</p>
+                        <p className="text-sm">{selectedPortaria.servidor.nome_completo}</p>
+                        {selectedPortaria.servidor.matricula && (
+                          <p className="text-xs text-muted-foreground">Mat. {selectedPortaria.servidor.matricula}</p>
+                        )}
+                      </div>
+                    )}
+                    {selectedPortaria.cargo && (
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase">Cargo</p>
+                        <p className="text-sm">{selectedPortaria.cargo.nome}</p>
+                        {selectedPortaria.cargo.sigla && (
+                          <p className="text-xs text-muted-foreground">{selectedPortaria.cargo.sigla}</p>
+                        )}
+                      </div>
+                    )}
+                    {selectedPortaria.unidade && (
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase">Unidade</p>
+                        <p className="text-sm">{selectedPortaria.unidade.nome}</p>
+                        {selectedPortaria.unidade.sigla && (
+                          <p className="text-xs text-muted-foreground">{selectedPortaria.unidade.sigla}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Servidores vinculados (múltiplos) */}
+              {selectedPortaria.servidores_ids && selectedPortaria.servidores_ids.length > 0 && !selectedPortaria.servidor && (
+                <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Servidores vinculados</p>
+                  <p className="text-sm">{selectedPortaria.servidores_ids.length} servidor(es)</p>
+                </div>
+              )}
+
+              {/* Vigência */}
+              {(selectedPortaria.data_vigencia_inicio || selectedPortaria.data_vigencia_fim) && (
+                <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Vigência</p>
+                  <p className="text-sm">
+                    {selectedPortaria.data_vigencia_inicio && new Date(selectedPortaria.data_vigencia_inicio).toLocaleDateString('pt-BR')}
+                    {selectedPortaria.data_vigencia_inicio && selectedPortaria.data_vigencia_fim && ' a '}
+                    {selectedPortaria.data_vigencia_fim && new Date(selectedPortaria.data_vigencia_fim).toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+              )}
+
+              {/* Conteúdo */}
+              {selectedPortariaText && (
+                <div className="rounded-lg border bg-muted/20 p-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Conteúdo</p>
+                  <pre className="whitespace-pre-wrap text-sm text-foreground/80 max-h-[30vh] overflow-auto">
+                    {selectedPortariaText}
+                  </pre>
+                </div>
+              )}
+
+              {/* Observações */}
+              {selectedPortaria.observacoes && (
+                <div className="rounded-lg border bg-muted/20 p-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Observações</p>
+                  <p className="text-sm text-foreground/80">{selectedPortaria.observacoes}</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -432,10 +562,19 @@ export default function CentralPortariasPage() {
               Fechar
             </Button>
             {selectedPortaria && (
-              <Button onClick={() => handleGeneratePdf(selectedPortaria)} disabled={isGeneratingPdf}>
-                <Download className="h-4 w-4 mr-2" />
-                {isGeneratingPdf ? 'Gerando PDF...' : 'Baixar PDF'}
-              </Button>
+              <>
+                <Button variant="outline" onClick={() => {
+                  setViewDialogOpen(false);
+                  handleEdit(selectedPortaria);
+                }}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Editar
+                </Button>
+                <Button onClick={() => handleGeneratePdf(selectedPortaria)} disabled={isGeneratingPdf}>
+                  <Download className="h-4 w-4 mr-2" />
+                  {isGeneratingPdf ? 'Gerando PDF...' : 'Baixar PDF'}
+                </Button>
+              </>
             )}
           </DialogFooter>
         </DialogContent>
