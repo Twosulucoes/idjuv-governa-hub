@@ -17,6 +17,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Menu, ArrowUp, X } from "lucide-react";
 import type { Modulo } from "@/shared/config/modules.config";
+import { SystemCredits } from "./SystemCredits";
 
 interface ModuleLayoutProps {
   children: ReactNode;
@@ -157,6 +158,9 @@ export function ModuleLayout({ children, module, title, description }: ModuleLay
               </div>
             )}
             {children}
+
+            {/* Créditos da desenvolvedora */}
+            <SystemCredits variant="light" className="mt-8" />
           </main>
         </div>
 
