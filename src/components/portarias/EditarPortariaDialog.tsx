@@ -164,7 +164,8 @@ export function EditarPortariaDialog({
     return null;
   }
 
-  const canEdit = portaria.status === "minuta" || portaria.status === "aguardando_assinatura";
+  // Edição liberada para todos os status para permitir padronização
+  const canEdit = true;
 
   if (!canEdit) {
     return (
