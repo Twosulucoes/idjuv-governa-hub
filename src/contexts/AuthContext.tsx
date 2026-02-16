@@ -189,12 +189,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     let isMounted = true;
+    // Flag para garantir que initializeAuth termine antes do listener agir
+    let initCompleted = false;
 
     // -----------------------------------------------
     // 1) LISTENER CONTÍNUO de mudanças de auth
-    //    NÃO controla isLoading (só a inicialização faz isso)
-    //    NÃO faz fetch se signIn está em progresso
-    //    NÃO faz fetch se o user já está carregado com mesmo id
     // -----------------------------------------------
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
@@ -205,6 +204,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // SIGNED_OUT → limpar user
         if (!currentSession?.user) {
+          userRef.current = null;
           setUser(null);
           return;
         }
@@ -212,6 +212,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Se signIn() está cuidando do fluxo, não interferir
         if (signInInProgressRef.current) {
           console.log('[Auth] Listener BLOQUEADO - signIn em progresso');
+          return;
+        }
+
+        // Se init ainda não completou, ignorar (init cuida do fetch inicial)
+        if (!initCompleted) {
+          console.log('[Auth] Listener IGNORADO - init ainda em andamento');
           return;
         }
 
@@ -231,13 +237,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Fetch assíncrono fora do callback (evita deadlock Supabase)
         setTimeout(async () => {
           if (!isMounted || signInInProgressRef.current) return;
-          // Re-checar ref uma última vez
           if (userRef.current?.id === currentSession.user.id) return;
           
           console.log('[Auth] Listener: carregando dados do user...');
           const userData = await fetchUserData(currentSession.user);
           if (!isMounted) return;
           console.log('[Auth] Listener: userData carregado, isSuperAdmin:', userData?.isSuperAdmin);
+          userRef.current = userData;
           setUser(userData);
         }, 0);
       }
@@ -245,7 +251,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // -----------------------------------------------
     // 2) INICIALIZAÇÃO: carrega sessão + dados ANTES de isLoading=false
-    //    Garante que super_admin está resolvido antes de renderizar
     // -----------------------------------------------
     const initializeAuth = async () => {
       try {
@@ -265,12 +270,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userData = await fetchUserData(existingSession.user);
           if (!isMounted) return;
           console.log('[Auth] Init: userData carregado, isSuperAdmin:', userData?.isSuperAdmin);
+          userRef.current = userData;
           setUser(userData);
         }
       } catch (err) {
         console.error('[Auth] Erro na inicialização:', err);
       } finally {
         if (isMounted) {
+          initCompleted = true;
           setIsLoading(false);
         }
       }
