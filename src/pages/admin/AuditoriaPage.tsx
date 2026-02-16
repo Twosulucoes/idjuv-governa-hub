@@ -81,11 +81,11 @@ export default function AuditoriaPage() {
   const fetchLogs = async () => {
     setLoading(true);
     try {
+      // Buscar logs sem JOIN problemático
       const { data, error } = await supabase
         .from('audit_logs')
         .select(`
           *,
-          user:profiles!audit_logs_user_id_fkey(full_name),
           org_unit:estrutura_organizacional!audit_logs_org_unit_id_fkey(nome)
         `)
         .order('timestamp', { ascending: false })
@@ -93,11 +93,26 @@ export default function AuditoriaPage() {
 
       if (error) throw error;
 
+      // Buscar nomes dos usuários separadamente
+      const userIds = [...new Set((data || []).map((l: any) => l.user_id).filter(Boolean))];
+      const profilesMap: Record<string, string> = {};
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', userIds);
+        (profiles || []).forEach((p: any) => {
+          profilesMap[p.id] = p.full_name;
+        });
+      }
+
+      if (error) throw error;
+
       const mapped: AuditLog[] = (data || []).map((log: any) => ({
         id: log.id,
         timestamp: log.timestamp,
         userId: log.user_id,
-        userName: log.user?.full_name,
+        userName: profilesMap[log.user_id] || log.user?.full_name,
         action: log.action,
         entityType: log.entity_type,
         entityId: log.entity_id,
