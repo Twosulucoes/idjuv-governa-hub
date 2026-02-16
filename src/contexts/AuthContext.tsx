@@ -178,20 +178,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    // Limpar sessões antigas na inicialização
-    clearOldSessions();
+    let isMounted = true;
+    let initialSessionHandled = false;
 
     // Configurar listener de mudanças de autenticação PRIMEIRO
+    // onAuthStateChange dispara INITIAL_SESSION para a sessão existente
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('[Auth] Estado alterado:', event);
+        if (!isMounted) return;
+        
         setSession(session);
         
+        if (event === 'INITIAL_SESSION') {
+          initialSessionHandled = true;
+        }
+        
         if (session?.user) {
-          // Usar setTimeout para evitar deadlock
+          // Usar setTimeout para evitar deadlock com Supabase
           setTimeout(() => {
+            if (!isMounted) return;
             fetchUserData(session.user).then(userData => {
+              if (!isMounted) return;
               setUser(userData);
+              setIsLoading(false);
+            }).catch(() => {
+              if (!isMounted) return;
               setIsLoading(false);
             });
           }, 0);
@@ -202,27 +214,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // DEPOIS verificar sessão existente
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.warn('[Auth] Erro ao recuperar sessão:', error.message);
-        supabase.auth.signOut();
-        setIsLoading(false);
-        return;
-      }
-
-      setSession(session);
-      if (session?.user) {
-        fetchUserData(session.user).then(userData => {
-          setUser(userData);
+    // Fallback: se INITIAL_SESSION não disparou em 2s, verificar manualmente
+    const fallbackTimer = setTimeout(() => {
+      if (!isMounted || initialSessionHandled) return;
+      console.log('[Auth] Fallback: verificando sessão manualmente');
+      supabase.auth.getSession().then(({ data: { session }, error }) => {
+        if (!isMounted || initialSessionHandled) return;
+        if (error) {
+          console.warn('[Auth] Erro ao recuperar sessão:', error.message);
+          supabase.auth.signOut();
           setIsLoading(false);
-        });
-      } else {
-        setIsLoading(false);
-      }
-    });
+          return;
+        }
+        setSession(session);
+        if (session?.user) {
+          fetchUserData(session.user).then(userData => {
+            if (!isMounted) return;
+            setUser(userData);
+            setIsLoading(false);
+          }).catch(() => {
+            if (!isMounted) return;
+            setIsLoading(false);
+          });
+        } else {
+          setIsLoading(false);
+        }
+      });
+    }, 2000);
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      clearTimeout(fallbackTimer);
+      subscription.unsubscribe();
+    };
   }, [fetchUserData, isConfigured]);
 
   // ============================================
