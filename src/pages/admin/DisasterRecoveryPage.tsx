@@ -294,7 +294,7 @@ const DisasterRecoveryPage = () => {
                 </div>
 
                 <Button asChild variant="outline">
-                  <a href="/admin/backup-offsite">
+                  <a href="/admin/backup">
                     <Zap className="h-4 w-4 mr-2" />
                     Ir para Gestão de Backup
                   </a>
