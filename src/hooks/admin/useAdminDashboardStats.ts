@@ -19,62 +19,71 @@ export function useAdminDashboardStats() {
   return useQuery({
     queryKey: ["admin-dashboard-stats"],
     queryFn: async (): Promise<DashboardStats> => {
-      // Buscar contagem de servidores ativos
-      const { count: servidoresAtivos } = await supabase
-        .from("servidores")
-        .select("*", { count: "exact", head: true })
-        .eq("ativo", true);
+      // Executar todas as queries em paralelo para evitar abort
+      const [
+        servidoresRes,
+        unidadesRes,
+        documentosRes,
+        cargosRes,
+        servidoresNovosRes,
+        documentosNovosRes,
+      ] = await Promise.all([
+        supabase
+          .from("servidores")
+          .select("id", { count: "exact", head: true })
+          .eq("ativo", true),
+        supabase
+          .from("estrutura_organizacional")
+          .select("id", { count: "exact", head: true })
+          .eq("ativo", true),
+        supabase
+          .from("processos_administrativos")
+          .select("id", { count: "exact", head: true }),
+        supabase
+          .from("cargos")
+          .select("id", { count: "exact", head: true })
+          .eq("ativo", true),
+        (() => {
+          const inicioMes = new Date();
+          inicioMes.setDate(1);
+          inicioMes.setHours(0, 0, 0, 0);
+          return supabase
+            .from("servidores")
+            .select("id", { count: "exact", head: true })
+            .gte("created_at", inicioMes.toISOString());
+        })(),
+        (() => {
+          const inicioSemana = new Date();
+          inicioSemana.setDate(inicioSemana.getDate() - 7);
+          return supabase
+            .from("processos_administrativos")
+            .select("id", { count: "exact", head: true })
+            .gte("created_at", inicioSemana.toISOString());
+        })(),
+      ]);
 
-      // Buscar contagem de unidades organizacionais
-      const { count: unidades } = await supabase
-        .from("estrutura_organizacional")
-        .select("*", { count: "exact", head: true })
-        .eq("ativo", true);
-
-      // Buscar contagem de documentos (processos administrativos)
-      const { count: documentos } = await supabase
-        .from("processos_administrativos")
-        .select("*", { count: "exact", head: true });
-
-      // Buscar contagem de cargos
-      const { count: cargos } = await supabase
-        .from("cargos")
-        .select("*", { count: "exact", head: true })
-        .eq("ativo", true);
-
-      // Calcular tendências (servidores novos este mês)
-      const inicioMes = new Date();
-      inicioMes.setDate(1);
-      inicioMes.setHours(0, 0, 0, 0);
-
-      const { count: servidoresNovosMes } = await supabase
-        .from("servidores")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", inicioMes.toISOString());
-
-      // Documentos novos esta semana
-      const inicioSemana = new Date();
-      inicioSemana.setDate(inicioSemana.getDate() - 7);
-
-      const { count: documentosNovosSemana } = await supabase
-        .from("processos_administrativos")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", inicioSemana.toISOString());
+      const servidoresAtivos = servidoresRes.count ?? 0;
+      const unidades = unidadesRes.count ?? 0;
+      const documentos = documentosRes.count ?? 0;
+      const cargos = cargosRes.count ?? 0;
+      const servidoresNovosMes = servidoresNovosRes.count ?? 0;
+      const documentosNovosSemana = documentosNovosRes.count ?? 0;
 
       return {
-        servidoresAtivos: servidoresAtivos || 0,
-        unidades: unidades || 0,
-        documentos: documentos || 0,
-        cargos: cargos || 0,
-        servidoresTrend: servidoresNovosMes && servidoresNovosMes > 0 
-          ? `+${servidoresNovosMes} este mês` 
+        servidoresAtivos,
+        unidades,
+        documentos,
+        cargos,
+        servidoresTrend: servidoresNovosMes > 0
+          ? `+${servidoresNovosMes} este mês`
           : undefined,
-        documentosTrend: documentosNovosSemana && documentosNovosSemana > 0 
-          ? `+${documentosNovosSemana} esta semana` 
+        documentosTrend: documentosNovosSemana > 0
+          ? `+${documentosNovosSemana} esta semana`
           : undefined,
       };
     },
-    staleTime: 1000 * 60 * 5, // 5 minutos
+    staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
+    retry: 2,
   });
 }
