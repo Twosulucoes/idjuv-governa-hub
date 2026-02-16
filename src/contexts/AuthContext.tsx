@@ -268,6 +268,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       // Limpar dados residuais do navegador
       clearOldSessions();
+      // Sinalizar loading enquanto busca dados do novo usuário
+      setIsLoading(true);
       setUser(null);
       setSession(null);
 
