@@ -1178,84 +1178,54 @@ serve(async (req) => {
       }
 
       case 'generate-dest-schema': {
-        // Gera DDL completo para recriar schema no banco destino
-        const { data: enumsRaw } = await supabaseOrigin.rpc('exec_sql', {
-          query: `SELECT typname, string_agg(enumlabel, ',' ORDER BY enumsortorder) as labels 
-                  FROM pg_enum JOIN pg_type ON pg_enum.enumtypid = pg_type.oid 
-                  WHERE pg_type.typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
-                  GROUP BY typname`
-        });
+        // Gera DDL completo usando a RPC generate_schema_ddl
+        const { data: schemaData, error: schemaError } = await supabaseOrigin.rpc('generate_schema_ddl');
+        if (schemaError) throw new Error(`Erro ao gerar schema: ${schemaError.message}`);
 
-        const { data: colsRaw } = await supabaseOrigin.rpc('exec_sql', {
-          query: `SELECT c.table_name, c.column_name, c.data_type, c.udt_name, c.column_default, 
-                         c.is_nullable, c.character_maximum_length, c.numeric_precision, c.numeric_scale
-                  FROM information_schema.columns c
-                  JOIN information_schema.tables t ON c.table_name = t.table_name AND t.table_schema = 'public'
-                  WHERE c.table_schema = 'public' AND t.table_type = 'BASE TABLE'
-                  ORDER BY c.table_name, c.ordinal_position`
-        });
-
-        const { data: pksRaw } = await supabaseOrigin.rpc('exec_sql', {
-          query: `SELECT tc.table_name, kcu.column_name 
-                  FROM information_schema.table_constraints tc
-                  JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
-                  WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_schema = 'public'`
-        });
-
+        // deno-lint-ignore no-explicit-any
+        const schema = schemaData as any;
         let sql = '-- ============================================\n';
         sql += '-- SCHEMA COMPLETO IDJUV - Gerado automaticamente\n';
         sql += `-- Data: ${new Date().toISOString()}\n`;
         sql += '-- ============================================\n\nBEGIN;\n\n';
 
+        // Enums
         // deno-lint-ignore no-explicit-any
-        const enums: any[] = enumsRaw || [];
+        const enums: any[] = schema?.enums || [];
         for (const e of enums) {
-          sql += `DO $$ BEGIN CREATE TYPE public.${e.typname} AS ENUM (${e.labels.split(',').map((l: string) => `'${l}'`).join(', ')}); EXCEPTION WHEN duplicate_object THEN NULL; END $$;\n`;
+          const labels = e.labels.split(',').map((l: string) => `'${l.trim()}'`).join(', ');
+          sql += `DO $$ BEGIN CREATE TYPE public.${e.name} AS ENUM (${labels}); EXCEPTION WHEN duplicate_object THEN NULL; END $$;\n`;
         }
         sql += '\n';
 
+        // Tables
         // deno-lint-ignore no-explicit-any
-        const cols: any[] = colsRaw || [];
-        // deno-lint-ignore no-explicit-any
-        const pks: any[] = pksRaw || [];
-        // deno-lint-ignore no-explicit-any
-        const pkMap: Record<string, string[]> = {};
-        for (const pk of pks) {
-          if (!pkMap[pk.table_name]) pkMap[pk.table_name] = [];
-          pkMap[pk.table_name].push(pk.column_name);
-        }
-
-        // deno-lint-ignore no-explicit-any
-        const tableColumns: Record<string, any[]> = {};
-        for (const col of cols) {
-          if (EXCLUDED_TABLES.includes(col.table_name)) continue;
-          if (!tableColumns[col.table_name]) tableColumns[col.table_name] = [];
-          tableColumns[col.table_name].push(col);
-        }
-
-        for (const [tableName, tCols] of Object.entries(tableColumns)) {
-          sql += `CREATE TABLE IF NOT EXISTS public.${tableName} (\n`;
+        const tables: any[] = schema?.tables || [];
+        for (const table of tables) {
+          if (EXCLUDED_TABLES.includes(table.name)) continue;
+          sql += `CREATE TABLE IF NOT EXISTS public.${table.name} (\n`;
           // deno-lint-ignore no-explicit-any
-          const colDefs = tCols.map((col: any) => {
+          const colDefs = (table.columns || []).map((col: any) => {
             let colType = col.data_type;
             if (col.data_type === 'USER-DEFINED') colType = `public.${col.udt_name}`;
             else if (col.data_type === 'ARRAY') colType = `${col.udt_name.replace(/^_/, '')}[]`;
-            else if (col.data_type === 'character varying') colType = col.character_maximum_length ? `varchar(${col.character_maximum_length})` : 'text';
+            else if (col.data_type === 'character varying') colType = col.char_max_length ? `varchar(${col.char_max_length})` : 'text';
             else if (col.data_type === 'numeric' && col.numeric_precision) colType = `numeric(${col.numeric_precision},${col.numeric_scale || 0})`;
             let def = `  ${col.column_name} ${colType}`;
             if (col.is_nullable === 'NO') def += ' NOT NULL';
             if (col.column_default) def += ` DEFAULT ${col.column_default}`;
             return def;
           });
-          const pk = pkMap[tableName];
-          if (pk) colDefs.push(`  PRIMARY KEY (${pk.join(', ')})`);
+          if (table.pk) colDefs.push(`  PRIMARY KEY (${table.pk.join(', ')})`);
           sql += colDefs.join(',\n') + '\n);\n\n';
         }
 
         sql += 'COMMIT;\n';
 
+        const tablesCount = tables.filter((t: any) => !EXCLUDED_TABLES.includes(t.name)).length;
+
         return new Response(
-          JSON.stringify({ success: true, tables_count: Object.keys(tableColumns).length, enums_count: enums.length, sql }),
+          JSON.stringify({ success: true, tables_count: tablesCount, enums_count: enums.length, sql }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

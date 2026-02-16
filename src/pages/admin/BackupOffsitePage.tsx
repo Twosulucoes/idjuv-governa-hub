@@ -73,6 +73,7 @@ export default function BackupOffsitePage() {
     verifyIntegrity,
     cleanupOldBackups,
     downloadManifest,
+    generateDestSchema,
     refetchHistory
   } = useBackupOffsite();
 
@@ -215,6 +216,11 @@ export default function BackupOffsitePage() {
               <Button variant="outline" onClick={() => cleanupOldBackups()}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 Limpar Antigos
+              </Button>
+
+              <Button variant="outline" onClick={() => generateDestSchema()}>
+                <Database className="h-4 w-4 mr-2" />
+                Gerar Schema BD Destino
               </Button>
             </div>
           </CardContent>

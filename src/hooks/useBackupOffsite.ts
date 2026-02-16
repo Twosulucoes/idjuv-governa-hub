@@ -234,6 +234,26 @@ export const useBackupOffsite = () => {
     }
   }, [invokeBackupFunction]);
 
+  // Gerar e baixar schema DDL do banco destino
+  const generateDestSchema = useCallback(async () => {
+    try {
+      toast.info('Gerando schema DDL...');
+      const data = await invokeBackupFunction('generate-dest-schema');
+      
+      const blob = new Blob([data.sql], { type: 'text/sql' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `schema_idjuv_${new Date().toISOString().slice(0,10)}.sql`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      toast.success(`Schema gerado: ${data.tables_count} tabelas, ${data.enums_count} enums`);
+    } catch (error) {
+      toast.error(`Erro ao gerar schema: ${(error as Error).message}`);
+    }
+  }, [invokeBackupFunction]);
+
   return {
     config,
     configLoading,
@@ -247,6 +267,7 @@ export const useBackupOffsite = () => {
     cleanupOldBackups: cleanupOldBackups.mutate,
     syncDatabase: syncDatabase.mutate,
     downloadManifest,
+    generateDestSchema,
     refetchHistory
   };
 };
