@@ -332,7 +332,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data.session?.user) {
         setSession(data.session);
         const userData = await fetchUserData(data.session.user);
-        console.log('[Auth] signIn: userData carregado, isSuperAdmin:', userData?.isSuperAdmin);
+        console.log('[Auth] signIn: userData carregado, isSuperAdmin:', userData?.isSuperAdmin, 'permissões:', userData?.permissions?.length);
+        
+        // CRÍTICO: Atualizar userRef SINCRONAMENTE antes de liberar a flag
+        // Se não fizer isso, o listener pode ver signInInProgress=false + userRef=null
+        // e fazer fetch duplicado que sobrescreve os dados corretos
+        userRef.current = userData;
         setUser(userData);
       }
 
