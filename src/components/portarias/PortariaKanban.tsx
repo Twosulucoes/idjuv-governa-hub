@@ -2,14 +2,12 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   FileText,
-  PenTool,
+  Send,
   Newspaper,
   BadgeCheck,
-  XCircle,
   MoreHorizontal,
   Eye,
   Download,
-  Send,
   FileSignature,
   Pencil,
   Trash2,
@@ -38,7 +36,6 @@ import {
 import { cn } from '@/lib/utils';
 import {
   STATUS_PORTARIA_LABELS,
-  STATUS_PORTARIA_COLORS,
   StatusPortaria,
   Portaria,
 } from '@/types/portaria';
@@ -58,47 +55,51 @@ interface PortariaKanbanProps {
   onRegistrarPublicacao?: (portaria: Portaria) => void;
 }
 
-// Fases essenciais simplificadas
 const KANBAN_COLUMNS: { key: string; label: string; statuses: StatusPortaria[]; icon: React.ReactNode; colorClass: string }[] = [
   {
     key: 'elaboracao',
     label: 'Elaboração',
-    statuses: ['minuta'],
+    statuses: ['minuta', 'aguardando_assinatura', 'assinado'],
     icon: <FileText className="h-4 w-4" />,
     colorClass: 'bg-muted text-muted-foreground',
   },
   {
-    key: 'assinatura',
-    label: 'Assinatura',
-    statuses: ['aguardando_assinatura', 'assinado'],
-    icon: <PenTool className="h-4 w-4" />,
+    key: 'aguardando_publicacao',
+    label: 'Aguardando Publicação',
+    statuses: ['aguardando_publicacao'],
+    icon: <Send className="h-4 w-4" />,
     colorClass: 'bg-warning/20 text-warning',
   },
   {
-    key: 'publicacao',
-    label: 'Publicação',
-    statuses: ['aguardando_publicacao', 'publicado'],
-    icon: <Newspaper className="h-4 w-4" />,
-    colorClass: 'bg-info/20 text-info',
-  },
-  {
-    key: 'vigente',
-    label: 'Vigente',
-    statuses: ['vigente'],
+    key: 'publicado_vigente',
+    label: 'Publicado / Vigente',
+    statuses: ['publicado', 'vigente'],
     icon: <BadgeCheck className="h-4 w-4" />,
     colorClass: 'bg-success/20 text-success',
   },
 ];
 
-function getMissingItems(portaria: Portaria): string[] {
-  const missing: string[] = [];
-  if (!portaria.doe_numero && !portaria.doe_data) {
-    missing.push('DOE');
+function getAlerts(portaria: Portaria): string[] {
+  const alerts: string[] = [];
+  // Para portarias publicadas/vigentes sem DOE, alertar para conferir
+  if (
+    ['publicado', 'vigente'].includes(portaria.status) &&
+    !portaria.doe_numero && !portaria.doe_data
+  ) {
+    alerts.push('Conferir DOE');
   }
+  // Para qualquer portaria sem anexo
   if (!portaria.arquivo_url && !portaria.arquivo_assinado_url) {
-    missing.push('Anexo');
+    alerts.push('Sem anexo');
   }
-  return missing;
+  // Aguardando publicação sem DOE = precisa publicar
+  if (
+    portaria.status === 'aguardando_publicacao' &&
+    !portaria.doe_numero && !portaria.doe_data
+  ) {
+    alerts.push('Aguardando DOE');
+  }
+  return alerts;
 }
 
 export function PortariaKanban({
@@ -132,7 +133,7 @@ export function PortariaKanban({
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         {KANBAN_COLUMNS.map((col) => (
           <div key={col.key} className="space-y-3">
             <Skeleton className="h-8 w-full" />
@@ -146,12 +147,12 @@ export function PortariaKanban({
 
   return (
     <TooltipProvider>
-      <div className="grid grid-cols-4 gap-3 overflow-x-auto pb-4">
+      <div className="grid grid-cols-3 gap-3 overflow-x-auto pb-4">
         {KANBAN_COLUMNS.map((column) => {
           const columnPortarias = getPortariasByStatuses(column.statuses);
           
           return (
-            <div key={column.key} className="min-w-[220px]">
+            <div key={column.key} className="min-w-[260px]">
               <div
                 className={cn(
                   'flex items-center gap-2 p-2 rounded-t-lg border-b-2',
@@ -171,34 +172,33 @@ export function PortariaKanban({
                 <div className="space-y-2">
                   {columnPortarias.map((portaria) => {
                     const servidoresCount = getServidoresCount(portaria);
-                    const missingItems = getMissingItems(portaria);
-                    const hasMissing = missingItems.length > 0;
+                    const alerts = getAlerts(portaria);
+                    const hasAlerts = alerts.length > 0;
                     
                     return (
                       <Card
                         key={portaria.id}
                         className={cn(
                           'cursor-pointer hover:shadow-md transition-shadow',
-                          hasMissing && 'border-warning/50'
+                          hasAlerts && 'border-warning/50'
                         )}
                         onClick={() => onView?.(portaria)}
                       >
                         <CardHeader className="p-3 pb-1">
                           <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-1.5">
-                              <CardTitle className="text-xs font-bold text-primary">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <CardTitle className="text-xs font-bold text-primary shrink-0">
                                 {portaria.numero}
                               </CardTitle>
-                              {/* Sub-status badge */}
                               {column.statuses.length > 1 && (
-                                <Badge variant="outline" className="text-[9px] px-1 py-0">
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 shrink-0">
                                   {STATUS_PORTARIA_LABELS[portaria.status]}
                                 </Badge>
                               )}
                             </div>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
                                   <MoreHorizontal className="h-3 w-3" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -288,26 +288,22 @@ export function PortariaKanban({
                           </div>
                         </CardHeader>
                         <CardContent className="p-3 pt-0">
-                          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                          <p className="text-xs text-muted-foreground line-clamp-2 mb-1">
                             {portaria.titulo}
                           </p>
-                          {portaria.ementa && (
-                            <p className="text-xs text-muted-foreground/70 line-clamp-1 italic">
-                              {portaria.ementa}
-                            </p>
-                          )}
 
-                          {/* Alerta DOE / Anexo faltando */}
-                          {hasMissing && (
+                          {/* Alertas */}
+                          {hasAlerts && (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <div className="flex items-center gap-1 mt-2 px-1.5 py-1 rounded bg-warning/10 text-warning text-[10px] font-medium">
+                                <div className="flex items-center gap-1 mt-1.5 px-1.5 py-1 rounded bg-warning/10 text-warning text-[10px] font-medium">
                                   <AlertTriangle className="h-3 w-3 shrink-0" />
-                                  Falta: {missingItems.join(', ')}
+                                  {alerts.join(' · ')}
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent>
-                                Esta portaria está sem: {missingItems.join(' e ')}
+                                <p>Pendências: {alerts.join(', ')}</p>
+                                <p className="text-xs text-muted-foreground">Clique para editar e corrigir</p>
                               </TooltipContent>
                             </Tooltip>
                           )}
