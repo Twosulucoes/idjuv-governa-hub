@@ -170,12 +170,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [fetchPermissoes]);
 
-  // ============================================
-  // SYNC USER REF
-  // ============================================
-  useEffect(() => {
-    userRef.current = user;
-  }, [user]);
+  // userRef é atualizado SINCRONAMENTE antes de cada setUser (sem useEffect)
 
   // ============================================
   // EFEITOS - INICIALIZAÇÃO E LISTENER SEPARADOS
@@ -313,6 +308,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Flag para evitar que onAuthStateChange faça fetch duplicado
       signInInProgressRef.current = true;
       setIsLoading(true);
+      userRef.current = null;
       setUser(null);
       setSession(null);
 
@@ -413,6 +409,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut({ scope: 'local' });
       // Limpar todos os dados de autenticação do navegador
       clearOldSessions();
+      userRef.current = null;
       setUser(null);
       setSession(null);
       
@@ -424,6 +421,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Erro ao sair:', error);
       // Mesmo com erro, limpar estado local
       clearOldSessions();
+      userRef.current = null;
       setUser(null);
       setSession(null);
     }
@@ -432,6 +430,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshUser = async () => {
     if (session?.user) {
       const userData = await fetchUserData(session.user);
+      userRef.current = userData;
       setUser(userData);
     }
   };
@@ -439,12 +438,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshPermissions = async () => {
     if (user && session?.user) {
       const { permissions, permissoesDetalhadas, isSuperAdmin } = await fetchPermissoes(session.user.id);
-      setUser(prev => prev ? {
-        ...prev,
-        permissions,
-        permissoesDetalhadas,
-        isSuperAdmin,
-      } : null);
+      const updated = user ? { ...user, permissions, permissoesDetalhadas, isSuperAdmin } : null;
+      userRef.current = updated;
+      setUser(updated);
     }
   };
 
