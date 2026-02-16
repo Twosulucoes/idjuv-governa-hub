@@ -53,7 +53,7 @@ import RegimentoInternoPage from "./pages/governanca/RegimentoInternoPage";
 import OrganogramaPage from "./pages/organograma/OrganogramaPage";
 import GestaoOrganogramaPage from "./pages/organograma/GestaoOrganogramaPage";
 import GestaoCargosPage from "./pages/cargos/GestaoCargosPage";
-import GestaoLotacoesPage from "./pages/lotacoes/GestaoLotacoesPage";
+
 import TermoDemandaPage from "./pages/formularios/TermoDemandaPage";
 import OrdemMissaoPage from "./pages/formularios/OrdemMissaoPage";
 import RelatorioViagemPage from "./pages/formularios/RelatorioViagemPage";
@@ -682,7 +682,7 @@ const App = () => (
               } />
               <Route path="/lotacoes" element={
                 <ProtectedRoute requiredPermissions="rh.lotacoes.visualizar">
-                  <GestaoLotacoesPage />
+                  <GestaoLotacaoPage />
                 </ProtectedRoute>
               } />
               <Route path="/rh/gestao-lotacao" element={

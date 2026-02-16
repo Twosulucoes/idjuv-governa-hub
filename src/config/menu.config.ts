@@ -264,8 +264,8 @@ export const menuConfig: MenuSection[] = [
       },
       {
         id: "lotacoes",
-        label: "Lotações",
-        route: "/lotacoes",
+        label: "Gestão de Lotação",
+        route: "/rh/gestao-lotacao",
         icon: Users2,
         permission: "rh.visualizar",
         priority: 1.5,

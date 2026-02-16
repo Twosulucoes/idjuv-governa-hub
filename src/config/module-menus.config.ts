@@ -80,7 +80,6 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     items: [
       { id: "servidores", label: "Servidores", icon: Users, route: "/rh/servidores" },
       { id: "gestao-lotacao", label: "Gestão de Lotação", icon: Building2, route: "/rh/gestao-lotacao" },
-      { id: "lotacoes", label: "Lotações (Legado)", icon: Users, route: "/lotacoes" },
       { id: "designacoes", label: "Designações", icon: UserCog, route: "/rh/designacoes" },
       { id: "portarias-pendencias", label: "Portarias (Pendências)", icon: FileText, route: "/rh/portarias/pendencias" },
       { 
