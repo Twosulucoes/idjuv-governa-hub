@@ -175,15 +175,11 @@ export function PortariaKanban({
                                   <Download className="h-4 w-4 mr-2" />
                                   Gerar PDF
                                 </DropdownMenuItem>
-                                {(status === 'minuta' || status === 'aguardando_assinatura') && (
-                                  <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => onEdit?.(portaria)}>
-                                      <Pencil className="h-4 w-4 mr-2" />
-                                      Editar
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => onEdit?.(portaria)}>
+                                  <Pencil className="h-4 w-4 mr-2" />
+                                  Editar
+                                </DropdownMenuItem>
                                 {status === 'minuta' && (
                                   <>
                                     <DropdownMenuSeparator />

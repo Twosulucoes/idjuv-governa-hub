@@ -293,12 +293,10 @@ export function PortariaTable({
                           <Eye className="h-4 w-4 mr-2" />
                           Visualizar
                         </DropdownMenuItem>
-                        {(portaria.status === 'minuta' || portaria.status === 'aguardando_assinatura') && (
-                          <DropdownMenuItem onClick={() => onEdit?.(portaria)}>
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Editar
-                          </DropdownMenuItem>
-                        )}
+                        <DropdownMenuItem onClick={() => onEdit?.(portaria)}>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Editar
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onGeneratePdf?.(portaria)}>
                           <Download className="h-4 w-4 mr-2" />
                           Gerar PDF
