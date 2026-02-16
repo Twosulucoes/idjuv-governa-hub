@@ -1,7 +1,6 @@
 // ============================================
 // HOOK PARA VERIFICAÇÃO DE MÓDULOS DO USUÁRIO
 // Acesso baseado exclusivamente em user_modules
-// Suporta Dev Mode para simulação
 // ============================================
 
 import { useState, useEffect, useCallback } from 'react';
@@ -9,65 +8,23 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { MODULOS, type Modulo, findModuleByRoute } from '@/shared/config/modules.config';
 
-const DEV_MODE_STORAGE_KEY = 'dev-mode-overrides';
-const DEV_MODE_ENABLED_KEY = 'dev-mode-enabled';
-
-interface DevModeOverrides {
-  modules: Modulo[];
-  isSuperAdmin: boolean;
-}
-
-function getDevModeOverrides(): DevModeOverrides | null {
-  try {
-    const enabled = localStorage.getItem(DEV_MODE_ENABLED_KEY) === 'true';
-    if (!enabled) return null;
-    
-    const saved = localStorage.getItem(DEV_MODE_STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return { modules: parsed.modules || [], isSuperAdmin: parsed.isSuperAdmin || false };
-    }
-  } catch {
-    // Ignora erros
-  }
-  return null;
-}
-
 export function useModulosUsuario() {
-  const { user, isSuperAdmin: authIsSuperAdmin, isLoading: authLoading } = useAuth();
+  const { user, isSuperAdmin, isLoading: authLoading } = useAuth();
   const [modulosAutorizados, setModulosAutorizados] = useState<Modulo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [devModeActive, setDevModeActive] = useState(false);
-
-  const devOverrides = getDevModeOverrides();
-  const isSuperAdmin = devOverrides?.isSuperAdmin ?? authIsSuperAdmin;
 
   const fetchModulosUsuario = useCallback(async () => {
-    // Aguardar auth carregar antes de decidir
-    if (authLoading) {
-      return;
-    }
+    if (authLoading) return;
     
     if (!user?.id) {
       setLoading(false);
       return;
     }
 
-    const overrides = getDevModeOverrides();
-    if (overrides) {
-      console.log('[useModulosUsuario] Dev Mode ativo - usando overrides:', overrides);
-      setDevModeActive(true);
-      setModulosAutorizados(overrides.modules);
-      setLoading(false);
-      return;
-    }
-
-    setDevModeActive(false);
-
     try {
       // Super admin via AuthContext tem acesso total
-      if (authIsSuperAdmin) {
-        console.log('[useModulosUsuario] Super Admin detectado via AuthContext - acesso total');
+      if (isSuperAdmin) {
+        console.log('[useModulosUsuario] Super Admin - acesso total');
         setModulosAutorizados([...MODULOS]);
         setLoading(false);
         return;
@@ -90,16 +47,7 @@ export function useModulosUsuario() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, authIsSuperAdmin, authLoading]);
-
-  useEffect(() => {
-    const handleDevModeChange = () => {
-      fetchModulosUsuario();
-    };
-    
-    window.addEventListener('dev-mode-changed', handleDevModeChange);
-    return () => window.removeEventListener('dev-mode-changed', handleDevModeChange);
-  }, [fetchModulosUsuario]);
+  }, [user?.id, isSuperAdmin, authLoading]);
 
   useEffect(() => {
     fetchModulosUsuario();
@@ -125,7 +73,6 @@ export function useModulosUsuario() {
     temAcessoModulo,
     rotaAutorizada,
     refetch: fetchModulosUsuario,
-    devModeActive,
     isSuperAdmin,
   };
 }
