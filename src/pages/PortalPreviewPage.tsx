@@ -13,24 +13,15 @@ import { PortalNews } from "./portal/components/PortalNews";
 import { PortalContact } from "./portal/components/PortalContact";
 import { PortalFooter } from "./portal/components/PortalFooter";
 import { InstagramFeed } from "@/components/social/InstagramFeed";
-import { Badge } from "@/components/ui/badge";
+
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
 export default function PortalPreviewPage() {
   return (
     <div className="min-h-screen">
-      {/* Banner de teste */}
-      <div className="fixed top-0 left-0 right-0 z-[60] bg-destructive/90 backdrop-blur-sm py-2 px-4 text-center border-b border-destructive/50">
-        <Badge variant="outline" className="bg-white/10 text-white border-white/20 animate-pulse">
-          🔒 AMBIENTE DE TESTES - NÃO PÚBLICO
-        </Badge>
-      </div>
-
       {/* Header */}
-      <div className="pt-10">
-        <PortalHeader />
-      </div>
+      <PortalHeader />
 
       {/* Hero Section */}
       <PortalHero />
