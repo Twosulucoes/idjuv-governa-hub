@@ -3,8 +3,6 @@ import { ptBR } from 'date-fns/locale';
 import {
   FileText,
   PenTool,
-  CheckSquare,
-  FileUp,
   Newspaper,
   BadgeCheck,
   XCircle,
@@ -16,6 +14,7 @@ import {
   Pencil,
   Trash2,
   Users,
+  AlertTriangle,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -59,24 +58,48 @@ interface PortariaKanbanProps {
   onRegistrarPublicacao?: (portaria: Portaria) => void;
 }
 
-const KANBAN_COLUMNS: StatusPortaria[] = [
-  'minuta',
-  'aguardando_assinatura',
-  'assinado',
-  'aguardando_publicacao',
-  'publicado',
-  'vigente',
+// Fases essenciais simplificadas
+const KANBAN_COLUMNS: { key: string; label: string; statuses: StatusPortaria[]; icon: React.ReactNode; colorClass: string }[] = [
+  {
+    key: 'elaboracao',
+    label: 'Elaboração',
+    statuses: ['minuta'],
+    icon: <FileText className="h-4 w-4" />,
+    colorClass: 'bg-muted text-muted-foreground',
+  },
+  {
+    key: 'assinatura',
+    label: 'Assinatura',
+    statuses: ['aguardando_assinatura', 'assinado'],
+    icon: <PenTool className="h-4 w-4" />,
+    colorClass: 'bg-warning/20 text-warning',
+  },
+  {
+    key: 'publicacao',
+    label: 'Publicação',
+    statuses: ['aguardando_publicacao', 'publicado'],
+    icon: <Newspaper className="h-4 w-4" />,
+    colorClass: 'bg-info/20 text-info',
+  },
+  {
+    key: 'vigente',
+    label: 'Vigente',
+    statuses: ['vigente'],
+    icon: <BadgeCheck className="h-4 w-4" />,
+    colorClass: 'bg-success/20 text-success',
+  },
 ];
 
-const STATUS_ICONS: Record<StatusPortaria, React.ReactNode> = {
-  minuta: <FileText className="h-4 w-4" />,
-  aguardando_assinatura: <PenTool className="h-4 w-4" />,
-  assinado: <CheckSquare className="h-4 w-4" />,
-  aguardando_publicacao: <FileUp className="h-4 w-4" />,
-  publicado: <Newspaper className="h-4 w-4" />,
-  vigente: <BadgeCheck className="h-4 w-4" />,
-  revogado: <XCircle className="h-4 w-4" />,
-};
+function getMissingItems(portaria: Portaria): string[] {
+  const missing: string[] = [];
+  if (!portaria.doe_numero && !portaria.doe_data) {
+    missing.push('DOE');
+  }
+  if (!portaria.arquivo_url && !portaria.arquivo_assinado_url) {
+    missing.push('Anexo');
+  }
+  return missing;
+}
 
 export function PortariaKanban({
   portarias,
@@ -91,8 +114,8 @@ export function PortariaKanban({
   const enviarParaAssinatura = useEnviarParaAssinatura();
   const enviarParaPublicacao = useEnviarParaPublicacao();
 
-  const getPortariasByStatus = (status: StatusPortaria) => {
-    return portarias.filter((p) => p.status === status);
+  const getPortariasByStatuses = (statuses: StatusPortaria[]) => {
+    return portarias.filter((p) => statuses.includes(p.status));
   };
 
   const handleEnviarAssinatura = async (portaria: Portaria) => {
@@ -109,9 +132,9 @@ export function PortariaKanban({
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-6 gap-4">
-        {KANBAN_COLUMNS.map((status) => (
-          <div key={status} className="space-y-3">
+      <div className="grid grid-cols-4 gap-4">
+        {KANBAN_COLUMNS.map((col) => (
+          <div key={col.key} className="space-y-3">
             <Skeleton className="h-8 w-full" />
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-24 w-full" />
@@ -123,21 +146,21 @@ export function PortariaKanban({
 
   return (
     <TooltipProvider>
-      <div className="grid grid-cols-6 gap-3 overflow-x-auto pb-4">
-        {KANBAN_COLUMNS.map((status) => {
-          const columnPortarias = getPortariasByStatus(status);
+      <div className="grid grid-cols-4 gap-3 overflow-x-auto pb-4">
+        {KANBAN_COLUMNS.map((column) => {
+          const columnPortarias = getPortariasByStatuses(column.statuses);
           
           return (
-            <div key={status} className="min-w-[200px]">
+            <div key={column.key} className="min-w-[220px]">
               <div
                 className={cn(
                   'flex items-center gap-2 p-2 rounded-t-lg border-b-2',
-                  STATUS_PORTARIA_COLORS[status]
+                  column.colorClass
                 )}
               >
-                {STATUS_ICONS[status]}
+                {column.icon}
                 <span className="text-sm font-medium">
-                  {STATUS_PORTARIA_LABELS[status]}
+                  {column.label}
                 </span>
                 <Badge variant="secondary" className="ml-auto text-xs">
                   {columnPortarias.length}
@@ -148,18 +171,31 @@ export function PortariaKanban({
                 <div className="space-y-2">
                   {columnPortarias.map((portaria) => {
                     const servidoresCount = getServidoresCount(portaria);
+                    const missingItems = getMissingItems(portaria);
+                    const hasMissing = missingItems.length > 0;
                     
                     return (
                       <Card
                         key={portaria.id}
-                        className="cursor-pointer hover:shadow-md transition-shadow"
+                        className={cn(
+                          'cursor-pointer hover:shadow-md transition-shadow',
+                          hasMissing && 'border-warning/50'
+                        )}
                         onClick={() => onView?.(portaria)}
                       >
                         <CardHeader className="p-3 pb-1">
                           <div className="flex items-start justify-between">
-                            <CardTitle className="text-xs font-bold text-primary">
-                              {portaria.numero}
-                            </CardTitle>
+                            <div className="flex items-center gap-1.5">
+                              <CardTitle className="text-xs font-bold text-primary">
+                                {portaria.numero}
+                              </CardTitle>
+                              {/* Sub-status badge */}
+                              {column.statuses.length > 1 && (
+                                <Badge variant="outline" className="text-[9px] px-1 py-0">
+                                  {STATUS_PORTARIA_LABELS[portaria.status]}
+                                </Badge>
+                              )}
+                            </div>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                 <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -180,7 +216,7 @@ export function PortariaKanban({
                                   <Pencil className="h-4 w-4 mr-2" />
                                   Editar
                                 </DropdownMenuItem>
-                                {status === 'minuta' && (
+                                {portaria.status === 'minuta' && (
                                   <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
@@ -194,7 +230,7 @@ export function PortariaKanban({
                                     </DropdownMenuItem>
                                   </>
                                 )}
-                                {status === 'aguardando_assinatura' && onRegistrarAssinatura && (
+                                {portaria.status === 'aguardando_assinatura' && onRegistrarAssinatura && (
                                   <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
@@ -205,6 +241,34 @@ export function PortariaKanban({
                                     >
                                       <FileSignature className="h-4 w-4 mr-2" />
                                       Registrar Assinatura
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                {portaria.status === 'assinado' && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEnviarPublicacao(portaria);
+                                      }}
+                                    >
+                                      <Send className="h-4 w-4 mr-2" />
+                                      Enviar para Publicação
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                {portaria.status === 'aguardando_publicacao' && onRegistrarPublicacao && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onRegistrarPublicacao(portaria);
+                                      }}
+                                    >
+                                      <Newspaper className="h-4 w-4 mr-2" />
+                                      Registrar Publicação
                                     </DropdownMenuItem>
                                   </>
                                 )}
@@ -219,34 +283,6 @@ export function PortariaKanban({
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   Excluir
                                 </DropdownMenuItem>
-                                {status === 'assinado' && (
-                                  <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleEnviarPublicacao(portaria);
-                                      }}
-                                    >
-                                      <Send className="h-4 w-4 mr-2" />
-                                      Enviar para Publicação
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                                {status === 'aguardando_publicacao' && onRegistrarPublicacao && (
-                                  <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onRegistrarPublicacao(portaria);
-                                      }}
-                                    >
-                                      <Newspaper className="h-4 w-4 mr-2" />
-                                      Registrar Publicação
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -260,6 +296,22 @@ export function PortariaKanban({
                               {portaria.ementa}
                             </p>
                           )}
+
+                          {/* Alerta DOE / Anexo faltando */}
+                          {hasMissing && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1 mt-2 px-1.5 py-1 rounded bg-warning/10 text-warning text-[10px] font-medium">
+                                  <AlertTriangle className="h-3 w-3 shrink-0" />
+                                  Falta: {missingItems.join(', ')}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Esta portaria está sem: {missingItems.join(' e ')}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+
                           <div className="flex items-center justify-between mt-2 pt-2 border-t">
                             <span className="text-[10px] text-muted-foreground">
                               {format(new Date(portaria.data_documento), 'dd/MM/yy', {
