@@ -95,10 +95,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }> => {
     try {
       // Verificar se é super_admin via RPC dedicado
-      const { data: isSuperAdminResult } = await supabase.rpc('usuario_eh_super_admin', {
+      const { data: isSuperAdminResult, error: superAdminError } = await supabase.rpc('usuario_eh_super_admin', {
         check_user_id: userId
       });
       
+      console.log('[Auth] RPC usuario_eh_super_admin resultado:', isSuperAdminResult, 'erro:', superAdminError);
       const isSuperAdmin = isSuperAdminResult === true;
 
       // Buscar permissões detalhadas via RPC
