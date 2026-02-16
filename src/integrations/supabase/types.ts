@@ -20458,6 +20458,7 @@ export type Database = {
         }[]
       }
       folha_esta_bloqueada: { Args: { p_folha_id: string }; Returns: boolean }
+      generate_schema_ddl: { Args: never; Returns: Json }
       gerar_codigo_pre_cadastro: { Args: never; Returns: string }
       gerar_link_frequencia: { Args: never; Returns: string }
       gerar_numero_portaria: { Args: { p_ano?: number }; Returns: string }
