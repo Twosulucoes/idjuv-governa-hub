@@ -4,7 +4,7 @@
 // Sistema baseado EXCLUSIVAMENTE em permissões
 // Roles são derivados do banco, nunca hardcoded
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase, clearOldSessions, isSupabaseConfigured } from '@/lib/supabase';
 import { AuthUser, PermissionCode, PermissaoUsuario, AuthState } from '@/types/auth';
@@ -82,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isConfigured] = useState(isSupabaseConfigured());
-  const [signInInProgress, setSignInInProgress] = useState(false);
+  const signInInProgressRef = useRef(false);
   const { toast } = useToast();
 
   // ============================================
@@ -199,7 +199,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user) {
           // Se signIn está em progresso, ele já cuida do fetchUserData
           // Evita race condition de dupla chamada
-          if (signInInProgress) {
+          if (signInInProgressRef.current) {
             console.log('[Auth] onAuthStateChange ignorado - signIn em progresso');
             return;
           }
@@ -278,7 +278,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clearOldSessions();
       
       // Flag para evitar que onAuthStateChange faça fetch duplicado
-      setSignInInProgress(true);
+      signInInProgressRef.current = true;
       setIsLoading(true);
       setUser(null);
       setSession(null);
@@ -289,7 +289,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
-        setSignInInProgress(false);
+        signInInProgressRef.current = false;
         setIsLoading(false);
         toast({
           variant: "destructive",
@@ -310,7 +310,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(userData);
       }
 
-      setSignInInProgress(false);
+      signInInProgressRef.current = false;
       setIsLoading(false);
 
       toast({
@@ -320,7 +320,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return { error: null };
     } catch (error) {
-      setSignInInProgress(false);
+      signInInProgressRef.current = false;
       setIsLoading(false);
       return { error: error as Error };
     }
