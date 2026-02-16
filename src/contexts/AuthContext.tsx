@@ -82,6 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isConfigured] = useState(isSupabaseConfigured());
+  const [signInInProgress, setSignInInProgress] = useState(false);
   const { toast } = useToast();
 
   // ============================================
@@ -196,11 +197,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         
         if (session?.user) {
+          // Se signIn está em progresso, ele já cuida do fetchUserData
+          // Evita race condition de dupla chamada
+          if (signInInProgress) {
+            console.log('[Auth] onAuthStateChange ignorado - signIn em progresso');
+            return;
+          }
           // Usar setTimeout para evitar deadlock com Supabase
           setTimeout(() => {
             if (!isMounted) return;
             fetchUserData(session.user).then(userData => {
               if (!isMounted) return;
+              console.log('[Auth] onAuthStateChange userData:', userData?.isSuperAdmin);
               setUser(userData);
               setIsLoading(false);
             }).catch(() => {
@@ -268,7 +276,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       // Limpar dados residuais do navegador
       clearOldSessions();
-      // Sinalizar loading enquanto busca dados do novo usuário
+      
+      // Flag para evitar que onAuthStateChange faça fetch duplicado
+      setSignInInProgress(true);
       setIsLoading(true);
       setUser(null);
       setSession(null);
@@ -279,6 +289,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
+        setSignInInProgress(false);
         setIsLoading(false);
         toast({
           variant: "destructive",
@@ -297,8 +308,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const userData = await fetchUserData(data.session.user);
         console.log('[Auth] signIn: userData carregado, isSuperAdmin:', userData?.isSuperAdmin);
         setUser(userData);
-        setIsLoading(false);
       }
+
+      setSignInInProgress(false);
+      setIsLoading(false);
 
       toast({
         title: "Bem-vindo!",
@@ -307,6 +320,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return { error: null };
     } catch (error) {
+      setSignInInProgress(false);
       setIsLoading(false);
       return { error: error as Error };
     }
