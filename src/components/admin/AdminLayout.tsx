@@ -18,7 +18,7 @@ import { TopBarMobile } from "@/components/navigation/TopBarMobile";
 import { AdminSearch } from "./AdminSearch";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMenu } from "@/contexts/MenuContext";
-import { DevModeSwitcher } from "@/components/dev/DevModeSwitcher";
+
 
 export interface AdminLayoutProps {
   children: React.ReactNode;
@@ -87,9 +87,6 @@ function AdminLayoutContent({ children, title, description }: AdminLayoutProps) 
 
       {/* Modal de Busca */}
       <AdminSearch open={searchOpen} onOpenChange={setSearchOpen} />
-      
-      {/* Dev Mode Switcher */}
-      <DevModeSwitcher />
     </SidebarProvider>
   );
 }
