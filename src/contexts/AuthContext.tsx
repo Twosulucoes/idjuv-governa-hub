@@ -273,12 +273,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (error) {
+        setIsLoading(false);
         toast({
           variant: "destructive",
           title: "Erro ao entrar",
@@ -289,6 +290,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error };
       }
 
+      // Aguardar fetchUserData ANTES de retornar
+      // Isso garante que isSuperAdmin está resolvido antes da navegação
+      if (data.session?.user) {
+        setSession(data.session);
+        const userData = await fetchUserData(data.session.user);
+        console.log('[Auth] signIn: userData carregado, isSuperAdmin:', userData?.isSuperAdmin);
+        setUser(userData);
+        setIsLoading(false);
+      }
+
       toast({
         title: "Bem-vindo!",
         description: "Login realizado com sucesso."
@@ -296,6 +307,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return { error: null };
     } catch (error) {
+      setIsLoading(false);
       return { error: error as Error };
     }
   };
