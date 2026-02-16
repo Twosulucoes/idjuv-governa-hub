@@ -984,6 +984,147 @@ serve(async (req) => {
         );
       }
 
+      case 'sync-database': {
+        // ============================================
+        // SINCRONIZAÇÃO DIRETA COM BANCO DESTINO
+        // Replica dados em tabelas reais no Supabase destino
+        // ============================================
+        const syncStart = Date.now();
+        console.log('[SYNC] Iniciando sincronização com banco espelho...');
+
+        const syncResults: Record<string, { records: number; status: string; error?: string }> = {};
+        let syncTotalRecords = 0;
+        let syncErrors = 0;
+
+        // Registrar início
+        const { data: syncRecord } = await supabaseOrigin
+          .from('backup_history')
+          .insert({
+            backup_type: 'manual',
+            status: 'running',
+            triggered_by: user.id,
+            trigger_mode: 'sync',
+            system_version: '3.0.0',
+            metadata: { type: 'database_sync', tables_count: ALL_TABLES.length }
+          })
+          .select()
+          .single();
+
+        try {
+          for (const table of ALL_TABLES) {
+            try {
+              // Ler dados da origem
+              const { data: rows, error: readErr } = await supabaseOrigin.from(table).select('*');
+              
+              if (readErr || !rows) {
+                syncResults[table] = { records: 0, status: 'skip', error: readErr?.message };
+                continue;
+              }
+
+              if (rows.length === 0) {
+                syncResults[table] = { records: 0, status: 'empty' };
+                continue;
+              }
+
+              // Upsert em lotes no destino (lotes de 500)
+              const batchSize = 500;
+              let totalUpserted = 0;
+
+              for (let i = 0; i < rows.length; i += batchSize) {
+                const batch = rows.slice(i, i + batchSize);
+                const { error: upsertErr } = await supabaseDest
+                  .from(table)
+                  .upsert(batch as any, { onConflict: 'id', ignoreDuplicates: false });
+
+                if (upsertErr) {
+                  // Tentar insert individual em caso de erro de lote
+                  let individualSuccess = 0;
+                  for (const row of batch) {
+                    const { error: singleErr } = await supabaseDest
+                      .from(table)
+                      .upsert(row as any, { onConflict: 'id' });
+                    if (!singleErr) individualSuccess++;
+                  }
+                  totalUpserted += individualSuccess;
+                  if (individualSuccess < batch.length) {
+                    console.warn(`[SYNC] ${table}: ${batch.length - individualSuccess} registros falharam`);
+                  }
+                } else {
+                  totalUpserted += batch.length;
+                }
+              }
+
+              syncResults[table] = { records: totalUpserted, status: 'ok' };
+              syncTotalRecords += totalUpserted;
+            } catch (tableErr) {
+              const msg = tableErr instanceof Error ? tableErr.message : 'Erro';
+              syncResults[table] = { records: 0, status: 'error', error: msg };
+              syncErrors++;
+              console.warn(`[SYNC] Erro na tabela ${table}: ${msg}`);
+            }
+          }
+
+          const syncDuration = Math.round((Date.now() - syncStart) / 1000);
+          const syncStatus = syncErrors === 0 ? 'success' : (syncErrors < ALL_TABLES.length ? 'partial' : 'failed');
+
+          // Atualizar registro
+          if (syncRecord?.id) {
+            await supabaseOrigin
+              .from('backup_history')
+              .update({
+                status: syncStatus,
+                completed_at: new Date().toISOString(),
+                duration_seconds: syncDuration,
+                total_size: syncTotalRecords,
+                metadata: {
+                  type: 'database_sync',
+                  tables_synced: Object.keys(syncResults).filter(k => syncResults[k].status === 'ok').length,
+                  tables_failed: syncErrors,
+                  total_records: syncTotalRecords,
+                  details: syncResults
+                }
+              })
+              .eq('id', syncRecord.id);
+          }
+
+          // Auditoria
+          await supabaseOrigin.rpc('log_audit', {
+            _action: 'create',
+            _entity_type: 'backup',
+            _entity_id: syncRecord?.id || 'unknown',
+            _module_name: 'backup_offsite',
+            _description: `Sync banco espelho: ${syncTotalRecords} registros em ${Object.keys(syncResults).filter(k => syncResults[k].status === 'ok').length} tabelas`,
+            _metadata: { duration: syncDuration, errors: syncErrors }
+          });
+
+          return new Response(
+            JSON.stringify({
+              success: syncErrors < ALL_TABLES.length,
+              syncId: syncRecord?.id,
+              status: syncStatus,
+              tablesSynced: Object.keys(syncResults).filter(k => syncResults[k].status === 'ok').length,
+              tablesFailed: syncErrors,
+              tablesEmpty: Object.keys(syncResults).filter(k => syncResults[k].status === 'empty').length,
+              totalRecords: syncTotalRecords,
+              duration: syncDuration,
+              details: syncResults
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (syncError) {
+          const errMsg = syncError instanceof Error ? syncError.message : 'Erro desconhecido';
+          if (syncRecord?.id) {
+            await supabaseOrigin.from('backup_history').update({
+              status: 'failed',
+              completed_at: new Date().toISOString(),
+              error_message: errMsg,
+              duration_seconds: Math.round((Date.now() - syncStart) / 1000)
+            }).eq('id', syncRecord.id);
+          }
+          throw syncError;
+        }
+      }
+
       case 'download-manifest': {
         if (!backupId) {
           throw new Error('ID do backup não informado');
