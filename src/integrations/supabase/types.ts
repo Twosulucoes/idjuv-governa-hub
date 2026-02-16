@@ -6813,6 +6813,86 @@ export type Database = {
           },
         ]
       }
+      documentos_requerimento_servidor: {
+        Row: {
+          arquivo_assinado_url: string | null
+          created_at: string
+          created_by: string | null
+          data_solicitacao: string
+          data_upload_assinado: string | null
+          descricao: string | null
+          id: string
+          modelo_url: string | null
+          observacoes: string | null
+          servidor_id: string
+          status: string
+          tipo_documento: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          arquivo_assinado_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_solicitacao?: string
+          data_upload_assinado?: string | null
+          descricao?: string | null
+          id?: string
+          modelo_url?: string | null
+          observacoes?: string | null
+          servidor_id: string
+          status?: string
+          tipo_documento: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          arquivo_assinado_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_solicitacao?: string
+          data_upload_assinado?: string | null
+          descricao?: string | null
+          id?: string
+          modelo_url?: string | null
+          observacoes?: string | null
+          servidor_id?: string
+          status?: string
+          tipo_documento?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentos_requerimento_servidor_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_requerimento_servidor_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "documentos_requerimento_servidor_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_requerimento_servidor_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dotacoes_orcamentarias: {
         Row: {
           acao_orcamentaria: string

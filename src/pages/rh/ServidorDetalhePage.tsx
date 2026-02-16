@@ -63,6 +63,7 @@ import { type TipoServidor } from "@/types/servidor";
 import { HistoricoFuncionalTab } from "@/components/rh/HistoricoFuncionalTab";
 import { ServidorFrequenciaConfigCard } from "@/components/rh/ServidorFrequenciaConfigCard";
 import { DesignacoesUnidadeTab } from "@/components/rh/DesignacoesUnidadeTab";
+import { DocumentosServidorTab } from "@/components/rh/DocumentosServidorTab";
 
 export default function ServidorDetalheePage() {
   const navigate = useNavigate();
@@ -379,7 +380,7 @@ export default function ServidorDetalheePage() {
           </div>
 
           <Tabs defaultValue="dados" className="space-y-6">
-            <TabsList className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+            <TabsList className="grid grid-cols-3 lg:grid-cols-6 gap-2">
               <TabsTrigger value="dados" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
                 <span className="hidden sm:inline">Dados</span>
@@ -391,6 +392,10 @@ export default function ServidorDetalheePage() {
               <TabsTrigger value="designacoes" className="flex items-center gap-2">
                 <Building2 className="h-4 w-4" />
                 <span className="hidden sm:inline">Designações</span>
+              </TabsTrigger>
+              <TabsTrigger value="documentos" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                <span className="hidden sm:inline">Documentos</span>
               </TabsTrigger>
               <TabsTrigger value="ferias" className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
@@ -567,6 +572,15 @@ export default function ServidorDetalheePage() {
               <DesignacoesUnidadeTab 
                 servidorId={id!}
                 servidorNome={servidor.nome_completo}
+              />
+            </TabsContent>
+
+            {/* Documentos */}
+            <TabsContent value="documentos">
+              <DocumentosServidorTab
+                servidorId={id!}
+                servidorNome={servidor.nome_completo}
+                isAdmin={isAdmin}
               />
             </TabsContent>
 
