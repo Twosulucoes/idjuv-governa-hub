@@ -34,7 +34,7 @@ function getDevModeOverrides(): DevModeOverrides | null {
 }
 
 export function useModulosUsuario() {
-  const { user, isSuperAdmin: authIsSuperAdmin } = useAuth();
+  const { user, isSuperAdmin: authIsSuperAdmin, isLoading: authLoading } = useAuth();
   const [modulosAutorizados, setModulosAutorizados] = useState<Modulo[]>([]);
   const [loading, setLoading] = useState(true);
   const [devModeActive, setDevModeActive] = useState(false);
@@ -43,6 +43,11 @@ export function useModulosUsuario() {
   const isSuperAdmin = devOverrides?.isSuperAdmin ?? authIsSuperAdmin;
 
   const fetchModulosUsuario = useCallback(async () => {
+    // Aguardar auth carregar antes de decidir
+    if (authLoading) {
+      return;
+    }
+    
     if (!user?.id) {
       setLoading(false);
       return;
@@ -85,7 +90,7 @@ export function useModulosUsuario() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, authIsSuperAdmin]);
+  }, [user?.id, authIsSuperAdmin, authLoading]);
 
   useEffect(() => {
     const handleDevModeChange = () => {
@@ -116,7 +121,7 @@ export function useModulosUsuario() {
 
   return {
     modulosAutorizados,
-    loading,
+    loading: loading || authLoading,
     temAcessoModulo,
     rotaAutorizada,
     refetch: fetchModulosUsuario,
