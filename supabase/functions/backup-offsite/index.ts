@@ -891,8 +891,12 @@ serve(async (req) => {
         const manifestText = await manifestData.text();
         const manifest = JSON.parse(manifestText);
 
-        const dbValid = manifest.files.db.checksum === backup.db_checksum;
-        const storageValid = manifest.files.storage.checksum === backup.storage_checksum;
+        const dbValid = manifest?.files?.db?.checksum 
+          ? manifest.files.db.checksum === backup.db_checksum 
+          : !backup.db_checksum; // both null = valid
+        const storageValid = manifest?.files?.storage?.checksum 
+          ? manifest.files.storage.checksum === backup.storage_checksum 
+          : !backup.storage_checksum;
 
         await supabaseOrigin
           .from('backup_integrity_checks')
