@@ -68,20 +68,24 @@ async function discoverAllTables(supabase: SupabaseClient<any, any, any>): Promi
   return tables;
 }
 
-// Categorizar tabelas para organização
+// Categorizar tabelas para organização por módulo
 function categorizeTable(tableName: string): string {
   const categories: Record<string, string[]> = {
-    'usuarios_permissoes': ['profile', 'user_role', 'user_permission', 'user_org', 'user_security', 'role_permission', 'module_access', 'perfis', 'funcoes_sistema', 'perfil_funcoes', 'usuario_perfis'],
-    'estrutura_organizacional': ['estrutura_organizacional', 'cargo', 'composicao_cargo', 'cargo_unidade', 'centros_custo'],
-    'servidores_rh': ['servidor', 'lotacao', 'memorando', 'historico_funcional', 'portarias_servidor', 'ocorrencia', 'ferias', 'licenca', 'cessao', 'designacao', 'provimento', 'vinculo', 'dependente', 'pensoes', 'consignac', 'pre_cadastro'],
-    'ponto_frequencia': ['jornada', 'horario', 'ponto', 'justificativa', 'solicitacoes_ajuste', 'banco_hora', 'lancamentos_banco', 'frequencia_mensal', 'feriado', 'viagens_diarias'],
-    'folha_pagamento': ['folha', 'lancamentos_folha', 'ficha', 'itens_ficha', 'rubrica', 'parametros_folha', 'tabela_inss', 'tabela_irrf', 'esocial', 'exportacoes_folha', 'banco', 'conta', 'remessa', 'retorno', 'config_autarquia'],
-    'unidades_locais': ['unidades_locais', 'agenda_unidade', 'documentos_cedencia', 'termos_cessao', 'patrimonio_unidade', 'nomeacoes_chefe'],
-    'federacoes': ['federac', 'calendario_federacao'],
-    'documentos_aprovacoes': ['documento', 'approval'],
-    'reunioes': ['reunio', 'participantes_reuniao', 'config_assinatura', 'modelos_mensagem', 'historico_convites'],
-    'demandas_ascom': ['demandas_ascom'],
-    'auditoria_backup': ['audit', 'backup'],
+    '01_usuarios_permissoes': ['profile', 'user_role', 'user_permission', 'user_org', 'user_security', 'role_permission', 'module_access', 'perfis', 'funcoes_sistema', 'perfil_funcoes', 'usuario_perfis', 'user_module', 'module_permission', 'module_setting'],
+    '02_estrutura_organizacional': ['estrutura_organizacional', 'cargo', 'composicao_cargo', 'cargo_unidade', 'centros_custo', 'config_agrupamento'],
+    '03_servidores_rh': ['servidor', 'lotacao', 'memorando', 'historico_funcional', 'portarias_servidor', 'ocorrencia', 'ferias', 'licenca', 'cessao', 'designacao', 'provimento', 'vinculo', 'dependente', 'pensoes', 'consignac', 'pre_cadastro', 'adicionais_tempo'],
+    '04_ponto_frequencia': ['jornada', 'horario', 'ponto', 'justificativa', 'solicitacoes_ajuste', 'banco_hora', 'lancamentos_banco', 'frequencia_mensal', 'feriado', 'viagens_diarias', 'config_compensacao', 'config_fechamento_freq', 'dias_nao_uteis'],
+    '05_folha_pagamento': ['folha', 'lancamentos_folha', 'ficha', 'itens_ficha', 'rubrica', 'parametros_folha', 'tabela_inss', 'tabela_irrf', 'esocial', 'exportacoes_folha', 'bancos_cnab', 'contas_autarquia', 'remessa', 'retorno', 'config_autarquia', 'config_rubricas', 'config_tipos_rubrica', 'config_fechamento_folha', 'config_regras_calculo', 'config_incidencias'],
+    '06_financeiro': ['fin_', 'dotacoes_orcamentarias', 'empenhos', 'creditos_adicionais'],
+    '07_patrimonio': ['bens_patrimoniais', 'baixas_patrimonio', 'movimentacoes_patrimonio', 'inventario', 'campanha', 'coleta', 'conciliac', 'itens_material', 'categorias_material', 'almoxarifado', 'estoque'],
+    '08_licitacoes_contratos': ['processo_licitatorio', 'contratos', 'aditivos', 'atas_registro', 'fornecedor', 'documentos_preparatorios', 'checklist', 'audit_log_licitacoes'],
+    '09_unidades_locais': ['unidades_locais', 'agenda_unidade', 'documentos_cedencia', 'termos_cessao', 'nomeacoes_chefe', 'agrupamento_unidade'],
+    '10_federacoes_esporte': ['federac', 'calendario_federacao', 'eventos_esportivo', 'escolas_jer', 'instituicoes', 'contatos_eventos'],
+    '11_documentos_aprovacoes': ['documento', 'approval', 'despacho', 'encaminhamento', 'processo_administrativo', 'decisoes_admin'],
+    '12_comunicacao': ['demandas_ascom', 'cms_', 'noticias', 'config_paginas'],
+    '13_governanca': ['riscos_institucionais', 'controles_internos', 'avaliacoes', 'evidencias', 'planos_acao', 'programas', 'acoes', 'metas'],
+    '14_auditoria_backup': ['audit', 'backup'],
+    '15_configuracoes': ['config_institucional', 'config_motivos', 'config_situacoes', 'config_tipos_ato', 'config_tipos_onus', 'config_parametros', 'dados_oficiais', 'debitos_tecnicos'],
   };
 
   const lowerName = tableName.toLowerCase();
@@ -92,7 +96,7 @@ function categorizeTable(tableName: string): string {
     }
   }
   
-  return 'outros';
+  return '99_outros';
 }
 
 // Função para gerar hash SHA-256
@@ -515,11 +519,12 @@ serve(async (req) => {
         let storageChecksum = '';
 
         try {
-          // 1. Backup COMPLETO do banco de dados - TODAS as tabelas descobertas
+          // 1. Backup ORGANIZADO POR CATEGORIA/MÓDULO
           console.log(`[BACKUP] Iniciando backup de ${ALL_TABLES.length} tabelas (descoberta automática)`);
 
           const dbData: Record<string, unknown[]> = {};
           const tableStats: Record<string, number> = {};
+          const categorizedData: Record<string, Record<string, unknown[]>> = {};
           
           for (const table of ALL_TABLES) {
             try {
@@ -527,81 +532,90 @@ serve(async (req) => {
               if (!error && data) {
                 dbData[table] = data;
                 tableStats[table] = data.length;
+                
+                // Categorizar por módulo
+                const category = categorizeTable(table);
+                if (!categorizedData[category]) {
+                  categorizedData[category] = {};
+                }
+                categorizedData[category][table] = data;
               }
             } catch (tableError) {
               console.warn(`[BACKUP] Erro na tabela ${table}:`, tableError);
             }
           }
 
-          // Gerar no formato solicitado
-          let dbContent: string;
-          let dbContentType: string;
-          let dbExtension: string;
-
-          if (exportFormat === 'sql') {
-            const sqlLines = [
-              '-- ============================================',
-              '-- BACKUP COMPLETO IDJUV (Descoberta Automática)',
-              `-- Gerado em: ${new Date().toISOString()}`,
-              `-- Tabelas: ${Object.keys(dbData).length}`,
-              `-- Total de registros: ${Object.values(tableStats).reduce((a, b) => a + b, 0)}`,
-              '-- ============================================',
-              '',
-              'BEGIN;',
-              ''
-            ];
+          // Upload de arquivos separados por categoria
+          const categoryFiles: Record<string, { path: string; size: number; tables: number; records: number }> = {};
+          
+          for (const [category, tables] of Object.entries(categorizedData)) {
+            const categoryContent = JSON.stringify({
+              category,
+              exported_at: new Date().toISOString(),
+              tables_count: Object.keys(tables).length,
+              total_records: Object.values(tables).reduce((acc, arr) => acc + arr.length, 0),
+              data: tables
+            }, null, 2);
             
-            for (const [table, data] of Object.entries(dbData)) {
-              if (data.length > 0) {
-                sqlLines.push(jsonToSql(table, data as Record<string, unknown>[]));
-              }
+            const categoryBytes = new TextEncoder().encode(categoryContent);
+            let toUpload = categoryBytes;
+            let fileName = `db/${dateTime}/${category}.json`;
+            
+            if (encryptionKey) {
+              const { encrypted, iv } = await encryptData(categoryBytes, encryptionKey);
+              const combined = new Uint8Array(iv.length + encrypted.length);
+              combined.set(iv);
+              combined.set(encrypted, iv.length);
+              toUpload = combined;
+              fileName += '.enc';
             }
             
-            sqlLines.push('COMMIT;');
-            dbContent = sqlLines.join('\n');
-            dbContentType = 'application/sql';
-            dbExtension = 'sql';
-          } else if (exportFormat === 'csv') {
-            const csvData: Record<string, string> = {};
-            for (const [table, data] of Object.entries(dbData)) {
-              if (data.length > 0) {
-                csvData[table] = jsonToCsv(data as Record<string, unknown>[]);
-              }
+            const { error: uploadError } = await supabaseDest.storage
+              .from('idjuv-backups')
+              .upload(fileName, toUpload, {
+                contentType: 'application/octet-stream',
+                upsert: true
+              });
+            
+            if (uploadError) {
+              console.warn(`[BACKUP] Erro ao salvar categoria ${category}:`, uploadError.message);
+            } else {
+              totalSize += toUpload.length;
+              categoryFiles[category] = {
+                path: fileName,
+                size: toUpload.length,
+                tables: Object.keys(tables).length,
+                records: Object.values(tables).reduce((acc, arr) => acc + arr.length, 0)
+              };
             }
-            dbContent = JSON.stringify({
-              format: 'csv',
-              exported_at: new Date().toISOString(),
-              discovery_mode: 'automatic',
-              tables: csvData
-            }, null, 2);
-            dbContentType = 'application/json';
-            dbExtension = 'csv.json';
-          } else {
-            dbContent = JSON.stringify({
-              exported_at: new Date().toISOString(),
-              system_version: '2.0.0',
-              discovery_mode: 'automatic',
-              tables_count: Object.keys(dbData).length,
-              total_records: Object.values(tableStats).reduce((a, b) => a + b, 0),
-              table_stats: tableStats,
-              data: dbData
-            }, null, 2);
-            dbContentType = 'application/json';
-            dbExtension = 'json';
           }
 
-          const dbBytes = new TextEncoder().encode(dbContent);
-          dbChecksum = await sha256(dbBytes);
+          // Gerar arquivo índice consolidado
+          const indexContent = JSON.stringify({
+            exported_at: new Date().toISOString(),
+            system_version: '3.0.0',
+            discovery_mode: 'automatic',
+            organization: 'by_category',
+            categories: Object.keys(categorizedData).length,
+            tables_count: Object.keys(dbData).length,
+            total_records: Object.values(tableStats).reduce((a, b) => a + b, 0),
+            table_stats: tableStats,
+            category_files: categoryFiles
+          }, null, 2);
 
-          let dbToUpload = dbBytes;
-          let dbFileName = `db/idjuv_prod_${dateTime}.${dbExtension}`;
-
+          const indexBytes = new TextEncoder().encode(indexContent);
+          const dbChecksum_local = await sha256(indexBytes);
+          dbChecksum = dbChecksum_local;
+          
+          let indexToUpload = indexBytes;
+          let dbFileName = `db/${dateTime}/_index.json`;
+          
           if (encryptionKey) {
-            const { encrypted, iv } = await encryptData(dbBytes, encryptionKey);
+            const { encrypted, iv } = await encryptData(indexBytes, encryptionKey);
             const combined = new Uint8Array(iv.length + encrypted.length);
             combined.set(iv);
             combined.set(encrypted, iv.length);
-            dbToUpload = combined;
+            indexToUpload = combined;
             dbFileName += '.enc';
           }
 
@@ -615,20 +629,19 @@ serve(async (req) => {
             throw new Error('Bucket "idjuv-backups" não encontrado no destino.');
           }
 
-          // Upload do banco
-          const { error: dbUploadError } = await supabaseDest.storage
+          const { error: indexUploadError } = await supabaseDest.storage
             .from('idjuv-backups')
-            .upload(dbFileName, dbToUpload, {
-              contentType: 'application/octet-stream',
+            .upload(dbFileName, indexToUpload, {
+              contentType: 'application/json',
               upsert: true
             });
 
-          if (dbUploadError) {
-            throw new Error(`Falha no upload do banco: ${dbUploadError.message}`);
+          if (indexUploadError) {
+            throw new Error(`Falha no upload do índice: ${indexUploadError.message}`);
           }
 
-          totalSize += dbToUpload.length;
-          console.log(`[BACKUP] Banco exportado: ${dbFileName} (${dbToUpload.length} bytes)`);
+          totalSize += indexToUpload.length;
+          console.log(`[BACKUP] ${Object.keys(categorizedData).length} categorias exportadas, ${Object.keys(dbData).length} tabelas, ${totalSize} bytes total`);
 
           // 2. Backup do Storage
           const { data: configData } = await supabaseOrigin
@@ -693,7 +706,8 @@ serve(async (req) => {
             created_at: new Date().toISOString(),
             type,
             format: exportFormat,
-            system_version: '2.0.0',
+            system_version: '3.0.0',
+            organization: 'by_category',
             discovery: {
               mode: 'automatic',
               discovered_at: discoveredAt,
@@ -705,14 +719,14 @@ serve(async (req) => {
               list: ALL_TABLES,
               stats: tableStats
             },
+            categories: categoryFiles,
             files: {
-              db: {
+              db_index: {
                 path: dbFileName,
-                size: dbToUpload.length,
                 checksum: dbChecksum,
                 encrypted: !!encryptionKey,
-                format: exportFormat
               },
+              category_files: categoryFiles,
               storage: {
                 path: storageFileName,
                 size: storageToUpload.length,
@@ -724,10 +738,8 @@ serve(async (req) => {
             total_size: totalSize,
             status: 'success',
             documentation: {
-              restore_instructions: 'Para restaurar, importe o arquivo de banco diretamente no PostgreSQL ou use a API de importação.',
-              formats_available: ['json', 'csv', 'sql'],
-              incremental_field: 'updated_at ou created_at',
-              external_access: 'Use action=external-export com API key para exportação via endpoint',
+              restore_instructions: 'Cada módulo é salvo em arquivo separado na pasta db/<data>/. Importe cada arquivo individualmente ou use o _index.json para localizar todos.',
+              organization: 'Dados organizados por módulo: 01_usuarios, 02_estrutura, 03_rh, 04_ponto, 05_folha, 06_financeiro, 07_patrimonio, etc.',
               auto_discovery: 'O sistema descobre automaticamente novas tabelas criadas no banco'
             }
           };
@@ -753,7 +765,7 @@ serve(async (req) => {
               status: 'success',
               completed_at: new Date().toISOString(),
               db_file_path: dbFileName,
-              db_file_size: dbToUpload.length,
+              db_file_size: totalSize,
               db_checksum: dbChecksum,
               storage_file_path: storageFileName,
               storage_file_size: storageToUpload.length,
@@ -766,8 +778,11 @@ serve(async (req) => {
               metadata: { 
                 format: exportFormat, 
                 tables_count: Object.keys(dbData).length, 
+                categories_count: Object.keys(categorizedData).length,
+                category_files: categoryFiles,
                 table_stats: tableStats,
-                discovery_mode: 'automatic'
+                discovery_mode: 'automatic',
+                organization: 'by_category'
               }
             })
             .eq('id', backupRecord.id);
@@ -789,20 +804,21 @@ serve(async (req) => {
             _entity_type: 'backup',
             _entity_id: backupRecord.id,
             _module_name: 'backup_offsite',
-            _description: `Backup ${type} (${exportFormat}) executado com sucesso - descoberta automática`,
-            _metadata: { total_size: totalSize, duration, format: exportFormat, tables: Object.keys(dbData).length, discovery_mode: 'automatic' }
+            _description: `Backup ${type} organizado em ${Object.keys(categorizedData).length} categorias - ${Object.keys(dbData).length} tabelas`,
+            _metadata: { total_size: totalSize, duration, categories: Object.keys(categorizedData).length, tables: Object.keys(dbData).length }
           });
 
           return new Response(
             JSON.stringify({
               success: true,
               backupId: backupRecord.id,
-              dbFilePath: dbFileName,
+              organization: 'by_category',
+              categoriesCount: Object.keys(categorizedData).length,
+              categoryFiles,
               storageFilePath: storageFileName,
               manifestPath: manifestFileName,
               totalSize,
               duration,
-              format: exportFormat,
               tablesExported: Object.keys(dbData).length,
               totalRecords: Object.values(tableStats).reduce((a, b) => a + b, 0),
               discoveryMode: 'automatic'
