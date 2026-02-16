@@ -389,26 +389,49 @@ serve(async (req) => {
       throw new Error('Não autorizado');
     }
 
-    const { data: { user }, error: authError } = await supabaseOrigin.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
-
-    if (authError || !user) {
-      throw new Error('Usuário não autenticado');
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Verificar se é chamada via cron (anon key ou service role)
+    // Decodificar JWT para verificar role
+    let isCronCall = false;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.role === 'anon' || payload.role === 'service_role') {
+        isCronCall = true;
+      }
+    } catch {
+      // Token inválido - não é cron
     }
 
-    // Verificar permissões (TI-admin ou Presidência)
-    const { data: userRoles } = await supabaseOrigin
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id);
+    let user: { id: string } | null = null;
 
-    const hasPermission = userRoles?.some(r => 
-      r.role === 'ti_admin' || r.role === 'presidencia' || r.role === 'admin'
-    );
+    if (isCronCall) {
+      // Chamada automática via cron - permitida sem verificação de roles
+      console.log('[AUTH] Chamada via cron/service_role - autorizada automaticamente');
+      user = { id: 'cron-system' };
+    } else {
+      // Chamada de usuário - verificar autenticação e permissões
+      const { data: { user: authUser }, error: authError } = await supabaseOrigin.auth.getUser(token);
 
-    if (!hasPermission) {
-      throw new Error('Sem permissão para executar backup');
+      if (authError || !authUser) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      user = authUser;
+
+      // Verificar permissões (TI-admin ou Presidência)
+      const { data: userRoles } = await supabaseOrigin
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', authUser.id);
+
+      const hasPermission = userRoles?.some(r => 
+        r.role === 'ti_admin' || r.role === 'presidencia' || r.role === 'admin'
+      );
+
+      if (!hasPermission) {
+        throw new Error('Sem permissão para executar backup');
+      }
     }
 
     switch (action) {

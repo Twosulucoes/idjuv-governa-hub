@@ -184,6 +184,23 @@ export const useBackupOffsite = () => {
     }
   });
 
+  // Sincronizar banco espelho
+  const syncDatabase = useMutation({
+    mutationFn: async () => {
+      setIsExecuting(true);
+      return invokeBackupFunction('sync-database');
+    },
+    onSuccess: (data) => {
+      setIsExecuting(false);
+      queryClient.invalidateQueries({ queryKey: ['backup-history'] });
+      toast.success(`Sincronização concluída! ${data.tablesSynced} tabelas, ${data.totalRecords} registros`);
+    },
+    onError: (error) => {
+      setIsExecuting(false);
+      toast.error(`Erro na sincronização: ${error.message}`);
+    }
+  });
+
   // Limpar backups antigos
   const cleanupOldBackups = useMutation({
     mutationFn: async () => {
@@ -228,6 +245,7 @@ export const useBackupOffsite = () => {
     executeBackup: executeBackup.mutate,
     verifyIntegrity: verifyIntegrity.mutate,
     cleanupOldBackups: cleanupOldBackups.mutate,
+    syncDatabase: syncDatabase.mutate,
     downloadManifest,
     refetchHistory
   };
