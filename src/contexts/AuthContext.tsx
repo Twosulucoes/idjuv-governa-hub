@@ -178,7 +178,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user]);
 
   // ============================================
-  // EFEITOS
+  // EFEITOS - INICIALIZAÇÃO E LISTENER SEPARADOS
   // ============================================
 
   useEffect(() => {
@@ -189,94 +189,97 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     let isMounted = true;
-    let initialSessionHandled = false;
 
-    // Configurar listener de mudanças de autenticação PRIMEIRO
-    // onAuthStateChange dispara INITIAL_SESSION para a sessão existente
+    // -----------------------------------------------
+    // 1) LISTENER CONTÍNUO de mudanças de auth
+    //    NÃO controla isLoading (só a inicialização faz isso)
+    //    NÃO faz fetch se signIn está em progresso
+    //    NÃO faz fetch se o user já está carregado com mesmo id
+    // -----------------------------------------------
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log('[Auth] Estado alterado:', event);
+      (event, currentSession) => {
         if (!isMounted) return;
-        
-        setSession(session);
-        
-        if (event === 'INITIAL_SESSION') {
-          initialSessionHandled = true;
-        }
-        
-        if (session?.user) {
-          // Se signIn está em progresso, ele já cuida do fetchUserData
-          // Evita race condition de dupla chamada
-          if (signInInProgressRef.current) {
-            console.log('[Auth] onAuthStateChange BLOQUEADO - signIn em progresso');
-            return;
-          }
-          
-          // Se já temos um user carregado com o mesmo id, não refazer fetch
-          // Isso evita que o listener sobrescreva dados já carregados pelo signIn
-          const currentUser = userRef.current;
-          if (currentUser?.id === session.user.id) {
-            console.log('[Auth] onAuthStateChange IGNORADO - user já carregado, isSuperAdmin:', currentUser?.isSuperAdmin);
-            return;
-          }
-          
-          console.log('[Auth] onAuthStateChange PROCESSANDO fetch para:', event);
-          // Usar setTimeout para evitar deadlock com Supabase
-          setTimeout(() => {
-            if (!isMounted) return;
-            // Re-checar ref após setTimeout
-            if (signInInProgressRef.current) {
-              console.log('[Auth] onAuthStateChange setTimeout BLOQUEADO - signIn em progresso');
-              return;
-            }
-            fetchUserData(session.user).then(userData => {
-              if (!isMounted) return;
-              console.log('[Auth] onAuthStateChange userData carregado:', userData?.isSuperAdmin);
-              setUser(userData);
-              setIsLoading(false);
-            }).catch(() => {
-              if (!isMounted) return;
-              setIsLoading(false);
-            });
-          }, 0);
-        } else {
+        console.log('[Auth] onAuthStateChange:', event);
+
+        setSession(currentSession);
+
+        // SIGNED_OUT → limpar user
+        if (!currentSession?.user) {
           setUser(null);
-          setIsLoading(false);
+          return;
         }
+
+        // Se signIn() está cuidando do fluxo, não interferir
+        if (signInInProgressRef.current) {
+          console.log('[Auth] Listener BLOQUEADO - signIn em progresso');
+          return;
+        }
+
+        // Se já temos user carregado com mesmo id, ignorar
+        const existing = userRef.current;
+        if (existing?.id === currentSession.user.id) {
+          console.log('[Auth] Listener IGNORADO - user já carregado, isSuperAdmin:', existing.isSuperAdmin);
+          return;
+        }
+
+        // TOKEN_REFRESHED não precisa refazer fetch de permissões
+        if (event === 'TOKEN_REFRESHED') {
+          console.log('[Auth] Token refreshed, mantendo dados do user');
+          return;
+        }
+
+        // Fetch assíncrono fora do callback (evita deadlock Supabase)
+        setTimeout(async () => {
+          if (!isMounted || signInInProgressRef.current) return;
+          // Re-checar ref uma última vez
+          if (userRef.current?.id === currentSession.user.id) return;
+          
+          console.log('[Auth] Listener: carregando dados do user...');
+          const userData = await fetchUserData(currentSession.user);
+          if (!isMounted) return;
+          console.log('[Auth] Listener: userData carregado, isSuperAdmin:', userData?.isSuperAdmin);
+          setUser(userData);
+        }, 0);
       }
     );
 
-    // Fallback: se INITIAL_SESSION não disparou em 2s, verificar manualmente
-    const fallbackTimer = setTimeout(() => {
-      if (!isMounted || initialSessionHandled) return;
-      console.log('[Auth] Fallback: verificando sessão manualmente');
-      supabase.auth.getSession().then(({ data: { session }, error }) => {
-        if (!isMounted || initialSessionHandled) return;
+    // -----------------------------------------------
+    // 2) INICIALIZAÇÃO: carrega sessão + dados ANTES de isLoading=false
+    //    Garante que super_admin está resolvido antes de renderizar
+    // -----------------------------------------------
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: existingSession }, error } = await supabase.auth.getSession();
+        if (!isMounted) return;
+
         if (error) {
           console.warn('[Auth] Erro ao recuperar sessão:', error.message);
-          supabase.auth.signOut();
-          setIsLoading(false);
+          await supabase.auth.signOut();
           return;
         }
-        setSession(session);
-        if (session?.user) {
-          fetchUserData(session.user).then(userData => {
-            if (!isMounted) return;
-            setUser(userData);
-            setIsLoading(false);
-          }).catch(() => {
-            if (!isMounted) return;
-            setIsLoading(false);
-          });
-        } else {
+
+        setSession(existingSession);
+
+        if (existingSession?.user) {
+          console.log('[Auth] Init: carregando dados do user...');
+          const userData = await fetchUserData(existingSession.user);
+          if (!isMounted) return;
+          console.log('[Auth] Init: userData carregado, isSuperAdmin:', userData?.isSuperAdmin);
+          setUser(userData);
+        }
+      } catch (err) {
+        console.error('[Auth] Erro na inicialização:', err);
+      } finally {
+        if (isMounted) {
           setIsLoading(false);
         }
-      });
-    }, 2000);
+      }
+    };
+
+    initializeAuth();
 
     return () => {
       isMounted = false;
-      clearTimeout(fallbackTimer);
       subscription.unsubscribe();
     };
   }, [fetchUserData, isConfigured]);
