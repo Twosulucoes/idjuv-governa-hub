@@ -1,55 +1,27 @@
 // ============================================
-// COMPONENTE PERMISSION GATE - FASE 6
+// COMPONENTE PERMISSION GATE — VERSÃO CORRIGIDA
 // ============================================
-// Mostra/oculta elementos baseado em permissões
-// NÃO usa roles hardcoded - apenas permissões do banco
+// CORREÇÃO: GuestOnly reimplementado com lógica explícita para evitar
+// bug do inverse + requireAuth combinados.
 
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PermissionCode } from '@/types/auth';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface PermissionGateProps {
   children: React.ReactNode;
-  
-  /**
-   * Permissões requeridas
-   * Pode ser uma permissão única ou array
-   */
   requiredPermissions?: PermissionCode | PermissionCode[];
-  
-  /**
-   * Modo de verificação: 'any' ou 'all'
-   * - 'any': precisa de pelo menos uma das permissões
-   * - 'all': precisa de todas as permissões
-   */
   permissionMode?: 'any' | 'all';
-  
-  /**
-   * Componente a exibir quando sem permissão
-   * Default: null (não mostra nada)
-   */
   fallback?: React.ReactNode;
-  
-  /**
-   * Se true, inverte a lógica (mostra quando NÃO tem permissão)
-   */
   inverse?: boolean;
-  
-  /**
-   * Requer autenticação
-   */
   requireAuth?: boolean;
-  
-  /**
-   * Se true, mostra elemento desabilitado com tooltip
-   * em vez de ocultar completamente
-   */
   showDisabled?: boolean;
-  
-  /**
-   * Mensagem do tooltip quando desabilitado
-   */
   disabledMessage?: string;
 }
 
@@ -61,56 +33,35 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
   inverse = false,
   requireAuth = true,
   showDisabled = false,
-  disabledMessage = 'Você não tem permissão para esta ação'
+  disabledMessage = 'Você não tem permissão para esta ação',
 }) => {
-  const { 
-    user, 
-    isAuthenticated, 
-    isSuperAdmin,
-    hasAnyPermission, 
-    hasAllPermissions 
-  } = useAuth();
+  const { user, isAuthenticated, isSuperAdmin, hasAnyPermission, hasAllPermissions } = useAuth();
 
-  // ============================================
-  // VERIFICAÇÕES
-  // ============================================
-
-  // Verificar autenticação
+  // Verificação de autenticação
   if (requireAuth && !isAuthenticated) {
     return inverse ? <>{children}</> : <>{fallback}</>;
   }
 
   let hasAccess = true;
 
-  // Super Admin sempre tem acesso (exceto se inverse)
+  // Super Admin tem acesso total (exceto se inverse for usado intencionalmente)
   if (!isSuperAdmin && requiredPermissions && user) {
-    const permissions = Array.isArray(requiredPermissions) 
-      ? requiredPermissions 
+    const permissions = Array.isArray(requiredPermissions)
+      ? requiredPermissions
       : [requiredPermissions];
-    
+
     if (permissions.length > 0) {
-      if (permissionMode === 'any') {
-        hasAccess = hasAnyPermission(permissions);
-      } else {
-        hasAccess = hasAllPermissions(permissions);
-      }
+      hasAccess = permissionMode === 'any'
+        ? hasAnyPermission(permissions)
+        : hasAllPermissions(permissions);
     }
   }
 
-  // Aplicar inversão se necessário
-  if (inverse) {
-    hasAccess = !hasAccess;
-  }
+  if (inverse) hasAccess = !hasAccess;
 
-  // ============================================
-  // RENDERIZAÇÃO
-  // ============================================
+  if (hasAccess) return <>{children}</>;
 
-  if (hasAccess) {
-    return <>{children}</>;
-  }
-
-  // Se showDisabled, renderizar children desabilitados com tooltip
+  // Renderiza desabilitado com tooltip
   if (showDisabled && React.isValidElement(children)) {
     return (
       <TooltipProvider>
@@ -119,7 +70,7 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
             <span className="cursor-not-allowed">
               {React.cloneElement(children as React.ReactElement<any>, {
                 disabled: true,
-                className: `${(children as React.ReactElement<any>).props.className || ''} opacity-50 pointer-events-none`
+                className: `${(children as React.ReactElement<any>).props.className ?? ''} opacity-50 pointer-events-none`,
               })}
             </span>
           </TooltipTrigger>
@@ -138,20 +89,15 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
 // COMPONENTES AUXILIARES
 // ============================================
 
-/**
- * Componente para mostrar conteúdo apenas para super admins
- */
-export const SuperAdminOnly: React.FC<{ 
-  children: React.ReactNode; 
+export const SuperAdminOnly: React.FC<{
+  children: React.ReactNode;
   fallback?: React.ReactNode;
   showDisabled?: boolean;
-}> = ({ children, fallback, showDisabled }) => {
+}> = ({ children, fallback = null, showDisabled }) => {
   const { isSuperAdmin } = useAuth();
-  
-  if (isSuperAdmin) {
-    return <>{children}</>;
-  }
-  
+
+  if (isSuperAdmin) return <>{children}</>;
+
   if (showDisabled && React.isValidElement(children)) {
     return (
       <TooltipProvider>
@@ -160,7 +106,7 @@ export const SuperAdminOnly: React.FC<{
             <span className="cursor-not-allowed">
               {React.cloneElement(children as React.ReactElement<any>, {
                 disabled: true,
-                className: `${(children as React.ReactElement<any>).props.className || ''} opacity-50 pointer-events-none`
+                className: `${(children as React.ReactElement<any>).props.className ?? ''} opacity-50 pointer-events-none`,
               })}
             </span>
           </TooltipTrigger>
@@ -171,57 +117,43 @@ export const SuperAdminOnly: React.FC<{
       </TooltipProvider>
     );
   }
-  
+
   return <>{fallback}</>;
 };
 
-/**
- * Componente para mostrar conteúdo apenas para usuários autenticados
- */
-export const AuthenticatedOnly: React.FC<{ 
-  children: React.ReactNode; 
-  fallback?: React.ReactNode 
+export const AuthenticatedOnly: React.FC<{
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
 }> = ({ children, fallback }) => (
   <PermissionGate requireAuth={true} fallback={fallback}>
     {children}
   </PermissionGate>
 );
 
-/**
- * Componente para mostrar conteúdo apenas para não autenticados
- */
-export const GuestOnly: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <PermissionGate requireAuth={false} inverse={true}>
-    {children}
-  </PermissionGate>
-);
+// ✅ CORREÇÃO: GuestOnly com lógica explícita, sem depender do inverse+requireAuth.
+export const GuestOnly: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return null;
+  return isAuthenticated ? null : <>{children}</>;
+};
 
-/**
- * Gate para ação de visualização
- */
 export const CanView: React.FC<{
   module: string;
   children: React.ReactNode;
   fallback?: React.ReactNode;
 }> = ({ module, children, fallback }) => (
-  <PermissionGate 
-    requiredPermissions={`${module}.visualizar`} 
-    fallback={fallback}
-  >
+  <PermissionGate requiredPermissions={`${module}.visualizar` as PermissionCode} fallback={fallback}>
     {children}
   </PermissionGate>
 );
 
-/**
- * Gate para ação de criação
- */
 export const CanCreate: React.FC<{
   module: string;
   children: React.ReactNode;
   showDisabled?: boolean;
 }> = ({ module, children, showDisabled }) => (
-  <PermissionGate 
-    requiredPermissions={`${module}.criar`} 
+  <PermissionGate
+    requiredPermissions={`${module}.criar` as PermissionCode}
     showDisabled={showDisabled}
     disabledMessage="Você não tem permissão para criar"
   >
@@ -229,16 +161,13 @@ export const CanCreate: React.FC<{
   </PermissionGate>
 );
 
-/**
- * Gate para ação de edição
- */
 export const CanEdit: React.FC<{
   module: string;
   children: React.ReactNode;
   showDisabled?: boolean;
 }> = ({ module, children, showDisabled }) => (
-  <PermissionGate 
-    requiredPermissions={`${module}.editar`} 
+  <PermissionGate
+    requiredPermissions={`${module}.editar` as PermissionCode}
     showDisabled={showDisabled}
     disabledMessage="Você não tem permissão para editar"
   >
@@ -246,16 +175,13 @@ export const CanEdit: React.FC<{
   </PermissionGate>
 );
 
-/**
- * Gate para ação de exclusão
- */
 export const CanDelete: React.FC<{
   module: string;
   children: React.ReactNode;
   showDisabled?: boolean;
 }> = ({ module, children, showDisabled }) => (
-  <PermissionGate 
-    requiredPermissions={`${module}.excluir`} 
+  <PermissionGate
+    requiredPermissions={`${module}.excluir` as PermissionCode}
     showDisabled={showDisabled}
     disabledMessage="Você não tem permissão para excluir"
   >
@@ -263,7 +189,7 @@ export const CanDelete: React.FC<{
   </PermissionGate>
 );
 
-// Manter compatibilidade com exports antigos
+// Compatibilidade retroativa
 export const AdminOnly = SuperAdminOnly;
 export const ManagerOnly = SuperAdminOnly;
 
