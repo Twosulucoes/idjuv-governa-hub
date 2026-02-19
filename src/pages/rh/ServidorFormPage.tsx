@@ -528,41 +528,7 @@ export default function ServidorFormPage() {
         if (error) throw error;
         servidorId = novoServidor.id;
 
-        // Criar usuário automaticamente para o servidor
-        const emailParaUsuario = data.email_institucional || data.email_pessoal;
-        if (emailParaUsuario && servidorId) {
-          try {
-            // Gerar senha temporária
-            const tempPassword = generateTempPassword();
-            
-            // Criar usuário no Auth
-            const { error: authError } = await supabase.auth.signUp({
-              email: emailParaUsuario,
-              password: tempPassword,
-              options: {
-                emailRedirectTo: `${window.location.origin}/auth`,
-                data: {
-                  full_name: data.nome_completo,
-                  servidor_id: servidorId,
-                  cpf: data.cpf.replace(/\D/g, ''),
-                  tipo_usuario: 'servidor',
-                  role: 'user'
-                }
-              }
-            });
-
-            if (authError) {
-              console.error('Erro ao criar usuário:', authError);
-              // Não lançar erro - servidor foi criado com sucesso
-              toast.info('Servidor cadastrado! Usuário pode ser criado posteriormente.');
-            } else {
-              toast.success('Usuário criado! Email de confirmação enviado.');
-            }
-          } catch (userError) {
-            console.error('Erro ao criar usuário:', userError);
-            toast.info('Servidor cadastrado! Usuário pode ser criado posteriormente.');
-          }
-        }
+       
 
         // Criar lotação inicial (se tiver unidade selecionada)
         if (servidorId && data.unidade_atual_id) {
