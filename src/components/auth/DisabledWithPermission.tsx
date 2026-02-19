@@ -1,8 +1,7 @@
 // ============================================
-// COMPONENTE DISABLED WITH PERMISSION
+// COMPONENTE DISABLED WITH PERMISSION — VERSÃO CORRIGIDA
 // ============================================
-// Desabilita elementos baseado em permissões
-// Adiciona tooltip explicativo
+// CORREÇÃO: Lógica de hasAccess simplificada e sem ramificações redundantes.
 
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,17 +14,9 @@ import {
 
 interface DisabledWithPermissionProps {
   children: React.ReactElement;
-  
-  // Permissões requeridas
   requiredPermissions?: PermissionCode | PermissionCode[];
-  
-  // Modo de verificação
   permissionMode?: 'any' | 'all';
-  
-  // Mensagem do tooltip quando desabilitado
   disabledMessage?: string;
-  
-  // Se true, esconde o elemento ao invés de desabilitar
   hideWhenDisabled?: boolean;
 }
 
@@ -34,64 +25,42 @@ export const DisabledWithPermission: React.FC<DisabledWithPermissionProps> = ({
   requiredPermissions,
   permissionMode = 'all',
   disabledMessage = 'Você não tem permissão para esta ação',
-  hideWhenDisabled = false
+  hideWhenDisabled = false,
 }) => {
-  const { 
-    user, 
-    isAuthenticated, 
-    isSuperAdmin,
-    hasAnyPermission, 
-    hasAllPermissions 
-  } = useAuth();
+  const { isAuthenticated, isSuperAdmin, hasAnyPermission, hasAllPermissions } = useAuth();
 
-  // ============================================
-  // VERIFICAÇÕES
-  // ============================================
+  // ✅ CORREÇÃO: Fluxo linear sem ramificações redundantes.
+  const resolveAccess = (): boolean => {
+    if (!isAuthenticated) return false;
+    if (isSuperAdmin) return true;
 
-  let hasAccess = isAuthenticated;
+    if (!requiredPermissions) return true;
 
-  // Super admin tem acesso total
-  if (hasAccess && isSuperAdmin) {
-    hasAccess = true;
-  }
-  // Verificar permissões
-  else if (hasAccess && requiredPermissions && user) {
-    const permissions = Array.isArray(requiredPermissions) ? requiredPermissions : [requiredPermissions];
-    
-    if (permissionMode === 'any') {
-      hasAccess = hasAnyPermission(permissions);
-    } else {
-      hasAccess = hasAllPermissions(permissions);
-    }
-  }
+    const permissions = Array.isArray(requiredPermissions)
+      ? requiredPermissions
+      : [requiredPermissions];
 
-  // ============================================
-  // RENDERIZAÇÃO
-  // ============================================
+    return permissionMode === 'any'
+      ? hasAnyPermission(permissions)
+      : hasAllPermissions(permissions);
+  };
 
-  // Se não tem acesso e deve esconder
-  if (!hasAccess && hideWhenDisabled) {
-    return null;
-  }
+  const hasAccess = resolveAccess();
 
-  // Se tem acesso, renderiza normalmente
-  if (hasAccess) {
-    return children;
-  }
+  if (!hasAccess && hideWhenDisabled) return null;
 
-  // Sem acesso: desabilitar e adicionar tooltip
+  if (hasAccess) return children;
+
   const disabledChild = React.cloneElement(children, {
     disabled: true,
-    className: `${children.props.className || ''} opacity-50 cursor-not-allowed`,
-    onClick: (e: React.MouseEvent) => e.preventDefault()
+    className: `${children.props.className ?? ''} opacity-50 cursor-not-allowed`,
+    onClick: (e: React.MouseEvent) => e.preventDefault(),
   });
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="inline-block">
-          {disabledChild}
-        </span>
+        <span className="inline-block">{disabledChild}</span>
       </TooltipTrigger>
       <TooltipContent>
         <p>{disabledMessage}</p>
