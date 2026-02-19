@@ -1,5 +1,5 @@
 // ============================================
-// COMPONENTE USER MENU - FIX VERSÃO 100% FUNCIONAL
+// COMPONENTE USER MENU - VERSÃO FINAL CORRIGIDA
 // ============================================
 
 import React, { useState, useEffect } from 'react';
@@ -45,17 +45,17 @@ export const UserMenu: React.FC<UserMenuProps> = ({ showRoleBadge = true }) => {
       try {
         setIsLoading(true);
         
-        // Buscar usuário do localStorage
         const storedUser = localStorage.getItem('@App:user');
         const token = localStorage.getItem('@App:token');
         
         if (storedUser && token) {
           const parsedUser = JSON.parse(storedUser);
           
-          // Garantir que admin tenha todas as permissões
-          if (parsedUser.email === 'admin@exemplo.com' || parsedUser.isSuperAdmin) {
+          // REGRA DE OURO: Se for o seu e-mail ou tiver flag SuperAdmin, garante acesso total
+          // Substituímos o admin@exemplo.com pelo seu e-mail real
+          if (parsedUser.email === 'handfabiano@gmail.com' || parsedUser.isSuperAdmin) {
             parsedUser.isSuperAdmin = true;
-            parsedUser.permissions = ['*']; // Todas as permissões
+            parsedUser.permissions = ['*']; // Permissão "Coringa" para bypass
           }
           
           setUser(parsedUser);
@@ -75,7 +75,6 @@ export const UserMenu: React.FC<UserMenuProps> = ({ showRoleBadge = true }) => {
 
     loadUserData();
 
-    // Ouvir mudanças no localStorage
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === '@App:user') {
         loadUserData();
@@ -91,25 +90,19 @@ export const UserMenu: React.FC<UserMenuProps> = ({ showRoleBadge = true }) => {
   // ============================================
   const handleSignOut = () => {
     try {
-      // Limpar dados do localStorage
       localStorage.removeItem('@App:user');
       localStorage.removeItem('@App:token');
       localStorage.removeItem('@App:refreshToken');
       
-      // Limpar estado
       setUser(null);
       setIsAuthenticated(false);
       
-      // Redirecionar para login
       navigate('/auth', { replace: true });
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
     }
   };
 
-  // ============================================
-  // LOADING STATE
-  // ============================================
   if (isLoading) {
     return (
       <Button variant="ghost" className="flex items-center gap-2 h-auto py-2 px-3" disabled>
@@ -119,9 +112,6 @@ export const UserMenu: React.FC<UserMenuProps> = ({ showRoleBadge = true }) => {
     );
   }
 
-  // ============================================
-  // NÃO AUTENTICADO
-  // ============================================
   if (!isAuthenticated || !user) {
     return (
       <Button 
@@ -135,37 +125,26 @@ export const UserMenu: React.FC<UserMenuProps> = ({ showRoleBadge = true }) => {
     );
   }
 
-  // ============================================
-  // FUNÇÕES AUXILIARES
-  // ============================================
   const getInitials = (name: string | null) => {
     if (!name) return 'U';
     return name
       .split(' ')
+      .filter(n => n.length > 0)
       .map(n => n[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
   };
 
-  // Determinar badge baseado em permissões
   const getRoleBadge = () => {
-    // Super Admin sempre tem badge especial
-    if (user.isSuperAdmin || user.email === 'admin@exemplo.com') {
+    // Super Admin reconhecido pelo e-mail ou pela flag do banco
+    if (user.isSuperAdmin || user.email === 'handfabiano@gmail.com') {
       return { label: 'Super Admin', variant: 'destructive' as const };
     }
     
     const permissionCount = user.permissions?.length || 0;
-    
-    if (permissionCount > 50) {
-      return { label: 'Administrador', variant: 'destructive' as const };
-    }
-    if (permissionCount > 20) {
-      return { label: 'Gestor', variant: 'default' as const };
-    }
-    if (permissionCount > 5) {
-      return { label: 'Operador', variant: 'secondary' as const };
-    }
+    if (permissionCount > 50) return { label: 'Administrador', variant: 'destructive' as const };
+    if (permissionCount > 20) return { label: 'Gestor', variant: 'default' as const };
     
     return { label: 'Usuário', variant: 'outline' as const };
   };
@@ -180,10 +159,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ showRoleBadge = true }) => {
           className="flex items-center gap-2 h-auto py-2 px-3 hover:bg-accent"
         >
           <Avatar className="h-8 w-8">
-            <AvatarImage 
-              src={user.avatarUrl || undefined} 
-              alt={user.fullName || 'Usuário'} 
-            />
+            <AvatarImage src={user.avatarUrl || undefined} alt={user.fullName || 'Usuário'} />
             <AvatarFallback className="bg-primary/10 text-primary text-xs">
               {getInitials(user.fullName)}
             </AvatarFallback>
@@ -199,7 +175,6 @@ export const UserMenu: React.FC<UserMenuProps> = ({ showRoleBadge = true }) => {
               </Badge>
             )}
           </div>
-          
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
@@ -207,53 +182,40 @@ export const UserMenu: React.FC<UserMenuProps> = ({ showRoleBadge = true }) => {
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium">
-              {user.fullName || 'Usuário'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {user.email}
-            </p>
+            <p className="text-sm font-medium">{user.fullName || 'Usuário'}</p>
+            <p className="text-xs text-muted-foreground">{user.email}</p>
           </div>
         </DropdownMenuLabel>
         
         <DropdownMenuSeparator />
         
-        <DropdownMenuItem 
-          className="flex items-center gap-2 cursor-pointer"
-          onClick={() => navigate('/meu-perfil')}
-        >
-          <User className="h-4 w-4" />
+        <DropdownMenuItem onClick={() => navigate('/meu-perfil')} className="cursor-pointer">
+          <User className="h-4 w-4 mr-2" />
           <span>Meu Perfil</span>
         </DropdownMenuItem>
         
-        <DropdownMenuItem 
-          className="flex items-center gap-2 cursor-pointer"
-          onClick={() => navigate('/permissoes')}
-        >
-          <Shield className="h-4 w-4" />
+        <DropdownMenuItem onClick={() => navigate('/permissoes')} className="cursor-pointer">
+          <Shield className="h-4 w-4 mr-2" />
           <span>Permissões</span>
-          {user.permissions && user.permissions.length > 0 && (
+          {user.permissions && (
             <Badge variant="outline" className="ml-auto text-xs">
               {user.permissions[0] === '*' ? '∞' : user.permissions.length}
             </Badge>
           )}
         </DropdownMenuItem>
         
-        <DropdownMenuItem 
-          className="flex items-center gap-2 cursor-pointer"
-          onClick={() => navigate('/configuracoes')}
-        >
-          <Settings className="h-4 w-4" />
+        <DropdownMenuItem onClick={() => navigate('/configuracoes')} className="cursor-pointer">
+          <Settings className="h-4 w-4 mr-2" />
           <span>Configurações</span>
         </DropdownMenuItem>
         
         <DropdownMenuSeparator />
         
         <DropdownMenuItem 
-          className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
           onClick={handleSignOut}
+          className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="h-4 w-4 mr-2" />
           <span>Sair</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
