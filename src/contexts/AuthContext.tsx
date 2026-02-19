@@ -1,8 +1,11 @@
 // ============================================
-// CONTEXTO DE AUTENTICAÇÃO - FASE 6
+// CONTEXTO DE AUTENTICAÇÃO
 // ============================================
-// Sistema baseado EXCLUSIVAMENTE em permissões
-// Roles são derivados do banco, nunca hardcoded
+// CORREÇÕES:
+// 1. isAuthenticated baseado em session (não em user) para evitar
+//    flash de "não autenticado" enquanto fetchUserData ainda roda.
+// 2. clearOldSessions não apaga mais a sessão ativa do Supabase.
+// 3. signOut limpa apenas o estado local após supabase.auth.signOut.
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { Session, User } from '@supabase/supabase-js';
@@ -10,72 +13,24 @@ import { supabase, clearOldSessions, isSupabaseConfigured } from '@/lib/supabase
 import { AuthUser, PermissionCode, PermissaoUsuario, AuthState } from '@/types/auth';
 import { useToast } from '@/hooks/use-toast';
 
-// ============================================
-// INTERFACE DO CONTEXTO
-// ============================================
-
 interface AuthContextType extends AuthState {
-  // Funções de autenticação
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
-  
-  // ============================================
-  // FUNÇÕES DE VERIFICAÇÃO DE PERMISSÕES
-  // ============================================
-  
-  /**
-   * Verifica se usuário tem uma permissão específica
-   * @param codigo Código da permissão (ex: 'rh.servidores.criar')
-   */
   hasPermission: (codigo: PermissionCode) => boolean;
-  
-  /**
-   * Verifica se usuário tem QUALQUER uma das permissões
-   * @param codigos Array de códigos de permissão
-   */
   hasAnyPermission: (codigos: PermissionCode[]) => boolean;
-  
-  /**
-   * Verifica se usuário tem TODAS as permissões
-   * @param codigos Array de códigos de permissão
-   */
   hasAllPermissions: (codigos: PermissionCode[]) => boolean;
-  
-  /**
-   * Verifica se usuário é super_admin (bypass total)
-   */
   isSuperAdmin: boolean;
-  
-  /**
-   * Obtém todas as permissões do usuário
-   */
   getUserPermissions: () => PermissionCode[];
-  
-  /**
-   * Obtém permissões detalhadas (com metadados)
-   */
   getPermissoesDetalhadas: () => PermissaoUsuario[];
-  
-  // Refresh de dados
   refreshUser: () => Promise<void>;
   refreshPermissions: () => Promise<void>;
-  
-  // Status da conexão
   isConfigured: boolean;
 }
 
-// ============================================
-// CRIAÇÃO DO CONTEXTO
-// ============================================
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// ============================================
-// PROVIDER DO CONTEXTO
-// ============================================
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -96,15 +51,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isSuperAdmin: boolean;
   }> => {
     try {
-      // Verificar se é super_admin via RPC dedicado
       const { data: isSuperAdminResult, error: superAdminError } = await supabase.rpc('usuario_eh_super_admin', {
         check_user_id: userId
       });
-      
-      console.log('[Auth] RPC usuario_eh_super_admin resultado:', isSuperAdminResult, 'erro:', superAdminError);
+
+      if (superAdminError) {
+        console.error('[Auth] RPC usuario_eh_super_admin erro:', superAdminError);
+      }
+
       const isSuperAdmin = isSuperAdminResult === true;
 
-      // Buscar permissões detalhadas via RPC
       const { data: permissoesData, error } = await supabase.rpc('listar_permissoes_usuario', {
         check_user_id: userId
       });
@@ -132,14 +88,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserData = useCallback(async (authUser: User): Promise<AuthUser | null> => {
     try {
-      // Buscar profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', authUser.id)
         .maybeSingle();
 
-      // Buscar permissões
       const { permissions, permissoesDetalhadas, isSuperAdmin } = await fetchPermissoes(authUser.id);
 
       return {
@@ -156,7 +110,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     } catch (error) {
       console.error('[Auth] Erro ao buscar dados do usuário:', error);
-      // Retorna usuário básico mesmo com erro
       return {
         id: authUser.id,
         email: authUser.email || '',
@@ -170,26 +123,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [fetchPermissoes]);
 
-  // userRef é atualizado SINCRONAMENTE antes de cada setUser (sem useEffect)
-
   // ============================================
-  // EFEITOS - INICIALIZAÇÃO E LISTENER SEPARADOS
+  // INICIALIZAÇÃO E LISTENER
   // ============================================
 
   useEffect(() => {
     if (!isConfigured) {
-      console.warn('[Auth] Supabase não configurado');
       setIsLoading(false);
       return;
     }
 
     let isMounted = true;
-    // Flag para garantir que initializeAuth termine antes do listener agir
     let initCompleted = false;
 
-    // -----------------------------------------------
-    // 1) LISTENER CONTÍNUO de mudanças de auth
-    // -----------------------------------------------
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
         if (!isMounted) return;
@@ -197,56 +143,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setSession(currentSession);
 
-        // SIGNED_OUT → limpar user
         if (!currentSession?.user) {
           userRef.current = null;
           setUser(null);
           return;
         }
 
-        // Se signIn() está cuidando do fluxo, não interferir
-        if (signInInProgressRef.current) {
-          console.log('[Auth] Listener BLOQUEADO - signIn em progresso');
-          return;
-        }
+        if (signInInProgressRef.current) return;
+        if (!initCompleted) return;
 
-        // Se init ainda não completou, ignorar (init cuida do fetch inicial)
-        if (!initCompleted) {
-          console.log('[Auth] Listener IGNORADO - init ainda em andamento');
-          return;
-        }
-
-        // Se já temos user carregado com mesmo id, ignorar
         const existing = userRef.current;
-        if (existing?.id === currentSession.user.id) {
-          console.log('[Auth] Listener IGNORADO - user já carregado, isSuperAdmin:', existing.isSuperAdmin);
-          return;
-        }
+        if (existing?.id === currentSession.user.id) return;
+        if (event === 'TOKEN_REFRESHED') return;
 
-        // TOKEN_REFRESHED não precisa refazer fetch de permissões
-        if (event === 'TOKEN_REFRESHED') {
-          console.log('[Auth] Token refreshed, mantendo dados do user');
-          return;
-        }
-
-        // Fetch assíncrono fora do callback (evita deadlock Supabase)
         setTimeout(async () => {
           if (!isMounted || signInInProgressRef.current) return;
           if (userRef.current?.id === currentSession.user.id) return;
-          
-          console.log('[Auth] Listener: carregando dados do user...');
+
           const userData = await fetchUserData(currentSession.user);
           if (!isMounted) return;
-          console.log('[Auth] Listener: userData carregado, isSuperAdmin:', userData?.isSuperAdmin);
           userRef.current = userData;
           setUser(userData);
         }, 0);
       }
     );
 
-    // -----------------------------------------------
-    // 2) INICIALIZAÇÃO: carrega sessão + dados ANTES de isLoading=false
-    // -----------------------------------------------
     const initializeAuth = async () => {
       try {
         const { data: { session: existingSession }, error } = await supabase.auth.getSession();
@@ -261,10 +182,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(existingSession);
 
         if (existingSession?.user) {
-          console.log('[Auth] Init: carregando dados do user...');
           const userData = await fetchUserData(existingSession.user);
           if (!isMounted) return;
-          console.log('[Auth] Init: userData carregado, isSuperAdmin:', userData?.isSuperAdmin);
           userRef.current = userData;
           setUser(userData);
         }
@@ -287,59 +206,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [fetchUserData, isConfigured]);
 
   // ============================================
-  // FUNÇÕES DE AUTENTICAÇÃO
+  // AUTENTICAÇÃO
   // ============================================
 
   const signIn = async (email: string, password: string) => {
-    if (!isConfigured) {
-      return { error: new Error('Supabase não configurado') };
-    }
+    if (!isConfigured) return { error: new Error('Supabase não configurado') };
 
     try {
-      // Limpar TODA sessão anterior para evitar conflito entre usuários
+      // Sair da sessão anterior sem limpar storage do Supabase
       try {
         await supabase.auth.signOut({ scope: 'local' });
-      } catch {
-        // Ignora erro de signOut
-      }
-      // Limpar dados residuais do navegador
+      } catch { /* ignora */ }
+
+      // ✅ CORREÇÃO: Limpa apenas chaves legadas (@App:*), não as do Supabase (sb-*)
       clearOldSessions();
-      
-      // Flag para evitar que onAuthStateChange faça fetch duplicado
+
       signInInProgressRef.current = true;
       setIsLoading(true);
       userRef.current = null;
       setUser(null);
       setSession(null);
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
         signInInProgressRef.current = false;
         setIsLoading(false);
         toast({
-          variant: "destructive",
-          title: "Erro ao entrar",
-          description: error.message === 'Invalid login credentials' 
+          variant: 'destructive',
+          title: 'Erro ao entrar',
+          description: error.message === 'Invalid login credentials'
             ? 'Email ou senha incorretos'
-            : error.message
+            : error.message,
         });
         return { error };
       }
 
-      // Aguardar fetchUserData ANTES de retornar
-      // Isso garante que isSuperAdmin está resolvido antes da navegação
       if (data.session?.user) {
         setSession(data.session);
         const userData = await fetchUserData(data.session.user);
-        console.log('[Auth] signIn: userData carregado, isSuperAdmin:', userData?.isSuperAdmin, 'permissões:', userData?.permissions?.length);
-        
-        // CRÍTICO: Atualizar userRef SINCRONAMENTE antes de liberar a flag
-        // Se não fizer isso, o listener pode ver signInInProgress=false + userRef=null
-        // e fazer fetch duplicado que sobrescreve os dados corretos
+        console.log('[Auth] signIn: isSuperAdmin:', userData?.isSuperAdmin, 'permissões:', userData?.permissions?.length);
         userRef.current = userData;
         setUser(userData);
       }
@@ -347,11 +253,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signInInProgressRef.current = false;
       setIsLoading(false);
 
-      toast({
-        title: "Bem-vindo!",
-        description: "Login realizado com sucesso."
-      });
-
+      toast({ title: 'Bem-vindo!', description: 'Login realizado com sucesso.' });
       return { error: null };
     } catch (error) {
       signInInProgressRef.current = false;
@@ -361,43 +263,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    if (!isConfigured) {
-      return { error: new Error('Supabase não configurado') };
-    }
+    if (!isConfigured) return { error: new Error('Supabase não configurado') };
 
     try {
-      const redirectUrl = `${window.location.origin}/`;
-      
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            full_name: fullName
-          }
-        }
+          emailRedirectTo: `${window.location.origin}/`,
+          data: { full_name: fullName },
+        },
       });
 
       if (error) {
-        let message = error.message;
-        if (error.message.includes('already registered')) {
-          message = 'Este email já está cadastrado';
-        }
-        
-        toast({
-          variant: "destructive",
-          title: "Erro ao cadastrar",
-          description: message
-        });
+        const message = error.message.includes('already registered')
+          ? 'Este email já está cadastrado'
+          : error.message;
+        toast({ variant: 'destructive', title: 'Erro ao cadastrar', description: message });
         return { error };
       }
 
-      toast({
-        title: "Conta criada!",
-        description: "Você já pode fazer login."
-      });
-
+      toast({ title: 'Conta criada!', description: 'Você já pode fazer login.' });
       return { error: null };
     } catch (error) {
       return { error: error as Error };
@@ -407,20 +293,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     try {
       await supabase.auth.signOut({ scope: 'local' });
-      // Limpar todos os dados de autenticação do navegador
-      clearOldSessions();
-      userRef.current = null;
-      setUser(null);
-      setSession(null);
-      
-      toast({
-        title: "Até logo!",
-        description: "Você saiu do sistema."
-      });
+      toast({ title: 'Até logo!', description: 'Você saiu do sistema.' });
     } catch (error) {
       console.error('Erro ao sair:', error);
-      // Mesmo com erro, limpar estado local
-      clearOldSessions();
+    } finally {
+      // ✅ CORREÇÃO: Limpa estado local APÓS o signOut do Supabase
+      // Não chama clearOldSessions aqui — o Supabase já limpou o seu storage
       userRef.current = null;
       setUser(null);
       setSession(null);
@@ -438,38 +316,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshPermissions = async () => {
     if (user && session?.user) {
       const { permissions, permissoesDetalhadas, isSuperAdmin } = await fetchPermissoes(session.user.id);
-      const updated = user ? { ...user, permissions, permissoesDetalhadas, isSuperAdmin } : null;
+      const updated = { ...user, permissions, permissoesDetalhadas, isSuperAdmin };
       userRef.current = updated;
       setUser(updated);
     }
   };
 
   const resetPassword = async (email: string) => {
-    if (!isConfigured) {
-      return { error: new Error('Supabase não configurado') };
-    }
-
+    if (!isConfigured) return { error: new Error('Supabase não configurado') };
     try {
-      const redirectUrl = `${window.location.origin}/auth?mode=reset`;
-      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl
+        redirectTo: `${window.location.origin}/auth?mode=reset`,
       });
-
       if (error) {
-        toast({
-          variant: "destructive",
-          title: "Erro ao enviar email",
-          description: error.message
-        });
+        toast({ variant: 'destructive', title: 'Erro ao enviar email', description: error.message });
         return { error };
       }
-
-      toast({
-        title: "Email enviado!",
-        description: "Verifique sua caixa de entrada para redefinir a senha."
-      });
-
+      toast({ title: 'Email enviado!', description: 'Verifique sua caixa de entrada.' });
       return { error: null };
     } catch (error) {
       return { error: error as Error };
@@ -477,29 +340,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updatePassword = async (newPassword: string) => {
-    if (!isConfigured) {
-      return { error: new Error('Supabase não configurado') };
-    }
-
+    if (!isConfigured) return { error: new Error('Supabase não configurado') };
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) {
-        toast({
-          variant: "destructive",
-          title: "Erro ao atualizar senha",
-          description: error.message
-        });
+        toast({ variant: 'destructive', title: 'Erro ao atualizar senha', description: error.message });
         return { error };
       }
-
-      toast({
-        title: "Senha atualizada!",
-        description: "Sua nova senha foi salva com sucesso."
-      });
-
+      toast({ title: 'Senha atualizada!', description: 'Sua nova senha foi salva.' });
       return { error: null };
     } catch (error) {
       return { error: error as Error };
@@ -507,64 +355,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // ============================================
-  // FUNÇÕES DE VERIFICAÇÃO DE PERMISSÕES
+  // VERIFICAÇÃO DE PERMISSÕES
   // ============================================
 
-  /**
-   * Verifica se usuário tem uma permissão específica
-   * Super Admin tem bypass total
-   */
   const hasPermission = useCallback((codigo: PermissionCode): boolean => {
     if (!user) return false;
-    
-    // Super Admin tem todas as permissões
     if (user.isSuperAdmin) return true;
-    
-    // Verificar permissão exata
     if (user.permissions.includes(codigo)) return true;
-    
-    // Verificar permissão pai (ex: 'rh' permite 'rh.servidores.criar')
+
+    // Verificar permissão pai (ex: 'rh' cobre 'rh.servidores.visualizar')
     const partes = codigo.split('.');
     for (let i = partes.length - 1; i > 0; i--) {
       const permissaoPai = partes.slice(0, i).join('.');
       if (user.permissions.includes(permissaoPai)) return true;
     }
-    
+
     return false;
   }, [user]);
 
-  /**
-   * Verifica se usuário tem QUALQUER uma das permissões
-   */
   const hasAnyPermission = useCallback((codigos: PermissionCode[]): boolean => {
     if (!user) return false;
     if (user.isSuperAdmin) return true;
-    if (!codigos || codigos.length === 0) return true;
-    
-    return codigos.some(codigo => hasPermission(codigo));
+    if (!codigos?.length) return true;
+    return codigos.some(c => hasPermission(c));
   }, [user, hasPermission]);
 
-  /**
-   * Verifica se usuário tem TODAS as permissões
-   */
   const hasAllPermissions = useCallback((codigos: PermissionCode[]): boolean => {
     if (!user) return false;
     if (user.isSuperAdmin) return true;
-    if (!codigos || codigos.length === 0) return true;
-    
-    return codigos.every(codigo => hasPermission(codigo));
+    if (!codigos?.length) return true;
+    return codigos.every(c => hasPermission(c));
   }, [user, hasPermission]);
 
-  /**
-   * Obtém todas as permissões do usuário
-   */
   const getUserPermissions = useCallback((): PermissionCode[] => {
     return user?.permissions || [];
   }, [user]);
 
-  /**
-   * Obtém permissões detalhadas
-   */
   const getPermissoesDetalhadas = useCallback((): PermissaoUsuario[] => {
     return user?.permissoesDetalhadas || [];
   }, [user]);
@@ -576,7 +402,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value: AuthContextType = {
     user,
     isLoading,
-    isAuthenticated: !!user,
+    // ✅ CORREÇÃO: isAuthenticated baseado em session para evitar flash.
+    // session é setada imediatamente pelo onAuthStateChange,
+    // enquanto user demora o tempo do fetchUserData.
+    isAuthenticated: !!session,
     isConfigured,
     isSuperAdmin: user?.isSuperAdmin || false,
     signIn,
@@ -601,16 +430,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 // ============================================
-// HOOK PARA USAR O CONTEXTO
+// HOOK
 // ============================================
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    // During HMR/hot reload, context may temporarily be undefined
-    // Return a safe fallback instead of crashing
     if (import.meta.hot) {
-      console.warn('[Auth] Context not found - likely HMR reload, returning safe defaults');
+      console.warn('[Auth] Context not found - HMR reload, returning safe defaults');
       return {
         user: null,
         isLoading: true,
