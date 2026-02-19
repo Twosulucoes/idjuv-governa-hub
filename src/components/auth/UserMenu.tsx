@@ -1,9 +1,12 @@
 // ============================================
-// COMPONENTE USER MENU - VERSÃO FINAL CORRIGIDA
+// COMPONENTE USER MENU — VERSÃO CORRIGIDA
 // ============================================
+// CORREÇÃO: Usa AuthContext em vez de ler localStorage diretamente.
+// Isso garante estado único e sincronizado em toda a aplicação.
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -21,88 +24,26 @@ interface UserMenuProps {
   showRoleBadge?: boolean;
 }
 
-interface UserData {
-  id: string;
-  email: string;
-  fullName: string | null;
-  avatarUrl: string | null;
-  permissions: string[];
-  requiresPasswordChange?: boolean;
-  isSuperAdmin?: boolean;
-}
-
 export const UserMenu: React.FC<UserMenuProps> = ({ showRoleBadge = true }) => {
   const navigate = useNavigate();
-  const [user, setUser] = useState<UserData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  // ============================================
-  // CARREGAR DADOS DO USUÁRIO DO localStorage
-  // ============================================
-  useEffect(() => {
-    const loadUserData = () => {
-      try {
-        setIsLoading(true);
-        
-        const storedUser = localStorage.getItem('@App:user');
-        const token = localStorage.getItem('@App:token');
-        
-        if (storedUser && token) {
-          const parsedUser = JSON.parse(storedUser);
-          
-          // REGRA DE OURO: Se for o seu e-mail ou tiver flag SuperAdmin, garante acesso total
-          // Substituímos o admin@exemplo.com pelo seu e-mail real
-          if (parsedUser.email === 'handfabiano@gmail.com' || parsedUser.isSuperAdmin) {
-            parsedUser.isSuperAdmin = true;
-            parsedUser.permissions = ['*']; // Permissão "Coringa" para bypass
-          }
-          
-          setUser(parsedUser);
-          setIsAuthenticated(true);
-        } else {
-          setUser(null);
-          setIsAuthenticated(false);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar usuário:', error);
-        setUser(null);
-        setIsAuthenticated(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadUserData();
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === '@App:user') {
-        loadUserData();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+  // ✅ CORREÇÃO: Uma única fonte de verdade — o AuthContext
+  const { user, isLoading, isAuthenticated, isSuperAdmin, signOut } = useAuth();
 
   // ============================================
   // FUNÇÃO DE LOGOUT
   // ============================================
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     try {
-      localStorage.removeItem('@App:user');
-      localStorage.removeItem('@App:token');
-      localStorage.removeItem('@App:refreshToken');
-      
-      setUser(null);
-      setIsAuthenticated(false);
-      
+      await signOut();
       navigate('/auth', { replace: true });
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
     }
   };
 
+  // ============================================
+  // ESTADOS DE CARREGAMENTO / NÃO AUTENTICADO
+  // ============================================
   if (isLoading) {
     return (
       <Button variant="ghost" className="flex items-center gap-2 h-auto py-2 px-3" disabled>
@@ -114,8 +55,8 @@ export const UserMenu: React.FC<UserMenuProps> = ({ showRoleBadge = true }) => {
 
   if (!isAuthenticated || !user) {
     return (
-      <Button 
-        variant="outline" 
+      <Button
+        variant="outline"
         onClick={() => navigate('/auth')}
         className="flex items-center gap-2"
       >
@@ -125,50 +66,52 @@ export const UserMenu: React.FC<UserMenuProps> = ({ showRoleBadge = true }) => {
     );
   }
 
-  const getInitials = (name: string | null) => {
+  // ============================================
+  // HELPERS
+  // ============================================
+  const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
     return name
       .split(' ')
-      .filter(n => n.length > 0)
-      .map(n => n[0])
+      .filter((n) => n.length > 0)
+      .map((n) => n[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
   };
 
   const getRoleBadge = () => {
-    // Super Admin reconhecido pelo e-mail ou pela flag do banco
-    if (user.isSuperAdmin || user.email === 'handfabiano@gmail.com') {
+    // ✅ CORREÇÃO: Usa isSuperAdmin do contexto. Sem e-mail hardcoded.
+    if (isSuperAdmin) {
       return { label: 'Super Admin', variant: 'destructive' as const };
     }
-    
-    const permissionCount = user.permissions?.length || 0;
+    const permissionCount = user.permissions?.length ?? 0;
     if (permissionCount > 50) return { label: 'Administrador', variant: 'destructive' as const };
     if (permissionCount > 20) return { label: 'Gestor', variant: 'default' as const };
-    
     return { label: 'Usuário', variant: 'outline' as const };
   };
 
   const roleBadge = getRoleBadge();
+  const permissionDisplay = isSuperAdmin
+    ? '∞'
+    : String(user.permissions?.length ?? 0);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           className="flex items-center gap-2 h-auto py-2 px-3 hover:bg-accent"
         >
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user.avatarUrl || undefined} alt={user.fullName || 'Usuário'} />
+            <AvatarImage src={user.avatarUrl ?? undefined} alt={user.fullName ?? 'Usuário'} />
             <AvatarFallback className="bg-primary/10 text-primary text-xs">
               {getInitials(user.fullName)}
             </AvatarFallback>
           </Avatar>
-          
-          <div className="flex flex-col items-start text-left hidden md:flex">
-            <span className="text-sm font-medium">
-              {user.fullName || 'Usuário'}
-            </span>
+
+          <div className="hidden md:flex flex-col items-start text-left">
+            <span className="text-sm font-medium">{user.fullName ?? 'Usuário'}</span>
             {showRoleBadge && (
               <Badge variant={roleBadge.variant} className="text-xs h-5">
                 {roleBadge.label}
@@ -178,40 +121,38 @@ export const UserMenu: React.FC<UserMenuProps> = ({ showRoleBadge = true }) => {
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
-      
+
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium">{user.fullName || 'Usuário'}</p>
+            <p className="text-sm font-medium">{user.fullName ?? 'Usuário'}</p>
             <p className="text-xs text-muted-foreground">{user.email}</p>
           </div>
         </DropdownMenuLabel>
-        
+
         <DropdownMenuSeparator />
-        
+
         <DropdownMenuItem onClick={() => navigate('/meu-perfil')} className="cursor-pointer">
           <User className="h-4 w-4 mr-2" />
           <span>Meu Perfil</span>
         </DropdownMenuItem>
-        
+
         <DropdownMenuItem onClick={() => navigate('/permissoes')} className="cursor-pointer">
           <Shield className="h-4 w-4 mr-2" />
           <span>Permissões</span>
-          {user.permissions && (
-            <Badge variant="outline" className="ml-auto text-xs">
-              {user.permissions[0] === '*' ? '∞' : user.permissions.length}
-            </Badge>
-          )}
+          <Badge variant="outline" className="ml-auto text-xs">
+            {permissionDisplay}
+          </Badge>
         </DropdownMenuItem>
-        
+
         <DropdownMenuItem onClick={() => navigate('/configuracoes')} className="cursor-pointer">
           <Settings className="h-4 w-4 mr-2" />
           <span>Configurações</span>
         </DropdownMenuItem>
-        
+
         <DropdownMenuSeparator />
-        
-        <DropdownMenuItem 
+
+        <DropdownMenuItem
           onClick={handleSignOut}
           className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
         >
