@@ -1,6 +1,9 @@
 // ============================================
-// COMPONENTE DE ROTA PROTEGIDA - VERSÃO BLINDADA
+// COMPONENTE DE ROTA PROTEGIDA — VERSÃO CORRIGIDA
 // ============================================
+// CORREÇÃO: Removido e-mail hardcoded como bypass de segurança.
+// O bypass agora é baseado exclusivamente em isSuperAdmin do AuthContext.
+
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,11 +23,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requiredPermissions,
   accessDeniedPath = '/acesso-negado',
 }) => {
-  const { user, isLoading, isAuthenticated, isSuperAdmin, hasAnyPermission } = useAuth();
+  const { isLoading, isAuthenticated, isSuperAdmin, hasAnyPermission } = useAuth();
   const { loading: moduleLoading, temAcessoModulo } = useModulosUsuario();
   const location = useLocation();
 
-  // 1. ESTADO DE CARREGAMENTO
+  // 1. CARREGAMENTO
   if (isLoading || moduleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -36,26 +39,28 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // 2. VERIFICAÇÃO DE AUTENTICAÇÃO
+  // 2. AUTENTICAÇÃO
   if (!isAuthenticated) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // 3. BYPASS TOTAL (O FABIANO ENTRA EM QUALQUER LUGAR)
-  // Se for o seu e-mail, ele ignora qualquer erro de RPC, módulo ou permissão
-  if (user?.email === 'handfabiano@gmail.com' || isSuperAdmin) {
+  // 3. BYPASS PARA SUPER ADMIN
+  // ✅ CORREÇÃO: Sem e-mail hardcoded. Apenas a flag do banco de dados decide.
+  if (isSuperAdmin) {
     return <>{children}</>;
   }
 
-  // 4. VERIFICAÇÃO DE MÓDULO (Para usuários comuns)
+  // 4. VERIFICAÇÃO DE MÓDULO
   if (requiredModule && !temAcessoModulo(requiredModule as any)) {
     console.warn(`[Acesso Negado] Usuário sem acesso ao módulo: ${requiredModule}`);
     return <Navigate to={accessDeniedPath} state={{ from: location }} replace />;
   }
 
-  // 5. VERIFICAÇÃO DE PERMISSÕES (Para usuários comuns)
+  // 5. VERIFICAÇÃO DE PERMISSÕES
   if (requiredPermissions) {
-    const permissions = Array.isArray(requiredPermissions) ? requiredPermissions : [requiredPermissions];
+    const permissions = Array.isArray(requiredPermissions)
+      ? requiredPermissions
+      : [requiredPermissions];
     if (!hasAnyPermission(permissions)) {
       return <Navigate to={accessDeniedPath} state={{ from: location }} replace />;
     }
