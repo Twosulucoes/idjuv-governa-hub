@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 
 const INSCRICAO_URL = "https://forms.gle/278FWm1b8yojNcRE8";
 const INSCRICAO_INICIO = new Date("2026-02-09T00:00:00");
-const INSCRICAO_FIM = new Date("2026-02-13T23:59:59");
+const INSCRICAO_FIM = new Date("2026-12-31T23:59:59"); // Aberto até segunda ordem
 const SELETIVA_INICIO = new Date("2026-02-28T08:00:00");
 
 interface TimeLeft {
