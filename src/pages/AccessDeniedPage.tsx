@@ -18,41 +18,64 @@ const AccessDeniedPage: React.FC = () => {
   const attemptedPath = (location.state as any)?.from?.pathname || 'desconhecida';
   const reason = searchParams.get('reason');
   
-  // Verifica se é caso de "sem módulos"
   const isNoModules = reason === 'no-modules';
+  const isBlocked = reason === 'blocked';
+
+  const iconColor = isNoModules ? 'text-amber-500' : 'text-destructive';
+  const bgColor = isNoModules ? 'bg-amber-500/10' : 'bg-destructive/10';
+  
+  const title = isBlocked 
+    ? 'Conta Bloqueada' 
+    : isNoModules 
+    ? 'Nenhum Módulo Atribuído' 
+    : 'Acesso Negado';
+
+  const description = isBlocked
+    ? 'Sua conta foi desativada por um administrador. Entre em contato com o suporte.'
+    : isNoModules 
+    ? 'Seu usuário ainda não possui módulos de acesso atribuídos'
+    : 'Você não tem permissão para acessar esta página';
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-destructive/5 via-background to-secondary/5 p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className={`p-4 rounded-full ${isNoModules ? 'bg-warning/10' : 'bg-destructive/10'}`}>
+            <div className={`p-4 rounded-full ${bgColor}`}>
               {isNoModules ? (
-                <Package className="h-12 w-12 text-warning" />
+                <Package className={`h-12 w-12 ${iconColor}`} />
               ) : (
-                <ShieldX className="h-12 w-12 text-destructive" />
+                <ShieldX className={`h-12 w-12 ${iconColor}`} />
               )}
             </div>
           </div>
-          <CardTitle className={`text-2xl ${isNoModules ? 'text-warning' : 'text-destructive'}`}>
-            {isNoModules ? 'Nenhum Módulo Atribuído' : 'Acesso Negado'}
+          <CardTitle className={`text-2xl ${iconColor}`}>
+            {title}
           </CardTitle>
           <CardDescription className="text-base">
-            {isNoModules 
-              ? 'Seu usuário ainda não possui módulos de acesso atribuídos'
-              : 'Você não tem permissão para acessar esta página'
-            }
+            {description}
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {!isNoModules && (
+          {isBlocked && isAuthenticated && user && (
+            <div className="bg-destructive/10 rounded-lg p-4 space-y-2 border border-destructive/20">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Usuário:</span>
+                <span className="font-medium">{user.email}</span>
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                Entre em contato com o administrador do sistema para reativar sua conta.
+              </p>
+            </div>
+          )}
+
+          {!isNoModules && !isBlocked && (
             <div className="bg-muted/50 rounded-lg p-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Página solicitada:</span>
                 <span className="font-medium text-foreground">{attemptedPath}</span>
               </div>
-              
               {isAuthenticated && user && (
                 <>
                   <div className="flex justify-between text-sm">
@@ -61,7 +84,7 @@ const AccessDeniedPage: React.FC = () => {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Nível de acesso:</span>
-                    <span className="font-medium text-foreground">{user.isSuperAdmin ? 'Super Administrador' : 'Usuário'}</span>
+                    <span className="font-medium text-foreground">{user.isSuperAdmin ? 'Admin' : 'Usuário'}</span>
                   </div>
                 </>
               )}
@@ -81,7 +104,9 @@ const AccessDeniedPage: React.FC = () => {
           )}
 
           <p className="text-sm text-muted-foreground text-center">
-            {isNoModules 
+            {isBlocked
+              ? 'Conta temporariamente desativada. Contate o administrador.'
+              : isNoModules 
               ? 'Entre em contato com o administrador para solicitar acesso aos módulos necessários.'
               : 'Se você acredita que deveria ter acesso, entre em contato com o administrador do sistema.'
             }
@@ -89,7 +114,7 @@ const AccessDeniedPage: React.FC = () => {
         </CardContent>
 
         <CardFooter className="flex flex-col gap-2">
-          {!isNoModules && (
+          {!isNoModules && !isBlocked && (
             <Button 
               className="w-full" 
               variant="default"
