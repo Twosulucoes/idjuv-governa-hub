@@ -155,8 +155,8 @@ export default function RelatoriosRHPage() {
           data_admissao,
           possui_vinculo_externo,
           vinculo_externo_orgao,
-          cargo:cargos!servidores_cargo_atual_id_fkey(id, nome, sigla),
-          unidade:estrutura_organizacional!servidores_unidade_atual_id_fkey(id, nome, sigla)
+          cargo:cargos(id, nome, sigla),
+          unidade:estrutura_organizacional(id, nome, sigla)
         `)
         .eq("ativo", true)
         .order("nome_completo");
@@ -314,8 +314,8 @@ export default function RelatoriosRHPage() {
         .from("servidores")
         .select(`
           *,
-          cargo:cargos!servidores_cargo_atual_id_fkey(id, nome, sigla),
-          unidade:estrutura_organizacional!servidores_unidade_atual_id_fkey(id, nome, sigla),
+          cargo:cargos(id, nome, sigla),
+          unidade:estrutura_organizacional(id, nome, sigla),
           vinculo_externo_ato:documentos!servidores_vinculo_externo_ato_id_fkey(numero, ano)
         `)
         .eq("id", selectedServidor)
@@ -552,8 +552,8 @@ export default function RelatoriosRHPage() {
           cpf,
           matricula,
           vinculo,
-          cargo:cargos!servidores_cargo_atual_id_fkey(nome),
-          unidade:estrutura_organizacional!servidores_unidade_atual_id_fkey(nome, sigla)
+          cargo:cargos(nome),
+          unidade:estrutura_organizacional(nome, sigla)
         `)
         .in("id", Array.from(allServidorIds));
 

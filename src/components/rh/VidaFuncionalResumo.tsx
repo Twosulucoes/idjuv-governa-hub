@@ -59,7 +59,7 @@ export function VidaFuncionalResumo({ servidorId }: VidaFuncionalResumoProps) {
         .select(`
           id, data_inicio,
           unidade:estrutura_organizacional!lotacoes_unidade_id_fkey(id, nome, sigla),
-          cargo:cargos!lotacoes_cargo_id_fkey(id, nome, sigla)
+          cargo:cargos(id, nome, sigla)
         `)
         .eq("servidor_id", servidorId)
         .eq("ativo", true)

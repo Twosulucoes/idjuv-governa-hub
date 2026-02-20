@@ -90,8 +90,8 @@ export default function ExportacaoPlanilhaPage() {
         .from("servidores")
         .select(`
           *,
-          cargo:cargos!servidores_cargo_atual_id_fkey(id, nome, sigla),
-          unidade:estrutura_organizacional!servidores_unidade_atual_id_fkey(id, nome, sigla)
+          cargo:cargos(id, nome, sigla),
+          unidade:estrutura_organizacional(id, nome, sigla)
         `)
         .eq("ativo", true);
 

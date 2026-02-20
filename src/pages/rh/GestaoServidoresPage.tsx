@@ -101,11 +101,11 @@ export default function GestaoServidoresPage() {
       const { data, error } = await supabase
         .from("servidores")
         .select(`
-          id, nome_completo, cpf, matricula, codigo_interno, foto_url,
+          id, nome_completo, cpf, matricula, foto_url,
           tipo_servidor, situacao, orgao_origem, orgao_destino_cessao,
           funcao_exercida, ativo, banco_codigo, banco_agencia, banco_conta,
-          cargo:cargos!servidores_cargo_atual_id_fkey(id, nome, sigla),
-          unidade:estrutura_organizacional!servidores_unidade_atual_id_fkey(id, nome, sigla)
+          cargo:cargos(id, nome, sigla),
+          unidade:estrutura_organizacional(id, nome, sigla)
         `)
         .eq("ativo", true)
         .order("nome_completo");

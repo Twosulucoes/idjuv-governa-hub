@@ -79,8 +79,8 @@ export default function ServidorDetalheePage() {
         .from("servidores")
         .select(`
           *,
-          cargo:cargos!servidores_cargo_atual_id_fkey(id, nome, sigla),
-          unidade:estrutura_organizacional!servidores_unidade_atual_id_fkey(id, nome, sigla)
+          cargo:cargos(id, nome, sigla),
+          unidade:estrutura_organizacional(id, nome, sigla)
         `)
         .eq("id", id)
         .single();
@@ -101,7 +101,7 @@ export default function ServidorDetalheePage() {
         .select(`
           *,
           unidade:estrutura_organizacional!lotacoes_unidade_id_fkey(id, nome, sigla),
-          cargo:cargos!lotacoes_cargo_id_fkey(id, nome, sigla)
+          cargo:cargos(id, nome, sigla)
         `)
         .eq("servidor_id", id!)
         .eq("ativo", true)
@@ -116,7 +116,7 @@ export default function ServidorDetalheePage() {
           .select(`
             *,
             unidade:estrutura_organizacional!lotacoes_unidade_id_fkey(id, nome, sigla),
-            cargo:cargos!lotacoes_cargo_id_fkey(id, nome, sigla)
+            cargo:cargos(id, nome, sigla)
           `)
           .eq("servidor_id", servidor.user_id)
           .eq("ativo", true)
