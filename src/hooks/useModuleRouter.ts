@@ -71,12 +71,13 @@ export const MODULE_PRIORITY: Modulo[] = [
 
 export function useModuleRouter(): ModuleRouterResult {
   const { loading, modulosAutorizados, isSuperAdmin } = useModulosUsuario();
-  const { isLoading: authLoading } = useAuth();
+  const { isLoading: authLoading, user } = useAuth();
 
   const result = useMemo((): ModuleRouterResult => {
-    const isLoading = loading || authLoading;
+    // Considerar loading enquanto: auth carregando, módulos carregando, ou user ainda não resolveu
+    const isLoading = loading || authLoading || !user;
     
-    // Super Admin tem acesso total
+    // Super Admin tem acesso total — usa isSuperAdmin do contexto de módulos (vem do RPC)
     const isAdmin = isSuperAdmin;
     
     // Módulos autorizados
@@ -92,7 +93,7 @@ export function useModuleRouter(): ModuleRouterResult {
     // Módulo primário (para redirect)
     const primaryModule = authorizedModules[0] || null;
     
-    // Lógica de redirect
+    // Lógica de redirect — SOMENTE após loading completo
     let shouldRedirect = false;
     let redirectPath: string | null = null;
     
@@ -119,7 +120,7 @@ export function useModuleRouter(): ModuleRouterResult {
       isMultiModule,
       hasNoModules,
     };
-  }, [loading, authLoading, modulosAutorizados, isSuperAdmin]);
+  }, [loading, authLoading, user, modulosAutorizados, isSuperAdmin]);
 
   return result;
 }
