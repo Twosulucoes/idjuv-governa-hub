@@ -174,6 +174,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
+      // PASSWORD_RECOVERY: cria sessão temporária para redefinição de senha.
+      // NÃO deve redirecionar para /sistema — o AuthPage gerencia esse fluxo.
+      if (event === 'PASSWORD_RECOVERY') {
+        setSession(currentSession);
+        if (currentSession?.user) {
+          const userData = await fetchUserData(currentSession.user);
+          if (isMounted) {
+            setUser(userData);
+            setIsLoading(false);
+          }
+        }
+        return;
+      }
+
       if (
         (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') &&
         currentSession?.user
