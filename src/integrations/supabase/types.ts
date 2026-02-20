@@ -16546,7 +16546,7 @@ export type Database = {
           requires_password_change?: boolean | null
           restringir_modulos?: boolean | null
           servidor_id?: string | null
-          tipo_usuario?: Database["public"]["Enums"]["tipo_usuario"]
+          tipo_usuario: Database["public"]["Enums"]["tipo_usuario"]
           updated_at?: string
         }
         Update: {
