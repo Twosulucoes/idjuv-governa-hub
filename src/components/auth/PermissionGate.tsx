@@ -25,64 +25,14 @@ interface PermissionGateProps {
   disabledMessage?: string;
 }
 
+// ACESSO TOTAL: Todos os gates liberados - sempre renderiza children
 export const PermissionGate: React.FC<PermissionGateProps> = ({
   children,
-  requiredPermissions,
-  permissionMode = 'all',
-  fallback = null,
   inverse = false,
-  requireAuth = true,
-  showDisabled = false,
-  disabledMessage = 'Você não tem permissão para esta ação',
+  fallback = null,
 }) => {
-  const { user, isAuthenticated, isSuperAdmin, hasAnyPermission, hasAllPermissions } = useAuth();
-
-  // Verificação de autenticação
-  if (requireAuth && !isAuthenticated) {
-    return inverse ? <>{children}</> : <>{fallback}</>;
-  }
-
-  let hasAccess = true;
-
-  // Super Admin tem acesso total (exceto se inverse for usado intencionalmente)
-  if (!isSuperAdmin && requiredPermissions && user) {
-    const permissions = Array.isArray(requiredPermissions)
-      ? requiredPermissions
-      : [requiredPermissions];
-
-    if (permissions.length > 0) {
-      hasAccess = permissionMode === 'any'
-        ? hasAnyPermission(permissions)
-        : hasAllPermissions(permissions);
-    }
-  }
-
-  if (inverse) hasAccess = !hasAccess;
-
-  if (hasAccess) return <>{children}</>;
-
-  // Renderiza desabilitado com tooltip
-  if (showDisabled && React.isValidElement(children)) {
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="cursor-not-allowed">
-              {React.cloneElement(children as React.ReactElement<any>, {
-                disabled: true,
-                className: `${(children as React.ReactElement<any>).props.className ?? ''} opacity-50 pointer-events-none`,
-              })}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{disabledMessage}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    );
-  }
-
-  return <>{fallback}</>;
+  if (inverse) return <>{fallback}</>;
+  return <>{children}</>;
 };
 
 // ============================================
