@@ -132,6 +132,7 @@ import AccessDeniedPage from "./pages/AccessDeniedPage";
 import MeuPerfilPage from "./pages/MeuPerfilPage";
 import TrocaSenhaObrigatoriaPage from "./pages/TrocaSenhaObrigatoriaPage";
 import UsuariosAdminPage from "./pages/admin/UsuariosAdminPage";
+import GestaoUsuariosPage from "./pages/admin/GestaoUsuariosPage";
 import UsuarioDetalhePage from "./pages/admin/UsuarioDetalhePage";
 
 import GestaoDocumentosPage from "./pages/admin/GestaoDocumentosPage";
@@ -458,7 +459,7 @@ const App = () => (
               {/* Com permissões mapeadas em ROUTE_PERMISSIONS */}
               <Route path="/admin/usuarios" element={
                 <ProtectedRoute requiredPermissions="admin.usuarios">
-                  <UsuariosAdminPage />
+                  <GestaoUsuariosPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/usuarios/:id" element={
