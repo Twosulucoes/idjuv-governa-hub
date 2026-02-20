@@ -32,6 +32,8 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+type PermissionsResult = { permissions: PermissionCode[]; permissoesDetalhadas: PermissaoUsuario[]; isSuperAdmin: boolean };
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -39,17 +41,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isConfigured] = useState(isSupabaseConfigured());
   const signInInProgressRef = useRef(false);
   const userRef = useRef<AuthUser | null>(null);
+  const fetchInProgressRef = useRef(false);
+  const permissionsCache = useRef<Map<string, { data: PermissionsResult; ts: number }>>(new Map());
   const { toast } = useToast();
 
   // ============================================
   // BUSCA DE PERMISSÕES VIA RPC
   // ============================================
 
-  const fetchPermissoes = useCallback(async (userId: string): Promise<{
-    permissions: PermissionCode[];
-    permissoesDetalhadas: PermissaoUsuario[];
-    isSuperAdmin: boolean;
-  }> => {
+  const CACHE_TTL_MS = 30_000; // 30s cache para evitar rate limit
+
+  const fetchPermissoes = useCallback(async (userId: string): Promise<PermissionsResult> => {
+    // Retorna cache recente para evitar chamadas duplicadas
+    const cached = permissionsCache.current.get(userId);
+    if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+      return cached.data;
+    }
+
     try {
       const { data: isSuperAdminResult, error: superAdminError } = await supabase.rpc('usuario_eh_super_admin', {
         check_user_id: userId
@@ -75,7 +83,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .map(p => p.funcao_codigo)
         .filter(Boolean);
 
-      return { permissions, permissoesDetalhadas, isSuperAdmin };
+      const result: PermissionsResult = { permissions, permissoesDetalhadas, isSuperAdmin };
+      permissionsCache.current.set(userId, { data: result, ts: Date.now() });
+      return result;
     } catch (error) {
       console.error('[Auth] Erro ao buscar permissões:', error);
       return { permissions: [], permissoesDetalhadas: [], isSuperAdmin: false };
@@ -87,6 +97,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ============================================
 
   const fetchUserData = useCallback(async (authUser: User): Promise<AuthUser | null> => {
+    // Evita múltiplas chamadas simultâneas
+    if (fetchInProgressRef.current) {
+      console.log('[Auth] fetchUserData já em progresso, ignorando chamada duplicada');
+      return userRef.current;
+    }
+
+    fetchInProgressRef.current = true;
     try {
       const { data: profile } = await supabase
         .from('profiles')
@@ -120,6 +137,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isSuperAdmin: false,
         requiresPasswordChange: false,
       };
+    } finally {
+      fetchInProgressRef.current = false;
     }
   }, [fetchPermissoes]);
 
@@ -297,8 +316,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Erro ao sair:', error);
     } finally {
-      // ✅ CORREÇÃO: Limpa estado local APÓS o signOut do Supabase
-      // Não chama clearOldSessions aqui — o Supabase já limpou o seu storage
+      // Limpa cache de permissões e estado local
+      permissionsCache.current.clear();
+      fetchInProgressRef.current = false;
       userRef.current = null;
       setUser(null);
       setSession(null);
