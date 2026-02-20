@@ -235,19 +235,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isConfigured) return { error: new Error('Supabase não configurado') };
 
     try {
-      // Sair da sessão anterior sem limpar storage do Supabase
-      try {
-        await supabase.auth.signOut({ scope: 'local' });
-      } catch { /* ignora */ }
-
-      // ✅ CORREÇÃO: Limpa apenas chaves legadas (@App:*), não as do Supabase (sb-*)
+      // Limpa apenas chaves legadas, sem fazer signOut (evita race condition no listener)
       clearOldSessions();
 
       signInInProgressRef.current = true;
       setIsLoading(true);
-      userRef.current = null;
-      setUser(null);
-      setSession(null);
 
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 

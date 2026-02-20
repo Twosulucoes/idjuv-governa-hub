@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
  * Se estiver autenticado, renderiza a rota normalmente.
  */
 const RequireAuthOrRedirect = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isAuthenticated } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -19,9 +19,19 @@ const RequireAuthOrRedirect = () => {
     );
   }
 
-  if (!user) {
-    // Redireciona para /auth se não autenticado (e mantém a rota de origem para voltar após login)
+  // Usa isAuthenticated (baseado em session) para não bloquear enquanto user carrega
+  // Se não há sessão, redireciona para login
+  if (!isAuthenticated && !user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
+
+  // Se há sessão mas user ainda carregando, mostra spinner
+  if (isAuthenticated && !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return <Outlet />;
