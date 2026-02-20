@@ -77,11 +77,7 @@ export default function ServidorDetalheePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("servidores")
-        .select(`
-          *,
-          cargo:cargos(id, nome, sigla),
-          unidade:estrutura_organizacional(id, nome, sigla)
-        `)
+        .select(`*, cargo_atual_id, unidade_atual_id`)
         .eq("id", id)
         .single();
       if (error) throw error;
@@ -100,7 +96,7 @@ export default function ServidorDetalheePage() {
         .from("lotacoes")
         .select(`
           *,
-          unidade:estrutura_organizacional!lotacoes_unidade_id_fkey(id, nome, sigla),
+          unidade:estrutura_organizacional(id, nome, sigla),
           cargo:cargos(id, nome, sigla)
         `)
         .eq("servidor_id", id!)
@@ -115,7 +111,7 @@ export default function ServidorDetalheePage() {
           .from("lotacoes")
           .select(`
             *,
-            unidade:estrutura_organizacional!lotacoes_unidade_id_fkey(id, nome, sigla),
+            unidade:estrutura_organizacional(id, nome, sigla),
             cargo:cargos(id, nome, sigla)
           `)
           .eq("servidor_id", servidor.user_id)

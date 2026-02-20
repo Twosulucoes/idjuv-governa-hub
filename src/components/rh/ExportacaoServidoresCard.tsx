@@ -105,14 +105,10 @@ export function ExportacaoServidoresCard() {
 
     setIsExporting(true);
     try {
-      // Buscar servidores com filtros
+      // Buscar servidores com filtros (sem joins diretos por FK)
       let query = supabase
         .from("servidores")
-        .select(`
-          *,
-          cargo:cargos(id, nome, sigla),
-          unidade:estrutura_organizacional(id, nome, sigla)
-        `)
+        .select(`*, cargo_atual_id, unidade_atual_id`)
         .eq("ativo", true);
 
       if (filtroUnidade !== "all") {
