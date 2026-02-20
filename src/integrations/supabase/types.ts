@@ -20621,8 +20621,10 @@ export type Database = {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
       }
-      is_active_user: { Args: never; Returns: boolean }
-      is_admin_user: { Args: { _user_id: string }; Returns: boolean }
+      is_active_user:
+        | { Args: never; Returns: boolean }
+        | { Args: { p_user_id: string }; Returns: boolean }
+      is_admin_user: { Args: { p_user_id: string }; Returns: boolean }
       is_usuario_tecnico: { Args: { _user_id: string }; Returns: boolean }
       list_public_tables: {
         Args: never
@@ -20723,7 +20725,7 @@ export type Database = {
         Returns: boolean
       }
       usuario_tem_permissao: {
-        Args: { _codigo_funcao: string; _user_id: string }
+        Args: { p_modulo: string; p_user_id: string }
         Returns: boolean
       }
       usuario_tem_permissao_financeira: {
