@@ -1,9 +1,3 @@
-// ============================================
-// PÁGINA DE AUTENTICAÇÃO
-// ============================================
-// Login e Recuperação de Senha (cadastro feito pelo admin)
-// Melhorias: toggle senha, validação real-time, auto-focus, ARIA, responsividade
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,375 +5,267 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Mail, Lock, ArrowLeft, Shield, KeyRound, CheckCircle, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { Loader2, Mail, Lock, ArrowLeft, KeyRound, CheckCircle, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
 
-// ============================================
-// SCHEMAS DE VALIDAÇÃO
-// ============================================
+// ============ SCHEMAS ============
 
 const loginSchema = z.object({
-  email: z.string().trim().email('Email inválido').max(255, 'Email muito longo'),
-  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres').max(128, 'Senha muito longa')
+  email: z.string().trim().email('Email inválido'),
+  password: z.string().min(6, 'Mínimo 6 caracteres'),
 });
 
-const resetPasswordSchema = z.object({
-  email: z.string().trim().email('Email inválido').max(255, 'Email muito longo')
+const resetSchema = z.object({
+  email: z.string().trim().email('Email inválido'),
 });
 
 const newPasswordSchema = z.object({
-  password: z.string().min(8, 'Senha deve ter no mínimo 8 caracteres').max(128, 'Senha muito longa'),
-  confirmPassword: z.string()
-}).refine(data => data.password === data.confirmPassword, {
+  password: z.string().min(8, 'Mínimo 8 caracteres'),
+  confirmPassword: z.string(),
+}).refine(d => d.password === d.confirmPassword, {
   message: 'Senhas não coincidem',
-  path: ['confirmPassword']
+  path: ['confirmPassword'],
 });
 
-// ============================================
-// RATE LIMITING LOCAL
-// ============================================
+// ============ RATE LIMITING ============
 const MAX_ATTEMPTS = 5;
-const LOCKOUT_DURATION_MS = 60_000; // 1 minuto
+const LOCKOUT_MS = 60_000;
 
-// ============================================
-// COMPONENTE
-// ============================================
+// ============ COMPONENTE ============
 
 const AuthPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { signIn, resetPassword, updatePassword, isAuthenticated, isLoading: authLoading } = useAuth();
-  
-  const [activeTab, setActiveTab] = useState<'login' | 'forgot'>('login');
+
+  const [tab, setTab] = useState<'login' | 'forgot'>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isResetMode, setIsResetMode] = useState(false);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const [isRecoveryReady, setIsRecoveryReady] = useState(false);
-  
-  // Password visibility toggles
+  const [recoveryReady, setRecoveryReady] = useState(false);
+
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
-  // Field-level validation errors
+
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  
+
   // Rate limiting
   const [attempts, setAttempts] = useState(0);
   const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
   const [lockoutRemaining, setLockoutRemaining] = useState(0);
-  
-  // Refs for auto-focus
-  const emailInputRef = useRef<HTMLInputElement>(null);
-  const forgotEmailRef = useRef<HTMLInputElement>(null);
-  const newPasswordRef = useRef<HTMLInputElement>(null);
-  
-  // Form states
+
+  // Form state
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
-  const [forgotForm, setForgotForm] = useState({ email: '' });
+  const [forgotEmail, setForgotEmail] = useState('');
   const [newPasswordForm, setNewPasswordForm] = useState({ password: '', confirmPassword: '' });
 
-  // ============================================
-  // AUTO-FOCUS
-  // ============================================
-  useEffect(() => {
-    if (!isCheckingSession && !authLoading && !isResetMode) {
-      const timer = setTimeout(() => {
-        if (activeTab === 'login') {
-          emailInputRef.current?.focus();
-        } else if (activeTab === 'forgot') {
-          forgotEmailRef.current?.focus();
-        }
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [activeTab, isCheckingSession, authLoading, isResetMode]);
+  // Refs
+  const emailRef = useRef<HTMLInputElement>(null);
+  const forgotRef = useRef<HTMLInputElement>(null);
+  const newPassRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (isResetMode && isRecoveryReady) {
-      const timer = setTimeout(() => newPasswordRef.current?.focus(), 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isResetMode, isRecoveryReady]);
-
-  // ============================================
-  // LOCKOUT TIMER
-  // ============================================
+  // ============ LOCKOUT TIMER ============
   useEffect(() => {
     if (!lockoutUntil) return;
-    const interval = setInterval(() => {
-      const remaining = Math.max(0, lockoutUntil - Date.now());
-      setLockoutRemaining(Math.ceil(remaining / 1000));
-      if (remaining <= 0) {
-        setLockoutUntil(null);
-        setAttempts(0);
-        setLockoutRemaining(0);
-      }
+    const id = setInterval(() => {
+      const rem = Math.max(0, lockoutUntil - Date.now());
+      setLockoutRemaining(Math.ceil(rem / 1000));
+      if (rem <= 0) { setLockoutUntil(null); setAttempts(0); setLockoutRemaining(0); }
     }, 1000);
-    return () => clearInterval(interval);
+    return () => clearInterval(id);
   }, [lockoutUntil]);
 
-  // ============================================
-  // RESET MODE DETECTION
-  // ============================================
+  // ============ RESET MODE DETECTION ============
   useEffect(() => {
-    const checkResetMode = async () => {
-      const mode = searchParams.get('mode');
-      const code = searchParams.get('code');
-      const hash = window.location.hash;
+    const mode = searchParams.get('mode');
+    const code = searchParams.get('code');
+    const hash = window.location.hash;
+    const isReset = mode === 'reset' || (hash && (hash.includes('type=recovery') || hash.includes('access_token'))) || !!code;
 
-      const isLikelyResetLink =
-        mode === 'reset' ||
-        (hash && (hash.includes('type=recovery') || hash.includes('access_token'))) ||
-        !!code;
+    if (!isReset) return;
 
-      if (!isLikelyResetLink) {
-        setIsCheckingSession(false);
-        return;
-      }
+    setIsResetMode(true);
 
-      setIsResetMode(true);
-
+    (async () => {
       if (code) {
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-        if (exchangeError) {
-          setError('Link de recuperação inválido ou expirado. Solicite um novo email.');
-          setIsRecoveryReady(false);
-          setIsCheckingSession(false);
+        const { error: ex } = await supabase.auth.exchangeCodeForSession(code);
+        if (ex) {
+          setError('Link inválido ou expirado. Solicite um novo email.');
           return;
         }
         navigate('/auth?mode=reset', { replace: true });
       }
-
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        setError('Link de recuperação inválido ou expirado. Solicite um novo email.');
-        setIsRecoveryReady(false);
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        setRecoveryReady(true);
       } else {
-        setIsRecoveryReady(true);
+        setError('Link inválido ou expirado. Solicite um novo email.');
       }
-
-      setIsCheckingSession(false);
-    };
-
-    checkResetMode();
+    })();
   }, [searchParams, navigate]);
 
-  // ============================================
-  // REDIRECT IF AUTHENTICATED
-  // ============================================
+  // ============ AUTO-FOCUS ============
   useEffect(() => {
-    if (isAuthenticated && !isResetMode && !isCheckingSession) {
+    if (!authLoading && !isResetMode) {
+      const t = setTimeout(() => {
+        if (tab === 'login') emailRef.current?.focus();
+        else forgotRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(t);
+    }
+  }, [tab, authLoading, isResetMode]);
+
+  useEffect(() => {
+    if (isResetMode && recoveryReady) {
+      const t = setTimeout(() => newPassRef.current?.focus(), 100);
+      return () => clearTimeout(t);
+    }
+  }, [isResetMode, recoveryReady]);
+
+  // ============ REDIRECT IF AUTHENTICATED ============
+  useEffect(() => {
+    if (isAuthenticated && !isResetMode) {
       const from = (location.state as any)?.from?.pathname || '/sistema';
       navigate(from, { replace: true });
     }
-  }, [isAuthenticated, navigate, location, isResetMode, isCheckingSession]);
+  }, [isAuthenticated, navigate, location, isResetMode]);
 
-  // ============================================
-  // REAL-TIME FIELD VALIDATION
-  // ============================================
+  // ============ FIELD VALIDATION ============
   const validateField = useCallback((field: string, value: string) => {
     setFieldErrors(prev => {
       const next = { ...prev };
-      switch (field) {
-        case 'email':
-          if (value && !z.string().email().safeParse(value).success) {
-            next.email = 'Formato de email inválido';
-          } else {
-            delete next.email;
-          }
-          break;
-        case 'password':
-          if (value && value.length > 0 && value.length < 6) {
-            next.password = 'Mínimo 6 caracteres';
-          } else {
-            delete next.password;
-          }
-          break;
-        case 'newPassword':
-          if (value && value.length > 0 && value.length < 8) {
-            next.newPassword = 'Mínimo 8 caracteres';
-          } else {
-            delete next.newPassword;
-          }
-          if (newPasswordForm.confirmPassword && value !== newPasswordForm.confirmPassword) {
-            next.confirmPassword = 'Senhas não coincidem';
-          } else {
-            delete next.confirmPassword;
-          }
-          break;
-        case 'confirmPassword':
-          if (value && value !== newPasswordForm.password) {
-            next.confirmPassword = 'Senhas não coincidem';
-          } else {
-            delete next.confirmPassword;
-          }
-          break;
+      if (field === 'email') {
+        if (value && !z.string().email().safeParse(value).success) next.email = 'Email inválido';
+        else delete next.email;
+      }
+      if (field === 'password') {
+        if (value && value.length < 6) next.password = 'Mínimo 6 caracteres';
+        else delete next.password;
+      }
+      if (field === 'newPassword') {
+        if (value && value.length < 8) next.newPassword = 'Mínimo 8 caracteres';
+        else delete next.newPassword;
+        if (newPasswordForm.confirmPassword && value !== newPasswordForm.confirmPassword)
+          next.confirmPassword = 'Senhas não coincidem';
+        else delete next.confirmPassword;
+      }
+      if (field === 'confirmPassword') {
+        if (value && value !== newPasswordForm.password) next.confirmPassword = 'Senhas não coincidem';
+        else delete next.confirmPassword;
       }
       return next;
     });
   }, [newPasswordForm.password, newPasswordForm.confirmPassword]);
 
-  // ============================================
-  // HANDLERS
-  // ============================================
+  // ============ HANDLERS ============
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(null);
-    setFieldErrors({});
-    
-    // Check lockout
+    setError(null); setFieldErrors({});
+
     if (lockoutUntil && Date.now() < lockoutUntil) {
-      setError(`Muitas tentativas. Aguarde ${lockoutRemaining}s para tentar novamente.`);
+      setError(`Muitas tentativas. Aguarde ${lockoutRemaining}s.`);
       return;
     }
-    
-    try {
-      loginSchema.parse(loginForm);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        const errors: Record<string, string> = {};
-        err.errors.forEach(e => {
-          if (e.path[0]) errors[String(e.path[0])] = e.message;
-        });
-        setFieldErrors(errors);
-        return;
-      }
+
+    const parsed = loginSchema.safeParse(loginForm);
+    if (!parsed.success) {
+      const errs: Record<string, string> = {};
+      parsed.error.errors.forEach(e => { if (e.path[0]) errs[String(e.path[0])] = e.message; });
+      setFieldErrors(errs);
+      return;
     }
-    
+
     setIsLoading(true);
     const { error } = await signIn(loginForm.email.trim(), loginForm.password);
     setIsLoading(false);
-    
+
     if (error) {
-      const newAttempts = attempts + 1;
-      setAttempts(newAttempts);
-      
-      if (newAttempts >= MAX_ATTEMPTS) {
-        const lockUntil = Date.now() + LOCKOUT_DURATION_MS;
-        setLockoutUntil(lockUntil);
-        setError(`Muitas tentativas falhas. Aguarde 60 segundos para tentar novamente.`);
+      const n = attempts + 1;
+      setAttempts(n);
+      if (n >= MAX_ATTEMPTS) {
+        setLockoutUntil(Date.now() + LOCKOUT_MS);
+        setError('Muitas tentativas. Aguarde 60 segundos.');
       } else {
-        const remaining = MAX_ATTEMPTS - newAttempts;
-        setError(`Email ou senha incorretos. ${remaining} tentativa${remaining > 1 ? 's' : ''} restante${remaining > 1 ? 's' : ''}.`);
+        const rem = MAX_ATTEMPTS - n;
+        setError(`Credenciais incorretas. ${rem} tentativa${rem > 1 ? 's' : ''} restante${rem > 1 ? 's' : ''}.`);
       }
     } else {
-      setAttempts(0);
-      setLockoutUntil(null);
+      setAttempts(0); setLockoutUntil(null);
     }
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(null);
-    setFieldErrors({});
-    
-    try {
-      resetPasswordSchema.parse(forgotForm);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        setError(err.errors[0].message);
-        return;
-      }
-    }
-    
+    setError(null); setSuccess(null);
+
+    const parsed = resetSchema.safeParse({ email: forgotEmail });
+    if (!parsed.success) { setError(parsed.error.errors[0].message); return; }
+
     setIsLoading(true);
-    const { error } = await resetPassword(forgotForm.email.trim());
+    const { error } = await resetPassword(forgotEmail.trim());
     setIsLoading(false);
-    
+
     if (!error) {
-      setSuccess('Email de recuperação enviado! Verifique sua caixa de entrada.');
-      setForgotForm({ email: '' });
+      setSuccess('Email enviado! Verifique sua caixa de entrada.');
+      setForgotEmail('');
     }
   };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(null);
-    setFieldErrors({});
-    
-    try {
-      newPasswordSchema.parse(newPasswordForm);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        const errors: Record<string, string> = {};
-        err.errors.forEach(e => {
-          if (e.path[0]) errors[String(e.path[0])] = e.message;
-        });
-        setFieldErrors(errors);
-        return;
-      }
+    setError(null); setFieldErrors({});
+
+    const parsed = newPasswordSchema.safeParse(newPasswordForm);
+    if (!parsed.success) {
+      const errs: Record<string, string> = {};
+      parsed.error.errors.forEach(e => { if (e.path[0]) errs[String(e.path[0])] = e.message; });
+      setFieldErrors(errs);
+      return;
     }
-    
+
     setIsLoading(true);
     const { error } = await updatePassword(newPasswordForm.password);
     setIsLoading(false);
-    
+
     if (!error) {
-      setSuccess('Senha atualizada com sucesso! Redirecionando...');
-      setTimeout(() => {
-        navigate('/auth', { replace: true });
-      }, 2000);
+      setSuccess('Senha atualizada! Redirecionando...');
+      setTimeout(() => navigate('/auth', { replace: true }), 2000);
     }
   };
 
-  // ============================================
-  // HELPER: Password Toggle Button
-  // ============================================
+  // ============ SUB-COMPONENTS ============
+
   const PasswordToggle = ({ show, onToggle }: { show: boolean; onToggle: () => void }) => (
-    <button
-      type="button"
-      onClick={onToggle}
+    <button type="button" onClick={onToggle} tabIndex={-1}
       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-      aria-label={show ? 'Ocultar senha' : 'Mostrar senha'}
-      tabIndex={-1}
-    >
+      aria-label={show ? 'Ocultar senha' : 'Mostrar senha'}>
       {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
     </button>
   );
 
-  // ============================================
-  // HELPER: Field Error Display
-  // ============================================
   const FieldError = ({ field }: { field: string }) => {
     const msg = fieldErrors[field];
     if (!msg) return null;
-    return (
-      <p className="text-xs text-destructive mt-1" role="alert" aria-live="polite">
-        {msg}
-      </p>
-    );
+    return <p className="text-xs text-destructive mt-1" role="alert">{msg}</p>;
   };
 
-  // ============================================
-  // LOADING GLOBAL
-  // ============================================
-
-  if (authLoading || isCheckingSession) {
+  // ============ LOADING GLOBAL ============
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Verificando sessão...</p>
-        </div>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  // ============================================
-  // RENDERIZAÇÃO - MODO RESET
-  // ============================================
-
+  // ============ RESET MODE ============
   if (isResetMode) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
@@ -390,117 +276,67 @@ const AuthPage: React.FC = () => {
                 <KeyRound className="h-8 w-8 text-primary" />
               </div>
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Redefinir Senha</h1>
-            <p className="text-muted-foreground">Digite sua nova senha</p>
+            <h1 className="text-2xl font-bold">Redefinir Senha</h1>
+            <p className="text-muted-foreground text-sm">Digite sua nova senha</p>
           </div>
 
           <Card className="shadow-lg">
-            <CardContent className="pt-6">
+            <CardContent className="pt-6 space-y-4">
               {error && (
-                <Alert variant="destructive" className="mb-4" role="alert">
+                <Alert variant="destructive" role="alert">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              
               {success && (
-                  <Alert className="mb-4 border-success/50 bg-success/10 text-success" role="status">
+                <Alert className="border-primary/50 bg-primary/10 text-primary" role="status">
                   <CheckCircle className="h-4 w-4" />
                   <AlertDescription>{success}</AlertDescription>
                 </Alert>
               )}
 
-              {!isRecoveryReady ? (
-                <div className="space-y-4">
-                  <Alert variant="destructive" className="mb-2">
-                    <AlertDescription>
-                      {error || 'Link de recuperação inválido ou expirado. Solicite um novo email.'}
-                    </AlertDescription>
-                  </Alert>
-
-                  <Button
-                    type="button"
-                    className="w-full"
-                    onClick={() => {
-                      setIsResetMode(false);
-                      setActiveTab('forgot');
-                      setError(null);
-                      setSuccess(null);
-                      navigate('/auth', { replace: true });
-                    }}
-                  >
-                    Solicitar novo email de recuperação
-                  </Button>
-                </div>
+              {!recoveryReady ? (
+                <Button className="w-full" onClick={() => { setIsResetMode(false); setTab('forgot'); setError(null); navigate('/auth', { replace: true }); }}>
+                  Solicitar novo email de recuperação
+                </Button>
               ) : (
+
                 <form onSubmit={handleUpdatePassword} className="space-y-4" noValidate>
                   <div className="space-y-2">
                     <Label htmlFor="new-password">Nova Senha</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        ref={newPasswordRef}
-                        id="new-password"
-                        type={showNewPassword ? 'text' : 'password'}
-                        placeholder="Mínimo 8 caracteres"
-                        className="pl-10 pr-10"
-                        value={newPasswordForm.password}
-                        onChange={(e) => {
-                          setNewPasswordForm({ ...newPasswordForm, password: e.target.value });
-                          validateField('newPassword', e.target.value);
-                        }}
-                        aria-describedby="new-password-error"
-                        aria-invalid={!!fieldErrors.newPassword}
-                        required
-                        autoComplete="new-password"
-                      />
-                      <PasswordToggle show={showNewPassword} onToggle={() => setShowNewPassword(!showNewPassword)} />
+                      <Input ref={newPassRef} id="new-password" type={showNewPassword ? 'text' : 'password'}
+                        placeholder="Mínimo 8 caracteres" className="pl-10 pr-10"
+                        value={newPasswordForm.password} autoComplete="new-password"
+                        onChange={e => { setNewPasswordForm(p => ({ ...p, password: e.target.value })); validateField('newPassword', e.target.value); }} />
+                      <PasswordToggle show={showNewPassword} onToggle={() => setShowNewPassword(v => !v)} />
                     </div>
                     <FieldError field="newPassword" />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="confirm-new-password">Confirmar Nova Senha</Label>
+                    <Label htmlFor="confirm-password">Confirmar Nova Senha</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="confirm-new-password"
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        placeholder="Repita a senha"
-                        className="pl-10 pr-10"
-                        value={newPasswordForm.confirmPassword}
-                        onChange={(e) => {
-                          setNewPasswordForm({ ...newPasswordForm, confirmPassword: e.target.value });
-                          validateField('confirmPassword', e.target.value);
-                        }}
-                        aria-describedby="confirm-password-error"
-                        aria-invalid={!!fieldErrors.confirmPassword}
-                        required
-                        autoComplete="new-password"
-                      />
-                      <PasswordToggle show={showConfirmPassword} onToggle={() => setShowConfirmPassword(!showConfirmPassword)} />
+                      <Input id="confirm-password" type={showConfirmPassword ? 'text' : 'password'}
+                        placeholder="Repita a senha" className="pl-10 pr-10"
+                        value={newPasswordForm.confirmPassword} autoComplete="new-password"
+                        onChange={e => { setNewPasswordForm(p => ({ ...p, confirmPassword: e.target.value })); validateField('confirmPassword', e.target.value); }} />
+                      <PasswordToggle show={showConfirmPassword} onToggle={() => setShowConfirmPassword(v => !v)} />
                     </div>
                     <FieldError field="confirmPassword" />
                   </div>
 
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Salvando...
-                      </>
-                    ) : (
-                      'Salvar Nova Senha'
-                    )}
+                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</> : 'Salvar Nova Senha'}
                   </Button>
                 </form>
               )}
             </CardContent>
-            
             <CardFooter className="flex justify-center border-t pt-4">
               <Link to="/auth" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1">
-                <ArrowLeft className="h-4 w-4" />
-                Voltar para login
+                <ArrowLeft className="h-4 w-4" /> Voltar para login
               </Link>
             </CardFooter>
           </Card>
@@ -509,134 +345,68 @@ const AuthPage: React.FC = () => {
     );
   }
 
-  // ============================================
-  // RENDERIZAÇÃO - LOGIN / FORGOT
-  // ============================================
-
+  // ============ LOGIN / FORGOT ============
   const isLockedOut = lockoutUntil !== null && Date.now() < lockoutUntil;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="flex justify-center">
-            <div className="p-3 bg-primary/10 rounded-full">
-              <Shield className="h-8 w-8 text-primary" />
-            </div>
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">IDJUV - Sistema</h1>
-          <p className="text-muted-foreground">Acesse sua conta para continuar</p>
+        <div className="text-center space-y-1">
+          <h1 className="text-2xl font-bold text-foreground">IDJUV — Sistema</h1>
+          <p className="text-sm text-muted-foreground">Acesse sua conta para continuar</p>
         </div>
 
-        {/* Card de Auth */}
         <Card className="shadow-lg">
-          {activeTab === 'forgot' ? (
-            // ============================================
-            // FORMULÁRIO: ESQUECI A SENHA
-            // ============================================
+          {tab === 'forgot' ? (
             <>
-              <CardHeader className="text-center">
+              <CardHeader className="text-center pb-2">
                 <div className="flex justify-center mb-2">
                   <div className="p-2 bg-primary/10 rounded-full">
                     <Mail className="h-6 w-6 text-primary" />
                   </div>
                 </div>
                 <CardTitle>Recuperar Senha</CardTitle>
-                <CardDescription>
-                  Digite seu email para receber o link de recuperação
-                </CardDescription>
+                <CardDescription>Enviaremos um link para o seu email</CardDescription>
               </CardHeader>
-
-              <CardContent>
-                {error && (
-                  <Alert variant="destructive" className="mb-4" role="alert">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-                
-                {success && (
-                  <Alert className="mb-4 border-success/50 bg-success/10 text-success" role="status">
-                    <CheckCircle className="h-4 w-4" />
-                    <AlertDescription>{success}</AlertDescription>
-                  </Alert>
-                )}
+              <CardContent className="space-y-4">
+                {error && <Alert variant="destructive" role="alert"><AlertTriangle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
+                {success && <Alert className="border-primary/50 bg-primary/10 text-primary" role="status"><CheckCircle className="h-4 w-4" /><AlertDescription>{success}</AlertDescription></Alert>}
 
                 <form onSubmit={handleForgotPassword} className="space-y-4" noValidate>
                   <div className="space-y-2">
                     <Label htmlFor="forgot-email">Email</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        ref={forgotEmailRef}
-                        id="forgot-email"
-                        type="email"
-                        placeholder="seu@email.com"
-                        className="pl-10"
-                        value={forgotForm.email}
-                        onChange={(e) => setForgotForm({ email: e.target.value })}
-                        aria-label="Email para recuperação"
-                        required
-                        autoComplete="email"
-                      />
+                      <Input ref={forgotRef} id="forgot-email" type="email" placeholder="seu@email.com"
+                        className="pl-10" value={forgotEmail} autoComplete="email"
+                        onChange={e => setForgotEmail(e.target.value)} required />
                     </div>
                   </div>
-
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Enviando...
-                      </>
-                    ) : (
-                      'Enviar Email de Recuperação'
-                    )}
+                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Enviando...</> : 'Enviar Link de Recuperação'}
                   </Button>
                 </form>
               </CardContent>
-
               <CardFooter className="flex justify-center border-t pt-4">
-                <button 
-                  onClick={() => { setActiveTab('login'); setError(null); setSuccess(null); setFieldErrors({}); }}
-                  className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Voltar para login
+                <button onClick={() => { setTab('login'); setError(null); setSuccess(null); setFieldErrors({}); }}
+                  className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1">
+                  <ArrowLeft className="h-4 w-4" /> Voltar para login
                 </button>
               </CardFooter>
             </>
           ) : (
-            // ============================================
-            // FORMULÁRIO: LOGIN
-            // ============================================
             <>
-              <CardHeader className="text-center">
-                <div className="flex justify-center mb-2">
-                  <div className="p-2 bg-primary/10 rounded-full">
-                    <Shield className="h-6 w-6 text-primary" />
-                  </div>
-                </div>
+              <CardHeader className="text-center pb-2">
                 <CardTitle>Entrar no Sistema</CardTitle>
-                <CardDescription>
-                  Use suas credenciais para acessar
-                </CardDescription>
+                <CardDescription>Use suas credenciais de acesso</CardDescription>
               </CardHeader>
-
-              <CardContent>
-                {error && (
-                  <Alert variant="destructive" className="mb-4" role="alert" aria-live="assertive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
+              <CardContent className="space-y-4">
+                {error && <Alert variant="destructive" role="alert" aria-live="assertive"><AlertTriangle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
                 {isLockedOut && (
-                  <Alert variant="destructive" className="mb-4" role="alert">
+                  <Alert variant="destructive" role="alert">
                     <Lock className="h-4 w-4" />
-                    <AlertDescription>
-                      Conta temporariamente bloqueada. Tente novamente em {lockoutRemaining}s.
-                    </AlertDescription>
+                    <AlertDescription>Bloqueado temporariamente. Tente em {lockoutRemaining}s.</AlertDescription>
                   </Alert>
                 )}
 
@@ -645,25 +415,10 @@ const AuthPage: React.FC = () => {
                     <Label htmlFor="login-email">Email</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        ref={emailInputRef}
-                        id="login-email"
-                        type="email"
-                        placeholder="seu@email.com"
-                        className="pl-10"
-                        value={loginForm.email}
-                        onChange={(e) => {
-                          setLoginForm({ ...loginForm, email: e.target.value });
-                          validateField('email', e.target.value);
-                        }}
-                        onBlur={(e) => validateField('email', e.target.value)}
-                        aria-describedby="email-error"
-                        aria-invalid={!!fieldErrors.email}
-                        aria-label="Email de acesso"
-                        required
-                        autoComplete="email"
-                        disabled={isLockedOut}
-                      />
+                      <Input ref={emailRef} id="login-email" type="email" placeholder="seu@email.com"
+                        className="pl-10" value={loginForm.email} autoComplete="email" disabled={isLockedOut}
+                        onChange={e => { setLoginForm(p => ({ ...p, email: e.target.value })); validateField('email', e.target.value); }}
+                        onBlur={e => validateField('email', e.target.value)} required />
                     </div>
                     <FieldError field="email" />
                   </div>
@@ -671,73 +426,39 @@ const AuthPage: React.FC = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <Label htmlFor="login-password">Senha</Label>
-                      <button
-                        type="button"
-                        onClick={() => { setActiveTab('forgot'); setError(null); setFieldErrors({}); }}
-                        className="text-xs text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 rounded"
-                      >
+                      <button type="button" onClick={() => { setTab('forgot'); setError(null); setFieldErrors({}); }}
+                        className="text-xs text-primary hover:underline focus:outline-none rounded">
                         Esqueci a senha
                       </button>
                     </div>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="login-password"
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="••••••••"
-                        className="pl-10 pr-10"
-                        value={loginForm.password}
-                        onChange={(e) => {
-                          setLoginForm({ ...loginForm, password: e.target.value });
-                          validateField('password', e.target.value);
-                        }}
-                        onBlur={(e) => validateField('password', e.target.value)}
-                        aria-describedby="password-error"
-                        aria-invalid={!!fieldErrors.password}
-                        aria-label="Senha de acesso"
-                        required
-                        autoComplete="current-password"
-                        disabled={isLockedOut}
-                      />
-                      <PasswordToggle show={showPassword} onToggle={() => setShowPassword(!showPassword)} />
+                      <Input id="login-password" type={showPassword ? 'text' : 'password'} placeholder="••••••••"
+                        className="pl-10 pr-10" value={loginForm.password} autoComplete="current-password" disabled={isLockedOut}
+                        onChange={e => { setLoginForm(p => ({ ...p, password: e.target.value })); validateField('password', e.target.value); }}
+                        onBlur={e => validateField('password', e.target.value)} required />
+                      <PasswordToggle show={showPassword} onToggle={() => setShowPassword(v => !v)} />
                     </div>
                     <FieldError field="password" />
                   </div>
 
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={isLoading || isLockedOut}
-                    aria-busy={isLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Entrando...
-                      </>
-                    ) : isLockedOut ? (
-                      `Aguarde ${lockoutRemaining}s`
-                    ) : (
-                      'Entrar'
-                    )}
+                  <Button type="submit" className="w-full" disabled={isLoading || isLockedOut} aria-busy={isLoading}>
+                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Entrando...</>
+                      : isLockedOut ? `Aguarde ${lockoutRemaining}s`
+                      : 'Entrar'}
                   </Button>
                 </form>
               </CardContent>
 
               <CardFooter className="flex justify-center border-t pt-4">
-                <Link 
-                  to="/" 
-                  className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 rounded"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Voltar para o início
+                <Link to="/" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1">
+                  <ArrowLeft className="h-4 w-4" /> Voltar para o início
                 </Link>
               </CardFooter>
             </>
           )}
         </Card>
 
-        {/* Footer info */}
         <p className="text-center text-xs text-muted-foreground">
           Acesso restrito a usuários cadastrados pelo administrador.
         </p>
