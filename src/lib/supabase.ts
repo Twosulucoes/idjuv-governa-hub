@@ -31,27 +31,34 @@ export const getConnectionInfo = () => ({
 export const clearOldSessions = () => {
   try {
     const keysToRemove: string[] = [];
+    // ID do projeto Lovable Cloud correto
+    const CURRENT_PROJECT_ID = 'qvbhejhcktcaftiamksd';
 
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key) continue;
 
-      // Remove APENAS chaves de auth externo e chaves de outros apps
-      // NÃO remove sb-* pois o Supabase precisa delas para manter a sessão
+      // Remove chaves de auth legadas
       if (key === 'idjuv-external-auth') {
         keysToRemove.push(key);
       }
 
-      // Remove chaves de versões antigas do @App (estado paralelo que causava bugs)
+      // Remove chaves de versões antigas do @App
       if (key.startsWith('@App:')) {
         keysToRemove.push(key);
+      }
+
+      // Remove tokens de outros projetos Supabase (sb-* que NÃO são do projeto atual)
+      if (key.startsWith('sb-') && !key.includes(CURRENT_PROJECT_ID)) {
+        keysToRemove.push(key);
+        console.log('[Supabase] Token de projeto externo removido:', key);
       }
     }
 
     keysToRemove.forEach(key => localStorage.removeItem(key));
 
     if (keysToRemove.length > 0) {
-      console.log('[Supabase] Chaves legadas removidas:', keysToRemove);
+      console.log('[Supabase] Chaves limpas:', keysToRemove);
     }
   } catch (e) {
     console.warn('[Supabase] Erro ao limpar sessões:', e);
