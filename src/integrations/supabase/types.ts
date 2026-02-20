@@ -15425,77 +15425,6 @@ export type Database = {
           },
         ]
       }
-      perfil_permissoes: {
-        Row: {
-          concedido: boolean | null
-          created_at: string | null
-          created_by: string | null
-          id: string
-          perfil_id: string
-          permissao_id: string
-        }
-        Insert: {
-          concedido?: boolean | null
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          perfil_id: string
-          permissao_id: string
-        }
-        Update: {
-          concedido?: boolean | null
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          perfil_id?: string
-          permissao_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "perfil_permissoes_permissao_id_fkey"
-            columns: ["permissao_id"]
-            isOneToOne: false
-            referencedRelation: "permissoes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      permissoes: {
-        Row: {
-          ativo: boolean | null
-          capacidade: string
-          codigo: string
-          created_at: string | null
-          descricao: string | null
-          dominio: string
-          id: string
-          nome: string
-          ordem: number | null
-        }
-        Insert: {
-          ativo?: boolean | null
-          capacidade: string
-          codigo: string
-          created_at?: string | null
-          descricao?: string | null
-          dominio: string
-          id?: string
-          nome: string
-          ordem?: number | null
-        }
-        Update: {
-          ativo?: boolean | null
-          capacidade?: string
-          codigo?: string
-          created_at?: string | null
-          descricao?: string | null
-          dominio?: string
-          id?: string
-          nome?: string
-          ordem?: number | null
-        }
-        Relationships: []
-      }
       planos_tratamento_risco: {
         Row: {
           acao_proposta: string
@@ -18006,24 +17935,6 @@ export type Database = {
           },
         ]
       }
-      role_permissions: {
-        Row: {
-          created_at: string
-          id: string
-          permission: Database["public"]["Enums"]["app_permission"]
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          permission: Database["public"]["Enums"]["app_permission"]
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          permission?: Database["public"]["Enums"]["app_permission"]
-        }
-        Relationships: []
-      }
       rubricas: {
         Row: {
           ativo: boolean | null
@@ -19585,27 +19496,6 @@ export type Database = {
           },
         ]
       }
-      user_permissions: {
-        Row: {
-          created_at: string
-          id: string
-          permission: Database["public"]["Enums"]["app_permission"]
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          permission: Database["public"]["Enums"]["app_permission"]
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          permission?: Database["public"]["Enums"]["app_permission"]
-          user_id?: string
-        }
-        Relationships: []
-      }
       user_roles: {
         Row: {
           created_at: string
@@ -19626,69 +19516,6 @@ export type Database = {
           created_by?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
-        }
-        Relationships: []
-      }
-      user_security_settings: {
-        Row: {
-          active_sessions: number | null
-          created_at: string | null
-          deactivated_at: string | null
-          deactivated_by: string | null
-          deactivation_reason: string | null
-          failed_login_attempts: number | null
-          force_password_change: boolean | null
-          id: string
-          is_active: boolean | null
-          last_login_at: string | null
-          last_login_ip: unknown
-          locked_until: string | null
-          mfa_enabled: boolean | null
-          mfa_method: string | null
-          mfa_required: boolean | null
-          password_changed_at: string | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          active_sessions?: number | null
-          created_at?: string | null
-          deactivated_at?: string | null
-          deactivated_by?: string | null
-          deactivation_reason?: string | null
-          failed_login_attempts?: number | null
-          force_password_change?: boolean | null
-          id?: string
-          is_active?: boolean | null
-          last_login_at?: string | null
-          last_login_ip?: unknown
-          locked_until?: string | null
-          mfa_enabled?: boolean | null
-          mfa_method?: string | null
-          mfa_required?: boolean | null
-          password_changed_at?: string | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          active_sessions?: number | null
-          created_at?: string | null
-          deactivated_at?: string | null
-          deactivated_by?: string | null
-          deactivation_reason?: string | null
-          failed_login_attempts?: number | null
-          force_password_change?: boolean | null
-          id?: string
-          is_active?: boolean | null
-          last_login_at?: string | null
-          last_login_ip?: unknown
-          locked_until?: string | null
-          mfa_enabled?: boolean | null
-          mfa_method?: string | null
-          mfa_required?: boolean | null
-          password_changed_at?: string | null
-          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
