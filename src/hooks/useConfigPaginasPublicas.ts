@@ -49,11 +49,12 @@ export function usePaginasPublicas() {
 }
 
 // Hook para buscar status de uma página específica por rota
+// Aumenta staleTime e desabilita quando rota vazia para evitar rate limit
 export function useStatusPagina(rota: string) {
   return useQuery({
     queryKey: ["status-pagina", rota],
     queryFn: async () => {
-      // Buscar a página mais específica primeiro
+      if (!rota) return null;
       const { data, error } = await supabase
         .from("config_paginas_publicas")
         .select("*")
@@ -63,7 +64,10 @@ export function useStatusPagina(rota: string) {
       if (error) throw error;
       return data as ConfigPaginaPublica | null;
     },
-    staleTime: 30000, // Cache por 30 segundos
+    enabled: !!rota,
+    staleTime: 5 * 60 * 1000, // Cache por 5 minutos para reduzir requests
+    gcTime: 10 * 60 * 1000,   // Manter em memória por 10 minutos
+    retry: false,              // Não tentar novamente em erro (evita loops)
   });
 }
 
