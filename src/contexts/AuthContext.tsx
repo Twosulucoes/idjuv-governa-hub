@@ -1,11 +1,9 @@
 // ============================================
-// CONTEXTO DE AUTENTICAÇÃO
+// CONTEXTO DE AUTENTICAÇÃO — REESCRITO
 // ============================================
-// CORREÇÕES:
-// 1. isAuthenticated baseado em session (não em user) para evitar
-//    flash de "não autenticado" enquanto fetchUserData ainda roda.
-// 2. clearOldSessions não apaga mais a sessão ativa do Supabase.
-// 3. signOut limpa apenas o estado local após supabase.auth.signOut.
+// Fluxo limpo: getSession() → fetchUserData → setIsLoading(false)
+// onAuthStateChange só processa SIGNED_IN e SIGNED_OUT para evitar duplicatas
+// Sem race conditions, sem flags complexas
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { Session, User } from '@supabase/supabase-js';
@@ -32,47 +30,44 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-type PermissionsResult = { permissions: PermissionCode[]; permissoesDetalhadas: PermissaoUsuario[]; isSuperAdmin: boolean };
+type PermissionsResult = {
+  permissions: PermissionCode[];
+  permissoesDetalhadas: PermissaoUsuario[];
+  isSuperAdmin: boolean;
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isConfigured] = useState(isSupabaseConfigured());
-  const signInInProgressRef = useRef(false);
-  const userRef = useRef<AuthUser | null>(null);
-  const fetchInProgressRef = useRef(false);
   const permissionsCache = useRef<Map<string, { data: PermissionsResult; ts: number }>>(new Map());
   const { toast } = useToast();
 
-  // ============================================
-  // BUSCA DE PERMISSÕES VIA RPC
-  // ============================================
+  const CACHE_TTL_MS = 30_000;
 
-  const CACHE_TTL_MS = 30_000; // 30s cache para evitar rate limit
+  // ============================================
+  // BUSCA DE PERMISSÕES
+  // ============================================
 
   const fetchPermissoes = useCallback(async (userId: string): Promise<PermissionsResult> => {
     const cached = permissionsCache.current.get(userId);
     if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+      console.log('[Auth] Permissões do cache para:', userId);
       return cached.data;
     }
 
     try {
-      // Verifica se é super admin via user_roles
-      const { data: rolesData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId);
+      const [rolesResponse, modulesResponse] = await Promise.all([
+        supabase.from('user_roles').select('role').eq('user_id', userId),
+        supabase.from('user_modules').select('module').eq('user_id', userId),
+      ]);
 
-      const isSuperAdmin = (rolesData || []).some((r: any) => r.role === 'admin');
+      if (rolesResponse.error) console.error('[Auth] Erro user_roles:', rolesResponse.error);
+      if (modulesResponse.error) console.error('[Auth] Erro user_modules:', modulesResponse.error);
 
-      // Busca módulos do usuário
-      const { data: modulesData } = await supabase
-        .from('user_modules')
-        .select('module')
-        .eq('user_id', userId);
-
-      const permissions: PermissionCode[] = (modulesData || []).map((m: any) => m.module as PermissionCode);
+      const isSuperAdmin = (rolesResponse.data || []).some((r: any) => r.role === 'admin');
+      const permissions: PermissionCode[] = (modulesResponse.data || []).map((m: any) => m.module as PermissionCode);
 
       const permissoesDetalhadas: PermissaoUsuario[] = permissions.map(p => ({
         funcao_id: p,
@@ -86,37 +81,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         icone: null,
       }));
 
+      console.log('[Auth] Permissões carregadas — isSuperAdmin:', isSuperAdmin, '| módulos:', permissions.length, permissions);
+
       const result: PermissionsResult = { permissions, permissoesDetalhadas, isSuperAdmin };
       permissionsCache.current.set(userId, { data: result, ts: Date.now() });
       return result;
     } catch (error) {
-      console.error('[Auth] Erro ao buscar permissões:', error);
-      // fallback: super admin para não bloquear o sistema
-      return { permissions: [], permissoesDetalhadas: [], isSuperAdmin: true };
+      console.error('[Auth] Exceção ao buscar permissões:', error);
+      return { permissions: [], permissoesDetalhadas: [], isSuperAdmin: false };
     }
   }, []);
 
   // ============================================
-  // BUSCA DADOS COMPLETOS DO USUÁRIO
+  // BUSCA DADOS DO USUÁRIO
   // ============================================
 
-  const fetchUserData = useCallback(async (authUser: User): Promise<AuthUser | null> => {
-    if (fetchInProgressRef.current) {
-      console.log('[Auth] fetchUserData já em progresso, ignorando chamada duplicada');
-      return userRef.current;
-    }
+  const fetchUserData = useCallback(async (authUser: User): Promise<AuthUser> => {
+    console.log('[Auth] fetchUserData para:', authUser.email, authUser.id);
 
-    fetchInProgressRef.current = true;
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authUser.id)
-        .maybeSingle();
+      const [profileResponse, permissionsResult] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle(),
+        fetchPermissoes(authUser.id),
+      ]);
 
-      const { permissions, permissoesDetalhadas, isSuperAdmin } = await fetchPermissoes(authUser.id);
+      if (profileResponse.error) {
+        console.error('[Auth] Erro ao buscar profile:', profileResponse.error);
+      }
 
-      return {
+      const profile = profileResponse.data;
+      const { permissions, permissoesDetalhadas, isSuperAdmin } = permissionsResult;
+
+      const userData: AuthUser = {
         id: authUser.id,
         email: authUser.email || '',
         fullName: profile?.full_name || null,
@@ -128,8 +124,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         tipoUsuario: profile?.tipo_usuario || undefined,
         requiresPasswordChange: profile?.requires_password_change || false,
       };
+
+      console.log('[Auth] Usuário carregado:', userData.email, '| admin:', isSuperAdmin, '| módulos:', permissions.length);
+      return userData;
     } catch (error) {
-      console.error('[Auth] Erro ao buscar dados do usuário:', error);
+      console.error('[Auth] Exceção em fetchUserData:', error);
       return {
         id: authUser.id,
         email: authUser.email || '',
@@ -140,13 +139,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isSuperAdmin: false,
         requiresPasswordChange: false,
       };
-    } finally {
-      fetchInProgressRef.current = false;
     }
   }, [fetchPermissoes]);
 
   // ============================================
-  // INICIALIZAÇÃO E LISTENER
+  // INICIALIZAÇÃO — FLUXO ÚNICO E SIMPLES
   // ============================================
 
   useEffect(() => {
@@ -156,70 +153,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     let isMounted = true;
-    let initCompleted = false;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
-        if (!isMounted) return;
-        console.log('[Auth] onAuthStateChange:', event);
-
-        setSession(currentSession);
-
-        if (!currentSession?.user) {
-          userRef.current = null;
-          setUser(null);
-          return;
-        }
-
-        if (signInInProgressRef.current) return;
-        if (!initCompleted) return;
-
-        const existing = userRef.current;
-        if (existing?.id === currentSession.user.id) return;
-        if (event === 'TOKEN_REFRESHED') return;
-
-        setTimeout(async () => {
-          if (!isMounted || signInInProgressRef.current) return;
-          if (userRef.current?.id === currentSession.user.id) return;
-
-          const userData = await fetchUserData(currentSession.user);
-          if (!isMounted) return;
-          userRef.current = userData;
-          setUser(userData);
-        }, 0);
-      }
-    );
-
-    const initializeAuth = async () => {
+    const initialize = async () => {
       try {
+        // 1. Recupera sessão existente
         const { data: { session: existingSession }, error } = await supabase.auth.getSession();
-        if (!isMounted) return;
 
         if (error) {
-          console.warn('[Auth] Erro ao recuperar sessão:', error.message);
-          await supabase.auth.signOut();
+          console.warn('[Auth] Erro getSession:', error.message);
+          if (isMounted) {
+            setSession(null);
+            setUser(null);
+          }
           return;
         }
 
-        setSession(existingSession);
+        console.log('[Auth] Sessão inicial:', existingSession ? `encontrada (${existingSession.user.email})` : 'nenhuma');
+
+        if (!isMounted) return;
 
         if (existingSession?.user) {
+          setSession(existingSession);
           const userData = await fetchUserData(existingSession.user);
-          if (!isMounted) return;
-          userRef.current = userData;
-          setUser(userData);
+          if (isMounted) {
+            setUser(userData);
+          }
+        } else {
+          setSession(null);
+          setUser(null);
         }
       } catch (err) {
         console.error('[Auth] Erro na inicialização:', err);
+        if (isMounted) {
+          setSession(null);
+          setUser(null);
+        }
       } finally {
         if (isMounted) {
-          initCompleted = true;
           setIsLoading(false);
         }
       }
     };
 
-    initializeAuth();
+    initialize();
+
+    // 2. Listener para mudanças APÓS a inicialização
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      if (!isMounted) return;
+      console.log('[Auth] onAuthStateChange:', event);
+
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
+        permissionsCache.current.clear();
+        return;
+      }
+
+      if (event === 'TOKEN_REFRESHED' && currentSession) {
+        setSession(currentSession);
+        return;
+      }
+
+      // Para SIGNED_IN e USER_UPDATED: atualiza dados
+      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && currentSession?.user) {
+        setSession(currentSession);
+        // Limpa cache para forçar reload dos dados
+        permissionsCache.current.delete(currentSession.user.id);
+        const userData = await fetchUserData(currentSession.user);
+        if (isMounted) {
+          setUser(userData);
+        }
+      }
+    });
 
     return () => {
       isMounted = false;
@@ -232,19 +237,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ============================================
 
   const signIn = async (email: string, password: string) => {
-    if (!isConfigured) return { error: new Error('Supabase não configurado') };
+    if (!isConfigured) return { error: new Error('Sistema não configurado') };
 
     try {
-      // Limpa apenas chaves legadas, sem fazer signOut (evita race condition no listener)
       clearOldSessions();
-
-      signInInProgressRef.current = true;
       setIsLoading(true);
 
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
-        signInInProgressRef.current = false;
         setIsLoading(false);
         toast({
           variant: 'destructive',
@@ -258,26 +259,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.session?.user) {
         setSession(data.session);
+        permissionsCache.current.delete(data.session.user.id);
         const userData = await fetchUserData(data.session.user);
-        console.log('[Auth] signIn: isSuperAdmin:', userData?.isSuperAdmin, 'permissões:', userData?.permissions?.length);
-        userRef.current = userData;
         setUser(userData);
+        console.log('[Auth] signIn OK — admin:', userData.isSuperAdmin, '| módulos:', userData.permissions.length);
       }
 
-      signInInProgressRef.current = false;
       setIsLoading(false);
-
       toast({ title: 'Bem-vindo!', description: 'Login realizado com sucesso.' });
       return { error: null };
     } catch (error) {
-      signInInProgressRef.current = false;
       setIsLoading(false);
+      console.error('[Auth] Exceção no signIn:', error);
       return { error: error as Error };
     }
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    if (!isConfigured) return { error: new Error('Supabase não configurado') };
+    if (!isConfigured) return { error: new Error('Sistema não configurado') };
 
     try {
       const { error } = await supabase.auth.signUp({
@@ -311,34 +310,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Erro ao sair:', error);
     } finally {
-      // Limpa cache de permissões e estado local
       permissionsCache.current.clear();
-      fetchInProgressRef.current = false;
-      userRef.current = null;
       setUser(null);
       setSession(null);
     }
   };
 
   const refreshUser = async () => {
-    if (session?.user) {
-      const userData = await fetchUserData(session.user);
-      userRef.current = userData;
-      setUser(userData);
-    }
+    if (!session?.user) return;
+    permissionsCache.current.delete(session.user.id);
+    const userData = await fetchUserData(session.user);
+    setUser(userData);
   };
 
   const refreshPermissions = async () => {
-    if (user && session?.user) {
-      const { permissions, permissoesDetalhadas, isSuperAdmin } = await fetchPermissoes(session.user.id);
-      const updated = { ...user, permissions, permissoesDetalhadas, isSuperAdmin };
-      userRef.current = updated;
-      setUser(updated);
-    }
+    if (!user || !session?.user) return;
+    permissionsCache.current.delete(session.user.id);
+    const { permissions, permissoesDetalhadas, isSuperAdmin } = await fetchPermissoes(session.user.id);
+    setUser({ ...user, permissions, permissoesDetalhadas, isSuperAdmin });
   };
 
   const resetPassword = async (email: string) => {
-    if (!isConfigured) return { error: new Error('Supabase não configurado') };
+    if (!isConfigured) return { error: new Error('Sistema não configurado') };
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth?mode=reset`,
@@ -355,7 +348,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updatePassword = async (newPassword: string) => {
-    if (!isConfigured) return { error: new Error('Supabase não configurado') };
+    if (!isConfigured) return { error: new Error('Sistema não configurado') };
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) {
@@ -370,7 +363,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // ============================================
-  // VERIFICAÇÃO DE PERMISSÕES
+  // PERMISSÕES
   // ============================================
 
   const hasPermission = useCallback((codigo: PermissionCode): boolean => {
@@ -378,13 +371,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user.isSuperAdmin) return true;
     if (user.permissions.includes(codigo)) return true;
 
-    // Verificar permissão pai (ex: 'rh' cobre 'rh.servidores.visualizar')
     const partes = codigo.split('.');
     for (let i = partes.length - 1; i > 0; i--) {
-      const permissaoPai = partes.slice(0, i).join('.');
-      if (user.permissions.includes(permissaoPai)) return true;
+      const pai = partes.slice(0, i).join('.');
+      if (user.permissions.includes(pai)) return true;
     }
-
     return false;
   }, [user]);
 
@@ -402,24 +393,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return codigos.every(c => hasPermission(c));
   }, [user, hasPermission]);
 
-  const getUserPermissions = useCallback((): PermissionCode[] => {
-    return user?.permissions || [];
-  }, [user]);
-
-  const getPermissoesDetalhadas = useCallback((): PermissaoUsuario[] => {
-    return user?.permissoesDetalhadas || [];
-  }, [user]);
+  const getUserPermissions = useCallback((): PermissionCode[] => user?.permissions || [], [user]);
+  const getPermissoesDetalhadas = useCallback((): PermissaoUsuario[] => user?.permissoesDetalhadas || [], [user]);
 
   // ============================================
-  // VALOR DO CONTEXTO
+  // CONTEXTO
   // ============================================
 
   const value: AuthContextType = {
     user,
     isLoading,
-    // ✅ CORREÇÃO: isAuthenticated baseado em session para evitar flash.
-    // session é setada imediatamente pelo onAuthStateChange,
-    // enquanto user demora o tempo do fetchUserData.
     isAuthenticated: !!session,
     isConfigured,
     isSuperAdmin: user?.isSuperAdmin || false,
