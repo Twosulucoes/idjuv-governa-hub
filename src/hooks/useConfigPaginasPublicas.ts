@@ -34,12 +34,37 @@ export interface HistoricoPagina {
 
 // ACESSO TOTAL: Sem consulta ao banco - retorna lista vazia
 export function usePaginasPublicas() {
-  return { data: [] as ConfigPaginaPublica[], isLoading: false, error: null };
+  return useQuery({
+    queryKey: ["config-paginas-publicas"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("config_paginas_publicas")
+        .select("*")
+        .order("nome");
+      if (error) throw error;
+      return data as ConfigPaginaPublica[];
+    },
+  });
 }
 
-// ACESSO TOTAL: Sem consulta ao banco - página sempre ativa
-export function useStatusPagina(_rota: string) {
-  return { data: null, isLoading: false, error: null };
+export function useStatusPagina(rota: string) {
+  return useQuery({
+    queryKey: ["status-pagina", rota],
+    queryFn: async () => {
+      if (!rota) return null;
+      const { data, error } = await supabase
+        .from("config_paginas_publicas")
+        .select("*")
+        .eq("rota", rota)
+        .maybeSingle();
+      if (error) throw error;
+      return data as ConfigPaginaPublica | null;
+    },
+    enabled: !!rota,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: false,
+  });
 }
 
 // Hook para buscar histórico de uma página
