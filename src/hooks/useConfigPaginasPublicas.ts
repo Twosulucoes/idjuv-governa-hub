@@ -52,18 +52,26 @@ export function useStatusPagina(rota: string) {
     queryKey: ["status-pagina", rota],
     queryFn: async () => {
       if (!rota) return null;
-      const { data, error } = await supabase
-        .from("config_paginas_publicas")
-        .select("*")
-        .eq("rota", rota)
-        .maybeSingle();
-      if (error) throw error;
-      return data as ConfigPaginaPublica | null;
+      try {
+        const { data, error } = await supabase
+          .from("config_paginas_publicas")
+          .select("*")
+          .eq("rota", rota)
+          .maybeSingle();
+        if (error) {
+          console.warn("[useStatusPagina] Erro ao buscar status da página:", error.message);
+          return null;
+        }
+        return data as ConfigPaginaPublica | null;
+      } catch (err) {
+        console.warn("[useStatusPagina] Exceção:", err);
+        return null;
+      }
     },
     enabled: !!rota,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
-    retry: false,
+    retry: 0,
   });
 }
 
