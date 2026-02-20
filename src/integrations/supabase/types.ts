@@ -20241,10 +20241,12 @@ export type Database = {
         Args: { p_data_inicio: string; p_tipo_prazo?: string }
         Returns: string
       }
-      can_access_module: {
-        Args: { _module: Database["public"]["Enums"]["app_module"] }
-        Returns: boolean
-      }
+      can_access_module:
+        | {
+            Args: { _module: Database["public"]["Enums"]["app_module"] }
+            Returns: boolean
+          }
+        | { Args: { _module: string; _user_id: string }; Returns: boolean }
       can_approve: {
         Args: { _module_name?: string; _user_id: string }
         Returns: boolean
@@ -20425,6 +20427,13 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_unidade"]
         }[]
       }
+      get_my_access_context: { Args: never; Returns: Json }
+      get_my_modules: {
+        Args: never
+        Returns: {
+          module: string
+        }[]
+      }
       get_parametro_vigente:
         | { Args: { p_tipo: string; p_vigencia?: string }; Returns: number }
         | { Args: { p_data?: string; p_tipo: string }; Returns: number }
@@ -20446,10 +20455,12 @@ export type Database = {
         }[]
       }
       get_user_permissions: { Args: { _user_id: string }; Returns: string[] }
-      has_module: {
-        Args: { _module: Database["public"]["Enums"]["app_module"] }
-        Returns: boolean
-      }
+      has_module:
+        | {
+            Args: { _module: Database["public"]["Enums"]["app_module"] }
+            Returns: boolean
+          }
+        | { Args: { _module: string; _user_id: string }; Returns: boolean }
       has_permission: {
         Args: {
           _permission: Database["public"]["Enums"]["app_permission"]
@@ -20464,9 +20475,8 @@ export type Database = {
       is_active_user:
         | { Args: never; Returns: boolean }
         | { Args: { p_user_id: string }; Returns: boolean }
-      is_admin_user:
-        | { Args: never; Returns: boolean }
-        | { Args: { p_user_id: string }; Returns: boolean }
+      is_admin_user: { Args: { _user_id?: string }; Returns: boolean }
+      is_user_active: { Args: { _user_id?: string }; Returns: boolean }
       is_usuario_tecnico: { Args: { _user_id: string }; Returns: boolean }
       list_public_tables: {
         Args: never
