@@ -16,8 +16,11 @@ interface Props {
 }
 
 export function PublicPageGuard({ rota, children, fallbackRota }: Props) {
-  const { data: status, isLoading } = useStatusPagina(rota);
+  const { data: status, isLoading, isError } = useStatusPagina(rota);
   const { data: statusFallback } = useStatusPagina(fallbackRota || "");
+
+  // Em caso de erro ou timeout, renderiza os filhos normalmente (fail-open)
+  if (isError) return <>{children}</>;
 
   if (isLoading) {
     return (
