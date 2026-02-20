@@ -20624,7 +20624,9 @@ export type Database = {
       is_active_user:
         | { Args: never; Returns: boolean }
         | { Args: { p_user_id: string }; Returns: boolean }
-      is_admin_user: { Args: { p_user_id: string }; Returns: boolean }
+      is_admin_user:
+        | { Args: never; Returns: boolean }
+        | { Args: { p_user_id: string }; Returns: boolean }
       is_usuario_tecnico: { Args: { _user_id: string }; Returns: boolean }
       list_public_tables: {
         Args: never
@@ -20705,7 +20707,7 @@ export type Database = {
         Returns: boolean
       }
       usuario_eh_super_admin: {
-        Args: { check_user_id: string }
+        Args: { check_user_id?: string }
         Returns: boolean
       }
       usuario_pode_fechar_folha: {

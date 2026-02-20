@@ -51,45 +51,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const CACHE_TTL_MS = 30_000; // 30s cache para evitar rate limit
 
-  const fetchPermissoes = useCallback(async (userId: string): Promise<PermissionsResult> => {
-    // Retorna cache recente para evitar chamadas duplicadas
-    const cached = permissionsCache.current.get(userId);
-    if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
-      return cached.data;
-    }
-
-    try {
-      const { data: isSuperAdminResult, error: superAdminError } = await supabase.rpc('usuario_eh_super_admin', {
-        check_user_id: userId
-      });
-
-      if (superAdminError) {
-        console.error('[Auth] RPC usuario_eh_super_admin erro:', superAdminError);
-      }
-
-      const isSuperAdmin = isSuperAdminResult === true;
-
-      const { data: permissoesData, error } = await supabase.rpc('listar_permissoes_usuario', {
-        check_user_id: userId
-      });
-
-      if (error) {
-        console.error('[Auth] Erro ao buscar permissões:', error);
-        return { permissions: [], permissoesDetalhadas: [], isSuperAdmin };
-      }
-
-      const permissoesDetalhadas: PermissaoUsuario[] = permissoesData || [];
-      const permissions: PermissionCode[] = permissoesDetalhadas
-        .map(p => p.funcao_codigo)
-        .filter(Boolean);
-
-      const result: PermissionsResult = { permissions, permissoesDetalhadas, isSuperAdmin };
-      permissionsCache.current.set(userId, { data: result, ts: Date.now() });
-      return result;
-    } catch (error) {
-      console.error('[Auth] Erro ao buscar permissões:', error);
-      return { permissions: [], permissoesDetalhadas: [], isSuperAdmin: false };
-    }
+  // ACESSO TOTAL: Todos os usuários autenticados têm super admin + todas as permissões
+  const fetchPermissoes = useCallback(async (_userId: string): Promise<PermissionsResult> => {
+    return { permissions: [], permissoesDetalhadas: [], isSuperAdmin: true };
   }, []);
 
   // ============================================
