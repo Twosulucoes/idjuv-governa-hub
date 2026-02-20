@@ -58,7 +58,7 @@ export function PendenciasServidoresDialog({
           banco_codigo,
           banco_agencia,
           banco_conta,
-          cargo_atual:cargos!servidores_cargo_atual_id_fkey(nome, vencimento_base)
+          cargo_atual:cargos(nome, vencimento_base)
         `)
         .eq("situacao", "ativo")
         .eq("ativo", true)

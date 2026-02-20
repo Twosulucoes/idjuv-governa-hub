@@ -68,8 +68,8 @@ export function RelatorioSegundoVinculoCard() {
           vinculo_externo_cargo,
           vinculo_externo_matricula,
           vinculo_externo_forma,
-          cargo:cargos!servidores_cargo_atual_id_fkey(nome),
-          unidade:estrutura_organizacional!servidores_unidade_atual_id_fkey(nome, sigla),
+          cargo:cargos(nome),
+          unidade:estrutura_organizacional(nome, sigla),
           vinculo_externo_ato:documentos!servidores_vinculo_externo_ato_id_fkey(numero)
         `)
         .eq("ativo", true)

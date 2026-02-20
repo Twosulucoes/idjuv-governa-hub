@@ -26,9 +26,9 @@ export function usePortarias(filters?: PortariaFilters) {
       let query = supabase
         .from('documentos')
         .select(`
-          *,
-          cargo:cargos(id, nome, sigla),
-          unidade:estrutura_organizacional(id, nome, sigla)
+          id, numero, titulo, categoria, status, data_documento, ementa,
+          servidores_ids, doe_numero, doe_data, data_vigencia_inicio, data_vigencia_fim,
+          cargo_id, unidade_id
         `)
         .eq('tipo', 'portaria')
         .order('data_documento', { ascending: false });
@@ -71,9 +71,9 @@ export function usePortaria(id: string | undefined) {
       const { data, error } = await supabase
         .from('documentos')
         .select(`
-          *,
-          cargo:cargos(id, nome, sigla),
-          unidade:estrutura_organizacional(id, nome, sigla)
+          id, numero, titulo, categoria, status, data_documento, ementa,
+          servidores_ids, doe_numero, doe_data, data_vigencia_inicio, data_vigencia_fim,
+          cargo_id, unidade_id
         `)
         .eq('id', id)
         .single();
@@ -95,9 +95,9 @@ export function usePortariasServidor(servidorId: string | undefined) {
       const { data, error } = await supabase
         .from('documentos')
         .select(`
-          *,
-          cargo:cargos(id, nome, sigla),
-          unidade:estrutura_organizacional(id, nome, sigla)
+          id, numero, titulo, categoria, status, data_documento, ementa,
+          servidores_ids, doe_numero, doe_data, data_vigencia_inicio, data_vigencia_fim,
+          cargo_id, unidade_id
         `)
         .eq('tipo', 'portaria')
         .contains('servidores_ids', [servidorId])

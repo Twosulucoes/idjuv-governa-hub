@@ -11,12 +11,12 @@ export function useDesignacoes(filters?: { status?: StatusDesignacao; unidade_id
         .from("designacoes")
         .select(`
           *,
-          servidor:servidores!designacoes_servidor_id_fkey(id, nome_completo, matricula, cpf),
+          servidor:servidores(id, nome_completo, matricula, cpf),
           unidade_origem:estrutura_organizacional!designacoes_unidade_origem_id_fkey(id, nome, sigla),
           unidade_destino:estrutura_organizacional!designacoes_unidade_destino_id_fkey(id, nome, sigla),
-          lotacao:lotacoes!designacoes_lotacao_id_fkey(
+          lotacao:lotacoes(
             id,
-            cargo:cargos!lotacoes_cargo_id_fkey(id, nome, sigla)
+            cargo:cargos(id, nome, sigla)
           ),
           aprovador:profiles!designacoes_aprovado_por_fkey(id, full_name)
         `)
@@ -126,7 +126,7 @@ export function useAprovarDesignacao() {
         .from("designacoes")
         .select(`
           *,
-          servidor:servidores!designacoes_servidor_id_fkey(id, nome_completo),
+          servidor:servidores(id, nome_completo),
           unidade_origem:estrutura_organizacional!designacoes_unidade_origem_id_fkey(id, nome, sigla),
           unidade_destino:estrutura_organizacional!designacoes_unidade_destino_id_fkey(id, nome, sigla)
         `)
@@ -276,7 +276,7 @@ export function useEncerrarDesignacao() {
         .from("designacoes")
         .select(`
           *,
-          servidor:servidores!designacoes_servidor_id_fkey(id, nome_completo),
+          servidor:servidores(id, nome_completo),
           unidade_origem:estrutura_organizacional!designacoes_unidade_origem_id_fkey(id, nome, sigla),
           unidade_destino:estrutura_organizacional!designacoes_unidade_destino_id_fkey(id, nome, sigla)
         `)
