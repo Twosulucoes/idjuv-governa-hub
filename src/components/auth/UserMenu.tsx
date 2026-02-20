@@ -83,7 +83,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ showRoleBadge = true }) => {
   const getRoleBadge = () => {
     // ✅ CORREÇÃO: Usa isSuperAdmin do contexto. Sem e-mail hardcoded.
     if (isSuperAdmin) {
-      return { label: 'Super Admin', variant: 'destructive' as const };
+      return { label: 'Admin', variant: 'destructive' as const };
     }
     const permissionCount = user.permissions?.length ?? 0;
     if (permissionCount > 50) return { label: 'Administrador', variant: 'destructive' as const };
