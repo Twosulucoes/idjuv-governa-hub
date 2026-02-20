@@ -51,9 +51,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const CACHE_TTL_MS = 30_000; // 30s cache para evitar rate limit
 
-  // ACESSO TOTAL: Todos os usuários autenticados têm super admin + todas as permissões
-  const fetchPermissoes = useCallback(async (_userId: string): Promise<PermissionsResult> => {
-    return { permissions: [], permissoesDetalhadas: [], isSuperAdmin: true };
+  const fetchPermissoes = useCallback(async (userId: string): Promise<PermissionsResult> => {
+    const cached = permissionsCache.current.get(userId);
+    if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+      return cached.data;
+    }
+
+    try {
+      // Verifica se é super admin via user_roles
+      const { data: rolesData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
+
+      const isSuperAdmin = (rolesData || []).some((r: any) => r.role === 'admin');
+
+      // Busca módulos do usuário
+      const { data: modulesData } = await supabase
+        .from('user_modules')
+        .select('module')
+        .eq('user_id', userId);
+
+      const permissions: PermissionCode[] = (modulesData || []).map((m: any) => m.module as PermissionCode);
+
+      const permissoesDetalhadas: PermissaoUsuario[] = permissions.map(p => ({
+        funcao_id: p,
+        funcao_codigo: p,
+        funcao_nome: p,
+        modulo: p,
+        submodulo: null,
+        tipo_acao: 'access',
+        perfil_nome: isSuperAdmin ? 'Super Admin' : 'Usuário',
+        rota: null,
+        icone: null,
+      }));
+
+      const result: PermissionsResult = { permissions, permissoesDetalhadas, isSuperAdmin };
+      permissionsCache.current.set(userId, { data: result, ts: Date.now() });
+      return result;
+    } catch (error) {
+      console.error('[Auth] Erro ao buscar permissões:', error);
+      // fallback: super admin para não bloquear o sistema
+      return { permissions: [], permissoesDetalhadas: [], isSuperAdmin: true };
+    }
   }, []);
 
   // ============================================
