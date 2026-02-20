@@ -98,19 +98,43 @@ export default function GestaoServidoresPage() {
   const { data: servidores = [], isLoading } = useQuery({
     queryKey: ["servidores-rh"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Buscar servidores sem joins diretos (banco externo pode não ter FKs)
+      const { data: servidoresData, error } = await supabase
         .from("servidores")
         .select(`
           id, nome_completo, cpf, matricula, foto_url,
-          tipo_servidor, situacao, orgao_origem, orgao_destino_cessao,
+          situacao, orgao_origem, orgao_destino_cessao,
           funcao_exercida, ativo, banco_codigo, banco_agencia, banco_conta,
-          cargo:cargos(id, nome, sigla),
-          unidade:estrutura_organizacional(id, nome, sigla)
+          cargo_atual_id, unidade_atual_id
         `)
         .eq("ativo", true)
         .order("nome_completo");
       if (error) throw error;
-      return data as unknown as (ServidorCompleto & { banco_codigo?: string; banco_agencia?: string; banco_conta?: string })[];
+
+      if (!servidoresData || servidoresData.length === 0) return [];
+
+      // Buscar cargos separadamente
+      const cargoIds = [...new Set(servidoresData.map((s: any) => s.cargo_atual_id).filter(Boolean))];
+      const unidadeIds = [...new Set(servidoresData.map((s: any) => s.unidade_atual_id).filter(Boolean))];
+
+      const [cargosResult, unidadesResult] = await Promise.all([
+        cargoIds.length > 0 
+          ? supabase.from("cargos").select("id, nome, sigla").in("id", cargoIds)
+          : Promise.resolve({ data: [] }),
+        unidadeIds.length > 0
+          ? supabase.from("estrutura_organizacional").select("id, nome, sigla").in("id", unidadeIds)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const cargosMap = new Map((cargosResult.data || []).map((c: any) => [c.id, c]));
+      const unidadesMap = new Map((unidadesResult.data || []).map((u: any) => [u.id, u]));
+
+      return servidoresData.map((s: any) => ({
+        ...s,
+        tipo_servidor: undefined,
+        cargo: s.cargo_atual_id ? cargosMap.get(s.cargo_atual_id) || null : null,
+        unidade: s.unidade_atual_id ? unidadesMap.get(s.unidade_atual_id) || null : null,
+      })) as unknown as (ServidorCompleto & { banco_codigo?: string; banco_agencia?: string; banco_conta?: string })[];
     },
   });
 

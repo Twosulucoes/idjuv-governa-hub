@@ -49,8 +49,8 @@ async function buscarDadosPortarias(filtros: Record<string, unknown>): Promise<D
       doe_data,
       data_vigencia_inicio,
       data_vigencia_fim,
-      cargo:cargos(id, nome, sigla),
-      unidade:estrutura_organizacional(id, nome, sigla)
+      cargo_id,
+      unidade_id
     `)
     .eq('tipo', 'portaria')
     .order('data_documento', { ascending: false });
@@ -76,11 +76,11 @@ async function buscarDadosPortarias(filtros: Record<string, unknown>): Promise<D
   if (error) throw error;
 
   // Processar dados
-  const dadosProcessados = (data || []).map((p) => ({
+  const dadosProcessados = (data || []).map((p: any) => ({
     ...p,
     servidores_count: p.servidores_ids?.length || 0,
-    unidade_nome: p.unidade?.nome || '-',
-    cargo_nome: p.cargo?.nome || '-',
+    unidade_nome: '-',
+    cargo_nome: '-',
     mes_ano: format(new Date(p.data_documento), 'MMMM yyyy', { locale: ptBR }),
   }));
 

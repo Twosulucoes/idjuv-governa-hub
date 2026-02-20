@@ -68,9 +68,8 @@ export function RelatorioSegundoVinculoCard() {
           vinculo_externo_cargo,
           vinculo_externo_matricula,
           vinculo_externo_forma,
-          cargo:cargos(nome),
-          unidade:estrutura_organizacional(nome, sigla),
-          vinculo_externo_ato:documentos!servidores_vinculo_externo_ato_id_fkey(numero)
+          cargo_atual_id,
+          unidade_atual_id
         `)
         .eq("ativo", true)
         .eq("possui_vinculo_externo", true)
@@ -92,19 +91,19 @@ export function RelatorioSegundoVinculoCard() {
         return;
       }
 
-      const dadosFormatados: ServidorSegundoVinculo[] = servidores.map(s => ({
+      const dadosFormatados: ServidorSegundoVinculo[] = (servidores as any[]).map(s => ({
         nome: s.nome_completo || '',
         cpf: s.cpf || '',
         matricula: s.matricula,
         vinculo_idjuv: VINCULO_LABELS[s.vinculo as keyof typeof VINCULO_LABELS] || s.vinculo || '',
-        cargo_idjuv: (s.cargo as { nome?: string } | null)?.nome || '-',
-        unidade_idjuv: (s.unidade as { sigla?: string; nome?: string } | null)?.sigla || (s.unidade as { nome?: string } | null)?.nome || '-',
+        cargo_idjuv: '-',
+        unidade_idjuv: '-',
         vinculo_externo_esfera: s.vinculo_externo_esfera || '',
         vinculo_externo_orgao: s.vinculo_externo_orgao || '',
         vinculo_externo_cargo: s.vinculo_externo_cargo || '',
         vinculo_externo_matricula: s.vinculo_externo_matricula,
         vinculo_externo_forma: s.vinculo_externo_forma || '',
-        vinculo_externo_ato_numero: (s.vinculo_externo_ato as { numero?: string } | null)?.numero || null,
+        vinculo_externo_ato_numero: null,
       }));
 
       await gerarRelatorioSegundoVinculo({
