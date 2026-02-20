@@ -40,7 +40,7 @@ const AuthPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { signIn, resetPassword, updatePassword, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { signIn, resetPassword, updatePassword, signOut, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [tab, setTab] = useState<'login' | 'forgot'>('login');
   const [isLoading, setIsLoading] = useState(false);
@@ -235,8 +235,13 @@ const AuthPage: React.FC = () => {
     setIsLoading(false);
 
     if (!error) {
-      setSuccess('Senha atualizada! Redirecionando...');
-      setTimeout(() => navigate('/auth', { replace: true }), 2000);
+      setSuccess('Senha atualizada! Redirecionando para o login...');
+      // Desloga o usuário após redefinir a senha para evitar redirect automático para /sistema
+      setTimeout(async () => {
+        await signOut();
+        setIsResetMode(false);
+        navigate('/auth', { replace: true });
+      }, 2000);
     }
   };
 
