@@ -1,13 +1,13 @@
 // ============================================
-// CONTEXTO DE AUTENTICAÇÃO — REESCRITO
+// CONTEXTO DE AUTENTICAÇÃO — VERSÃO DEFINITIVA
 // ============================================
-// Fluxo limpo: getSession() → fetchUserData → setIsLoading(false)
-// onAuthStateChange só processa SIGNED_IN e SIGNED_OUT para evitar duplicatas
-// Sem race conditions, sem flags complexas
+// Estratégia: onAuthStateChange é a ÚNICA fonte de verdade.
+// signIn/signOut apenas disparam a ação — o listener processa o resultado.
+// Sem race conditions, sem duplicação.
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase, clearOldSessions, isSupabaseConfigured } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { AuthUser, PermissionCode, PermissaoUsuario, AuthState } from '@/types/auth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -43,8 +43,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isConfigured] = useState(isSupabaseConfigured());
   const permissionsCache = useRef<Map<string, { data: PermissionsResult; ts: number }>>(new Map());
   const { toast } = useToast();
+  // Controla se está processando um evento para evitar duplicatas
+  const processingRef = useRef(false);
 
-  const CACHE_TTL_MS = 30_000;
+  const CACHE_TTL_MS = 60_000;
 
   // ============================================
   // BUSCA DE PERMISSÕES
@@ -53,7 +55,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchPermissoes = useCallback(async (userId: string): Promise<PermissionsResult> => {
     const cached = permissionsCache.current.get(userId);
     if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
-      console.log('[Auth] Permissões do cache para:', userId);
       return cached.data;
     }
 
@@ -81,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         icone: null,
       }));
 
-      console.log('[Auth] Permissões carregadas — isSuperAdmin:', isSuperAdmin, '| módulos:', permissions.length, permissions);
+      console.log('[Auth] Permissões — isSuperAdmin:', isSuperAdmin, '| módulos:', permissions);
 
       const result: PermissionsResult = { permissions, permissoesDetalhadas, isSuperAdmin };
       permissionsCache.current.set(userId, { data: result, ts: Date.now() });
@@ -97,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ============================================
 
   const fetchUserData = useCallback(async (authUser: User): Promise<AuthUser> => {
-    console.log('[Auth] fetchUserData para:', authUser.email, authUser.id);
+    console.log('[Auth] fetchUserData:', authUser.email);
 
     try {
       const [profileResponse, permissionsResult] = await Promise.all([
@@ -105,14 +106,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fetchPermissoes(authUser.id),
       ]);
 
-      if (profileResponse.error) {
-        console.error('[Auth] Erro ao buscar profile:', profileResponse.error);
-      }
-
       const profile = profileResponse.data;
       const { permissions, permissoesDetalhadas, isSuperAdmin } = permissionsResult;
 
-      const userData: AuthUser = {
+      return {
         id: authUser.id,
         email: authUser.email || '',
         fullName: profile?.full_name || null,
@@ -124,9 +121,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         tipoUsuario: profile?.tipo_usuario || undefined,
         requiresPasswordChange: profile?.requires_password_change || false,
       };
-
-      console.log('[Auth] Usuário carregado:', userData.email, '| admin:', isSuperAdmin, '| módulos:', permissions.length);
-      return userData;
     } catch (error) {
       console.error('[Auth] Exceção em fetchUserData:', error);
       return {
@@ -143,7 +137,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [fetchPermissoes]);
 
   // ============================================
-  // INICIALIZAÇÃO — FLUXO ÚNICO E SIMPLES
+  // INICIALIZAÇÃO — onAuthStateChange é a ÚNICA fonte de verdade
   // ============================================
 
   useEffect(() => {
@@ -154,58 +148,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     let isMounted = true;
 
-    const initialize = async () => {
-      try {
-        // 1. Recupera sessão existente
-        const { data: { session: existingSession }, error } = await supabase.auth.getSession();
-
-        if (error) {
-          console.warn('[Auth] Erro getSession:', error.message);
-          if (isMounted) {
-            setSession(null);
-            setUser(null);
-          }
-          return;
-        }
-
-        console.log('[Auth] Sessão inicial:', existingSession ? `encontrada (${existingSession.user.email})` : 'nenhuma');
-
-        if (!isMounted) return;
-
-        if (existingSession?.user) {
-          setSession(existingSession);
-          const userData = await fetchUserData(existingSession.user);
-          if (isMounted) {
-            setUser(userData);
-          }
-        } else {
-          setSession(null);
-          setUser(null);
-        }
-      } catch (err) {
-        console.error('[Auth] Erro na inicialização:', err);
-        if (isMounted) {
-          setSession(null);
-          setUser(null);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    initialize();
-
-    // 2. Listener para mudanças APÓS a inicialização
+    // O listener processa TODOS os eventos de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       if (!isMounted) return;
-      console.log('[Auth] onAuthStateChange:', event);
+      console.log('[Auth] onAuthStateChange:', event, currentSession?.user?.email || 'sem sessão');
 
       if (event === 'SIGNED_OUT') {
         setSession(null);
         setUser(null);
         permissionsCache.current.clear();
+        setIsLoading(false);
         return;
       }
 
@@ -214,15 +166,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // Para SIGNED_IN e USER_UPDATED: atualiza dados
-      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && currentSession?.user) {
+      if (
+        (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') &&
+        currentSession?.user
+      ) {
         setSession(currentSession);
-        // Limpa cache para forçar reload dos dados
         permissionsCache.current.delete(currentSession.user.id);
         const userData = await fetchUserData(currentSession.user);
         if (isMounted) {
           setUser(userData);
+          setIsLoading(false);
         }
+        return;
+      }
+
+      // Sem sessão no INITIAL_SESSION
+      if (event === 'INITIAL_SESSION' && !currentSession) {
+        setSession(null);
+        setUser(null);
+        setIsLoading(false);
       }
     });
 
@@ -240,13 +202,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isConfigured) return { error: new Error('Sistema não configurado') };
 
     try {
-      clearOldSessions();
-      setIsLoading(true);
-
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
-        setIsLoading(false);
         toast({
           variant: 'destructive',
           title: 'Erro ao entrar',
@@ -257,19 +215,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error };
       }
 
-      if (data.session?.user) {
-        setSession(data.session);
-        permissionsCache.current.delete(data.session.user.id);
-        const userData = await fetchUserData(data.session.user);
-        setUser(userData);
-        console.log('[Auth] signIn OK — admin:', userData.isSuperAdmin, '| módulos:', userData.permissions.length);
-      }
-
-      setIsLoading(false);
+      // O onAuthStateChange (SIGNED_IN) vai processar o resultado automaticamente
       toast({ title: 'Bem-vindo!', description: 'Login realizado com sucesso.' });
       return { error: null };
     } catch (error) {
-      setIsLoading(false);
       console.error('[Auth] Exceção no signIn:', error);
       return { error: error as Error };
     }
@@ -305,12 +254,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
+      permissionsCache.current.clear();
       await supabase.auth.signOut({ scope: 'local' });
       toast({ title: 'Até logo!', description: 'Você saiu do sistema.' });
     } catch (error) {
       console.error('Erro ao sair:', error);
-    } finally {
-      permissionsCache.current.clear();
+      // Força limpeza mesmo com erro
       setUser(null);
       setSession(null);
     }
@@ -328,38 +277,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     permissionsCache.current.delete(session.user.id);
     const { permissions, permissoesDetalhadas, isSuperAdmin } = await fetchPermissoes(session.user.id);
     setUser({ ...user, permissions, permissoesDetalhadas, isSuperAdmin });
-  };
-
-  const resetPassword = async (email: string) => {
-    if (!isConfigured) return { error: new Error('Sistema não configurado') };
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth?mode=reset`,
-      });
-      if (error) {
-        toast({ variant: 'destructive', title: 'Erro ao enviar email', description: error.message });
-        return { error };
-      }
-      toast({ title: 'Email enviado!', description: 'Verifique sua caixa de entrada.' });
-      return { error: null };
-    } catch (error) {
-      return { error: error as Error };
-    }
-  };
-
-  const updatePassword = async (newPassword: string) => {
-    if (!isConfigured) return { error: new Error('Sistema não configurado') };
-    try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) {
-        toast({ variant: 'destructive', title: 'Erro ao atualizar senha', description: error.message });
-        return { error };
-      }
-      toast({ title: 'Senha atualizada!', description: 'Sua nova senha foi salva.' });
-      return { error: null };
-    } catch (error) {
-      return { error: error as Error };
-    }
   };
 
   // ============================================
@@ -395,6 +312,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const getUserPermissions = useCallback((): PermissionCode[] => user?.permissions || [], [user]);
   const getPermissoesDetalhadas = useCallback((): PermissaoUsuario[] => user?.permissoesDetalhadas || [], [user]);
+
+  const resetPassword = async (email: string) => {
+    if (!isConfigured) return { error: new Error('Sistema não configurado') };
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth?mode=reset`,
+      });
+      if (error) {
+        toast({ variant: 'destructive', title: 'Erro ao enviar email', description: error.message });
+        return { error };
+      }
+      toast({ title: 'Email enviado!', description: 'Verifique sua caixa de entrada.' });
+      return { error: null };
+    } catch (error) {
+      return { error: error as Error };
+    }
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    if (!isConfigured) return { error: new Error('Sistema não configurado') };
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        toast({ variant: 'destructive', title: 'Erro ao atualizar senha', description: error.message });
+        return { error };
+      }
+      toast({ title: 'Senha atualizada!', description: 'Sua nova senha foi salva.' });
+      return { error: null };
+    } catch (error) {
+      return { error: error as Error };
+    }
+  };
 
   // ============================================
   // CONTEXTO
@@ -435,7 +384,7 @@ export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     if (import.meta.hot) {
-      console.warn('[Auth] Context not found - HMR reload, returning safe defaults');
+      console.warn('[Auth] Context not found - HMR reload');
       return {
         user: null,
         isLoading: true,
@@ -460,3 +409,4 @@ export const useAuth = () => {
   }
   return context;
 };
+
