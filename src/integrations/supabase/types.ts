@@ -1451,13 +1451,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "banco_horas_servidor_id_fkey"
-            columns: ["servidor_id"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
-          },
         ]
       }
       bancos_cnab: {
@@ -3202,25 +3195,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "config_autarquia_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
-          },
-          {
             foreignKeyName: "config_autarquia_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "config_autarquia_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -4725,13 +4704,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "configuracao_jornada_servidor_id_fkey"
-            columns: ["servidor_id"]
-            isOneToOne: true
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
-          },
         ]
       }
       consignacoes: {
@@ -4829,13 +4801,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "consignacoes_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "consignacoes_rubrica_id_fkey"
@@ -4943,13 +4908,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contas_autarquia_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -6068,13 +6026,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "dependentes_irrf_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
-          },
-          {
             foreignKeyName: "dependentes_irrf_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
@@ -6186,25 +6137,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "designacoes_aprovado_por_fkey"
-            columns: ["aprovado_por"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
-          },
-          {
             foreignKeyName: "designacoes_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "designacoes_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "designacoes_lotacao_id_fkey"
@@ -7417,13 +7354,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "estrutura_organizacional_servidor_responsavel_id_fkey"
-            columns: ["servidor_responsavel_id"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
-          },
-          {
             foreignKeyName: "estrutura_organizacional_superior_id_fkey"
             columns: ["superior_id"]
             isOneToOne: false
@@ -7526,13 +7456,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "eventos_esocial_gerado_por_fkey"
-            columns: ["gerado_por"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "eventos_esocial_servidor_id_fkey"
@@ -7694,13 +7617,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "exportacoes_folha_enviado_por_fkey"
-            columns: ["enviado_por"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
-          },
-          {
             foreignKeyName: "exportacoes_folha_folha_id_fkey"
             columns: ["folha_id"]
             isOneToOne: false
@@ -7713,13 +7629,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "exportacoes_folha_gerado_por_fkey"
-            columns: ["gerado_por"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -10779,25 +10688,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "folhas_pagamento_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
-          },
-          {
             foreignKeyName: "folhas_pagamento_fechado_por_fkey"
             columns: ["fechado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "folhas_pagamento_fechado_por_fkey"
-            columns: ["fechado_por"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "folhas_pagamento_processado_por_fkey"
@@ -10807,25 +10702,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "folhas_pagamento_processado_por_fkey"
-            columns: ["processado_por"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
-          },
-          {
             foreignKeyName: "folhas_pagamento_reaberto_por_fkey"
             columns: ["reaberto_por"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "folhas_pagamento_reaberto_por_fkey"
-            columns: ["reaberto_por"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -12748,13 +12629,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "justificativas_ponto_aprovador_id_fkey"
-            columns: ["aprovador_id"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
-          },
-          {
             foreignKeyName: "justificativas_ponto_registro_ponto_id_fkey"
             columns: ["registro_ponto_id"]
             isOneToOne: false
@@ -13661,13 +13535,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "memorandos_lotacao_emitido_por_fkey"
-            columns: ["emitido_por"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
-          },
-          {
             foreignKeyName: "memorandos_lotacao_lotacao_id_fkey"
             columns: ["lotacao_id"]
             isOneToOne: false
@@ -13680,13 +13547,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "memorandos_lotacao_servidor_id_fkey"
-            columns: ["servidor_id"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "memorandos_lotacao_unidade_destino_id_fkey"
@@ -15069,25 +14929,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "parametros_folha_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
-          },
-          {
             foreignKeyName: "parametros_folha_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "parametros_folha_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -15548,13 +15394,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pensoes_alimenticias_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "pensoes_alimenticias_servidor_id_fkey"
@@ -17396,13 +17235,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "registros_ponto_aprovador_id_fkey"
-            columns: ["aprovador_id"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
-          },
-          {
             foreignKeyName: "registros_ponto_servidor_id_fkey"
             columns: ["servidor_id"]
             isOneToOne: false
@@ -17509,13 +17341,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "remessas_bancarias_enviado_por_fkey"
-            columns: ["enviado_por"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
-          },
-          {
             foreignKeyName: "remessas_bancarias_folha_id_fkey"
             columns: ["folha_id"]
             isOneToOne: false
@@ -17528,13 +17353,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "remessas_bancarias_gerado_por_fkey"
-            columns: ["gerado_por"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -17854,13 +17672,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "retornos_bancarios_processado_por_fkey"
-            columns: ["processado_por"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "retornos_bancarios_remessa_id_fkey"
@@ -18227,25 +18038,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "rubricas_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
-          },
-          {
             foreignKeyName: "rubricas_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "rubricas_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -18290,13 +18087,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "rubricas_historico_alterado_por_fkey"
-            columns: ["alterado_por"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "rubricas_historico_rubrica_id_fkey"
@@ -19030,13 +18820,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "solicitacoes_ajuste_ponto_aprovador_id_fkey"
-            columns: ["aprovador_id"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
-          },
-          {
             foreignKeyName: "solicitacoes_ajuste_ponto_registro_ponto_id_fkey"
             columns: ["registro_ponto_id"]
             isOneToOne: false
@@ -19049,13 +18832,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "solicitacoes_ajuste_ponto_servidor_id_fkey"
-            columns: ["servidor_id"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -19248,13 +19024,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "tabela_inss_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
-          },
         ]
       }
       tabela_irrf: {
@@ -19304,13 +19073,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tabela_irrf_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "v_diagnostico_acessos"
-            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -20011,19 +19773,6 @@ export type Database = {
         }
         Relationships: []
       }
-      v_diagnostico_acessos: {
-        Row: {
-          email: string | null
-          full_name: string | null
-          is_active: boolean | null
-          modulos: string | null
-          roles: string | null
-          situacao_descritiva: string | null
-          tipo_acesso: string | null
-          user_id: string | null
-        }
-        Relationships: []
-      }
       v_gestores_workflow_auditoria: {
         Row: {
           acao: string | null
@@ -20160,13 +19909,6 @@ export type Database = {
             | Database["public"]["Enums"]["tipo_instituicao"]
             | null
           total_solicitacoes?: never
-        }
-        Relationships: []
-      }
-      v_modulos_tabelas: {
-        Row: {
-          modulo: string | null
-          tabela: string | null
         }
         Relationships: []
       }
@@ -20659,6 +20401,19 @@ export type Database = {
           nomeacao_id: string
           servidor_id: string
           servidor_nome: string
+        }[]
+      }
+      get_diagnostico_acessos: {
+        Args: never
+        Returns: {
+          email: string
+          full_name: string
+          is_active: boolean
+          modulos: string
+          roles: string
+          situacao_descritiva: string
+          tipo_acesso: string
+          user_id: string
         }[]
       }
       get_hierarquia_unidade: {
