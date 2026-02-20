@@ -32,43 +32,14 @@ export interface HistoricoPagina {
   created_at: string;
 }
 
-// Hook para listar todas as páginas
+// ACESSO TOTAL: Sem consulta ao banco - retorna lista vazia
 export function usePaginasPublicas() {
-  return useQuery({
-    queryKey: ["config-paginas-publicas"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("config_paginas_publicas")
-        .select("*")
-        .order("nome");
-      
-      if (error) throw error;
-      return data as ConfigPaginaPublica[];
-    },
-  });
+  return { data: [] as ConfigPaginaPublica[], isLoading: false, error: null };
 }
 
-// Hook para buscar status de uma página específica por rota
-// Aumenta staleTime e desabilita quando rota vazia para evitar rate limit
-export function useStatusPagina(rota: string) {
-  return useQuery({
-    queryKey: ["status-pagina", rota],
-    queryFn: async () => {
-      if (!rota) return null;
-      const { data, error } = await supabase
-        .from("config_paginas_publicas")
-        .select("*")
-        .eq("rota", rota)
-        .maybeSingle();
-      
-      if (error) throw error;
-      return data as ConfigPaginaPublica | null;
-    },
-    enabled: !!rota,
-    staleTime: 5 * 60 * 1000, // Cache por 5 minutos para reduzir requests
-    gcTime: 10 * 60 * 1000,   // Manter em memória por 10 minutos
-    retry: false,              // Não tentar novamente em erro (evita loops)
-  });
+// ACESSO TOTAL: Sem consulta ao banco - página sempre ativa
+export function useStatusPagina(_rota: string) {
+  return { data: null, isLoading: false, error: null };
 }
 
 // Hook para buscar histórico de uma página
