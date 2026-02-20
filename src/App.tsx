@@ -232,7 +232,16 @@ import {
   CadastroBemSimplificadoPage,
 } from "./pages/inventario";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000,      // 1 minuto padrão
+      gcTime: 5 * 60 * 1000,     // 5 minutos em memória
+      retry: 1,                   // Apenas 1 retry
+      refetchOnWindowFocus: false, // Não refetch ao focar a janela
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
