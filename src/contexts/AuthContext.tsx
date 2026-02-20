@@ -148,6 +148,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     let isMounted = true;
 
+    // Timeout de segurança: se INITIAL_SESSION não disparar em 5s, libera o loading
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted) {
+        console.warn('[Auth] Timeout de segurança ativado — INITIAL_SESSION não disparou');
+        setIsLoading(false);
+      }
+    }, 5000);
+
     // O listener processa TODOS os eventos de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       if (!isMounted) return;
@@ -190,6 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => {
       isMounted = false;
+      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
   }, [fetchUserData, isConfigured]);

@@ -1,13 +1,12 @@
 /**
  * Wrapper que verifica o status da página pública antes de renderizar
- * Se a página estiver em manutenção ou desativada, exibe a tela apropriada
+ * Lógica fail-open: em caso de erro, timeout ou indisponibilidade, renderiza normalmente
  */
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useStatusPagina } from "@/hooks/useConfigPaginasPublicas";
 import { PaginaManutencao } from "./PaginaManutencao";
 import { PaginaDesativada } from "./PaginaDesativada";
-import { Loader2 } from "lucide-react";
 
 interface Props {
   rota: string;
@@ -18,17 +17,18 @@ interface Props {
 export function PublicPageGuard({ rota, children, fallbackRota }: Props) {
   const { data: status, isLoading, isError } = useStatusPagina(rota);
   const { data: statusFallback } = useStatusPagina(fallbackRota || "");
+  const [timedOut, setTimedOut] = useState(false);
 
-  // Em caso de erro ou timeout, renderiza os filhos normalmente (fail-open)
-  if (isError) return <>{children}</>;
+  // Timeout de segurança: se não resolver em 3s, renderiza os filhos (fail-open)
+  useEffect(() => {
+    if (!isLoading) return;
+    const t = setTimeout(() => setTimedOut(true), 3000);
+    return () => clearTimeout(t);
+  }, [isLoading]);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  // Fail-open: erro, timeout ou sem dados → renderiza filhos normalmente
+  if (isError || timedOut) return <>{children}</>;
+  if (isLoading) return <>{children}</>;
 
   const statusAtivo = status || statusFallback;
 
