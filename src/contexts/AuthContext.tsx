@@ -61,18 +61,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ============================================
 
   const fetchUserData = useCallback(async (authUser: User): Promise<AuthUser | null> => {
-    // ACESSO TOTAL: Sem consulta ao banco - retorna dados básicos do authUser
-    return {
-      id: authUser.id,
-      email: authUser.email || '',
-      fullName: authUser.user_metadata?.full_name || null,
-      avatarUrl: authUser.user_metadata?.avatar_url || null,
-      permissions: [],
-      permissoesDetalhadas: [],
-      isSuperAdmin: true,
-      requiresPasswordChange: false,
-    };
-  }, []);
+    if (fetchInProgressRef.current) {
+      console.log('[Auth] fetchUserData já em progresso, ignorando chamada duplicada');
+      return userRef.current;
+    }
+
+    fetchInProgressRef.current = true;
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      const { permissions, permissoesDetalhadas, isSuperAdmin } = await fetchPermissoes(authUser.id);
+
+      return {
+        id: authUser.id,
+        email: authUser.email || '',
+        fullName: profile?.full_name || null,
+        avatarUrl: profile?.avatar_url || null,
+        permissions,
+        permissoesDetalhadas,
+        isSuperAdmin,
+        servidorId: profile?.servidor_id || undefined,
+        tipoUsuario: profile?.tipo_usuario || undefined,
+        requiresPasswordChange: profile?.requires_password_change || false,
+      };
+    } catch (error) {
+      console.error('[Auth] Erro ao buscar dados do usuário:', error);
+      return {
+        id: authUser.id,
+        email: authUser.email || '',
+        fullName: null,
+        avatarUrl: null,
+        permissions: [],
+        permissoesDetalhadas: [],
+        isSuperAdmin: false,
+        requiresPasswordChange: false,
+      };
+    } finally {
+      fetchInProgressRef.current = false;
+    }
+  }, [fetchPermissoes]);
 
   // ============================================
   // INICIALIZAÇÃO E LISTENER
