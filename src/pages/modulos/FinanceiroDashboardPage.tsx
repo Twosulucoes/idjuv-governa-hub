@@ -1,49 +1,49 @@
 /**
  * DASHBOARD - FINANCEIRO
  * Usa ModuleLayout para navegação modular
+ * Consome useDashboardFinanceiro (hook centralizado) em vez de stats duplicados
  */
 
 import { DollarSign, FileText, CreditCard, TrendingUp, Receipt, Calculator } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
-import { useFinanceiroDashboardStats } from "@/hooks/dashboard";
+import { useDashboardFinanceiro } from "@/hooks/useFinanceiro";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-
-function formatCurrency(value: number): string {
-  if (value >= 1000000) {
-    return `R$ ${(value / 1000000).toFixed(1)}M`;
-  }
-  if (value >= 1000) {
-    return `R$ ${(value / 1000).toFixed(0)}K`;
-  }
-  return `R$ ${value.toFixed(0)}`;
-}
+import { formatCurrency } from "@/lib/formatters";
 
 export default function FinanceiroDashboardPage() {
-  const { data: stats, isLoading } = useFinanceiroDashboardStats();
+  const {
+    resumoOrcamentario,
+    pagamentosPendentes,
+    solicitacoesPendentes,
+    loading,
+  } = useDashboardFinanceiro();
+
+  const resumo = resumoOrcamentario.data;
+  const isLoading = loading;
 
   const statCards = [
     { 
-      label: "Dotação Anual", 
-      value: isLoading ? "..." : formatCurrency(stats?.dotacaoAnual || 0), 
+      label: "Dotação Atual", 
+      value: isLoading ? "..." : formatCurrency(resumo?.dotacao_atual || 0), 
       icon: DollarSign, 
       href: "/financeiro/orcamento" 
     },
     { 
       label: "Executado", 
-      value: isLoading ? "..." : `${stats?.percentualExecutado || 0}%`, 
+      value: isLoading ? "..." : `${(resumo?.percentual_executado || 0).toFixed(1)}%`, 
       icon: TrendingUp 
     },
     { 
-      label: "Empenhos Pendentes", 
-      value: isLoading ? "..." : String(stats?.empenhosPendentes || 0), 
+      label: "Solicitações Pendentes", 
+      value: isLoading ? "..." : String(solicitacoesPendentes.data || 0), 
       icon: FileText, 
-      href: "/financeiro/empenhos" 
+      href: "/financeiro/solicitacoes" 
     },
     { 
-      label: "Pagamentos", 
-      value: isLoading ? "..." : formatCurrency(stats?.valorPagamentos || 0), 
+      label: "Pago", 
+      value: isLoading ? "..." : formatCurrency(resumo?.pago || 0), 
       icon: CreditCard,
       href: "/financeiro/pagamentos"
     },

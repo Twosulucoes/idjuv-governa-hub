@@ -43,21 +43,11 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   STATUS_WORKFLOW_LABELS,
+  STATUS_WORKFLOW_COLORS,
   TIPO_ALTERACAO_LABELS,
   type TipoAlteracaoOrcamentaria,
   type StatusWorkflowFinanceiro,
 } from "@/types/financeiro";
-
-const statusColors: Record<string, string> = {
-  rascunho: "bg-gray-100 text-gray-800",
-  pendente_analise: "bg-yellow-100 text-yellow-800",
-  em_analise: "bg-blue-100 text-blue-800",
-  aprovado: "bg-green-100 text-green-800",
-  rejeitado: "bg-red-100 text-red-800",
-  cancelado: "bg-gray-200 text-gray-600",
-  executado: "bg-emerald-100 text-emerald-800",
-  estornado: "bg-orange-100 text-orange-800",
-};
 
 const tipoIcons: Record<string, typeof TrendingUp> = {
   suplementacao: TrendingUp,
@@ -123,8 +113,8 @@ export default function AlteracoesOrcamentariasPage() {
       dotacao_origem_id: needsOrigem && formDotOrigem ? formDotOrigem : null,
       dotacao_destino_id: needsDestino && formDotDestino ? formDotDestino : null,
       valor: parseFloat(formValor),
-      justificativa: formJustificativa,
-      fundamentacao_legal: formFundamentacao || null,
+      justificativa: formJustificativa.trim(),
+      fundamentacao_legal: formFundamentacao.trim() || null,
     });
 
     setDialogOpen(false);
@@ -297,7 +287,7 @@ export default function AlteracoesOrcamentariasPage() {
                           {formatCurrency(alt.valor)}
                         </TableCell>
                         <TableCell>
-                          <Badge className={statusColors[alt.status] || "bg-gray-100"}>
+                          <Badge className={STATUS_WORKFLOW_COLORS[alt.status] || "bg-gray-100"}>
                             {STATUS_WORKFLOW_LABELS[alt.status as StatusWorkflowFinanceiro] || alt.status}
                           </Badge>
                         </TableCell>
@@ -395,6 +385,7 @@ export default function AlteracoesOrcamentariasPage() {
                 value={formJustificativa}
                 onChange={(e) => setFormJustificativa(e.target.value)}
                 rows={3}
+                maxLength={2000}
               />
             </div>
 
@@ -404,6 +395,7 @@ export default function AlteracoesOrcamentariasPage() {
                 placeholder="Ex: Art. 43, §1º, inciso III, Lei 4.320/64"
                 value={formFundamentacao}
                 onChange={(e) => setFormFundamentacao(e.target.value)}
+                maxLength={200}
               />
             </div>
           </div>

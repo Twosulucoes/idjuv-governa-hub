@@ -87,10 +87,10 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
     await criarLiquidacao.mutateAsync({
       empenho_id: form.empenho_id,
       tipo_documento: form.tipo_documento,
-      numero_documento: form.numero_documento,
-      serie_documento: form.serie_documento || undefined,
+      numero_documento: form.numero_documento.trim(),
+      serie_documento: form.serie_documento.trim() || undefined,
       data_documento: form.data_documento,
-      chave_nfe: form.chave_nfe || undefined,
+      chave_nfe: form.chave_nfe.trim() || undefined,
       valor_documento: Number(form.valor_documento),
       valor_liquidado: Number(form.valor_liquidado),
       valor_retencoes: valorRetencoes,
@@ -98,7 +98,7 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
       retencao_irrf: Number(form.retencao_irrf) || 0,
       retencao_iss: Number(form.retencao_iss) || 0,
       outras_retencoes: Number(form.outras_retencoes) || 0,
-      observacoes: form.observacoes || undefined,
+      observacoes: form.observacoes.trim() || undefined,
     });
     resetForm();
     onOpenChange(false);
@@ -162,6 +162,7 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
                 value={form.numero_documento}
                 onChange={(e) => setForm((f) => ({ ...f, numero_documento: e.target.value }))}
                 required
+                maxLength={50}
               />
             </div>
           </div>
@@ -185,6 +186,7 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
                 placeholder="44 dígitos"
                 value={form.chave_nfe}
                 onChange={(e) => setForm((f) => ({ ...f, chave_nfe: e.target.value }))}
+                maxLength={44}
               />
             </div>
           </div>
@@ -278,6 +280,7 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
               value={form.observacoes}
               onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
               rows={2}
+              maxLength={1000}
             />
           </div>
 

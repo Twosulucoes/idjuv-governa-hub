@@ -90,9 +90,9 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
       natureza_despesa_id: form.natureza_despesa_id || undefined,
       fonte_recurso_id: form.fonte_recurso_id || undefined,
       valor_empenhado: Number(form.valor_empenhado),
-      objeto: form.objeto,
-      processo_sei: form.processo_sei || undefined,
-      observacoes: form.observacoes || undefined,
+      objeto: form.objeto.trim(),
+      processo_sei: form.processo_sei.trim() || undefined,
+      observacoes: form.observacoes.trim() || undefined,
     });
     resetForm();
     onOpenChange(false);
@@ -222,6 +222,7 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
               onChange={(e) => setForm((f) => ({ ...f, objeto: e.target.value }))}
               required
               rows={3}
+              maxLength={3000}
             />
           </div>
 
@@ -232,6 +233,7 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
               placeholder="Nº do processo"
               value={form.processo_sei}
               onChange={(e) => setForm((f) => ({ ...f, processo_sei: e.target.value }))}
+              maxLength={50}
             />
           </div>
 
@@ -243,6 +245,7 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
               value={form.observacoes}
               onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
               rows={2}
+              maxLength={1000}
             />
           </div>
 

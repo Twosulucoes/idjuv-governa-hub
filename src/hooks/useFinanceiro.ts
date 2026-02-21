@@ -154,8 +154,8 @@ export function useCriarSolicitacao() {
           data_solicitacao: dados.data_solicitacao || new Date().toISOString().split('T')[0],
           unidade_solicitante_id: dados.unidade_solicitante_id!,
           tipo_despesa: dados.tipo_despesa!,
-          objeto: dados.objeto!,
-          justificativa: dados.justificativa!,
+          objeto: (dados.objeto || '').trim(),
+          justificativa: (dados.justificativa || '').trim(),
           valor_estimado: dados.valor_estimado!,
           status: 'rascunho' as const,
           servidor_solicitante_id: dados.servidor_solicitante_id,
@@ -165,7 +165,7 @@ export function useCriarSolicitacao() {
           processo_licitatorio_id: dados.processo_licitatorio_id,
           prioridade: dados.prioridade || 'normal',
           prazo_execucao: dados.prazo_execucao,
-          observacoes: dados.observacoes,
+          observacoes: (dados.observacoes || '').trim() || undefined,
         })
         .select()
         .single();
@@ -246,7 +246,7 @@ export function useCriarEmpenho() {
           data_empenho: dados.data_empenho || new Date().toISOString().split('T')[0],
           dotacao_id: dados.dotacao_id!,
           fornecedor_id: dados.fornecedor_id!,
-          objeto: dados.objeto!,
+          objeto: (dados.objeto || '').trim(),
           valor_empenhado: dados.valor_empenhado!,
           tipo: dados.tipo || 'ordinario',
           status: 'emitido' as const,
@@ -254,8 +254,8 @@ export function useCriarEmpenho() {
           contrato_id: dados.contrato_id,
           natureza_despesa_id: dados.natureza_despesa_id,
           fonte_recurso_id: dados.fonte_recurso_id,
-          processo_sei: dados.processo_sei,
-          observacoes: dados.observacoes,
+          processo_sei: (dados.processo_sei || '').trim() || undefined,
+          observacoes: (dados.observacoes || '').trim() || undefined,
         })
         .select()
         .single();
@@ -338,19 +338,19 @@ export function useCriarLiquidacao() {
           data_liquidacao: dados.data_liquidacao || new Date().toISOString().split('T')[0],
           empenho_id: dados.empenho_id!,
           tipo_documento: dados.tipo_documento!,
-          numero_documento: dados.numero_documento!,
+          numero_documento: (dados.numero_documento || '').trim(),
           data_documento: dados.data_documento!,
           valor_documento: dados.valor_documento!,
           valor_liquidado: dados.valor_liquidado!,
           status: 'pendente' as const,
-          serie_documento: dados.serie_documento,
-          chave_nfe: dados.chave_nfe,
+          serie_documento: (dados.serie_documento || '').trim() || undefined,
+          chave_nfe: (dados.chave_nfe || '').trim() || undefined,
           valor_retencoes: dados.valor_retencoes,
           retencao_inss: dados.retencao_inss,
           retencao_irrf: dados.retencao_irrf,
           retencao_iss: dados.retencao_iss,
           outras_retencoes: dados.outras_retencoes,
-          observacoes: dados.observacoes,
+          observacoes: (dados.observacoes || '').trim() || undefined,
         })
         .select()
         .single();
@@ -436,13 +436,13 @@ export function useCriarPagamento() {
           forma_pagamento: dados.forma_pagamento!,
           status: 'programado' as const,
           fornecedor_id: dados.fornecedor_id,
-          banco_favorecido: dados.banco_favorecido,
-          agencia_favorecido: dados.agencia_favorecido,
-          conta_favorecido: dados.conta_favorecido,
+          banco_favorecido: (dados.banco_favorecido || '').trim() || undefined,
+          agencia_favorecido: (dados.agencia_favorecido || '').trim() || undefined,
+          conta_favorecido: (dados.conta_favorecido || '').trim() || undefined,
           tipo_conta_favorecido: dados.tipo_conta_favorecido,
           valor_retencoes: dados.valor_retencoes,
           identificador_transacao: dados.identificador_transacao,
-          observacoes: dados.observacoes,
+          observacoes: (dados.observacoes || '').trim() || undefined,
         })
         .select()
         .single();

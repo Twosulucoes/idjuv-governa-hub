@@ -90,11 +90,11 @@ export default function PagamentoFormDialog({ open, onOpenChange }: PagamentoFor
       forma_pagamento: form.forma_pagamento,
       valor_bruto: Number(form.valor_bruto),
       valor_retencoes: Number(form.valor_retencoes) || 0,
-      banco_favorecido: form.banco_favorecido || undefined,
-      agencia_favorecido: form.agencia_favorecido || undefined,
-      conta_favorecido: form.conta_favorecido || undefined,
+      banco_favorecido: form.banco_favorecido.trim() || undefined,
+      agencia_favorecido: form.agencia_favorecido.trim() || undefined,
+      conta_favorecido: form.conta_favorecido.trim() || undefined,
       tipo_conta_favorecido: form.tipo_conta_favorecido || undefined,
-      observacoes: form.observacoes || undefined,
+      observacoes: form.observacoes.trim() || undefined,
     });
     resetForm();
     onOpenChange(false);
@@ -256,6 +256,7 @@ export default function PagamentoFormDialog({ open, onOpenChange }: PagamentoFor
               value={form.observacoes}
               onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
               rows={2}
+              maxLength={1000}
             />
           </div>
 

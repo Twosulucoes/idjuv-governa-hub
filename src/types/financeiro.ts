@@ -870,3 +870,66 @@ export const TIPO_SUB_EMPENHO_LABELS: Record<TipoSubEmpenho, string> = {
   reforco: 'Reforço',
   anulacao: 'Anulação',
 };
+
+// ===========================================
+// STATUS COLORS (centralizados)
+// ===========================================
+
+export const STATUS_WORKFLOW_COLORS: Record<string, string> = {
+  rascunho: 'bg-gray-100 text-gray-800',
+  pendente_analise: 'bg-yellow-100 text-yellow-800',
+  em_analise: 'bg-blue-100 text-blue-800',
+  aprovado: 'bg-green-100 text-green-800',
+  rejeitado: 'bg-red-100 text-red-800',
+  cancelado: 'bg-gray-200 text-gray-600',
+  executado: 'bg-emerald-100 text-emerald-800',
+  estornado: 'bg-purple-100 text-purple-800',
+};
+
+export const STATUS_EMPENHO_COLORS: Record<string, string> = {
+  emitido: 'bg-blue-100 text-blue-800',
+  parcialmente_liquidado: 'bg-yellow-100 text-yellow-800',
+  liquidado: 'bg-cyan-100 text-cyan-800',
+  parcialmente_pago: 'bg-orange-100 text-orange-800',
+  pago: 'bg-green-100 text-green-800',
+  anulado: 'bg-red-100 text-red-800',
+};
+
+export const STATUS_LIQUIDACAO_COLORS: Record<string, string> = {
+  pendente: 'bg-yellow-100 text-yellow-800',
+  em_analise: 'bg-blue-100 text-blue-800',
+  atestada: 'bg-cyan-100 text-cyan-800',
+  aprovada: 'bg-green-100 text-green-800',
+  rejeitada: 'bg-red-100 text-red-800',
+  cancelada: 'bg-gray-200 text-gray-600',
+};
+
+export const STATUS_LIQUIDACAO_LABELS: Record<string, string> = {
+  pendente: 'Pendente',
+  em_analise: 'Em Análise',
+  atestada: 'Atestada',
+  aprovada: 'Aprovada',
+  rejeitada: 'Rejeitada',
+  cancelada: 'Cancelada',
+};
+
+export const STATUS_PAGAMENTO_COLORS: Record<string, string> = {
+  programado: 'bg-blue-100 text-blue-800',
+  autorizado: 'bg-cyan-100 text-cyan-800',
+  pago: 'bg-green-100 text-green-800',
+  devolvido: 'bg-orange-100 text-orange-800',
+  estornado: 'bg-red-100 text-red-800',
+  cancelado: 'bg-gray-200 text-gray-600',
+};
+
+export const STATUS_ADIANTAMENTO_COLORS: Record<string, string> = {
+  solicitado: 'bg-yellow-100 text-yellow-800',
+  autorizado: 'bg-blue-100 text-blue-800',
+  liberado: 'bg-green-100 text-green-800',
+  em_uso: 'bg-cyan-100 text-cyan-800',
+  prestacao_pendente: 'bg-orange-100 text-orange-800',
+  prestado: 'bg-emerald-100 text-emerald-800',
+  aprovado: 'bg-green-100 text-green-800',
+  rejeitado: 'bg-red-100 text-red-800',
+  bloqueado: 'bg-red-100 text-red-800',
+};
