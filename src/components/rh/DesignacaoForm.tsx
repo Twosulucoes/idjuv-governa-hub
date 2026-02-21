@@ -136,6 +136,8 @@ export function DesignacaoForm({ servidorId, servidorNome, open, onOpenChange }:
       return;
     }
 
+    if (dataFim && dataFim < dataInicio) return;
+
     await createDesignacao.mutateAsync({
       servidor_id: selectedServidorId,
       lotacao_id: lotacaoAtiva.id,
@@ -143,13 +145,13 @@ export function DesignacaoForm({ servidorId, servidorNome, open, onOpenChange }:
       unidade_destino_id: unidadeDestinoId,
       data_inicio: dataInicio,
       data_fim: dataFim || undefined,
-      justificativa: justificativa || undefined,
+      justificativa: justificativa.trim() || undefined,
       ato_tipo: atoTipo || undefined,
-      ato_numero: atoNumero || undefined,
+      ato_numero: atoNumero.trim() || undefined,
       ato_data: atoData || undefined,
-      ato_doe_numero: atoDoeNumero || undefined,
+      ato_doe_numero: atoDoeNumero.trim() || undefined,
       ato_doe_data: atoDoeData || undefined,
-      observacao: observacao || undefined,
+      observacao: observacao.trim() || undefined,
     });
 
     onOpenChange(false);
@@ -286,6 +288,7 @@ export function DesignacaoForm({ servidorId, servidorNome, open, onOpenChange }:
               placeholder="Motivo da designação temporária..."
               rows={3}
               disabled={!lotacaoAtiva}
+              maxLength={1000}
             />
           </div>
 
@@ -316,6 +319,7 @@ export function DesignacaoForm({ servidorId, servidorNome, open, onOpenChange }:
                   onChange={(e) => setAtoNumero(e.target.value)}
                   placeholder="Ex: 001/2025"
                   disabled={!lotacaoAtiva}
+                  maxLength={30}
                 />
               </div>
               <div>
@@ -336,6 +340,7 @@ export function DesignacaoForm({ servidorId, servidorNome, open, onOpenChange }:
                   onChange={(e) => setAtoDoeNumero(e.target.value)}
                   placeholder="Ex: 4567"
                   disabled={!lotacaoAtiva}
+                  maxLength={20}
                 />
               </div>
               <div>
@@ -359,6 +364,7 @@ export function DesignacaoForm({ servidorId, servidorNome, open, onOpenChange }:
               placeholder="Observações adicionais..."
               rows={2}
               disabled={!lotacaoAtiva}
+              maxLength={1000}
             />
           </div>
 

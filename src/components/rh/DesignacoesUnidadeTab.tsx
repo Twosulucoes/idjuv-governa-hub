@@ -127,13 +127,13 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
         servidor_id: servidorId,
         cargo: "Chefe de Unidade Local",
         ato_nomeacao_tipo: formData.ato_nomeacao_tipo,
-        ato_numero: formData.ato_numero,
+        ato_numero: formData.ato_numero.trim(),
         ato_data_publicacao: formData.ato_data_publicacao,
-        ato_doe_numero: formData.ato_doe_numero || null,
+        ato_doe_numero: formData.ato_doe_numero.trim() || null,
         ato_doe_data: formData.ato_doe_data || null,
         data_inicio: formData.data_inicio,
         status: "ativo",
-        observacoes: formData.observacoes || null,
+        observacoes: formData.observacoes.trim() || null,
         created_by: userData.user?.id,
       });
 
@@ -323,6 +323,7 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
                   onChange={(e) => setFormData({ ...formData, ato_numero: e.target.value })}
                   placeholder="Ex: 001/2025"
                   required
+                  maxLength={30}
                 />
               </div>
             </div>
@@ -341,7 +342,7 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>DOE Número</Label>
-                <Input value={formData.ato_doe_numero} onChange={(e) => setFormData({ ...formData, ato_doe_numero: e.target.value })} placeholder="Número do DOE" />
+                <Input value={formData.ato_doe_numero} onChange={(e) => setFormData({ ...formData, ato_doe_numero: e.target.value })} placeholder="Número do DOE" maxLength={20} />
               </div>
               <div className="space-y-2">
                 <Label>DOE Data</Label>
@@ -356,6 +357,7 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
                 onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
                 placeholder="Observações adicionais..."
                 rows={2}
+                maxLength={1000}
               />
             </div>
 

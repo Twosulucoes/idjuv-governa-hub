@@ -123,15 +123,15 @@ export function LotacaoForm({ servidorId, servidorNome, tipoServidor, open, onOp
       cargo_id: cargoId || undefined,
       tipo_lotacao: tipoLotacao,
       data_inicio: dataInicio,
-      funcao_exercida: funcaoExercida || undefined,
-      orgao_externo: isLotacaoExterna ? orgaoExterno : undefined,
+      funcao_exercida: funcaoExercida.trim() || undefined,
+      orgao_externo: isLotacaoExterna ? orgaoExterno.trim() || undefined : undefined,
       ato_tipo: atoTipo || undefined,
-      ato_numero: atoNumero || undefined,
+      ato_numero: atoNumero.trim() || undefined,
       ato_data: atoData || undefined,
-      ato_doe_numero: atoDoeNumero || undefined,
+      ato_doe_numero: atoDoeNumero.trim() || undefined,
       ato_doe_data: atoDoeData || undefined,
       tipo_movimentacao: tipoMovimentacao || undefined,
-      observacao: observacao || undefined,
+      observacao: observacao.trim() || undefined,
     });
 
     resetForm();
@@ -275,6 +275,7 @@ export function LotacaoForm({ servidorId, servidorNome, tipoServidor, open, onOp
                   value={atoNumero}
                   onChange={(e) => setAtoNumero(e.target.value)}
                   placeholder="Ex: 001/2024"
+                  maxLength={30}
                 />
               </div>
             </div>
@@ -293,6 +294,7 @@ export function LotacaoForm({ servidorId, servidorNome, tipoServidor, open, onOp
                   value={atoDoeNumero}
                   onChange={(e) => setAtoDoeNumero(e.target.value)}
                   placeholder="Ex: 4567"
+                  maxLength={20}
                 />
               </div>
               <div>

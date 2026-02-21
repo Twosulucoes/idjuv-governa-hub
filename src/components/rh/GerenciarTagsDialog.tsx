@@ -103,6 +103,7 @@ export function GerenciarTagsDialog({ open, onOpenChange }: GerenciarTagsDialogP
               value={novaTag}
               onChange={(e) => setNovaTag(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && criarTag.mutate()}
+              maxLength={50}
             />
             <Button onClick={() => criarTag.mutate()} size="icon" disabled={!novaTag.trim()}>
               <Plus className="h-4 w-4" />

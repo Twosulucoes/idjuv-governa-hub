@@ -101,8 +101,9 @@ export function CessaoForm({ servidorId, servidorNome, open, onOpenChange }: Pro
     e.preventDefault();
     
     if (!dataInicio) return;
-    if (isEntrada && !orgaoOrigem) return;
-    if (!isEntrada && !orgaoDestino) return;
+    if (isEntrada && !orgaoOrigem.trim()) return;
+    if (!isEntrada && !orgaoDestino.trim()) return;
+    if (dataFim && dataFim < dataInicio) return;
 
     await createCessao.mutateAsync({
       servidor_id: servidorId,
@@ -112,25 +113,25 @@ export function CessaoForm({ servidorId, servidorNome, open, onOpenChange }: Pro
       ativa: true,
       
       // Entrada
-      orgao_origem: isEntrada ? orgaoOrigem : undefined,
-      cargo_origem: isEntrada ? cargoOrigem : undefined,
+      orgao_origem: isEntrada ? orgaoOrigem.trim() : undefined,
+      cargo_origem: isEntrada ? cargoOrigem.trim() || undefined : undefined,
       vinculo_origem: isEntrada ? vinculoOrigem : undefined,
-      funcao_exercida_idjuv: isEntrada ? funcaoExercidaIdjuv : undefined,
+      funcao_exercida_idjuv: isEntrada ? funcaoExercidaIdjuv.trim() || undefined : undefined,
       unidade_idjuv_id: isEntrada ? (unidadeIdjuvId || undefined) : undefined,
       
       // Saída
-      orgao_destino: !isEntrada ? orgaoDestino : undefined,
-      cargo_destino: !isEntrada ? cargoDestino : undefined,
+      orgao_destino: !isEntrada ? orgaoDestino.trim() : undefined,
+      cargo_destino: !isEntrada ? cargoDestino.trim() || undefined : undefined,
       
       // Comum
       onus: onus as 'origem' | 'destino' | 'compartilhado' | undefined,
       ato_tipo: atoTipo || undefined,
-      ato_numero: atoNumero || undefined,
+      ato_numero: atoNumero.trim() || undefined,
       ato_data: atoData || undefined,
-      ato_doe_numero: atoDoeNumero || undefined,
+      ato_doe_numero: atoDoeNumero.trim() || undefined,
       ato_doe_data: atoDoeData || undefined,
-      fundamentacao_legal: fundamentacaoLegal || undefined,
-      observacoes: observacoes || undefined,
+      fundamentacao_legal: fundamentacaoLegal.trim() || undefined,
+      observacoes: observacoes.trim() || undefined,
     });
 
     resetForm();
@@ -337,6 +338,7 @@ export function CessaoForm({ servidorId, servidorNome, open, onOpenChange }: Pro
                   value={atoNumero}
                   onChange={(e) => setAtoNumero(e.target.value)}
                   placeholder="Ex: 001/2024"
+                  maxLength={30}
                 />
               </div>
               <div>
@@ -352,6 +354,7 @@ export function CessaoForm({ servidorId, servidorNome, open, onOpenChange }: Pro
                 <Input
                   value={atoDoeNumero}
                   onChange={(e) => setAtoDoeNumero(e.target.value)}
+                  maxLength={20}
                 />
               </div>
               <div>
