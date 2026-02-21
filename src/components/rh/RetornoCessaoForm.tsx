@@ -41,7 +41,7 @@ export function RetornoCessaoForm({ cessao, servidorNome, open, onOpenChange }: 
     await encerrarCessao.mutateAsync({
       cessaoId: cessao.id,
       dataRetorno,
-      atoRetornoNumero: atoRetornoNumero || undefined,
+      atoRetornoNumero: atoRetornoNumero.trim() || undefined,
       atoRetornoData: atoRetornoData || undefined,
     });
 
@@ -86,6 +86,7 @@ export function RetornoCessaoForm({ cessao, servidorNome, open, onOpenChange }: 
                 value={atoRetornoNumero}
                 onChange={(e) => setAtoRetornoNumero(e.target.value)}
                 placeholder="Ex: 001/2024"
+                maxLength={30}
               />
             </div>
             <div>

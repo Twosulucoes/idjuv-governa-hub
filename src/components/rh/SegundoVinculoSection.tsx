@@ -97,6 +97,7 @@ export function SegundoVinculoSection({
                 onChange={(e) => onChange("vinculo_externo_orgao", e.target.value.toUpperCase())}
                 placeholder="Ex: RECEITA FEDERAL DO BRASIL"
                 disabled={disabled}
+                maxLength={200}
               />
             </div>
           </div>
@@ -110,6 +111,7 @@ export function SegundoVinculoSection({
                 onChange={(e) => onChange("vinculo_externo_cargo", e.target.value.toUpperCase())}
                 placeholder="Ex: AUDITOR FISCAL"
                 disabled={disabled}
+                maxLength={200}
               />
             </div>
             <div>
@@ -119,6 +121,7 @@ export function SegundoVinculoSection({
                 onChange={(e) => onChange("vinculo_externo_matricula", e.target.value)}
                 placeholder="Opcional"
                 disabled={disabled}
+                maxLength={30}
               />
             </div>
           </div>
@@ -206,6 +209,7 @@ export function SegundoVinculoSection({
               placeholder="Informações adicionais sobre o vínculo externo..."
               rows={2}
               disabled={disabled}
+              maxLength={1000}
             />
           </div>
         </div>

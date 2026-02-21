@@ -63,7 +63,7 @@ export function ExoneracaoForm({ provimento, servidorNome, open, onOpenChange }:
       motivo,
       dataEncerramento,
       atoTipo: atoTipo || undefined,
-      atoNumero: atoNumero || undefined,
+      atoNumero: atoNumero.trim() || undefined,
       atoData: atoData || undefined,
     });
 
@@ -143,6 +143,7 @@ export function ExoneracaoForm({ provimento, servidorNome, open, onOpenChange }:
                   value={atoNumero}
                   onChange={(e) => setAtoNumero(e.target.value)}
                   placeholder="Ex: 001/2024"
+                  maxLength={30}
                 />
               </div>
               <div>
@@ -158,6 +159,7 @@ export function ExoneracaoForm({ provimento, servidorNome, open, onOpenChange }:
                 <Input
                   value={atoDoeNumero}
                   onChange={(e) => setAtoDoeNumero(e.target.value)}
+                  maxLength={20}
                 />
               </div>
               <div>
@@ -178,6 +180,7 @@ export function ExoneracaoForm({ provimento, servidorNome, open, onOpenChange }:
               value={observacoes}
               onChange={(e) => setObservacoes(e.target.value)}
               placeholder="Observações adicionais..."
+              maxLength={1000}
             />
           </div>
 

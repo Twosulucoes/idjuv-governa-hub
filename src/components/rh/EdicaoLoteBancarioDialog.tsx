@@ -245,7 +245,8 @@ export function EdicaoLoteBancarioDialog({ open, onOpenChange }: Props) {
                 <Input
                   placeholder="0000"
                   value={batchData.banco_agencia}
-                  onChange={(e) => setBatchData((p) => ({ ...p, banco_agencia: e.target.value }))}
+                  onChange={(e) => setBatchData((p) => ({ ...p, banco_agencia: e.target.value.replace(/[^0-9\-]/g, '') }))}
+                  maxLength={10}
                 />
               </div>
               <div className="space-y-2">
@@ -253,7 +254,8 @@ export function EdicaoLoteBancarioDialog({ open, onOpenChange }: Props) {
                 <Input
                   placeholder="00000000-X"
                   value={batchData.banco_conta}
-                  onChange={(e) => setBatchData((p) => ({ ...p, banco_conta: e.target.value }))}
+                  onChange={(e) => setBatchData((p) => ({ ...p, banco_conta: e.target.value.replace(/[^0-9\-X]/gi, '') }))}
+                  maxLength={20}
                 />
               </div>
               <div className="space-y-2">
@@ -364,16 +366,18 @@ export function EdicaoLoteBancarioDialog({ open, onOpenChange }: Props) {
                             <Input
                               placeholder="Agência"
                               value={edit.banco_agencia ?? servidor.banco_agencia ?? ""}
-                              onChange={(e) => handleIndividualChange(servidor.id, "banco_agencia", e.target.value)}
+                              onChange={(e) => handleIndividualChange(servidor.id, "banco_agencia", e.target.value.replace(/[^0-9\-]/g, ''))}
                               className="w-24"
+                              maxLength={10}
                             />
                           </TableCell>
                           <TableCell>
                             <Input
                               placeholder="Conta"
                               value={edit.banco_conta ?? servidor.banco_conta ?? ""}
-                              onChange={(e) => handleIndividualChange(servidor.id, "banco_conta", e.target.value)}
+                              onChange={(e) => handleIndividualChange(servidor.id, "banco_conta", e.target.value.replace(/[^0-9\-X]/gi, ''))}
                               className="w-28"
+                              maxLength={20}
                             />
                           </TableCell>
                           <TableCell>

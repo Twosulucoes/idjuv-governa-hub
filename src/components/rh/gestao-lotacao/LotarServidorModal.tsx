@@ -257,9 +257,9 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
       cargoId,
       unidadeId,
       dataInicio,
-      atoNumero: getAtoNumero() || undefined,
+      atoNumero: getAtoNumero()?.trim() || undefined,
       atoTipo: atoTipo || undefined,
-      observacao: observacao || undefined,
+      observacao: observacao.trim() || undefined,
     });
 
     resetForm();
@@ -466,6 +466,7 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
                   value={atoNumeroManual}
                   onChange={(e) => setAtoNumeroManual(e.target.value)}
                   placeholder="Ex: 001/2026"
+                  maxLength={30}
                 />
               )}
             </div>
@@ -479,6 +480,7 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
               onChange={(e) => setObservacao(e.target.value)}
               placeholder="Observações adicionais..."
               rows={2}
+              maxLength={1000}
             />
           </div>
 

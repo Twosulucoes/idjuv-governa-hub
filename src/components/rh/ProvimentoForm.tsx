@@ -312,6 +312,8 @@ export function ProvimentoForm({
     e.preventDefault();
     
     if (!cargoId || !dataNomeacao) return;
+    if (dataPosse && dataPosse < dataNomeacao) return;
+    if (dataExercicio && dataPosse && dataExercicio < dataPosse) return;
 
     await createProvimento.mutateAsync({
       servidor_id: servidorId,
@@ -321,7 +323,7 @@ export function ProvimentoForm({
       data_nomeacao: dataNomeacao,
       data_posse: dataPosse || undefined,
       data_exercicio: dataExercicio || undefined,
-      observacoes: observacoes || undefined,
+      observacoes: observacoes.trim() || undefined,
     });
 
     resetForm();
@@ -763,6 +765,7 @@ export function ProvimentoForm({
                       value={observacoes}
                       onChange={(e) => setObservacoes(e.target.value)}
                       placeholder="Observações adicionais..."
+                      maxLength={1000}
                     />
                   </div>
                 </div>

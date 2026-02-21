@@ -51,9 +51,9 @@ export function ExonerarServidorModal({ servidor, open, onOpenChange }: Props) {
     await exonerarServidor.mutateAsync({
       lotacaoId: servidor.lotacao_id,
       dataExoneracao,
-      atoNumero: atoNumero || undefined,
+      atoNumero: atoNumero.trim() || undefined,
       atoTipo: atoTipo || undefined,
-      observacao: observacao || undefined,
+      observacao: observacao.trim() || undefined,
     });
 
     resetForm();
@@ -138,6 +138,7 @@ export function ExonerarServidorModal({ servidor, open, onOpenChange }: Props) {
                 value={atoNumero}
                 onChange={(e) => setAtoNumero(e.target.value)}
                 placeholder="Ex: 001/2026"
+                maxLength={30}
               />
             </div>
           </div>
@@ -150,6 +151,7 @@ export function ExonerarServidorModal({ servidor, open, onOpenChange }: Props) {
               onChange={(e) => setObservacao(e.target.value)}
               placeholder="Motivo da exoneração..."
               rows={2}
+              maxLength={1000}
             />
           </div>
 
