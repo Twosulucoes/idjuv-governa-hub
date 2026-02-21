@@ -61,20 +61,20 @@ import { cn } from '@/lib/utils';
 const demandaSchema = z.object({
   categoria: z.string().min(1, 'Selecione uma categoria'),
   tipo: z.string().min(1, 'Selecione um tipo'),
-  titulo: z.string().min(5, 'Título deve ter no mínimo 5 caracteres').max(255),
-  descricao_detalhada: z.string().min(20, 'Descrição deve ter no mínimo 20 caracteres'),
-  objetivo_institucional: z.string().optional(),
-  publico_alvo: z.string().optional(),
+  titulo: z.string().min(5, 'Título deve ter no mínimo 5 caracteres').max(200, 'Título muito longo'),
+  descricao_detalhada: z.string().min(20, 'Descrição deve ter no mínimo 20 caracteres').max(3000, 'Descrição muito longa'),
+  objetivo_institucional: z.string().max(1000, 'Texto muito longo').optional(),
+  publico_alvo: z.string().max(500, 'Texto muito longo').optional(),
   
   unidade_solicitante_id: z.string().optional(),
-  nome_responsavel: z.string().min(3, 'Nome do responsável é obrigatório'),
-  cargo_funcao: z.string().optional(),
-  contato_telefone: z.string().optional(),
-  contato_email: z.string().email('Email inválido').optional().or(z.literal('')),
+  nome_responsavel: z.string().min(3, 'Nome do responsável é obrigatório').max(150, 'Nome muito longo'),
+  cargo_funcao: z.string().max(100, 'Texto muito longo').optional(),
+  contato_telefone: z.string().max(20, 'Telefone inválido').optional(),
+  contato_email: z.string().email('Email inválido').max(255).optional().or(z.literal('')),
   
   data_evento: z.date().optional(),
-  hora_evento: z.string().optional(),
-  local_evento: z.string().optional(),
+  hora_evento: z.string().max(5).optional(),
+  local_evento: z.string().max(300, 'Local muito longo').optional(),
   prazo_entrega: z.date({ required_error: 'Prazo de entrega é obrigatório' }),
   
   prioridade: z.string().default('normal')
@@ -190,8 +190,13 @@ export default function NovaDemandaAscomPage() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const novosArquivos = Array.from(e.target.files);
-      setArquivosParaUpload(prev => [...prev, ...novosArquivos]);
+      const validFiles = novosArquivos.filter(f => f.size <= 10 * 1024 * 1024); // 10MB max
+      if (validFiles.length !== novosArquivos.length) {
+        toast.warning('Alguns arquivos excederam o limite de 10MB e foram ignorados');
+      }
+      setArquivosParaUpload(prev => [...prev, ...validFiles]);
     }
+    e.target.value = '';
   };
 
   const removeFile = (index: number) => {
@@ -205,20 +210,22 @@ export default function NovaDemandaAscomPage() {
       const demanda = await criarDemanda({
         categoria: data.categoria as CategoriaDemandasAscom,
         tipo: data.tipo as TipoDemandaAscom,
-        titulo: data.titulo,
-        descricao_detalhada: data.descricao_detalhada,
-        objetivo_institucional: data.objetivo_institucional,
-        publico_alvo: data.publico_alvo,
+        titulo: data.titulo.trim(),
+        descricao_detalhada: data.descricao_detalhada.trim(),
+        objetivo_institucional: data.objetivo_institucional?.trim() || undefined,
+        publico_alvo: data.publico_alvo?.trim() || undefined,
         unidade_solicitante_id: data.unidade_solicitante_id || undefined,
-        nome_responsavel: data.nome_responsavel,
-        cargo_funcao: data.cargo_funcao,
-        contato_telefone: data.contato_telefone,
-        contato_email: data.contato_email || undefined,
+        servidor_solicitante_id: servidorLogado?.id || undefined,
+        nome_responsavel: data.nome_responsavel.trim(),
+        cargo_funcao: data.cargo_funcao?.trim() || undefined,
+        contato_telefone: data.contato_telefone?.trim() || undefined,
+        contato_email: data.contato_email?.trim() || undefined,
         data_evento: data.data_evento?.toISOString().split('T')[0],
-        hora_evento: data.hora_evento,
-        local_evento: data.local_evento,
+        hora_evento: data.hora_evento?.trim() || undefined,
+        local_evento: data.local_evento?.trim() || undefined,
         prazo_entrega: data.prazo_entrega.toISOString().split('T')[0],
         prioridade: data.prioridade as PrioridadeDemandaAscom,
+        requer_autorizacao_presidencia: requerAutorizacao,
         status: 'rascunho'
       });
 
@@ -372,7 +379,7 @@ export default function NovaDemandaAscomPage() {
                     <FormItem>
                       <FormLabel>Título *</FormLabel>
                       <FormControl>
-                        <Input placeholder="Título da demanda" {...field} />
+                        <Input placeholder="Título da demanda" maxLength={200} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -389,6 +396,7 @@ export default function NovaDemandaAscomPage() {
                         <Textarea 
                           placeholder="Descreva detalhadamente o que precisa ser feito..."
                           className="min-h-[120px]"
+                          maxLength={3000}
                           {...field}
                         />
                       </FormControl>
@@ -411,6 +419,7 @@ export default function NovaDemandaAscomPage() {
                           <Textarea 
                             placeholder="Qual o objetivo desta comunicação?"
                             className="min-h-[80px]"
+                            maxLength={1000}
                             {...field}
                           />
                         </FormControl>
@@ -429,6 +438,7 @@ export default function NovaDemandaAscomPage() {
                           <Textarea 
                             placeholder="Quem é o público-alvo desta comunicação?"
                             className="min-h-[80px]"
+                            maxLength={500}
                             {...field}
                           />
                         </FormControl>
@@ -479,7 +489,7 @@ export default function NovaDemandaAscomPage() {
                       <FormItem>
                         <FormLabel>Nome do Responsável *</FormLabel>
                         <FormControl>
-                          <Input placeholder="Nome completo" {...field} />
+                          <Input placeholder="Nome completo" maxLength={150} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -493,7 +503,7 @@ export default function NovaDemandaAscomPage() {
                       <FormItem>
                         <FormLabel>Cargo/Função</FormLabel>
                         <FormControl>
-                          <Input placeholder="Cargo ou função" {...field} />
+                          <Input placeholder="Cargo ou função" maxLength={100} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -509,7 +519,7 @@ export default function NovaDemandaAscomPage() {
                       <FormItem>
                         <FormLabel>Telefone</FormLabel>
                         <FormControl>
-                          <Input placeholder="(99) 99999-9999" {...field} />
+                          <Input placeholder="(99) 99999-9999" maxLength={20} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -523,7 +533,7 @@ export default function NovaDemandaAscomPage() {
                       <FormItem>
                         <FormLabel>E-mail</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="email@exemplo.com" {...field} />
+                          <Input type="email" placeholder="email@exemplo.com" maxLength={255} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -641,7 +651,7 @@ export default function NovaDemandaAscomPage() {
                     <FormItem>
                       <FormLabel>Local do Evento</FormLabel>
                       <FormControl>
-                        <Input placeholder="Endereço ou local do evento" {...field} />
+                        <Input placeholder="Endereço ou local do evento" maxLength={300} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

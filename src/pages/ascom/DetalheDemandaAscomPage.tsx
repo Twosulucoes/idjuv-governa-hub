@@ -110,7 +110,8 @@ export default function DetalheDemandaAscomPage() {
     tipo_entregavel: '',
     descricao: '',
     url_arquivo: '',
-    link_publicacao: ''
+    link_publicacao: '',
+    data_entrega: new Date().toISOString()
   });
 
   const isAscom = isSuperAdmin || hasAnyPermission(['ascom.demandas.tratar', 'ascom.demandas.visualizar']);
@@ -189,12 +190,21 @@ export default function DetalheDemandaAscomPage() {
   };
 
   const handleAdicionarEntregavel = async () => {
-    if (!id || !novoEntregavel.tipo_entregavel || !novoEntregavel.descricao) return;
+    if (!id || !novoEntregavel.tipo_entregavel.trim() || !novoEntregavel.descricao.trim()) {
+      toast.error('Preencha o tipo e a descrição do entregável');
+      return;
+    }
     
-    const result = await adicionarEntregavel(id, novoEntregavel);
+    const result = await adicionarEntregavel(id, {
+      tipo_entregavel: novoEntregavel.tipo_entregavel.trim(),
+      descricao: novoEntregavel.descricao.trim(),
+      url_arquivo: novoEntregavel.url_arquivo.trim() || undefined,
+      link_publicacao: novoEntregavel.link_publicacao.trim() || undefined,
+      data_entrega: new Date().toISOString()
+    });
     if (result) {
       setEntregaveis(prev => [result, ...prev]);
-      setNovoEntregavel({ tipo_entregavel: '', descricao: '', url_arquivo: '', link_publicacao: '' });
+      setNovoEntregavel({ tipo_entregavel: '', descricao: '', url_arquivo: '', link_publicacao: '', data_entrega: new Date().toISOString() });
       setDialogEntregavel(false);
     }
   };
@@ -479,19 +489,21 @@ export default function DetalheDemandaAscomPage() {
                             </DialogHeader>
                             <div className="space-y-4">
                               <div>
-                                <Label>Tipo de Entregável</Label>
+                                <Label>Tipo de Entregável *</Label>
                                 <Input 
                                   value={novoEntregavel.tipo_entregavel}
                                   onChange={(e) => setNovoEntregavel(prev => ({ ...prev, tipo_entregavel: e.target.value }))}
                                   placeholder="Ex: Arte, Foto, Vídeo, Texto..."
+                                  maxLength={100}
                                 />
                               </div>
                               <div>
-                                <Label>Descrição</Label>
+                                <Label>Descrição *</Label>
                                 <Textarea 
                                   value={novoEntregavel.descricao}
                                   onChange={(e) => setNovoEntregavel(prev => ({ ...prev, descricao: e.target.value }))}
                                   placeholder="Descreva o entregável..."
+                                  maxLength={1000}
                                 />
                               </div>
                               <div>
@@ -500,6 +512,7 @@ export default function DetalheDemandaAscomPage() {
                                   value={novoEntregavel.link_publicacao}
                                   onChange={(e) => setNovoEntregavel(prev => ({ ...prev, link_publicacao: e.target.value }))}
                                   placeholder="https://..."
+                                  maxLength={500}
                                 />
                               </div>
                             </div>
@@ -556,6 +569,7 @@ export default function DetalheDemandaAscomPage() {
                           onChange={(e) => setNovoComentario(e.target.value)}
                           placeholder="Escreva um comentário..."
                           className="min-h-[80px]"
+                          maxLength={2000}
                         />
                         <div className="flex items-center justify-between">
                           {isAscom && (
@@ -770,6 +784,7 @@ export default function DetalheDemandaAscomPage() {
               onChange={(e) => setJustificativaIndeferimento(e.target.value)}
               placeholder="Descreva o motivo do indeferimento..."
               className="min-h-[100px]"
+              maxLength={1000}
             />
           </div>
           <DialogFooter>
@@ -778,7 +793,7 @@ export default function DetalheDemandaAscomPage() {
             </Button>
             <Button 
               variant="destructive"
-              onClick={() => handleAlterarStatus('indeferida', justificativaIndeferimento)}
+              onClick={() => handleAlterarStatus('indeferida', justificativaIndeferimento.trim())}
               disabled={!justificativaIndeferimento.trim()}
             >
               Confirmar Indeferimento
