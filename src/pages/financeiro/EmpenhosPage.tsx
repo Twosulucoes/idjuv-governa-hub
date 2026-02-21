@@ -31,16 +31,7 @@ import { useEmpenhos } from "@/hooks/useFinanceiro";
 import { formatCurrency } from "@/lib/formatters";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { STATUS_EMPENHO_LABELS, TIPO_EMPENHO_LABELS } from "@/types/financeiro";
-
-const statusColors: Record<string, string> = {
-  emitido: "bg-blue-100 text-blue-800",
-  parcialmente_liquidado: "bg-yellow-100 text-yellow-800",
-  liquidado: "bg-cyan-100 text-cyan-800",
-  parcialmente_pago: "bg-orange-100 text-orange-800",
-  pago: "bg-green-100 text-green-800",
-  anulado: "bg-red-100 text-red-800",
-};
+import { STATUS_EMPENHO_LABELS, TIPO_EMPENHO_LABELS, STATUS_EMPENHO_COLORS } from "@/types/financeiro";
 
 export default function EmpenhosPage() {
   const [searchParams] = useSearchParams();
@@ -188,7 +179,7 @@ export default function EmpenhosPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Badge className={statusColors[emp.status] || "bg-gray-100"}>
+                        <Badge className={STATUS_EMPENHO_COLORS[emp.status] || "bg-gray-100"}>
                           {STATUS_EMPENHO_LABELS[emp.status as keyof typeof STATUS_EMPENHO_LABELS] || emp.status}
                         </Badge>
                       </TableCell>

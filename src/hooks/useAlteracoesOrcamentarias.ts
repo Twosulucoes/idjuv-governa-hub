@@ -79,8 +79,8 @@ export function useCriarAlteracaoOrcamentaria() {
           dotacao_origem_id: dados.dotacao_origem_id,
           dotacao_destino_id: dados.dotacao_destino_id,
           valor: dados.valor,
-          justificativa: dados.justificativa,
-          fundamentacao_legal: dados.fundamentacao_legal,
+          justificativa: (dados.justificativa || '').trim(),
+          fundamentacao_legal: (dados.fundamentacao_legal || '').trim() || undefined,
           status: "rascunho" as const,
         })
         .select()

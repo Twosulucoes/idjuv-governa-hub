@@ -23,20 +23,7 @@ import {
 import { Search, Plus, FileCheck, Eye, Paperclip } from "lucide-react";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { useLiquidacoes } from "@/hooks/useFinanceiro";
-
-const statusColors: Record<string, string> = {
-  pendente: "bg-yellow-100 text-yellow-800",
-  em_analise: "bg-blue-100 text-blue-800",
-  aprovada: "bg-green-100 text-green-800",
-  rejeitada: "bg-red-100 text-red-800",
-};
-
-const statusLabels: Record<string, string> = {
-  pendente: "Pendente",
-  em_analise: "Em Análise",
-  aprovada: "Aprovada",
-  rejeitada: "Rejeitada",
-};
+import { STATUS_LIQUIDACAO_COLORS, STATUS_LIQUIDACAO_LABELS } from "@/types/financeiro";
 
 export default function LiquidacoesPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -135,8 +122,8 @@ export default function LiquidacoesPage() {
                         {formatCurrency(liq.valor_liquidado)}
                       </TableCell>
                       <TableCell>
-                        <Badge className={statusColors[liq.status] || ""}>
-                          {statusLabels[liq.status] || liq.status}
+                        <Badge className={STATUS_LIQUIDACAO_COLORS[liq.status] || ""}>
+                          {STATUS_LIQUIDACAO_LABELS[liq.status] || liq.status}
                         </Badge>
                       </TableCell>
                       <TableCell>

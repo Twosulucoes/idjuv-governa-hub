@@ -31,16 +31,7 @@ import { usePagamentos } from "@/hooks/useFinanceiro";
 import { formatCurrency } from "@/lib/formatters";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { STATUS_PAGAMENTO_LABELS } from "@/types/financeiro";
-
-const statusColors: Record<string, string> = {
-  programado: "bg-blue-100 text-blue-800",
-  autorizado: "bg-cyan-100 text-cyan-800",
-  pago: "bg-green-100 text-green-800",
-  devolvido: "bg-orange-100 text-orange-800",
-  estornado: "bg-red-100 text-red-800",
-  cancelado: "bg-gray-100 text-gray-600",
-};
+import { STATUS_PAGAMENTO_LABELS, STATUS_PAGAMENTO_COLORS } from "@/types/financeiro";
 
 export default function PagamentosPage() {
   const [searchParams] = useSearchParams();
@@ -219,7 +210,7 @@ export default function PagamentosPage() {
                         {formatCurrency(Number(pag.valor_liquido))}
                       </TableCell>
                       <TableCell>
-                        <Badge className={statusColors[pag.status] || "bg-gray-100"}>
+                        <Badge className={STATUS_PAGAMENTO_COLORS[pag.status] || "bg-gray-100"}>
                           {STATUS_PAGAMENTO_LABELS[pag.status as keyof typeof STATUS_PAGAMENTO_LABELS] || pag.status}
                         </Badge>
                       </TableCell>

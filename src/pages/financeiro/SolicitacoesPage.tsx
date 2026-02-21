@@ -30,18 +30,7 @@ import { useSolicitacoes } from "@/hooks/useFinanceiro";
 import { formatCurrency } from "@/lib/formatters";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { STATUS_WORKFLOW_LABELS, PRIORIDADE_OPTIONS } from "@/types/financeiro";
-
-const statusColors: Record<string, string> = {
-  rascunho: "bg-gray-100 text-gray-800",
-  pendente_analise: "bg-yellow-100 text-yellow-800",
-  em_analise: "bg-blue-100 text-blue-800",
-  aprovado: "bg-green-100 text-green-800",
-  rejeitado: "bg-red-100 text-red-800",
-  cancelado: "bg-gray-100 text-gray-600",
-  executado: "bg-emerald-100 text-emerald-800",
-  estornado: "bg-purple-100 text-purple-800",
-};
+import { STATUS_WORKFLOW_LABELS, PRIORIDADE_OPTIONS, STATUS_WORKFLOW_COLORS } from "@/types/financeiro";
 
 export default function SolicitacoesPage() {
   const [searchParams] = useSearchParams();
@@ -186,7 +175,7 @@ export default function SolicitacoesPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge className={statusColors[sol.status] || "bg-gray-100"}>
+                          <Badge className={STATUS_WORKFLOW_COLORS[sol.status] || "bg-gray-100"}>
                             {STATUS_WORKFLOW_LABELS[sol.status as keyof typeof STATUS_WORKFLOW_LABELS] || sol.status}
                           </Badge>
                         </TableCell>

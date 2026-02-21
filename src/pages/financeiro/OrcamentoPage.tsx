@@ -38,13 +38,11 @@ export default function OrcamentoPage() {
     );
   });
 
-  const totalDotacao = dotacoes?.reduce((acc, d) => acc + (d.valor_atual || 0), 0) || 0;
-  const totalEmpenhado = dotacoes?.reduce((acc, d) => acc + (d.valor_empenhado || 0), 0) || 0;
-  const saldoDisponivel = dotacoes?.reduce((acc, d) => acc + (d.saldo_disponivel || 0), 0) || 0;
-
-  const percentualExecutado = totalDotacao > 0 
-    ? ((totalEmpenhado / totalDotacao) * 100) 
-    : 0;
+  // Usar dados do resumo centralizado em vez de recalcular
+  const totalDotacao = resumo?.dotacao_atual || 0;
+  const totalEmpenhado = resumo?.empenhado || 0;
+  const saldoDisponivel = resumo?.saldo_disponivel || 0;
+  const percentualExecutado = resumo?.percentual_executado || 0;
 
   return (
     <ModuleLayout module="financeiro">

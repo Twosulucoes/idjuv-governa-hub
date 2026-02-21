@@ -22,26 +22,7 @@ import {
 import { Search, Plus, Wallet, Eye, AlertTriangle } from "lucide-react";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { useAdiantamentos } from "@/hooks/useFinanceiro";
-
-const statusColors: Record<string, string> = {
-  solicitado: "bg-yellow-100 text-yellow-800",
-  autorizado: "bg-blue-100 text-blue-800",
-  liberado: "bg-green-100 text-green-800",
-  em_comprovacao: "bg-orange-100 text-orange-800",
-  comprovado: "bg-emerald-100 text-emerald-800",
-  pendente_devolucao: "bg-red-100 text-red-800",
-  encerrado: "bg-gray-100 text-gray-800",
-};
-
-const statusLabels: Record<string, string> = {
-  solicitado: "Solicitado",
-  autorizado: "Autorizado",
-  liberado: "Liberado",
-  em_comprovacao: "Em Comprovação",
-  comprovado: "Comprovado",
-  pendente_devolucao: "Pendente Devolução",
-  encerrado: "Encerrado",
-};
+import { STATUS_ADIANTAMENTO_LABELS, STATUS_ADIANTAMENTO_COLORS } from "@/types/financeiro";
 
 export default function AdiantamentosPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -161,8 +142,8 @@ export default function AdiantamentosPage() {
                         {formatDateBR(adi.prazo_prestacao_contas)}
                       </TableCell>
                       <TableCell>
-                        <Badge className={statusColors[adi.status] || ""}>
-                          {statusLabels[adi.status] || adi.status}
+                        <Badge className={STATUS_ADIANTAMENTO_COLORS[adi.status] || ""}>
+                          {STATUS_ADIANTAMENTO_LABELS[adi.status] || adi.status}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
