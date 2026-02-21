@@ -494,6 +494,7 @@ function OrganogramaCanvasInner({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 w-64 bg-background"
+                maxLength={100}
                 disabled={editMode}
               />
             </div>

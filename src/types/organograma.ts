@@ -67,17 +67,17 @@ export interface Lotacao {
   cargo?: Cargo;
 }
 
-// Cores por tipo de unidade
+// Cores por tipo de unidade (usando tokens semânticos do design system)
 export const CORES_UNIDADE: Record<TipoUnidade, { bg: string; border: string; text: string }> = {
   presidencia: { bg: 'bg-primary', border: 'border-primary', text: 'text-primary-foreground' },
   diretoria: { bg: 'bg-secondary', border: 'border-secondary', text: 'text-secondary-foreground' },
   departamento: { bg: 'bg-accent', border: 'border-accent', text: 'text-accent-foreground' },
-  setor: { bg: 'bg-highlight', border: 'border-highlight', text: 'text-primary-foreground' },
-  divisao: { bg: 'bg-info', border: 'border-info', text: 'text-primary-foreground' },
-  secao: { bg: 'bg-success', border: 'border-success', text: 'text-primary-foreground' },
-  coordenacao: { bg: 'bg-warning', border: 'border-warning', text: 'text-primary-foreground' },
-  assessoria: { bg: 'bg-amber-500', border: 'border-amber-500', text: 'text-white' },
-  nucleo: { bg: 'bg-slate-500', border: 'border-slate-500', text: 'text-white' },
+  setor: { bg: 'bg-highlight', border: 'border-highlight', text: 'text-highlight-foreground' },
+  divisao: { bg: 'bg-info', border: 'border-info', text: 'text-info-foreground' },
+  secao: { bg: 'bg-success', border: 'border-success', text: 'text-success-foreground' },
+  coordenacao: { bg: 'bg-warning', border: 'border-warning', text: 'text-warning-foreground' },
+  assessoria: { bg: 'bg-muted', border: 'border-muted', text: 'text-muted-foreground' },
+  nucleo: { bg: 'bg-muted', border: 'border-muted', text: 'text-muted-foreground' },
 };
 
 export const LABELS_UNIDADE: Record<TipoUnidade, string> = {

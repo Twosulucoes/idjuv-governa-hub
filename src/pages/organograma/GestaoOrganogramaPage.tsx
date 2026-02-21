@@ -8,7 +8,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,7 +31,10 @@ import {
   Building2,
   Search,
   Save,
-  ChevronRight
+  ChevronRight,
+  Loader2,
+  AlertTriangle,
+  Users
 } from 'lucide-react';
 import { LABELS_UNIDADE, TipoUnidade, UnidadeOrganizacional } from '@/types/organograma';
 
@@ -51,13 +64,20 @@ const initialFormData: FormData = {
   lei_criacao_numero: '',
 };
 
+// Validação de email simples
+const isValidEmail = (email: string) => {
+  if (!email) return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+
 export default function GestaoOrganogramaPage() {
-  const { unidades, loading, refetch } = useOrganograma();
+  const { unidades, lotacoes, loading, refetch, contarServidores } = useOrganograma();
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUnidade, setEditingUnidade] = useState<UnidadeOrganizacional | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<UnidadeOrganizacional | null>(null);
   const { toast } = useToast();
 
   const filteredUnidades = unidades.filter(u =>
@@ -89,10 +109,23 @@ export default function GestaoOrganogramaPage() {
   };
 
   const handleSave = async () => {
-    if (!formData.nome || !formData.tipo) {
+    const nome = formData.nome.trim();
+    const sigla = formData.sigla.trim();
+    const email = formData.email.trim();
+
+    if (!nome || !formData.tipo) {
       toast({
         title: 'Campos obrigatórios',
         description: 'Preencha o nome e tipo da unidade.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (email && !isValidEmail(email)) {
+      toast({
+        title: 'E-mail inválido',
+        description: 'Informe um e-mail válido.',
         variant: 'destructive',
       });
       return;
@@ -104,17 +137,17 @@ export default function GestaoOrganogramaPage() {
       const nivel = superiorUnidade ? superiorUnidade.nivel + 1 : 1;
 
       const dataToSave = {
-        nome: formData.nome,
-        sigla: formData.sigla || null,
+        nome,
+        sigla: sigla || null,
         tipo: formData.tipo as "presidencia" | "diretoria" | "departamento" | "setor" | "divisao" | "secao" | "coordenacao" | "assessoria" | "nucleo",
         nivel,
         superior_id: formData.superior_id || null,
-        descricao: formData.descricao || null,
-        telefone: formData.telefone || null,
-        ramal: formData.ramal || null,
-        email: formData.email || null,
-        localizacao: formData.localizacao || null,
-        lei_criacao_numero: formData.lei_criacao_numero || null,
+        descricao: formData.descricao.trim() || null,
+        telefone: formData.telefone.trim() || null,
+        ramal: formData.ramal.trim() || null,
+        email: email || null,
+        localizacao: formData.localizacao.trim() || null,
+        lei_criacao_numero: formData.lei_criacao_numero.trim() || null,
       };
 
       if (editingUnidade) {
@@ -147,24 +180,38 @@ export default function GestaoOrganogramaPage() {
     }
   };
 
-  const handleDelete = async (unidade: UnidadeOrganizacional) => {
-    if (!confirm(`Deseja realmente excluir a unidade "${unidade.nome}"?`)) return;
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+
+    // Verificar se tem subordinados
+    const subordinados = unidades.filter(u => u.superior_id === deleteTarget.id);
+    if (subordinados.length > 0) {
+      toast({
+        title: 'Não é possível desativar',
+        description: `Esta unidade possui ${subordinados.length} unidade(s) subordinada(s). Remova-as primeiro.`,
+        variant: 'destructive',
+      });
+      setDeleteTarget(null);
+      return;
+    }
 
     try {
       const { error } = await supabase
         .from('estrutura_organizacional')
         .update({ ativo: false })
-        .eq('id', unidade.id);
+        .eq('id', deleteTarget.id);
 
       if (error) throw error;
       toast({ title: 'Unidade desativada com sucesso!' });
       refetch();
     } catch (error: any) {
       toast({
-        title: 'Erro ao excluir',
+        title: 'Erro ao desativar',
         description: error.message,
         variant: 'destructive',
       });
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -172,39 +219,55 @@ export default function GestaoOrganogramaPage() {
   const renderUnidadeTree = (parentId: string | null = null, level = 0): JSX.Element[] => {
     return filteredUnidades
       .filter(u => u.superior_id === parentId)
-      .map(unidade => (
-        <div key={unidade.id}>
-          <div 
-            className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors rounded-lg"
-            style={{ marginLeft: level * 24 }}
-          >
-            <div className="flex items-center gap-3">
-              {level > 0 && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-              <Building2 className="h-5 w-5 text-primary" />
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{unidade.nome}</span>
-                  {unidade.sigla && (
-                    <span className="text-xs font-mono text-muted-foreground">({unidade.sigla})</span>
-                  )}
+      .map(unidade => {
+        const servidoresCount = contarServidores(unidade.id, false);
+        return (
+          <div key={unidade.id}>
+            <div 
+              className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors rounded-lg group"
+              style={{ marginLeft: level * 24 }}
+            >
+              <div className="flex items-center gap-3">
+                {level > 0 && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                <Building2 className="h-5 w-5 text-primary" />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{unidade.nome}</span>
+                    {unidade.sigla && (
+                      <span className="text-xs font-mono text-muted-foreground">({unidade.sigla})</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline" className="text-xs">
+                      {LABELS_UNIDADE[unidade.tipo]}
+                    </Badge>
+                    {servidoresCount > 0 && (
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        {servidoresCount}
+                      </span>
+                    )}
+                    {unidade.servidor_responsavel && (
+                      <span className="text-xs text-muted-foreground">
+                        • {unidade.servidor_responsavel.full_name}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <Badge variant="outline" className="text-xs mt-1">
-                  {LABELS_UNIDADE[unidade.tipo]}
-                </Badge>
+              </div>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button variant="ghost" size="sm" onClick={() => handleOpenEdit(unidade)}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(unidade)}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => handleOpenEdit(unidade)}>
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => handleDelete(unidade)}>
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            </div>
+            {renderUnidadeTree(unidade.id, level + 1)}
           </div>
-          {renderUnidadeTree(unidade.id, level + 1)}
-        </div>
-      ));
+        );
+      });
   };
 
   return (
@@ -234,6 +297,34 @@ export default function GestaoOrganogramaPage() {
           </Button>
         </div>
 
+        {/* Estatísticas rápidas */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <p className="text-2xl font-bold">{unidades.length}</p>
+              <p className="text-xs text-muted-foreground">Total de Unidades</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <p className="text-2xl font-bold">{unidades.filter(u => u.tipo === 'diretoria').length}</p>
+              <p className="text-xs text-muted-foreground">Diretorias</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <p className="text-2xl font-bold">{unidades.filter(u => u.tipo === 'coordenacao').length}</p>
+              <p className="text-xs text-muted-foreground">Coordenações</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <p className="text-2xl font-bold">{lotacoes.length}</p>
+              <p className="text-xs text-muted-foreground">Servidores Lotados</p>
+            </CardContent>
+          </Card>
+        </div>
+
         <Tabs defaultValue="unidades" className="space-y-6">
           <TabsList>
             <TabsTrigger value="unidades">Unidades</TabsTrigger>
@@ -247,7 +338,7 @@ export default function GestaoOrganogramaPage() {
                   <div>
                     <CardTitle>Unidades Organizacionais</CardTitle>
                     <CardDescription>
-                      {unidades.length} unidades cadastradas
+                      {filteredUnidades.length} de {unidades.length} unidades
                     </CardDescription>
                   </div>
                   <div className="relative w-64">
@@ -257,13 +348,21 @@ export default function GestaoOrganogramaPage() {
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10"
+                      maxLength={100}
                     />
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
                 {loading ? (
-                  <p className="text-muted-foreground">Carregando...</p>
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : filteredUnidades.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Building2 className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>Nenhuma unidade encontrada</p>
+                  </div>
                 ) : (
                   <div className="space-y-1">
                     {renderUnidadeTree()}
@@ -314,6 +413,7 @@ export default function GestaoOrganogramaPage() {
                     value={formData.nome}
                     onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
                     placeholder="Nome da unidade"
+                    maxLength={200}
                   />
                 </div>
                 <div className="space-y-2">
@@ -321,8 +421,9 @@ export default function GestaoOrganogramaPage() {
                   <Input
                     id="sigla"
                     value={formData.sigla}
-                    onChange={(e) => setFormData(prev => ({ ...prev, sigla: e.target.value }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, sigla: e.target.value.toUpperCase() }))}
                     placeholder="Ex: DIRAF"
+                    maxLength={20}
                   />
                 </div>
               </div>
@@ -368,14 +469,18 @@ export default function GestaoOrganogramaPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="descricao">Descrição</Label>
+                <Label htmlFor="descricao">Descrição / Competências</Label>
                 <Textarea
                   id="descricao"
                   value={formData.descricao}
                   onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
                   placeholder="Descrição das competências da unidade"
                   rows={3}
+                  maxLength={2000}
                 />
+                <p className="text-xs text-muted-foreground text-right">
+                  {formData.descricao.length}/2000
+                </p>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
@@ -386,6 +491,7 @@ export default function GestaoOrganogramaPage() {
                     value={formData.telefone}
                     onChange={(e) => setFormData(prev => ({ ...prev, telefone: e.target.value }))}
                     placeholder="(95) 3621-0000"
+                    maxLength={20}
                   />
                 </div>
                 <div className="space-y-2">
@@ -395,6 +501,7 @@ export default function GestaoOrganogramaPage() {
                     value={formData.ramal}
                     onChange={(e) => setFormData(prev => ({ ...prev, ramal: e.target.value }))}
                     placeholder="1234"
+                    maxLength={10}
                   />
                 </div>
                 <div className="space-y-2">
@@ -405,6 +512,7 @@ export default function GestaoOrganogramaPage() {
                     value={formData.email}
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="unidade@idjuv.rr.gov.br"
+                    maxLength={100}
                   />
                 </div>
               </div>
@@ -417,6 +525,7 @@ export default function GestaoOrganogramaPage() {
                     value={formData.localizacao}
                     onChange={(e) => setFormData(prev => ({ ...prev, localizacao: e.target.value }))}
                     placeholder="Sala 101, Bloco A"
+                    maxLength={200}
                   />
                 </div>
                 <div className="space-y-2">
@@ -426,6 +535,7 @@ export default function GestaoOrganogramaPage() {
                     value={formData.lei_criacao_numero}
                     onChange={(e) => setFormData(prev => ({ ...prev, lei_criacao_numero: e.target.value }))}
                     placeholder="Lei nº 000/0000"
+                    maxLength={100}
                   />
                 </div>
               </div>
@@ -436,12 +546,43 @@ export default function GestaoOrganogramaPage() {
                 Cancelar
               </Button>
               <Button onClick={handleSave} disabled={saving}>
-                <Save className="h-4 w-4 mr-2" />
+                {saving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
                 {saving ? 'Salvando...' : 'Salvar'}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* AlertDialog de exclusão */}
+        <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                Desativar Unidade
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Deseja realmente desativar a unidade <strong>"{deleteTarget?.nome}"</strong>?
+                {deleteTarget?.sigla && <> ({deleteTarget.sigla})</>}
+                <br /><br />
+                A unidade será marcada como inativa e não aparecerá mais no organograma.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Desativar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </ModuleLayout>
   );
