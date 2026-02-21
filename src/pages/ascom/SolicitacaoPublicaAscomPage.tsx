@@ -202,24 +202,25 @@ export default function SolicitacaoPublicaAscomPage() {
       const { data: demanda, error: demandaError } = await (supabase as any)
         .from('demandas_ascom')
         .insert({
-          nome_responsavel: dados.nome_responsavel,
-          cargo_funcao: dados.cargo_funcao,
-          contato_telefone: dados.contato_telefone,
-          contato_email: dados.contato_email,
-          email_solicitante: dados.contato_email,
-          telefone_solicitante: dados.contato_telefone,
+          nome_responsavel: dados.nome_responsavel.trim(),
+          cargo_funcao: dados.cargo_funcao?.trim() || null,
+          contato_telefone: dados.contato_telefone.trim(),
+          contato_email: dados.contato_email.trim(),
+          email_solicitante: dados.contato_email.trim(),
+          telefone_solicitante: dados.contato_telefone.trim(),
           categoria: dados.categoria,
           tipo: dados.tipo,
-          titulo: dados.titulo,
-          descricao_detalhada: dados.descricao_detalhada,
-          objetivo_institucional: dados.objetivo_institucional,
-          publico_alvo: dados.publico_alvo,
+          titulo: dados.titulo.trim(),
+          descricao_detalhada: dados.descricao_detalhada.trim(),
+          objetivo_institucional: dados.objetivo_institucional?.trim() || null,
+          publico_alvo: dados.publico_alvo?.trim() || null,
           data_evento: dados.data_evento || null,
-          hora_evento: dados.hora_evento || null,
-          local_evento: dados.local_evento || null,
+          hora_evento: dados.hora_evento?.trim() || null,
+          local_evento: dados.local_evento?.trim() || null,
           prazo_entrega: dados.prazo_entrega,
           prioridade: dados.prioridade,
           requer_autorizacao_presidencia: requerAutorizacao,
+          servidor_solicitante_id: servidorLogado?.id || null,
           status: 'enviada'
         })
         .select('id, numero_demanda')
@@ -616,7 +617,7 @@ export default function SolicitacaoPublicaAscomPage() {
                     <FormItem>
                       <FormLabel>Título da Demanda *</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ex: Cobertura do evento de abertura do programa..." {...field} />
+                        <Input placeholder="Ex: Cobertura do evento de abertura do programa..." maxLength={200} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -633,6 +634,7 @@ export default function SolicitacaoPublicaAscomPage() {
                         <Textarea 
                           placeholder="Descreva detalhadamente o que você precisa, incluindo contexto, expectativas e informações relevantes..."
                           className="min-h-[120px]"
+                          maxLength={2000}
                           {...field} 
                         />
                       </FormControl>
@@ -653,6 +655,7 @@ export default function SolicitacaoPublicaAscomPage() {
                           <Textarea 
                             placeholder="Qual o objetivo institucional dessa ação?"
                             className="min-h-[80px]"
+                            maxLength={1000}
                             {...field} 
                           />
                         </FormControl>
@@ -671,6 +674,7 @@ export default function SolicitacaoPublicaAscomPage() {
                           <Textarea 
                             placeholder="Quem é o público-alvo dessa ação?"
                             className="min-h-[80px]"
+                            maxLength={500}
                             {...field} 
                           />
                         </FormControl>
@@ -728,7 +732,7 @@ export default function SolicitacaoPublicaAscomPage() {
                     <FormItem>
                       <FormLabel>Local</FormLabel>
                       <FormControl>
-                        <Input placeholder="Endereço ou local do evento" {...field} />
+                        <Input placeholder="Endereço ou local do evento" maxLength={300} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

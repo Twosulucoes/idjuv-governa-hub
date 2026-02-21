@@ -73,7 +73,10 @@ export function useDemandasAscom() {
       }
 
       if (filtros?.busca) {
-        query = query.or(`titulo.ilike.%${filtros.busca}%,numero_demanda.ilike.%${filtros.busca}%,descricao_detalhada.ilike.%${filtros.busca}%`);
+        const buscaSanitizada = filtros.busca.replace(/[%_\\]/g, '\\$&').trim();
+        if (buscaSanitizada) {
+          query = query.or(`titulo.ilike.%${buscaSanitizada}%,numero_demanda.ilike.%${buscaSanitizada}%,descricao_detalhada.ilike.%${buscaSanitizada}%`);
+        }
       }
 
       const { data, error } = await query;
@@ -120,9 +123,21 @@ export function useDemandasAscom() {
   // Criar demanda
   const criarDemanda = useCallback(async (dados: Partial<DemandaAscom>) => {
     try {
+      // Sanitize text fields
+      const sanitized = { ...dados };
+      if (sanitized.titulo) sanitized.titulo = sanitized.titulo.trim();
+      if (sanitized.descricao_detalhada) sanitized.descricao_detalhada = sanitized.descricao_detalhada.trim();
+      if (sanitized.nome_responsavel) sanitized.nome_responsavel = sanitized.nome_responsavel.trim();
+      if (sanitized.objetivo_institucional) sanitized.objetivo_institucional = sanitized.objetivo_institucional.trim() || undefined;
+      if (sanitized.publico_alvo) sanitized.publico_alvo = sanitized.publico_alvo.trim() || undefined;
+      if (sanitized.cargo_funcao) sanitized.cargo_funcao = sanitized.cargo_funcao.trim() || undefined;
+      if (sanitized.contato_telefone) sanitized.contato_telefone = sanitized.contato_telefone.trim() || undefined;
+      if (sanitized.contato_email) sanitized.contato_email = sanitized.contato_email.trim() || undefined;
+      if (sanitized.local_evento) sanitized.local_evento = sanitized.local_evento.trim() || undefined;
+
       const { data, error } = await (supabase as any)
         .from('demandas_ascom')
-        .insert({ ...dados, created_by: user?.id })
+        .insert({ ...sanitized, created_by: user?.id })
         .select()
         .single();
 
@@ -140,9 +155,14 @@ export function useDemandasAscom() {
   // Atualizar demanda
   const atualizarDemanda = useCallback(async (id: string, dados: Partial<DemandaAscom>) => {
     try {
+      const sanitized = { ...dados };
+      if (sanitized.titulo) sanitized.titulo = sanitized.titulo.trim();
+      if (sanitized.descricao_detalhada) sanitized.descricao_detalhada = sanitized.descricao_detalhada.trim();
+      if (sanitized.nome_responsavel) sanitized.nome_responsavel = sanitized.nome_responsavel.trim();
+
       const { data, error } = await (supabase as any)
         .from('demandas_ascom')
-        .update({ ...dados, updated_by: user?.id })
+        .update({ ...sanitized, updated_by: user?.id, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select()
         .single();
@@ -337,9 +357,12 @@ export function useDemandasAscom() {
 
   const adicionarComentario = useCallback(async (demandaId: string, conteudo: string, tipo: 'comentario' | 'status' | 'interno' = 'comentario', visivelSolicitante: boolean = true) => {
     try {
+      const conteudoLimpo = conteudo.trim();
+      if (!conteudoLimpo) return null;
+      
       const { data, error } = await (supabase as any)
         .from('demandas_ascom_comentarios')
-        .insert({ demanda_id: demandaId, tipo, conteudo, visivel_solicitante: visivelSolicitante, created_by: user?.id })
+        .insert({ demanda_id: demandaId, tipo, conteudo: conteudoLimpo, visivel_solicitante: visivelSolicitante, created_by: user?.id })
         .select()
         .single();
 
