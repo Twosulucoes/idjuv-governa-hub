@@ -125,25 +125,29 @@ export default function BensPatrimoniaisPage() {
   });
 
   const handleCriarBem = async () => {
-    if (!novoBem.descricao || !novoBem.categoria_bem || !novoBem.valor_aquisicao || !novoBem.unidade_local_id) {
+    const desc = novoBem.descricao.trim();
+    if (!desc || !novoBem.categoria_bem || !novoBem.valor_aquisicao || !novoBem.unidade_local_id) {
       toast.error('Preencha os campos obrigatórios (Descrição, Categoria, Valor e Unidade Local)');
+      return;
+    }
+    if (novoBem.valor_aquisicao < 0) {
+      toast.error('Valor de aquisição não pode ser negativo');
       return;
     }
 
     try {
-      // numero_patrimonio será gerado automaticamente pelo trigger
       await createBem.mutateAsync({
-        descricao: novoBem.descricao,
+        descricao: desc,
         categoria_bem: novoBem.categoria_bem as any,
-        marca: novoBem.marca || null,
-        modelo: novoBem.modelo || null,
-        numero_serie: novoBem.numero_serie || null,
+        marca: novoBem.marca.trim() || null,
+        modelo: novoBem.modelo.trim() || null,
+        numero_serie: novoBem.numero_serie.trim() || null,
         estado_conservacao: novoBem.estado_conservacao,
         valor_aquisicao: novoBem.valor_aquisicao,
         data_aquisicao: novoBem.data_aquisicao,
-        observacao: novoBem.observacao || null,
+        observacao: novoBem.observacao.trim() || null,
         situacao: 'cadastrado',
-        numero_patrimonio: '', // trigger vai gerar
+        numero_patrimonio: '',
         unidade_local_id: novoBem.unidade_local_id,
         responsavel_id: novoBem.responsavel_id || null,
       });
@@ -254,6 +258,7 @@ export default function BensPatrimoniaisPage() {
                       value={novoBem.descricao}
                       onChange={e => setNovoBem(prev => ({ ...prev, descricao: e.target.value }))}
                       placeholder="Ex: Computador Desktop Dell OptiPlex"
+                      maxLength={300}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -297,6 +302,7 @@ export default function BensPatrimoniaisPage() {
                         id="marca" 
                         value={novoBem.marca}
                         onChange={e => setNovoBem(prev => ({ ...prev, marca: e.target.value }))}
+                        maxLength={100}
                       />
                     </div>
                     <div className="grid gap-2">
@@ -305,6 +311,7 @@ export default function BensPatrimoniaisPage() {
                         id="modelo" 
                         value={novoBem.modelo}
                         onChange={e => setNovoBem(prev => ({ ...prev, modelo: e.target.value }))}
+                        maxLength={100}
                       />
                     </div>
                   </div>
@@ -315,6 +322,7 @@ export default function BensPatrimoniaisPage() {
                         id="serie" 
                         value={novoBem.numero_serie}
                         onChange={e => setNovoBem(prev => ({ ...prev, numero_serie: e.target.value }))}
+                        maxLength={50}
                       />
                     </div>
                     <div className="grid gap-2">
@@ -323,8 +331,9 @@ export default function BensPatrimoniaisPage() {
                         id="valor" 
                         type="number"
                         step="0.01"
+                        min="0"
                         value={novoBem.valor_aquisicao}
-                        onChange={e => setNovoBem(prev => ({ ...prev, valor_aquisicao: parseFloat(e.target.value) || 0 }))}
+                        onChange={e => setNovoBem(prev => ({ ...prev, valor_aquisicao: Math.max(0, parseFloat(e.target.value) || 0) }))}
                       />
                     </div>
                   </div>
@@ -334,6 +343,7 @@ export default function BensPatrimoniaisPage() {
                       <Input 
                         id="data" 
                         type="date"
+                        max={new Date().toISOString().split('T')[0]}
                         value={novoBem.data_aquisicao}
                         onChange={e => setNovoBem(prev => ({ ...prev, data_aquisicao: e.target.value }))}
                       />
@@ -362,6 +372,7 @@ export default function BensPatrimoniaisPage() {
                       value={novoBem.observacao}
                       onChange={e => setNovoBem(prev => ({ ...prev, observacao: e.target.value }))}
                       rows={3}
+                      maxLength={1000}
                     />
                   </div>
                 </div>

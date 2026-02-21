@@ -22,13 +22,13 @@ import { toast } from 'sonner';
 import { generateTermoResponsabilidade, generateDocumentNumber } from '@/lib/pdfGenerator';
 
 const termoResponsabilidadeSchema = z.object({
-  servidor: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres'),
-  cargo: z.string().min(2, 'Cargo é obrigatório'),
-  matricula: z.string().min(1, 'Matrícula é obrigatória'),
+  servidor: z.string().trim().min(3, 'Nome deve ter no mínimo 3 caracteres').max(150, 'Máximo 150 caracteres'),
+  cargo: z.string().trim().min(2, 'Cargo é obrigatório').max(100, 'Máximo 100 caracteres'),
+  matricula: z.string().trim().min(1, 'Matrícula é obrigatória').max(30, 'Máximo 30 caracteres'),
   setor: z.string().min(2, 'Setor é obrigatório'),
-  bens: z.string().min(10, 'Liste os bens (mínimo 10 caracteres)'),
-  localUtilizacao: z.string().min(3, 'Local de utilização é obrigatório'),
-  observacoes: z.string().optional(),
+  bens: z.string().trim().min(10, 'Liste os bens (mínimo 10 caracteres)').max(3000, 'Máximo 3000 caracteres'),
+  localUtilizacao: z.string().trim().min(3, 'Local de utilização é obrigatório').max(200, 'Máximo 200 caracteres'),
+  observacoes: z.string().trim().max(1000, 'Máximo 1000 caracteres').optional(),
 });
 
 type TermoResponsabilidadeFormData = z.infer<typeof termoResponsabilidadeSchema>;
@@ -134,7 +134,7 @@ const TermoResponsabilidadePage = () => {
                           <FormItem>
                             <FormLabel>Nome Completo *</FormLabel>
                             <FormControl>
-                              <Input placeholder="Nome do servidor" {...field} />
+                              <Input placeholder="Nome do servidor" maxLength={150} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -148,7 +148,7 @@ const TermoResponsabilidadePage = () => {
                           <FormItem>
                             <FormLabel>Matrícula *</FormLabel>
                             <FormControl>
-                              <Input placeholder="Número da matrícula" {...field} />
+                              <Input placeholder="Número da matrícula" maxLength={30} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -164,7 +164,7 @@ const TermoResponsabilidadePage = () => {
                           <FormItem>
                             <FormLabel>Cargo/Função *</FormLabel>
                             <FormControl>
-                              <Input placeholder="Cargo ou função" {...field} />
+                              <Input placeholder="Cargo ou função" maxLength={100} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -213,6 +213,7 @@ const TermoResponsabilidadePage = () => {
                             <Textarea 
                               placeholder="Liste os bens com número de tombamento, descrição e valor. Ex:&#10;- Tombamento 12345 - Notebook Dell Latitude - R$ 5.000,00&#10;- Tombamento 12346 - Monitor LG 24' - R$ 800,00&#10;- Tombamento 12347 - Cadeira Giratória - R$ 450,00"
                               className="min-h-[150px]"
+                              maxLength={3000}
                               {...field} 
                             />
                           </FormControl>
@@ -228,7 +229,7 @@ const TermoResponsabilidadePage = () => {
                         <FormItem>
                           <FormLabel>Local de Utilização *</FormLabel>
                           <FormControl>
-                            <Input placeholder="Sala, andar, prédio onde os bens serão utilizados" {...field} />
+                            <Input placeholder="Sala, andar, prédio onde os bens serão utilizados" maxLength={200} {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -251,6 +252,7 @@ const TermoResponsabilidadePage = () => {
                             <Textarea 
                               placeholder="Estado de conservação, defeitos observados, ou outras informações relevantes (opcional)"
                               className="min-h-[80px]"
+                              maxLength={1000}
                               {...field} 
                             />
                           </FormControl>

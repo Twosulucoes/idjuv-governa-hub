@@ -109,30 +109,30 @@ export function useCadastroBemSimplificado() {
         numeroPatrimonio = await gerarTombamento(payload.unidade_local_id);
       }
 
-      // Inserir bem
+      // Inserir bem (com sanitização)
       const { data, error } = await supabase
         .from("bens_patrimoniais")
         .insert({
           numero_patrimonio: numeroPatrimonio,
-          descricao: payload.descricao,
+          descricao: payload.descricao.trim(),
           categoria_bem: payload.categoria_bem,
-          subcategoria: payload.subcategoria,
-          marca: payload.marca,
-          modelo: payload.modelo,
-          numero_serie: payload.numero_serie,
+          subcategoria: payload.subcategoria?.trim() || null,
+          marca: payload.marca?.trim() || null,
+          modelo: payload.modelo?.trim() || null,
+          numero_serie: payload.numero_serie?.trim() || null,
           estado_conservacao: payload.estado_conservacao,
-          localizacao_especifica: payload.localizacao_especifica,
+          localizacao_especifica: payload.localizacao_especifica?.trim() || null,
           forma_aquisicao: payload.forma_aquisicao,
-          processo_sei: payload.processo_sei,
-          nota_fiscal: payload.nota_fiscal,
+          processo_sei: payload.processo_sei?.trim() || null,
+          nota_fiscal: payload.nota_fiscal?.trim() || null,
           data_nota_fiscal: payload.data_nota_fiscal || null,
-          fornecedor_cnpj_cpf: payload.fornecedor_cnpj_cpf,
-          observacao: payload.observacao,
+          fornecedor_cnpj_cpf: payload.fornecedor_cnpj_cpf?.trim() || null,
+          observacao: payload.observacao?.trim() || null,
           unidade_local_id: payload.unidade_local_id,
           situacao: "ativo",
           data_aquisicao: new Date().toISOString().split("T")[0],
-          valor_aquisicao: 0, // Não obrigatório no cadastro simplificado
-          codigo_qr: numeroPatrimonio, // Usa o mesmo número para QR
+          valor_aquisicao: 0,
+          codigo_qr: numeroPatrimonio,
         })
         .select()
         .single();
