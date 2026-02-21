@@ -22,13 +22,13 @@ import { toast } from 'sonner';
 import { generateRequisicaoMaterial, generateDocumentNumber } from '@/lib/pdfGenerator';
 
 const requisicaoMaterialSchema = z.object({
-  solicitante: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres'),
-  cargo: z.string().min(2, 'Cargo é obrigatório'),
+  solicitante: z.string().trim().min(3, 'Nome deve ter no mínimo 3 caracteres').max(150, 'Máximo 150 caracteres'),
+  cargo: z.string().trim().min(2, 'Cargo é obrigatório').max(100, 'Máximo 100 caracteres'),
   setor: z.string().min(2, 'Setor é obrigatório'),
-  itens: z.string().min(10, 'Liste os materiais solicitados (mínimo 10 caracteres)'),
-  justificativa: z.string().min(20, 'Justificativa deve ter no mínimo 20 caracteres'),
+  itens: z.string().trim().min(10, 'Liste os materiais solicitados (mínimo 10 caracteres)').max(3000, 'Máximo 3000 caracteres'),
+  justificativa: z.string().trim().min(20, 'Justificativa deve ter no mínimo 20 caracteres').max(2000, 'Máximo 2000 caracteres'),
   urgencia: z.string().min(1, 'Selecione o nível de urgência'),
-  observacoes: z.string().optional(),
+  observacoes: z.string().trim().max(1000, 'Máximo 1000 caracteres').optional(),
 });
 
 type RequisicaoMaterialFormData = z.infer<typeof requisicaoMaterialSchema>;
@@ -140,7 +140,7 @@ const RequisicaoMaterialPage = () => {
                           <FormItem>
                             <FormLabel>Nome Completo *</FormLabel>
                             <FormControl>
-                              <Input placeholder="Nome do servidor" {...field} />
+                              <Input placeholder="Nome do servidor" maxLength={150} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -154,7 +154,7 @@ const RequisicaoMaterialPage = () => {
                           <FormItem>
                             <FormLabel>Cargo *</FormLabel>
                             <FormControl>
-                              <Input placeholder="Cargo do servidor" {...field} />
+                              <Input placeholder="Cargo do servidor" maxLength={100} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -203,6 +203,7 @@ const RequisicaoMaterialPage = () => {
                             <Textarea 
                               placeholder="Liste os materiais solicitados com quantidade. Ex:&#10;- 10 resmas de papel A4&#10;- 5 canetas esferográficas azul&#10;- 2 caixas de clips"
                               className="min-h-[150px]"
+                              maxLength={3000}
                               {...field} 
                             />
                           </FormControl>
@@ -227,6 +228,7 @@ const RequisicaoMaterialPage = () => {
                             <Textarea 
                               placeholder="Justifique a necessidade dos materiais solicitados"
                               className="min-h-[100px]"
+                              maxLength={2000}
                               {...field} 
                             />
                           </FormControl>
@@ -276,6 +278,7 @@ const RequisicaoMaterialPage = () => {
                             <Textarea 
                               placeholder="Informações complementares (opcional)"
                               className="min-h-[80px]"
+                              maxLength={1000}
                               {...field} 
                             />
                           </FormControl>

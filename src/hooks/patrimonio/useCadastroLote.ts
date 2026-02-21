@@ -52,23 +52,23 @@ export function useCadastroLote() {
 
           if (rpcError) throw rpcError;
 
-          // Inserir bem
+          // Inserir bem (com sanitização)
           const { error: insertError } = await supabase
             .from("bens_patrimoniais")
             .insert({
               numero_patrimonio: numeroPatrimonio,
-              descricao: dadosBem.descricao,
+              descricao: dadosBem.descricao.trim(),
               categoria_bem: dadosBem.categoria_bem,
-              subcategoria: dadosBem.subcategoria,
-              marca: dadosBem.marca,
-              modelo: dadosBem.modelo,
+              subcategoria: dadosBem.subcategoria?.trim() || null,
+              marca: dadosBem.marca?.trim() || null,
+              modelo: dadosBem.modelo?.trim() || null,
               estado_conservacao: dadosBem.estado_conservacao,
-              localizacao_especifica: dadosBem.localizacao_especifica,
+              localizacao_especifica: dadosBem.localizacao_especifica?.trim() || null,
               forma_aquisicao: dadosBem.forma_aquisicao,
-              processo_sei: dadosBem.processo_sei,
-              nota_fiscal: dadosBem.nota_fiscal,
+              processo_sei: dadosBem.processo_sei?.trim() || null,
+              nota_fiscal: dadosBem.nota_fiscal?.trim() || null,
               data_nota_fiscal: dadosBem.data_nota_fiscal || null,
-              observacao: dadosBem.observacao,
+              observacao: dadosBem.observacao?.trim() || null,
               unidade_local_id: dadosBem.unidade_local_id,
               situacao: "ativo",
               data_aquisicao: new Date().toISOString().split("T")[0],

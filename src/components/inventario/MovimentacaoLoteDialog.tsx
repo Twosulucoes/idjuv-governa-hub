@@ -53,8 +53,8 @@ const formSchema = z.object({
   unidade_destino_id: z.string().min(1, "Selecione a unidade de destino"),
   responsavel_destino_id: z.string().optional(),
   tipo_movimentacao: z.enum(["transferencia_interna", "cessao", "emprestimo", "recolhimento"]),
-  motivo: z.string().min(5, "Descreva o motivo (mín. 5 caracteres)"),
-  observacoes: z.string().optional(),
+  motivo: z.string().trim().min(5, "Descreva o motivo (mín. 5 caracteres)").max(500, "Máximo 500 caracteres"),
+  observacoes: z.string().trim().max(1000, "Máximo 1000 caracteres").optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -387,6 +387,7 @@ export function MovimentacaoLoteDialog({ open, onOpenChange, unidadeOrigemId }: 
                       <Textarea
                         placeholder="Descreva o motivo da movimentação..."
                         className="min-h-[80px]"
+                        maxLength={500}
                         {...field}
                       />
                     </FormControl>
@@ -405,6 +406,7 @@ export function MovimentacaoLoteDialog({ open, onOpenChange, unidadeOrigemId }: 
                       <Textarea
                         placeholder="Observações adicionais..."
                         className="min-h-[60px]"
+                        maxLength={1000}
                         {...field}
                       />
                     </FormControl>

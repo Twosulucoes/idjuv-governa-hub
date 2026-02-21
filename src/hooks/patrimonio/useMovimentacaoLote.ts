@@ -58,8 +58,8 @@ export function useMovimentacaoLote() {
               unidade_local_origem_id: unidadeOrigemId || null,
               unidade_local_destino_id: dadosMovimentacao.unidade_destino_id,
               responsavel_destino_id: dadosMovimentacao.responsavel_destino_id || null,
-              motivo: dadosMovimentacao.motivo,
-              observacoes: dadosMovimentacao.observacoes || null,
+              motivo: dadosMovimentacao.motivo?.trim() || "",
+              observacoes: dadosMovimentacao.observacoes?.trim() || null,
               data_movimentacao: new Date().toISOString().split("T")[0],
               status: "pendente",
             });

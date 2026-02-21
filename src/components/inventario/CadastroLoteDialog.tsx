@@ -50,16 +50,16 @@ import { useState } from "react";
 const formSchema = z.object({
   unidade_local_id: z.string().min(1, "Selecione a unidade"),
   quantidade: z.coerce.number().min(1, "Mínimo 1 item").max(100, "Máximo 100 itens por lote"),
-  descricao: z.string().min(3, "Descrição obrigatória (mín. 3 caracteres)"),
+  descricao: z.string().trim().min(3, "Descrição obrigatória (mín. 3 caracteres)").max(300, "Máximo 300 caracteres"),
   categoria_bem: z.string().min(1, "Selecione a categoria"),
-  marca: z.string().optional(),
-  modelo: z.string().optional(),
+  marca: z.string().trim().max(100, "Máximo 100 caracteres").optional(),
+  modelo: z.string().trim().max(100, "Máximo 100 caracteres").optional(),
   estado_conservacao: z.string().min(1, "Selecione o estado"),
-  localizacao_especifica: z.string().optional(),
+  localizacao_especifica: z.string().trim().max(200, "Máximo 200 caracteres").optional(),
   forma_aquisicao: z.string().min(1, "Selecione a forma de aquisição"),
-  processo_sei: z.string().optional(),
-  nota_fiscal: z.string().optional(),
-  observacao: z.string().optional(),
+  processo_sei: z.string().trim().max(30, "Máximo 30 caracteres").optional(),
+  nota_fiscal: z.string().trim().max(30, "Máximo 30 caracteres").optional(),
+  observacao: z.string().trim().max(1000, "Máximo 1000 caracteres").optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -231,7 +231,7 @@ export function CadastroLoteDialog({ open, onOpenChange, unidadePreSelecionada }
                   <FormItem>
                     <FormLabel>Descrição do Bem *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex: Cadeira Escritório Giratória" {...field} />
+                      <Input placeholder="Ex: Cadeira Escritório Giratória" maxLength={300} {...field} />
                     </FormControl>
                     <FormDescription>Todos os itens terão esta descrição</FormDescription>
                     <FormMessage />
@@ -295,7 +295,7 @@ export function CadastroLoteDialog({ open, onOpenChange, unidadePreSelecionada }
                     <FormItem>
                       <FormLabel>Marca</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ex: Dell" {...field} />
+                        <Input placeholder="Ex: Dell" maxLength={100} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -309,7 +309,7 @@ export function CadastroLoteDialog({ open, onOpenChange, unidadePreSelecionada }
                     <FormItem>
                       <FormLabel>Modelo</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ex: Optiplex 3080" {...field} />
+                        <Input placeholder="Ex: Optiplex 3080" maxLength={100} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -348,7 +348,7 @@ export function CadastroLoteDialog({ open, onOpenChange, unidadePreSelecionada }
                     <FormItem>
                       <FormLabel>Localização Específica</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ex: Sala 201, Bloco B" {...field} />
+                        <Input placeholder="Ex: Sala 201, Bloco B" maxLength={200} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -364,7 +364,7 @@ export function CadastroLoteDialog({ open, onOpenChange, unidadePreSelecionada }
                     <FormItem>
                       <FormLabel>Processo SEI</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ex: 00000.000000/2024-00" {...field} />
+                        <Input placeholder="Ex: 00000.000000/2024-00" maxLength={30} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -378,7 +378,7 @@ export function CadastroLoteDialog({ open, onOpenChange, unidadePreSelecionada }
                     <FormItem>
                       <FormLabel>Nota Fiscal</FormLabel>
                       <FormControl>
-                        <Input placeholder="Número da NF" {...field} />
+                        <Input placeholder="Número da NF" maxLength={30} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -396,6 +396,7 @@ export function CadastroLoteDialog({ open, onOpenChange, unidadePreSelecionada }
                       <Textarea
                         placeholder="Observações adicionais sobre os bens..."
                         className="min-h-[60px]"
+                        maxLength={1000}
                         {...field}
                       />
                     </FormControl>
