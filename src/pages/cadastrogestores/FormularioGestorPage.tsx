@@ -20,12 +20,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useEscolasJer } from '@/hooks/useEscolasJer';
 import { useGestoresEscolares } from '@/hooks/useGestoresEscolares';
@@ -184,64 +179,67 @@ export default function FormularioGestorPage() {
                     return (
                       <FormItem className="flex flex-col">
                         <FormLabel>Escola *</FormLabel>
-                        <FormControl>
-                          <Button
+                        <div className="relative">
+                          <button
                             type="button"
-                            variant="outline"
                             className={cn(
-                              'w-full justify-between font-normal',
-                              !field.value && 'text-muted-foreground'
+                              'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background',
+                              'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+                              !field.value && 'text-muted-foreground',
+                              loadingEscolas && 'opacity-50 cursor-not-allowed'
                             )}
                             disabled={loadingEscolas}
-                            onClick={() => setEscolaAberta(true)}
+                            onClick={() => setEscolaAberta(!escolaAberta)}
                           >
-                            {escolaSelecionada
-                              ? `${escolaSelecionada.nome}${escolaSelecionada.municipio ? ` - ${escolaSelecionada.municipio}` : ''}`
-                              : 'Buscar escola...'}
+                            <span className="truncate">
+                              {escolaSelecionada
+                                ? `${escolaSelecionada.nome}${escolaSelecionada.municipio ? ` - ${escolaSelecionada.municipio}` : ''}`
+                                : 'Buscar escola...'}
+                            </span>
                             <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </FormControl>
-                        <Dialog open={escolaAberta} onOpenChange={setEscolaAberta}>
-                          <DialogContent className="max-w-lg">
-                            <DialogHeader>
-                              <DialogTitle>Selecionar Escola</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-3">
-                              <Input
-                                placeholder="Digite o nome da escola..."
-                                value={buscaEscola}
-                                onChange={(e) => setBuscaEscola(e.target.value)}
-                                autoFocus
-                              />
-                              <div className="max-h-72 overflow-y-auto border rounded-md">
-                                {escolasFiltradas.length === 0 ? (
-                                  <p className="p-4 text-sm text-muted-foreground text-center">Nenhuma escola encontrada.</p>
-                                ) : (
-                                  escolasFiltradas.map((escola) => (
-                                    <button
-                                      key={escola.id}
-                                      type="button"
-                                      className={cn(
-                                        'w-full text-left px-3 py-2.5 text-sm hover:bg-accent cursor-pointer border-b last:border-b-0',
-                                        field.value === escola.id && 'bg-accent font-medium'
-                                      )}
-                                      onClick={() => {
-                                        field.onChange(escola.id);
-                                        setEscolaAberta(false);
-                                        setBuscaEscola('');
-                                      }}
-                                    >
-                                      {escola.nome}
-                                      {escola.municipio && (
-                                        <span className="text-muted-foreground"> - {escola.municipio}</span>
-                                      )}
-                                    </button>
-                                  ))
-                                )}
+                          </button>
+
+                          {escolaAberta && (
+                            <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg">
+                              <div className="p-2">
+                                <Input
+                                  placeholder="Digite o nome da escola..."
+                                  value={buscaEscola}
+                                  onChange={(e) => setBuscaEscola(e.target.value)}
+                                  autoFocus
+                                />
                               </div>
+                              <ScrollArea className="max-h-60">
+                                <div className="p-1">
+                                  {escolasFiltradas.length === 0 ? (
+                                    <p className="p-3 text-sm text-muted-foreground text-center">Nenhuma escola disponível.</p>
+                                  ) : (
+                                    escolasFiltradas.map((escola) => (
+                                      <button
+                                        key={escola.id}
+                                        type="button"
+                                        className={cn(
+                                          'w-full text-left px-3 py-2 text-sm rounded-sm hover:bg-accent cursor-pointer',
+                                          field.value === escola.id && 'bg-accent font-medium'
+                                        )}
+                                        onClick={() => {
+                                          field.onChange(escola.id);
+                                          setEscolaAberta(false);
+                                          setBuscaEscola('');
+                                        }}
+                                      >
+                                        {escola.nome}
+                                        {escola.municipio && (
+                                          <span className="text-muted-foreground"> - {escola.municipio}</span>
+                                        )}
+                                      </button>
+                                    ))
+                                  )}
+                                </div>
+                              </ScrollArea>
                             </div>
-                          </DialogContent>
-                        </Dialog>
+                          )}
+                        </div>
                         <FormMessage />
                       </FormItem>
                     );
