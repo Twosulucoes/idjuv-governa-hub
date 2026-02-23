@@ -72,7 +72,7 @@ export default function ConsultaGestorPage() {
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
       <HeaderPublico 
         titulo="Consulta de Status" 
-        subtitulo="Acompanhe seu pré-cadastro - JER 2025" 
+        subtitulo="Acompanhe seu pré-cadastro - JER's 2026" 
       />
 
       <div className="container mx-auto px-4 py-8">
