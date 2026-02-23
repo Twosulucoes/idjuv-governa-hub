@@ -77,20 +77,28 @@ export function useGestoresEscolares() {
         .single();
 
       if (error) throw error;
+
+      // Mark school as already registered
+      await supabase
+        .from('escolas_jer')
+        .update({ ja_cadastrada: true })
+        .eq('id', dados.escola_id);
+
       return data as GestorEscolar;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['escolas-jer'] });
     },
     onError: (error: Error) => {
       console.error('Erro ao criar gestor:', error);
-      if (error.message.includes('gestores_escolares_cpf_unique')) {
+      if (error.message.includes('gestores_escolares_cpf_unique') || error.message.includes('duplicate') && error.message.includes('cpf')) {
         throw new Error('CPF já cadastrado no sistema.');
       }
-      if (error.message.includes('gestores_escolares_email_unique')) {
+      if (error.message.includes('gestores_escolares_email_unique') || error.message.includes('duplicate') && error.message.includes('email')) {
         throw new Error('Email já cadastrado no sistema.');
       }
-      if (error.message.includes('gestores_escolares_escola_unique')) {
+      if (error.message.includes('gestores_escolares_escola_unique') || error.message.includes('duplicate') && error.message.includes('escola')) {
         throw new Error('Esta escola já possui um gestor cadastrado.');
       }
       throw error;
