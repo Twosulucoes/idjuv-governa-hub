@@ -156,8 +156,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }, 5000);
 
+    // Função auxiliar para carregar dados do usuário FORA do callback
+    const loadUserData = async (authUser: User, eventName: string) => {
+      if (!isMounted) return;
+      console.log('[Auth] loadUserData para:', authUser.email, '(evento:', eventName, ')');
+      try {
+        const userData = await fetchUserData(authUser);
+        if (isMounted) {
+          setUser(userData);
+          setIsLoading(false);
+        }
+      } catch (err) {
+        console.error('[Auth] Erro em loadUserData:', err);
+        if (isMounted) {
+          setUser({
+            id: authUser.id,
+            email: authUser.email || '',
+            fullName: null,
+            avatarUrl: null,
+            permissions: [],
+            permissoesDetalhadas: [],
+            isSuperAdmin: false,
+            requiresPasswordChange: false,
+          });
+          setIsLoading(false);
+        }
+      }
+    };
+
     // O listener processa TODOS os eventos de autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+    // CRITICAL: NÃO fazer await de queries Supabase dentro do callback — causa deadlock!
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
       if (!isMounted) return;
       console.log('[Auth] onAuthStateChange:', event, currentSession?.user?.email || 'sem sessão');
 
@@ -174,31 +203,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // PASSWORD_RECOVERY: cria sessão temporária para redefinição de senha.
-      // NÃO deve redirecionar para /sistema — o AuthPage gerencia esse fluxo.
-      if (event === 'PASSWORD_RECOVERY') {
-        setSession(currentSession);
-        if (currentSession?.user) {
-          const userData = await fetchUserData(currentSession.user);
-          if (isMounted) {
-            setUser(userData);
-            setIsLoading(false);
-          }
-        }
-        return;
-      }
-
       if (
-        (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') &&
+        (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED' || event === 'PASSWORD_RECOVERY') &&
         currentSession?.user
       ) {
         setSession(currentSession);
         permissionsCache.current.delete(currentSession.user.id);
-        const userData = await fetchUserData(currentSession.user);
-        if (isMounted) {
-          setUser(userData);
-          setIsLoading(false);
-        }
+        // Defer para evitar deadlock do Supabase client
+        setTimeout(() => loadUserData(currentSession.user, event), 0);
         return;
       }
 
