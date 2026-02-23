@@ -19,7 +19,8 @@ import {
   MoreHorizontal,
   School,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  Undo2
 } from 'lucide-react';
 import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
@@ -78,6 +79,7 @@ export default function AdminGestoresPage() {
     marcarCadastradoCbde,
     marcarContatoRealizado,
     confirmarAcesso,
+    desfazerStatus,
   } = useGestoresEscolares();
 
   // Filtrar gestores
@@ -397,6 +399,19 @@ export default function AdminGestoresPage() {
                               <CheckCircle className="h-4 w-4 mr-2" />
                               Confirmar Acesso
                             </DropdownMenuItem>
+                          )}
+
+                          {gestor.status !== 'aguardando' && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => desfazerStatus.mutateAsync(gestor.id)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Undo2 className="h-4 w-4 mr-2" />
+                                Desfazer Último Passo
+                              </DropdownMenuItem>
+                            </>
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
