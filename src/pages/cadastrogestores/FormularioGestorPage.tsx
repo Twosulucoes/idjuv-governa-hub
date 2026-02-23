@@ -21,11 +21,12 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from 'cmdk';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 import { useEscolasJer } from '@/hooks/useEscolasJer';
 import { useGestoresEscolares } from '@/hooks/useGestoresEscolares';
 import { validarCPF, formatarCPF, formatarCelular } from '@/types/gestoresEscolares';
@@ -183,43 +184,47 @@ export default function FormularioGestorPage() {
                     return (
                       <FormItem className="flex flex-col">
                         <FormLabel>Escola *</FormLabel>
-                        <Popover open={escolaAberta} onOpenChange={setEscolaAberta}>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                className={`w-full justify-between font-normal ${!field.value ? 'text-muted-foreground' : ''}`}
-                                disabled={loadingEscolas}
-                              >
-                                {escolaSelecionada
-                                  ? `${escolaSelecionada.nome}${escolaSelecionada.municipio ? ` - ${escolaSelecionada.municipio}` : ''}`
-                                  : 'Buscar escola...'}
-                                <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                            <div className="flex flex-col">
-                              <div className="p-2">
-                                <Input
-                                  placeholder="Digite o nome da escola..."
-                                  value={buscaEscola}
-                                  onChange={(e) => setBuscaEscola(e.target.value)}
-                                  autoFocus
-                                />
-                              </div>
-                              <div className="max-h-60 overflow-y-auto">
+                        <FormControl>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className={cn(
+                              'w-full justify-between font-normal',
+                              !field.value && 'text-muted-foreground'
+                            )}
+                            disabled={loadingEscolas}
+                            onClick={() => setEscolaAberta(true)}
+                          >
+                            {escolaSelecionada
+                              ? `${escolaSelecionada.nome}${escolaSelecionada.municipio ? ` - ${escolaSelecionada.municipio}` : ''}`
+                              : 'Buscar escola...'}
+                            <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                        <Dialog open={escolaAberta} onOpenChange={setEscolaAberta}>
+                          <DialogContent className="max-w-lg">
+                            <DialogHeader>
+                              <DialogTitle>Selecionar Escola</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-3">
+                              <Input
+                                placeholder="Digite o nome da escola..."
+                                value={buscaEscola}
+                                onChange={(e) => setBuscaEscola(e.target.value)}
+                                autoFocus
+                              />
+                              <div className="max-h-72 overflow-y-auto border rounded-md">
                                 {escolasFiltradas.length === 0 ? (
-                                  <p className="p-3 text-sm text-muted-foreground text-center">Nenhuma escola encontrada.</p>
+                                  <p className="p-4 text-sm text-muted-foreground text-center">Nenhuma escola encontrada.</p>
                                 ) : (
                                   escolasFiltradas.map((escola) => (
                                     <button
                                       key={escola.id}
                                       type="button"
-                                      className={`w-full text-left px-3 py-2 text-sm hover:bg-accent cursor-pointer ${
-                                        field.value === escola.id ? 'bg-accent font-medium' : ''
-                                      }`}
+                                      className={cn(
+                                        'w-full text-left px-3 py-2.5 text-sm hover:bg-accent cursor-pointer border-b last:border-b-0',
+                                        field.value === escola.id && 'bg-accent font-medium'
+                                      )}
                                       onClick={() => {
                                         field.onChange(escola.id);
                                         setEscolaAberta(false);
@@ -235,8 +240,8 @@ export default function FormularioGestorPage() {
                                 )}
                               </div>
                             </div>
-                          </PopoverContent>
-                        </Popover>
+                          </DialogContent>
+                        </Dialog>
                         <FormMessage />
                       </FormItem>
                     );
