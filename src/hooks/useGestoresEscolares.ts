@@ -249,6 +249,49 @@ export function useGestoresEscolares() {
     },
   });
 
+  // Desfazer status (voltar ao estado anterior)
+  const desfazerStatus = useMutation({
+    mutationFn: async (gestorId: string) => {
+      // Buscar status atual
+      const { data: atual } = await supabase
+        .from('gestores_escolares')
+        .select('status')
+        .eq('id', gestorId)
+        .single();
+
+      if (!atual) throw new Error('Gestor não encontrado');
+
+      const statusAnterior: Record<string, { status: string; limpar: Record<string, unknown> }> = {
+        em_processamento: { status: 'aguardando', limpar: { responsavel_id: null, responsavel_nome: null } },
+        cadastrado_cbde: { status: 'em_processamento', limpar: { data_cadastro_cbde: null } },
+        contato_realizado: { status: 'cadastrado_cbde', limpar: { contato_realizado: false, data_contato: null } },
+        confirmado: { status: 'contato_realizado', limpar: { acesso_testado: false, data_confirmacao: null } },
+        problema: { status: 'aguardando', limpar: {} },
+      };
+
+      const rollback = statusAnterior[atual.status];
+      if (!rollback) throw new Error('Não é possível desfazer o status "aguardando".');
+
+      const { data, error } = await supabase
+        .from('gestores_escolares')
+        .update({ status: rollback.status, ...rollback.limpar })
+        .eq('id', gestorId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      toast.success('Status desfeito com sucesso!');
+    },
+    onError: (error: Error) => {
+      console.error('Erro ao desfazer status:', error);
+      toast.error(error.message || 'Erro ao desfazer status.');
+    },
+  });
+
   // Marcar problema
   const marcarProblema = useMutation({
     mutationFn: async ({ gestorId, observacao }: { gestorId: string; observacao: string }) => {
@@ -341,6 +384,7 @@ export function useGestoresEscolares() {
     marcarCadastradoCbde,
     marcarContatoRealizado,
     confirmarAcesso,
+    desfazerStatus,
     marcarProblema,
     adicionarObservacao,
     deletarGestor,
