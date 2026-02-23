@@ -72,6 +72,7 @@ export default function AdminGestoresPage() {
   const { 
     gestores, 
     isLoading, 
+    error,
     refetch,
     assumirTarefa,
     marcarCadastradoCbde,
@@ -272,6 +273,9 @@ export default function AdminGestoresPage() {
         </Select>
 
         <div className="flex gap-2">
+          <Button variant="outline" size="icon" onClick={() => refetch()} title="Recarregar">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Link to="/cadastrogestores/escolas">
             <Button variant="outline">
               <School className="h-4 w-4 mr-2" />
@@ -288,7 +292,17 @@ export default function AdminGestoresPage() {
       {/* Tabela */}
       <Card>
         <CardContent className="p-0">
-          {isLoading ? (
+          {error ? (
+            <div className="text-center py-12 space-y-3">
+              <AlertTriangle className="h-8 w-8 text-destructive mx-auto" />
+              <p className="text-destructive font-medium">Erro ao carregar gestores</p>
+              <p className="text-sm text-muted-foreground">{(error as Error)?.message || 'Erro desconhecido'}</p>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Tentar novamente
+              </Button>
+            </div>
+          ) : isLoading ? (
             <div className="flex items-center justify-center py-12">
               <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>

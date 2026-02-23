@@ -21,6 +21,7 @@ export function useGestoresEscolares() {
   } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: async (): Promise<GestorEscolar[]> => {
+      console.log('[useGestoresEscolares] Buscando gestores...');
       const { data, error } = await supabase
         .from('gestores_escolares')
         .select(`
@@ -29,9 +30,15 @@ export function useGestoresEscolares() {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[useGestoresEscolares] Erro na query:', error);
+        throw error;
+      }
+      console.log('[useGestoresEscolares] Gestores carregados:', data?.length);
       return data as GestorEscolar[];
     },
+    retry: 2,
+    staleTime: 30_000,
   });
 
   // Buscar gestor por CPF (consulta pública)
