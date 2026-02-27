@@ -661,14 +661,21 @@ serve(async (req) => {
             dbFileName += '.enc';
           }
 
-          // Verificar bucket no destino
+          // Verificar e criar bucket no destino se necessário
           const { data: destBuckets, error: destBucketsError } = await supabaseDest.storage.listBuckets();
           if (destBucketsError) {
             throw new Error(`Falha ao acessar buckets do destino: ${destBucketsError.message}`);
           }
           const hasBackupBucket = destBuckets?.some((b) => b.name === 'idjuv-backups');
           if (!hasBackupBucket) {
-            throw new Error('Bucket "idjuv-backups" não encontrado no destino.');
+            console.log('[BACKUP] Bucket "idjuv-backups" não encontrado no destino, criando automaticamente...');
+            const { error: createBucketError } = await supabaseDest.storage.createBucket('idjuv-backups', {
+              public: false
+            });
+            if (createBucketError && !createBucketError.message.includes('already exists')) {
+              throw new Error(`Bucket "idjuv-backups" não encontrado e não foi possível criá-lo: ${createBucketError.message}`);
+            }
+            console.log('[BACKUP] Bucket "idjuv-backups" criado com sucesso no destino');
           }
 
           const { error: indexUploadError } = await supabaseDest.storage
