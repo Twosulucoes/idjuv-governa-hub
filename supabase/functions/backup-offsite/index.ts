@@ -400,7 +400,10 @@ serve(async (req) => {
       throw new Error('Credenciais do Supabase destino não configuradas');
     }
 
-    const supabaseDest = createClient(destUrl, destKey);
+    const supabaseDest = createClient(destUrl, destKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { headers: { Authorization: `Bearer ${destKey}` } }
+    });
 
     // Verificar autenticação
     const authHeader = req.headers.get('Authorization');
