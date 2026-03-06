@@ -368,6 +368,11 @@ const App = () => (
                   <CadastroArbitroPage />
                 </PublicPageGuard>
               } />
+              
+              {/* Admin Árbitros */}
+              <Route path="/cadastro-arbitros/admin" element={
+                <ProtectedRoute><ArbitrosAdminPage /></ProtectedRoute>
+              } />
 
               {/* Credenciamento Gestores Escolares - JER */}
               <Route path="/cadastrogestores" element={
