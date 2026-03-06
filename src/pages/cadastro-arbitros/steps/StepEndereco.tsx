@@ -1,6 +1,7 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MaskedInput } from '@/components/ui/masked-input';
 import type { ArbitroFormData } from '../CadastroArbitroPage';
 
 const UFS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];
@@ -18,7 +19,7 @@ export function StepEndereco({ data, update }: Props) {
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-2">
           <Label>CEP</Label>
-          <Input value={data.cep} onChange={e => update('cep', e.target.value)} placeholder="00000-000" maxLength={9} />
+          <MaskedInput mask="cep" value={data.cep} onChange={v => update('cep', v)} />
         </div>
       </div>
 

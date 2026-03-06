@@ -47,12 +47,12 @@ export function StepDadosPessoais({ data, update }: Props) {
           <Input type="date" value={data.data_nascimento} onChange={e => update('data_nascimento', e.target.value)} />
         </div>
         <div className="space-y-2">
-          <Label>Categoria *</Label>
+          <Label>Categoria do Árbitro *</Label>
           <Select value={data.categoria} onValueChange={v => update('categoria', v)}>
             <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="estadual">Estadual</SelectItem>
-              <SelectItem value="nacional">Nacional</SelectItem>
+              <SelectItem value="estadual">Árbitro Estadual</SelectItem>
+              <SelectItem value="nacional">Árbitro Nacional</SelectItem>
             </SelectContent>
           </Select>
         </div>
