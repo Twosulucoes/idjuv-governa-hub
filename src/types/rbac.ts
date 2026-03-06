@@ -60,6 +60,7 @@ export const MODULO_ICONES: Record<Modulo, string> = {
   organizacoes: '🏛️',
   gabinete: '🏢',
   patrimonio_mobile: '📱',
+  arbitros: '⚖️',
 };
 
 // Alias para compatibilidade com código legado
