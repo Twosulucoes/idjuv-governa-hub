@@ -1796,6 +1796,120 @@ export type Database = {
           },
         ]
       }
+      cadastro_arbitros: {
+        Row: {
+          agencia: string | null
+          bairro: string | null
+          banco: string | null
+          categoria: string
+          celular: string
+          cep: string | null
+          cidade: string | null
+          complemento: string | null
+          conta_corrente: string | null
+          cpf: string
+          created_at: string
+          data_nascimento: string
+          ddd: string | null
+          documentos_urls: Json | null
+          email: string
+          endereco: string | null
+          esfera: string | null
+          fator_rh: string | null
+          foto_url: string | null
+          funcao: string | null
+          id: string
+          local_trabalho: string | null
+          modalidade: string
+          nacionalidade: string
+          nome: string
+          pis_pasep: string | null
+          protocolo: string | null
+          rg: string | null
+          rne: string | null
+          sexo: string
+          status: string
+          tipo_sanguineo: string | null
+          uf: string | null
+          updated_at: string
+          validade_rne: string | null
+        }
+        Insert: {
+          agencia?: string | null
+          bairro?: string | null
+          banco?: string | null
+          categoria: string
+          celular: string
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
+          conta_corrente?: string | null
+          cpf: string
+          created_at?: string
+          data_nascimento: string
+          ddd?: string | null
+          documentos_urls?: Json | null
+          email: string
+          endereco?: string | null
+          esfera?: string | null
+          fator_rh?: string | null
+          foto_url?: string | null
+          funcao?: string | null
+          id?: string
+          local_trabalho?: string | null
+          modalidade: string
+          nacionalidade?: string
+          nome: string
+          pis_pasep?: string | null
+          protocolo?: string | null
+          rg?: string | null
+          rne?: string | null
+          sexo: string
+          status?: string
+          tipo_sanguineo?: string | null
+          uf?: string | null
+          updated_at?: string
+          validade_rne?: string | null
+        }
+        Update: {
+          agencia?: string | null
+          bairro?: string | null
+          banco?: string | null
+          categoria?: string
+          celular?: string
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
+          conta_corrente?: string | null
+          cpf?: string
+          created_at?: string
+          data_nascimento?: string
+          ddd?: string | null
+          documentos_urls?: Json | null
+          email?: string
+          endereco?: string | null
+          esfera?: string | null
+          fator_rh?: string | null
+          foto_url?: string | null
+          funcao?: string | null
+          id?: string
+          local_trabalho?: string | null
+          modalidade?: string
+          nacionalidade?: string
+          nome?: string
+          pis_pasep?: string | null
+          protocolo?: string | null
+          rg?: string | null
+          rne?: string | null
+          sexo?: string
+          status?: string
+          tipo_sanguineo?: string | null
+          uf?: string | null
+          updated_at?: string
+          validade_rne?: string | null
+        }
+        Relationships: []
+      }
       calendario_federacao: {
         Row: {
           categorias: string | null
