@@ -39,7 +39,6 @@ export interface ArbitroFormData {
   cidade: string;
   uf: string;
   email: string;
-  ddd: string;
   celular: string;
   modalidade: string;
   local_trabalho: string;
