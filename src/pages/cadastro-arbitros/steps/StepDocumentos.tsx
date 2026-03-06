@@ -1,5 +1,6 @@
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { MaskedInput } from '@/components/ui/masked-input';
 import type { ArbitroFormData } from '../CadastroArbitroPage';
 
 interface Props {
@@ -15,11 +16,11 @@ export function StepDocumentos({ data, update }: Props) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label>CPF *</Label>
-          <Input value={data.cpf} onChange={e => update('cpf', e.target.value)} placeholder="000.000.000-00" maxLength={14} />
+          <MaskedInput mask="cpf" value={data.cpf} onChange={v => update('cpf', v)} />
         </div>
         <div className="space-y-2">
           <Label>RG</Label>
-          <Input value={data.rg} onChange={e => update('rg', e.target.value)} placeholder="Número do RG" maxLength={20} />
+          <MaskedInput mask="rg" value={data.rg} onChange={v => update('rg', v)} />
         </div>
       </div>
 
@@ -38,7 +39,7 @@ export function StepDocumentos({ data, update }: Props) {
 
       <div className="space-y-2">
         <Label>PIS / PASEP</Label>
-        <Input value={data.pis_pasep} onChange={e => update('pis_pasep', e.target.value)} placeholder="Número do PIS/PASEP" maxLength={20} />
+        <MaskedInput mask="pis" value={data.pis_pasep} onChange={v => update('pis_pasep', v)} />
       </div>
     </div>
   );

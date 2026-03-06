@@ -12,7 +12,7 @@ const LABELS: Record<string, string> = {
   categoria: 'Categoria', tipo_sanguineo: 'Tipo Sanguíneo', fator_rh: 'Fator RH',
   cpf: 'CPF', rg: 'RG', rne: 'RNE', validade_rne: 'Val. RNE', pis_pasep: 'PIS/PASEP',
   cep: 'CEP', endereco: 'Endereço', complemento: 'Complemento', bairro: 'Bairro',
-  cidade: 'Cidade', uf: 'UF', email: 'E-mail', ddd: 'DDD', celular: 'Celular',
+  cidade: 'Cidade', uf: 'UF', email: 'E-mail', celular: 'Celular',
   modalidade: 'Modalidade', local_trabalho: 'Local de Trabalho', funcao: 'Função', esfera: 'Esfera',
   banco: 'Banco', agencia: 'Agência', conta_corrente: 'Conta Corrente',
 };
@@ -21,7 +21,7 @@ const SECTIONS = [
   { title: 'Dados Pessoais', step: 0, fields: ['nome', 'nacionalidade', 'sexo', 'data_nascimento', 'categoria', 'tipo_sanguineo', 'fator_rh'] },
   { title: 'Documentos', step: 1, fields: ['cpf', 'rg', 'rne', 'validade_rne', 'pis_pasep'] },
   { title: 'Endereço', step: 2, fields: ['cep', 'endereco', 'complemento', 'bairro', 'cidade', 'uf'] },
-  { title: 'Contato', step: 3, fields: ['email', 'ddd', 'celular'] },
+  { title: 'Contato', step: 3, fields: ['email', 'celular'] },
   { title: 'Profissional', step: 4, fields: ['modalidade', 'local_trabalho', 'funcao', 'esfera'] },
   { title: 'Bancário', step: 5, fields: ['banco', 'agencia', 'conta_corrente'] },
 ];
