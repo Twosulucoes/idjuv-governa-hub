@@ -1,7 +1,6 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MODALIDADES_ESPORTIVAS } from '../modalidadesEsportivas';
 import type { ArbitroFormData } from '../CadastroArbitroPage';
 
 interface Props {
@@ -13,20 +12,6 @@ export function StepProfissional({ data, update }: Props) {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Dados Profissionais</h3>
-
-      <div className="space-y-2">
-        <Label>Modalidade *</Label>
-        <Select value={data.modalidade} onValueChange={v => update('modalidade', v)}>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione a modalidade esportiva" />
-          </SelectTrigger>
-          <SelectContent className="max-h-[280px]">
-            {MODALIDADES_ESPORTIVAS.map((m) => (
-              <SelectItem key={m} value={m}>{m}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
