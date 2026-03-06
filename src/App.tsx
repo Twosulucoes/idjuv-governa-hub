@@ -191,6 +191,7 @@ import AuditoriaWorkflowPage from "./pages/cadastrogestores/AuditoriaWorkflowPag
 
 // Cadastro de Árbitros (público)
 import CadastroArbitroPage from "./pages/cadastro-arbitros/CadastroArbitroPage";
+import ArbitrosAdminPage from "./pages/cadastro-arbitros/admin/ArbitrosAdminPage";
 
 // Workflow (SEI-like)
 import GestaoProcessosPage from "./pages/workflow/GestaoProcessosPage";
@@ -366,6 +367,11 @@ const App = () => (
                 <PublicPageGuard rota="/cadastro-arbitros">
                   <CadastroArbitroPage />
                 </PublicPageGuard>
+              } />
+              
+              {/* Admin Árbitros */}
+              <Route path="/cadastro-arbitros/admin" element={
+                <ProtectedRoute><ArbitrosAdminPage /></ProtectedRoute>
               } />
 
               {/* Credenciamento Gestores Escolares - JER */}
