@@ -20731,6 +20731,7 @@ export type Database = {
         | "organizacoes"
         | "gabinete"
         | "patrimonio_mobile"
+        | "arbitros"
       app_permission:
         | "users.read"
         | "users.create"
@@ -21536,6 +21537,7 @@ export const Constants = {
         "organizacoes",
         "gabinete",
         "patrimonio_mobile",
+        "arbitros",
       ],
       app_permission: [
         "users.read",
