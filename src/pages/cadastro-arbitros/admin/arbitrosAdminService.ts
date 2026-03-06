@@ -83,6 +83,22 @@ export async function updateArbitroStatus(id: string, status: string) {
   if (error) throw error;
 }
 
+export async function updateArbitro(id: string, dados: Partial<ArbitroCadastro>) {
+  const { error } = await supabase
+    .from("cadastro_arbitros" as any)
+    .update({ ...dados, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteArbitro(id: string) {
+  const { error } = await supabase
+    .from("cadastro_arbitros" as any)
+    .delete()
+    .eq("id", id);
+  if (error) throw error;
+}
+
 export async function fetchArbitroById(id: string) {
   const { data, error } = await supabase
     .from("cadastro_arbitros" as any)
