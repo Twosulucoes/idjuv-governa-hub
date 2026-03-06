@@ -189,6 +189,9 @@ import ImportarEscolasPage from "./pages/cadastrogestores/ImportarEscolasPage";
 import RelatoriosGestoresPage from "./pages/cadastrogestores/RelatoriosGestoresPage";
 import AuditoriaWorkflowPage from "./pages/cadastrogestores/AuditoriaWorkflowPage";
 
+// Cadastro de Árbitros (público)
+import CadastroArbitroPage from "./pages/cadastro-arbitros/CadastroArbitroPage";
+
 // Workflow (SEI-like)
 import GestaoProcessosPage from "./pages/workflow/GestaoProcessosPage";
 import ProcessoDetalhePage from "./pages/workflow/ProcessoDetalhePage";
@@ -358,6 +361,13 @@ const App = () => (
                 </PublicPageGuard>
               } />
               
+              {/* Cadastro de Árbitros - público */}
+              <Route path="/cadastro-arbitros" element={
+                <PublicPageGuard rota="/cadastro-arbitros">
+                  <CadastroArbitroPage />
+                </PublicPageGuard>
+              } />
+
               {/* Credenciamento Gestores Escolares - JER */}
               <Route path="/cadastrogestores" element={
                 <PublicPageGuard rota="/cadastrogestores">
