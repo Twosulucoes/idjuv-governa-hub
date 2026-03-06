@@ -72,7 +72,7 @@ export async function fetchArbitros(filters?: {
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data || []) as ArbitroCadastro[];
+  return (data || []) as unknown as ArbitroCadastro[];
 }
 
 export async function updateArbitroStatus(id: string, status: string) {
@@ -90,7 +90,7 @@ export async function fetchArbitroById(id: string) {
     .eq("id", id)
     .single();
   if (error) throw error;
-  return data as ArbitroCadastro;
+  return data as unknown as ArbitroCadastro;
 }
 
 export interface EstatisticasArbitros {
@@ -111,7 +111,7 @@ export async function fetchEstatisticas(): Promise<EstatisticasArbitros> {
     .select("*");
   if (error) throw error;
 
-  const arbitros = (data || []) as ArbitroCadastro[];
+  const arbitros = (data || []) as unknown as ArbitroCadastro[];
   const total = arbitros.length;
   const pendentes = arbitros.filter((a) => a.status === "pendente").length;
   const aprovados = arbitros.filter((a) => a.status === "aprovado").length;
