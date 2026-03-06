@@ -189,6 +189,9 @@ import ImportarEscolasPage from "./pages/cadastrogestores/ImportarEscolasPage";
 import RelatoriosGestoresPage from "./pages/cadastrogestores/RelatoriosGestoresPage";
 import AuditoriaWorkflowPage from "./pages/cadastrogestores/AuditoriaWorkflowPage";
 
+// Cadastro de Árbitros (público)
+import CadastroArbitroPage from "./pages/cadastro-arbitros/CadastroArbitroPage";
+
 // Workflow (SEI-like)
 import GestaoProcessosPage from "./pages/workflow/GestaoProcessosPage";
 import ProcessoDetalhePage from "./pages/workflow/ProcessoDetalhePage";
