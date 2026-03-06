@@ -326,4 +326,13 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "instalar", label: "Instalar App", icon: Smartphone, route: "/instalar" },
     ],
   },
+
+  // Árbitros
+  arbitros: {
+    dashboard: { label: "Painel de Árbitros", route: "/cadastro-arbitros/admin" },
+    items: [
+      { id: "arbitros-cadastros", label: "Cadastros", icon: Users, route: "/cadastro-arbitros/admin" },
+      { id: "arbitros-relatorios", label: "Relatórios", icon: BarChart3, route: "/cadastro-arbitros/admin?tab=relatorios" },
+    ],
+  },
 };
