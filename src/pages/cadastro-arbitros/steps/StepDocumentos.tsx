@@ -13,16 +13,17 @@ export function StepDocumentos({ data, update }: Props) {
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Documentos</h3>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label>CPF *</Label>
-          <MaskedInput mask="cpf" value={data.cpf} onChange={v => update('cpf', v)} />
-        </div>
+      <div className="space-y-2">
+        <Label>CPF *</Label>
+        <MaskedInput mask="cpf" value={data.cpf} onChange={v => update('cpf', v)} />
+      </div>
+
+      {data.nacionalidade === 'brasileira' && (
         <div className="space-y-2">
           <Label>RG</Label>
           <MaskedInput mask="rg" value={data.rg} onChange={v => update('rg', v)} />
         </div>
-      </div>
+      )}
 
       {data.nacionalidade === 'estrangeira' && (
         <div className="grid gap-4 sm:grid-cols-2">
