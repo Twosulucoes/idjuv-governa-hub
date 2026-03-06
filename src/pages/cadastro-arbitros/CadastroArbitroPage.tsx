@@ -55,7 +55,7 @@ const INITIAL_DATA: ArbitroFormData = {
   nome: '', nacionalidade: 'brasileira', sexo: '', data_nascimento: '', categoria: '',
   tipo_sanguineo: '', fator_rh: '', cpf: '', rg: '', rne: '', validade_rne: '',
   pis_pasep: '', cep: '', endereco: '', complemento: '', bairro: '', cidade: '',
-  uf: '', email: '', ddd: '', celular: '', modalidade: '', local_trabalho: '',
+  uf: '', email: '', celular: '', modalidade: '', local_trabalho: '',
   funcao: '', esfera: '', banco: '', agencia: '', conta_corrente: '',
   foto_url: '', documentos_urls: [],
 };
@@ -118,7 +118,6 @@ export default function CadastroArbitroPage() {
         cidade: formData.cidade || null,
         uf: formData.uf || null,
         email: formData.email.trim(),
-        ddd: formData.ddd || null,
         celular: formData.celular.trim(),
         modalidade: formData.modalidade.trim(),
         local_trabalho: formData.local_trabalho || null,
