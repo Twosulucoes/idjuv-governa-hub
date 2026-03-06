@@ -361,6 +361,13 @@ const App = () => (
                 </PublicPageGuard>
               } />
               
+              {/* Cadastro de Árbitros - público */}
+              <Route path="/cadastro-arbitros" element={
+                <PublicPageGuard rota="/cadastro-arbitros">
+                  <CadastroArbitroPage />
+                </PublicPageGuard>
+              } />
+
               {/* Credenciamento Gestores Escolares - JER */}
               <Route path="/cadastrogestores" element={
                 <PublicPageGuard rota="/cadastrogestores">
