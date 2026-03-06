@@ -41,20 +41,33 @@ export function StepDadosPessoais({ data, update }: Props) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="space-y-2">
-          <Label>Data de Nascimento *</Label>
-          <Input type="date" value={data.data_nascimento} onChange={e => update('data_nascimento', e.target.value)} />
-        </div>
-        <div className="space-y-2">
-          <Label>Categoria do Árbitro *</Label>
-          <Select value={data.categoria} onValueChange={v => update('categoria', v)}>
-            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="estadual">Árbitro Estadual</SelectItem>
-              <SelectItem value="nacional">Árbitro Nacional</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className="space-y-2">
+        <Label>Data de Nascimento *</Label>
+        <Input type="date" value={data.data_nascimento} onChange={e => update('data_nascimento', e.target.value)} className="max-w-xs" />
+      </div>
+
+      {/* Categoria em destaque */}
+      <div className="border-2 border-primary/30 bg-primary/5 rounded-xl p-4 space-y-2">
+        <Label className="text-base font-bold text-primary">Categoria do Árbitro *</Label>
+        <p className="text-xs text-muted-foreground">Selecione a categoria de atuação</p>
+        <div className="flex gap-3">
+          {[
+            { value: 'estadual', label: '🏅 Árbitro Estadual' },
+            { value: 'nacional', label: '🏆 Árbitro Nacional' },
+          ].map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => update('categoria', opt.value)}
+              className={`flex-1 py-3 px-4 rounded-lg border-2 text-sm font-semibold transition-all
+                ${data.categoria === opt.value
+                  ? 'border-primary bg-primary text-primary-foreground shadow-md scale-[1.02]'
+                  : 'border-border bg-background text-foreground hover:border-primary/50'
+                }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
       </div>
 
