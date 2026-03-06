@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle2, XCircle, Loader2, User, FileText, MapPin, Phone, Briefcase, Building2 } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, User, FileText, MapPin, Phone, Briefcase, Building2, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import type { ArbitroCadastro } from "../arbitrosAdminService";
 
@@ -10,6 +10,8 @@ interface Props {
   arbitro: ArbitroCadastro;
   onClose: () => void;
   onChangeStatus: (status: string) => void;
+  onEdit: () => void;
+  onDelete: () => void;
   loading: boolean;
 }
 
@@ -29,7 +31,7 @@ function Field({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-export function AdminDetalheModal({ arbitro, onClose, onChangeStatus, loading }: Props) {
+export function AdminDetalheModal({ arbitro, onClose, onChangeStatus, onEdit, onDelete, loading }: Props) {
   const badge = STATUS_MAP[arbitro.status] || STATUS_MAP.pendente;
 
   return (
@@ -135,18 +137,26 @@ export function AdminDetalheModal({ arbitro, onClose, onChangeStatus, loading }:
           )}
 
           {/* Ações */}
-          {arbitro.status === "pendente" && (
-            <div className="flex gap-3 pt-4">
-              <Button onClick={() => onChangeStatus("aprovado")} disabled={loading} className="flex-1 bg-green-600 hover:bg-green-700 gap-2">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                Aprovar
-              </Button>
-              <Button onClick={() => onChangeStatus("rejeitado")} disabled={loading} variant="destructive" className="flex-1 gap-2">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-                Rejeitar
-              </Button>
-            </div>
-          )}
+          <div className="flex flex-wrap gap-3 pt-4 border-t">
+            {arbitro.status === "pendente" && (
+              <>
+                <Button onClick={() => onChangeStatus("aprovado")} disabled={loading} className="flex-1 bg-green-600 hover:bg-green-700 gap-2">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  Aprovar
+                </Button>
+                <Button onClick={() => onChangeStatus("rejeitado")} disabled={loading} variant="destructive" className="flex-1 gap-2">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                  Rejeitar
+                </Button>
+              </>
+            )}
+            <Button onClick={onEdit} variant="outline" className="gap-2">
+              <Pencil className="h-4 w-4" /> Editar
+            </Button>
+            <Button onClick={onDelete} variant="ghost" className="gap-2 text-destructive hover:text-destructive">
+              <Trash2 className="h-4 w-4" /> Excluir
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

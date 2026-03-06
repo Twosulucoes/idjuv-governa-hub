@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -6,11 +6,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Download, FileSpreadsheet, BarChart3, PieChart, TrendingUp, MapPin, FileText } from "lucide-react";
+import { Download, FileSpreadsheet, BarChart3, PieChart, TrendingUp, MapPin, FileText, Printer } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RPieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { exportarParaCSV } from "@/export/exportCSV";
 import { exportarParaExcel } from "@/export/exportExcel";
 import { MODALIDADES_ESPORTIVAS } from "../../modalidadesEsportivas";
+import { ReportLayout, ReportSection, ReportField, ReportFieldGrid } from "@/components/reports";
 import type { EstatisticasArbitros, ArbitroCadastro } from "../arbitrosAdminService";
 
 interface Props {
@@ -48,6 +49,9 @@ const EXPORT_FIELDS = [
   { key: "local_trabalho", label: "Local Trabalho" },
   { key: "funcao", label: "Função" },
   { key: "esfera", label: "Esfera" },
+  { key: "banco", label: "Banco" },
+  { key: "agencia", label: "Agência" },
+  { key: "conta_corrente", label: "Conta Corrente" },
   { key: "created_at", label: "Data Cadastro" },
 ] as const;
 
@@ -58,6 +62,9 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
   );
   const [filtroModalidadeExport, setFiltroModalidadeExport] = useState("todos");
   const [filtroStatusExport, setFiltroStatusExport] = useState("todos");
+  const [filtroCategoriaExport, setFiltroCategoriaExport] = useState("todos");
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
 
   if (loading || !stats) {
     return <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-48" />)}</div>;
@@ -69,6 +76,14 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
     );
   }
 
+  function selectAllFields() {
+    setSelectedFields(EXPORT_FIELDS.map(f => f.key));
+  }
+
+  function deselectAllFields() {
+    setSelectedFields([]);
+  }
+
   function getFilteredData() {
     let filtered = [...arbitros];
     if (filtroModalidadeExport !== "todos") {
@@ -77,18 +92,23 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
     if (filtroStatusExport !== "todos") {
       filtered = filtered.filter(a => a.status === filtroStatusExport);
     }
-    return filtered.map(a => {
+    if (filtroCategoriaExport !== "todos") {
+      filtered = filtered.filter(a => a.categoria === filtroCategoriaExport);
+    }
+    return filtered;
+  }
+
+  function getExportData() {
+    return getFilteredData().map(a => {
       const row: Record<string, unknown> = {};
       selectedFields.forEach(key => {
         const field = EXPORT_FIELDS.find(f => f.key === key);
         if (!field) return;
         let val: unknown = (a as any)[key];
-        if (key === "created_at" && val) {
-          val = new Date(val as string).toLocaleDateString("pt-BR");
-        }
-        if (key === "sexo") {
-          val = val === "M" ? "Masculino" : val === "F" ? "Feminino" : val;
-        }
+        if (key === "created_at" && val) val = new Date(val as string).toLocaleDateString("pt-BR");
+        if (key === "sexo") val = val === "M" ? "Masculino" : val === "F" ? "Feminino" : val;
+        if (key === "categoria") val = val === "estadual" ? "Estadual" : "Nacional";
+        if (key === "status") val = val === "pendente" ? "Pendente" : val === "aprovado" ? "Aprovado" : "Rejeitado";
         row[field.label] = val ?? "";
       });
       return row;
@@ -96,20 +116,27 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
   }
 
   function handleExportCSV() {
-    const data = getFilteredData();
+    const data = getExportData();
     if (data.length === 0) return;
     exportarParaCSV(data, "relatorio-arbitros");
   }
 
   function handleExportExcel() {
-    const data = getFilteredData();
+    const data = getExportData();
     if (data.length === 0) return;
     exportarParaExcel(data, "relatorio-arbitros", "Árbitros");
   }
 
+  function handlePrint() {
+    setShowPrintPreview(true);
+    setTimeout(() => window.print(), 300);
+  }
+
+  const filteredCount = getFilteredData().length;
+
   return (
     <div className="space-y-6">
-      {/* Header relatórios */}
+      {/* Gráficos */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Select value={tipo} onValueChange={(v) => setTipo(v as TipoRelatorio)}>
           <SelectTrigger className="w-[220px]">
@@ -125,14 +152,13 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
         </Select>
       </div>
 
-      {/* Gráfico dinâmico */}
       {tipo === "modalidade" && <RelatorioModalidade data={stats.porModalidade} />}
       {tipo === "uf" && <RelatorioUF data={stats.porUF} />}
       {tipo === "categoria" && <RelatorioCategoria data={stats.porCategoria} />}
       {tipo === "evolucao" && <RelatorioEvolucao data={stats.porMes} />}
       {tipo === "sexo" && <RelatorioSexo data={stats.porSexo} />}
 
-      {/* Exportação dinâmica */}
+      {/* Exportação Personalizada */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
@@ -140,10 +166,10 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Filtros de export */}
-          <div className="grid gap-3 sm:grid-cols-2">
+          {/* Filtros */}
+          <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Filtrar por Modalidade</Label>
+              <Label className="text-xs text-muted-foreground">Modalidade</Label>
               <Select value={filtroModalidadeExport} onValueChange={setFiltroModalidadeExport}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent className="max-h-[280px]">
@@ -155,7 +181,7 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Filtrar por Status</Label>
+              <Label className="text-xs text-muted-foreground">Status</Label>
               <Select value={filtroStatusExport} onValueChange={setFiltroStatusExport}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -166,11 +192,26 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Categoria</Label>
+              <Select value={filtroCategoriaExport} onValueChange={setFiltroCategoriaExport}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todas</SelectItem>
+                  <SelectItem value="estadual">Estadual</SelectItem>
+                  <SelectItem value="nacional">Nacional</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          {/* Campos selecionáveis */}
+          {/* Campos */}
           <div>
-            <Label className="text-xs text-muted-foreground mb-2 block">Campos a exportar:</Label>
+            <div className="flex items-center gap-3 mb-2">
+              <Label className="text-xs text-muted-foreground">Campos a exportar:</Label>
+              <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={selectAllFields}>Selecionar todos</Button>
+              <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={deselectAllFields}>Limpar</Button>
+            </div>
             <div className="flex flex-wrap gap-3">
               {EXPORT_FIELDS.map(f => (
                 <label key={f.key} className="flex items-center gap-1.5 text-sm cursor-pointer">
@@ -184,26 +225,25 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
             </div>
           </div>
 
-          <div className="flex gap-2 pt-2">
+          {/* Botões de export */}
+          <div className="flex flex-wrap gap-2 pt-2">
             <Button onClick={handleExportCSV} variant="outline" className="gap-2" disabled={selectedFields.length === 0}>
               <Download className="h-4 w-4" /> CSV
             </Button>
             <Button onClick={handleExportExcel} variant="outline" className="gap-2" disabled={selectedFields.length === 0}>
               <FileSpreadsheet className="h-4 w-4" /> Excel
             </Button>
+            <Button onClick={handlePrint} variant="outline" className="gap-2">
+              <Printer className="h-4 w-4" /> Imprimir com Timbre
+            </Button>
             <span className="text-xs text-muted-foreground self-center ml-2">
-              {(() => {
-                let c = arbitros.length;
-                if (filtroModalidadeExport !== "todos") c = arbitros.filter(a => a.modalidade === filtroModalidadeExport).length;
-                if (filtroStatusExport !== "todos") c = arbitros.filter(a => a.status === filtroStatusExport && (filtroModalidadeExport === "todos" || a.modalidade === filtroModalidadeExport)).length;
-                return `${c} registro(s) • ${selectedFields.length} campo(s)`;
-              })()}
+              {filteredCount} registro(s) • {selectedFields.length} campo(s)
             </span>
           </div>
         </CardContent>
       </Card>
 
-      {/* Tabela resumo */}
+      {/* Resumo Geral */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
@@ -238,12 +278,56 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Print Preview (hidden on screen, visible on print) */}
+      <div className="hidden print:block" ref={printRef}>
+        <ReportLayout
+          title="Relatório de Cadastro de Árbitros"
+          subtitle={`${filteredCount} registro(s) — Gerado em ${new Date().toLocaleDateString("pt-BR")}`}
+          showFooter
+        >
+          <ReportSection title="Resumo Estatístico" numero={1}>
+            <ReportFieldGrid cols={4}>
+              <ReportField label="Total" value={stats.total} />
+              <ReportField label="Pendentes" value={stats.pendentes} />
+              <ReportField label="Aprovados" value={stats.aprovados} />
+              <ReportField label="Rejeitados" value={stats.rejeitados} />
+            </ReportFieldGrid>
+          </ReportSection>
+
+          <ReportSection title="Dados dos Árbitros" numero={2}>
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr>
+                  {selectedFields.map(key => {
+                    const field = EXPORT_FIELDS.find(f => f.key === key);
+                    return <th key={key} className="border border-border px-2 py-1 bg-muted text-left font-semibold">{field?.label}</th>;
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {getFilteredData().map((a, idx) => (
+                  <tr key={a.id} className={idx % 2 === 0 ? "" : "bg-muted/30"}>
+                    {selectedFields.map(key => {
+                      let val: any = (a as any)[key];
+                      if (key === "created_at" && val) val = new Date(val).toLocaleDateString("pt-BR");
+                      if (key === "sexo") val = val === "M" ? "Masculino" : "Feminino";
+                      if (key === "categoria") val = val === "estadual" ? "Estadual" : "Nacional";
+                      if (key === "status") val = val === "pendente" ? "Pendente" : val === "aprovado" ? "Aprovado" : "Rejeitado";
+                      return <td key={key} className="border border-border px-2 py-0.5">{val || "—"}</td>;
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </ReportSection>
+        </ReportLayout>
+      </div>
     </div>
   );
 }
 
-// Sub-componentes de relatório
-
+// Sub-componentes de gráfico
 function RelatorioModalidade({ data }: { data: { modalidade: string; count: number }[] }) {
   return (
     <Card>
@@ -287,10 +371,7 @@ function RelatorioUF({ data }: { data: { uf: string; count: number }[] }) {
 }
 
 function RelatorioCategoria({ data }: { data: { categoria: string; count: number }[] }) {
-  const formatted = data.map((d) => ({
-    ...d,
-    categoria: d.categoria === "estadual" ? "Estadual" : "Nacional",
-  }));
+  const formatted = data.map(d => ({ ...d, categoria: d.categoria === "estadual" ? "Estadual" : "Nacional" }));
   return (
     <Card>
       <CardHeader><CardTitle className="text-base flex items-center gap-2"><PieChart className="h-4 w-4" /> Distribuição por Categoria</CardTitle></CardHeader>
@@ -311,10 +392,7 @@ function RelatorioCategoria({ data }: { data: { categoria: string; count: number
 }
 
 function RelatorioEvolucao({ data }: { data: { mes: string; count: number }[] }) {
-  const formatted = data.map((d) => {
-    const [y, m] = d.mes.split("-");
-    return { ...d, label: `${m}/${y}` };
-  });
+  const formatted = data.map(d => { const [y, m] = d.mes.split("-"); return { ...d, label: `${m}/${y}` }; });
   return (
     <Card>
       <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Evolução Mensal</CardTitle></CardHeader>
