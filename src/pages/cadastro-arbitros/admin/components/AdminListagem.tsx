@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Eye, CheckCircle2, XCircle } from "lucide-react";
+import { Search, Eye, CheckCircle2, XCircle, Pencil, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { MODALIDADES_ESPORTIVAS } from "../../modalidadesEsportivas";
@@ -16,6 +16,8 @@ interface Props {
   filtros: { status: string; categoria: string; uf: string; modalidade: string; busca: string };
   setFiltros: (f: any) => void;
   onSelect: (a: ArbitroCadastro) => void;
+  onEdit: (a: ArbitroCadastro) => void;
+  onDelete: (a: ArbitroCadastro) => void;
   onChangeStatus: (id: string, status: string) => void;
 }
 
@@ -25,7 +27,7 @@ const STATUS_BADGE: Record<string, { label: string; variant: "default" | "second
   rejeitado: { label: "Rejeitado", variant: "destructive" },
 };
 
-export function AdminListagem({ arbitros, loading, filtros, setFiltros, onSelect, onChangeStatus }: Props) {
+export function AdminListagem({ arbitros, loading, filtros, setFiltros, onSelect, onEdit, onDelete, onChangeStatus }: Props) {
   return (
     <div className="space-y-4">
       {/* Filtros */}
@@ -98,7 +100,7 @@ export function AdminListagem({ arbitros, loading, filtros, setFiltros, onSelect
                   {arbitros.map((a) => {
                     const badge = STATUS_BADGE[a.status] || STATUS_BADGE.pendente;
                     return (
-                      <TableRow key={a.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onSelect(a)}>
+                      <TableRow key={a.id} className="cursor-pointer hover:bg-muted/50">
                         <TableCell className="font-mono text-xs">{a.protocolo || "—"}</TableCell>
                         <TableCell className="font-medium max-w-[200px] truncate">{a.nome}</TableCell>
                         <TableCell className="text-xs">{a.cpf}</TableCell>
@@ -110,9 +112,12 @@ export function AdminListagem({ arbitros, loading, filtros, setFiltros, onSelect
                         <TableCell><Badge variant={badge.variant}>{badge.label}</Badge></TableCell>
                         <TableCell className="text-xs text-muted-foreground">{format(new Date(a.created_at), "dd/MM/yy")}</TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex justify-end gap-1">
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onSelect(a)} title="Ver detalhes">
                               <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(a)} title="Editar">
+                              <Pencil className="h-4 w-4" />
                             </Button>
                             {a.status === "pendente" && (
                               <>
@@ -124,6 +129,9 @@ export function AdminListagem({ arbitros, loading, filtros, setFiltros, onSelect
                                 </Button>
                               </>
                             )}
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => onDelete(a)} title="Excluir">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
