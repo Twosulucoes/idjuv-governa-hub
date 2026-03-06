@@ -30,6 +30,7 @@ const MODULE_ROUTES: Record<Modulo, string> = {
   organizacoes: "/admin/federacoes",
   gabinete: "/gabinete",
   patrimonio_mobile: "/patrimonio-mobile",
+  arbitros: "/cadastro-arbitros/admin",
 };
 
 export function ModuleSwitcher() {

@@ -1056,6 +1056,35 @@ export const menuConfig: MenuSection[] = [
     ],
   },
 
+  // ========== 13.5. ÁRBITROS ==========
+  {
+    id: "arbitros",
+    label: "Árbitros",
+    labelShort: "Árbitros",
+    icon: Gavel,
+    priority: 13.5,
+    items: [
+      {
+        id: "arbitros-admin",
+        label: "Painel de Árbitros",
+        route: "/cadastro-arbitros/admin",
+        icon: ClipboardList,
+      },
+      {
+        id: "arbitros-cadastros",
+        label: "Cadastros",
+        route: "/cadastro-arbitros/admin?tab=cadastros",
+        icon: Users,
+      },
+      {
+        id: "arbitros-relatorios",
+        label: "Relatórios",
+        route: "/cadastro-arbitros/admin?tab=relatorios",
+        icon: BarChart3,
+      },
+    ],
+  },
+
   // ========== 14. ADMINISTRAÇÃO (RESTRITO) ==========
   {
     id: "admin",

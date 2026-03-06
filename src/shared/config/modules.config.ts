@@ -19,6 +19,7 @@ import {
   Eye,
   Megaphone,
   School,
+  Gavel,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -43,6 +44,7 @@ export const MODULOS = [
   'organizacoes', // Módulo para Federações, Instituições, Associações e Entes
   'gabinete', // Módulo para Gabinete da Presidência
   'patrimonio_mobile', // Módulo exclusivo para App Mobile (PWA) de Patrimônio
+  'arbitros', // Módulo para Cadastro e Gestão de Árbitros
 ] as const;
 
 export type Modulo = typeof MODULOS[number];
@@ -205,6 +207,15 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     cor: 'cyan',
     rotas: ['/patrimonio-mobile', '/instalar'],
     menuSectionIds: ['patrimonio-mobile'],
+  },
+  {
+    codigo: 'arbitros',
+    nome: 'Árbitros',
+    descricao: 'Cadastro e gestão de árbitros esportivos',
+    icone: Gavel,
+    cor: 'amber',
+    rotas: ['/cadastro-arbitros/admin', '/cadastro-arbitros'],
+    menuSectionIds: ['arbitros'],
   },
 ];
 
