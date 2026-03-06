@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Eye, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Search, Eye, CheckCircle2, XCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
+import { MODALIDADES_ESPORTIVAS } from "../../modalidadesEsportivas";
 import type { ArbitroCadastro } from "../arbitrosAdminService";
 
 interface Props {
@@ -57,11 +58,15 @@ export function AdminListagem({ arbitros, loading, filtros, setFiltros, onSelect
                 <SelectItem value="nacional">Nacional</SelectItem>
               </SelectContent>
             </Select>
-            <Input
-              placeholder="Filtrar modalidade..."
-              value={filtros.modalidade}
-              onChange={(e) => setFiltros({ ...filtros, modalidade: e.target.value })}
-            />
+            <Select value={filtros.modalidade || "todos"} onValueChange={(v) => setFiltros({ ...filtros, modalidade: v === "todos" ? "" : v })}>
+              <SelectTrigger><SelectValue placeholder="Modalidade" /></SelectTrigger>
+              <SelectContent className="max-h-[280px]">
+                <SelectItem value="todos">Todas modalidades</SelectItem>
+                {MODALIDADES_ESPORTIVAS.map((m) => (
+                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
