@@ -302,50 +302,6 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
         </CardContent>
       </Card>
 
-      {/* Print Preview (hidden on screen, visible on print) */}
-      <div className="hidden print:block" ref={printRef}>
-        <ReportLayout
-          title="Relatório de Cadastro de Árbitros"
-          subtitle={`${filteredCount} registro(s) — Gerado em ${new Date().toLocaleDateString("pt-BR")}`}
-          showFooter
-        >
-          <ReportSection title="Resumo Estatístico" numero={1}>
-            <ReportFieldGrid cols={4}>
-              <ReportField label="Total" value={stats.total} />
-              <ReportField label="Pendentes" value={stats.pendentes} />
-              <ReportField label="Aprovados" value={stats.aprovados} />
-              <ReportField label="Rejeitados" value={stats.rejeitados} />
-            </ReportFieldGrid>
-          </ReportSection>
-
-          <ReportSection title="Dados dos Árbitros" numero={2}>
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr>
-                  {selectedFields.map(key => {
-                    const field = EXPORT_FIELDS.find(f => f.key === key);
-                    return <th key={key} className="border border-border px-2 py-1 bg-muted text-left font-semibold">{field?.label}</th>;
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {getFilteredData().map((a, idx) => (
-                  <tr key={a.id} className={idx % 2 === 0 ? "" : "bg-muted/30"}>
-                    {selectedFields.map(key => {
-                      let val: any = (a as any)[key];
-                      if (key === "created_at" && val) val = new Date(val).toLocaleDateString("pt-BR");
-                      if (key === "sexo") val = val === "M" ? "Masculino" : "Feminino";
-                      if (key === "categoria") val = val === "estadual" ? "Estadual" : "Nacional";
-                      if (key === "status") val = val === "pendente" ? "Pendente" : val === "aprovado" ? "Aprovado" : "Rejeitado";
-                      return <td key={key} className="border border-border px-2 py-0.5">{val || "—"}</td>;
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </ReportSection>
-        </ReportLayout>
-      </div>
     </div>
   );
 }
