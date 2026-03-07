@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -6,12 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Download, FileSpreadsheet, BarChart3, PieChart, TrendingUp, MapPin, FileText, Printer } from "lucide-react";
+import { Download, FileSpreadsheet, BarChart3, PieChart, TrendingUp, MapPin, FileText, Printer, Loader2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RPieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { exportarParaCSV } from "@/export/exportCSV";
 import { exportarParaExcel } from "@/export/exportExcel";
 import { MODALIDADES_ESPORTIVAS } from "../../modalidadesEsportivas";
-import { ReportLayout, ReportSection, ReportField, ReportFieldGrid } from "@/components/reports";
+import { gerarRelatorioArbitrosPDF } from "@/lib/pdfRelatorioArbitros";
+import { toast } from "sonner";
 import type { EstatisticasArbitros, ArbitroCadastro } from "../arbitrosAdminService";
 
 interface Props {
@@ -63,8 +64,7 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
   const [filtroModalidadeExport, setFiltroModalidadeExport] = useState("todos");
   const [filtroStatusExport, setFiltroStatusExport] = useState("todos");
   const [filtroCategoriaExport, setFiltroCategoriaExport] = useState("todos");
-  const [showPrintPreview, setShowPrintPreview] = useState(false);
-  const printRef = useRef<HTMLDivElement>(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   if (loading || !stats) {
     return <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-48" />)}</div>;
@@ -127,9 +127,31 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
     exportarParaExcel(data, "relatorio-arbitros", "Árbitros");
   }
 
-  function handlePrint() {
-    setShowPrintPreview(true);
-    setTimeout(() => window.print(), 300);
+  async function handleGeneratePDF() {
+    const data = getExportData();
+    if (data.length === 0) {
+      toast.error("Nenhum registro para exportar");
+      return;
+    }
+    setIsGeneratingPDF(true);
+    try {
+      const campos = selectedFields.map(key => {
+        const field = EXPORT_FIELDS.find(f => f.key === key);
+        return { key, label: field?.label || key };
+      });
+      await gerarRelatorioArbitrosPDF(data, {
+        titulo: "Relatório de Cadastro de Árbitros",
+        subtitulo: `${data.length} registro(s) — Gerado em ${new Date().toLocaleDateString("pt-BR")}`,
+        campos,
+        resumo: stats ? { total: stats.total, pendentes: stats.pendentes, aprovados: stats.aprovados, rejeitados: stats.rejeitados } : undefined,
+      });
+      toast.success(`PDF gerado com ${data.length} registros`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao gerar PDF");
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   }
 
   const filteredCount = getFilteredData().length;
@@ -233,8 +255,9 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
             <Button onClick={handleExportExcel} variant="outline" className="gap-2" disabled={selectedFields.length === 0}>
               <FileSpreadsheet className="h-4 w-4" /> Excel
             </Button>
-            <Button onClick={handlePrint} variant="outline" className="gap-2">
-              <Printer className="h-4 w-4" /> Imprimir com Timbre
+            <Button onClick={handleGeneratePDF} variant="outline" className="gap-2" disabled={selectedFields.length === 0 || isGeneratingPDF}>
+              {isGeneratingPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+              PDF com Timbre
             </Button>
             <span className="text-xs text-muted-foreground self-center ml-2">
               {filteredCount} registro(s) • {selectedFields.length} campo(s)
@@ -279,50 +302,6 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
         </CardContent>
       </Card>
 
-      {/* Print Preview (hidden on screen, visible on print) */}
-      <div className="hidden print:block" ref={printRef}>
-        <ReportLayout
-          title="Relatório de Cadastro de Árbitros"
-          subtitle={`${filteredCount} registro(s) — Gerado em ${new Date().toLocaleDateString("pt-BR")}`}
-          showFooter
-        >
-          <ReportSection title="Resumo Estatístico" numero={1}>
-            <ReportFieldGrid cols={4}>
-              <ReportField label="Total" value={stats.total} />
-              <ReportField label="Pendentes" value={stats.pendentes} />
-              <ReportField label="Aprovados" value={stats.aprovados} />
-              <ReportField label="Rejeitados" value={stats.rejeitados} />
-            </ReportFieldGrid>
-          </ReportSection>
-
-          <ReportSection title="Dados dos Árbitros" numero={2}>
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr>
-                  {selectedFields.map(key => {
-                    const field = EXPORT_FIELDS.find(f => f.key === key);
-                    return <th key={key} className="border border-border px-2 py-1 bg-muted text-left font-semibold">{field?.label}</th>;
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {getFilteredData().map((a, idx) => (
-                  <tr key={a.id} className={idx % 2 === 0 ? "" : "bg-muted/30"}>
-                    {selectedFields.map(key => {
-                      let val: any = (a as any)[key];
-                      if (key === "created_at" && val) val = new Date(val).toLocaleDateString("pt-BR");
-                      if (key === "sexo") val = val === "M" ? "Masculino" : "Feminino";
-                      if (key === "categoria") val = val === "estadual" ? "Estadual" : "Nacional";
-                      if (key === "status") val = val === "pendente" ? "Pendente" : val === "aprovado" ? "Aprovado" : "Rejeitado";
-                      return <td key={key} className="border border-border px-2 py-0.5">{val || "—"}</td>;
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </ReportSection>
-        </ReportLayout>
-      </div>
     </div>
   );
 }
