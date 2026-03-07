@@ -189,15 +189,14 @@ export function useUsuarios() {
         return { authData: { user: { id: userId } }, senhaTemporaria: null, usuarioAtualizado: true };
       }
 
-      // Se não existe, tentar criar novo usuário no auth
+      // Se não existe, criar novo usuário via edge function (não afeta sessão do admin)
       const senhaTemporaria = generateTempPassword();
 
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password: senhaTemporaria,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth`,
-          data: {
+      const { data: fnData, error: fnError } = await supabase.functions.invoke('admin-create-user', {
+        body: {
+          email,
+          password: senhaTemporaria,
+          user_metadata: {
             full_name: servidor.nome_completo,
             servidor_id: servidorId,
             cpf: servidor.cpf,
@@ -206,15 +205,12 @@ export function useUsuarios() {
         }
       });
 
-      // Se auth.signUp retornar erro de "already registered", buscar pelo auth.users via RPC ou tratar
-      if (authError) {
-        const isAlreadyRegistered = 
-          authError.message?.includes('already registered') || 
-          (authError as any)?.code === 'user_already_exists';
+      if (fnError) throw new Error(fnError.message || 'Erro ao criar usuário');
 
-        if (isAlreadyRegistered) {
-          // Usuário existe no auth mas não tinha profile visível (RLS). Agora que RLS foi corrigido, tentar novamente.
-          // Pode ser que o trigger on_auth_user_created criou o profile. Buscar novamente.
+      // Check for application-level errors
+      if (fnData?.error) {
+        if (fnData.error === 'user_already_exists') {
+          // User exists in auth but no profile visible. Try to find and update.
           const { data: retryProfile } = await supabase
             .from('profiles')
             .select('id')
@@ -223,37 +219,37 @@ export function useUsuarios() {
 
           if (retryProfile) {
             const userId = retryProfile.id;
+            await supabase.from('profiles').update({ 
+              servidor_id: servidorId,
+              full_name: servidor.nome_completo,
+              cpf: servidor.cpf,
+              tipo_usuario: 'servidor'
+            }).eq('id', userId);
 
-            await supabase
-              .from('profiles')
-              .update({ 
-                servidor_id: servidorId,
-                full_name: servidor.nome_completo,
-                cpf: servidor.cpf,
-                tipo_usuario: 'servidor'
-              })
-              .eq('id', userId);
-
-
-            await supabase
-              .from('user_modules')
-              .delete()
-              .eq('user_id', userId);
-
+            await supabase.from('user_modules').delete().eq('user_id', userId);
             if (modulos.length > 0) {
               const modulosInsert = await buildModuleInserts(userId, modulos);
               await supabase.from('user_modules').insert(modulosInsert as any);
             }
-
             return { authData: { user: { id: userId } }, senhaTemporaria: null, usuarioAtualizado: true };
           }
         }
-        throw authError;
+        throw new Error(fnData.message || fnData.error);
       }
-      
-      const userId = authData.user?.id;
+
+      const userId = fnData?.user?.id;
       if (!userId) throw new Error('Erro ao obter ID do usuário criado');
 
+      // Aguardar o trigger criar o profile
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Atualizar profile com dados do servidor
+      await supabase.from('profiles').update({
+        servidor_id: servidorId,
+        full_name: servidor.nome_completo,
+        cpf: servidor.cpf,
+        tipo_usuario: 'servidor',
+      }).eq('id', userId);
 
       // Atribuir módulos com todas as permissões do catálogo
       if (modulos.length > 0) {
@@ -261,7 +257,7 @@ export function useUsuarios() {
         await supabase.from('user_modules').insert(modulosInsert as any);
       }
 
-      return { authData, senhaTemporaria, usuarioAtualizado: false };
+      return { authData: fnData, senhaTemporaria, usuarioAtualizado: false };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['usuarios-sistema'] });
