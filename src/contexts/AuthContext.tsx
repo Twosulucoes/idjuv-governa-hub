@@ -118,7 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         permissoesDetalhadas,
         isSuperAdmin,
         servidorId: profile?.servidor_id || undefined,
-        tipoUsuario: profile?.tipo_usuario || undefined,
+        tipoUsuario: (profile?.tipo_usuario as 'servidor' | 'tecnico') || undefined,
         requiresPasswordChange: profile?.requires_password_change || false,
       };
     } catch (error) {
