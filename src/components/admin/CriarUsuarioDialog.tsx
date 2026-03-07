@@ -317,7 +317,7 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
     );
   });
 
-  const servidoresDisponiveis = servidoresFiltrados.filter(s => !s.jaTemUsuario);
+  const servidoresVisiveis = servidoresFiltrados;
 
   const copiarSenha = () => {
     if (senhaGerada) {
@@ -460,47 +460,57 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
-                ) : servidoresDisponiveis.length === 0 ? (
+                ) : servidoresVisiveis.length === 0 ? (
                   <Alert>
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription>
                       {searchTerm 
                         ? 'Nenhum servidor encontrado com os termos de busca.'
-                        : 'Todos os servidores ativos já possuem usuário no sistema.'}
+                        : 'Nenhum servidor ativo encontrado.'}
                     </AlertDescription>
                   </Alert>
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-2">
-                    {servidoresDisponiveis.map((servidor) => (
-                      <div
-                        key={servidor.id}
-                        className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                          selectedServidor?.id === servidor.id
-                            ? 'bg-primary/10 border-primary'
-                            : 'hover:bg-accent/50'
-                        }`}
-                        onClick={() => handleSelectServidor(servidor)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                              <User className="h-5 w-5 text-primary" />
-                            </div>
-                            <div>
-                              <div className="font-medium">{servidor.nome_completo}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {servidor.matricula && `Mat: ${servidor.matricula}`}
-                                {servidor.matricula && servidor.cargo_nome && ' • '}
-                                {servidor.cargo_nome}
+                    {servidoresVisiveis.map((servidor) => {
+                      const isLinked = servidor.jaTemUsuario;
+                      const isSelected = selectedServidor?.id === servidor.id;
+
+                      return (
+                        <div
+                          key={servidor.id}
+                          className={`p-3 rounded-lg border transition-colors ${
+                            isSelected
+                              ? 'bg-primary/10 border-primary'
+                              : isLinked
+                                ? 'bg-muted/40 border-border opacity-70'
+                                : 'hover:bg-accent/50 cursor-pointer'
+                          }`}
+                          onClick={() => {
+                            if (!isLinked) handleSelectServidor(servidor);
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                <User className="h-5 w-5 text-primary" />
+                              </div>
+                              <div>
+                                <div className="font-medium">{servidor.nome_completo}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {servidor.matricula && `Mat: ${servidor.matricula}`}
+                                  {servidor.matricula && servidor.cargo_nome && ' • '}
+                                  {servidor.cargo_nome}
+                                </div>
                               </div>
                             </div>
+                            <div className="flex items-center gap-2">
+                              {isLinked && <Badge variant="secondary">Já possui usuário</Badge>}
+                              {isSelected && <CheckCircle className="h-5 w-5 text-primary" />}
+                            </div>
                           </div>
-                          {selectedServidor?.id === servidor.id && (
-                            <CheckCircle className="h-5 w-5 text-primary" />
-                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 

@@ -169,7 +169,8 @@ export function useUsuarios() {
             servidor_id: servidorId,
             full_name: servidor.nome_completo,
             cpf: servidor.cpf,
-            tipo_usuario: 'servidor'
+            tipo_usuario: 'servidor',
+            is_active: true,
           })
           .eq('id', userId);
 
