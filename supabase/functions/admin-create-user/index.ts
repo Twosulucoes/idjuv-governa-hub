@@ -2,16 +2,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Verify the caller is authenticated
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
@@ -20,20 +19,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create admin client with service role
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Verify caller is an active admin
     const supabaseUser = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user: caller }, error: callerError } = await supabaseUser.auth.getUser();
+    const {
+      data: { user: caller },
+      error: callerError,
+    } = await supabaseUser.auth.getUser();
+
     if (callerError || !caller) {
       return new Response(JSON.stringify({ error: "Sessão inválida" }), {
         status: 401,
@@ -41,7 +42,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if caller has admin module access
     const { data: adminAccess } = await supabaseAdmin
       .from("user_modules")
       .select("id")
@@ -66,36 +66,90 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create user with admin API (does NOT affect caller's session)
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const tipoUsuario = user_metadata?.tipo_usuario === "tecnico" ? "tecnico" : "servidor";
+    const fullName = user_metadata?.full_name || normalizedEmail;
+
+    const ensureProfile = async (userId: string, userEmail: string) => {
+      const { error: profileError } = await supabaseAdmin
+        .from("profiles")
+        .upsert(
+          {
+            id: userId,
+            email: userEmail,
+            full_name: fullName,
+            tipo_usuario: tipoUsuario,
+            is_active: true,
+          },
+          { onConflict: "id" }
+        );
+
+      if (profileError) throw profileError;
+    };
+
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
+      email: normalizedEmail,
       password,
-      email_confirm: true, // Auto-confirm since admin is creating
+      email_confirm: true,
       user_metadata: user_metadata || {},
     });
 
     if (createError) {
-      // Check if user already exists
-      if (createError.message?.includes("already been registered") || 
-          createError.message?.includes("already exists")) {
-        return new Response(JSON.stringify({ 
-          error: "user_already_exists",
-          message: "Usuário já registrado com este email" 
-        }), {
-          status: 409,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+      if (
+        createError.message?.includes("already been registered") ||
+        createError.message?.includes("already exists")
+      ) {
+        const { data: listed, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+          page: 1,
+          perPage: 1000,
         });
+
+        if (listError) throw listError;
+
+        const existing = listed?.users?.find(
+          (u) => (u.email || "").toLowerCase() === normalizedEmail
+        );
+
+        if (!existing?.id || !existing.email) {
+          return new Response(
+            JSON.stringify({
+              error: "user_already_exists",
+              message: "Usuário já registrado com este email",
+            }),
+            {
+              status: 409,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+
+        await ensureProfile(existing.id, existing.email);
+
+        return new Response(
+          JSON.stringify({ user: { id: existing.id, email: existing.email }, recovered: true }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
       }
+
       throw createError;
     }
 
-    return new Response(JSON.stringify({ 
-      user: { id: newUser.user.id, email: newUser.user.email } 
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    if (!newUser?.user?.id || !newUser.user.email) {
+      throw new Error("Falha ao criar usuário");
+    }
 
+    await ensureProfile(newUser.user.id, newUser.user.email);
+
+    return new Response(
+      JSON.stringify({ user: { id: newUser.user.id, email: newUser.user.email } }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   } catch (error: any) {
     console.error("Error creating user:", error);
     return new Response(JSON.stringify({ error: error.message || "Erro interno" }), {
