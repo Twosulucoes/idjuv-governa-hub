@@ -224,7 +224,8 @@ export function useUsuarios() {
               servidor_id: servidorId,
               full_name: servidor.nome_completo,
               cpf: servidor.cpf,
-              tipo_usuario: 'servidor'
+              tipo_usuario: 'servidor',
+              is_active: true,
             }).eq('id', userId);
 
             await supabase.from('user_modules').delete().eq('user_id', userId);
@@ -241,8 +242,26 @@ export function useUsuarios() {
       const userId = fnData?.user?.id;
       if (!userId) throw new Error('Erro ao obter ID do usuário criado');
 
-      // Aguardar o trigger criar o profile
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Aguardar criação do profile pelo gatilho e validar existência
+      let profileReady = false;
+      for (let i = 0; i < 8; i++) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (profile?.id) {
+          profileReady = true;
+          break;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      if (!profileReady) {
+        throw new Error('Usuário criado, mas o perfil ainda não foi sincronizado. Tente novamente em alguns segundos.');
+      }
 
       // Atualizar profile com dados do servidor
       await supabase.from('profiles').update({
@@ -250,6 +269,7 @@ export function useUsuarios() {
         full_name: servidor.nome_completo,
         cpf: servidor.cpf,
         tipo_usuario: 'servidor',
+        is_active: true,
       }).eq('id', userId);
 
       // Atribuir módulos com todas as permissões do catálogo
@@ -300,6 +320,19 @@ export function useUsuarios() {
 
       if (fnError) throw new Error(fnError.message || 'Erro ao criar usuário');
       if (fnData?.error) throw new Error(fnData.message || fnData.error);
+
+      const userId = fnData?.user?.id;
+      if (!userId) throw new Error('Erro ao obter ID do usuário criado');
+
+      // Garantir que o profile do técnico fique consistente e ativo
+      await supabase
+        .from('profiles')
+        .update({
+          full_name: fullName,
+          tipo_usuario: 'tecnico',
+          is_active: true,
+        })
+        .eq('id', userId);
 
       return { ...fnData, senhaTemporaria };
     },
