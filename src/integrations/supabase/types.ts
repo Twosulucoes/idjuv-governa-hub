@@ -16573,7 +16573,7 @@ export type Database = {
           requires_password_change: boolean | null
           restringir_modulos: boolean | null
           servidor_id: string | null
-          tipo_usuario: Database["public"]["Enums"]["tipo_usuario"]
+          tipo_usuario: string
           updated_at: string
         }
         Insert: {
@@ -16589,7 +16589,7 @@ export type Database = {
           requires_password_change?: boolean | null
           restringir_modulos?: boolean | null
           servidor_id?: string | null
-          tipo_usuario: Database["public"]["Enums"]["tipo_usuario"]
+          tipo_usuario: string
           updated_at?: string
         }
         Update: {
@@ -16605,7 +16605,7 @@ export type Database = {
           requires_password_change?: boolean | null
           restringir_modulos?: boolean | null
           servidor_id?: string | null
-          tipo_usuario?: Database["public"]["Enums"]["tipo_usuario"]
+          tipo_usuario?: string
           updated_at?: string
         }
         Relationships: [
@@ -20591,7 +20591,6 @@ export type Database = {
         | { Args: { p_user_id: string }; Returns: boolean }
       is_admin_user: { Args: { _user_id?: string }; Returns: boolean }
       is_user_active: { Args: { _user_id?: string }; Returns: boolean }
-      is_usuario_tecnico: { Args: { _user_id: string }; Returns: boolean }
       list_public_tables: {
         Args: never
         Returns: {
@@ -21377,7 +21376,6 @@ export type Database = {
         | "complexo"
         | "quadra"
         | "outro"
-      tipo_usuario: "servidor" | "tecnico"
       tipo_vinculo_funcional:
         | "efetivo_idjuv"
         | "comissionado_idjuv"
@@ -22254,7 +22252,6 @@ export const Constants = {
         "quadra",
         "outro",
       ],
-      tipo_usuario: ["servidor", "tecnico"],
       tipo_vinculo_funcional: [
         "efetivo_idjuv",
         "comissionado_idjuv",
