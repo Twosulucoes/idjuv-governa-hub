@@ -208,7 +208,18 @@ export default function GestaoModulosPage() {
   const totalUsers = userCounts.reduce((sum, u) => sum + u.count, 0);
 
   const selectedConfig = selectedModule ? getModuleConfig(selectedModule) : null;
-  const selectedSettings = selectedModule ? getSettings(selectedModule) : null;
+  const selectedSettings = selectedModule 
+    ? (getSettings(selectedModule) ?? {
+        id: '',
+        module_code: selectedModule,
+        enabled: true,
+        display_name: null,
+        description: null,
+        features: {},
+        settings: {},
+        updated_at: new Date().toISOString(),
+      } as ModuleSettingsRow)
+    : null;
   const selectedMenu = selectedModule ? getModuleMenu(selectedModule) : null;
 
   if (loading) {
