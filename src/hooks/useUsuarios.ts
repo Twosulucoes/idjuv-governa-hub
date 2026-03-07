@@ -283,12 +283,13 @@ export function useUsuarios() {
       fullName: string;
       role?: string;
     }) => {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password: generateTempPassword(),
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth`,
-          data: {
+      const senhaTemporaria = generateTempPassword();
+
+      const { data: fnData, error: fnError } = await supabase.functions.invoke('admin-create-user', {
+        body: {
+          email,
+          password: senhaTemporaria,
+          user_metadata: {
             full_name: fullName,
             tipo_usuario: 'tecnico',
             role: role
@@ -296,9 +297,10 @@ export function useUsuarios() {
         }
       });
 
-      if (authError) throw authError;
+      if (fnError) throw new Error(fnError.message || 'Erro ao criar usuário');
+      if (fnData?.error) throw new Error(fnData.message || fnData.error);
 
-      return authData;
+      return { ...fnData, senhaTemporaria };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['usuarios-sistema'] });
