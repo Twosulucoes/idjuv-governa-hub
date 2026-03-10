@@ -98,10 +98,10 @@ export default function GestaoServidoresPage() {
 
   // Fetch servidores
   const { data: servidores = [], isLoading } = useQuery({
-    queryKey: ["servidores-rh"],
+    queryKey: ["servidores-rh", showInativos],
     queryFn: async () => {
       // Buscar servidores
-      const { data: servidoresData, error } = await supabase
+      let query = supabase
         .from("servidores")
         .select(`
           id, nome_completo, cpf, matricula, foto_url,
@@ -109,9 +109,13 @@ export default function GestaoServidoresPage() {
           funcao_exercida, ativo, banco_codigo, banco_agencia, banco_conta,
           cargo_atual_id, unidade_atual_id
         `)
-        .eq("ativo", true)
-        .neq("situacao", "inativo")
         .order("nome_completo");
+
+      if (!showInativos) {
+        query = query.eq("ativo", true).neq("situacao", "inativo");
+      }
+
+      const { data: servidoresData, error } = await query;
       if (error) throw error;
 
       if (!servidoresData || servidoresData.length === 0) return [];
