@@ -20441,11 +20441,14 @@ export type Database = {
           cargo_id: string | null
           created_at: string | null
           created_by: string | null
+          data_exercicio: string | null
           data_fim: string | null
           data_inicio: string
+          data_posse: string | null
           funcao_exercida: string | null
           gratificacoes: number | null
           id: string
+          motivo_encerramento: string | null
           observacoes: string | null
           onus: string | null
           orgao_nome: string | null
@@ -20467,11 +20470,14 @@ export type Database = {
           cargo_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          data_exercicio?: string | null
           data_fim?: string | null
           data_inicio: string
+          data_posse?: string | null
           funcao_exercida?: string | null
           gratificacoes?: number | null
           id?: string
+          motivo_encerramento?: string | null
           observacoes?: string | null
           onus?: string | null
           orgao_nome?: string | null
@@ -20493,11 +20499,14 @@ export type Database = {
           cargo_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          data_exercicio?: string | null
           data_fim?: string | null
           data_inicio?: string
+          data_posse?: string | null
           funcao_exercida?: string | null
           gratificacoes?: number | null
           id?: string
+          motivo_encerramento?: string | null
           observacoes?: string | null
           onus?: string | null
           orgao_nome?: string | null
