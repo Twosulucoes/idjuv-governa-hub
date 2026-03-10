@@ -550,6 +550,31 @@ export function useExonerarServidor() {
         .single();
 
       if (error) throw error;
+
+      // Também encerrar vínculos ativos do servidor
+      if (data?.servidor_id) {
+        await supabase
+          .from("vinculos_servidor")
+          .update({
+            ativo: false,
+            data_fim: dataExoneracao,
+            motivo_encerramento: observacao || "Exoneração",
+          })
+          .eq("servidor_id", data.servidor_id)
+          .eq("ativo", true);
+
+        // Atualizar situação do servidor
+        await supabase
+          .from("servidores")
+          .update({
+            situacao: "inativo",
+            ativo: false,
+            cargo_atual_id: null,
+            unidade_atual_id: null,
+          })
+          .eq("id", data.servidor_id);
+      }
+
       return data;
     },
     onSuccess: () => {
