@@ -117,28 +117,32 @@ export function ExonerarServidorModal({ servidor, open, onOpenChange }: Props) {
             />
           </div>
 
-          {/* Ato (opcional) */}
+          {/* Processo SEI e DOE */}
+          <div className="space-y-2">
+            <Label>Nº do Processo SEI</Label>
+            <Input
+              value={atoTipo}
+              onChange={(e) => setAtoTipo(e.target.value)}
+              placeholder="Ex: 0001234-56.2026.8.00.0000"
+              maxLength={50}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Tipo do Ato</Label>
-              <Select value={atoTipo} onValueChange={setAtoTipo}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="portaria">Portaria</SelectItem>
-                  <SelectItem value="decreto">Decreto</SelectItem>
-                  <SelectItem value="exoneracao_pedido">Exoneração a Pedido</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Número do Ato</Label>
+              <Label>Nº do DOE</Label>
               <Input
                 value={atoNumero}
                 onChange={(e) => setAtoNumero(e.target.value)}
-                placeholder="Ex: 001/2026"
+                placeholder="Ex: 12345"
                 maxLength={30}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Data de Publicação DOE</Label>
+              <Input
+                type="date"
+                value={dataAdmissao}
+                onChange={(e) => setDataAdmissao(e.target.value)}
               />
             </div>
           </div>
