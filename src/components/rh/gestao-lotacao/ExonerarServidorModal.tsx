@@ -41,7 +41,7 @@ export function ExonerarServidorModal({ servidor, open, onOpenChange }: Props) {
     setDataExoneracao(format(new Date(), "yyyy-MM-dd"));
     setAtoNumero("");
     setAtoTipo("");
-    setObservacao("");
+    setDataPublicacaoDoe("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
