@@ -63,7 +63,7 @@ interface ServidorCompleto {
   matricula?: string;
   codigo_interno?: string;
   foto_url?: string;
-  tipo_servidor?: TipoServidor;
+  tipo_servidor?: string;
   situacao: SituacaoFuncional;
   orgao_origem?: string;
   orgao_destino_cessao?: string;
