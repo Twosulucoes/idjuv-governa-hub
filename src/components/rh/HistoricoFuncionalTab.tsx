@@ -35,6 +35,9 @@ interface HistoricoFuncionalTabProps {
 export function HistoricoFuncionalTab({ servidorId, servidorNome, tipoServidor }: HistoricoFuncionalTabProps) {
   return (
     <div className="space-y-6">
+      {/* 0. Vínculos Funcionais (múltiplos) */}
+      <VinculosServidorPanel servidorId={servidorId} servidorNome={servidorNome} />
+
       {/* 1. Cards de Resumo Situacional */}
       <VidaFuncionalResumo servidorId={servidorId} />
 
