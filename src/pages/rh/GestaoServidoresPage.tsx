@@ -54,6 +54,7 @@ import {
   TIPO_SERVIDOR_LABELS,
   TIPO_SERVIDOR_COLORS,
 } from "@/types/rh";
+import { TIPO_DERIVADO_LABELS, TIPO_DERIVADO_COLORS } from "@/hooks/useVinculosServidor";
 
 interface ServidorCompleto {
   id: string;
