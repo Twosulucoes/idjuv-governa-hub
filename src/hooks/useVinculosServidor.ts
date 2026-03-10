@@ -353,6 +353,55 @@ export function useVinculoMutations(servidorId?: string) {
       if (error) throw error;
 
       if (vinculoAtual) {
+        // Verificar se o servidor ainda tem outros vínculos ativos
+        const { data: outrosVinculos } = await supabase
+          .from("vinculos_servidor")
+          .select("id")
+          .eq("servidor_id", vinculoAtual.servidor_id)
+          .eq("ativo", true)
+          .neq("id", id);
+
+        const temOutrosVinculos = (outrosVinculos || []).length > 0;
+
+        if (!temOutrosVinculos) {
+          // Sem vínculos ativos → marcar servidor como inativo
+          await supabase
+            .from("servidores")
+            .update({
+              situacao: "inativo",
+              ativo: false,
+              cargo_atual_id: null,
+              unidade_atual_id: null,
+            })
+            .eq("id", vinculoAtual.servidor_id);
+        } else {
+          // Ainda tem outros vínculos → limpar cargo/unidade se era deste vínculo
+          const { data: servidorAtual } = await supabase
+            .from("servidores")
+            .select("cargo_atual_id, unidade_atual_id")
+            .eq("id", vinculoAtual.servidor_id)
+            .maybeSingle();
+
+          if (servidorAtual) {
+            const updates: any = {};
+            if (servidorAtual.cargo_atual_id === vinculoAtual.cargo_id) {
+              // Buscar cargo do próximo vínculo ativo
+              const { data: proximoVinculo } = await supabase
+                .from("vinculos_servidor")
+                .select("cargo_id, unidade_id")
+                .eq("servidor_id", vinculoAtual.servidor_id)
+                .eq("ativo", true)
+                .neq("id", id)
+                .limit(1)
+                .maybeSingle();
+              updates.cargo_atual_id = proximoVinculo?.cargo_id || null;
+              updates.unidade_atual_id = proximoVinculo?.unidade_id || null;
+            }
+            if (Object.keys(updates).length > 0) {
+              await supabase.from("servidores").update(updates).eq("id", vinculoAtual.servidor_id);
+            }
+          }
+        }
         // Buscar nome do servidor e cargo
         const [servidorRes, cargoRes] = await Promise.all([
           supabase.from("servidores").select("nome_completo").eq("id", vinculoAtual.servidor_id).maybeSingle(),
