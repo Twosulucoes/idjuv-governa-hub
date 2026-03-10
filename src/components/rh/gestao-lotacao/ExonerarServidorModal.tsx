@@ -35,7 +35,7 @@ export function ExonerarServidorModal({ servidor, open, onOpenChange }: Props) {
   const [dataExoneracao, setDataExoneracao] = useState(format(new Date(), "yyyy-MM-dd"));
   const [atoNumero, setAtoNumero] = useState("");
   const [atoTipo, setAtoTipo] = useState("");
-  const [observacao, setObservacao] = useState("");
+  const [dataPublicacaoDoe, setDataPublicacaoDoe] = useState("");
 
   const resetForm = () => {
     setDataExoneracao(format(new Date(), "yyyy-MM-dd"));
