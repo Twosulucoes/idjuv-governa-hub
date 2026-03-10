@@ -448,8 +448,8 @@ export function useVinculoMutations(servidorId?: string) {
         }
       }
     },
-    onSuccess: () => {
-      toast.success("Vínculo encerrado. Portaria de exoneração gerada.");
+    onSuccess: (_, variables) => {
+      toast.success("Vínculo encerrado com sucesso.");
       invalidate();
     },
     onError: (err: any) => toast.error("Erro ao encerrar: " + err.message),
