@@ -301,11 +301,12 @@ export default function GestaoServidoresPage() {
   };
 
   // Stats
-  const totalEfetivos = servidores.filter(s => s.tipo_servidor === 'efetivo_idjuv').length;
-  const totalComissionados = servidores.filter(s => s.tipo_servidor === 'comissionado_idjuv').length;
-  const totalCedidosEntrada = servidores.filter(s => s.tipo_servidor === 'cedido_entrada').length;
+  const totalEfetivos = servidores.filter(s => s.tipo_servidor === 'efetivo' || s.tipo_servidor === 'efetivo_comissionado').length;
+  const totalComissionados = servidores.filter(s => s.tipo_servidor === 'comissionado').length;
+  const totalCedidosEntrada = servidores.filter(s => s.tipo_servidor === 'cedido_entrada' || s.tipo_servidor === 'cedido_comissionado').length;
   const totalCedidosSaida = servidores.filter(s => s.tipo_servidor === 'cedido_saida').length;
-  const totalSemTipo = servidores.filter(s => !s.tipo_servidor).length;
+  const totalFederais = servidores.filter(s => s.tipo_servidor === 'federal' || s.tipo_servidor === 'federal_comissionado').length;
+  const totalSemTipo = servidores.filter(s => !s.tipo_servidor || s.tipo_servidor === 'nao_classificado').length;
   const totalSemDadosBancarios = servidores.filter(s => !s.banco_codigo || !s.banco_agencia || !s.banco_conta).length;
 
   const getInitials = (nome: string) => nome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
