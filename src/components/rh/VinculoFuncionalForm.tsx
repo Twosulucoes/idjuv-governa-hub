@@ -97,14 +97,14 @@ export function VinculoFuncionalForm({
     enabled: !!cargoId,
   });
 
-  // Buscar lotações ativas para o cargo selecionado
+  // Buscar vínculos ativos para o cargo selecionado
   const { data: lotacoesAtivas } = useQuery({
-    queryKey: ["lotacoes-ativas-vinculo", cargoId],
+    queryKey: ["vinculos-ativas-vinculo", cargoId],
     queryFn: async () => {
       if (!cargoId) return {};
 
       const { data, error } = await supabase
-        .from("lotacoes")
+        .from("vinculos_servidor")
         .select("unidade_id")
         .eq("cargo_id", cargoId)
         .eq("ativo", true);
@@ -113,9 +113,9 @@ export function VinculoFuncionalForm({
 
       // Agrupar por unidade_id
       const contagem: Record<string, number> = {};
-      (data || []).forEach((lot) => {
-        if (lot.unidade_id) {
-          contagem[lot.unidade_id] = (contagem[lot.unidade_id] || 0) + 1;
+      (data || []).forEach((v) => {
+        if (v.unidade_id) {
+          contagem[v.unidade_id] = (contagem[v.unidade_id] || 0) + 1;
         }
       });
       return contagem;
