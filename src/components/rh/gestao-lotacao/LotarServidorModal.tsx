@@ -122,14 +122,14 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
     enabled: !!cargoId,
   });
 
-  // Buscar lotações ativas para o cargo selecionado
+  // Buscar vínculos ativos para o cargo selecionado
   const { data: lotacoesAtivas } = useQuery({
-    queryKey: ["lotacoes-ativas-cargo", cargoId],
+    queryKey: ["vinculos-ativas-cargo", cargoId],
     queryFn: async () => {
       if (!cargoId) return {};
 
       const { data, error } = await supabase
-        .from("lotacoes")
+        .from("vinculos_servidor")
         .select("unidade_id")
         .eq("cargo_id", cargoId)
         .eq("ativo", true);

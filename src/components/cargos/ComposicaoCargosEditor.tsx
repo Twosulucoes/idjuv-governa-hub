@@ -57,20 +57,20 @@ export function ComposicaoCargosEditor({ cargoId, value, onChange, initialValue 
     },
   });
 
-  // Fetch lotações existentes para mostrar ocupação por unidade
+  // Fetch vínculos ativos para mostrar ocupação por unidade
   const { data: lotacoesPorUnidade = {} } = useQuery({
-    queryKey: ["lotacoes-por-unidade", cargoId],
+    queryKey: ["vinculos-por-unidade", cargoId],
     queryFn: async () => {
       if (!cargoId) return {};
       const { data, error } = await supabase
-        .from("lotacoes")
+        .from("vinculos_servidor")
         .select("unidade_id")
         .eq("cargo_id", cargoId)
         .eq("ativo", true);
       if (error) throw error;
       
-      return data.reduce((acc, lot) => {
-        acc[lot.unidade_id] = (acc[lot.unidade_id] || 0) + 1;
+      return (data || []).reduce((acc: Record<string, number>, v) => {
+        if (v.unidade_id) acc[v.unidade_id] = (acc[v.unidade_id] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
     },
