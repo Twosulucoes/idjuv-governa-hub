@@ -84,6 +84,7 @@ export default function GestaoServidoresPage() {
   const [filterSituacao, setFilterSituacao] = useState<string>("all");
   const [filterUnidade, setFilterUnidade] = useState<string>("all");
   const [filterTag, setFilterTag] = useState<string>("all");
+  const [showInativos, setShowInativos] = useState(false);
   const [showEdicaoBancaria, setShowEdicaoBancaria] = useState(false);
   const [centralRelatoriosOpen, setCentralRelatoriosOpen] = useState(false);
   const [gerenciarTagsOpen, setGerenciarTagsOpen] = useState(false);
