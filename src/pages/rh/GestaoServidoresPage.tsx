@@ -278,7 +278,7 @@ export default function GestaoServidoresPage() {
   function getGroupLabel(group: GroupBy, key: string): string {
     switch (group) {
       case "tipo_servidor":
-        return key === "sem_tipo" ? "Não classificado" : (TIPO_SERVIDOR_LABELS[key as TipoServidor] || key);
+        return key === "sem_tipo" ? "Não classificado" : (TIPO_DERIVADO_LABELS[key] || TIPO_SERVIDOR_LABELS[key as TipoServidor] || key);
       case "situacao":
         return SITUACAO_LABELS[key as SituacaoFuncional] || key;
       default:
