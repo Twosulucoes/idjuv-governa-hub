@@ -312,9 +312,11 @@ export default function GestaoServidoresPage() {
   const getInitials = (nome: string) => nome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
   const formatCPF = (cpf: string) => cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
 
-  const getTipoServidorBadge = (tipo?: TipoServidor) => {
-    if (!tipo) return <Badge variant="outline" className="bg-muted text-muted-foreground">Não classificado</Badge>;
-    return <Badge className={TIPO_SERVIDOR_COLORS[tipo]}>{TIPO_SERVIDOR_LABELS[tipo]}</Badge>;
+  const getTipoServidorBadge = (tipo?: string) => {
+    if (!tipo || tipo === 'nao_classificado') return <Badge variant="outline" className="bg-muted text-muted-foreground">Não classificado</Badge>;
+    const colorClass = TIPO_DERIVADO_COLORS[tipo] || TIPO_SERVIDOR_COLORS[tipo as TipoServidor] || "bg-muted text-muted-foreground";
+    const label = TIPO_DERIVADO_LABELS[tipo] || TIPO_SERVIDOR_LABELS[tipo as TipoServidor] || tipo;
+    return <Badge className={colorClass}>{label}</Badge>;
   };
 
   const renderTagBadges = (servidorId: string) => {
