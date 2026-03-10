@@ -215,7 +215,7 @@ export function ProvimentoForm({
         .from("estrutura_organizacional")
         .select("id, nome, sigla, tipo")
         .eq("superior_id", divisaoId)
-        .eq("tipo", "setor")
+        .eq("tipo", "nucleo")
         .eq("ativo", true)
         .order("nome");
       
