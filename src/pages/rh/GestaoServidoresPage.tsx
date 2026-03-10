@@ -84,6 +84,7 @@ export default function GestaoServidoresPage() {
   const [filterSituacao, setFilterSituacao] = useState<string>("all");
   const [filterUnidade, setFilterUnidade] = useState<string>("all");
   const [filterTag, setFilterTag] = useState<string>("all");
+  const [showInativos, setShowInativos] = useState(false);
   const [showEdicaoBancaria, setShowEdicaoBancaria] = useState(false);
   const [centralRelatoriosOpen, setCentralRelatoriosOpen] = useState(false);
   const [gerenciarTagsOpen, setGerenciarTagsOpen] = useState(false);
@@ -97,10 +98,10 @@ export default function GestaoServidoresPage() {
 
   // Fetch servidores
   const { data: servidores = [], isLoading } = useQuery({
-    queryKey: ["servidores-rh"],
+    queryKey: ["servidores-rh", showInativos],
     queryFn: async () => {
       // Buscar servidores
-      const { data: servidoresData, error } = await supabase
+      let query = supabase
         .from("servidores")
         .select(`
           id, nome_completo, cpf, matricula, foto_url,
@@ -108,9 +109,13 @@ export default function GestaoServidoresPage() {
           funcao_exercida, ativo, banco_codigo, banco_agencia, banco_conta,
           cargo_atual_id, unidade_atual_id
         `)
-        .eq("ativo", true)
-        .neq("situacao", "inativo")
         .order("nome_completo");
+
+      if (!showInativos) {
+        query = query.eq("ativo", true).neq("situacao", "inativo");
+      }
+
+      const { data: servidoresData, error } = await query;
       if (error) throw error;
 
       if (!servidoresData || servidoresData.length === 0) return [];
@@ -411,6 +416,24 @@ export default function GestaoServidoresPage() {
                   <div><p className="text-sm text-destructive">Sem Tipo</p><p className="text-2xl font-bold text-destructive">{totalSemTipo}</p></div>
                 </CardContent>
               </Card>
+            )}
+          </div>
+
+          {/* Toggle Inativos */}
+          <div className="flex items-center gap-2 mb-4">
+            <Button
+              variant={showInativos ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowInativos(!showInativos)}
+              className="gap-2"
+            >
+              <Users className="h-4 w-4" />
+              {showInativos ? "Mostrando todos (incl. exonerados)" : "Mostrar exonerados/inativos"}
+            </Button>
+            {showInativos && (
+              <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
+                Incluindo servidores inativos
+              </Badge>
             )}
           </div>
 
