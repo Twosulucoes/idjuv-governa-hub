@@ -11,8 +11,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Award, ArrowLeftRight, Plus } from "lucide-react";
+import { Award, ArrowLeftRight, Plus, Link2 } from "lucide-react";
 import { VidaFuncionalResumo } from "./VidaFuncionalResumo";
+import { VinculosServidorPanel } from "./VinculosServidorPanel";
 import { VidaFuncionalTimeline } from "./VidaFuncionalTimeline";
 import { NomeacoesProvimentosSection } from "./NomeacoesProvimentosSection";
 import { CessoesSection } from "./CessoesSection";
