@@ -116,9 +116,9 @@ export default function GestaoCargosPage() {
       const { data: cargosData, error } = await query;
       if (error) throw error;
 
-      // Buscar contagem de lotações ativas por cargo
+      // Buscar contagem de vínculos ativos por cargo
       const { data: lotacoesCount, error: lotacoesError } = await supabase
-        .from("lotacoes")
+        .from("vinculos_servidor")
         .select("cargo_id")
         .eq("ativo", true)
         .not("cargo_id", "is", null);

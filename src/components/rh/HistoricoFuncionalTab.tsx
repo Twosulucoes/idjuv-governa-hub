@@ -1,21 +1,18 @@
 /**
- * Vida Funcional do Servidor - Refatorado
+ * Vida Funcional do Servidor - Consolidado
  * 
- * Estrutura:
- * 1. Cards Resumo (situação atual: provimento, lotação, cessão, designação)
- * 2. Botões de ação (nova nomeação, cessão, etc.)
- * 3. Timeline unificada (historico_funcional + atos vinculados inline)
- * 
- * Férias e Licenças ficam em abas próprias, não aparecem aqui.
+ * Estrutura simplificada:
+ * 1. Vínculos Funcionais (fonte única - inclui cargo, lotação, nomeação)
+ * 2. Cards Resumo (situação atual derivada dos vínculos)
+ * 3. Cessões (tabela própria)
+ * 4. Designações Temporárias
+ * 5. Timeline unificada
  */
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Award, ArrowLeftRight, Plus, Link2 } from "lucide-react";
+import { ArrowLeftRight } from "lucide-react";
 import { VidaFuncionalResumo } from "./VidaFuncionalResumo";
 import { VinculosServidorPanel } from "./VinculosServidorPanel";
 import { VidaFuncionalTimeline } from "./VidaFuncionalTimeline";
-import { NomeacoesProvimentosSection } from "./NomeacoesProvimentosSection";
 import { CessoesSection } from "./CessoesSection";
 import { DesignacoesSection } from "./DesignacoesSection";
 import { type TipoServidor } from "@/types/servidor";
@@ -35,30 +32,14 @@ interface HistoricoFuncionalTabProps {
 export function HistoricoFuncionalTab({ servidorId, servidorNome, tipoServidor }: HistoricoFuncionalTabProps) {
   return (
     <div className="space-y-6">
-      {/* 0. Vínculos Funcionais (múltiplos) */}
+      {/* 1. Vínculos Funcionais (consolidado) */}
       <VinculosServidorPanel servidorId={servidorId} servidorNome={servidorNome} />
 
-      {/* 1. Cards de Resumo Situacional */}
+      {/* 2. Cards de Resumo Situacional */}
       <VidaFuncionalResumo servidorId={servidorId} />
 
-      {/* 2. Gestão (Provimentos, Cessões, Designações) - Accordion colapsável */}
+      {/* 3. Cessões e Designações */}
       <Accordion type="multiple" className="space-y-2">
-        <AccordionItem value="provimentos" className="border rounded-lg px-2">
-          <AccordionTrigger className="text-sm font-semibold gap-2 py-3">
-            <span className="flex items-center gap-2">
-              <Award className="h-4 w-4 text-primary" />
-              Nomeações / Provimentos
-            </span>
-          </AccordionTrigger>
-          <AccordionContent className="pb-4">
-            <NomeacoesProvimentosSection
-              servidorId={servidorId}
-              servidorNome={servidorNome}
-              tipoServidor={tipoServidor}
-            />
-          </AccordionContent>
-        </AccordionItem>
-
         <AccordionItem value="cessoes" className="border rounded-lg px-2">
           <AccordionTrigger className="text-sm font-semibold gap-2 py-3">
             <span className="flex items-center gap-2">
@@ -75,12 +56,12 @@ export function HistoricoFuncionalTab({ servidorId, servidorNome, tipoServidor }
         </AccordionItem>
       </Accordion>
 
-      {/* 3. Designações Temporárias */}
+      {/* 4. Designações Temporárias */}
       <DesignacoesSection servidorId={servidorId} />
 
       <Separator />
 
-      {/* 4. Timeline Funcional Unificada */}
+      {/* 5. Timeline Funcional Unificada */}
       <VidaFuncionalTimeline servidorId={servidorId} />
     </div>
   );

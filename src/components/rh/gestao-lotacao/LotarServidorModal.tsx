@@ -77,16 +77,17 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
         .order("nome");
       if (error) throw error;
 
-      // Buscar lotações ativas por cargo
-      const { data: lotacoes } = await supabase
-        .from("lotacoes")
+      // Buscar vínculos ativos por cargo
+      const { data: vinculosAtivos } = await supabase
+        .from("vinculos_servidor")
         .select("cargo_id")
-        .eq("ativo", true);
+        .eq("ativo", true)
+        .not("cargo_id", "is", null);
 
       const contagemPorCargo: Record<string, number> = {};
-      (lotacoes || []).forEach((l) => {
-        if (l.cargo_id) {
-          contagemPorCargo[l.cargo_id] = (contagemPorCargo[l.cargo_id] || 0) + 1;
+      (vinculosAtivos || []).forEach((v) => {
+        if (v.cargo_id) {
+          contagemPorCargo[v.cargo_id] = (contagemPorCargo[v.cargo_id] || 0) + 1;
         }
       });
 
@@ -121,14 +122,14 @@ export function LotarServidorModal({ servidor, open, onOpenChange }: Props) {
     enabled: !!cargoId,
   });
 
-  // Buscar lotações ativas para o cargo selecionado
+  // Buscar vínculos ativos para o cargo selecionado
   const { data: lotacoesAtivas } = useQuery({
-    queryKey: ["lotacoes-ativas-cargo", cargoId],
+    queryKey: ["vinculos-ativas-cargo", cargoId],
     queryFn: async () => {
       if (!cargoId) return {};
 
       const { data, error } = await supabase
-        .from("lotacoes")
+        .from("vinculos_servidor")
         .select("unidade_id")
         .eq("cargo_id", cargoId)
         .eq("ativo", true);

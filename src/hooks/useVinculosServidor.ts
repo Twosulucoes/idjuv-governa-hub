@@ -1,6 +1,6 @@
 /**
- * Hook para gerenciar vínculos múltiplos de um servidor
- * Usa a nova tabela vinculos_servidor (1:N)
+ * Hook consolidado para gerenciar vínculos de um servidor
+ * Fonte única de verdade — substitui provimentos + lotações + vínculos antigos
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -36,6 +36,9 @@ export interface VinculoServidor {
   onus?: "origem" | "destino" | "compartilhado";
   data_inicio: string;
   data_fim?: string;
+  data_posse?: string;
+  data_exercicio?: string;
+  motivo_encerramento?: string;
   ativo: boolean;
   ato_tipo?: string;
   ato_numero?: string;
@@ -118,7 +121,6 @@ export function useVinculosServidor(servidorId?: string) {
         .order("data_inicio", { ascending: false });
       if (error) throw error;
 
-      // Buscar cargos e unidades
       const cargoIds = [...new Set((data || []).map(v => v.cargo_id).filter(Boolean))];
       const unidadeIds = [...new Set((data || []).map(v => v.unidade_id).filter(Boolean))];
 
@@ -157,6 +159,98 @@ export function useServidoresTipoDerivado() {
   });
 }
 
+// ============================================================
+// HELPER: Registrar no histórico funcional
+// ============================================================
+type TipoMovimentacao = "nomeacao" | "exoneracao" | "designacao" | "dispensa" | "promocao" | "transferencia" | "cessao" | "requisicao" | "redistribuicao" | "remocao" | "afastamento" | "retorno" | "aposentadoria" | "vacancia";
+
+async function registrarHistoricoFuncional(params: {
+  servidor_id: string;
+  tipo: TipoMovimentacao;
+  data_evento: string;
+  cargo_anterior_id?: string | null;
+  cargo_novo_id?: string | null;
+  unidade_anterior_id?: string | null;
+  unidade_nova_id?: string | null;
+  portaria_numero?: string | null;
+  portaria_data?: string | null;
+  descricao?: string;
+}) {
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    await supabase.from("historico_funcional").insert({
+      servidor_id: params.servidor_id,
+      tipo: params.tipo,
+      data_evento: params.data_evento,
+      data_vigencia_inicio: params.data_evento,
+      cargo_anterior_id: params.cargo_anterior_id || null,
+      cargo_novo_id: params.cargo_novo_id || null,
+      unidade_anterior_id: params.unidade_anterior_id || null,
+      unidade_nova_id: params.unidade_nova_id || null,
+      portaria_numero: params.portaria_numero || null,
+      portaria_data: params.portaria_data || null,
+      descricao: params.descricao || null,
+      created_by: userData?.user?.id,
+    });
+  } catch (e) {
+    console.error("[Histórico Funcional] Erro:", e);
+  }
+}
+
+// ============================================================
+// HELPER: Gerar minuta de portaria
+// ============================================================
+type CategoriaPortaria = "estruturante" | "normativa" | "pessoal" | "delegacao" | "nomeacao" | "exoneracao" | "designacao" | "dispensa" | "cessao" | "ferias" | "licenca";
+
+async function gerarMinutaPortaria(params: {
+  titulo: string;
+  ementa: string;
+  categoria: CategoriaPortaria;
+  servidores_ids: string[];
+  cargo_id?: string;
+  unidade_id?: string;
+  data_documento?: string;
+}) {
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    const dataDoc = params.data_documento || new Date().toISOString().split("T")[0];
+    const ano = new Date(dataDoc).getFullYear();
+
+    let numero = `PENDENTE/${ano}`;
+    try {
+      const { data: numData } = await supabase.rpc("gerar_numero_portaria", { p_ano: ano });
+      if (numData) numero = numData as string;
+    } catch { /* keep default */ }
+
+    const { data, error } = await supabase
+      .from("documentos")
+      .insert({
+        tipo: "portaria" as const,
+        categoria: params.categoria,
+        status: "minuta" as const,
+        titulo: params.titulo,
+        ementa: params.ementa,
+        numero,
+        data_documento: dataDoc,
+        servidores_ids: params.servidores_ids,
+        cargo_id: params.cargo_id || null,
+        unidade_id: params.unidade_id || null,
+        created_by: userData?.user?.id,
+      })
+      .select("id, numero")
+      .single();
+
+    if (error) {
+      console.error("[Portaria] Erro:", error);
+      return null;
+    }
+    return data;
+  } catch (e) {
+    console.error("[Portaria] Erro:", e);
+    return null;
+  }
+}
+
 // Mutations
 export function useVinculoMutations(servidorId?: string) {
   const queryClient = useQueryClient();
@@ -164,6 +258,8 @@ export function useVinculoMutations(servidorId?: string) {
     queryClient.invalidateQueries({ queryKey: ["vinculos-servidor", servidorId] });
     queryClient.invalidateQueries({ queryKey: ["servidores-tipo-derivado"] });
     queryClient.invalidateQueries({ queryKey: ["servidores-rh"] });
+    queryClient.invalidateQueries({ queryKey: ["historico-funcional", servidorId] });
+    queryClient.invalidateQueries({ queryKey: ["servidores-situacao"] });
   };
 
   const criar = useMutation({
@@ -174,10 +270,49 @@ export function useVinculoMutations(servidorId?: string) {
         .select()
         .single();
       if (error) throw error;
-      return data;
+
+      // Buscar nome do servidor e cargo para histórico/portaria
+      const [servidorRes, cargoRes] = await Promise.all([
+        supabase.from("servidores").select("nome_completo").eq("id", data.servidor_id).maybeSingle(),
+        data.cargo_id ? supabase.from("cargos").select("id, nome, sigla").eq("id", data.cargo_id).maybeSingle() : Promise.resolve({ data: null }),
+      ]);
+
+      const nomeServidor = servidorRes.data?.nome_completo || 'Servidor';
+      const cargoNome = cargoRes.data?.sigla ? `${cargoRes.data.sigla} - ${cargoRes.data.nome}` : cargoRes.data?.nome || '';
+
+      // Registrar histórico funcional
+      await registrarHistoricoFuncional({
+        servidor_id: data.servidor_id,
+        tipo: "nomeacao",
+        data_evento: data.data_inicio,
+        cargo_novo_id: data.cargo_id,
+        unidade_nova_id: data.unidade_id || null,
+        descricao: cargoNome
+          ? `Nomeação para ${cargoNome}`
+          : `Novo vínculo: ${data.tipo}`,
+      });
+
+      // Gerar portaria se tem cargo
+      let portaria = null;
+      if (data.cargo_id) {
+        portaria = await gerarMinutaPortaria({
+          titulo: `Nomeação - ${nomeServidor}`,
+          ementa: `Nomeia ${nomeServidor} para o cargo de ${cargoNome}.`,
+          categoria: "nomeacao",
+          servidores_ids: [data.servidor_id],
+          cargo_id: data.cargo_id,
+          unidade_id: data.unidade_id || undefined,
+          data_documento: data.data_inicio,
+        });
+      }
+
+      return { vinculo: data, portaria };
     },
-    onSuccess: () => {
-      toast.success("Vínculo criado com sucesso");
+    onSuccess: (result) => {
+      const msg = result.portaria
+        ? `Vínculo criado! Minuta de Portaria nº ${result.portaria.numero} gerada automaticamente.`
+        : "Vínculo criado com sucesso!";
+      toast.success(msg);
       invalidate();
     },
     onError: (err: any) => toast.error("Erro ao criar vínculo: " + err.message),
@@ -203,15 +338,58 @@ export function useVinculoMutations(servidorId?: string) {
   });
 
   const encerrar = useMutation({
-    mutationFn: async ({ id, dataFim }: { id: string; dataFim: string }) => {
+    mutationFn: async ({ id, dataFim, motivo }: { id: string; dataFim: string; motivo?: string }) => {
+      // Buscar dados do vínculo antes de encerrar
+      const { data: vinculoAtual } = await supabase
+        .from("vinculos_servidor")
+        .select("*")
+        .eq("id", id)
+        .single();
+
       const { error } = await supabase
         .from("vinculos_servidor")
-        .update({ ativo: false, data_fim: dataFim })
+        .update({ ativo: false, data_fim: dataFim, motivo_encerramento: motivo || null })
         .eq("id", id);
       if (error) throw error;
+
+      if (vinculoAtual) {
+        // Buscar nome do servidor e cargo
+        const [servidorRes, cargoRes] = await Promise.all([
+          supabase.from("servidores").select("nome_completo").eq("id", vinculoAtual.servidor_id).maybeSingle(),
+          vinculoAtual.cargo_id ? supabase.from("cargos").select("id, nome, sigla").eq("id", vinculoAtual.cargo_id).maybeSingle() : Promise.resolve({ data: null }),
+        ]);
+
+        const nomeServidor = servidorRes.data?.nome_completo || 'Servidor';
+        const cargoNome = cargoRes.data?.sigla ? `${cargoRes.data.sigla} - ${cargoRes.data.nome}` : cargoRes.data?.nome || '';
+
+        // Registrar histórico
+        await registrarHistoricoFuncional({
+          servidor_id: vinculoAtual.servidor_id,
+          tipo: "exoneracao",
+          data_evento: dataFim,
+          cargo_anterior_id: vinculoAtual.cargo_id,
+          unidade_anterior_id: vinculoAtual.unidade_id || null,
+          descricao: cargoNome
+            ? `Encerramento do vínculo: ${cargoNome}. Motivo: ${motivo || 'N/A'}`
+            : `Encerramento do vínculo: ${vinculoAtual.tipo}`,
+        });
+
+        // Gerar portaria de exoneração se tem cargo
+        if (vinculoAtual.cargo_id) {
+          await gerarMinutaPortaria({
+            titulo: `Exoneração - ${nomeServidor}`,
+            ementa: `Exonera ${nomeServidor} do cargo de ${cargoNome}.`,
+            categoria: "exoneracao",
+            servidores_ids: [vinculoAtual.servidor_id],
+            cargo_id: vinculoAtual.cargo_id,
+            unidade_id: vinculoAtual.unidade_id || undefined,
+            data_documento: dataFim,
+          });
+        }
+      }
     },
     onSuccess: () => {
-      toast.success("Vínculo encerrado");
+      toast.success("Vínculo encerrado. Portaria de exoneração gerada.");
       invalidate();
     },
     onError: (err: any) => toast.error("Erro ao encerrar: " + err.message),

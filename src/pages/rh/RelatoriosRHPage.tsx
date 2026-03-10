@@ -179,19 +179,20 @@ export default function RelatoriosRHPage() {
       
       if (cErr) throw cErr;
       
-      // Buscar contagem de provimentos ativos por cargo
-      const { data: provimentos, error: pErr } = await supabase
-        .from("provimentos")
+      // Buscar contagem de vínculos ativos por cargo
+      const { data: vinculosAtivos, error: pErr } = await supabase
+        .from("vinculos_servidor")
         .select("cargo_id")
-        .eq("status", "ativo");
+        .eq("ativo", true)
+        .not("cargo_id", "is", null);
       
       if (pErr) throw pErr;
       
       // Contar ocupação por cargo
       const ocupacaoPorCargo: Record<string, number> = {};
-      (provimentos || []).forEach(p => {
-        if (p.cargo_id) {
-          ocupacaoPorCargo[p.cargo_id] = (ocupacaoPorCargo[p.cargo_id] || 0) + 1;
+      (vinculosAtivos || []).forEach(v => {
+        if (v.cargo_id) {
+          ocupacaoPorCargo[v.cargo_id] = (ocupacaoPorCargo[v.cargo_id] || 0) + 1;
         }
       });
       

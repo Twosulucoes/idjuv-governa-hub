@@ -1,13 +1,13 @@
 /**
  * Cards de Resumo Situacional do Servidor
- * Exibe o estado atual: Provimento, Lotação, Cessão e Designação ativas.
+ * Consolidado: lê vínculos ativos da tabela vinculos_servidor (fonte única)
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Award,
+  Link2,
   Building2,
   ArrowLeftRight,
   UserCheck,
@@ -16,6 +16,11 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { format } from "date-fns";
+import {
+  useVinculosServidor,
+  TIPO_VINCULO_LABELS,
+  TIPO_DERIVADO_COLORS,
+} from "@/hooks/useVinculosServidor";
 
 interface VidaFuncionalResumoProps {
   servidorId: string;
@@ -32,43 +37,9 @@ interface ResumoCard {
 }
 
 export function VidaFuncionalResumo({ servidorId }: VidaFuncionalResumoProps) {
-  // Provimento ativo
-  const { data: provimentoAtivo, isLoading: loadingProv } = useQuery({
-    queryKey: ["provimento-ativo-resumo", servidorId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("provimentos")
-        .select(`
-          id, status, data_nomeacao, data_posse,
-          cargo:cargos(id, nome, sigla),
-          unidade:estrutura_organizacional(id, nome, sigla)
-        `)
-        .eq("servidor_id", servidorId)
-        .eq("status", "ativo")
-        .maybeSingle();
-      return data;
-    },
-  });
+  const { data: vinculos = [], isLoading: loadingVinculos } = useVinculosServidor(servidorId);
 
-  // Lotação ativa
-  const { data: lotacaoAtiva, isLoading: loadingLot } = useQuery({
-    queryKey: ["lotacao-ativa-resumo", servidorId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("lotacoes")
-        .select(`
-          id, data_inicio,
-          unidade:estrutura_organizacional!lotacoes_unidade_id_fkey(id, nome, sigla),
-          cargo:cargos(id, nome, sigla)
-        `)
-        .eq("servidor_id", servidorId)
-        .eq("ativo", true)
-        .maybeSingle();
-      return data;
-    },
-  });
-
-  // Cessão ativa
+  // Cessão ativa (cessões ficam em tabela própria ainda)
   const { data: cessaoAtiva, isLoading: loadingCes } = useQuery({
     queryKey: ["cessao-ativa-resumo", servidorId],
     queryFn: async () => {
@@ -100,7 +71,7 @@ export function VidaFuncionalResumo({ servidorId }: VidaFuncionalResumoProps) {
     },
   });
 
-  const isLoading = loadingProv || loadingLot || loadingCes || loadingDes;
+  const isLoading = loadingVinculos || loadingCes || loadingDes;
 
   if (isLoading) {
     return (
@@ -112,36 +83,44 @@ export function VidaFuncionalResumo({ servidorId }: VidaFuncionalResumoProps) {
     );
   }
 
+  const vinculosAtivos = vinculos.filter(v => v.ativo);
+  
+  // Vínculo principal (cargo): primeiro ativo com cargo
+  const vinculoPrincipal = vinculosAtivos.find(v => v.cargo_id) || vinculosAtivos[0];
+  
+  // Lotação: derivada do vínculo principal
+  const lotacao = vinculoPrincipal?.unidade;
+
   const cards: ResumoCard[] = [
     {
-      icon: <Award className="h-5 w-5" />,
-      titulo: "Provimento",
-      subtitulo: provimentoAtivo
-        ? (provimentoAtivo.cargo as any)?.sigla || (provimentoAtivo.cargo as any)?.nome || "Cargo vinculado"
-        : "Sem provimento ativo",
-      detalhe: provimentoAtivo
-        ? (provimentoAtivo.unidade as any)?.sigla || (provimentoAtivo.unidade as any)?.nome
+      icon: <Link2 className="h-5 w-5" />,
+      titulo: "Vínculo",
+      subtitulo: vinculoPrincipal
+        ? TIPO_VINCULO_LABELS[vinculoPrincipal.tipo]
+        : "Sem vínculo ativo",
+      detalhe: vinculoPrincipal?.cargo
+        ? (vinculoPrincipal.cargo.sigla || vinculoPrincipal.cargo.nome)
         : undefined,
-      data: provimentoAtivo?.data_nomeacao
-        ? `Nomeado em ${format(new Date(provimentoAtivo.data_nomeacao), "dd/MM/yyyy")}`
+      data: vinculoPrincipal?.data_inicio
+        ? `Desde ${format(new Date(vinculoPrincipal.data_inicio + "T00:00:00"), "dd/MM/yyyy")}`
         : undefined,
-      ativo: !!provimentoAtivo,
-      cor: provimentoAtivo ? "border-success/40 bg-success/5" : "border-muted bg-muted/20",
+      ativo: !!vinculoPrincipal,
+      cor: vinculoPrincipal ? "border-success/40 bg-success/5" : "border-muted bg-muted/20",
     },
     {
       icon: <Building2 className="h-5 w-5" />,
       titulo: "Lotação",
-      subtitulo: lotacaoAtiva
-        ? (lotacaoAtiva.unidade as any)?.sigla || (lotacaoAtiva.unidade as any)?.nome || "Unidade vinculada"
+      subtitulo: lotacao
+        ? (lotacao.sigla || lotacao.nome)
         : "Sem lotação ativa",
-      detalhe: lotacaoAtiva
-        ? (lotacaoAtiva.cargo as any)?.sigla || (lotacaoAtiva.cargo as any)?.nome
+      detalhe: vinculoPrincipal?.cargo
+        ? (vinculoPrincipal.cargo.sigla || vinculoPrincipal.cargo.nome)
         : undefined,
-      data: lotacaoAtiva?.data_inicio
-        ? `Desde ${format(new Date(lotacaoAtiva.data_inicio), "dd/MM/yyyy")}`
+      data: vinculoPrincipal?.data_inicio
+        ? `Desde ${format(new Date(vinculoPrincipal.data_inicio + "T00:00:00"), "dd/MM/yyyy")}`
         : undefined,
-      ativo: !!lotacaoAtiva,
-      cor: lotacaoAtiva ? "border-primary/40 bg-primary/5" : "border-muted bg-muted/20",
+      ativo: !!lotacao,
+      cor: lotacao ? "border-primary/40 bg-primary/5" : "border-muted bg-muted/20",
     },
     {
       icon: <ArrowLeftRight className="h-5 w-5" />,
@@ -174,45 +153,60 @@ export function VidaFuncionalResumo({ servidorId }: VidaFuncionalResumoProps) {
     },
   ];
 
+  // Se tem múltiplos vínculos ativos, mostrar badge
+  const multiVinculos = vinculosAtivos.length > 1;
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-      {cards.map((card) => (
-        <div
-          key={card.titulo}
-          className={`rounded-lg border-2 p-4 transition-colors ${card.cor}`}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <span className={card.ativo ? "text-foreground" : "text-muted-foreground"}>
-              {card.icon}
-            </span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {card.titulo}
-            </span>
-            {card.ativo ? (
-              <Badge variant="outline" className="ml-auto text-[10px] bg-success/10 text-success border-success/30">
-                Ativo
-              </Badge>
-            ) : (
-              <AlertCircle className="h-3.5 w-3.5 ml-auto text-muted-foreground/50" />
+    <div className="space-y-2">
+      {multiVinculos && (
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="text-xs">
+            {vinculosAtivos.length} vínculos ativos
+          </Badge>
+          <span className="text-xs text-muted-foreground">
+            {vinculosAtivos.map(v => TIPO_VINCULO_LABELS[v.tipo]).join(' + ')}
+          </span>
+        </div>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        {cards.map((card) => (
+          <div
+            key={card.titulo}
+            className={`rounded-lg border-2 p-4 transition-colors ${card.cor}`}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <span className={card.ativo ? "text-foreground" : "text-muted-foreground"}>
+                {card.icon}
+              </span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {card.titulo}
+              </span>
+              {card.ativo ? (
+                <Badge variant="outline" className="ml-auto text-[10px] bg-success/10 text-success border-success/30">
+                  Ativo
+                </Badge>
+              ) : (
+                <AlertCircle className="h-3.5 w-3.5 ml-auto text-muted-foreground/50" />
+              )}
+            </div>
+            <p className={`text-sm font-medium truncate ${card.ativo ? "text-foreground" : "text-muted-foreground"}`}>
+              {card.subtitulo}
+            </p>
+            {card.detalhe && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                <Briefcase className="h-3 w-3" />
+                {card.detalhe}
+              </p>
+            )}
+            {card.data && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                <Calendar className="h-3 w-3" />
+                {card.data}
+              </p>
             )}
           </div>
-          <p className={`text-sm font-medium truncate ${card.ativo ? "text-foreground" : "text-muted-foreground"}`}>
-            {card.subtitulo}
-          </p>
-          {card.detalhe && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-              <Briefcase className="h-3 w-3" />
-              {card.detalhe}
-            </p>
-          )}
-          {card.data && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <Calendar className="h-3 w-3" />
-              {card.data}
-            </p>
-          )}
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
