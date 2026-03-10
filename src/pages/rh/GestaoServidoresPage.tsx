@@ -419,6 +419,24 @@ export default function GestaoServidoresPage() {
             )}
           </div>
 
+          {/* Toggle Inativos */}
+          <div className="flex items-center gap-2 mb-4">
+            <Button
+              variant={showInativos ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowInativos(!showInativos)}
+              className="gap-2"
+            >
+              <Users className="h-4 w-4" />
+              {showInativos ? "Mostrando todos (incl. exonerados)" : "Mostrar exonerados/inativos"}
+            </Button>
+            {showInativos && (
+              <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
+                Incluindo servidores inativos
+              </Badge>
+            )}
+          </div>
+
           {/* Filters */}
           <div className="flex flex-col lg:flex-row gap-4 mb-4">
             <div className="relative flex-1">
