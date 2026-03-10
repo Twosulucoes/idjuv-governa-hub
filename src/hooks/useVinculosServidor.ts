@@ -271,6 +271,17 @@ export function useVinculoMutations(servidorId?: string) {
         .single();
       if (error) throw error;
 
+      // Garantir que o servidor esteja ativo ao criar vínculo
+      await supabase
+        .from("servidores")
+        .update({
+          ativo: true,
+          situacao: "ativo",
+          cargo_atual_id: data.cargo_id || null,
+          unidade_atual_id: data.unidade_id || null,
+        })
+        .eq("id", data.servidor_id);
+
       // Buscar nome do servidor e cargo para histórico/portaria
       const [servidorRes, cargoRes] = await Promise.all([
         supabase.from("servidores").select("nome_completo").eq("id", data.servidor_id).maybeSingle(),
