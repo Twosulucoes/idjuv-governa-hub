@@ -133,8 +133,8 @@ export function useVinculosServidor(servidorId?: string) {
           : Promise.resolve([]),
       ]);
 
-      const cargosMap = new Map<string, any>(cargos.map((c: any) => [c.id, c]));
-      const unidadesMap = new Map<string, any>(unidades.map((u: any) => [u.id, u]));
+      const cargosMap = new Map<string, any>(cargos.map((c: any) => [c.id, c] as [string, any]));
+      const unidadesMap = new Map<string, any>(unidades.map((u: any) => [u.id, u] as [string, any]));
 
       return (data || []).map(v => ({
         ...v,
