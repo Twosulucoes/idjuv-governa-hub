@@ -271,6 +271,17 @@ export function useVinculoMutations(servidorId?: string) {
         .single();
       if (error) throw error;
 
+      // Garantir que o servidor esteja ativo ao criar vínculo
+      await supabase
+        .from("servidores")
+        .update({
+          ativo: true,
+          situacao: "ativo",
+          cargo_atual_id: data.cargo_id || null,
+          unidade_atual_id: data.unidade_id || null,
+        })
+        .eq("id", data.servidor_id);
+
       // Buscar nome do servidor e cargo para histórico/portaria
       const [servidorRes, cargoRes] = await Promise.all([
         supabase.from("servidores").select("nome_completo").eq("id", data.servidor_id).maybeSingle(),
@@ -353,6 +364,55 @@ export function useVinculoMutations(servidorId?: string) {
       if (error) throw error;
 
       if (vinculoAtual) {
+        // Verificar se o servidor ainda tem outros vínculos ativos
+        const { data: outrosVinculos } = await supabase
+          .from("vinculos_servidor")
+          .select("id")
+          .eq("servidor_id", vinculoAtual.servidor_id)
+          .eq("ativo", true)
+          .neq("id", id);
+
+        const temOutrosVinculos = (outrosVinculos || []).length > 0;
+
+        if (!temOutrosVinculos) {
+          // Sem vínculos ativos → marcar servidor como inativo
+          await supabase
+            .from("servidores")
+            .update({
+              situacao: "inativo",
+              ativo: false,
+              cargo_atual_id: null,
+              unidade_atual_id: null,
+            })
+            .eq("id", vinculoAtual.servidor_id);
+        } else {
+          // Ainda tem outros vínculos → limpar cargo/unidade se era deste vínculo
+          const { data: servidorAtual } = await supabase
+            .from("servidores")
+            .select("cargo_atual_id, unidade_atual_id")
+            .eq("id", vinculoAtual.servidor_id)
+            .maybeSingle();
+
+          if (servidorAtual) {
+            const updates: any = {};
+            if (servidorAtual.cargo_atual_id === vinculoAtual.cargo_id) {
+              // Buscar cargo do próximo vínculo ativo
+              const { data: proximoVinculo } = await supabase
+                .from("vinculos_servidor")
+                .select("cargo_id, unidade_id")
+                .eq("servidor_id", vinculoAtual.servidor_id)
+                .eq("ativo", true)
+                .neq("id", id)
+                .limit(1)
+                .maybeSingle();
+              updates.cargo_atual_id = proximoVinculo?.cargo_id || null;
+              updates.unidade_atual_id = proximoVinculo?.unidade_id || null;
+            }
+            if (Object.keys(updates).length > 0) {
+              await supabase.from("servidores").update(updates).eq("id", vinculoAtual.servidor_id);
+            }
+          }
+        }
         // Buscar nome do servidor e cargo
         const [servidorRes, cargoRes] = await Promise.all([
           supabase.from("servidores").select("nome_completo").eq("id", vinculoAtual.servidor_id).maybeSingle(),
@@ -388,8 +448,8 @@ export function useVinculoMutations(servidorId?: string) {
         }
       }
     },
-    onSuccess: () => {
-      toast.success("Vínculo encerrado. Portaria de exoneração gerada.");
+    onSuccess: (_, variables) => {
+      toast.success("Vínculo encerrado com sucesso.");
       invalidate();
     },
     onError: (err: any) => toast.error("Erro ao encerrar: " + err.message),
