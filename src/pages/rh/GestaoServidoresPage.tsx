@@ -54,6 +54,7 @@ import {
   TIPO_SERVIDOR_LABELS,
   TIPO_SERVIDOR_COLORS,
 } from "@/types/rh";
+import { TIPO_DERIVADO_LABELS, TIPO_DERIVADO_COLORS } from "@/hooks/useVinculosServidor";
 
 interface ServidorCompleto {
   id: string;
@@ -62,7 +63,7 @@ interface ServidorCompleto {
   matricula?: string;
   codigo_interno?: string;
   foto_url?: string;
-  tipo_servidor?: TipoServidor;
+  tipo_servidor?: string;
   situacao: SituacaoFuncional;
   orgao_origem?: string;
   orgao_destino_cessao?: string;
@@ -98,7 +99,7 @@ export default function GestaoServidoresPage() {
   const { data: servidores = [], isLoading } = useQuery({
     queryKey: ["servidores-rh"],
     queryFn: async () => {
-      // Buscar servidores sem joins diretos (banco externo pode não ter FKs)
+      // Buscar servidores
       const { data: servidoresData, error } = await supabase
         .from("servidores")
         .select(`
@@ -113,7 +114,16 @@ export default function GestaoServidoresPage() {
 
       if (!servidoresData || servidoresData.length === 0) return [];
 
-      // Buscar cargos separadamente
+      // Buscar tipo derivado da view
+      const { data: tiposDerivados } = await supabase
+        .from("v_servidor_tipo_derivado")
+        .select("servidor_id, tipo_derivado, tipos_ativos");
+
+      const tipoMap = new Map<string, string>(
+        (tiposDerivados || []).map((t: any) => [t.servidor_id, t.tipo_derivado])
+      );
+
+      // Buscar cargos e unidades
       const cargoIds = [...new Set(servidoresData.map((s: any) => s.cargo_atual_id).filter(Boolean))];
       const unidadeIds = [...new Set(servidoresData.map((s: any) => s.unidade_atual_id).filter(Boolean))];
 
@@ -131,7 +141,7 @@ export default function GestaoServidoresPage() {
 
       return servidoresData.map((s: any) => ({
         ...s,
-        tipo_servidor: undefined,
+        tipo_servidor: tipoMap.get(s.id) || undefined,
         cargo: s.cargo_atual_id ? cargosMap.get(s.cargo_atual_id) || null : null,
         unidade: s.unidade_atual_id ? unidadesMap.get(s.unidade_atual_id) || null : null,
       })) as unknown as (ServidorCompleto & { banco_codigo?: string; banco_agencia?: string; banco_conta?: string })[];
@@ -268,7 +278,7 @@ export default function GestaoServidoresPage() {
   function getGroupLabel(group: GroupBy, key: string): string {
     switch (group) {
       case "tipo_servidor":
-        return key === "sem_tipo" ? "Não classificado" : (TIPO_SERVIDOR_LABELS[key as TipoServidor] || key);
+        return key === "sem_tipo" ? "Não classificado" : (TIPO_DERIVADO_LABELS[key] || TIPO_SERVIDOR_LABELS[key as TipoServidor] || key);
       case "situacao":
         return SITUACAO_LABELS[key as SituacaoFuncional] || key;
       default:
@@ -291,19 +301,22 @@ export default function GestaoServidoresPage() {
   };
 
   // Stats
-  const totalEfetivos = servidores.filter(s => s.tipo_servidor === 'efetivo_idjuv').length;
-  const totalComissionados = servidores.filter(s => s.tipo_servidor === 'comissionado_idjuv').length;
-  const totalCedidosEntrada = servidores.filter(s => s.tipo_servidor === 'cedido_entrada').length;
+  const totalEfetivos = servidores.filter(s => s.tipo_servidor === 'efetivo' || s.tipo_servidor === 'efetivo_comissionado').length;
+  const totalComissionados = servidores.filter(s => s.tipo_servidor === 'comissionado').length;
+  const totalCedidosEntrada = servidores.filter(s => s.tipo_servidor === 'cedido_entrada' || s.tipo_servidor === 'cedido_comissionado').length;
   const totalCedidosSaida = servidores.filter(s => s.tipo_servidor === 'cedido_saida').length;
-  const totalSemTipo = servidores.filter(s => !s.tipo_servidor).length;
+  const totalFederais = servidores.filter(s => s.tipo_servidor === 'federal' || s.tipo_servidor === 'federal_comissionado').length;
+  const totalSemTipo = servidores.filter(s => !s.tipo_servidor || s.tipo_servidor === 'nao_classificado').length;
   const totalSemDadosBancarios = servidores.filter(s => !s.banco_codigo || !s.banco_agencia || !s.banco_conta).length;
 
   const getInitials = (nome: string) => nome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
   const formatCPF = (cpf: string) => cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
 
-  const getTipoServidorBadge = (tipo?: TipoServidor) => {
-    if (!tipo) return <Badge variant="outline" className="bg-muted text-muted-foreground">Não classificado</Badge>;
-    return <Badge className={TIPO_SERVIDOR_COLORS[tipo]}>{TIPO_SERVIDOR_LABELS[tipo]}</Badge>;
+  const getTipoServidorBadge = (tipo?: string) => {
+    if (!tipo || tipo === 'nao_classificado') return <Badge variant="outline" className="bg-muted text-muted-foreground">Não classificado</Badge>;
+    const colorClass = TIPO_DERIVADO_COLORS[tipo] || TIPO_SERVIDOR_COLORS[tipo as TipoServidor] || "bg-muted text-muted-foreground";
+    const label = TIPO_DERIVADO_LABELS[tipo] || TIPO_SERVIDOR_LABELS[tipo as TipoServidor] || tipo;
+    return <Badge className={colorClass}>{label}</Badge>;
   };
 
   const renderTagBadges = (servidorId: string) => {

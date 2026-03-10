@@ -11,8 +11,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Award, ArrowLeftRight, Plus } from "lucide-react";
+import { Award, ArrowLeftRight, Plus, Link2 } from "lucide-react";
 import { VidaFuncionalResumo } from "./VidaFuncionalResumo";
+import { VinculosServidorPanel } from "./VinculosServidorPanel";
 import { VidaFuncionalTimeline } from "./VidaFuncionalTimeline";
 import { NomeacoesProvimentosSection } from "./NomeacoesProvimentosSection";
 import { CessoesSection } from "./CessoesSection";
@@ -34,6 +35,9 @@ interface HistoricoFuncionalTabProps {
 export function HistoricoFuncionalTab({ servidorId, servidorNome, tipoServidor }: HistoricoFuncionalTabProps) {
   return (
     <div className="space-y-6">
+      {/* 0. Vínculos Funcionais (múltiplos) */}
+      <VinculosServidorPanel servidorId={servidorId} servidorNome={servidorNome} />
+
       {/* 1. Cards de Resumo Situacional */}
       <VidaFuncionalResumo servidorId={servidorId} />
 
