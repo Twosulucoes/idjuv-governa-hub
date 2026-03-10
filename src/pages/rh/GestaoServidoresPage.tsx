@@ -109,6 +109,7 @@ export default function GestaoServidoresPage() {
           cargo_atual_id, unidade_atual_id
         `)
         .eq("ativo", true)
+        .neq("situacao", "inativo")
         .order("nome_completo");
       if (error) throw error;
 
