@@ -165,13 +165,28 @@ export function ProvimentoForm({
   const stepIndex = stepsNecessarios.indexOf(currentStep);
   const totalSteps = stepsNecessarios.length;
 
-  // Buscar diretorias disponíveis para o cargo
+  // Helper: buscar unidades ocupadas pelo cargo selecionado
+  const { data: unidadesOcupadas = [] } = useQuery({
+    queryKey: ["unidades-ocupadas-cargo", cargoId],
+    queryFn: async () => {
+      if (!cargoId) return [];
+      const { data, error } = await supabase
+        .from("provimentos")
+        .select("unidade_id")
+        .eq("cargo_id", cargoId)
+        .eq("status", "ativo");
+      if (error) throw error;
+      return (data || []).map(p => p.unidade_id).filter(Boolean) as string[];
+    },
+    enabled: !!cargoId,
+  });
+
+  // Buscar diretorias disponíveis para o cargo (apenas com vaga aberta)
   const { data: diretorias = [], isLoading: loadingDiretorias } = useQuery({
-    queryKey: ["diretorias-disponiveis", cargoId],
+    queryKey: ["diretorias-disponiveis", cargoId, unidadesOcupadas],
     queryFn: async () => {
       if (!cargoId) return [];
       
-      // Buscar diretorias (tipo = 'diretoria')
       const { data, error } = await supabase
         .from("estrutura_organizacional")
         .select("id, nome, sigla, tipo")
@@ -180,14 +195,22 @@ export function ProvimentoForm({
         .order("nome");
       
       if (error) throw error;
+      
+      // Se o cargo é de diretoria, filtrar apenas as que não estão ocupadas
+      const cargoNome = cargoSelecionado?.nome.toLowerCase() || '';
+      if (cargoNome.includes('diretor') || cargoNome.includes('secretária de diretoria')) {
+        return (data || []).filter(d => !unidadesOcupadas.includes(d.id));
+      }
+      
+      // Para cargos de divisão/núcleo, mostrar todas as diretorias (filtro será nos níveis abaixo)
       return data || [];
     },
     enabled: stepsNecessarios.includes('diretoria') && !!cargoId,
   });
 
-  // Buscar divisões da diretoria selecionada
+  // Buscar divisões da diretoria selecionada (apenas com vaga aberta)
   const { data: divisoes = [], isLoading: loadingDivisoes } = useQuery({
-    queryKey: ["divisoes-diretoria", diretoriaId],
+    queryKey: ["divisoes-diretoria", diretoriaId, cargoId, unidadesOcupadas],
     queryFn: async () => {
       if (!diretoriaId) return [];
       
@@ -200,14 +223,22 @@ export function ProvimentoForm({
         .order("nome");
       
       if (error) throw error;
+      
+      // Se o cargo é de divisão, filtrar apenas as que não estão ocupadas
+      const cargoNome = cargoSelecionado?.nome.toLowerCase() || '';
+      if (cargoNome.includes('divisão')) {
+        return (data || []).filter(d => !unidadesOcupadas.includes(d.id));
+      }
+      
+      // Para cargos de núcleo, mostrar todas (filtro será no próximo nível)
       return data || [];
     },
     enabled: stepsNecessarios.includes('divisao') && !!diretoriaId,
   });
 
-  // Buscar núcleos da divisão selecionada
+  // Buscar núcleos da divisão selecionada (apenas com vaga aberta)
   const { data: nucleos = [], isLoading: loadingNucleos } = useQuery({
-    queryKey: ["nucleos-divisao", divisaoId],
+    queryKey: ["nucleos-divisao", divisaoId, cargoId, unidadesOcupadas],
     queryFn: async () => {
       if (!divisaoId) return [];
       
@@ -220,7 +251,9 @@ export function ProvimentoForm({
         .order("nome");
       
       if (error) throw error;
-      return data || [];
+      
+      // Filtrar apenas núcleos que não estão ocupados pelo cargo
+      return (data || []).filter(n => !unidadesOcupadas.includes(n.id));
     },
     enabled: stepsNecessarios.includes('nucleo') && !!divisaoId,
   });
