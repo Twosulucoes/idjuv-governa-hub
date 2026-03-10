@@ -99,7 +99,7 @@ export default function GestaoServidoresPage() {
   const { data: servidores = [], isLoading } = useQuery({
     queryKey: ["servidores-rh"],
     queryFn: async () => {
-      // Buscar servidores sem joins diretos (banco externo pode não ter FKs)
+      // Buscar servidores
       const { data: servidoresData, error } = await supabase
         .from("servidores")
         .select(`
@@ -114,7 +114,16 @@ export default function GestaoServidoresPage() {
 
       if (!servidoresData || servidoresData.length === 0) return [];
 
-      // Buscar cargos separadamente
+      // Buscar tipo derivado da view
+      const { data: tiposDerivados } = await supabase
+        .from("v_servidor_tipo_derivado")
+        .select("servidor_id, tipo_derivado, tipos_ativos");
+
+      const tipoMap = new Map<string, string>(
+        (tiposDerivados || []).map((t: any) => [t.servidor_id, t.tipo_derivado])
+      );
+
+      // Buscar cargos e unidades
       const cargoIds = [...new Set(servidoresData.map((s: any) => s.cargo_atual_id).filter(Boolean))];
       const unidadeIds = [...new Set(servidoresData.map((s: any) => s.unidade_atual_id).filter(Boolean))];
 
@@ -132,7 +141,7 @@ export default function GestaoServidoresPage() {
 
       return servidoresData.map((s: any) => ({
         ...s,
-        tipo_servidor: undefined,
+        tipo_servidor: tipoMap.get(s.id) || undefined,
         cargo: s.cargo_atual_id ? cargosMap.get(s.cargo_atual_id) || null : null,
         unidade: s.unidade_atual_id ? unidadesMap.get(s.unidade_atual_id) || null : null,
       })) as unknown as (ServidorCompleto & { banco_codigo?: string; banco_agencia?: string; banco_conta?: string })[];
