@@ -141,8 +141,8 @@ export function ExonerarServidorModal({ servidor, open, onOpenChange }: Props) {
               <Label>Data de Publicação DOE</Label>
               <Input
                 type="date"
-                value={dataAdmissao}
-                onChange={(e) => setDataAdmissao(e.target.value)}
+                value={dataPublicacaoDoe}
+                onChange={(e) => setDataPublicacaoDoe(e.target.value)}
               />
             </div>
           </div>
