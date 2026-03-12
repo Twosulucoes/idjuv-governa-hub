@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,11 +28,27 @@ import {
   OrientacoesDocumentosCard,
 } from "@/components/curriculo";
 import { usePreCadastro } from "@/hooks/usePreCadastro";
+import { useFormFieldConfig } from "@/hooks/useFormFieldConfig";
 import { gerarPdfMiniCurriculo } from "@/lib/pdfMiniCurriculo";
 import type { PreCadastro } from "@/types/preCadastro";
 import logoIdjuv from "@/assets/logo-idjuv-oficial.png";
 
-const STEPS = [
+// Mapeamento step → chave de seção na config
+const STEP_SECTION_MAP: Record<number, string | null> = {
+  1: null, // Dados Pessoais - sempre visível
+  2: null, // Documentos - sempre visível (campos internos controlados)
+  3: null, // Endereço - sempre visível
+  4: 'previdencia',
+  5: 'escolaridade',
+  6: 'aptidoes',
+  7: 'emergencia',
+  8: 'checklist',
+  9: 'dados_bancarios',
+  10: 'dependentes',
+  11: null, // Revisão - sempre visível
+};
+
+const ALL_STEPS = [
   { id: 1, title: "Dados Pessoais", description: "Informações básicas" },
   { id: 2, title: "Documentos", description: "Documentos pessoais" },
   { id: 3, title: "Endereço", description: "Endereço residencial" },
@@ -49,13 +65,26 @@ const STEPS = [
 export default function MiniCurriculoPage() {
   const { codigo } = useParams<{ codigo: string }>();
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [formData, setFormData] = useState<Partial<PreCadastro>>({
     nacionalidade: "Brasileira",
   });
   const [isSaving, setIsSaving] = useState(false);
 
   const { preCadastro, isLoading, criar, atualizar, enviar } = usePreCadastro(codigo);
+  const { isSectionEnabled, isFieldEnabled, loading: configLoading } = useFormFieldConfig('pre_cadastro');
+
+  // Filtrar steps com base na config
+  const activeSteps = useMemo(() => {
+    if (configLoading) return ALL_STEPS;
+    return ALL_STEPS.filter(step => {
+      const sectionKey = STEP_SECTION_MAP[step.id];
+      if (!sectionKey) return true; // Steps sem mapeamento são sempre visíveis
+      return isSectionEnabled(sectionKey);
+    });
+  }, [configLoading, isSectionEnabled]);
+
+  const currentStep = activeSteps[currentStepIndex];
 
   // Carregar dados existentes
   useEffect(() => {
@@ -65,15 +94,15 @@ export default function MiniCurriculoPage() {
   }, [preCadastro]);
 
   const handleNext = () => {
-    if (currentStep < STEPS.length) {
-      setCurrentStep(currentStep + 1);
+    if (currentStepIndex < activeSteps.length - 1) {
+      setCurrentStepIndex(currentStepIndex + 1);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
   const handlePrevious = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+    if (currentStepIndex > 0) {
+      setCurrentStepIndex(currentStepIndex - 1);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
@@ -106,7 +135,6 @@ export default function MiniCurriculoPage() {
       return;
     }
 
-    // Validar campos obrigatórios
     const camposObrigatorios = [
       "nome_completo",
       "cpf",
@@ -143,7 +171,8 @@ export default function MiniCurriculoPage() {
   };
 
   const renderStepContent = () => {
-    switch (currentStep) {
+    if (!currentStep) return null;
+    switch (currentStep.id) {
       case 1:
         return (
           <DadosPessoaisForm
@@ -154,7 +183,7 @@ export default function MiniCurriculoPage() {
           />
         );
       case 2:
-        return <DocumentosForm dados={formData} onChange={setFormData} />;
+        return <DocumentosForm dados={formData} onChange={setFormData} fieldConfig={{ isFieldEnabled }} />;
       case 3:
         return <EnderecoForm dados={formData} onChange={setFormData} />;
       case 4:
@@ -178,7 +207,7 @@ export default function MiniCurriculoPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || configLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -186,7 +215,7 @@ export default function MiniCurriculoPage() {
     );
   }
 
-  const progress = (currentStep / STEPS.length) * 100;
+  const progress = ((currentStepIndex + 1) / activeSteps.length) * 100;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
@@ -220,10 +249,10 @@ export default function MiniCurriculoPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">
-              Etapa {currentStep} de {STEPS.length}
+              Etapa {currentStepIndex + 1} de {activeSteps.length}
             </span>
             <span className="text-sm text-muted-foreground">
-              {STEPS[currentStep - 1].title}
+              {currentStep?.title}
             </span>
           </div>
           <Progress value={progress} className="h-2" />
@@ -231,28 +260,28 @@ export default function MiniCurriculoPage() {
 
         {/* Step Indicators */}
         <div className="hidden md:flex justify-between mb-8 overflow-x-auto">
-          {STEPS.map((step) => (
+          {activeSteps.map((step, index) => (
             <button
               key={step.id}
-              onClick={() => setCurrentStep(step.id)}
+              onClick={() => setCurrentStepIndex(index)}
               className={`flex flex-col items-center min-w-[80px] transition-colors ${
-                step.id === currentStep
+                index === currentStepIndex
                   ? "text-primary"
-                  : step.id < currentStep
+                  : index < currentStepIndex
                   ? "text-muted-foreground"
                   : "text-muted-foreground/50"
               }`}
             >
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium mb-1 ${
-                  step.id === currentStep
+                  index === currentStepIndex
                     ? "bg-primary text-primary-foreground"
-                    : step.id < currentStep
+                    : index < currentStepIndex
                     ? "bg-primary/20 text-primary"
                     : "bg-muted text-muted-foreground"
                 }`}
               >
-                {step.id}
+                {index + 1}
               </div>
               <span className="text-xs text-center">{step.title}</span>
             </button>
@@ -260,60 +289,57 @@ export default function MiniCurriculoPage() {
         </div>
 
         {/* Form Content */}
-        <Card className="mb-6">
-          <CardContent className="p-6">{renderStepContent()}</CardContent>
+        <Card className="mb-8">
+          <CardContent className="pt-6">{renderStepContent()}</CardContent>
         </Card>
 
-        {/* Navigation Buttons */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        {/* Navigation */}
+        <div className="flex flex-col sm:flex-row justify-between gap-4">
           <div className="flex gap-2">
             <Button
               variant="outline"
               onClick={handlePrevious}
-              disabled={currentStep === 1}
+              disabled={currentStepIndex === 0}
             >
-              <ChevronLeft className="h-4 w-4 mr-2" />
+              <ChevronLeft className="h-4 w-4 mr-1" />
               Anterior
             </Button>
+
             <Button variant="outline" onClick={handleSave} disabled={isSaving}>
               {isSaving ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
               ) : (
-                <Save className="h-4 w-4 mr-2" />
+                <Save className="h-4 w-4 mr-1" />
               )}
-              Salvar Rascunho
+              Salvar
             </Button>
+
+            {preCadastro?.id && (
+              <Button variant="outline" onClick={handleDownloadPdf}>
+                <FileDown className="h-4 w-4 mr-1" />
+                PDF
+              </Button>
+            )}
           </div>
 
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleDownloadPdf}>
-              <FileDown className="h-4 w-4 mr-2" />
-              Baixar PDF
-            </Button>
-
-            {currentStep === STEPS.length ? (
-              <Button onClick={handleSubmit}>
-                <Send className="h-4 w-4 mr-2" />
-                Enviar Pré-Cadastro
-              </Button>
-            ) : (
+            {currentStepIndex < activeSteps.length - 1 ? (
               <Button onClick={handleNext}>
                 Próximo
-                <ChevronRight className="h-4 w-4 ml-2" />
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSubmit}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Send className="h-4 w-4 mr-1" />
+                Enviar Pré-Cadastro
               </Button>
             )}
           </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t py-4 mt-8">
-        <div className="container max-w-4xl mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>
-            Em caso de dúvidas, entre em contato com o setor de Recursos Humanos do IDJUV.
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }
