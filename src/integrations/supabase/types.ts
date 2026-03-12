@@ -11062,6 +11062,45 @@ export type Database = {
           },
         ]
       }
+      form_field_config: {
+        Row: {
+          display_order: number
+          enabled: boolean
+          field_key: string
+          form_type: string
+          id: string
+          label: string
+          required: boolean
+          section: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          display_order?: number
+          enabled?: boolean
+          field_key: string
+          form_type?: string
+          id?: string
+          label: string
+          required?: boolean
+          section: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          display_order?: number
+          enabled?: boolean
+          field_key?: string
+          form_type?: string
+          id?: string
+          label?: string
+          required?: boolean
+          section?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       fornecedores: {
         Row: {
           agencia: string | null
