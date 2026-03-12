@@ -540,6 +540,11 @@ const App = () => (
                   <CalibradorSegadPage />
                 </ProtectedRoute>
               } />
+              <Route path="/admin/config-campos-precadastro" element={
+                <ProtectedRoute requiredPermissions="admin.usuarios">
+                  <ConfigCamposPreCadastroPage />
+                </ProtectedRoute>
+              } />
               <Route path="/admin/pre-cadastros" element={
                 <ProtectedRoute requiredPermissions="rh.precadastros.visualizar">
                   <GestaoPreCadastrosPage />
