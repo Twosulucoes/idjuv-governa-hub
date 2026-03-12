@@ -1159,6 +1159,13 @@ export const menuConfig: MenuSection[] = [
         permission: "admin.config",
       },
       {
+        id: "config-campos-precadastro",
+        label: "Campos Pré-Cadastro",
+        route: "/admin/config-campos-precadastro",
+        icon: Settings,
+        permission: "admin.usuarios",
+      },
+      {
         id: "backup",
         label: "Backup",
         route: "/admin/backup",
