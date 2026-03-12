@@ -157,6 +157,7 @@ import SobreSistemaPage from "./pages/admin/SobreSistemaPage";
 import GerenciadorPaginasPage from "./pages/admin/GerenciadorPaginasPage";
 import GestaoModulosPage from "./pages/admin/GestaoModulosPage";
 import PainelPermissoesPage from "./pages/admin/PainelPermissoesPage";
+import ConfigCamposPreCadastroPage from "./pages/admin/ConfigCamposPreCadastroPage";
 
 // ASCOM / Comunicação
 import GestaoDemandasAscomPage from "./pages/ascom/GestaoDemandasAscomPage";
@@ -537,6 +538,11 @@ const App = () => (
               <Route path="/admin/calibrador-segad" element={
                 <ProtectedRoute requiredPermissions="admin.segad">
                   <CalibradorSegadPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/config-campos-precadastro" element={
+                <ProtectedRoute requiredPermissions="admin.usuarios">
+                  <ConfigCamposPreCadastroPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/pre-cadastros" element={
