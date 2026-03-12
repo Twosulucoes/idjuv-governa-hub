@@ -157,6 +157,7 @@ import SobreSistemaPage from "./pages/admin/SobreSistemaPage";
 import GerenciadorPaginasPage from "./pages/admin/GerenciadorPaginasPage";
 import GestaoModulosPage from "./pages/admin/GestaoModulosPage";
 import PainelPermissoesPage from "./pages/admin/PainelPermissoesPage";
+import ConfigCamposPreCadastroPage from "./pages/admin/ConfigCamposPreCadastroPage";
 
 // ASCOM / Comunicação
 import GestaoDemandasAscomPage from "./pages/ascom/GestaoDemandasAscomPage";
