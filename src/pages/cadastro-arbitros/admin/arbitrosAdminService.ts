@@ -3,6 +3,15 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 
+export interface ArbitroModalidade {
+  id: string;
+  modalidade: string;
+  categoria: string;
+  status: string;
+  documentos_urls: string[];
+  created_at: string;
+}
+
 export interface ArbitroCadastro {
   id: string;
   protocolo: string | null;
@@ -38,6 +47,8 @@ export interface ArbitroCadastro {
   documentos_urls: string[] | null;
   created_at: string;
   updated_at: string;
+  // Multi-modalidade
+  modalidades_lista?: ArbitroModalidade[];
 }
 
 export async function fetchArbitros(filters?: {
@@ -72,12 +83,52 @@ export async function fetchArbitros(filters?: {
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data || []) as unknown as ArbitroCadastro[];
+
+  const arbitros = (data || []) as unknown as ArbitroCadastro[];
+
+  // Buscar modalidades da tabela filha para todos os árbitros
+  if (arbitros.length > 0) {
+    const ids = arbitros.map(a => a.id);
+    const { data: modalidadesData } = await supabase
+      .from("cadastro_arbitros_modalidades" as any)
+      .select("*")
+      .in("arbitro_id", ids);
+
+    if (modalidadesData) {
+      const modMap = new Map<string, ArbitroModalidade[]>();
+      (modalidadesData as any[]).forEach(m => {
+        const list = modMap.get(m.arbitro_id) || [];
+        list.push({
+          id: m.id,
+          modalidade: m.modalidade,
+          categoria: m.categoria,
+          status: m.status,
+          documentos_urls: Array.isArray(m.documentos_urls) ? m.documentos_urls : [],
+          created_at: m.created_at,
+        });
+        modMap.set(m.arbitro_id, list);
+      });
+
+      arbitros.forEach(a => {
+        a.modalidades_lista = modMap.get(a.id) || [];
+      });
+    }
+  }
+
+  return arbitros;
 }
 
 export async function updateArbitroStatus(id: string, status: string) {
   const { error } = await supabase
     .from("cadastro_arbitros" as any)
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function updateModalidadeStatus(id: string, status: string) {
+  const { error } = await supabase
+    .from("cadastro_arbitros_modalidades" as any)
     .update({ status, updated_at: new Date().toISOString() })
     .eq("id", id);
   if (error) throw error;
@@ -106,7 +157,25 @@ export async function fetchArbitroById(id: string) {
     .eq("id", id)
     .single();
   if (error) throw error;
-  return data as unknown as ArbitroCadastro;
+
+  const arbitro = data as unknown as ArbitroCadastro;
+
+  // Buscar modalidades
+  const { data: mods } = await supabase
+    .from("cadastro_arbitros_modalidades" as any)
+    .select("*")
+    .eq("arbitro_id", id);
+
+  arbitro.modalidades_lista = ((mods || []) as any[]).map(m => ({
+    id: m.id,
+    modalidade: m.modalidade,
+    categoria: m.categoria,
+    status: m.status,
+    documentos_urls: Array.isArray(m.documentos_urls) ? m.documentos_urls : [],
+    created_at: m.created_at,
+  }));
+
+  return arbitro;
 }
 
 export interface EstatisticasArbitros {
@@ -128,27 +197,47 @@ export async function fetchEstatisticas(): Promise<EstatisticasArbitros> {
   if (error) throw error;
 
   const arbitros = (data || []) as unknown as ArbitroCadastro[];
+
+  // Buscar todas as modalidades
+  const { data: modsData } = await supabase
+    .from("cadastro_arbitros_modalidades" as any)
+    .select("*");
+  const allMods = (modsData || []) as any[];
+
   const total = arbitros.length;
-  const pendentes = arbitros.filter((a) => a.status === "pendente").length;
+  const pendentes = arbitros.filter((a) => a.status === "pendente" || a.status === "enviado").length;
   const aprovados = arbitros.filter((a) => a.status === "aprovado").length;
   const rejeitados = arbitros.filter((a) => a.status === "rejeitado").length;
 
-  // Por categoria
+  // Por categoria (da tabela de modalidades)
   const catMap = new Map<string, number>();
-  arbitros.forEach((a) => {
-    catMap.set(a.categoria, (catMap.get(a.categoria) || 0) + 1);
-  });
+  if (allMods.length > 0) {
+    allMods.forEach((m: any) => {
+      catMap.set(m.categoria, (catMap.get(m.categoria) || 0) + 1);
+    });
+  } else {
+    arbitros.forEach((a) => {
+      if (a.categoria) catMap.set(a.categoria, (catMap.get(a.categoria) || 0) + 1);
+    });
+  }
   const porCategoria = Array.from(catMap, ([categoria, count]) => ({ categoria, count }));
 
-  // Por modalidade
+  // Por modalidade (da tabela de modalidades)
   const modMap = new Map<string, number>();
-  arbitros.forEach((a) => {
-    const m = a.modalidade?.trim() || "Não informado";
-    modMap.set(m, (modMap.get(m) || 0) + 1);
-  });
+  if (allMods.length > 0) {
+    allMods.forEach((m: any) => {
+      const name = m.modalidade?.trim() || "Não informado";
+      modMap.set(name, (modMap.get(name) || 0) + 1);
+    });
+  } else {
+    arbitros.forEach((a) => {
+      const m = a.modalidade?.trim() || "Não informado";
+      modMap.set(m, (modMap.get(m) || 0) + 1);
+    });
+  }
   const porModalidade = Array.from(modMap, ([modalidade, count]) => ({ modalidade, count }))
     .sort((a, b) => b.count - a.count)
-    .slice(0, 10);
+    .slice(0, 15);
 
   // Por UF
   const ufMap = new Map<string, number>();
