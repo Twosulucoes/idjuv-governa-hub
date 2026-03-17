@@ -1843,7 +1843,7 @@ export type Database = {
           agencia: string | null
           bairro: string | null
           banco: string | null
-          categoria: string
+          categoria: string | null
           celular: string
           cep: string | null
           cidade: string | null
@@ -1862,7 +1862,7 @@ export type Database = {
           funcao: string | null
           id: string
           local_trabalho: string | null
-          modalidade: string
+          modalidade: string | null
           nacionalidade: string
           nome: string
           pis_pasep: string | null
@@ -1880,7 +1880,7 @@ export type Database = {
           agencia?: string | null
           bairro?: string | null
           banco?: string | null
-          categoria: string
+          categoria?: string | null
           celular: string
           cep?: string | null
           cidade?: string | null
@@ -1899,7 +1899,7 @@ export type Database = {
           funcao?: string | null
           id?: string
           local_trabalho?: string | null
-          modalidade: string
+          modalidade?: string | null
           nacionalidade?: string
           nome: string
           pis_pasep?: string | null
@@ -1917,7 +1917,7 @@ export type Database = {
           agencia?: string | null
           bairro?: string | null
           banco?: string | null
-          categoria?: string
+          categoria?: string | null
           celular?: string
           cep?: string | null
           cidade?: string | null
@@ -1936,7 +1936,7 @@ export type Database = {
           funcao?: string | null
           id?: string
           local_trabalho?: string | null
-          modalidade?: string
+          modalidade?: string | null
           nacionalidade?: string
           nome?: string
           pis_pasep?: string | null
@@ -1951,6 +1951,50 @@ export type Database = {
           validade_rne?: string | null
         }
         Relationships: []
+      }
+      cadastro_arbitros_modalidades: {
+        Row: {
+          arbitro_id: string
+          categoria: string
+          created_at: string
+          documentos_urls: Json | null
+          id: string
+          modalidade: string
+          observacoes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          arbitro_id: string
+          categoria?: string
+          created_at?: string
+          documentos_urls?: Json | null
+          id?: string
+          modalidade: string
+          observacoes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          arbitro_id?: string
+          categoria?: string
+          created_at?: string
+          documentos_urls?: Json | null
+          id?: string
+          modalidade?: string
+          observacoes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cadastro_arbitros_modalidades_arbitro_id_fkey"
+            columns: ["arbitro_id"]
+            isOneToOne: false
+            referencedRelation: "cadastro_arbitros"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       calendario_federacao: {
         Row: {
