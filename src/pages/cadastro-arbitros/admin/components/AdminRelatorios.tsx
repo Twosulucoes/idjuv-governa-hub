@@ -114,10 +114,10 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
         const field = EXPORT_FIELDS.find(f => f.key === key);
         if (!field) return;
         let val: unknown = (a as any)[key];
-        if (key === "created_at" && val) val = new Date(val as string).toLocaleDateString("pt-BR");
+        if ((key === "created_at" || key === "data_nascimento" || key === "validade_rne") && val) val = new Date(val as string).toLocaleDateString("pt-BR");
         if (key === "sexo") val = val === "M" ? "Masculino" : val === "F" ? "Feminino" : val;
-        if (key === "categoria") val = val === "estadual" ? "Estadual" : "Nacional";
-        if (key === "status") val = val === "pendente" ? "Pendente" : val === "aprovado" ? "Aprovado" : "Rejeitado";
+        if (key === "categoria") val = val === "estadual" ? "Estadual" : val === "nacional" ? "Nacional" : val;
+        if (key === "status") val = val === "pendente" ? "Pendente" : val === "aprovado" ? "Aprovado" : val === "rejeitado" ? "Rejeitado" : val;
         row[field.label] = val ?? "";
       });
       return row;
