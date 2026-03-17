@@ -88,8 +88,7 @@ export function AdminListagem({ arbitros, loading, filtros, setFiltros, onSelect
                     <TableHead>Protocolo</TableHead>
                     <TableHead>Nome</TableHead>
                     <TableHead>CPF</TableHead>
-                    <TableHead>Categoria</TableHead>
-                    <TableHead>Modalidade</TableHead>
+                    <TableHead>Modalidades</TableHead>
                     <TableHead>UF</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Data</TableHead>
@@ -99,15 +98,31 @@ export function AdminListagem({ arbitros, loading, filtros, setFiltros, onSelect
                 <TableBody>
                   {arbitros.map((a) => {
                     const badge = STATUS_BADGE[a.status] || STATUS_BADGE.pendente;
+                    const mods = a.modalidades_lista || [];
+                    const modsDisplay = mods.length > 0
+                      ? mods.map(m => m.modalidade).join(', ')
+                      : a.modalidade || '—';
                     return (
                       <TableRow key={a.id} className="cursor-pointer hover:bg-muted/50">
                         <TableCell className="font-mono text-xs">{a.protocolo || "—"}</TableCell>
                         <TableCell className="font-medium max-w-[200px] truncate">{a.nome}</TableCell>
                         <TableCell className="text-xs">{a.cpf}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs capitalize">{a.categoria}</Badge>
+                        <TableCell className="text-sm max-w-[180px]">
+                          <div className="flex flex-wrap gap-1">
+                            {mods.length > 0 ? mods.slice(0, 2).map((m, i) => (
+                              <Badge key={i} variant="outline" className="text-xs">
+                                {m.modalidade}
+                              </Badge>
+                            )) : (
+                              <span className="text-xs">{a.modalidade || '—'}</span>
+                            )}
+                            {mods.length > 2 && (
+                              <Badge variant="secondary" className="text-xs">
+                                +{mods.length - 2}
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
-                        <TableCell className="text-sm max-w-[120px] truncate">{a.modalidade}</TableCell>
                         <TableCell>{a.uf || "—"}</TableCell>
                         <TableCell><Badge variant={badge.variant}>{badge.label}</Badge></TableCell>
                         <TableCell className="text-xs text-muted-foreground">{format(new Date(a.created_at), "dd/MM/yy")}</TableCell>

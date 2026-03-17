@@ -42,8 +42,8 @@ const EXPORT_FIELDS = [
   { key: "pis_pasep", label: "PIS/PASEP" },
   { key: "email", label: "Email" },
   { key: "celular", label: "Celular" },
-  { key: "categoria", label: "Categoria" },
-  { key: "modalidade", label: "Modalidade" },
+  { key: "modalidades_texto", label: "Modalidades" },
+  { key: "categorias_texto", label: "Categorias" },
   { key: "sexo", label: "Sexo" },
   { key: "data_nascimento", label: "Data Nascimento" },
   { key: "nacionalidade", label: "Nacionalidade" },
@@ -110,14 +110,27 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
   function getExportData() {
     return getFilteredData().map(a => {
       const row: Record<string, unknown> = {};
+      const mods = a.modalidades_lista || [];
       selectedFields.forEach(key => {
         const field = EXPORT_FIELDS.find(f => f.key === key);
         if (!field) return;
-        let val: unknown = (a as any)[key];
+        let val: unknown;
+        
+        if (key === "modalidades_texto") {
+          val = mods.length > 0 
+            ? mods.map(m => m.modalidade).join(', ')
+            : a.modalidade || '';
+        } else if (key === "categorias_texto") {
+          val = mods.length > 0
+            ? mods.map(m => m.categoria === 'estadual' ? 'Estadual' : 'Nacional').join(', ')
+            : (a.categoria === 'estadual' ? 'Estadual' : a.categoria === 'nacional' ? 'Nacional' : a.categoria || '');
+        } else {
+          val = (a as any)[key];
+        }
+        
         if ((key === "created_at" || key === "data_nascimento" || key === "validade_rne") && val) val = new Date(val as string).toLocaleDateString("pt-BR");
         if (key === "sexo") val = val === "M" ? "Masculino" : val === "F" ? "Feminino" : val;
-        if (key === "categoria") val = val === "estadual" ? "Estadual" : val === "nacional" ? "Nacional" : val;
-        if (key === "status") val = val === "pendente" ? "Pendente" : val === "aprovado" ? "Aprovado" : val === "rejeitado" ? "Rejeitado" : val;
+        if (key === "status") val = val === "pendente" ? "Pendente" : val === "aprovado" ? "Aprovado" : val === "rejeitado" ? "Rejeitado" : val === "enviado" ? "Enviado" : val;
         row[field.label] = val ?? "";
       });
       return row;

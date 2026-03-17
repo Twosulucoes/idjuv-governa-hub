@@ -1,12 +1,12 @@
 /**
  * Página pública de Cadastro de Árbitros - IDJuv
- * Formulário multi-step com revisão antes do envio
+ * Formulário multi-step com suporte a múltiplas modalidades
  */
 
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { CheckCircle2, ChevronLeft, ChevronRight, Loader2, Send, User, FileText, MapPin, Phone, Briefcase, Building2, Camera } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Loader2, Send, User, FileText, MapPin, Phone, Briefcase, Building2, Camera, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -14,17 +14,23 @@ import { StepDadosPessoais } from './steps/StepDadosPessoais';
 import { StepDocumentos } from './steps/StepDocumentos';
 import { StepEndereco } from './steps/StepEndereco';
 import { StepContato } from './steps/StepContato';
+import { StepModalidades } from './steps/StepModalidades';
 import { StepProfissional } from './steps/StepProfissional';
 import { StepBancario } from './steps/StepBancario';
 import { StepFotoDocumentos } from './steps/StepFotoDocumentos';
 import { StepRevisao } from './steps/StepRevisao';
+
+export interface ModalidadeEntry {
+  modalidade: string;
+  categoria: string;
+  documentos_urls: string[];
+}
 
 export interface ArbitroFormData {
   nome: string;
   nacionalidade: string;
   sexo: string;
   data_nascimento: string;
-  categoria: string;
   tipo_sanguineo: string;
   fator_rh: string;
   cpf: string;
@@ -40,7 +46,7 @@ export interface ArbitroFormData {
   uf: string;
   email: string;
   celular: string;
-  modalidade: string;
+  modalidades: ModalidadeEntry[];
   local_trabalho: string;
   funcao: string;
   esfera: string;
@@ -52,10 +58,10 @@ export interface ArbitroFormData {
 }
 
 const INITIAL_DATA: ArbitroFormData = {
-  nome: '', nacionalidade: 'brasileira', sexo: '', data_nascimento: '', categoria: '',
+  nome: '', nacionalidade: 'brasileira', sexo: '', data_nascimento: '',
   tipo_sanguineo: '', fator_rh: '', cpf: '', rg: '', rne: '', validade_rne: '',
   pis_pasep: '', cep: '', endereco: '', complemento: '', bairro: '', cidade: '',
-  uf: '', email: '', celular: '', modalidade: '', local_trabalho: '',
+  uf: '', email: '', celular: '', modalidades: [], local_trabalho: '',
   funcao: '', esfera: '', banco: '', agencia: '', conta_corrente: '',
   foto_url: '', documentos_urls: [],
 };
@@ -65,6 +71,7 @@ const STEPS = [
   { label: 'Documentos', icon: FileText },
   { label: 'Endereço', icon: MapPin },
   { label: 'Contato', icon: Phone },
+  { label: 'Modalidades', icon: Trophy },
   { label: 'Profissional', icon: Briefcase },
   { label: 'Bancário', icon: Building2 },
   { label: 'Foto / Docs', icon: Camera },
@@ -83,14 +90,15 @@ export default function CadastroArbitroPage() {
 
   function canAdvance(): boolean {
     switch (step) {
-      case 0: return !!(formData.nome.trim() && formData.sexo && formData.data_nascimento && formData.categoria);
+      case 0: return !!(formData.nome.trim() && formData.sexo && formData.data_nascimento);
       case 1: return !!formData.cpf.trim();
       case 2: return true;
       case 3: return !!(formData.email.trim() && formData.celular.trim());
-      case 4: return !!formData.modalidade.trim();
+      case 4: return formData.modalidades.length > 0 && formData.modalidades.every(m => m.modalidade && m.categoria);
       case 5: return true;
       case 6: return true;
       case 7: return true;
+      case 8: return true;
       default: return true;
     }
   }
@@ -98,12 +106,12 @@ export default function CadastroArbitroPage() {
   async function handleSubmit() {
     setLoading(true);
     try {
+      // 1. Inserir registro principal (sem modalidade/categoria)
       const { data, error } = await supabase.from('cadastro_arbitros').insert({
         nome: formData.nome.trim(),
         nacionalidade: formData.nacionalidade,
         sexo: formData.sexo,
         data_nascimento: formData.data_nascimento,
-        categoria: formData.categoria,
         tipo_sanguineo: formData.tipo_sanguineo || null,
         fator_rh: formData.fator_rh || null,
         cpf: formData.cpf.trim(),
@@ -119,7 +127,8 @@ export default function CadastroArbitroPage() {
         uf: formData.uf || null,
         email: formData.email.trim(),
         celular: formData.celular.trim(),
-        modalidade: formData.modalidade.trim(),
+        modalidade: formData.modalidades.map(m => m.modalidade).join(', '),
+        categoria: formData.modalidades[0]?.categoria || 'estadual',
         local_trabalho: formData.local_trabalho || null,
         funcao: formData.funcao || null,
         esfera: formData.esfera || null,
@@ -128,9 +137,30 @@ export default function CadastroArbitroPage() {
         conta_corrente: formData.conta_corrente || null,
         foto_url: formData.foto_url || null,
         documentos_urls: formData.documentos_urls.length > 0 ? formData.documentos_urls : null,
-      } as any).select('protocolo').single();
+      } as any).select('id, protocolo').single();
 
       if (error) throw error;
+
+      // 2. Inserir modalidades na tabela filha
+      if (data?.id && formData.modalidades.length > 0) {
+        const modalidadesInsert = formData.modalidades.map(m => ({
+          arbitro_id: data.id,
+          modalidade: m.modalidade,
+          categoria: m.categoria,
+          documentos_urls: m.documentos_urls.length > 0 ? m.documentos_urls : '[]',
+        }));
+
+        const { error: modError } = await supabase
+          .from('cadastro_arbitros_modalidades' as any)
+          .insert(modalidadesInsert);
+
+        if (modError) {
+          console.error('Erro ao salvar modalidades:', modError);
+          // Não falhar o cadastro inteiro, apenas avisar
+          toast.warning('Cadastro salvo, mas houve um erro ao salvar algumas modalidades.');
+        }
+      }
+
       setProtocolo(data?.protocolo || 'Gerado');
       toast.success('Cadastro enviado com sucesso!');
     } catch (err: any) {
@@ -156,6 +186,11 @@ export default function CadastroArbitroPage() {
             </div>
             <p className="text-sm text-muted-foreground">
               Guarde este número para consultas futuras.
+              {formData.modalidades.length > 1 && (
+                <span className="block mt-1">
+                  Você registrou {formData.modalidades.length} modalidade(s). Cada uma será avaliada individualmente.
+                </span>
+              )}
             </p>
             <Button onClick={() => { setProtocolo(null); setFormData(INITIAL_DATA); setStep(0); }} variant="outline">
               Novo Cadastro
@@ -210,10 +245,11 @@ export default function CadastroArbitroPage() {
             {step === 1 && <StepDocumentos data={formData} update={updateField} />}
             {step === 2 && <StepEndereco data={formData} update={updateField} />}
             {step === 3 && <StepContato data={formData} update={updateField} />}
-            {step === 4 && <StepProfissional data={formData} update={updateField} />}
-            {step === 5 && <StepBancario data={formData} update={updateField} />}
-            {step === 6 && <StepFotoDocumentos data={formData} update={updateField} />}
-            {step === 7 && <StepRevisao data={formData} onEdit={setStep} />}
+            {step === 4 && <StepModalidades data={formData} update={updateField} />}
+            {step === 5 && <StepProfissional data={formData} update={updateField} />}
+            {step === 6 && <StepBancario data={formData} update={updateField} />}
+            {step === 7 && <StepFotoDocumentos data={formData} update={updateField} />}
+            {step === 8 && <StepRevisao data={formData} onEdit={setStep} />}
           </CardContent>
         </Card>
 
