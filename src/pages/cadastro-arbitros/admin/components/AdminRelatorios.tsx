@@ -223,13 +223,35 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
         return { key, label: field?.label || key };
       });
 
+      // Agrupar por modalidade
+      const filteredArbitros = getFilteredData();
+      const gruposMap = new Map<string, typeof data>();
+
+      filteredArbitros.forEach((arb, idx) => {
+        const mods = arb.modalidades_lista || [];
+        const modalidades = mods.length > 0
+          ? mods.map(m => m.modalidade)
+          : [arb.modalidade || 'Sem Modalidade'];
+
+        modalidades.forEach(mod => {
+          if (!gruposMap.has(mod)) gruposMap.set(mod, []);
+          gruposMap.get(mod)!.push(data[idx]);
+        });
+      });
+
+      // Ordenar grupos alfabeticamente
+      const grupos = Array.from(gruposMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b, 'pt-BR'))
+        .map(([modalidade, dados]) => ({ modalidade, dados }));
+
       await gerarRelatorioArbitrosPDF(data, {
         titulo: "Relatório de Cadastro de Árbitros",
-        subtitulo: `${data.length} registro(s) — Gerado em ${new Date().toLocaleDateString("pt-BR")}`,
+        subtitulo: `${data.length} registro(s) — ${grupos.length} modalidade(s) — Gerado em ${new Date().toLocaleDateString("pt-BR")}`,
         campos,
         resumo: stats ? { total: stats.total, pendentes: stats.pendentes, aprovados: stats.aprovados, rejeitados: stats.rejeitados } : undefined,
+        grupos,
       });
-      toast.success(`PDF gerado com ${data.length} registros`);
+      toast.success(`PDF gerado com ${data.length} registros em ${grupos.length} grupo(s)`);
     } catch (err) {
       console.error(err);
       toast.error("Erro ao gerar PDF");
