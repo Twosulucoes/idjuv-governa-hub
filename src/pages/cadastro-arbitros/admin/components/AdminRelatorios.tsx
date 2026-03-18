@@ -141,6 +141,14 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
     return filtered;
   }
 
+  /** Normaliza nome: primeira letra maiúscula de cada palavra */
+  function toTitleCase(str: string): string {
+    if (!str) return str;
+    return str
+      .toLowerCase()
+      .replace(/(^|\s)\S/g, (match) => match.toUpperCase());
+  }
+
   function getExportData() {
     const fieldsToExport = normalizeSelectedFields(selectedFields);
 
@@ -154,12 +162,14 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
         let val: unknown;
 
         if (key === "modalidades_texto") {
+          // Mostrar TODAS as modalidades do árbitro (não filtrar)
           val = mods.length > 0
             ? mods.map((m) => m.modalidade).join(", ")
             : a.modalidade || "";
         } else if (key === "categorias_texto") {
+          // Mostrar TODAS as categorias do árbitro (não filtrar)
           val = mods.length > 0
-            ? mods.map((m) => (m.categoria === "estadual" ? "Estadual" : "Nacional")).join(", ")
+            ? [...new Set(mods.map((m) => (m.categoria === "estadual" ? "Estadual" : "Nacional")))].join(", ")
             : (a.categoria === "estadual" ? "Estadual" : a.categoria === "nacional" ? "Nacional" : a.categoria || "");
         } else {
           val = (a as any)[key];
@@ -168,6 +178,10 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
         if ((key === "created_at" || key === "data_nascimento" || key === "validade_rne") && val) val = new Date(val as string).toLocaleDateString("pt-BR");
         if (key === "sexo") val = val === "M" ? "Masculino" : val === "F" ? "Feminino" : val;
         if (key === "status") val = val === "pendente" ? "Pendente" : val === "aprovado" ? "Aprovado" : val === "rejeitado" ? "Rejeitado" : val === "enviado" ? "Enviado" : val;
+
+        // Normalizar nomes para Title Case
+        if (key === "nome" && typeof val === "string") val = toTitleCase(val);
+
         row[field.label] = val ?? "";
       });
 
