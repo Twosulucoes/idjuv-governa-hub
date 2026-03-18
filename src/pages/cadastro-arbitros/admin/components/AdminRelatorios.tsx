@@ -91,6 +91,7 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
   const [filtroStatusExport, setFiltroStatusExport] = useState("todos");
   const [filtroCategoriaExport, setFiltroCategoriaExport] = useState("todos");
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [agruparPorModalidade, setAgruparPorModalidade] = useState(true);
 
   const selectedFieldsNormalized = normalizeSelectedFields(selectedFields);
 
