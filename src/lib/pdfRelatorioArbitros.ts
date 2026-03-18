@@ -151,7 +151,7 @@ export async function gerarRelatorioArbitrosPDF(
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255);
-    doc.text(`▸ ${modalidade.toUpperCase()}`, marginLeft + 3, currentY + 4.8);
+    doc.text(modalidade.toUpperCase(), marginLeft + 3, currentY + 4.8);
 
     doc.setFontSize(6.5);
     doc.setFont('helvetica', 'normal');
