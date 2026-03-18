@@ -68,7 +68,7 @@ const EXPORT_FIELDS = [
 export function AdminRelatorios({ stats, loading, arbitros }: Props) {
   const [tipo, setTipo] = useState<TipoRelatorio>("modalidade");
   const [selectedFields, setSelectedFields] = useState<string[]>(
-    ["protocolo", "nome", "cpf", "categoria", "modalidade", "uf", "status", "email", "celular", "created_at"]
+    ["protocolo", "nome", "cpf", "modalidades_texto", "categorias_texto", "celular", "rg", "email", "created_at"]
   );
   const [filtroModalidadeExport, setFiltroModalidadeExport] = useState("todos");
   const [filtroStatusExport, setFiltroStatusExport] = useState("todos");
