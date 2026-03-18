@@ -138,6 +138,8 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
         return a.categoria === filtroCategoriaExport;
       });
     }
+    // Classificação alfabética por nome
+    filtered.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' }));
     return filtered;
   }
 
