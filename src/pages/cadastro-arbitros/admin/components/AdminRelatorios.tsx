@@ -379,6 +379,21 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
             </div>
           </div>
 
+          {/* Opção de agrupamento */}
+          <div className="flex items-center gap-2 pt-1">
+            <Checkbox
+              id="agrupar-modalidade"
+              checked={agruparPorModalidade}
+              onCheckedChange={(checked) => setAgruparPorModalidade(checked === true)}
+            />
+            <Label htmlFor="agrupar-modalidade" className="text-sm cursor-pointer">
+              Agrupar PDF por modalidade
+            </Label>
+            <span className="text-xs text-muted-foreground">
+              {agruparPorModalidade ? "(separadores por esporte no PDF)" : "(lista única sem separadores)"}
+            </span>
+          </div>
+
           {/* Campos */}
           <div>
             <div className="flex items-center gap-3 mb-2">
