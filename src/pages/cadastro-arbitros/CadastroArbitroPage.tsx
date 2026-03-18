@@ -106,8 +106,24 @@ export default function CadastroArbitroPage() {
   async function handleSubmit() {
     setLoading(true);
     try {
-      // 1. Inserir registro principal (sem modalidade/categoria)
-      const { data, error } = await supabase.from('cadastro_arbitros').insert({
+      const cpfLimpo = formData.cpf.replace(/\D/g, '');
+      
+      // Verificar duplicata de CPF
+      const { data: existente } = await supabase
+        .from('cadastro_arbitros' as any)
+        .select('id, nome, protocolo, cpf')
+        .or(`cpf.eq.${formData.cpf.trim()},cpf.eq.${cpfLimpo}`)
+        .limit(1);
+
+      if (existente && (existente as any[]).length > 0) {
+        const reg = (existente as any[])[0];
+        toast.error(`CPF já cadastrado! Protocolo existente: ${reg.protocolo || 'N/A'}. Nome: ${reg.nome}`);
+        setLoading(false);
+        return;
+      }
+
+      // 1. Inserir registro principal
+      const insertPayload: Record<string, any> = {
         nome: formData.nome.trim(),
         nacionalidade: formData.nacionalidade,
         sexo: formData.sexo,
@@ -137,9 +153,22 @@ export default function CadastroArbitroPage() {
         conta_corrente: formData.conta_corrente || null,
         foto_url: formData.foto_url || null,
         documentos_urls: formData.documentos_urls.length > 0 ? formData.documentos_urls : null,
-      } as any).select('id, protocolo').single();
+      };
 
-      if (error) throw error;
+      console.log('[CadastroArbitro] Enviando payload:', JSON.stringify(insertPayload, null, 2));
+
+      const { data, error } = await supabase
+        .from('cadastro_arbitros' as any)
+        .insert(insertPayload)
+        .select('id, protocolo')
+        .single();
+
+      if (error) {
+        console.error('[CadastroArbitro] Erro ao inserir:', error);
+        throw new Error(`Erro ao salvar cadastro: ${error.message}`);
+      }
+
+      console.log('[CadastroArbitro] Registro criado:', data);
 
       // 2. Inserir modalidades na tabela filha
       if (data?.id && formData.modalidades.length > 0) {
@@ -147,7 +176,7 @@ export default function CadastroArbitroPage() {
           arbitro_id: data.id,
           modalidade: m.modalidade,
           categoria: m.categoria,
-          documentos_urls: m.documentos_urls.length > 0 ? m.documentos_urls : '[]',
+          documentos_urls: m.documentos_urls.length > 0 ? m.documentos_urls : [],
         }));
 
         const { error: modError } = await supabase
@@ -155,8 +184,7 @@ export default function CadastroArbitroPage() {
           .insert(modalidadesInsert);
 
         if (modError) {
-          console.error('Erro ao salvar modalidades:', modError);
-          // Não falhar o cadastro inteiro, apenas avisar
+          console.error('[CadastroArbitro] Erro ao salvar modalidades:', modError);
           toast.warning('Cadastro salvo, mas houve um erro ao salvar algumas modalidades.');
         }
       }
@@ -164,8 +192,8 @@ export default function CadastroArbitroPage() {
       setProtocolo(data?.protocolo || 'Gerado');
       toast.success('Cadastro enviado com sucesso!');
     } catch (err: any) {
-      console.error('Erro ao enviar cadastro:', err);
-      toast.error(err.message || 'Erro ao enviar cadastro');
+      console.error('[CadastroArbitro] Erro completo:', err);
+      toast.error(err.message || 'Erro ao enviar cadastro. Tente novamente.');
     } finally {
       setLoading(false);
     }
