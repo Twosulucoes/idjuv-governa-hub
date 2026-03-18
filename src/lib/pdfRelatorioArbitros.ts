@@ -29,32 +29,34 @@ export async function gerarRelatorioArbitrosPDF(
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const marginLeft = 15;
-  const marginRight = 15;
-  const marginTop = 15;
-  const marginBottom = 15;
+  const marginLeft = 10;
+  const marginRight = 10;
+  const marginTop = 12;
+  const marginBottom = 12;
   const contentWidth = pageWidth - marginLeft - marginRight;
 
   let currentY = marginTop;
   let currentPage = 1;
 
-  // Load logos
   const loadedLogos = await loadLogos();
   const logos = { governo: loadedLogos.governo, idjuv: loadedLogos.idjuvOficial };
 
-  // Calculate column widths proportionally
-  const numCols = config.campos.length;
-  const colWidths = config.campos.map(c => {
-    if (['nome', 'email', 'indicacao', 'local_trabalho'].includes(c.key)) return contentWidth * 0.15;
-    if (['protocolo', 'modalidade', 'cidade'].includes(c.key)) return contentWidth * 0.10;
+  // Add "Ord." as first column + user-selected fields
+  const allCampos = [{ key: '_ord', label: 'Ord.' }, ...config.campos];
+
+  // Calculate column widths
+  const colWidths = allCampos.map(c => {
+    if (c.key === '_ord') return 8;
+    if (['nome', 'email', 'indicacao', 'local_trabalho'].includes(c.key)) return contentWidth * 0.14;
+    if (['protocolo', 'modalidade', 'cidade', 'modalidades', 'categorias'].includes(c.key)) return contentWidth * 0.10;
+    if (['cpf', 'rg', 'celular'].includes(c.key)) return contentWidth * 0.09;
+    if (['created_at', 'data_nascimento'].includes(c.key)) return contentWidth * 0.07;
     return contentWidth * 0.07;
   });
-  // Normalize to fit contentWidth
   const totalW = colWidths.reduce((a, b) => a + b, 0);
   const normalizedWidths = colWidths.map(w => (w / totalW) * contentWidth);
 
   function addHeader(): void {
-    // Logos
     if (logos.governo?.data) {
       try {
         const dims = calculateLogoDimensions(logos.governo.width, logos.governo.height, LOGO_GOV_HEIGHT);
@@ -68,7 +70,6 @@ export async function gerarRelatorioArbitrosPDF(
       } catch (e) { console.warn('Erro logo IDJUV:', e); }
     }
 
-    // Institutional text
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, currentY + 5, { align: 'center' });
@@ -76,7 +77,6 @@ export async function gerarRelatorioArbitrosPDF(
     doc.setFont('helvetica', 'normal');
     doc.text('Instituto de Desporto, Juventude e Lazer do Estado de Roraima', pageWidth / 2, currentY + 9, { align: 'center' });
 
-    // Title
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
     doc.text(config.titulo || 'Relatório de Cadastro de Árbitros', pageWidth / 2, currentY + 16, { align: 'center' });
@@ -89,7 +89,6 @@ export async function gerarRelatorioArbitrosPDF(
       doc.setTextColor(0);
     }
 
-    // Gold line
     doc.setDrawColor(180, 145, 75);
     doc.setLineWidth(0.5);
     doc.line(marginLeft, currentY + 23, pageWidth - marginRight, currentY + 23);
@@ -100,40 +99,25 @@ export async function gerarRelatorioArbitrosPDF(
   function addFooter(): void {
     doc.setFontSize(7);
     doc.setTextColor(100);
-    doc.text(`Página ${currentPage}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
-    doc.text('Sistema IDJuv — Documento gerado eletronicamente', marginLeft, pageHeight - 8);
-    doc.text(format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }), pageWidth - marginRight, pageHeight - 8, { align: 'right' });
+    doc.text(`Página ${currentPage}`, pageWidth / 2, pageHeight - 6, { align: 'center' });
+    doc.text('Sistema IDJuv — Documento gerado eletronicamente', marginLeft, pageHeight - 6);
+    doc.text(format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }), pageWidth - marginRight, pageHeight - 6, { align: 'right' });
     doc.setTextColor(0);
   }
 
-  function addResumo(): void {
-    if (!config.resumo) return;
-    const r = config.resumo;
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    
-    const items = [
-      `Total: ${r.total}`,
-      `Pendentes: ${r.pendentes}`,
-      `Aprovados: ${r.aprovados}`,
-      `Rejeitados: ${r.rejeitados}`,
-    ];
-    doc.text(items.join('   |   '), marginLeft, currentY + 4);
-    currentY += 8;
-  }
-
   function addTableHeader(): void {
-    const rowHeight = 7;
-    doc.setFillColor(0, 68, 68); // Verde institucional
+    const rowHeight = 6;
+    doc.setFillColor(0, 68, 68);
     doc.rect(marginLeft, currentY, contentWidth, rowHeight, 'F');
 
-    doc.setFontSize(7);
+    doc.setFontSize(6);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255);
 
-    let xPos = marginLeft + 1;
-    config.campos.forEach((campo, i) => {
-      doc.text(campo.label, xPos, currentY + 5);
+    let xPos = marginLeft;
+    allCampos.forEach((campo, i) => {
+      const label = campo.label.toUpperCase();
+      doc.text(label, xPos + 1, currentY + 4);
       xPos += normalizedWidths[i];
     });
 
@@ -154,21 +138,31 @@ export async function gerarRelatorioArbitrosPDF(
   }
 
   function addDataRow(row: ArbitroExportData, index: number): void {
-    const rowHeight = 6;
+    const rowHeight = 5.5;
     checkPageBreak(rowHeight);
 
     if (index % 2 === 0) {
-      doc.setFillColor(248, 249, 250);
+      doc.setFillColor(245, 247, 249);
       doc.rect(marginLeft, currentY, contentWidth, rowHeight, 'F');
     }
 
-    doc.setFontSize(6.5);
-    let xPos = marginLeft + 1;
-    config.campos.forEach((campo, i) => {
-      const val = String(row[campo.label] ?? '—');
-      const maxChars = Math.floor((normalizedWidths[i] - 2) / 1.5);
+    // Light grid line
+    doc.setDrawColor(220, 220, 220);
+    doc.setLineWidth(0.1);
+    doc.line(marginLeft, currentY + rowHeight, marginLeft + contentWidth, currentY + rowHeight);
+
+    doc.setFontSize(5.8);
+    let xPos = marginLeft;
+    allCampos.forEach((campo, i) => {
+      let val: string;
+      if (campo.key === '_ord') {
+        val = String(index + 1);
+      } else {
+        val = String(row[campo.label] ?? '—');
+      }
+      const maxChars = Math.floor((normalizedWidths[i] - 2) / 1.4);
       const truncated = val.length > maxChars ? val.substring(0, maxChars - 1) + '…' : val;
-      doc.text(truncated, xPos, currentY + 4);
+      doc.text(truncated, xPos + 1, currentY + 3.8);
       xPos += normalizedWidths[i];
     });
 
@@ -177,7 +171,6 @@ export async function gerarRelatorioArbitrosPDF(
 
   // === RENDER ===
   addHeader();
-  addResumo();
   addTableHeader();
 
   dados.forEach((row, i) => addDataRow(row, i));
