@@ -138,7 +138,30 @@ export async function gerarRelatorioArbitrosPDF(
   }
 
   function addDataRow(row: ArbitroExportData, index: number): void {
-    const rowHeight = 5.5;
+    const fontSize = 5.8;
+    const lineHeight = 3.2;
+    const cellPadding = 1;
+    const minRowHeight = 5.5;
+
+    doc.setFontSize(fontSize);
+
+    // Calculate wrapped text for each column to determine row height
+    const wrappedTexts: string[][] = [];
+    allCampos.forEach((campo, i) => {
+      let val: string;
+      if (campo.key === '_ord') {
+        val = String(index + 1);
+      } else {
+        val = String(row[campo.label] ?? '—');
+      }
+      const colW = normalizedWidths[i] - 2;
+      const lines = doc.splitTextToSize(val, colW) as string[];
+      wrappedTexts.push(lines);
+    });
+
+    const maxLines = Math.max(...wrappedTexts.map((lines) => lines.length), 1);
+    const rowHeight = Math.max(minRowHeight, maxLines * lineHeight + 2);
+
     checkPageBreak(rowHeight);
 
     if (index % 2 === 0) {
@@ -151,18 +174,12 @@ export async function gerarRelatorioArbitrosPDF(
     doc.setLineWidth(0.1);
     doc.line(marginLeft, currentY + rowHeight, marginLeft + contentWidth, currentY + rowHeight);
 
-    doc.setFontSize(5.8);
+    doc.setFontSize(fontSize);
     let xPos = marginLeft;
-    allCampos.forEach((campo, i) => {
-      let val: string;
-      if (campo.key === '_ord') {
-        val = String(index + 1);
-      } else {
-        val = String(row[campo.label] ?? '—');
-      }
-      const maxChars = Math.floor((normalizedWidths[i] - 2) / 1.4);
-      const truncated = val.length > maxChars ? val.substring(0, maxChars - 1) + '…' : val;
-      doc.text(truncated, xPos + 1, currentY + 3.8);
+    wrappedTexts.forEach((lines, i) => {
+      lines.forEach((line, lineIdx) => {
+        doc.text(line, xPos + cellPadding, currentY + 3.5 + lineIdx * lineHeight);
+      });
       xPos += normalizedWidths[i];
     });
 
