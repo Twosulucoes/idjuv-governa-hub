@@ -58,22 +58,41 @@ export async function fetchArbitros(filters?: {
   uf?: string;
   busca?: string;
 }) {
+  // Se filtro de modalidade ou categoria, buscar IDs da tabela filha primeiro
+  let modalidadeFilterIds: string[] | null = null;
+
+  if ((filters?.modalidade && filters.modalidade !== "todos") || (filters?.categoria && filters.categoria !== "todos")) {
+    let modQuery = supabase
+      .from("cadastro_arbitros_modalidades" as any)
+      .select("arbitro_id");
+
+    if (filters?.modalidade && filters.modalidade !== "todos") {
+      modQuery = modQuery.ilike("modalidade", `%${filters.modalidade}%`);
+    }
+    if (filters?.categoria && filters.categoria !== "todos") {
+      modQuery = modQuery.eq("categoria", filters.categoria);
+    }
+
+    const { data: modIds } = await modQuery;
+    modalidadeFilterIds = [...new Set((modIds || []).map((m: any) => m.arbitro_id))];
+
+    if (modalidadeFilterIds.length === 0) return [];
+  }
+
   let query = supabase
     .from("cadastro_arbitros" as any)
     .select("*")
     .order("created_at", { ascending: false });
 
+  if (modalidadeFilterIds) {
+    query = query.in("id", modalidadeFilterIds);
+  }
+
   if (filters?.status && filters.status !== "todos") {
     query = query.eq("status", filters.status);
   }
-  if (filters?.categoria && filters.categoria !== "todos") {
-    query = query.eq("categoria", filters.categoria);
-  }
   if (filters?.uf && filters.uf !== "todos") {
     query = query.eq("uf", filters.uf);
-  }
-  if (filters?.modalidade && filters.modalidade !== "todos") {
-    query = query.ilike("modalidade", `%${filters.modalidade}%`);
   }
   if (filters?.busca) {
     query = query.or(
@@ -86,7 +105,7 @@ export async function fetchArbitros(filters?: {
 
   const arbitros = (data || []) as unknown as ArbitroCadastro[];
 
-  // Buscar modalidades da tabela filha para todos os árbitros
+  // Buscar modalidades da tabela filha
   if (arbitros.length > 0) {
     const ids = arbitros.map(a => a.id);
     const { data: modalidadesData } = await supabase
