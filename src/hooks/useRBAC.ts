@@ -183,7 +183,8 @@ export function useAdminRBAC(): UseAdminRBACReturn {
           return acc;
         }, {});
 
-        const inserts = modules.map(module => ({
+        const uniqueModules = [...new Set(modules)];
+        const inserts = uniqueModules.map(module => ({
           user_id: userId,
           module,
           permissions: permsByModule[module] || [],
