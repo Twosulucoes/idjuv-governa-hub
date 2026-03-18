@@ -91,6 +91,7 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
   const [filtroStatusExport, setFiltroStatusExport] = useState("todos");
   const [filtroCategoriaExport, setFiltroCategoriaExport] = useState("todos");
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [agruparPorModalidade, setAgruparPorModalidade] = useState(true);
 
   const selectedFieldsNormalized = normalizeSelectedFields(selectedFields);
 
@@ -223,75 +224,80 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
         return { key, label: field?.label || key };
       });
 
-      // Agrupar por modalidade — cada árbitro aparece apenas 1x por grupo
-      // com a categoria ESPECÍFICA daquela modalidade
       const filteredArbitros = getFilteredData();
-      const gruposMap = new Map<string, Record<string, unknown>[]>();
+      const resumo = stats ? { total: stats.total, pendentes: stats.pendentes, aprovados: stats.aprovados, rejeitados: stats.rejeitados } : undefined;
 
-      filteredArbitros.forEach((arb) => {
-        const mods = arb.modalidades_lista || [];
-        const modalidades = mods.length > 0
-          ? mods
-          : [{ modalidade: arb.modalidade || 'Sem Modalidade', categoria: arb.categoria || '' }];
+      if (agruparPorModalidade) {
+        // Agrupar por modalidade — cada árbitro aparece 1x por grupo
+        const gruposMap = new Map<string, Record<string, unknown>[]>();
 
-        modalidades.forEach((mod) => {
-          const modName = typeof mod === 'string' ? mod : mod.modalidade;
-          const modCategoria = typeof mod === 'string' ? '' : mod.categoria;
+        filteredArbitros.forEach((arb) => {
+          const mods = arb.modalidades_lista || [];
+          const modalidades = mods.length > 0
+            ? mods
+            : [{ modalidade: arb.modalidade || 'Sem Modalidade', categoria: arb.categoria || '' }];
 
-          if (!gruposMap.has(modName)) gruposMap.set(modName, []);
+          modalidades.forEach((mod) => {
+            const modName = typeof mod === 'string' ? mod : mod.modalidade;
+            const modCategoria = typeof mod === 'string' ? '' : mod.categoria;
 
-          // Gerar row específica para este grupo — categoria do grupo
-          const row: Record<string, unknown> = {};
-          const modsAll = arb.modalidades_lista || [];
+            if (!gruposMap.has(modName)) gruposMap.set(modName, []);
 
-          fieldsToExport.forEach((key) => {
-            const field = EXPORT_FIELDS.find((f) => f.key === key);
-            if (!field) return;
-            let val: unknown;
+            const row: Record<string, unknown> = {};
+            fieldsToExport.forEach((key) => {
+              const field = EXPORT_FIELDS.find((f) => f.key === key);
+              if (!field) return;
+              let val: unknown;
 
-            if (key === "modalidades_texto") {
-              // No agrupamento, não precisa — já está no cabeçalho
-              // Mostrar só se tiver OUTRAS modalidades além desta
-              const outras = modsAll.filter(m => m.modalidade !== modName).map(m => m.modalidade);
-              val = outras.length > 0 ? `${modName}, ${outras.join(', ')}` : modName;
-            } else if (key === "categorias_texto") {
-              // Mostrar apenas a categoria DESTA modalidade no grupo
-              val = modCategoria === "estadual" ? "Estadual" : modCategoria === "nacional" ? "Nacional" : modCategoria || "";
-            } else {
-              val = (arb as any)[key];
-            }
+              if (key === "modalidades_texto") {
+                // No agrupamento, mostrar apenas a modalidade do grupo (sem repetir)
+                val = modName;
+              } else if (key === "categorias_texto") {
+                val = modCategoria === "estadual" ? "Estadual" : modCategoria === "nacional" ? "Nacional" : modCategoria || "";
+              } else {
+                val = (arb as any)[key];
+              }
 
-            if ((key === "created_at" || key === "data_nascimento" || key === "validade_rne") && val) val = new Date(val as string).toLocaleDateString("pt-BR");
-            if (key === "sexo") val = val === "M" ? "Masculino" : val === "F" ? "Feminino" : val;
-            if (key === "status") val = val === "pendente" ? "Pendente" : val === "aprovado" ? "Aprovado" : val === "rejeitado" ? "Rejeitado" : val === "enviado" ? "Enviado" : val;
-            if (key === "nome" && typeof val === "string") val = toTitleCase(val);
+              if ((key === "created_at" || key === "data_nascimento" || key === "validade_rne") && val) val = new Date(val as string).toLocaleDateString("pt-BR");
+              if (key === "sexo") val = val === "M" ? "Masculino" : val === "F" ? "Feminino" : val;
+              if (key === "status") val = val === "pendente" ? "Pendente" : val === "aprovado" ? "Aprovado" : val === "rejeitado" ? "Rejeitado" : val === "enviado" ? "Enviado" : val;
+              if (key === "nome" && typeof val === "string") val = toTitleCase(val);
 
-            row[field.label] = val ?? "";
+              row[field.label] = val ?? "";
+            });
+
+            gruposMap.get(modName)!.push(row);
           });
-
-          gruposMap.get(modName)!.push(row);
         });
-      });
 
-      // Ordenar grupos alfabeticamente + dados dentro de cada grupo por nome
-      const nomeLabel = EXPORT_FIELDS.find(f => f.key === 'nome')?.label || 'Nome';
-      const grupos = Array.from(gruposMap.entries())
-        .sort(([a], [b]) => a.localeCompare(b, 'pt-BR'))
-        .map(([modalidade, dados]) => ({
-          modalidade,
-          dados: dados.sort((a, b) =>
-            String(a[nomeLabel] || '').localeCompare(String(b[nomeLabel] || ''), 'pt-BR', { sensitivity: 'base' })
-          ),
-        }));
+        const nomeLabel = EXPORT_FIELDS.find(f => f.key === 'nome')?.label || 'Nome';
+        const grupos = Array.from(gruposMap.entries())
+          .sort(([a], [b]) => a.localeCompare(b, 'pt-BR'))
+          .map(([modalidade, dados]) => ({
+            modalidade,
+            dados: dados.sort((a, b) =>
+              String(a[nomeLabel] || '').localeCompare(String(b[nomeLabel] || ''), 'pt-BR', { sensitivity: 'base' })
+            ),
+          }));
 
-      await gerarRelatorioArbitrosPDF(data, {
-        titulo: "Relatório de Cadastro de Árbitros",
-        subtitulo: `${filteredArbitros.length} árbitro(s) — ${grupos.length} modalidade(s) — Gerado em ${new Date().toLocaleDateString("pt-BR")}`,
-        campos,
-        resumo: stats ? { total: stats.total, pendentes: stats.pendentes, aprovados: stats.aprovados, rejeitados: stats.rejeitados } : undefined,
-        grupos,
-      });
-      toast.success(`PDF gerado com ${filteredArbitros.length} árbitros em ${grupos.length} modalidade(s)`);
+        await gerarRelatorioArbitrosPDF(data, {
+          titulo: "Relatório de Cadastro de Árbitros",
+          subtitulo: `${filteredArbitros.length} árbitro(s) — ${grupos.length} modalidade(s) — Gerado em ${new Date().toLocaleDateString("pt-BR")}`,
+          campos,
+          resumo,
+          grupos,
+        });
+        toast.success(`PDF agrupado com ${filteredArbitros.length} árbitros em ${grupos.length} modalidade(s)`);
+      } else {
+        // Sem agrupamento — lista simples
+        await gerarRelatorioArbitrosPDF(data, {
+          titulo: "Relatório de Cadastro de Árbitros",
+          subtitulo: `${filteredArbitros.length} árbitro(s) — Gerado em ${new Date().toLocaleDateString("pt-BR")}`,
+          campos,
+          resumo,
+        });
+        toast.success(`PDF gerado com ${filteredArbitros.length} árbitros`);
+      }
     } catch (err) {
       console.error(err);
       toast.error("Erro ao gerar PDF");
@@ -371,6 +377,21 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Opção de agrupamento */}
+          <div className="flex items-center gap-2 pt-1">
+            <Checkbox
+              id="agrupar-modalidade"
+              checked={agruparPorModalidade}
+              onCheckedChange={(checked) => setAgruparPorModalidade(checked === true)}
+            />
+            <Label htmlFor="agrupar-modalidade" className="text-sm cursor-pointer">
+              Agrupar PDF por modalidade
+            </Label>
+            <span className="text-xs text-muted-foreground">
+              {agruparPorModalidade ? "(separadores por esporte no PDF)" : "(lista única sem separadores)"}
+            </span>
           </div>
 
           {/* Campos */}
