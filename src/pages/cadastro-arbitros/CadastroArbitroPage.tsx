@@ -157,7 +157,7 @@ export default function CadastroArbitroPage() {
 
       console.log('[CadastroArbitro] Enviando payload:', JSON.stringify(insertPayload, null, 2));
 
-      const { data, error } = await supabase
+      const { data: insertResult, error } = await supabase
         .from('cadastro_arbitros' as any)
         .insert(insertPayload)
         .select('id, protocolo')
@@ -168,12 +168,13 @@ export default function CadastroArbitroPage() {
         throw new Error(`Erro ao salvar cadastro: ${error.message}`);
       }
 
-      console.log('[CadastroArbitro] Registro criado:', data);
+      const insertData = insertResult as any;
+      console.log('[CadastroArbitro] Registro criado:', insertData);
 
       // 2. Inserir modalidades na tabela filha
-      if (data?.id && formData.modalidades.length > 0) {
+      if (insertData?.id && formData.modalidades.length > 0) {
         const modalidadesInsert = formData.modalidades.map(m => ({
-          arbitro_id: data.id,
+          arbitro_id: insertData.id,
           modalidade: m.modalidade,
           categoria: m.categoria,
           documentos_urls: m.documentos_urls.length > 0 ? m.documentos_urls : [],
@@ -189,7 +190,7 @@ export default function CadastroArbitroPage() {
         }
       }
 
-      setProtocolo(data?.protocolo || 'Gerado');
+      setProtocolo(insertData?.protocolo || 'Gerado');
       toast.success('Cadastro enviado com sucesso!');
     } catch (err: any) {
       console.error('[CadastroArbitro] Erro completo:', err);
