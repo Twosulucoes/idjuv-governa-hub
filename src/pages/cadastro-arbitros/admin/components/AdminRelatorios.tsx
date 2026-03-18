@@ -65,28 +65,50 @@ const EXPORT_FIELDS = [
   { key: "created_at", label: "Data Cadastro" },
 ] as const;
 
+type ExportFieldKey = (typeof EXPORT_FIELDS)[number]["key"];
+
+const LEGACY_EXPORT_FIELD_MAP: Record<string, ExportFieldKey> = {
+  modalidade: "modalidades_texto",
+  categoria: "categorias_texto",
+};
+
+const VALID_EXPORT_FIELD_KEYS = new Set<string>(EXPORT_FIELDS.map((field) => field.key));
+
+function normalizeSelectedFields(fields: string[]): string[] {
+  const mapped = fields
+    .map((field) => LEGACY_EXPORT_FIELD_MAP[field] ?? field)
+    .filter((field, index, arr) => VALID_EXPORT_FIELD_KEYS.has(field) && arr.indexOf(field) === index);
+
+  return mapped;
+}
+
 export function AdminRelatorios({ stats, loading, arbitros }: Props) {
   const [tipo, setTipo] = useState<TipoRelatorio>("modalidade");
-  const [selectedFields, setSelectedFields] = useState<string[]>(
-    ["protocolo", "nome", "cpf", "modalidades_texto", "categorias_texto", "celular", "rg", "email", "created_at"]
+  const [selectedFields, setSelectedFields] = useState<string[]>(() =>
+    normalizeSelectedFields(["protocolo", "nome", "cpf", "modalidades_texto", "categorias_texto", "celular", "rg", "email", "created_at"])
   );
   const [filtroModalidadeExport, setFiltroModalidadeExport] = useState("todos");
   const [filtroStatusExport, setFiltroStatusExport] = useState("todos");
   const [filtroCategoriaExport, setFiltroCategoriaExport] = useState("todos");
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
+  const selectedFieldsNormalized = normalizeSelectedFields(selectedFields);
+
   if (loading || !stats) {
     return <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-48" />)}</div>;
   }
 
   function toggleField(key: string) {
-    setSelectedFields(prev =>
-      prev.includes(key) ? prev.filter(f => f !== key) : [...prev, key]
-    );
+    setSelectedFields((prev) => {
+      const normalizedPrev = normalizeSelectedFields(prev);
+      return normalizedPrev.includes(key)
+        ? normalizedPrev.filter((fieldKey) => fieldKey !== key)
+        : [...normalizedPrev, key];
+    });
   }
 
   function selectAllFields() {
-    setSelectedFields(EXPORT_FIELDS.map(f => f.key));
+    setSelectedFields(EXPORT_FIELDS.map((f) => f.key));
   }
 
   function deselectAllFields() {
@@ -96,22 +118,22 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
   function getFilteredData() {
     let filtered = [...arbitros];
     if (filtroModalidadeExport !== "todos") {
-      filtered = filtered.filter(a => {
+      filtered = filtered.filter((a) => {
         const mods = a.modalidades_lista || [];
         if (mods.length > 0) {
-          return mods.some(m => m.modalidade === filtroModalidadeExport);
+          return mods.some((m) => m.modalidade === filtroModalidadeExport);
         }
         return a.modalidade === filtroModalidadeExport;
       });
     }
     if (filtroStatusExport !== "todos") {
-      filtered = filtered.filter(a => a.status === filtroStatusExport);
+      filtered = filtered.filter((a) => a.status === filtroStatusExport);
     }
     if (filtroCategoriaExport !== "todos") {
-      filtered = filtered.filter(a => {
+      filtered = filtered.filter((a) => {
         const mods = a.modalidades_lista || [];
         if (mods.length > 0) {
-          return mods.some(m => m.categoria === filtroCategoriaExport);
+          return mods.some((m) => m.categoria === filtroCategoriaExport);
         }
         return a.categoria === filtroCategoriaExport;
       });
@@ -120,31 +142,35 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
   }
 
   function getExportData() {
-    return getFilteredData().map(a => {
+    const fieldsToExport = normalizeSelectedFields(selectedFields);
+
+    return getFilteredData().map((a) => {
       const row: Record<string, unknown> = {};
       const mods = a.modalidades_lista || [];
-      selectedFields.forEach(key => {
-        const field = EXPORT_FIELDS.find(f => f.key === key);
+
+      fieldsToExport.forEach((key) => {
+        const field = EXPORT_FIELDS.find((f) => f.key === key);
         if (!field) return;
         let val: unknown;
-        
+
         if (key === "modalidades_texto") {
-          val = mods.length > 0 
-            ? mods.map(m => m.modalidade).join(', ')
-            : a.modalidade || '';
+          val = mods.length > 0
+            ? mods.map((m) => m.modalidade).join(", ")
+            : a.modalidade || "";
         } else if (key === "categorias_texto") {
           val = mods.length > 0
-            ? mods.map(m => m.categoria === 'estadual' ? 'Estadual' : 'Nacional').join(', ')
-            : (a.categoria === 'estadual' ? 'Estadual' : a.categoria === 'nacional' ? 'Nacional' : a.categoria || '');
+            ? mods.map((m) => (m.categoria === "estadual" ? "Estadual" : "Nacional")).join(", ")
+            : (a.categoria === "estadual" ? "Estadual" : a.categoria === "nacional" ? "Nacional" : a.categoria || "");
         } else {
           val = (a as any)[key];
         }
-        
+
         if ((key === "created_at" || key === "data_nascimento" || key === "validade_rne") && val) val = new Date(val as string).toLocaleDateString("pt-BR");
         if (key === "sexo") val = val === "M" ? "Masculino" : val === "F" ? "Feminino" : val;
         if (key === "status") val = val === "pendente" ? "Pendente" : val === "aprovado" ? "Aprovado" : val === "rejeitado" ? "Rejeitado" : val === "enviado" ? "Enviado" : val;
         row[field.label] = val ?? "";
       });
+
       return row;
     });
   }
@@ -162,17 +188,25 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
   }
 
   async function handleGeneratePDF() {
+    const fieldsToExport = normalizeSelectedFields(selectedFields);
+    if (fieldsToExport.length === 0) {
+      toast.error("Selecione pelo menos um campo para exportar");
+      return;
+    }
+
     const data = getExportData();
     if (data.length === 0) {
       toast.error("Nenhum registro para exportar");
       return;
     }
+
     setIsGeneratingPDF(true);
     try {
-      const campos = selectedFields.map(key => {
-        const field = EXPORT_FIELDS.find(f => f.key === key);
+      const campos = fieldsToExport.map((key) => {
+        const field = EXPORT_FIELDS.find((f) => f.key === key);
         return { key, label: field?.label || key };
       });
+
       await gerarRelatorioArbitrosPDF(data, {
         titulo: "Relatório de Cadastro de Árbitros",
         subtitulo: `${data.length} registro(s) — Gerado em ${new Date().toLocaleDateString("pt-BR")}`,
@@ -230,7 +264,7 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent className="max-h-[280px]">
                   <SelectItem value="todos">Todas</SelectItem>
-                  {MODALIDADES_ESPORTIVAS.map(m => (
+                  {MODALIDADES_ESPORTIVAS.map((m) => (
                     <SelectItem key={m} value={m}>{m}</SelectItem>
                   ))}
                 </SelectContent>
@@ -269,10 +303,10 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
               <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={deselectAllFields}>Limpar</Button>
             </div>
             <div className="flex flex-wrap gap-3">
-              {EXPORT_FIELDS.map(f => (
+              {EXPORT_FIELDS.map((f) => (
                 <label key={f.key} className="flex items-center gap-1.5 text-sm cursor-pointer">
                   <Checkbox
-                    checked={selectedFields.includes(f.key)}
+                    checked={selectedFieldsNormalized.includes(f.key)}
                     onCheckedChange={() => toggleField(f.key)}
                   />
                   {f.label}
@@ -283,18 +317,18 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
 
           {/* Botões de export */}
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button onClick={handleExportCSV} variant="outline" className="gap-2" disabled={selectedFields.length === 0}>
+            <Button onClick={handleExportCSV} variant="outline" className="gap-2" disabled={selectedFieldsNormalized.length === 0}>
               <Download className="h-4 w-4" /> CSV
             </Button>
-            <Button onClick={handleExportExcel} variant="outline" className="gap-2" disabled={selectedFields.length === 0}>
+            <Button onClick={handleExportExcel} variant="outline" className="gap-2" disabled={selectedFieldsNormalized.length === 0}>
               <FileSpreadsheet className="h-4 w-4" /> Excel
             </Button>
-            <Button onClick={handleGeneratePDF} variant="outline" className="gap-2" disabled={selectedFields.length === 0 || isGeneratingPDF}>
+            <Button onClick={handleGeneratePDF} variant="outline" className="gap-2" disabled={selectedFieldsNormalized.length === 0 || isGeneratingPDF}>
               {isGeneratingPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
               PDF com Timbre
             </Button>
             <span className="text-xs text-muted-foreground self-center ml-2">
-              {filteredCount} registro(s) • {selectedFields.length} campo(s)
+              {filteredCount} registro(s) • {selectedFieldsNormalized.length} campo(s)
             </span>
           </div>
         </CardContent>
