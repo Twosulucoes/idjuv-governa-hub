@@ -1,6 +1,7 @@
 /**
  * Geração de PDF institucional para Relatório de Árbitros
  * Usa jsPDF com timbre do IDJUV/Governo de Roraima
+ * Suporta agrupamento por modalidade e classificação alfabética
  */
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
@@ -16,6 +17,8 @@ interface ConfigRelatorioArbitros {
   subtitulo?: string;
   campos: { key: string; label: string }[];
   resumo?: { total: number; pendentes: number; aprovados: number; rejeitados: number };
+  /** Dados agrupados por modalidade. Se presente, renderiza com separadores de grupo */
+  grupos?: { modalidade: string; dados: ArbitroExportData[] }[];
 }
 
 const LOGO_MAX_HEIGHT = 14;
@@ -48,7 +51,7 @@ export async function gerarRelatorioArbitrosPDF(
   const colWidths = allCampos.map(c => {
     if (c.key === '_ord') return 8;
     if (['nome', 'email', 'indicacao', 'local_trabalho'].includes(c.key)) return contentWidth * 0.14;
-    if (['protocolo', 'modalidade', 'cidade', 'modalidades', 'categorias'].includes(c.key)) return contentWidth * 0.10;
+    if (['protocolo', 'modalidade', 'cidade', 'modalidades_texto', 'categorias_texto'].includes(c.key)) return contentWidth * 0.10;
     if (['cpf', 'rg', 'celular'].includes(c.key)) return contentWidth * 0.09;
     if (['created_at', 'data_nascimento'].includes(c.key)) return contentWidth * 0.07;
     return contentWidth * 0.07;
@@ -137,7 +140,29 @@ export async function gerarRelatorioArbitrosPDF(
     }
   }
 
-  function addDataRow(row: ArbitroExportData, index: number): void {
+  /** Renderiza cabeçalho de grupo (modalidade) */
+  function addGroupHeader(modalidade: string, count: number): void {
+    const groupHeight = 7;
+    checkPageBreak(groupHeight + 6); // espaço para grupo + cabeçalho tabela
+
+    doc.setFillColor(0, 85, 85);
+    doc.rect(marginLeft, currentY, contentWidth, groupHeight, 'F');
+
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255);
+    doc.text(`▸ ${modalidade.toUpperCase()}`, marginLeft + 3, currentY + 4.8);
+
+    doc.setFontSize(6.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`(${count} árbitro${count !== 1 ? 's' : ''})`, pageWidth - marginRight - 3, currentY + 4.8, { align: 'right' });
+
+    doc.setTextColor(0);
+    doc.setFont('helvetica', 'normal');
+    currentY += groupHeight;
+  }
+
+  function addDataRow(row: ArbitroExportData, index: number, globalIndex: number): void {
     const fontSize = 5.8;
     const lineHeight = 3.2;
     const cellPadding = 1;
@@ -150,7 +175,7 @@ export async function gerarRelatorioArbitrosPDF(
     allCampos.forEach((campo, i) => {
       let val: string;
       if (campo.key === '_ord') {
-        val = String(index + 1);
+        val = String(globalIndex + 1);
       } else {
         val = String(row[campo.label] ?? '—');
       }
@@ -206,9 +231,24 @@ export async function gerarRelatorioArbitrosPDF(
 
   // === RENDER ===
   addHeader();
-  addTableHeader();
 
-  dados.forEach((row, i) => addDataRow(row, i));
+  if (config.grupos && config.grupos.length > 0) {
+    // Renderização AGRUPADA por modalidade
+    let globalIndex = 0;
+    config.grupos.forEach((grupo) => {
+      addGroupHeader(grupo.modalidade, grupo.dados.length);
+      addTableHeader();
+      grupo.dados.forEach((row, i) => {
+        addDataRow(row, i, globalIndex);
+        globalIndex++;
+      });
+      currentY += 3; // espaço entre grupos
+    });
+  } else {
+    // Renderização simples (sem agrupamento)
+    addTableHeader();
+    dados.forEach((row, i) => addDataRow(row, i, i));
+  }
 
   addFooter();
 
