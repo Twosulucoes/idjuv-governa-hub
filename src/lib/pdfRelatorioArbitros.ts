@@ -154,9 +154,27 @@ export async function gerarRelatorioArbitrosPDF(
       } else {
         val = String(row[campo.label] ?? '—');
       }
+
       const colW = normalizedWidths[i] - 2;
-      const lines = doc.splitTextToSize(val, colW) as string[];
-      wrappedTexts.push(lines);
+
+      // Para modalidade/categoria: quebrar por item (vírgula) para exibir todos
+      const forceItemPerLine = campo.key === 'modalidades_texto' || campo.key === 'categorias_texto';
+      let lines: string[];
+
+      if (forceItemPerLine) {
+        const parts = val
+          .split(',')
+          .map((p) => p.trim())
+          .filter(Boolean);
+
+        lines = parts.length > 0
+          ? parts.flatMap((part) => doc.splitTextToSize(part, colW) as string[])
+          : ['—'];
+      } else {
+        lines = doc.splitTextToSize(val, colW) as string[];
+      }
+
+      wrappedTexts.push(lines.length > 0 ? lines : ['—']);
     });
 
     const maxLines = Math.max(...wrappedTexts.map((lines) => lines.length), 1);
