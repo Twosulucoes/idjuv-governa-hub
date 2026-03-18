@@ -96,13 +96,25 @@ export function AdminRelatorios({ stats, loading, arbitros }: Props) {
   function getFilteredData() {
     let filtered = [...arbitros];
     if (filtroModalidadeExport !== "todos") {
-      filtered = filtered.filter(a => a.modalidade === filtroModalidadeExport);
+      filtered = filtered.filter(a => {
+        const mods = a.modalidades_lista || [];
+        if (mods.length > 0) {
+          return mods.some(m => m.modalidade === filtroModalidadeExport);
+        }
+        return a.modalidade === filtroModalidadeExport;
+      });
     }
     if (filtroStatusExport !== "todos") {
       filtered = filtered.filter(a => a.status === filtroStatusExport);
     }
     if (filtroCategoriaExport !== "todos") {
-      filtered = filtered.filter(a => a.categoria === filtroCategoriaExport);
+      filtered = filtered.filter(a => {
+        const mods = a.modalidades_lista || [];
+        if (mods.length > 0) {
+          return mods.some(m => m.categoria === filtroCategoriaExport);
+        }
+        return a.categoria === filtroCategoriaExport;
+      });
     }
     return filtered;
   }
