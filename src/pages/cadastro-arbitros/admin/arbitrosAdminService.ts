@@ -161,6 +161,68 @@ export async function updateArbitro(id: string, dados: Partial<ArbitroCadastro>)
   if (error) throw error;
 }
 
+export interface ModalidadeInput {
+  id?: string;
+  modalidade: string;
+  categoria: string;
+  documentos_urls: string[];
+}
+
+export async function syncModalidades(arbitroId: string, modalidades: ModalidadeInput[]) {
+  // 1. Buscar modalidades existentes
+  const { data: existentes } = await supabase
+    .from("cadastro_arbitros_modalidades" as any)
+    .select("id")
+    .eq("arbitro_id", arbitroId);
+
+  const existingIds = new Set((existentes || []).map((m: any) => m.id));
+  const incomingIds = new Set(modalidades.filter(m => m.id).map(m => m.id));
+
+  // 2. Deletar removidas
+  const toDelete = [...existingIds].filter(id => !incomingIds.has(id));
+  if (toDelete.length > 0) {
+    const { error } = await supabase
+      .from("cadastro_arbitros_modalidades" as any)
+      .delete()
+      .in("id", toDelete);
+    if (error) throw error;
+  }
+
+  // 3. Upsert (update existentes + insert novas)
+  for (const mod of modalidades) {
+    if (mod.id && existingIds.has(mod.id)) {
+      const { error } = await supabase
+        .from("cadastro_arbitros_modalidades" as any)
+        .update({
+          modalidade: mod.modalidade,
+          categoria: mod.categoria,
+          documentos_urls: mod.documentos_urls,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", mod.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase
+        .from("cadastro_arbitros_modalidades" as any)
+        .insert({
+          arbitro_id: arbitroId,
+          modalidade: mod.modalidade,
+          categoria: mod.categoria,
+          documentos_urls: mod.documentos_urls.length > 0 ? mod.documentos_urls : [],
+        });
+      if (error) throw error;
+    }
+  }
+
+  // 4. Atualizar campo modalidade na tabela principal (campo texto legado)
+  const modText = modalidades.map(m => m.modalidade).join(", ");
+  const catText = modalidades[0]?.categoria || "estadual";
+  await supabase
+    .from("cadastro_arbitros" as any)
+    .update({ modalidade: modText, categoria: catText, updated_at: new Date().toISOString() })
+    .eq("id", arbitroId);
+}
+
 export async function deleteArbitro(id: string) {
   const { error } = await supabase
     .from("cadastro_arbitros" as any)
