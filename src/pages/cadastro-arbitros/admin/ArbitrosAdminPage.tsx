@@ -15,7 +15,7 @@ import { AdminRelatorios } from "./components/AdminRelatorios";
 import { AdminDetalheModal } from "./components/AdminDetalheModal";
 import { AdminEditModal } from "./components/AdminEditModal";
 import { AdminDeleteDialog } from "./components/AdminDeleteDialog";
-import { fetchArbitros, fetchEstatisticas, updateArbitroStatus, updateArbitro, deleteArbitro, type ArbitroCadastro } from "./arbitrosAdminService";
+import { fetchArbitros, fetchEstatisticas, updateArbitroStatus, updateArbitro, deleteArbitro, syncModalidades, type ArbitroCadastro } from "./arbitrosAdminService";
 import { toast } from "sonner";
 
 export default function ArbitrosAdminPage() {
