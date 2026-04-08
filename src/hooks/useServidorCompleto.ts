@@ -174,6 +174,121 @@ async function gerarMinutaPortaria(params: {
 // Mutations legadas de provimentos/lotações removidas.
 // Use useVinculoMutations de @/hooks/useVinculosServidor.
 
+/**
+ * Criar cessão - SINCRONIZADO
+ */
+export function useCreateCessao() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (cessao: Omit<Cessao, 'id' | 'created_at' | 'unidade_idjuv'>) => {
+      const { data, error } = await supabase
+        .from("cessoes")
+        .insert(cessao)
+        .select()
+        .single();
+      
+      if (error) throw error;
+
+      const { data: servidor } = await supabase
+        .from("servidores")
+        .select("nome_completo")
+        .eq("id", data.servidor_id)
+        .maybeSingle();
+
+      const nomeServidor = servidor?.nome_completo || 'Servidor';
+      const orgao = data.tipo === 'entrada' ? data.orgao_origem : data.orgao_destino;
+      const direcao = data.tipo === 'entrada' ? 'proveniente de' : 'cedido para';
+
+      await registrarHistoricoFuncional({
+        servidor_id: data.servidor_id,
+        tipo: "cessao",
+        data_evento: data.data_inicio,
+        descricao: `Cessão de ${data.tipo}: ${nomeServidor} ${direcao} ${orgao || 'outro órgão'}`,
+      });
+
+      return data;
+    },
+    onSuccess: (data) => {
+      invalidateServidorCaches(queryClient, data.servidor_id);
+      toast.success("Cessão registrada com sucesso!");
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao criar cessão: ${error.message}`);
+    },
+  });
+}
+
+/**
+ * Encerrar cessão (retorno) - SINCRONIZADO
+ */
+export function useEncerrarCessao() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ 
+      cessaoId, 
+      dataRetorno,
+      atoRetornoNumero,
+      atoRetornoData 
+    }: { 
+      cessaoId: string; 
+      dataRetorno: string;
+      atoRetornoNumero?: string;
+      atoRetornoData?: string;
+    }) => {
+      const { data: cessaoAtual, error: fetchError } = await supabase
+        .from("cessoes")
+        .select("*")
+        .eq("id", cessaoId)
+        .single();
+      if (fetchError) throw fetchError;
+
+      const { data, error } = await supabase
+        .from("cessoes")
+        .update({
+          ativa: false,
+          data_fim: dataRetorno,
+          data_retorno: dataRetorno,
+          ato_retorno_numero: atoRetornoNumero,
+          ato_retorno_data: atoRetornoData,
+        })
+        .eq("id", cessaoId)
+        .select()
+        .single();
+      
+      if (error) throw error;
+
+      const { data: servidor } = await supabase
+        .from("servidores")
+        .select("nome_completo")
+        .eq("id", data.servidor_id)
+        .maybeSingle();
+
+      const nomeServidor = servidor?.nome_completo || 'Servidor';
+      const orgao = cessaoAtual.tipo === 'entrada' ? cessaoAtual.orgao_origem : cessaoAtual.orgao_destino;
+
+      await registrarHistoricoFuncional({
+        servidor_id: data.servidor_id,
+        tipo: "retorno",
+        data_evento: dataRetorno,
+        portaria_numero: atoRetornoNumero || null,
+        portaria_data: atoRetornoData || null,
+        descricao: `Retorno de cessão de ${cessaoAtual.tipo}: ${nomeServidor} retorna de ${orgao || 'outro órgão'}`,
+      });
+
+      return data;
+    },
+    onSuccess: (data) => {
+      invalidateServidorCaches(queryClient, data.servidor_id);
+      toast.success("Cessão encerrada - Servidor retornou!");
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao encerrar cessão: ${error.message}`);
+    },
+  });
+}
+
 
 /**
  * Atualizar tipo_servidor
