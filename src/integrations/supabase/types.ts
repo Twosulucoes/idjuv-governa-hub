@@ -21507,7 +21507,7 @@ export type Database = {
         Returns: boolean
       }
       usuario_tem_permissao: {
-        Args: { p_modulo: string; p_user_id: string }
+        Args: { _codigo_funcao: string; _user_id: string }
         Returns: boolean
       }
       usuario_tem_permissao_financeira: {
