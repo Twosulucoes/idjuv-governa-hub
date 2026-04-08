@@ -50,14 +50,14 @@ export function useCessoesServidor(servidorId: string | undefined) {
 // ============================================================
 
 function invalidateServidorCaches(queryClient: ReturnType<typeof useQueryClient>, servidorId: string) {
-  queryClient.invalidateQueries({ queryKey: ["provimentos", servidorId] });
+  queryClient.invalidateQueries({ queryKey: ["vinculos-servidor", servidorId] });
   queryClient.invalidateQueries({ queryKey: ["cessoes", servidorId] });
-  queryClient.invalidateQueries({ queryKey: ["lotacoes-servidor", servidorId] });
   queryClient.invalidateQueries({ queryKey: ["historico-funcional", servidorId] });
   queryClient.invalidateQueries({ queryKey: ["portarias-servidor", servidorId] });
   queryClient.invalidateQueries({ queryKey: ["servidores-situacao"] });
   queryClient.invalidateQueries({ queryKey: ["servidores-rh"] });
   queryClient.invalidateQueries({ queryKey: ["portarias"] });
+  queryClient.invalidateQueries({ queryKey: ["servidores-tipo-derivado"] });
 }
 
 // ============================================================
