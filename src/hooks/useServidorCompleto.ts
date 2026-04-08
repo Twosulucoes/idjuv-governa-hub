@@ -3,11 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { 
   TipoServidor, 
-  TipoLotacao,
-  StatusProvimento,
-  Provimento,
   Cessao,
-  LotacaoCompleta,
   ServidorSituacao 
 } from "@/types/servidor";
 
