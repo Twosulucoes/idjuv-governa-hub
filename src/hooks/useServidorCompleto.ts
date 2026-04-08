@@ -29,56 +29,8 @@ export function useServidoresSituacao() {
   });
 }
 
-export function useProvimentosServidor(servidorId: string | undefined) {
-  return useQuery({
-    queryKey: ["provimentos", servidorId],
-    queryFn: async () => {
-      if (!servidorId) return [];
-      const { data, error } = await supabase
-        .from("provimentos")
-        .select(`*, cargo:cargos(id, nome, sigla, natureza), unidade:estrutura_organizacional(id, nome, sigla)`)
-        .eq("servidor_id", servidorId)
-        .order("data_nomeacao", { ascending: false });
-      if (error) throw error;
-      return data as Provimento[];
-    },
-    enabled: !!servidorId,
-  });
-}
-
-export function useCessoesServidor(servidorId: string | undefined) {
-  return useQuery({
-    queryKey: ["cessoes", servidorId],
-    queryFn: async () => {
-      if (!servidorId) return [];
-      const { data, error } = await supabase
-        .from("cessoes")
-        .select(`*, unidade_idjuv:estrutura_organizacional(id, nome, sigla)`)
-        .eq("servidor_id", servidorId)
-        .order("data_inicio", { ascending: false });
-      if (error) throw error;
-      return data as Cessao[];
-    },
-    enabled: !!servidorId,
-  });
-}
-
-export function useLotacoesServidor(servidorId: string | undefined) {
-  return useQuery({
-    queryKey: ["lotacoes-servidor", servidorId],
-    queryFn: async () => {
-      if (!servidorId) return [];
-      const { data, error } = await supabase
-        .from("lotacoes")
-        .select(`*, unidade:estrutura_organizacional(id, nome, sigla), cargo:cargos(id, nome, sigla)`)
-        .eq("servidor_id", servidorId)
-        .order("data_inicio", { ascending: false });
-      if (error) throw error;
-      return data as LotacaoCompleta[];
-    },
-    enabled: !!servidorId,
-  });
-}
+// Queries legadas de provimentos e lotacoes foram removidas.
+// Use useVinculosServidor de @/hooks/useVinculosServidor como fonte única de verdade.
 
 // ============================================================
 // HELPER: Invalidar todos os caches relacionados ao servidor
