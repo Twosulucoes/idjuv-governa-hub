@@ -530,32 +530,20 @@ export default function ServidorFormPage() {
 
        
 
-        // Criar lotação inicial (se tiver unidade selecionada)
+        // Criar vínculo inicial (fonte única: vinculos_servidor)
         if (servidorId && data.unidade_atual_id) {
           try {
-            await supabase.from('lotacoes').insert({
+            await supabase.from('vinculos_servidor').insert({
               servidor_id: servidorId,
-              unidade_id: data.unidade_atual_id,
+              tipo: (data as any).tipo_servidor || 'comissionado',
+              origem: 'idjuv',
               cargo_id: data.cargo_atual_id || null,
-              tipo_lotacao: 'lotacao_interna',
+              unidade_id: data.unidade_atual_id,
               data_inicio: data.data_admissao || new Date().toISOString().split('T')[0],
               ativo: true,
             });
-
-            // Criar provimento (se tiver cargo)
-            if (data.cargo_atual_id) {
-              await supabase.from('provimentos').insert({
-                servidor_id: servidorId,
-                cargo_id: data.cargo_atual_id,
-                unidade_id: data.unidade_atual_id,
-                status: 'ativo',
-                data_nomeacao: data.data_admissao || new Date().toISOString().split('T')[0],
-                data_posse: data.data_admissao || new Date().toISOString().split('T')[0],
-                data_exercicio: data.data_admissao || new Date().toISOString().split('T')[0],
-              });
-            }
-          } catch (lotacaoError) {
-            console.error('Erro ao criar lotação/provimento:', lotacaoError);
+          } catch (vinculoError) {
+            console.error('Erro ao criar vínculo:', vinculoError);
             // Não lançar erro - servidor foi criado com sucesso
           }
         }
