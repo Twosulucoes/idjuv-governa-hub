@@ -246,7 +246,7 @@ export default function ServidorDetalheePage() {
                   )}
                 </div>
                 <p className="text-muted-foreground mt-1">
-                  {servidor.cargo?.nome || 'Sem cargo'} • {lotacaoVigente?.unidade?.sigla || lotacaoVigente?.unidade?.nome || servidor.unidade?.sigla || servidor.unidade?.nome || 'Sem lotação'}
+                  {lotacaoVigente?.cargo?.sigla ? `${lotacaoVigente.cargo.sigla} - ${lotacaoVigente.cargo.nome}` : lotacaoVigente?.cargo?.nome || servidor.cargo?.nome || 'Sem cargo'} • {lotacaoVigente?.unidade?.sigla || lotacaoVigente?.unidade?.nome || servidor.unidade?.sigla || servidor.unidade?.nome || 'Sem lotação'}
                 </p>
                 {servidor.matricula && (
                   <p className="text-sm text-muted-foreground">Matrícula: {servidor.matricula}</p>
