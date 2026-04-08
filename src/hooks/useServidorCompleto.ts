@@ -32,6 +32,23 @@ export function useServidoresSituacao() {
 // Queries legadas de provimentos e lotacoes foram removidas.
 // Use useVinculosServidor de @/hooks/useVinculosServidor como fonte única de verdade.
 
+export function useCessoesServidor(servidorId: string | undefined) {
+  return useQuery({
+    queryKey: ["cessoes", servidorId],
+    queryFn: async () => {
+      if (!servidorId) return [];
+      const { data, error } = await supabase
+        .from("cessoes")
+        .select(`*, unidade_idjuv:estrutura_organizacional(id, nome, sigla)`)
+        .eq("servidor_id", servidorId)
+        .order("data_inicio", { ascending: false });
+      if (error) throw error;
+      return data as Cessao[];
+    },
+    enabled: !!servidorId,
+  });
+}
+
 // ============================================================
 // HELPER: Invalidar todos os caches relacionados ao servidor
 // ============================================================
