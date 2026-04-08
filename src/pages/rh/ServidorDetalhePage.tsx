@@ -86,47 +86,35 @@ export default function ServidorDetalheePage() {
     enabled: !!id,
   });
 
-  // Fetch lotação vigente da tabela lotacoes
-  // Busca por servidor_id = servidores.id OU por user_id do servidor
+  // Fetch vínculo ativo do servidor (fonte única: vinculos_servidor)
   const { data: lotacaoVigente } = useQuery({
-    queryKey: ["lotacao-vigente", id, servidor?.user_id],
+    queryKey: ["vinculo-vigente", id],
     queryFn: async () => {
-      // Primeiro tenta buscar pelo id do servidor
-      let { data, error } = await supabase
-        .from("lotacoes")
-        .select(`
-          *,
-          unidade:estrutura_organizacional(id, nome, sigla),
-          cargo:cargos(id, nome, sigla)
-        `)
+      const { data, error } = await supabase
+        .from("vinculos_servidor")
+        .select("*")
         .eq("servidor_id", id!)
         .eq("ativo", true)
         .order("data_inicio", { ascending: false })
         .limit(1)
         .maybeSingle();
       
-      // Se não encontrou e o servidor tem user_id, busca pelo user_id
-      if (!data && servidor?.user_id) {
-        const result = await supabase
-          .from("lotacoes")
-          .select(`
-            *,
-            unidade:estrutura_organizacional(id, nome, sigla),
-            cargo:cargos(id, nome, sigla)
-          `)
-          .eq("servidor_id", servidor.user_id)
-          .eq("ativo", true)
-          .order("data_inicio", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        data = result.data;
-        error = result.error;
-      }
-      
       if (error) throw error;
-      return data;
+      if (!data) return null;
+
+      // Buscar cargo e unidade separadamente
+      const [cargoRes, unidadeRes] = await Promise.all([
+        data.cargo_id ? supabase.from("cargos").select("id, nome, sigla").eq("id", data.cargo_id).maybeSingle() : Promise.resolve({ data: null }),
+        data.unidade_id ? supabase.from("estrutura_organizacional").select("id, nome, sigla").eq("id", data.unidade_id).maybeSingle() : Promise.resolve({ data: null }),
+      ]);
+
+      return {
+        ...data,
+        cargo: cargoRes.data,
+        unidade: unidadeRes.data,
+      };
     },
-    enabled: !!id && !!servidor,
+    enabled: !!id,
   });
 
   // Fetch histórico funcional

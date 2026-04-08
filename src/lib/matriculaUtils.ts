@@ -31,7 +31,7 @@ export async function gerarMatricula(): Promise<string> {
 }
 
 /**
- * Encerra a lotação ativa anterior de um servidor e registra no histórico
+ * Encerra o vínculo ativo anterior de um servidor e registra no histórico
  */
 export async function encerrarLotacaoAnterior(
   servidorId: string,
@@ -39,39 +39,39 @@ export async function encerrarLotacaoAnterior(
   novoCargoId: string | null,
   novaUnidadeId: string
 ): Promise<{ hadPreviousLotacao: boolean; previousLotacao?: any }> {
-  // Buscar lotação ativa do servidor
-  const { data: lotacaoAtiva, error: fetchError } = await supabase
-    .from("lotacoes")
+  // Buscar vínculo ativo do servidor (fonte: vinculos_servidor)
+  const { data: vinculoAtivo, error: fetchError } = await supabase
+    .from("vinculos_servidor")
     .select("*")
     .eq("servidor_id", servidorId)
     .eq("ativo", true)
     .maybeSingle();
   
   if (fetchError) {
-    console.error("Erro ao buscar lotação ativa:", fetchError);
+    console.error("Erro ao buscar vínculo ativo:", fetchError);
     throw fetchError;
   }
   
-  if (!lotacaoAtiva) {
+  if (!vinculoAtivo) {
     return { hadPreviousLotacao: false };
   }
   
-  // Calcular data de fim (dia anterior à nova lotação)
+  // Calcular data de fim (dia anterior à nova data)
   const dataFim = new Date(novaDataInicio);
   dataFim.setDate(dataFim.getDate() - 1);
   const dataFimStr = dataFim.toISOString().split("T")[0];
   
-  // Encerrar a lotação anterior
+  // Encerrar o vínculo anterior
   const { error: updateError } = await supabase
-    .from("lotacoes")
+    .from("vinculos_servidor")
     .update({
       ativo: false,
       data_fim: dataFimStr,
     })
-    .eq("id", lotacaoAtiva.id);
+    .eq("id", vinculoAtivo.id);
   
   if (updateError) {
-    console.error("Erro ao encerrar lotação anterior:", updateError);
+    console.error("Erro ao encerrar vínculo anterior:", updateError);
     throw updateError;
   }
   
@@ -83,19 +83,18 @@ export async function encerrarLotacaoAnterior(
       tipo: "transferencia",
       data_evento: novaDataInicio,
       data_vigencia_inicio: novaDataInicio,
-      cargo_anterior_id: lotacaoAtiva.cargo_id,
+      cargo_anterior_id: vinculoAtivo.cargo_id,
       cargo_novo_id: novoCargoId,
-      unidade_anterior_id: lotacaoAtiva.unidade_id,
+      unidade_anterior_id: vinculoAtivo.unidade_id,
       unidade_nova_id: novaUnidadeId,
-      descricao: "Movimentação: encerramento automático de lotação anterior",
+      descricao: "Movimentação: encerramento automático de vínculo anterior",
     });
   
   if (historicoError) {
     console.error("Erro ao registrar histórico:", historicoError);
-    // Não lançar erro para não bloquear a operação principal
   }
   
-  return { hadPreviousLotacao: true, previousLotacao: lotacaoAtiva };
+  return { hadPreviousLotacao: true, previousLotacao: vinculoAtivo };
 }
 
 /**
@@ -125,20 +124,30 @@ export async function atualizarCargoAtualServidor(
  */
 export async function buscarLotacaoAtiva(servidorId: string) {
   const { data, error } = await supabase
-    .from("lotacoes")
-    .select(`
-      *,
-      unidade:estrutura_organizacional!lotacoes_unidade_id_fkey(id, nome, sigla),
-      cargo:cargos(id, nome, sigla)
-    `)
+    .from("vinculos_servidor")
+    .select("*")
     .eq("servidor_id", servidorId)
     .eq("ativo", true)
+    .order("data_inicio", { ascending: false })
+    .limit(1)
     .maybeSingle();
   
   if (error) {
-    console.error("Erro ao buscar lotação ativa:", error);
+    console.error("Erro ao buscar vínculo ativo:", error);
     throw error;
   }
   
-  return data;
+  if (!data) return null;
+
+  // Buscar cargo e unidade
+  const [cargoRes, unidadeRes] = await Promise.all([
+    data.cargo_id ? supabase.from("cargos").select("id, nome, sigla").eq("id", data.cargo_id).maybeSingle() : Promise.resolve({ data: null }),
+    data.unidade_id ? supabase.from("estrutura_organizacional").select("id, nome, sigla").eq("id", data.unidade_id).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+
+  return {
+    ...data,
+    cargo: cargoRes.data,
+    unidade: unidadeRes.data,
+  };
 }

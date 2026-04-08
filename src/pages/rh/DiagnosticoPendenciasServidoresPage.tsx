@@ -242,20 +242,30 @@ export default function DiagnosticoPendenciasServidoresPage() {
 
       if (servidoresError) throw servidoresError;
 
-      // Buscar provimentos ativos
-      const { data: provimentosAtivos, error: provimentosError } = await supabase
-        .from("provimentos")
-        .select("servidor_id, cargo_id, cargos!provimentos_cargo_id_fkey(vencimento_base)")
-        .eq("status", "ativo");
+      // Buscar vínculos ativos (fonte: vinculos_servidor)
+      const { data: vinculosAtivos, error: vinculosError } = await supabase
+        .from("vinculos_servidor")
+        .select("servidor_id, cargo_id")
+        .eq("ativo", true);
 
-      if (provimentosError) throw provimentosError;
+      if (vinculosError) throw vinculosError;
 
-      // Mapear provimentos por servidor
+      // Buscar vencimento dos cargos
+      const cargoIdsVinc = [...new Set((vinculosAtivos || []).map(v => v.cargo_id).filter(Boolean))];
+      let cargosVencMap: Record<string, number | null> = {};
+      if (cargoIdsVinc.length > 0) {
+        const { data: cargosVenc } = await supabase.from("cargos").select("id, vencimento_base").in("id", cargoIdsVinc);
+        (cargosVenc || []).forEach(c => { cargosVencMap[c.id] = c.vencimento_base; });
+      }
+
+      // Mapear vínculos por servidor
       const provimentosPorServidor = new Map<string, { vencimento: number | null }>();
-      provimentosAtivos?.forEach((p: any) => {
-        provimentosPorServidor.set(p.servidor_id, {
-          vencimento: p.cargos?.vencimento_base || null
-        });
+      vinculosAtivos?.forEach((v: any) => {
+        if (!provimentosPorServidor.has(v.servidor_id)) {
+          provimentosPorServidor.set(v.servidor_id, {
+            vencimento: v.cargo_id ? cargosVencMap[v.cargo_id] || null : null
+          });
+        }
       });
 
       return servidoresData.map((s: any) => {

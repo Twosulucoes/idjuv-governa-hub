@@ -175,20 +175,20 @@ async function buscarDadosServidores(filtros: Record<string, unknown>): Promise<
       }
     }
     
-    // Buscar dados de provimento (datas funcionais)
-    const { data: provimentos } = await supabase
-      .from('provimentos')
-      .select('servidor_id, data_nomeacao, data_posse, data_exercicio')
+    // Buscar dados de vínculo ativo (datas funcionais - fonte: vinculos_servidor)
+    const { data: vinculos } = await supabase
+      .from('vinculos_servidor')
+      .select('servidor_id, data_inicio, data_posse, data_exercicio')
       .in('servidor_id', servidorIds)
-      .eq('status', 'ativo');
+      .eq('ativo', true);
     
-    if (provimentos) {
-      provimentosMap = provimentos.reduce((acc, p) => {
-        if (p.servidor_id) {
-          acc[p.servidor_id] = {
-            data_nomeacao: p.data_nomeacao,
-            data_posse: p.data_posse,
-            data_exercicio: p.data_exercicio,
+    if (vinculos) {
+      provimentosMap = vinculos.reduce((acc, v) => {
+        if (v.servidor_id && !acc[v.servidor_id]) {
+          acc[v.servidor_id] = {
+            data_nomeacao: v.data_inicio,
+            data_posse: v.data_posse,
+            data_exercicio: v.data_exercicio,
           };
         }
         return acc;
@@ -291,19 +291,19 @@ async function buscarDadosCargos(filtros: Record<string, unknown>): Promise<Dado
 
   if (cargosError) throw cargosError;
 
-  // Buscar provimentos ativos para contar vagas ocupadas
-  const { data: provimentos, error: provError } = await supabase
-    .from('provimentos')
+  // Buscar vínculos ativos para contar vagas ocupadas (fonte: vinculos_servidor)
+  const { data: vinculosAtivos, error: vincError } = await supabase
+    .from('vinculos_servidor')
     .select('cargo_id')
-    .eq('status', 'ativo');
+    .eq('ativo', true);
 
-  if (provError) throw provError;
+  if (vincError) throw vincError;
 
   // Contar ocupação por cargo
   const ocupacaoPorCargo: Record<string, number> = {};
-  (provimentos || []).forEach((p) => {
-    if (p.cargo_id) {
-      ocupacaoPorCargo[p.cargo_id] = (ocupacaoPorCargo[p.cargo_id] || 0) + 1;
+  (vinculosAtivos || []).forEach((v) => {
+    if (v.cargo_id) {
+      ocupacaoPorCargo[v.cargo_id] = (ocupacaoPorCargo[v.cargo_id] || 0) + 1;
     }
   });
 
