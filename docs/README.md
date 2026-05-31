@@ -17,6 +17,7 @@
 | [GUIA_FRONTEND.md](./GUIA_FRONTEND.md) | Estrutura do front, hooks, libs, padrões de código |
 | [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md) | Funções serverless (Deno) do Supabase |
 | [DESENVOLVIMENTO.md](./DESENVOLVIMENTO.md) | Setup, comandos, fluxo Git, deploy, como adicionar features |
+| [AUDITORIA_USUARIOS.md](./AUDITORIA_USUARIOS.md) | Auditoria de segurança do sistema de usuários (achados e hardening) |
 
 ## Documentos operacionais (já existentes)
 
@@ -42,4 +43,3 @@
 > A pasta [`.lovable/`](../.lovable/) contém relatórios e planos históricos
 > gerados pelo Lovable (auditorias, refatorações, fases de implementação) — útil
 > como contexto histórico, mas não é documentação canônica.
-</content>

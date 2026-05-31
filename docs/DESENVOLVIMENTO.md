@@ -88,4 +88,3 @@ reduzir conflitos:
 - **Front**: Vercel (deploy automático por push/PR; `vercel.json` faz rewrite SPA).
   Também publicável via Lovable (Share → Publish).
 - **Backend / Edge Functions**: Supabase.
-</content>

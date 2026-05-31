@@ -60,9 +60,14 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
 - `src/contexts/AuthContext.tsx` é a **fonte única de verdade**. Estratégia:
   `supabase.auth.onAuthStateChange` é o único disparador de estado; `signIn`/
   `signOut` apenas acionam a ação e o listener processa — sem race conditions.
-- Após login, as permissões são buscadas via RPC `listar_permissoes_usuario`
-  (com cache em memória, TTL ~60s). Expõe `hasPermission`, `hasAnyPermission`,
-  `hasAllPermissions`, `isSuperAdmin`, `refreshPermissions`, etc.
+- Após login, o contexto deriva o acesso de duas tabelas: `user_roles` (papel
+  `admin` → `isSuperAdmin`) e `user_modules` (permissões em **nível de módulo**),
+  com cache em memória (TTL ~60s). Expõe `hasPermission`, `hasAnyPermission`,
+  `hasAllPermissions`, `isSuperAdmin`, `refreshPermissions`, etc. As permissões
+  são hierárquicas: ter o módulo `rh` concede `rh.*`. (A RPC
+  `listar_permissoes_usuario` e o RBAC granular **não** alimentam o contexto em
+  runtime — ver [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md) e
+  [AUDITORIA_USUARIOS.md](./AUDITORIA_USUARIOS.md).)
 - Tokens persistidos em `localStorage`; refresh automático.
 - Detalhes do modelo de acesso em [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md).
 
@@ -118,4 +123,3 @@ relatórios), em `src/lib`:
 - `VITE_SUPABASE_PUBLISHABLE_KEY` (chave anônima — segura no client; o acesso é
   controlado por RLS)
 - `VITE_SUPABASE_PROJECT_ID`
-</content>

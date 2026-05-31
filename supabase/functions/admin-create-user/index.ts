@@ -1,13 +1,33 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+// CORS com allowlist por ambiente. Defina ALLOWED_ORIGINS (lista separada por
+// vírgula) nas variáveis da função para restringir as origens. Sem a variável,
+// mantém o comportamento permissivo ("*") para não quebrar ambientes existentes.
+const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+function corsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") ?? "";
+  const allowOrigin = ALLOWED_ORIGINS.length === 0
+    ? "*"
+    : ALLOWED_ORIGINS.includes(origin)
+      ? origin
+      : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Vary": "Origin",
+  };
+}
 
 Deno.serve(async (req) => {
+  const cors = corsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: cors });
   }
 
   try {
@@ -15,7 +35,7 @@ Deno.serve(async (req) => {
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -38,21 +58,27 @@ Deno.serve(async (req) => {
     if (callerError || !caller) {
       return new Response(JSON.stringify({ error: "Sessão inválida" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
-    const { data: adminAccess } = await supabaseAdmin
-      .from("user_modules")
-      .select("id")
-      .eq("user_id", caller.id)
-      .eq("module", "admin")
-      .maybeSingle();
+    // Autorização padronizada: permissão institucional admin.usuarios
+    const { data: temPermissao, error: permError } = await supabaseUser.rpc(
+      "usuario_tem_permissao",
+      { _user_id: caller.id, _codigo_funcao: "admin.usuarios" }
+    );
 
-    if (!adminAccess) {
-      return new Response(JSON.stringify({ error: "Acesso negado. Apenas administradores." }), {
+    if (permError) {
+      return new Response(
+        JSON.stringify({ error: "Falha ao validar permissões", details: permError.message }),
+        { status: 500, headers: { ...cors, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!temPermissao) {
+      return new Response(JSON.stringify({ error: "Acesso negado. Requer permissão admin.usuarios." }), {
         status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -62,7 +88,7 @@ Deno.serve(async (req) => {
     if (!email || !password) {
       return new Response(JSON.stringify({ error: "Email e senha são obrigatórios" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -118,7 +144,7 @@ Deno.serve(async (req) => {
             }),
             {
               status: 409,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              headers: { ...cors, "Content-Type": "application/json" },
             }
           );
         }
@@ -129,7 +155,7 @@ Deno.serve(async (req) => {
           JSON.stringify({ user: { id: existing.id, email: existing.email }, recovered: true }),
           {
             status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            headers: { ...cors, "Content-Type": "application/json" },
           }
         );
       }
@@ -147,14 +173,14 @@ Deno.serve(async (req) => {
       JSON.stringify({ user: { id: newUser.user.id, email: newUser.user.email } }),
       {
         status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       }
     );
   } catch (error: any) {
     console.error("Error creating user:", error);
     return new Response(JSON.stringify({ error: error.message || "Erro interno" }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
     });
   }
 });

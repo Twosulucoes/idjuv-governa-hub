@@ -82,8 +82,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         icone: null,
       }));
 
-      console.log('[Auth] Permissões — isSuperAdmin:', isSuperAdmin, '| módulos:', permissions);
-
       const result: PermissionsResult = { permissions, permissoesDetalhadas, isSuperAdmin };
       permissionsCache.current.set(userId, { data: result, ts: Date.now() });
       return result;
@@ -98,8 +96,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ============================================
 
   const fetchUserData = useCallback(async (authUser: User): Promise<AuthUser> => {
-    console.log('[Auth] fetchUserData:', authUser.email);
-
     try {
       const [profileResponse, permissionsResult] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle(),
@@ -157,9 +153,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 5000);
 
     // Função auxiliar para carregar dados do usuário FORA do callback
-    const loadUserData = async (authUser: User, eventName: string) => {
+    const loadUserData = async (authUser: User) => {
       if (!isMounted) return;
-      console.log('[Auth] loadUserData para:', authUser.email, '(evento:', eventName, ')');
       try {
         const userData = await fetchUserData(authUser);
         if (isMounted) {
@@ -188,7 +183,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // CRITICAL: NÃO fazer await de queries Supabase dentro do callback — causa deadlock!
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
       if (!isMounted) return;
-      console.log('[Auth] onAuthStateChange:', event, currentSession?.user?.email || 'sem sessão');
 
       if (event === 'SIGNED_OUT') {
         setSession(null);
@@ -210,7 +204,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(currentSession);
         permissionsCache.current.delete(currentSession.user.id);
         // Defer para evitar deadlock do Supabase client
-        setTimeout(() => loadUserData(currentSession.user, event), 0);
+        setTimeout(() => loadUserData(currentSession.user), 0);
         return;
       }
 

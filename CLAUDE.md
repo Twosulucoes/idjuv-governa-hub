@@ -247,5 +247,3 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 - Faça commits descritivos e dê push para essa branch (`git push -u origin
   <branch>`). Após o push, abra um Pull Request **draft** se ainda não existir.
 - Repositório GitHub: `twosulucoes/idjuv-governa-hub`.
-</content>
-</invoke>
