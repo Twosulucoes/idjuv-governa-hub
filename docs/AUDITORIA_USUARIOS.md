@@ -74,6 +74,11 @@ mantendo `SELECT` para o necessário. Não foi possível inspecionar/ajustar as
 políticas nesta sessão (ferramentas MCP do Supabase sem permissão). Recomenda-se
 também rodar **Database → Advisors** (security) no painel.
 
+> 📄 Proposta de políticas pronta para revisão em
+> [RLS_USUARIOS_PROPOSTA.sql](./RLS_USUARIOS_PROPOSTA.sql) (com queries de
+> introspecção, helper `is_admin_atual()` e políticas de leitura/escrita). Não é
+> migração automática — revisar contra as políticas atuais antes de aplicar.
+
 > Defesa em profundidade recomendada: rotear a alteração de módulos por uma Edge
 > Function privilegiada (como criação/exclusão) em vez de escrita direta do
 > client, deixando o RLS como segunda barreira.

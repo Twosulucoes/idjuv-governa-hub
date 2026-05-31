@@ -29,6 +29,7 @@
 | [SCHEMA_SUPABASE_PROPRIO.sql](./SCHEMA_SUPABASE_PROPRIO.sql) | Dump do schema para instância própria |
 | [CORRECOES_BANCO.sql](./CORRECOES_BANCO.sql) | Scripts de correção de banco |
 | [MIGRACAO_VIEWS_TRANSPARENCIA.sql](./MIGRACAO_VIEWS_TRANSPARENCIA.sql) | Views públicas da transparência |
+| [RLS_USUARIOS_PROPOSTA.sql](./RLS_USUARIOS_PROPOSTA.sql) | Proposta de RLS p/ tabelas de usuário (item C2 da auditoria) — revisar antes de aplicar |
 
 ## Números do sistema (snapshot)
 
