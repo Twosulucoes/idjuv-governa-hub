@@ -3,6 +3,10 @@
 Guia de contexto para o Claude Code trabalhar neste repositório. Leia antes de
 fazer alterações. Escrito em português porque é o idioma do time e do domínio.
 
+> 📚 **Documentação detalhada** em [`docs/`](./docs/README.md): visão geral,
+> arquitetura, módulos, banco de dados, RBAC, guia de front-end, edge functions
+> e fluxo de desenvolvimento. Este `CLAUDE.md` é o resumo; o `docs/` é o aprofundamento.
+
 ---
 
 ## 1. O que é o projeto
