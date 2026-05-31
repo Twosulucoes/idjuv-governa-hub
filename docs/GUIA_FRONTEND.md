@@ -103,4 +103,3 @@ de chamar `supabase` direto dentro da página.
 7. `bun run lint` + `bun run build`.
 
 Detalhes em [DESENVOLVIMENTO.md](./DESENVOLVIMENTO.md).
-</content>

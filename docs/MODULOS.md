@@ -152,4 +152,3 @@ relatório de viagem.
 `src/pages/public/` (notícias e galerias), `EmBrevePage` (home),
 `PortalPreviewPage`, além das rotas públicas de transparência, currículo, ASCOM,
 federações, árbitros e gestores escolares — todas sob `PublicPageGuard`.
-</content>

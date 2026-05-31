@@ -61,4 +61,3 @@ Veja o detalhamento de cada um em [MODULOS.md](./MODULOS.md).
   bidirecional com o GitHub: alterações no Lovable viram commits e vice-versa.
 - Backend **Supabase** (Postgres + Auth + Storage + Edge Functions).
 - Deploy do front na **Vercel** (e também publicável via Lovable).
-</content>

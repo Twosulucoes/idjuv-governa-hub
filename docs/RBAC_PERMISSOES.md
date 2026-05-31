@@ -55,31 +55,29 @@ Definido em `src/types/auth.ts` (`module_access_scopes` no banco):
 - **`src/shared/config/protected-users.config.ts`** — usuários protegidos.
 - Hooks: `useRBAC`, `usePermissions`, `usePermissoesUsuario`, `useModulosUsuario`.
 
-## ⚠️ Estado atual importante
+## Enforcement de rota (`ProtectedRoute`)
 
-O componente **`ProtectedRoute` está em modo "ACESSO TOTAL"**: ele renderiza os
-filhos para **qualquer usuário autenticado**, ignorando `requiredModule` e
-`requiredPermissions` declarados nas rotas em `src/App.tsx`.
+O componente `src/components/auth/ProtectedRoute.tsx` aplica o controle de acesso
+nesta ordem:
 
-```tsx
-// src/components/auth/ProtectedRoute.tsx (resumo do estado atual)
-export const ProtectedRoute = ({ children }) => <>{children}</>;
-```
+1. **Loader** enquanto a sessão carrega (`isLoading`).
+2. **Não autenticado** → redireciona para `/auth` (guardando a origem).
+3. **Troca de senha obrigatória** (`requiresPasswordChange`) → força
+   `/trocar-senha-obrigatoria`.
+4. **Super admin** → bypass total.
+5. **`requiredModule` / `requiredPermissions`** → valida via `AuthContext`
+   (permissões hierárquicas: ter o módulo `rh` concede `rh.*`); sem acesso,
+   redireciona para `/acesso-negado`.
 
-Implicações:
+> **Nota histórica:** até o hardening de usuários, o `ProtectedRoute` estava em
+> modo "acesso total" (liberava qualquer autenticado). Ver
+> [AUDITORIA_USUARIOS.md](./AUDITORIA_USUARIOS.md).
 
-- As props `requiredModule`/`requiredPermissions` nas rotas e as `permission`
-  no menu **documentam a intenção** de acesso, mas o gate de rota **não está
-  aplicando** essas regras no momento.
-- O **RLS no Postgres** continua sendo a fronteira de segurança real dos dados.
-- O **menu** ainda é filtrado por permissão (controla o que aparece), mas não
-  impede o acesso direto pela URL enquanto o `ProtectedRoute` estiver assim.
+Camadas complementares:
 
-**Para reativar o RBAC de rota:** reintroduzir a lógica em `ProtectedRoute`
-(checar `isSuperAdmin` → senão validar `requiredModule`/`requiredPermissions`
-via `AuthContext`, redirecionando para `/acesso-negado`). Como isso afeta a
-segurança de todo o sistema, **confirme com o responsável antes de alterar** e
-teste com diferentes perfis.
+- O **RLS no Postgres** é a fronteira de segurança real dos dados (independe do
+  front). Ver item C2 da auditoria sobre o reforço pendente das tabelas de usuário.
+- O **menu** (`menu.config.ts`) é filtrado por permissão — controla o que aparece.
 
 ## Rotas públicas
 
@@ -87,4 +85,3 @@ Rotas sob `<PublicPageGuard rota="...">` não exigem login; verificam apenas o
 status de publicação/manutenção da rota (tabela `config_paginas_publicas`). Ex.:
 `/`, `/transparencia/*`, `/curriculo`, `/cadastrogestores`, `/cadastro-arbitros`,
 `/ascom/solicitar`, notícias e galerias públicas.
-</content>

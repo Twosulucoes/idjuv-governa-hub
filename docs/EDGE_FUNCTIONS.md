@@ -33,4 +33,3 @@ São invocadas do front via `supabase.functions.invoke('<nome>', { body })`.
   Supabase quando disponíveis.
 - Mantenha o contrato (formato de `body`/resposta) em sincronia com o hook que a
   consome no front.
-</content>

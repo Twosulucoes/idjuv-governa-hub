@@ -169,4 +169,3 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   permissão acima). A chave anônima no client é segura porque o RLS é a fronteira.
 - Tabelas `config_*` e `parametros_*` parametrizam regras de cálculo (folha,
   frequência) sem hardcode no código.
-</content>
