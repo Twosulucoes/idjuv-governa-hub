@@ -10,6 +10,7 @@ import { PublicPageGuard } from "@/components/public/PublicPageGuard";
 
 // Pages
 import PortalPreviewPage from "./pages/PortalPreviewPage";
+import HomeSimplesPage from "./pages/HomeSimplesPage";
 import ApresentacaoPage from "./pages/ApresentacaoPage";
 import LegacySistemaPage from "./pages/Index";
 import SistemaEntryPage from "./pages/sistema/SistemaEntryPage";
@@ -83,7 +84,7 @@ import LicitacoesPublicasPage from "./pages/transparencia/LicitacoesPublicasPage
 import ExecucaoOrcamentariaPage from "./pages/transparencia/ExecucaoOrcamentariaPage";
 import PatrimonioPublicoPage from "./pages/transparencia/PatrimonioPublicoPage";
 import PortalLAIPage from "./pages/transparencia/PortalLAIPage";
-import PublicacoesOficiaisPage from "./pages/transparencia/PublicacoesOficiaisPage";
+import EditaisPage from "./pages/transparencia/EditaisPage";
 import EstruturaOrganizacionalPage from "./pages/governanca/EstruturaOrganizacionalPage";
 import SeletivaEstudantilPage from "./pages/eventos/SeletivaEstudantilPage";
 import SeletivaEstudantilV2Page from "./pages/eventos/SeletivaEstudantilV2Page";
@@ -264,7 +265,7 @@ const App = () => (
               {/* ============================================ */}
               <Route path="/" element={
                 <PublicPageGuard rota="/">
-                  <PortalPreviewPage />
+                  <HomeSimplesPage />
                 </PublicPageGuard>
               } />
               <Route path="/auth" element={<AuthPage />} />
@@ -1101,9 +1102,9 @@ const App = () => (
                   <TransparenciaDashboardPage />
                 </ProtectedRoute>
               } />
-              <Route path="/transparencia/publicacoes" element={
+              <Route path="/transparencia/editais" element={
                 <ProtectedRoute requiredPermissions="transparencia.visualizar">
-                  <PublicacoesOficiaisPage />
+                  <EditaisPage />
                 </ProtectedRoute>
               } />
               

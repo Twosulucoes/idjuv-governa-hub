@@ -74,7 +74,7 @@ export function useTransparenciaPublicacoes() {
       const { data, error } = await supabase
         .from("publicacoes_lai" as any)
         .insert({
-          categoria: input.categoria || "Outro",
+          categoria: input.categoria || "Edital",
           subcategoria: input.subcategoria || null,
           titulo: input.titulo || "Nova publicação",
           descricao: input.descricao || null,
