@@ -9,7 +9,6 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PublicPageGuard } from "@/components/public/PublicPageGuard";
 
 // Pages
-import EmBrevePage from "./pages/EmBrevePage";
 import PortalPreviewPage from "./pages/PortalPreviewPage";
 import ApresentacaoPage from "./pages/ApresentacaoPage";
 import LegacySistemaPage from "./pages/Index";
@@ -265,7 +264,7 @@ const App = () => (
               {/* ============================================ */}
               <Route path="/" element={
                 <PublicPageGuard rota="/">
-                  <EmBrevePage />
+                  <PortalPreviewPage />
                 </PublicPageGuard>
               } />
               <Route path="/auth" element={<AuthPage />} />
