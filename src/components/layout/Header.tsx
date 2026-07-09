@@ -16,10 +16,12 @@ import { cn } from "@/lib/utils";
 import logoGoverno from "@/assets/logo-governo-roraima.jpg";
 import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
 import { UserMenu } from "@/components/auth/UserMenu";
+import { useConfigMenuPublico } from "@/hooks/useConfigMenuPublico";
 
 const menuItems = [
   {
     title: "Governança",
+    chave: "governanca",
     icon: Shield,
     href: "/governanca",
     items: [
@@ -34,6 +36,7 @@ const menuItems = [
   },
   {
     title: "Processos",
+    chave: "processos",
     icon: FileText,
     href: "/processos",
     items: [
@@ -48,6 +51,7 @@ const menuItems = [
   },
   {
     title: "Manuais",
+    chave: "manuais",
     icon: BookOpen,
     href: "/manuais",
     items: [
@@ -59,6 +63,7 @@ const menuItems = [
   },
   {
     title: "Integridade",
+    chave: "integridade",
     icon: Scale,
     href: "/integridade",
     items: [
@@ -70,6 +75,7 @@ const menuItems = [
   },
   {
     title: "Transparência",
+    chave: "transparencia",
     icon: Eye,
     href: "/transparencia",
   },
@@ -81,6 +87,17 @@ export function Header() {
   const location = useLocation();
   const { resolvedTheme, setTheme } = useTheme();
   const { isAuthenticated, signOut, user } = useAuth();
+  const { data: configMenu, isLoading: menuLoading, isError: menuError } = useConfigMenuPublico();
+
+  // Fail-open: mostra todos os itens enquanto carrega, em erro, ou se o item
+  // ainda não tem configuração cadastrada.
+  const menuItemsVisiveis =
+    menuLoading || menuError || !configMenu
+      ? menuItems
+      : menuItems.filter((item) => {
+          const config = configMenu.find((c) => c.chave === item.chave);
+          return config ? config.visivel : true;
+        });
 
   useEffect(() => {
     setMounted(true);
@@ -170,7 +187,7 @@ export function Header() {
             {/* Desktop Navigation */}
             <NavigationMenu className="hidden lg:flex">
               <NavigationMenuList className="gap-0.5">
-                {menuItems.map((item) => (
+                {menuItemsVisiveis.map((item) => (
                   <NavigationMenuItem key={item.title}>
                     {item.items ? (
                       <>
@@ -260,7 +277,7 @@ export function Header() {
             {/* Conteúdo do menu com scroll */}
             <nav className="flex-1 overflow-y-auto overscroll-contain scroll-container px-4 py-4">
               <div className="space-y-1">
-                {menuItems.map((item) => (
+                {menuItemsVisiveis.map((item) => (
                   <div key={item.title} className="space-y-1">
                     <Link
                       to={item.href}
