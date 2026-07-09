@@ -84,6 +84,7 @@ import LicitacoesPublicasPage from "./pages/transparencia/LicitacoesPublicasPage
 import ExecucaoOrcamentariaPage from "./pages/transparencia/ExecucaoOrcamentariaPage";
 import PatrimonioPublicoPage from "./pages/transparencia/PatrimonioPublicoPage";
 import PortalLAIPage from "./pages/transparencia/PortalLAIPage";
+import PublicacoesOficiaisPage from "./pages/transparencia/PublicacoesOficiaisPage";
 import EstruturaOrganizacionalPage from "./pages/governanca/EstruturaOrganizacionalPage";
 import SeletivaEstudantilPage from "./pages/eventos/SeletivaEstudantilPage";
 import SeletivaEstudantilV2Page from "./pages/eventos/SeletivaEstudantilV2Page";
@@ -1099,6 +1100,11 @@ const App = () => (
               <Route path="/transparencia/relatorios" element={
                 <ProtectedRoute requiredPermissions="transparencia.visualizar">
                   <TransparenciaDashboardPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/transparencia/publicacoes" element={
+                <ProtectedRoute requiredPermissions="transparencia.visualizar">
+                  <PublicacoesOficiaisPage />
                 </ProtectedRoute>
               } />
               

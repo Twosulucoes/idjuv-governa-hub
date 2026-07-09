@@ -214,6 +214,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     dashboard: { label: "Painel de Transparência", route: "/transparencia/admin" },
     items: [
       { id: "portal", label: "Portal LAI", icon: Globe, route: "/transparencia" },
+      { id: "publicacoes", label: "Publicações Oficiais", icon: FileText, route: "/transparencia/publicacoes" },
       { id: "solicitacoes", label: "Solicitações", icon: FileText, route: "/transparencia/lai" },
       { id: "dados", label: "Dados Abertos", icon: Eye, route: "/transparencia/orcamento" },
     ],

@@ -1,43 +1,15 @@
 import { Link } from "react-router-dom";
-import { Eye, ExternalLink, FileText, BarChart3, Users, DollarSign, Download, Building2, Calendar } from "lucide-react";
+import { Eye, ExternalLink, FileText, Download, Calendar, Star, Loader2 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useTransparenciaPublicacoesPublicas } from "@/hooks/useTransparenciaPublicacoes";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const transparenciaItems = [
-  {
-    title: "Cargos e Remuneração",
-    description: "Quadro completo dos 98 cargos comissionados com valores e ocupantes",
-    icon: Users,
-    href: "/transparencia/cargos",
-    highlight: true,
-  },
-  {
-    title: "Licitações e Contratos",
-    description: "Processos licitatórios e contratos (apenas pessoa jurídica)",
-    icon: FileText,
-    href: "/transparencia/licitacoes",
-  },
-  {
-    title: "Execução Orçamentária",
-    description: "Dados agregados de receitas e despesas",
-    icon: DollarSign,
-    href: "/transparencia/orcamento",
-  },
-  {
-    title: "Patrimônio Público",
-    description: "Bens patrimoniais (dados institucionais)",
-    icon: Building2,
-    href: "/transparencia/patrimonio",
-  },
-  {
-    title: "e-SIC / LAI",
-    description: "Serviço de Informação ao Cidadão - Lei de Acesso à Informação",
-    icon: BarChart3,
-    href: "/transparencia/lai",
-  },
   {
     title: "Portal da Transparência",
     description: "Acesso ao portal de transparência do Governo do Estado de Roraima",
@@ -47,24 +19,9 @@ const transparenciaItems = [
   },
 ];
 
-const documentosOficiais = [
-  {
-    titulo: "Lei nº 2.301/2025 - Criação do IDJuv",
-    descricao: "Lei que cria o Instituto de Desporto, Juventude e Lazer do Estado de Roraima",
-    data: "29/12/2025",
-    tipo: "Lei",
-    arquivo: "/documentos/LEI_2301_25.pdf",
-  },
-  {
-    titulo: "Quadro de Cargos - 98 Cargos",
-    descricao: "Relação completa dos cargos comissionados com vínculos e valores",
-    data: "29/12/2025",
-    tipo: "Anexo",
-    arquivo: "/documentos/IDJUV_98_cargos_vinculo.pdf",
-  },
-];
-
 export default function TransparenciaPage() {
+  const { publicacoes, isLoading } = useTransparenciaPublicacoesPublicas();
+
   return (
     <MainLayout>
       {/* Cabeçalho */}
@@ -103,39 +60,61 @@ export default function TransparenciaPage() {
               </p>
             </div>
 
-            {/* Documentos Oficiais */}
+            {/* Publicações Oficiais */}
             <div className="mb-10">
               <h2 className="font-serif text-2xl font-bold mb-6 flex items-center gap-3">
                 <FileText className="w-6 h-6 text-primary" />
-                Documentos Oficiais
+                Publicações Oficiais
               </h2>
-              <div className="grid gap-4">
-                {documentosOficiais.map((doc) => (
-                  <Card key={doc.titulo} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline">{doc.tipo}</Badge>
-                            <span className="text-sm text-muted-foreground flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {doc.data}
-                            </span>
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : publicacoes.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground bg-muted/30 rounded-xl">
+                  Nenhuma publicação disponível no momento
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {publicacoes.map((doc) => (
+                    <Card key={doc.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-6">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <Badge variant="outline">{doc.categoria}</Badge>
+                              {doc.destaque && (
+                                <Badge variant="secondary" className="gap-1">
+                                  <Star className="w-3 h-3" />
+                                  Destaque
+                                </Badge>
+                              )}
+                              {doc.data_publicacao && (
+                                <span className="text-sm text-muted-foreground flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {format(new Date(doc.data_publicacao), "dd/MM/yyyy", { locale: ptBR })}
+                                </span>
+                              )}
+                            </div>
+                            <h3 className="font-semibold mb-1">{doc.titulo}</h3>
+                            {doc.descricao && (
+                              <p className="text-sm text-muted-foreground">{doc.descricao}</p>
+                            )}
                           </div>
-                          <h3 className="font-semibold mb-1">{doc.titulo}</h3>
-                          <p className="text-sm text-muted-foreground">{doc.descricao}</p>
+                          {doc.arquivo_url && (
+                            <Button asChild variant="outline">
+                              <a href={doc.arquivo_url} target="_blank" rel="noopener noreferrer">
+                                <Download className="w-4 h-4 mr-2" />
+                                Baixar
+                              </a>
+                            </Button>
+                          )}
                         </div>
-                        <Button asChild variant="outline">
-                          <a href={doc.arquivo} target="_blank" rel="noopener noreferrer">
-                            <Download className="w-4 h-4 mr-2" />
-                            Baixar PDF
-                          </a>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
 
             <Separator className="my-8" />
@@ -144,45 +123,24 @@ export default function TransparenciaPage() {
             <h2 className="font-serif text-2xl font-bold mb-6">Informações Disponíveis</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {transparenciaItems.map((item) => (
-                item.external ? (
-                  <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer">
-                    <Card className="h-full hover:shadow-lg transition-all hover:border-success group">
-                      <CardHeader className="flex flex-row items-start gap-4">
-                        <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <item.icon className="w-6 h-6 text-success" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg group-hover:text-success transition-colors flex items-center gap-2">
-                            {item.title}
-                            <ExternalLink className="w-4 h-4" />
-                          </CardTitle>
-                          <CardDescription className="mt-1">
-                            {item.description}
-                          </CardDescription>
-                        </div>
-                      </CardHeader>
-                    </Card>
-                  </a>
-                ) : (
-                  <Link key={item.href} to={item.href}>
-                    <Card className={`h-full hover:shadow-lg transition-all hover:border-success group ${item.highlight ? 'border-primary/50 bg-primary/5' : ''}`}>
-                      <CardHeader className="flex flex-row items-start gap-4">
-                        <div className={`w-12 h-12 ${item.highlight ? 'bg-primary/20' : 'bg-success/10'} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                          <item.icon className={`w-6 h-6 ${item.highlight ? 'text-primary' : 'text-success'}`} />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg group-hover:text-success transition-colors flex items-center gap-2">
-                            {item.title}
-                            {item.highlight && <Badge className="bg-primary text-primary-foreground">Novo</Badge>}
-                          </CardTitle>
-                          <CardDescription className="mt-1">
-                            {item.description}
-                          </CardDescription>
-                        </div>
-                      </CardHeader>
-                    </Card>
-                  </Link>
-                )
+                <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer">
+                  <Card className="h-full hover:shadow-lg transition-all hover:border-success group">
+                    <CardHeader className="flex flex-row items-start gap-4">
+                      <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <item.icon className="w-6 h-6 text-success" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg group-hover:text-success transition-colors flex items-center gap-2">
+                          {item.title}
+                          <ExternalLink className="w-4 h-4" />
+                        </CardTitle>
+                        <CardDescription className="mt-1">
+                          {item.description}
+                        </CardDescription>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                </a>
               ))}
             </div>
 

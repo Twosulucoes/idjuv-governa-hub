@@ -857,6 +857,13 @@ export const menuConfig: MenuSection[] = [
         icon: Eye,
         permission: "transparencia.responder",
       },
+      {
+        id: "publicacoes-oficiais",
+        label: "Publicações Oficiais",
+        route: "/transparencia/publicacoes",
+        icon: FileText,
+        permission: "transparencia.visualizar",
+      },
     ],
   },
 
