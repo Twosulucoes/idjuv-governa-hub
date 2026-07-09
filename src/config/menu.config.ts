@@ -858,9 +858,9 @@ export const menuConfig: MenuSection[] = [
         permission: "transparencia.responder",
       },
       {
-        id: "publicacoes-oficiais",
-        label: "Publicações Oficiais",
-        route: "/transparencia/publicacoes",
+        id: "editais",
+        label: "Editais",
+        route: "/transparencia/editais",
         icon: FileText,
         permission: "transparencia.visualizar",
       },

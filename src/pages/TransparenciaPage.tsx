@@ -1,10 +1,9 @@
 import { Link } from "react-router-dom";
-import { Eye, ExternalLink, FileText, Download, Calendar, Star, Loader2 } from "lucide-react";
+import { Eye, ExternalLink, FileText, Download, Calendar, Loader2 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useTransparenciaPublicacoesPublicas } from "@/hooks/useTransparenciaPublicacoes";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -60,11 +59,11 @@ export default function TransparenciaPage() {
               </p>
             </div>
 
-            {/* Publicações Oficiais */}
+            {/* Editais */}
             <div className="mb-10">
               <h2 className="font-serif text-2xl font-bold mb-6 flex items-center gap-3">
                 <FileText className="w-6 h-6 text-primary" />
-                Publicações Oficiais
+                Editais
               </h2>
               {isLoading ? (
                 <div className="flex items-center justify-center py-12">
@@ -72,7 +71,7 @@ export default function TransparenciaPage() {
                 </div>
               ) : publicacoes.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground bg-muted/30 rounded-xl">
-                  Nenhuma publicação disponível no momento
+                  Nenhum edital disponível no momento
                 </div>
               ) : (
                 <div className="grid gap-4">
@@ -81,21 +80,12 @@ export default function TransparenciaPage() {
                       <CardContent className="p-6">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2 flex-wrap">
-                              <Badge variant="outline">{doc.categoria}</Badge>
-                              {doc.destaque && (
-                                <Badge variant="secondary" className="gap-1">
-                                  <Star className="w-3 h-3" />
-                                  Destaque
-                                </Badge>
-                              )}
-                              {doc.data_publicacao && (
-                                <span className="text-sm text-muted-foreground flex items-center gap-1">
-                                  <Calendar className="w-3 h-3" />
-                                  {format(new Date(doc.data_publicacao), "dd/MM/yyyy", { locale: ptBR })}
-                                </span>
-                              )}
-                            </div>
+                            {doc.data_publicacao && (
+                              <span className="text-sm text-muted-foreground flex items-center gap-1 mb-2">
+                                <Calendar className="w-3 h-3" />
+                                {format(new Date(doc.data_publicacao), "dd/MM/yyyy", { locale: ptBR })}
+                              </span>
+                            )}
                             <h3 className="font-semibold mb-1">{doc.titulo}</h3>
                             {doc.descricao && (
                               <p className="text-sm text-muted-foreground">{doc.descricao}</p>
