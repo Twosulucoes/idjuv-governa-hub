@@ -40,6 +40,7 @@ import {
   CalendarDays,
   Plane,
   ClipboardList,
+  ListChecks,
   Wrench,
   Trash2,
   BookOpen,
@@ -1156,6 +1157,13 @@ export const menuConfig: MenuSection[] = [
         label: "Páginas Públicas",
         route: "/admin/paginas",
         icon: Globe,
+        // Visível para todos os admins
+      },
+      {
+        id: "menu-site",
+        label: "Menu do Site",
+        route: "/admin/menu-site",
+        icon: ListChecks,
         // Visível para todos os admins
       },
       {

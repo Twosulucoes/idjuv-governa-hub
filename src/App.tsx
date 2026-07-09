@@ -156,6 +156,7 @@ import CalibradorSegadPage from "./pages/admin/CalibradorSegadPage";
 import CentralRelatoriosPage from "./pages/admin/CentralRelatoriosPage";
 import SobreSistemaPage from "./pages/admin/SobreSistemaPage";
 import GerenciadorPaginasPage from "./pages/admin/GerenciadorPaginasPage";
+import GerenciadorMenuPublicoPage from "./pages/admin/GerenciadorMenuPublicoPage";
 import GestaoModulosPage from "./pages/admin/GestaoModulosPage";
 import PainelPermissoesPage from "./pages/admin/PainelPermissoesPage";
 import ConfigCamposPreCadastroPage from "./pages/admin/ConfigCamposPreCadastroPage";
@@ -559,6 +560,11 @@ const App = () => (
               <Route path="/admin/paginas" element={
                 <ProtectedRoute>
                   <GerenciadorPaginasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/menu-site" element={
+                <ProtectedRoute>
+                  <GerenciadorMenuPublicoPage />
                 </ProtectedRoute>
               } />
               
