@@ -1,7 +1,7 @@
 -- Controle de visibilidade dos itens do menu de navegação do site público
 -- (cabeçalho do site: Governança, Processos, Manuais, Integridade, Transparência)
 
-CREATE TABLE public.config_menu_publico (
+CREATE TABLE IF NOT EXISTS public.config_menu_publico (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   chave TEXT NOT NULL UNIQUE, -- ex: 'governanca', 'processos', 'manuais', 'integridade', 'transparencia'
   label TEXT NOT NULL,
@@ -24,8 +24,18 @@ DROP POLICY IF EXISTS "Apenas admins podem alterar menu publico" ON public.confi
 CREATE POLICY "Apenas admins podem alterar menu publico"
   ON public.config_menu_publico
   FOR ALL
-  USING (public.usuario_eh_admin(auth.uid()))
-  WITH CHECK (public.usuario_eh_admin(auth.uid()));
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.user_roles
+      WHERE user_id = auth.uid() AND role = 'admin'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.user_roles
+      WHERE user_id = auth.uid() AND role = 'admin'
+    )
+  );
 
 DROP TRIGGER IF EXISTS update_config_menu_publico_updated_at ON public.config_menu_publico;
 CREATE TRIGGER update_config_menu_publico_updated_at
