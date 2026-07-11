@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ModuleLayout } from "@/components/layout/ModuleLayout";
+import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,13 @@ const DecretoPage = () => {
   };
 
   return (
-    <ModuleLayout module="governanca">
+    <MainLayout>
+      <section className="container mx-auto px-4 py-10">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
+          <Link to="/base-legal" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-4">
+            ← Base Legal
+          </Link>
           <Badge variant="outline" className="mb-4">
             <Scale className="w-3 h-3 mr-1" />
             Governança
@@ -169,7 +173,8 @@ const DecretoPage = () => {
           </CardContent>
         </Card>
       </div>
-    </ModuleLayout>
+      </section>
+    </MainLayout>
   );
 };
 
