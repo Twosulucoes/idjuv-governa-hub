@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { FileText, Download, BookOpen } from "lucide-react";
-import { ModuleLayout } from "@/components/layout/ModuleLayout";
+import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -15,9 +15,13 @@ export default function LeiCriacaoPage() {
   };
 
   return (
-    <ModuleLayout module="governanca">
+    <MainLayout>
+      <section className="container mx-auto px-4 py-10">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
+          <Link to="/base-legal" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-4">
+            ← Base Legal
+          </Link>
           <Badge variant="outline" className="mb-4">
             <FileText className="w-3 h-3 mr-1" />
             Governança
@@ -159,6 +163,7 @@ export default function LeiCriacaoPage() {
           </CardContent>
         </Card>
       </div>
-    </ModuleLayout>
+      </section>
+    </MainLayout>
   );
 }

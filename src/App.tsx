@@ -11,6 +11,9 @@ import { PublicPageGuard } from "@/components/public/PublicPageGuard";
 // Pages
 import PortalPreviewPage from "./pages/PortalPreviewPage";
 import HomeSimplesPage from "./pages/HomeSimplesPage";
+import EditaisPublicoPage from "./pages/EditaisPublicoPage";
+import BaseLegalPage from "./pages/BaseLegalPage";
+import LinksUteisPage from "./pages/LinksUteisPage";
 import ApresentacaoPage from "./pages/ApresentacaoPage";
 import LegacySistemaPage from "./pages/Index";
 import SistemaEntryPage from "./pages/sistema/SistemaEntryPage";
@@ -157,6 +160,7 @@ import CentralRelatoriosPage from "./pages/admin/CentralRelatoriosPage";
 import SobreSistemaPage from "./pages/admin/SobreSistemaPage";
 import GerenciadorPaginasPage from "./pages/admin/GerenciadorPaginasPage";
 import GerenciadorMenuPublicoPage from "./pages/admin/GerenciadorMenuPublicoPage";
+import GerenciadorLinksUteisPage from "./pages/admin/GerenciadorLinksUteisPage";
 import GestaoModulosPage from "./pages/admin/GestaoModulosPage";
 import PainelPermissoesPage from "./pages/admin/PainelPermissoesPage";
 import ConfigCamposPreCadastroPage from "./pages/admin/ConfigCamposPreCadastroPage";
@@ -269,6 +273,24 @@ const App = () => (
                   <HomeSimplesPage />
                 </PublicPageGuard>
               } />
+
+              {/* Páginas públicas no ar: Editais, Base Legal e Links Úteis */}
+              <Route path="/editais" element={
+                <PublicPageGuard rota="/editais">
+                  <EditaisPublicoPage />
+                </PublicPageGuard>
+              } />
+              <Route path="/base-legal" element={
+                <PublicPageGuard rota="/base-legal">
+                  <BaseLegalPage />
+                </PublicPageGuard>
+              } />
+              <Route path="/links-uteis" element={
+                <PublicPageGuard rota="/links-uteis">
+                  <LinksUteisPage />
+                </PublicPageGuard>
+              } />
+
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/acesso-negado" element={<AccessDeniedPage />} />
               
@@ -567,6 +589,11 @@ const App = () => (
                   <GerenciadorMenuPublicoPage />
                 </ProtectedRoute>
               } />
+              <Route path="/admin/links-uteis" element={
+                <ProtectedRoute>
+                  <GerenciadorLinksUteisPage />
+                </ProtectedRoute>
+              } />
               
               {/* ============================================ */}
               {/* GESTORES ESCOLARES - Admin */}
@@ -671,20 +698,22 @@ const App = () => (
                   <GovernancaPage />
                 </ProtectedRoute>
               } />
+              {/* Lei de Criação — pública (Base Legal) */}
               <Route path="/governanca/lei-criacao" element={
-                <ProtectedRoute requiredPermissions="governanca.documentos.visualizar">
+                <PublicPageGuard rota="/base-legal">
                   <LeiCriacaoPage />
-                </ProtectedRoute>
+                </PublicPageGuard>
               } />
               <Route path="/governanca/matriz-raci" element={
                 <ProtectedRoute requiredPermissions="governanca.matriz.visualizar">
                   <MatrizRaciPage />
                 </ProtectedRoute>
               } />
+              {/* Decreto Regulamentador — público (Base Legal) */}
               <Route path="/governanca/decreto" element={
-                <ProtectedRoute requiredPermissions="governanca.documentos.visualizar">
+                <PublicPageGuard rota="/base-legal">
                   <DecretoPage />
-                </ProtectedRoute>
+                </PublicPageGuard>
               } />
               <Route path="/governanca/regimento" element={
                 <ProtectedRoute requiredPermissions="governanca.documentos.visualizar">

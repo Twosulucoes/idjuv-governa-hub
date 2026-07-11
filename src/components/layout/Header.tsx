@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, ChevronDown, Shield, FileText, BookOpen, Scale, Eye, Sun, Moon, LogOut, User } from "lucide-react";
+import { Menu, X, ChevronDown, Shield, FileText, BookOpen, Scale, Eye, Sun, Moon, LogOut, User, Link2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -19,6 +19,30 @@ import { UserMenu } from "@/components/auth/UserMenu";
 import { useConfigMenuPublico } from "@/hooks/useConfigMenuPublico";
 
 const menuItems = [
+  // Itens no ar (visíveis por padrão). Os demais grupos abaixo ficam ocultos
+  // via config_menu_publico e podem ser reativados em /admin/menu-site.
+  {
+    title: "Editais",
+    chave: "editais",
+    icon: FileText,
+    href: "/editais",
+  },
+  {
+    title: "Base Legal",
+    chave: "base_legal",
+    icon: Scale,
+    href: "/base-legal",
+    items: [
+      { title: "Lei de Criação", href: "/governanca/lei-criacao" },
+      { title: "Decreto Regulamentador", href: "/governanca/decreto" },
+    ],
+  },
+  {
+    title: "Links Úteis",
+    chave: "links_uteis",
+    icon: Link2,
+    href: "/links-uteis",
+  },
   {
     title: "Governança",
     chave: "governanca",

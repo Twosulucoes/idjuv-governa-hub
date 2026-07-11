@@ -41,6 +41,7 @@ import {
   Plane,
   ClipboardList,
   ListChecks,
+  Link2,
   Wrench,
   Trash2,
   BookOpen,
@@ -1164,6 +1165,13 @@ export const menuConfig: MenuSection[] = [
         label: "Menu do Site",
         route: "/admin/menu-site",
         icon: ListChecks,
+        // Visível para todos os admins
+      },
+      {
+        id: "links-uteis",
+        label: "Links Úteis",
+        route: "/admin/links-uteis",
+        icon: Link2,
         // Visível para todos os admins
       },
       {

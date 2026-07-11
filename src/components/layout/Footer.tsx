@@ -59,10 +59,9 @@ export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
                 </h4>
                 <ul className="space-y-2.5">
                   {[
-                    { label: "Governança", href: "/governanca" },
-                    { label: "Processos Administrativos", href: "/processos" },
-                    { label: "Canal de Denúncias", href: "/integridade/denuncias" },
-                    { label: "Transparência", href: "/transparencia" },
+                    { label: "Editais", href: "/editais" },
+                    { label: "Base Legal", href: "/base-legal" },
+                    { label: "Links Úteis", href: "/links-uteis" },
                   ].map((link) => (
                     <li key={link.href}>
                       <Link 
