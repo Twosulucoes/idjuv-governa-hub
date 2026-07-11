@@ -1,6 +1,16 @@
 -- Área administrável de "Links Úteis" do site público
 -- O admin cadastra/edita/reordena e liga/desliga links exibidos na página /links-uteis
 
+-- Garante a função utilitária de updated_at (idempotente), caso o banco ainda
+-- não a tenha de migrações anteriores.
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE TABLE IF NOT EXISTS public.links_uteis (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   titulo TEXT NOT NULL,
