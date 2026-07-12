@@ -39,15 +39,15 @@ export function useCriarSubEmpenho() {
       documento_referencia?: string;
       observacoes?: string;
     }) => {
-      // Gerar número sequencial
-      const { data: existentes } = await supabase
+      // Gerar número sequencial (conta todos os sub-empenhos já existentes
+      // do empenho pai; usar .limit(1) fazia o seq travar em 1/2 e gerar
+      // números duplicados a partir do 3º sub-empenho).
+      const { count: existentes } = await supabase
         .from('fin_sub_empenhos')
-        .select('numero')
-        .eq('empenho_id', dados.empenho_id)
-        .order('created_at', { ascending: false })
-        .limit(1);
+        .select('*', { count: 'exact', head: true })
+        .eq('empenho_id', dados.empenho_id);
 
-      const seq = (existentes?.length || 0) + 1;
+      const seq = (existentes || 0) + 1;
       const prefixo = dados.tipo === 'reforco' ? 'R' : 'A';
 
       // Buscar número do empenho pai

@@ -27,7 +27,14 @@ export function useFaixasINSS(dataReferencia?: string) {
         .or(`vigencia_fim.is.null,vigencia_fim.gte.${data}`)
         .order('faixa_ordem');
       if (error) throw error;
-      return faixas as FaixaINSS[];
+      // A alíquota é armazenada como fração decimal no banco; converter para
+      // percentual, como já é feito em useFaixasIRRF/useParametrosFolha.
+      // calcularINSSProgressivo espera aliquota em percentual (faz aliquota / 100).
+      // Sem esta conversão o desconto de INSS ficava 100x menor que o correto.
+      return faixas.map(f => ({
+        ...f,
+        aliquota: Number(f.aliquota) * 100,
+      })) as FaixaINSS[];
     },
   });
 }
