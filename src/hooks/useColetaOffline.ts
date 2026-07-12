@@ -3,7 +3,7 @@
  * Gerencia coletas pendentes para sincronização quando offline
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -43,12 +43,17 @@ export function useColetaOffline(campanhaId: string) {
     }
   }, [campanhaId]);
 
+  // Ref sempre apontando para a versão mais recente de syncColetas, para evitar
+  // que o listener de "online" capture um closure obsoleto (com a lista de
+  // coletas pendentes vazia do primeiro render) e nunca sincronize ao reconectar.
+  const syncColetasRef = useRef<() => void>(() => {});
+
   // Monitorar status de conexão
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
       toast.success("Conexão restaurada", { description: "Sincronizando coletas..." });
-      syncColetas();
+      syncColetasRef.current();
     };
     const handleOffline = () => {
       setIsOnline(false);
@@ -165,6 +170,11 @@ export function useColetaOffline(campanhaId: string) {
       toast.success(`${syncedCount} coleta(s) sincronizada(s)!`);
     }
   }, [coletasPendentes, isOnline, campanhaId]);
+
+  // Mantém a ref sincronizada com a última versão de syncColetas.
+  useEffect(() => {
+    syncColetasRef.current = syncColetas;
+  }, [syncColetas]);
 
   return {
     coletasPendentes: coletasPendentes.filter(c => !c.synced),

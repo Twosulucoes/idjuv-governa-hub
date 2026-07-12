@@ -413,12 +413,15 @@ serve(async (req) => {
 
     const token = authHeader.replace('Bearer ', '');
     
-    // Verificar se é chamada via cron (anon key ou service role)
-    // Decodificar JWT para verificar role
+    // Verificar se é chamada via cron (apenas service role)
+    // Decodificar JWT para verificar role.
+    // ATENÇÃO: a anon key é pública (embarcada no bundle do frontend), portanto
+    // NÃO pode ser tratada como cron — isso permitiria a qualquer um executar
+    // ações privilegiadas (backup, sync, cleanup) sem autenticação real.
     let isCronCall = false;
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
-      if (payload.role === 'anon' || payload.role === 'service_role') {
+      if (payload.role === 'service_role') {
         isCronCall = true;
       }
     } catch {
@@ -920,8 +923,8 @@ serve(async (req) => {
         const manifestText = await manifestData.text();
         const manifest = JSON.parse(manifestText);
 
-        const dbValid = manifest?.files?.db?.checksum 
-          ? manifest.files.db.checksum === backup.db_checksum 
+        const dbValid = manifest?.files?.db_index?.checksum
+          ? manifest.files.db_index.checksum === backup.db_checksum
           : !backup.db_checksum; // both null = valid
         const storageValid = manifest?.files?.storage?.checksum 
           ? manifest.files.storage.checksum === backup.storage_checksum 
