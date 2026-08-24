@@ -1,5 +1,5 @@
 /**
- * Cliente Supabase - Lovable Cloud
+ * Cliente Supabase
  * CORREÇÃO: clearOldSessions não apaga mais a sessão ativa.
  */
 
@@ -11,9 +11,29 @@ export const isSupabaseConfigured = (): boolean => true;
 
 export const getConnectionInfo = () => ({
   configured: true,
-  url: 'lovable-cloud',
-  mode: 'lovable-cloud',
+  url: import.meta.env.VITE_SUPABASE_URL ?? 'não configurado',
+  mode: 'supabase',
 });
+
+/**
+ * Ref do projeto Supabase atual, usado para reconhecer a chave de sessão
+ * própria (`sb-<ref>-auth-token`) em `clearOldSessions`. Prioriza
+ * VITE_SUPABASE_PROJECT_ID; se ausente, deriva do subdomínio de
+ * VITE_SUPABASE_URL — nunca hardcoded, para não quebrar login depois de
+ * trocar de projeto/instância (Lovable Cloud, Supabase próprio, self-hosted).
+ */
+const getCurrentProjectRef = (): string | null => {
+  const explicit = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+  if (explicit) return explicit;
+
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  if (!url) return null;
+  try {
+    return new URL(url).hostname.split('.')[0];
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Limpa APENAS sessões antigas/corrompidas.
@@ -31,8 +51,7 @@ export const getConnectionInfo = () => ({
 export const clearOldSessions = () => {
   try {
     const keysToRemove: string[] = [];
-    // ID do projeto Lovable Cloud correto
-    const CURRENT_PROJECT_ID = 'qvbhejhcktcaftiamksd';
+    const currentProjectRef = getCurrentProjectRef();
 
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -48,8 +67,11 @@ export const clearOldSessions = () => {
         keysToRemove.push(key);
       }
 
-      // Remove tokens de outros projetos Supabase (sb-* que NÃO são do projeto atual)
-      if (key.startsWith('sb-') && !key.includes(CURRENT_PROJECT_ID)) {
+      // Remove tokens de outros projetos Supabase (sb-* que NÃO são do projeto
+      // atual). Sem o ref do projeto atual (env não configurado), não dá para
+      // distinguir "token externo" de "token próprio" com segurança — melhor
+      // não remover nada do que apagar a sessão que acabou de ser criada.
+      if (currentProjectRef && key.startsWith('sb-') && !key.includes(currentProjectRef)) {
         keysToRemove.push(key);
         console.log('[Supabase] Token de projeto externo removido:', key);
       }
