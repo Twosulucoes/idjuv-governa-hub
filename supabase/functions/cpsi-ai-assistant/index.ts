@@ -32,6 +32,55 @@ Você escreve em português formal, com linguagem técnica adequada para documen
 Seja objetivo, preciso e fundamentado legalmente. Use parágrafos curtos e linguagem direta.
 Quando apropriado, cite artigos de lei e normas. Não invente dados numéricos — use placeholders como "[VALOR]" ou "[PRAZO]" quando não tiver informação.`;
 
+/**
+ * Traduz o stream SSE nativo do Gemini (`data: {"candidates":[{"content":
+ * {"parts":[{"text":"..."}]}}]}`) para o formato OpenAI-compatible
+ * (`data: {"choices":[{"delta":{"content":"..."}}]}`) que o frontend já lê,
+ * terminando com `data: [DONE]`.
+ */
+function translateGeminiStreamToOpenAI(geminiBody: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+  const reader = geminiBody.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let buffer = "";
+
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const { done, value } = await reader.read();
+      if (done) {
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+        return;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      let newlineIndex: number;
+      while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+        const line = buffer.slice(0, newlineIndex).replace(/\r$/, "");
+        buffer = buffer.slice(newlineIndex + 1);
+        if (!line.startsWith("data: ")) continue;
+
+        const jsonStr = line.slice(6).trim();
+        if (!jsonStr) continue;
+
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            const chunk = JSON.stringify({ choices: [{ delta: { content: text } }] });
+            controller.enqueue(encoder.encode(`data: ${chunk}\n\n`));
+          }
+        } catch {
+          // linha parcial/malformada — mesma tolerância do parser do frontend
+        }
+      }
+    },
+    cancel() {
+      reader.cancel();
+    },
+  });
+}
+
 interface RequestBody {
   action: "fill_all" | "fill_field" | "review";
   documentType: "dfd" | "etp" | "tr";
@@ -50,10 +99,11 @@ serve(async (req) => {
   }
 
   try {
-    // Esta função chama uma API paga de IA (LOVABLE_API_KEY) — exige sessão
-    // autenticada válida para evitar uso anônimo/abusivo de créditos. Qualquer
-    // usuário autenticado pode chamar (não é ação admin-only, é usada nos
-    // formulários de CPSI/compras), mas nunca sem sessão.
+    // Esta função chama a API do Gemini (GEMINI_API_KEY, cobrada por uso) —
+    // exige sessão autenticada válida para evitar uso anônimo/abusivo de
+    // créditos. Qualquer usuário autenticado pode chamar (não é ação
+    // admin-only, é usada nos formulários de CPSI/compras), mas nunca sem
+    // sessão.
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
@@ -76,8 +126,9 @@ serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurada");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY não configurada");
+    const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash";
 
     const body: RequestBody = await req.json();
     const { action, documentType, context, fieldName, fieldLabel, currentValue, formData } = body;
@@ -201,19 +252,20 @@ Forneça uma análise estruturada com:
 Seja específico e cite artigos de lei quando pertinente.`;
     }
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const isStreaming = action === "review";
+    const geminiEndpoint = isStreaming
+      ? `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse`
+      : `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+    const aiResponse = await fetch(geminiEndpoint, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "x-goog-api-key": GEMINI_API_KEY,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userPrompt },
-        ],
-        stream: action === "review",
+        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: [{ role: "user", parts: [{ text: userPrompt }] }],
       }),
     });
 
@@ -224,27 +276,24 @@ Seja específico e cite artigos de lei quando pertinente.`;
           headers: { ...cors, "Content-Type": "application/json" },
         });
       }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos de IA insuficientes." }), {
-          status: 402,
-          headers: { ...cors, "Content-Type": "application/json" },
-        });
-      }
       const errText = await aiResponse.text();
       console.error("AI error:", aiResponse.status, errText);
       throw new Error("Erro no serviço de IA");
     }
 
-    // For review, stream the response
-    if (action === "review") {
-      return new Response(aiResponse.body, {
+    // For review, traduz o stream nativo do Gemini (SSE com
+    // candidates[0].content.parts[0].text) para o formato OpenAI-compatible
+    // (choices[0].delta.content) que o frontend (useAICPSI.ts) já sabe ler —
+    // evita mudar o parser do lado do cliente.
+    if (isStreaming) {
+      return new Response(translateGeminiStreamToOpenAI(aiResponse.body!), {
         headers: { ...cors, "Content-Type": "text/event-stream" },
       });
     }
 
     // For fill_all and fill_field, return the full response
     const data = await aiResponse.json();
-    const content = data.choices?.[0]?.message?.content || "";
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     if (action === "fill_all") {
       // Parse JSON from content
