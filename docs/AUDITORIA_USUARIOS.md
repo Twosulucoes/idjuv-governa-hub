@@ -30,6 +30,7 @@ documentado está, na prática, colapsado para nível de módulo).
 | B2 | 🟢 Baixo | `console.log` de e-mail/permissões no `AuthContext` | ✅ Removidos |
 | B3 | 🟢 Baixo | Mínimo de senha inconsistente (login 6 / nova 8) | Não alterado (mudar o login bloquearia senhas atuais de 6–7 chars) |
 | B4 | 🟢 Baixo | `delete-user` usa `.single()` (quebra com 0/n linhas) | ✅ Trocado por `.maybeSingle()` |
+| D1 | 🟠 Alto | `xlsx@0.18.5` (CVE de ReDoS/prototype pollution) sem correção no npm registry; `ImportarEscolasPage.tsx` faz parsing de arquivo enviado pelo usuário | ⚠️ Mitigado parcialmente (ver abaixo) — troca de pacote bloqueada nesta rede |
 
 ## Detalhamento dos itens corrigidos
 
@@ -88,6 +89,35 @@ C2 fechado.
 > Defesa em profundidade recomendada: rotear a alteração de módulos por uma Edge
 > Function privilegiada (como criação/exclusão) em vez de escrita direta do
 > client, deixando o RLS como segunda barreira.
+
+### D1 — `xlsx` sem correção no npm registry (mitigado parcialmente)
+A SheetJS parou de publicar correções de segurança do pacote `xlsx` no npm
+registry a partir da 0.18.5 (2022) — confirmado consultando
+`npm view xlsx versions`, não há versão mais nova lá. A correção oficial só
+está disponível via CDN próprio (`cdn.sheetjs.com`), que **esta sessão não
+conseguiu instalar**: o proxy de rede do ambiente bloqueia esse domínio por
+política (403 na tentativa de `bun add`/`curl`, confirmado em
+`/root/.ccr/__agentproxy/status`) — não é algo para contornar, é uma decisão
+de política de rede da organização.
+
+Verificação de superfície real: das 8 telas que usam `xlsx`, só
+`src/pages/cadastrogestores/ImportarEscolasPage.tsx` faz `XLSX.read` sobre um
+arquivo enviado pelo usuário (as demais só exportam/geram planilha, não
+processam arquivo externo) — e essa rota exige a permissão
+`gestores_escolares.admin` (não é pública). O código também só lê campos
+nomeados específicos do resultado do parse (não espalha `row` inteiro), o que
+limita — mas não elimina — o efeito prático do CVE de prototype pollution.
+
+**Mitigação aplicada nesta sessão:** limite de 5 MB no upload em
+`ImportarEscolasPage.tsx` (reduz a superfície de um arquivo malicioso
+volumoso; não elimina o risco de ReDoS/pollution de um arquivo pequeno e
+malicioso).
+
+**Ainda pendente — requer decisão/acesso do time:**
+1. Instalar `xlsx` a partir do CDN oficial da SheetJS a partir de uma máquina/CI
+   sem essa restrição de rede (`npm install https://cdn.sheetjs.com/...`); ou
+2. Substituir `xlsx` por uma lib mantida (ex. `exceljs`) pelo menos no caminho
+   de importação de arquivo — o de maior superfície de ataque.
 
 ### M4 — Signups públicos (verificar)
 `AuthContext.signUp` existe mas não é exposto na UI. Confirmar que **"Enable

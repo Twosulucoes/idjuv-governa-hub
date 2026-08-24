@@ -143,6 +143,17 @@ export default function ImportarEscolasPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Limite defensivo: a lib `xlsx` tem CVEs conhecidas de ReDoS/prototype
+    // pollution sem correção publicada no registry (ver docs/AUDITORIA_USUARIOS.md).
+    // Um arquivo pequeno não elimina o risco, mas reduz a superfície de um
+    // arquivo malicioso volumoso.
+    const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+    if (file.size > MAX_SIZE_BYTES) {
+      toast.error('Arquivo muito grande (máximo 5 MB). Divida a planilha em partes menores.');
+      e.target.value = '';
+      return;
+    }
+
     setArquivoNome(file.name);
 
     const reader = new FileReader();
