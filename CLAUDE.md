@@ -141,12 +141,13 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
   `signOut` apenas acionam. Expõe `hasPermission`, `hasAnyPermission`,
   `isSuperAdmin`, etc. Permissões são cacheadas (TTL ~60s).
 - Mapeamento de permissões por rota: `ROUTE_PERMISSIONS` em `src/types/auth.ts`.
-- **ATENÇÃO (estado atual):** `src/components/auth/ProtectedRoute.tsx` está em
-  modo **"ACESSO TOTAL"** — libera qualquer usuário autenticado, ignorando
-  `requiredModule`/`requiredPermissions` declarados nas rotas. Os props ainda
-  existem nas rotas (e documentam a intenção de acesso), mas **não são
-  aplicados** no momento. Se for reintroduzir RBAC real, é aqui que se mexe — e
-  confirme com o usuário antes, pois afeta segurança de todo o sistema.
+- `src/components/auth/ProtectedRoute.tsx` aplica RBAC real: valida
+  `requiredModule`/`requiredPermissions` via `hasPermission`/`hasAnyPermission`
+  do `AuthContext`, com bypass apenas para super admin. (Histórico: esteve em
+  modo "acesso total" até o hardening de usuários — ver
+  `docs/AUDITORIA_USUARIOS.md`.) Qualquer mudança aqui afeta segurança de todo
+  o sistema — confirme com o usuário antes. Detalhes em
+  `docs/RBAC_PERMISSOES.md`.
 
 ### Módulos
 - A lista canônica de módulos está em `src/shared/config/modules.config.ts`
@@ -210,7 +211,10 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 
 1. **Arquivos gerados — não editar à mão:** `src/integrations/supabase/client.ts`
    e `src/integrations/supabase/types.ts`. Regenere os tipos via Supabase.
-2. **`ProtectedRoute` não aplica RBAC** hoje (modo acesso total) — ver §6.
+2. **RLS é a fronteira real de segurança dos dados**, não o front — o
+   `ProtectedRoute` já aplica RBAC (ver §6), mas trate isso como UX, não como
+   controle de acesso suficiente sozinho. Ao criar tabela/coluna nova, use o
+   skill `migracao-segura-idjuv` (RLS obrigatório desde a migração).
 3. **Sincronização com Lovable:** o Lovable commita automaticamente. Evite
    reformatações massivas/sem necessidade que gerem conflito; mantenha
    alterações focadas.
@@ -225,6 +229,11 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 ---
 
 ## 10. Como adicionar uma feature (receita rápida)
+
+> Há skills do Claude Code em `.claude/skills/` que automatizam isto:
+> `novo-modulo-idjuv` (feature completa), `migracao-segura-idjuv` (schema com
+> RLS), `onboarding-cliente-idjuv` (provisionar instância para outro cliente)
+> e `auditoria-seguranca-idjuv` (checklist de segurança do projeto).
 
 1. **Tipos:** defina/atualize em `src/types/<dominio>.ts`.
 2. **Dados:** crie/estenda um hook em `src/hooks/use<Dominio>.ts` (React Query +

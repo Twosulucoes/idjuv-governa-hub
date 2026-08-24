@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import { 
   ArrowLeft, 
   Calendar, 
@@ -247,8 +248,8 @@ export default function NoticiaPage() {
           {/* Conteúdo */}
           <div 
             className="prose prose-lg dark:prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ 
-              __html: `<p class="my-4">${convertToHtml(noticia.conteudo || "")}</p>` 
+            dangerouslySetInnerHTML={{
+              __html: sanitizeHtml(`<p class="my-4">${convertToHtml(noticia.conteudo || "")}</p>`)
             }}
           />
 

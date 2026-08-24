@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import {
   Bold,
   Italic,
@@ -328,7 +329,7 @@ export function RichTextEditor({
           <div
             className="p-4 prose prose-sm dark:prose-invert max-w-none overflow-auto"
             style={{ minHeight }}
-            dangerouslySetInnerHTML={{ __html: convertToHtml(value) }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(convertToHtml(value)) }}
           />
         )}
       </div>

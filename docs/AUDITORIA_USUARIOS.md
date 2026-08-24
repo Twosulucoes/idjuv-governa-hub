@@ -18,9 +18,10 @@ documentado está, na prática, colapsado para nível de módulo).
 | # | Severidade | Achado | Status |
 |---|---|---|---|
 | C1 | 🔴 Crítico | `create-test-user` criava admins sem autorização (service role, `role` default `admin`) | ✅ Removida |
-| C2 | 🔴 Crítico | Gestão de usuários grava direto em `user_modules`/`user_roles`/`profiles` pelo client — segurança depende só do RLS | ⚠️ Requer verificação de RLS (acesso ao banco) |
+| C2 | 🔴 Crítico | Gestão de usuários grava direto em `user_modules`/`user_roles`/`profiles` pelo client — segurança depende só do RLS | ⚠️ Migração criada (ver abaixo) — falta validar ausência de policy legada permissiva |
 | A1 | 🟠 Alto | `ProtectedRoute` em modo "acesso total" | ✅ RBAC reativado |
 | A2 | 🟠 Alto | Autorização inconsistente entre Edge Functions (3 critérios + 1 sem checagem) | ✅ Padronizada na RPC `usuario_tem_permissao('admin.usuarios')` |
+| C3 | 🔴 Crítico | `database-schema` (expõe schema completo via service role) e `cpsi-ai-assistant` (chama IA paga) sem qualquer checagem de identidade | ✅ Corrigido — mesmo padrão de `admin-create-user` |
 | M1 | 🟡 Médio | Dois modelos de permissão divergentes (granular documentado x módulo real) | ✅ Documentação corrigida |
 | M2 | 🟡 Médio | `requires_password_change` não era forçado no roteamento | ✅ Guard adicionado no `ProtectedRoute` |
 | M3 | 🟡 Médio | CORS `*` em todas as funções | ✅ Allowlist por env (`ALLOWED_ORIGINS`), fallback `*` |
@@ -29,6 +30,7 @@ documentado está, na prática, colapsado para nível de módulo).
 | B2 | 🟢 Baixo | `console.log` de e-mail/permissões no `AuthContext` | ✅ Removidos |
 | B3 | 🟢 Baixo | Mínimo de senha inconsistente (login 6 / nova 8) | Não alterado (mudar o login bloquearia senhas atuais de 6–7 chars) |
 | B4 | 🟢 Baixo | `delete-user` usa `.single()` (quebra com 0/n linhas) | ✅ Trocado por `.maybeSingle()` |
+| D1 | 🟠 Alto | `xlsx@0.18.5` (CVE de ReDoS/prototype pollution) sem correção no npm registry; `ImportarEscolasPage.tsx` faz parsing de arquivo enviado pelo usuário | ⚠️ Mitigado parcialmente (ver abaixo) — troca de pacote bloqueada nesta rede |
 
 ## Detalhamento dos itens corrigidos
 
@@ -64,24 +66,58 @@ mantêm `*` para não quebrar ambientes existentes.
 
 ## Itens que dependem de acesso ao banco/painel
 
-### C2 — RLS das tabelas de usuário (pendente)
+### C2 — RLS das tabelas de usuário (migração aplicada, validação pendente)
 A gestão de módulos (`useAdminRBAC`/`useAdminUsuarios`) escreve direto em
 `user_modules` (e atualiza `profiles`) pelo client. **A única barreira é o RLS.**
-É necessário garantir que as políticas de **escrita** (`INSERT`/`UPDATE`/`DELETE`)
-em `user_modules`, `user_roles` e `profiles` estejam restritas a administradores
-(ex.: via `usuario_eh_super_admin(auth.uid())` ou `has_role(auth.uid(),'admin')`),
-mantendo `SELECT` para o necessário. Não foi possível inspecionar/ajustar as
-políticas nesta sessão (ferramentas MCP do Supabase sem permissão). Recomenda-se
-também rodar **Database → Advisors** (security) no painel.
+A proposta em [RLS_USUARIOS_PROPOSTA.sql](./RLS_USUARIOS_PROPOSTA.sql) foi
+materializada como migração real em
+`supabase/migrations/20260824010000_rls_user_modules_user_roles_profiles.sql`
+(helper `is_admin_atual()` + políticas de leitura/escrita restringindo INSERT/
+UPDATE/DELETE a administradores).
 
-> 📄 Proposta de políticas pronta para revisão em
-> [RLS_USUARIOS_PROPOSTA.sql](./RLS_USUARIOS_PROPOSTA.sql) (com queries de
-> introspecção, helper `is_admin_atual()` e políticas de leitura/escrita). Não é
-> migração automática — revisar contra as políticas atuais antes de aplicar.
+**Isto ainda não fecha o item C2 sozinho.** Esta sessão não teve acesso ao
+projeto Supabase real do IDJUV (só a outros projetos não relacionados na
+mesma conta), então não foi possível rodar a introspecção (SEÇÃO 0 da
+proposta) nem `Database → Advisors`. As políticas novas são aditivas — se já
+existir uma política antiga permissiva (`USING (true)`) para escrita nessas
+tabelas, ela continua valendo (RLS combina políticas do mesmo comando com OR).
+**Próximo passo obrigatório:** com acesso ao projeto real, rodar a
+introspecção, remover qualquer política legada permissiva encontrada, rodar
+Advisors (security) e validar login + `/admin/usuarios` antes de considerar
+C2 fechado.
 
 > Defesa em profundidade recomendada: rotear a alteração de módulos por uma Edge
 > Function privilegiada (como criação/exclusão) em vez de escrita direta do
 > client, deixando o RLS como segunda barreira.
+
+### D1 — `xlsx` sem correção no npm registry (mitigado parcialmente)
+A SheetJS parou de publicar correções de segurança do pacote `xlsx` no npm
+registry a partir da 0.18.5 (2022) — confirmado consultando
+`npm view xlsx versions`, não há versão mais nova lá. A correção oficial só
+está disponível via CDN próprio (`cdn.sheetjs.com`), que **esta sessão não
+conseguiu instalar**: o proxy de rede do ambiente bloqueia esse domínio por
+política (403 na tentativa de `bun add`/`curl`, confirmado em
+`/root/.ccr/__agentproxy/status`) — não é algo para contornar, é uma decisão
+de política de rede da organização.
+
+Verificação de superfície real: das 8 telas que usam `xlsx`, só
+`src/pages/cadastrogestores/ImportarEscolasPage.tsx` faz `XLSX.read` sobre um
+arquivo enviado pelo usuário (as demais só exportam/geram planilha, não
+processam arquivo externo) — e essa rota exige a permissão
+`gestores_escolares.admin` (não é pública). O código também só lê campos
+nomeados específicos do resultado do parse (não espalha `row` inteiro), o que
+limita — mas não elimina — o efeito prático do CVE de prototype pollution.
+
+**Mitigação aplicada nesta sessão:** limite de 5 MB no upload em
+`ImportarEscolasPage.tsx` (reduz a superfície de um arquivo malicioso
+volumoso; não elimina o risco de ReDoS/pollution de um arquivo pequeno e
+malicioso).
+
+**Ainda pendente — requer decisão/acesso do time:**
+1. Instalar `xlsx` a partir do CDN oficial da SheetJS a partir de uma máquina/CI
+   sem essa restrição de rede (`npm install https://cdn.sheetjs.com/...`); ou
+2. Substituir `xlsx` por uma lib mantida (ex. `exceljs`) pelo menos no caminho
+   de importação de arquivo — o de maior superfície de ataque.
 
 ### M4 — Signups públicos (verificar)
 `AuthContext.signUp` existe mas não é exposto na UI. Confirmar que **"Enable

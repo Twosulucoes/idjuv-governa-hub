@@ -1,9 +1,27 @@
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// CORS com allowlist por ambiente (mesmo padrão de admin-create-user/delete-user).
+// Defina ALLOWED_ORIGINS (lista separada por vírgula) nas variáveis da função
+// para restringir as origens. Sem a variável, mantém "*" para não quebrar
+// ambientes existentes.
+const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+function corsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") ?? "";
+  const allowOrigin = ALLOWED_ORIGINS.length === 0
+    ? "*"
+    : ALLOWED_ORIGINS.includes(origin)
+      ? origin
+      : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Vary": "Origin",
+  };
+}
 
 interface TableInfo {
   name: string;
@@ -206,14 +224,66 @@ async function processTable(
 }
 
 Deno.serve(async (req) => {
+  const cors = corsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: cors });
   }
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
+
+    // Esta função expõe o schema completo do banco (tabelas, colunas, FKs,
+    // contagem de linhas) usando a service role — é uma ferramenta de admin
+    // (src/pages/admin/DatabaseSchemaPage.tsx), não um endpoint de leitura
+    // geral. Exige sessão válida + permissão admin.usuarios, no mesmo padrão
+    // adotado em admin-create-user/delete-user (docs/AUDITORIA_USUARIOS.md, A2).
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Não autorizado" }), {
+        status: 401,
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUser = createClient(
+      supabaseUrl,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const {
+      data: { user: caller },
+      error: callerError,
+    } = await supabaseUser.auth.getUser();
+
+    if (callerError || !caller) {
+      return new Response(JSON.stringify({ error: "Sessão inválida" }), {
+        status: 401,
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: temPermissao, error: permError } = await supabaseUser.rpc(
+      "usuario_tem_permissao",
+      { _user_id: caller.id, _codigo_funcao: "admin.usuarios" }
+    );
+
+    if (permError) {
+      return new Response(
+        JSON.stringify({ error: "Falha ao validar permissões", details: permError.message }),
+        { status: 500, headers: { ...cors, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!temPermissao) {
+      return new Response(JSON.stringify({ error: "Acesso negado. Requer permissão admin.usuarios." }), {
+        status: 403,
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // ============================================
@@ -303,8 +373,8 @@ Deno.serve(async (req) => {
           source: 'information_schema.tables'
         }
       }),
-      { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      {
+        headers: { ...cors, "Content-Type": "application/json" },
         status: 200,
       }
     );
@@ -313,8 +383,8 @@ Deno.serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return new Response(
       JSON.stringify({ error: errorMessage }),
-      { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      {
+        headers: { ...cors, "Content-Type": "application/json" },
         status: 500,
       }
     );

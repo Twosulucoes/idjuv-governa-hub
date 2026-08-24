@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import { 
   Select,
   SelectContent,
@@ -406,7 +407,7 @@ export default function CMSEditorPage() {
                       </div>
                       <Separator className="mb-6" />
                       <div
-                        dangerouslySetInnerHTML={{ __html: convertToHtml(form.conteudo) }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(convertToHtml(form.conteudo)) }}
                       />
                     </article>
                   </CardContent>
