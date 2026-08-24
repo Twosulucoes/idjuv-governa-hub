@@ -46,7 +46,7 @@ interface PainelDetalhesProps {
 
 function PainelDetalhes({ usuario, saving, onToggleModulo, onToggleAtivo }: PainelDetalhesProps) {
   const [confirmBloqueio, setConfirmBloqueio] = useState(false);
-  const isProtected = isProtectedAdmin(usuario.id);
+  const isProtected = isProtectedAdmin(usuario.id, usuario.email);
 
   const getInitials = (name: string | null) =>
     !name ? 'U' : name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -329,7 +329,7 @@ export default function GestaoUsuariosPage() {
                   <div className="divide-y">
                     {usuariosFiltrados.map(usuario => {
                       const selecionado = usuarioAtual?.id === usuario.id;
-                      const isProtected = isProtectedAdmin(usuario.id);
+                      const isProtected = isProtectedAdmin(usuario.id, usuario.email);
 
                       return (
                         <button

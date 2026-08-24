@@ -133,7 +133,7 @@ export default function UsuarioDetalhePage() {
     );
   }
 
-  const isProtected = isProtectedAdmin(usuario.id);
+  const isProtected = isProtectedAdmin(usuario.id, usuario.email);
 
   return (
     <ModuleLayout module="admin">
