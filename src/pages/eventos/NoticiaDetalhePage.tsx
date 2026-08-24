@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ShareButtons } from "@/components/social/ShareButtons";
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 
 interface Noticia {
   id: string;
@@ -256,7 +257,7 @@ export default function NoticiaDetalhePage() {
             prose-p:text-zinc-600 dark:prose-p:text-zinc-300 prose-p:leading-relaxed
             prose-li:text-zinc-600 dark:prose-li:text-zinc-300
             prose-ul:my-4 prose-li:my-1"
-          dangerouslySetInnerHTML={{ __html: displayNoticia.conteudo || "" }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(displayNoticia.conteudo || "") }}
         />
 
         {/* Aviso de exemplo */}

@@ -18,9 +18,10 @@ documentado está, na prática, colapsado para nível de módulo).
 | # | Severidade | Achado | Status |
 |---|---|---|---|
 | C1 | 🔴 Crítico | `create-test-user` criava admins sem autorização (service role, `role` default `admin`) | ✅ Removida |
-| C2 | 🔴 Crítico | Gestão de usuários grava direto em `user_modules`/`user_roles`/`profiles` pelo client — segurança depende só do RLS | ⚠️ Requer verificação de RLS (acesso ao banco) |
+| C2 | 🔴 Crítico | Gestão de usuários grava direto em `user_modules`/`user_roles`/`profiles` pelo client — segurança depende só do RLS | ⚠️ Migração criada (ver abaixo) — falta validar ausência de policy legada permissiva |
 | A1 | 🟠 Alto | `ProtectedRoute` em modo "acesso total" | ✅ RBAC reativado |
 | A2 | 🟠 Alto | Autorização inconsistente entre Edge Functions (3 critérios + 1 sem checagem) | ✅ Padronizada na RPC `usuario_tem_permissao('admin.usuarios')` |
+| C3 | 🔴 Crítico | `database-schema` (expõe schema completo via service role) e `cpsi-ai-assistant` (chama IA paga) sem qualquer checagem de identidade | ✅ Corrigido — mesmo padrão de `admin-create-user` |
 | M1 | 🟡 Médio | Dois modelos de permissão divergentes (granular documentado x módulo real) | ✅ Documentação corrigida |
 | M2 | 🟡 Médio | `requires_password_change` não era forçado no roteamento | ✅ Guard adicionado no `ProtectedRoute` |
 | M3 | 🟡 Médio | CORS `*` em todas as funções | ✅ Allowlist por env (`ALLOWED_ORIGINS`), fallback `*` |
@@ -64,20 +65,25 @@ mantêm `*` para não quebrar ambientes existentes.
 
 ## Itens que dependem de acesso ao banco/painel
 
-### C2 — RLS das tabelas de usuário (pendente)
+### C2 — RLS das tabelas de usuário (migração aplicada, validação pendente)
 A gestão de módulos (`useAdminRBAC`/`useAdminUsuarios`) escreve direto em
 `user_modules` (e atualiza `profiles`) pelo client. **A única barreira é o RLS.**
-É necessário garantir que as políticas de **escrita** (`INSERT`/`UPDATE`/`DELETE`)
-em `user_modules`, `user_roles` e `profiles` estejam restritas a administradores
-(ex.: via `usuario_eh_super_admin(auth.uid())` ou `has_role(auth.uid(),'admin')`),
-mantendo `SELECT` para o necessário. Não foi possível inspecionar/ajustar as
-políticas nesta sessão (ferramentas MCP do Supabase sem permissão). Recomenda-se
-também rodar **Database → Advisors** (security) no painel.
+A proposta em [RLS_USUARIOS_PROPOSTA.sql](./RLS_USUARIOS_PROPOSTA.sql) foi
+materializada como migração real em
+`supabase/migrations/20260824010000_rls_user_modules_user_roles_profiles.sql`
+(helper `is_admin_atual()` + políticas de leitura/escrita restringindo INSERT/
+UPDATE/DELETE a administradores).
 
-> 📄 Proposta de políticas pronta para revisão em
-> [RLS_USUARIOS_PROPOSTA.sql](./RLS_USUARIOS_PROPOSTA.sql) (com queries de
-> introspecção, helper `is_admin_atual()` e políticas de leitura/escrita). Não é
-> migração automática — revisar contra as políticas atuais antes de aplicar.
+**Isto ainda não fecha o item C2 sozinho.** Esta sessão não teve acesso ao
+projeto Supabase real do IDJUV (só a outros projetos não relacionados na
+mesma conta), então não foi possível rodar a introspecção (SEÇÃO 0 da
+proposta) nem `Database → Advisors`. As políticas novas são aditivas — se já
+existir uma política antiga permissiva (`USING (true)`) para escrita nessas
+tabelas, ela continua valendo (RLS combina políticas do mesmo comando com OR).
+**Próximo passo obrigatório:** com acesso ao projeto real, rodar a
+introspecção, remover qualquer política legada permissiva encontrada, rodar
+Advisors (security) e validar login + `/admin/usuarios` antes de considerar
+C2 fechado.
 
 > Defesa em profundidade recomendada: rotear a alteração de módulos por uma Edge
 > Function privilegiada (como criação/exclusão) em vez de escrita direta do
