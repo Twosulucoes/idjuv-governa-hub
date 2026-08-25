@@ -127,7 +127,7 @@ export default function UsuariosAdminPage() {
           <div className="space-y-3">
             {usuariosFiltrados.map((usuario) => {
               const isExpanded = expandedUser === usuario.id;
-              const isProtected = isProtectedAdmin(usuario.id);
+              const isProtected = isProtectedAdmin(usuario.id, usuario.email);
               const canEditModules = !isProtected;
               
               return (
