@@ -75,21 +75,22 @@ export const usePermissions = (): UsePermissionsReturn => {
     hasAnyPermission,
     hasAllPermissions,
     getUserPermissions,
-    getPermissoesDetalhadas
+    getPermissoesDetalhadas,
+    hasModule,
+    getUserModules
   } = useAuth();
 
   // ============================================
   // VERIFICAR ACESSO A MÓDULO
   // ============================================
 
+  // Acesso ao módulo vem de user_modules, não do prefixo das permissões: há
+  // códigos cujo prefixo não é o módulo (ascom.* pertence a comunicacao,
+  // unidades.* a patrimonio), então derivar do prefixo erra os dois lados.
   const hasModuleAccess = useCallback((modulo: string): boolean => {
     if (isSuperAdmin) return true;
-    
-    const permissions = getUserPermissions();
-    
-    // Verifica se tem qualquer permissão do módulo
-    return permissions.some(p => p.startsWith(`${modulo}.`) || p === modulo);
-  }, [isSuperAdmin, getUserPermissions]);
+    return hasModule(modulo);
+  }, [isSuperAdmin, hasModule]);
 
   // ============================================
   // OBTER MÓDULOS ACESSÍVEIS
@@ -99,19 +100,8 @@ export const usePermissions = (): UsePermissionsReturn => {
     if (isSuperAdmin) {
       return Object.keys(MODULE_PERMISSIONS);
     }
-    
-    const permissions = getUserPermissions();
-    const modulos = new Set<string>();
-    
-    permissions.forEach(p => {
-      const partes = p.split('.');
-      if (partes.length > 0) {
-        modulos.add(partes[0]);
-      }
-    });
-    
-    return Array.from(modulos);
-  }, [isSuperAdmin, getUserPermissions]);
+    return getUserModules();
+  }, [isSuperAdmin, getUserModules]);
 
   // ============================================
   // COMPATIBILIDADE LEGADA
@@ -123,10 +113,12 @@ export const usePermissions = (): UsePermissionsReturn => {
     [isSuperAdmin, hasModuleAccess]
   );
 
-  // Simular isManager (quem tem acesso a aprovações ou gerência)
+  // Simular isManager (quem tem acesso a aprovações ou gerência).
+  // `aprovacoes` não é módulo (as permissões vivem sob admin), então é checado
+  // pelos códigos granulares e não por hasModuleAccess.
   const isManager = useMemo(() => 
-    isSuperAdmin || hasModuleAccess('aprovacoes') || hasAnyPermission(['rh.gerenciar', 'governanca.gerenciar']),
-    [isSuperAdmin, hasModuleAccess, hasAnyPermission]
+    isSuperAdmin || hasAnyPermission(['aprovacoes.visualizar', 'aprovacoes.aprovar', 'rh.gerenciar', 'governanca.gerenciar']),
+    [isSuperAdmin, hasAnyPermission]
   );
 
   // Obter label do "role" baseado em permissões

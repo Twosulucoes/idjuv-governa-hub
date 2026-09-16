@@ -7,7 +7,9 @@
 //   3. Troca de senha obrigatória → força /trocar-senha-obrigatoria.
 //   4. Super admin → bypass total.
 //   5. requiredModule / requiredPermissions → checa via AuthContext.
-//      As permissões são hierárquicas (ter o módulo "rh" concede "rh.*").
+//      requiredModule checa o módulo (user_modules); requiredPermissions exige
+//      o código granular, que vem de role_permissions, user_permissions ou
+//      user_modules.permissions. Ter o módulo "rh" NÃO concede "rh.*".
 //   6. Sem acesso → redireciona para a página de acesso negado.
 
 import React from 'react';
