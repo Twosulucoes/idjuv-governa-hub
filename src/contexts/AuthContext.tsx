@@ -21,6 +21,8 @@ interface AuthContextType extends AuthState {
   hasAnyPermission: (codigos: PermissionCode[]) => boolean;
   hasAllPermissions: (codigos: PermissionCode[]) => boolean;
   isSuperAdmin: boolean;
+  hasModule: (modulo: string) => boolean;
+  getUserModules: () => string[];
   getUserPermissions: () => PermissionCode[];
   getPermissoesDetalhadas: () => PermissaoUsuario[];
   refreshUser: () => Promise<void>;
@@ -30,8 +32,31 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Escape hatch único para as tabelas de permissão que ainda não estão no
+// types.ts gerado. Assim que os tipos forem regerados pelo Supabase, isto sai
+// e as leituras voltam a ser tipadas pelo client.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const clienteSemTipos = () => supabase as any;
+
+// Linhas das tabelas de permissão. module_permissions_catalog,
+// user_permissions e role_permissions ainda não constam do types.ts gerado —
+// até a regeneração dos tipos, as leituras passam por `clienteSemTipos`.
+type LinhaPermissao = { permission: string };
+
+// Linha do catálogo de permissões (module_permissions_catalog)
+type CatalogoPermissao = {
+  module_code: string;
+  permission_code: string;
+  label: string;
+  category: string | null;
+  action_type: string;
+};
+
 type PermissionsResult = {
+  // Códigos granulares (modulo.recurso.acao) — união das três fontes
   permissions: PermissionCode[];
+  // Módulos concedidos ao usuário — acesso de nível de módulo, nada mais
+  modules: string[];
   permissoesDetalhadas: PermissaoUsuario[];
   isSuperAdmin: boolean;
 };
@@ -58,36 +83,86 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return cached.data;
     }
 
+    const vazio: PermissionsResult = {
+      permissions: [], modules: [], permissoesDetalhadas: [], isSuperAdmin: false,
+    };
+
     try {
-      const [rolesResponse, modulesResponse] = await Promise.all([
+      const db = clienteSemTipos();
+
+      const [rolesResponse, modulesResponse, userPermsResponse, catalogResponse] = await Promise.all([
         supabase.from('user_roles').select('role').eq('user_id', userId),
-        supabase.from('user_modules').select('module').eq('user_id', userId),
+        supabase.from('user_modules').select('module, permissions').eq('user_id', userId),
+        db.from('user_permissions').select('permission').eq('user_id', userId),
+        db.from('module_permissions_catalog').select('module_code, permission_code, label, category, action_type'),
       ]);
 
       if (rolesResponse.error) console.error('[Auth] Erro user_roles:', rolesResponse.error);
       if (modulesResponse.error) console.error('[Auth] Erro user_modules:', modulesResponse.error);
+      if (userPermsResponse.error) console.error('[Auth] Erro user_permissions:', userPermsResponse.error);
+      if (catalogResponse.error) console.error('[Auth] Erro module_permissions_catalog:', catalogResponse.error);
 
-      const isSuperAdmin = (rolesResponse.data || []).some((r: any) => r.role === 'admin');
-      const permissions: PermissionCode[] = (modulesResponse.data || []).map((m: any) => m.module as PermissionCode);
+      const roles: string[] = (rolesResponse.data ?? []).map(r => r.role as string);
+      const isSuperAdmin = roles.includes('admin');
 
-      const permissoesDetalhadas: PermissaoUsuario[] = permissions.map(p => ({
-        funcao_id: p,
-        funcao_codigo: p,
-        funcao_nome: p,
-        modulo: p,
-        submodulo: null,
-        tipo_acao: 'access',
-        perfil_nome: isSuperAdmin ? 'Super Admin' : 'Usuário',
-        rota: null,
-        icone: null,
-      }));
+      const linhasModulo = (modulesResponse.data ?? []) as { module: string; permissions: string[] | null }[];
+      const modules: string[] = linhasModulo.map(m => m.module);
 
-      const result: PermissionsResult = { permissions, permissoesDetalhadas, isSuperAdmin };
+      const catalogo = (catalogResponse.data ?? []) as CatalogoPermissao[];
+      const moduloPorCodigo = new Map(catalogo.map(c => [c.permission_code, c.module_code]));
+
+      // ── FONTE 1: concessões avulsas ao usuário ────────────────────────────
+      const codigos = new Set<PermissionCode>(
+        ((userPermsResponse.data ?? []) as LinhaPermissao[]).map(p => p.permission)
+      );
+
+      // ── FONTE 2: padrão do papel, restrito aos módulos do usuário ─────────
+      // O papel define O QUE se pode fazer; o módulo define ONDE. Sem esse
+      // recorte, o papel `user` (que recebe todos os `visualizar` do catálogo)
+      // daria leitura de financeiro a quem só tem o módulo rh.
+      if (roles.length > 0) {
+        const { data: rolePerms, error: rolePermsError } = await db
+          .from('role_permissions')
+          .select('permission')
+          .in('role', roles);
+
+        if (rolePermsError) console.error('[Auth] Erro role_permissions:', rolePermsError);
+
+        ((rolePerms ?? []) as LinhaPermissao[]).forEach(rp => {
+          const modulo = moduloPorCodigo.get(rp.permission);
+          if (modulo && modules.includes(modulo)) codigos.add(rp.permission);
+        });
+      }
+
+      // ── FONTE 3: concessões feitas dentro do módulo (painel de permissões) ─
+      linhasModulo.forEach(m => {
+        (m.permissions ?? []).forEach(codigo => codigos.add(codigo));
+      });
+
+      const permissions = Array.from(codigos);
+
+      const permissoesDetalhadas: PermissaoUsuario[] = permissions.map(codigo => {
+        const item = catalogo.find(c => c.permission_code === codigo);
+        const partes = codigo.split('.');
+        return {
+          funcao_id: codigo,
+          funcao_codigo: codigo,
+          funcao_nome: item?.label || codigo,
+          modulo: item?.module_code || partes[0],
+          submodulo: item?.category || (partes.length > 2 ? partes[1] : null),
+          tipo_acao: item?.action_type || partes[partes.length - 1],
+          perfil_nome: isSuperAdmin ? 'Super Admin' : (roles[0] || 'user'),
+          rota: null,
+          icone: null,
+        };
+      });
+
+      const result: PermissionsResult = { permissions, modules, permissoesDetalhadas, isSuperAdmin };
       permissionsCache.current.set(userId, { data: result, ts: Date.now() });
       return result;
     } catch (error) {
       console.error('[Auth] Exceção ao buscar permissões:', error);
-      return { permissions: [], permissoesDetalhadas: [], isSuperAdmin: false };
+      return vazio;
     }
   }, []);
 
@@ -103,7 +178,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ]);
 
       const profile = profileResponse.data;
-      const { permissions, permissoesDetalhadas, isSuperAdmin } = permissionsResult;
+      const { permissions, modules, permissoesDetalhadas, isSuperAdmin } = permissionsResult;
 
       return {
         id: authUser.id,
@@ -111,6 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fullName: profile?.full_name || null,
         avatarUrl: profile?.avatar_url || null,
         permissions,
+        modules,
         permissoesDetalhadas,
         isSuperAdmin,
         servidorId: profile?.servidor_id || undefined,
@@ -125,6 +201,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fullName: null,
         avatarUrl: null,
         permissions: [],
+        modules: [],
         permissoesDetalhadas: [],
         isSuperAdmin: false,
         requiresPasswordChange: false,
@@ -170,6 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             fullName: null,
             avatarUrl: null,
             permissions: [],
+            modules: [],
             permissoesDetalhadas: [],
             isSuperAdmin: false,
             requiresPasswordChange: false,
@@ -304,23 +382,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshPermissions = async () => {
     if (!user || !session?.user) return;
     permissionsCache.current.delete(session.user.id);
-    const { permissions, permissoesDetalhadas, isSuperAdmin } = await fetchPermissoes(session.user.id);
-    setUser({ ...user, permissions, permissoesDetalhadas, isSuperAdmin });
+    const { permissions, modules, permissoesDetalhadas, isSuperAdmin } = await fetchPermissoes(session.user.id);
+    setUser({ ...user, permissions, modules, permissoesDetalhadas, isSuperAdmin });
   };
 
   // ============================================
   // PERMISSÕES
   // ============================================
 
+  // Resolução de uma permissão, na ordem:
+  //   1. super admin  → passa por cima de tudo;
+  //   2. código granular concedido explicitamente (qualquer uma das 3 fontes);
+  //   3. código sem ponto ('rh', 'admin') → é um MÓDULO: basta tê-lo;
+  //   4. prefixo granular concedido ('rh.servidores' concede 'rh.servidores.editar').
+  //
+  // O módulo deliberadamente NÃO entra no passo 4: era exatamente isso que
+  // fazia ter o módulo `rh` conceder `rh.servidores.excluir`. Ação granular
+  // agora exige concessão explícita (papel, módulo ou avulsa).
   const hasPermission = useCallback((codigo: PermissionCode): boolean => {
     if (!user) return false;
     if (user.isSuperAdmin) return true;
+    // Fail closed: "sem restrição" é decidido por quem chama (o MenuContext
+    // trata item sem `permission`), não aqui.
+    if (!codigo) return false;
+
     if (user.permissions.includes(codigo)) return true;
 
     const partes = codigo.split('.');
-    for (let i = partes.length - 1; i > 0; i--) {
-      const pai = partes.slice(0, i).join('.');
-      if (user.permissions.includes(pai)) return true;
+    if (partes.length === 1) return user.modules.includes(codigo);
+
+    // Para em i > 1: o prefixo de um único segmento é o módulo, e módulo
+    // não concede ação.
+    for (let i = partes.length - 1; i > 1; i--) {
+      if (user.permissions.includes(partes.slice(0, i).join('.'))) return true;
     }
     return false;
   }, [user]);
@@ -339,6 +433,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return codigos.every(c => hasPermission(c));
   }, [user, hasPermission]);
 
+  // Acesso ao módulo (user_modules) — o "onde", independente do "o quê".
+  const hasModule = useCallback((modulo: string): boolean => {
+    if (!user) return false;
+    if (user.isSuperAdmin) return true;
+    return user.modules.includes(modulo);
+  }, [user]);
+
+  const getUserModules = useCallback((): string[] => user?.modules || [], [user]);
   const getUserPermissions = useCallback((): PermissionCode[] => user?.permissions || [], [user]);
   const getPermissoesDetalhadas = useCallback((): PermissaoUsuario[] => user?.permissoesDetalhadas || [], [user]);
 
@@ -392,6 +494,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
+    hasModule,
+    getUserModules,
     getUserPermissions,
     getPermissoesDetalhadas,
     refreshUser,
@@ -428,6 +532,8 @@ export const useAuth = () => {
         hasPermission: () => false,
         hasAnyPermission: () => false,
         hasAllPermissions: () => false,
+        hasModule: () => false,
+        getUserModules: () => [],
         getUserPermissions: () => [],
         getPermissoesDetalhadas: () => [],
         refreshUser: async () => {},

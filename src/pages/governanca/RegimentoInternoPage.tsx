@@ -165,6 +165,66 @@ const RegimentoInternoPage = () => {
                           </div>
                         </AccordionContent>
                       </AccordionItem>
+
+                      <AccordionItem value="cap3">
+                        <AccordionTrigger>Capítulo III – Da Diretoria Administrativa e Financeira</AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-4 text-sm">
+                            <p><strong>Art. 8º</strong> A Diretoria Administrativa e Financeira – DIRAF é responsável pela gestão dos recursos humanos, materiais, patrimoniais, orçamentários e financeiros do Instituto.</p>
+
+                            <p><strong>Art. 9º</strong> Compete à DIRAF:</p>
+                            <ul className="list-disc pl-6 space-y-1">
+                              <li>I – Elaborar a proposta orçamentária anual;</li>
+                              <li>II – Executar o orçamento e controlar a execução financeira;</li>
+                              <li>III – Gerenciar a folha de pagamento;</li>
+                              <li>IV – Administrar o patrimônio e o almoxarifado;</li>
+                              <li>V – Conduzir processos de aquisição e contratação;</li>
+                              <li>VI – Fiscalizar contratos administrativos;</li>
+                              <li>VII – Manter atualizados os registros contábeis;</li>
+                              <li>VIII – Elaborar prestações de contas;</li>
+                              <li>IX – Gerenciar a frota de veículos;</li>
+                              <li>X – Exercer outras atribuições correlatas.</li>
+                            </ul>
+
+                            <p><strong>Art. 10.</strong> A DIRAF compreende as seguintes divisões:</p>
+                            <ul className="list-disc pl-6">
+                              <li>I – Divisão de Contabilidade, Orçamento e Finanças (DiCOF)</li>
+                              <li>II – Divisão Administrativa e Gestão Patrimonial (DiAGP)</li>
+                              <li>III – Divisão de Recursos Humanos (DRH)</li>
+                              <li>IV – Divisão de Tecnologia da Informação (DiTI)</li>
+                            </ul>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="cap4">
+                        <AccordionTrigger>Capítulo IV – Das Diretorias Técnicas</AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-4 text-sm">
+                            <p><strong>Art. 11.</strong> A Diretoria de Esporte – DIESP é responsável pelo planejamento e execução das políticas de desenvolvimento esportivo.</p>
+
+                            <p><strong>Art. 12.</strong> Compete à DIESP:</p>
+                            <ul className="list-disc pl-6 space-y-1">
+                              <li>I – Formular políticas de esporte educacional, de participação e de rendimento;</li>
+                              <li>II – Promover eventos e competições esportivas;</li>
+                              <li>III – Apoiar a formação de atletas;</li>
+                              <li>IV – Administrar equipamentos esportivos;</li>
+                              <li>V – Articular com federações e entidades esportivas.</li>
+                            </ul>
+
+                            <p><strong>Art. 13.</strong> A Diretoria da Juventude – DIJUV é responsável pelas políticas voltadas à juventude e atividades de lazer.</p>
+
+                            <p><strong>Art. 14.</strong> Compete à DIJUV:</p>
+                            <ul className="list-disc pl-6 space-y-1">
+                              <li>I – Formular políticas públicas para juventude;</li>
+                              <li>II – Promover atividades de lazer e recreação;</li>
+                              <li>III – Fomentar a participação juvenil;</li>
+                              <li>IV – Desenvolver programas de inclusão social;</li>
+                              <li>V – Articular com conselhos e movimentos juvenis.</li>
+                            </ul>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
                     </Accordion>
                   </CardContent>
                 </Card>
@@ -195,6 +255,36 @@ const RegimentoInternoPage = () => {
                           </div>
                         </AccordionContent>
                       </AccordionItem>
+
+                      <AccordionItem value="cap2">
+                        <AccordionTrigger>Capítulo II – Das Substituições</AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-4 text-sm">
+                            <p><strong>Art. 17.</strong> Os ocupantes de cargos de direção serão substituídos, em suas faltas e impedimentos, por servidores previamente designados.</p>
+
+                            <p><strong>Art. 18.</strong> O Presidente será substituído pelo Diretor Administrativo e Financeiro nas ausências e impedimentos eventuais.</p>
+
+                            <p><strong>Art. 19.</strong> A substituição superior a 30 dias dependerá de ato do Governador do Estado.</p>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="cap3">
+                        <AccordionTrigger>Capítulo III – Das Atribuições Comuns</AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-4 text-sm">
+                            <p><strong>Art. 20.</strong> São atribuições comuns aos dirigentes:</p>
+                            <ul className="list-disc pl-6 space-y-1">
+                              <li>I – Cumprir e fazer cumprir as normas legais e regulamentares;</li>
+                              <li>II – Zelar pela disciplina e eficiência do serviço;</li>
+                              <li>III – Propor medidas de melhoria dos processos;</li>
+                              <li>IV – Elaborar relatórios de atividades;</li>
+                              <li>V – Colaborar com os demais setores;</li>
+                              <li>VI – Atender às solicitações dos órgãos de controle.</li>
+                            </ul>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
                     </Accordion>
                   </CardContent>
                 </Card>
@@ -205,11 +295,44 @@ const RegimentoInternoPage = () => {
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                       <FileText className="w-5 h-5" />
-                      Título IV – Do Regime de Trabalho
+                      Título IV – Dos Atos Administrativos
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">Conteúdo em elaboração.</p>
+                  <CardContent className="prose prose-slate max-w-none">
+                    <Accordion type="single" collapsible className="w-full">
+                      <AccordionItem value="cap1">
+                        <AccordionTrigger>Capítulo I – Dos Instrumentos Normativos</AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-4 text-sm">
+                            <p><strong>Art. 21.</strong> São instrumentos normativos do IDJUV:</p>
+                            <ul className="list-disc pl-6 space-y-1">
+                              <li>I – Portaria: ato de competência do Presidente para regulamentar matérias de caráter geral;</li>
+                              <li>II – Instrução Normativa: ato de competência do Presidente ou Diretores para disciplinar procedimentos;</li>
+                              <li>III – Ordem de Serviço: ato de competência dos dirigentes para organização interna;</li>
+                              <li>IV – Despacho: manifestação em processos administrativos;</li>
+                              <li>V – Parecer: opinião técnica fundamentada.</li>
+                            </ul>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="cap2">
+                        <AccordionTrigger>Capítulo II – Da Delegação de Competência</AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-4 text-sm">
+                            <p><strong>Art. 22.</strong> O Presidente poderá delegar competências aos Diretores, mediante portaria, exceto:</p>
+                            <ul className="list-disc pl-6">
+                              <li>I – Edição de atos normativos;</li>
+                              <li>II – Nomeação e exoneração de cargos;</li>
+                              <li>III – Celebração de contratos e convênios de valor superior ao limite estabelecido;</li>
+                              <li>IV – Representação institucional de alto nível.</li>
+                            </ul>
+
+                            <p><strong>Art. 23.</strong> A delegação especificará as matérias e poderes transferidos, sendo sempre revogável.</p>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -219,11 +342,49 @@ const RegimentoInternoPage = () => {
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                       <Shield className="w-5 h-5" />
-                      Título V – Do Patrimônio e Finanças
+                      Título V – Do Regime Disciplinar
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">Conteúdo em elaboração.</p>
+                  <CardContent className="prose prose-slate max-w-none">
+                    <Accordion type="single" collapsible className="w-full">
+                      <AccordionItem value="cap1">
+                        <AccordionTrigger>Capítulo I – Dos Deveres</AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-4 text-sm">
+                            <p><strong>Art. 24.</strong> São deveres dos servidores do IDJUV:</p>
+                            <ul className="list-disc pl-6 space-y-1">
+                              <li>I – Exercer com zelo e dedicação as atribuições do cargo;</li>
+                              <li>II – Ser leal às instituições;</li>
+                              <li>III – Observar as normas legais e regulamentares;</li>
+                              <li>IV – Cumprir as ordens superiores, salvo quando manifestamente ilegais;</li>
+                              <li>V – Atender com presteza ao público;</li>
+                              <li>VI – Guardar sigilo sobre assuntos da repartição;</li>
+                              <li>VII – Zelar pela economia do material e conservação do patrimônio;</li>
+                              <li>VIII – Manter conduta compatível com a moralidade administrativa.</li>
+                            </ul>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="cap2">
+                        <AccordionTrigger>Capítulo II – Das Proibições</AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-4 text-sm">
+                            <p><strong>Art. 25.</strong> Ao servidor é proibido:</p>
+                            <ul className="list-disc pl-6 space-y-1">
+                              <li>I – Ausentar-se do serviço durante o expediente sem prévia autorização;</li>
+                              <li>II – Recusar fé a documentos públicos;</li>
+                              <li>III – Opor resistência injustificada ao andamento de processos;</li>
+                              <li>IV – Promover manifestação de apreço ou desapreço no recinto da repartição;</li>
+                              <li>V – Cometer a pessoa estranha à repartição o desempenho de atribuição do cargo;</li>
+                              <li>VI – Valer-se do cargo para lograr proveito pessoal;</li>
+                              <li>VII – Exercer atividade incompatível com o cargo;</li>
+                              <li>VIII – Receber propina, comissão, presente ou vantagem indevida.</li>
+                            </ul>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -236,8 +397,26 @@ const RegimentoInternoPage = () => {
                       Título VI – Das Disposições Finais
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">Conteúdo em elaboração.</p>
+                  <CardContent className="prose prose-slate max-w-none">
+                    <div className="space-y-4 text-sm">
+                      <p><strong>Art. 26.</strong> Os casos omissos neste Regimento serão resolvidos pelo Presidente, ouvida a Assessoria Jurídica quando necessário.</p>
+
+                      <p><strong>Art. 27.</strong> As disposições deste Regimento poderão ser complementadas por Instruções Normativas e Portarias.</p>
+
+                      <p><strong>Art. 28.</strong> Compete ao Controle Interno acompanhar o cumprimento deste Regimento e propor atualizações.</p>
+
+                      <p><strong>Art. 29.</strong> Este Regimento entra em vigor na data de sua publicação no Diário Oficial do Estado.</p>
+
+                      <div className="mt-6 p-4 bg-muted rounded-lg">
+                        <h4 className="font-semibold mb-2">Referências Normativas</h4>
+                        <ul className="text-sm space-y-1">
+                          <li>• Lei nº 2.301, de 29 de dezembro de 2025 (Criação do IDJUV)</li>
+                          <li>• Lei Complementar Estadual nº 053/2001</li>
+                          <li>• Decreto Regulamentador do IDJUV</li>
+                          <li>• Lei Estadual nº 053/2001 (Estatuto dos Servidores)</li>
+                        </ul>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>

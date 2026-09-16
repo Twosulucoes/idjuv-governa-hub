@@ -15,7 +15,8 @@ import {
   Briefcase,
   Target,
   Layers,
-  FileDown
+  FileDown,
+  FileText
 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { RelatorioEstruturaDialog } from '@/components/relatorios/RelatorioEstruturaDialog';
@@ -451,6 +452,91 @@ export default function EstruturaOrganizacionalPage() {
             </div>
           </section>
         </div>
+
+        {/* Diagrama de vínculos — leitura rápida da hierarquia */}
+        <Card className="mt-8 bg-muted/30">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Network className="h-5 w-5 text-primary" />
+              Diagrama de Vínculos
+            </CardTitle>
+            <CardDescription>Representação visual da hierarquia e subordinação</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col items-center space-y-4">
+              <div className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-bold text-center">
+                PRESIDÊNCIA
+              </div>
+              <div className="w-px h-6 bg-border" />
+
+              <div className="w-full max-w-3xl">
+                <div className="text-center text-xs text-muted-foreground mb-2">Assessoramento</div>
+                <div className="flex justify-center flex-wrap gap-2">
+                  {['Gabinete', 'Jurídico', 'ASCOM', 'Controle Interno', 'CPL'].map((item) => (
+                    <Badge key={item} variant="secondary" className="text-xs">{item}</Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="w-px h-6 bg-border" />
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-3xl">
+                <div className="text-center">
+                  <div className="px-4 py-2 bg-accent text-accent-foreground rounded-lg font-semibold text-sm">
+                    DIRAF
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Instrumental</p>
+                </div>
+                <div className="text-center">
+                  <div className="px-4 py-2 bg-info text-primary-foreground rounded-lg font-semibold text-sm">
+                    DIESP
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Programática</p>
+                </div>
+                <div className="text-center">
+                  <div className="px-4 py-2 bg-success text-success-foreground rounded-lg font-semibold text-sm">
+                    DIJUV
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Programática</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Rodapé legal */}
+        <Card className="mt-8 border-dashed">
+          <CardContent className="py-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="font-medium text-foreground">Base Legal</p>
+                  <p className="text-sm text-muted-foreground">
+                    Lei nº 2.301, de 29 de dezembro de 2025 — dispõe sobre a criação do IDJUV
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Link to="/governanca/lei-criacao">
+                  <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                    <FileText className="h-3 w-3 mr-1" />
+                    Ver Lei Completa
+                  </Badge>
+                </Link>
+                <Link to="/transparencia/cargos">
+                  <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                    <Users className="h-3 w-3 mr-1" />
+                    Ver Cargos
+                  </Badge>
+                </Link>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Última atualização: {resumo?.ultima_atualizacao || '29/12/2025'}
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </ModuleLayout>
   );

@@ -50,8 +50,12 @@ export interface AuthUser {
   email: string;
   fullName: string | null;
   avatarUrl: string | null;
-  // Lista de códigos de permissão do banco
+  // Códigos de permissão granulares (modulo.recurso.acao), união de
+  // user_permissions + role_permissions + user_modules.permissions
   permissions: PermissionCode[];
+  // Módulos concedidos (user_modules.module). Dão acesso ao módulo — e só a
+  // isso: as ações dentro dele exigem o código granular correspondente.
+  modules: string[];
   // Dados estruturados de permissões (opcional para cache)
   permissoesDetalhadas?: PermissaoUsuario[];
   // Flag se é super_admin (bypass de todas as permissões)
