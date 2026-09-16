@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import decretoPdf from "@tenants/idjuv/assets/documentos/DOE_5091_23-01-2026_Decreto_39840-E.pdf?url";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,7 @@ const DecretoPage = () => {
   const { obterValor } = useDadosOficiais();
 
   const handleDownload = () => {
-    window.open('/documentos/DOE_5091_23-01-2026_Decreto_39840-E.pdf', '_blank');
+    window.open(decretoPdf, '_blank');
   };
 
   return (
