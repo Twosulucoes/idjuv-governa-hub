@@ -3,13 +3,20 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FileText, Building2, MapPin, Phone, Mail, Clock } from "lucide-react";
-import { LogoIdjuv, logoIdjuvOficial } from "@/components/ui/LogoIdjuv";
-import { getMarcaAssets } from '@/core/tenant';
-
-// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
-const { entidadeSuperiorLight: logoGoverno } = getMarcaAssets();
+import { Logo, LogoEntidadeSuperior } from "@/components/ui/Logo";
+import { useTenant } from '@/core/tenant';
 
 export default function HomeSimplesPage() {
+  const { identidade, contato, endereco } = useTenant();
+
+  const linhasEndereco = [
+    [endereco?.logradouro, endereco?.numero].filter(Boolean).join(', '),
+    [endereco?.bairro].filter(Boolean).join(''),
+    [[endereco?.cidade, endereco?.uf].filter(Boolean).join(' - '), endereco?.cep]
+      .filter(Boolean)
+      .join(', '),
+  ].filter(Boolean);
+
   return (
     <MainLayout>
       {/* Hero */}
@@ -17,16 +24,16 @@ export default function HomeSimplesPage() {
         <div className="container mx-auto px-4">
           <div className="flex flex-col lg:flex-row items-center gap-10">
             <div className="bg-white/95 rounded-2xl p-6 shadow-2xl flex-shrink-0">
-              <img
-                src={logoIdjuvOficial}
-                alt="IDJUV - Instituto de Desporto, Juventude e Lazer"
-                className="h-32 md:h-40 w-auto object-contain"
+              <Logo
+                variant="light"
+                className="h-32 md:h-40 w-auto"
               />
             </div>
             <div className="flex-1 text-center lg:text-left">
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 leading-tight">
-                Instituto de Desporto, Juventude e Lazer de Roraima
+                {identidade.nomeOficial}
               </h1>
+              {/* TODO (White Label — Fase 5): chamada editorial, vai para CMS. */}
               <p className="text-lg md:text-xl opacity-90 mb-8 max-w-2xl">
                 Autarquia pública estadual dedicada ao desenvolvimento do esporte,
                 da juventude e do lazer no Estado de Roraima.
@@ -63,6 +70,8 @@ export default function HomeSimplesPage() {
               Quem Somos
             </h2>
             <p className="text-muted-foreground leading-relaxed">
+              {/* TODO (White Label — Fase 5): texto institucional editorial.
+                  Vira conteúdo de CMS/banco, como as normas em governanca/. */}
               O IDJUV é responsável por desenvolver e executar políticas públicas
               voltadas ao esporte, à juventude e ao lazer em Roraima, promovendo
               o desenvolvimento integral da juventude roraimense.
@@ -86,8 +95,12 @@ export default function HomeSimplesPage() {
                   <div>
                     <h3 className="font-semibold text-foreground">Endereço</h3>
                     <p className="text-muted-foreground text-sm">
-                      Av. Ville Roy, 4935 - São Pedro<br />
-                      Boa Vista - RR, 69306-665
+                      {linhasEndereco.map((linha, i) => (
+                        <span key={linha}>
+                          {linha}
+                          {i < linhasEndereco.length - 1 && <br />}
+                        </span>
+                      ))}
                     </p>
                   </div>
                 </div>
@@ -98,7 +111,7 @@ export default function HomeSimplesPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground">Telefone</h3>
-                    <p className="text-muted-foreground text-sm">(95) 3621-0000</p>
+                    <p className="text-muted-foreground text-sm">{contato?.telefone}</p>
                   </div>
                 </div>
 
@@ -108,7 +121,7 @@ export default function HomeSimplesPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground">E-mail</h3>
-                    <p className="text-muted-foreground text-sm">contato@idjuv.rr.gov.br</p>
+                    <p className="text-muted-foreground text-sm">{contato?.email}</p>
                   </div>
                 </div>
 
@@ -123,11 +136,10 @@ export default function HomeSimplesPage() {
                 </div>
 
                 <div className="pt-4 border-t border-border flex items-center justify-center gap-6">
-                  <LogoIdjuv className="h-12 w-auto" />
-                  <img
-                    src={logoGoverno}
-                    alt="Governo de Roraima"
-                    className="h-12 w-auto rounded object-contain"
+                  <Logo className="h-12 w-auto" />
+                  <LogoEntidadeSuperior
+                    variant="light"
+                    className="h-12 w-auto rounded"
                   />
                 </div>
               </CardContent>

@@ -13,14 +13,14 @@ import {
 } from "@/components/ui/navigation-menu";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
+import { Logo } from "@/components/ui/Logo";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { useConfigMenuPublico } from "@/hooks/useConfigMenuPublico";
 
-import { getMarcaAssets } from '@/core/tenant';
+import { useTenant } from '@/core/tenant';
+import { LogoEntidadeSuperior } from '@/components/ui/Logo';
 
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
-const { entidadeSuperiorLight: logoGoverno } = getMarcaAssets();
 
 const menuItems = [
   // Itens no ar (visíveis por padrão). Os demais grupos abaixo ficam ocultos
@@ -115,6 +115,7 @@ export function Header() {
   const location = useLocation();
   const { resolvedTheme, setTheme } = useTheme();
   const { isAuthenticated, signOut, user } = useAuth();
+  const { entidadeSuperior } = useTenant();
   const { data: configMenu, isLoading: menuLoading, isError: menuError } = useConfigMenuPublico();
 
   // Fail-open: mostra todos os itens enquanto carrega, em erro, ou se o item
@@ -162,17 +163,17 @@ export function Header() {
         <div className="container mx-auto px-4 py-2 flex justify-between items-center">
           <div className="flex items-center gap-3">
             {/* Logo Governo - com container apenas onde necessário */}
-            <div className="logo-container-gov">
-              <img 
-                src={logoGoverno} 
-                alt="Governo do Estado de Roraima" 
-                className="logo-gov w-auto"
-              />
-            </div>
-            <div className="hidden sm:block h-5 w-px bg-primary-foreground/20 dark:bg-border" />
-            <span className="hidden sm:block text-xs font-medium text-primary-foreground/90 dark:text-foreground/80">
-              Governo de Roraima
-            </span>
+{entidadeSuperior && (
+              <>
+                <div className="logo-container-gov">
+                  <LogoEntidadeSuperior variant="light" className="logo-gov w-auto" />
+                </div>
+                <div className="hidden sm:block h-5 w-px bg-primary-foreground/20 dark:bg-border" />
+                <span className="hidden sm:block text-xs font-medium text-primary-foreground/90 dark:text-foreground/80">
+                  {entidadeSuperior.nome}
+                </span>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -205,9 +206,9 @@ export function Header() {
       <div className="bg-background/98 backdrop-blur-md border-b border-border/50 shadow-sm">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            {/* Logo IDJUV - SEM container, direta */}
+            {/* Logo do órgão — sem container, direta */}
             <Link to="/" className="flex items-center group flex-shrink-0">
-              <LogoIdjuv 
+              <Logo 
                 className="logo-header transition-transform group-hover:scale-[1.02]"
               />
             </Link>
@@ -290,7 +291,7 @@ export function Header() {
           <div className="lg:hidden fixed inset-x-0 top-0 bottom-0 bg-background z-50 flex flex-col animate-fade-in safe-area-inset-bottom">
             {/* Header do menu mobile */}
             <div className="flex items-center justify-between p-4 border-b bg-background sticky top-0 z-10 safe-area-inset-top">
-              <LogoIdjuv className="h-8" />
+              <Logo className="h-8" />
               <Button
                 variant="ghost"
                 size="icon"

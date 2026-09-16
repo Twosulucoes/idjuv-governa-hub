@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { useMenu, type MenuItemFiltered, type MenuSectionFiltered } from "@/contexts/MenuContext";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
+import { Logo } from "@/components/ui/Logo";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
@@ -29,7 +29,9 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { MenuSearch } from "./MenuSearch";
 
+import { useIdentidade } from '@/core/tenant';
 export function MenuDrawerMobile() {
+  const { sigla } = useIdentidade();
   const {
     sections,
     dashboard,
@@ -152,8 +154,8 @@ export function MenuDrawerMobile() {
               className="flex items-center gap-2" 
               onClick={() => setMobileDrawerOpen(false)}
             >
-              <LogoIdjuv className="h-8" />
-              <SheetTitle className="text-base font-semibold">IDJUV</SheetTitle>
+              <Logo className="h-8" />
+              <SheetTitle className="text-base font-semibold">{sigla}</SheetTitle>
             </Link>
             <Button variant="ghost" size="icon" onClick={() => setMobileDrawerOpen(false)}>
               <X className="h-5 w-5" />

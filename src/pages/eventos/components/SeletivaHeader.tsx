@@ -4,7 +4,7 @@
 
 import { Link } from "react-router-dom";
 import { Instagram } from "lucide-react";
-import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
+import { Logo } from "@/components/ui/Logo";
 import { FaixaBrasil } from "@/components/ui/FaixaBrasil";
 import { getMarcaAssets } from '@/core/tenant';
 
@@ -18,7 +18,7 @@ export function SeletivaHeader() {
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link to="/" className="flex items-center gap-3">
-            <LogoIdjuv variant="auto" className="h-10" />
+            <Logo variant="auto" className="h-10" />
           </Link>
           <div className="h-8 w-px bg-border" />
           <img 

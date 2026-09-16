@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { Calendar, MapPin } from "lucide-react";
 import { DotsIndicator } from "./DecorativeElements";
 import { SportIcon } from "./SportIcon";
-import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
+import { Logo } from "@/components/ui/Logo";
 import { getMarcaAssets } from '@/core/tenant';
 
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).

@@ -3,7 +3,7 @@
  * Design minimalista P&B
  */
 
-import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
+import { Logo } from "@/components/ui/Logo";
 import { getMarcaAssets } from '@/core/tenant';
 
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
@@ -20,7 +20,7 @@ export function SeletivaFooterV2() {
             <span className="block uppercase text-lg tracking-[0.5em]">ESPORTE</span>
           </p>
           
-          <LogoIdjuv variant="dark" className="h-12" />
+          <Logo variant="dark" className="h-12" />
           
           <img 
             src={logoGovernoDark} 

@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Menu, X, ChevronDown, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
+import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
 import { getMarcaAssets } from '@/core/tenant';
 
@@ -51,7 +51,7 @@ export function PortalHeader() {
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
             <Link to="/" className="flex items-center">
-              <LogoIdjuv 
+              <Logo 
                 variant={isScrolled ? "auto" : "dark"} 
                 className="h-10 md:h-12" 
               />

@@ -1,14 +1,14 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { MapPin, Phone, Mail, Clock, ExternalLink } from "lucide-react";
-import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
+import { Logo } from "@/components/ui/Logo";
 import { useDadosOficiais } from "@/hooks/useDadosOficiais";
 import { SystemCredits } from "./SystemCredits";
 
-import { getMarcaAssets } from '@/core/tenant';
+import { useTenant } from '@/core/tenant';
+import { LogoEntidadeSuperior } from '@/components/ui/Logo';
 
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
-const { entidadeSuperiorLight: logoGoverno } = getMarcaAssets();
 
 export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
   (props, ref) => {
@@ -19,6 +19,10 @@ export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
       enderecoCompleto,
       emailInstitucional 
     } = useDadosOficiais();
+    const {
+      entidadeSuperior,
+      identidade: { sigla },
+    } = useTenant();
 
     return (
       <footer ref={ref} className="border-t border-border" {...props}>
@@ -31,8 +35,8 @@ export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
               {/* Institucional */}
               <div className="lg:col-span-1">
                 <div className="flex items-center gap-3 mb-5">
-                  {/* Logo IDJUV - versão dark para fundos escuros */}
-                  <LogoIdjuv 
+                  {/* Logo do órgão — versão para fundos escuros */}
+                  <Logo 
                     variant="dark"
                     className="logo-footer"
                   />
@@ -41,19 +45,17 @@ export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
                   {nomeOficial}. Autarquia vinculada 
                   à {vinculacao}.
                 </p>
-                <div className="flex items-center gap-3 pt-2">
-                  {/* Logo Governo - precisa de container branco */}
-                  <div className="logo-container-gov">
-                    <img 
-                      src={logoGoverno} 
-                      alt="Governo de Roraima" 
-                      className="logo-gov w-auto"
-                    />
+{entidadeSuperior && (
+                  <div className="flex items-center gap-3 pt-2">
+                    {/* Entidade superior precisa de container branco */}
+                    <div className="logo-container-gov">
+                      <LogoEntidadeSuperior variant="light" className="logo-gov w-auto" />
+                    </div>
+                    <span className="text-xs text-primary-foreground/60 dark:text-muted-foreground">
+                      {entidadeSuperior.nome}
+                    </span>
                   </div>
-                  <span className="text-xs text-primary-foreground/60 dark:text-muted-foreground">
-                    Governo de Roraima
-                  </span>
-                </div>
+                )}
               </div>
 
               {/* Links Rápidos */}
@@ -88,7 +90,7 @@ export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
                 <ul className="space-y-3">
                   <li className="flex items-start gap-3 text-sm text-primary-foreground/70 dark:text-muted-foreground">
                     <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary-foreground/50 dark:text-muted-foreground" />
-                    <span>{enderecoCompleto || 'Boa Vista, Roraima - RR'}</span>
+                    <span>{enderecoCompleto}</span>
                   </li>
                   <li className="flex items-center gap-3 text-sm text-primary-foreground/70 dark:text-muted-foreground">
                     <Phone className="w-4 h-4 flex-shrink-0 text-primary-foreground/50 dark:text-muted-foreground" />
@@ -111,7 +113,7 @@ export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
                   Área Restrita
                 </h4>
                 <p className="text-sm text-primary-foreground/70 dark:text-muted-foreground mb-4">
-                  Acesso exclusivo para servidores do IDJUV com login institucional.
+                  Acesso exclusivo para servidores do {sigla} com login institucional.
                 </p>
                 <Link
                   to="/acesso"
@@ -127,9 +129,11 @@ export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
               <p className="text-xs text-primary-foreground/60 dark:text-muted-foreground text-center md:text-left">
                 © {new Date().getFullYear()} {nomeCurto} - {nomeOficial}
               </p>
-              <p className="text-xs text-primary-foreground/60 dark:text-muted-foreground">
-                Governo do Estado de Roraima
-              </p>
+{entidadeSuperior && (
+                <p className="text-xs text-primary-foreground/60 dark:text-muted-foreground">
+                  {entidadeSuperior.nome}
+                </p>
+              )}
             </div>
 
             {/* Créditos técnicos */}

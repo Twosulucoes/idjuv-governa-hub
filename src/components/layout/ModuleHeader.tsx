@@ -7,7 +7,7 @@
  */
 
 import { Link } from "react-router-dom";
-import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
+import { Logo } from "@/components/ui/Logo";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { MODULES_CONFIG, type Modulo } from "@/shared/config/modules.config";
 import { cn } from "@/lib/utils";
@@ -27,7 +27,7 @@ export function ModuleHeader({ module, children }: ModuleHeaderProps) {
       <div className="flex items-center gap-4">
         {children}
         <Link to="/sistema" className="flex items-center gap-2">
-          <LogoIdjuv className="h-8" />
+          <Logo className="h-8" />
         </Link>
         
         {moduleConfig && (

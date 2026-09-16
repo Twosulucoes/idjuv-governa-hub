@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { Calendar, MapPin, Users, Trophy, ArrowRight, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FaixaBrasil } from "@/components/ui/FaixaBrasil";
-import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
+import { Logo } from "@/components/ui/Logo";
 
 // Componentes específicos
 import { SeletivaHeader } from "./components/SeletivaHeader";
@@ -432,7 +432,7 @@ export default function SeletivaEstudantilPage() {
         <div className="container mx-auto max-w-6xl">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-6">
-              <LogoIdjuv variant="auto" className="h-12" />
+              <Logo variant="auto" className="h-12" />
               <div className="h-8 w-px bg-border" />
               <div className="text-sm text-muted-foreground">
                 <span className="font-medium block">Diretoria de Esporte</span>

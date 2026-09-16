@@ -5,7 +5,7 @@
 
 import { Link } from "react-router-dom";
 import { Instagram, Moon, Sun } from "lucide-react";
-import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
+import { Logo } from "@/components/ui/Logo";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 
@@ -22,8 +22,8 @@ export function SeletivaHeaderV2() {
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link to="/" className="flex items-center gap-3">
-            <LogoIdjuv variant="light" className="h-8 dark:hidden" />
-            <LogoIdjuv variant="dark" className="h-8 hidden dark:block" />
+            <Logo variant="light" className="h-8 dark:hidden" />
+            <Logo variant="dark" className="h-8 hidden dark:block" />
           </Link>
           <div className="h-6 w-px bg-zinc-400 dark:bg-zinc-600" />
           <img 
