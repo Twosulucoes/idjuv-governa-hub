@@ -52,6 +52,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 
+import { getMarcaAssets } from '@/core/tenant';
 interface RelatorioPortariasDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -233,9 +234,12 @@ export function RelatorioPortariasDialog({
               img.src = src;
             });
           
+          const marca = getMarcaAssets();
           [logoGov, logoIdjuv] = await Promise.all([
-            loadImg('/assets/logo-governo-roraima.jpg').catch(() => null),
-            loadImg('/assets/logo-idjuv-oficial.png').catch(() => null),
+            marca.entidadeSuperiorLight
+              ? loadImg(marca.entidadeSuperiorLight).catch(() => null)
+              : Promise.resolve(null),
+            loadImg(marca.logoLight).catch(() => null),
           ]);
         } catch {
           // Continua sem logos

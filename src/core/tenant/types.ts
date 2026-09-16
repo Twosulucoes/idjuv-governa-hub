@@ -71,8 +71,35 @@ export interface TenantEntidadeSuperior {
   exibirEmDocumentos: boolean;
 }
 
+/**
+ * Imagens da instituição, resolvidas pelo bundler.
+ *
+ * Os valores são URLs finais (com hash), produzidas pelo import estático em
+ * `tenants/<slug>/tenant.config.ts`. O núcleo NUNCA importa de `@/assets` uma
+ * imagem de cliente — lê daqui.
+ *
+ * Os ícones (favicon/PWA) aparecem aqui para consumo em runtime; a injeção no
+ * `index.html` e no manifest é de BUILD e usa `tenants/<slug>/metadata.ts`,
+ * que não importa binário e por isso pode ser lido pelo `vite.config.ts`.
+ */
+export interface TenantAssets {
+  /** Logo do órgão para fundos claros. */
+  logoLight: string;
+  /** Logo do órgão para fundos escuros. */
+  logoDark: string;
+  /** Logo da entidade superior (co-branding), fundos claros. */
+  entidadeSuperiorLight?: string;
+  /** Logo da entidade superior, fundos escuros. */
+  entidadeSuperiorDark?: string;
+  favicon: string;
+  appleTouchIcon: string;
+  pwa192: string;
+  pwa512: string;
+}
+
 export interface TenantMarca {
   paleta: Paleta;
+  assets: TenantAssets;
   /**
    * Cor institucional canônica em hex. É a MESMA cor de `paleta.light.primary`,
    * materializada para consumidores que não leem CSS (jsPDF, e-mails, manifest).

@@ -2,9 +2,12 @@ import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-import logoGovernoSrc from '@/assets/logo-governo-roraima.jpg';
-import logoIDJUVOficialSrc from '@/assets/logo-idjuv-oficial.png';
 import { getLogosPDF } from './pdfLogos';
+
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { entidadeSuperiorLight: logoGovernoSrc, logoLight: logoIDJUVOficialSrc } = getMarcaAssets();
 
 // ================================================================
 // GERADOR DE PDF - RELATÓRIO SIMPLIFICADO DE FOLHA

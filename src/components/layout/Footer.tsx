@@ -1,10 +1,14 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { MapPin, Phone, Mail, Clock, ExternalLink } from "lucide-react";
-import logoGoverno from "@/assets/logo-governo-roraima.jpg";
 import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
 import { useDadosOficiais } from "@/hooks/useDadosOficiais";
 import { SystemCredits } from "./SystemCredits";
+
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { entidadeSuperiorLight: logoGoverno } = getMarcaAssets();
 
 export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
   (props, ref) => {

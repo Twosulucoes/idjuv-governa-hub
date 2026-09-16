@@ -26,10 +26,12 @@
  */
 
 import jsPDF from 'jspdf';
-import logoGovernoSrc from '@/assets/logo-governo-roraima.jpg';
-import logoIDJUVOficialSrc from '@/assets/logo-idjuv-oficial.png';
-import logoIDJUVDarkSrc from '@/assets/logo-idjuv-dark4.png';
 import { LOGO_ASPECTOS, getLogosPDF } from './pdfLogos';
+
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { entidadeSuperiorLight: logoGovernoSrc, logoDark: logoIDJUVDarkSrc, logoLight: logoIDJUVOficialSrc } = getMarcaAssets();
 
 // ============ CORES INSTITUCIONAIS ============
 export const CORES_INSTITUCIONAIS = {

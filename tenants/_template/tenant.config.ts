@@ -15,6 +15,17 @@
 
 import type { TenantConfig } from '@/core/tenant/types';
 
+// Placeholders neutros. Ao provisionar um cliente, troque os arquivos em
+// `assets/` mantendo os nomes — nenhum código precisa mudar.
+import logoLight from './assets/logo-light.png';
+import logoDark from './assets/logo-dark.png';
+import entidadeSuperiorLight from './assets/entidade-superior.png';
+import entidadeSuperiorDark from './assets/entidade-superior-dark.png';
+import favicon from './assets/favicon.png';
+import appleTouchIcon from './assets/apple-touch-icon.png';
+import pwa192 from './assets/pwa-192x192.png';
+import pwa512 from './assets/pwa-512x512.png';
+
 export const templateConfig: TenantConfig = {
   slug: '_template',
 
@@ -30,6 +41,17 @@ export const templateConfig: TenantConfig = {
   entidadeSuperior: undefined,
 
   marca: {
+    assets: {
+      logoLight,
+      logoDark,
+      entidadeSuperiorLight,
+      entidadeSuperiorDark,
+      favicon,
+      appleTouchIcon,
+      pwa192,
+      pwa512,
+    },
+
     // Azul-cinza neutro de produto — deliberadamente sem personalidade.
     corPrimariaHex: '#334155',
 

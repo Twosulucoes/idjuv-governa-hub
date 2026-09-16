@@ -13,8 +13,12 @@ import {
   Heart
 } from "lucide-react";
 import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
-import logoGoverno from "@/assets/logo-governo-roraima.jpg";
 import { useDadosOficiais } from "@/hooks/useDadosOficiais";
+
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { entidadeSuperiorLight: logoGoverno } = getMarcaAssets();
 
 // Configuração das redes sociais oficiais do IDJUV
 const SOCIAL_CONFIG = {

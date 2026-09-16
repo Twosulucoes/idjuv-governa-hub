@@ -2,7 +2,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Rocket, Lock, Sparkles, LogIn } from "lucide-react";
 import { Link } from "react-router-dom";
-import logoIdjuv from "@/assets/logo-idjuv-oficial.png";
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { logoLight: logoIdjuv } = getMarcaAssets();
 
 export default function EmBrevePage() {
   return (

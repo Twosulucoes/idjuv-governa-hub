@@ -36,9 +36,12 @@ import {
 } from './pdfFrequenciaMensalGenerator';
 
 // Importar logos para a capa
-import logoGoverno from '@/assets/logo-governo-roraima.jpg';
-import logoIdjuv from '@/assets/logo-idjuv-oficial.png';
 import { getLogosPDF } from './pdfLogos';
+
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { entidadeSuperiorLight: logoGoverno, logoLight: logoIdjuv } = getMarcaAssets();
 
 // ============================================
 // INTERFACES
