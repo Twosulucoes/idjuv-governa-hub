@@ -25,10 +25,12 @@ import {
 import { Logo } from "@/components/ui/Logo";
 import { getMarcaAssets } from '@/core/tenant';
 
+import { useTenant } from '@/core/tenant';
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
 const { entidadeSuperiorLight: logoGoverno } = getMarcaAssets();
 
 export default function ApresentacaoPage() {
+  const { contato } = useTenant();
   const valores = [
     { icon: Heart, titulo: "Compromisso", descricao: "Dedicação integral ao desenvolvimento da juventude roraimense" },
     { icon: Users, titulo: "Inclusão", descricao: "Políticas públicas acessíveis a todos os jovens do estado" },
@@ -475,7 +477,7 @@ export default function ApresentacaoPage() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-foreground">Telefone</h4>
-                      <p className="text-muted-foreground">(95) 3621-0000</p>
+                      <p className="text-muted-foreground">{contato?.telefone}</p>
                     </div>
                   </div>
 
@@ -485,7 +487,7 @@ export default function ApresentacaoPage() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-foreground">E-mail</h4>
-                      <p className="text-muted-foreground">contato@idjuv.rr.gov.br</p>
+                      <p className="text-muted-foreground">{contato?.email}</p>
                     </div>
                   </div>
 

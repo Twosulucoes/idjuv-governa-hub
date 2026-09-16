@@ -59,10 +59,10 @@ export const STATUS_GESTOR_CONFIG: Record<StatusGestor, {
   },
   problema: {
     label: 'Problema',
-    description: 'Houve um problema com seu cadastro. Entre em contato com a equipe IDJuv.',
+    description: 'Houve um problema com seu cadastro. Entre em contato com a equipe responsável.',
     color: 'text-red-700',
     bgColor: 'bg-red-100',
-    proximoPasso: 'Entre em contato com a equipe IDJuv pelo telefone (95) 3621-3232.',
+    proximoPasso: 'Entre em contato com a equipe responsável pelos canais oficiais do órgão.',
   },
 };
 

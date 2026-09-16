@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
+import { useTenant } from "@/core/tenant";
 interface LicitacaoPublica {
   id: string;
   numero_processo: string;
@@ -34,6 +35,7 @@ interface LicitacaoPublica {
 }
 
 export default function LicitacoesPublicasPage() {
+  const { integracoes } = useTenant();
   const [filtroAno, setFiltroAno] = useState<string>("todos");
   const [filtroModalidade, setFiltroModalidade] = useState<string>("todos");
   const [busca, setBusca] = useState("");
@@ -313,7 +315,7 @@ export default function LicitacoesPublicasPage() {
               Contratos com pessoa física não são exibidos para proteção de dados pessoais.
             </p>
             <a 
-              href="https://transparencia.rr.gov.br"
+              href={integracoes?.portalTransparenciaUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-primary hover:underline text-sm font-medium"

@@ -144,6 +144,7 @@ export const idjuvConfig: TenantConfig = {
   contato: {
     email: 'idjuv.gab@gmail.com',
     telefone: '(95) 9133-0044',
+    emailSuporte: 'ti@idjuv.rr.gov.br',
     redesSociais: {
       instagram: 'idjuv_rr',
       facebook: 'idjuvrr',

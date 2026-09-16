@@ -7,19 +7,26 @@ import { Button } from "@/components/ui/button";
 import { useTransparenciaPublicacoesPublicas } from "@/hooks/useTransparenciaPublicacoes";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
-const transparenciaItems = [
-  {
-    title: "Portal da Transparência",
-    description: "Acesso ao portal de transparência do Governo do Estado de Roraima",
-    icon: ExternalLink,
-    external: true,
-    href: "https://transparencia.rr.gov.br",
-  },
-];
+import { useTenant } from "@/core/tenant";
 
 export default function TransparenciaPage() {
   const { publicacoes, isLoading } = useTransparenciaPublicacoesPublicas();
+  const { entidadeSuperior, integracoes } = useTenant();
+
+  // O portal externo é do tenant: só entra na lista se a instituição o declarou.
+  const transparenciaItems = integracoes?.portalTransparenciaUrl
+    ? [
+        {
+          title: "Portal da Transparência",
+          description: `Acesso ao portal de transparência${
+            entidadeSuperior ? ` do ${entidadeSuperior.nome}` : ""
+          }`,
+          icon: ExternalLink,
+          external: true,
+          href: integracoes.portalTransparenciaUrl,
+        },
+      ]
+    : [];
 
   return (
     <MainLayout>
@@ -142,10 +149,10 @@ export default function TransparenciaPage() {
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
                 Para solicitar informações não disponíveis neste portal, utilize o 
-                Serviço de Informação ao Cidadão (SIC) do Estado de Roraima.
+                Serviço de Informação ao Cidadão (SIC){entidadeSuperior ? ` do ${entidadeSuperior.nome}` : ""}.
               </p>
               <a 
-                href="https://transparencia.rr.gov.br" 
+                href={integracoes?.portalTransparenciaUrl}
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-info hover:underline font-medium"

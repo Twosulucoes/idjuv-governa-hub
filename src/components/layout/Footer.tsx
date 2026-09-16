@@ -22,6 +22,7 @@ export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
     const {
       entidadeSuperior,
       identidade: { sigla },
+      contato,
     } = useTenant();
 
     return (
@@ -94,7 +95,7 @@ export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
                   </li>
                   <li className="flex items-center gap-3 text-sm text-primary-foreground/70 dark:text-muted-foreground">
                     <Phone className="w-4 h-4 flex-shrink-0 text-primary-foreground/50 dark:text-muted-foreground" />
-                    <span>(95) 0000-0000</span>
+                    <span>{contato?.telefone}</span>
                   </li>
                   <li className="flex items-center gap-3 text-sm text-primary-foreground/70 dark:text-muted-foreground">
                     <Mail className="w-4 h-4 flex-shrink-0 text-primary-foreground/50 dark:text-muted-foreground" />

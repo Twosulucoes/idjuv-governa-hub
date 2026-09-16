@@ -17,7 +17,9 @@ import {
 } from '@/types/gestoresEscolares';
 import { HeaderPublico } from '@/components/cadastrogestores/HeaderPublico';
 
+import { useTenant } from '@/core/tenant';
 export default function ConsultaGestorPage() {
+  const { contato } = useTenant();
   const [cpf, setCpf] = useState('');
   const [buscando, setBuscando] = useState(false);
   const [resultado, setResultado] = useState<GestorEscolar | null | undefined>(undefined);
@@ -207,11 +209,11 @@ export default function ConsultaGestorPage() {
                     <div className="flex flex-col gap-1">
                       <p className="text-sm text-amber-700 dark:text-amber-300 flex items-center gap-2">
                         <Phone className="h-4 w-4" />
-                        (95) 3621-3232
+                        {contato?.telefone}
                       </p>
                       <p className="text-sm text-amber-700 dark:text-amber-300 flex items-center gap-2">
                         <Mail className="h-4 w-4" />
-                        esporte@idjuv.rr.gov.br
+                        {contato?.email}
                       </p>
                     </div>
                   </div>

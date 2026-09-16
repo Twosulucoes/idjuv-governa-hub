@@ -1,4 +1,9 @@
 /**
+ * TODO (White Label — Fase 5): o texto do regulamento é conteúdo normativo do
+ * evento, com prazos, links e canais do órgão embutidos. Vai para CMS/banco
+ * junto com as normas de `governanca/`, e não deve ficar fixo aqui.
+ */
+/**
  * Seção de Regulamento V2 - Seletivas Estudantis
  * Regulamento em formato de carrossel moderno e dinâmico
  */

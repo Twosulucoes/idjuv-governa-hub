@@ -127,6 +127,12 @@ export interface TenantContato {
   email?: string;
   telefone?: string;
   site?: string;
+  /**
+   * Endereço do suporte técnico interno, quando difere do institucional.
+   * Usado em telas de operação (ex.: contatos de emergência do plano de
+   * recuperação de desastre).
+   */
+  emailSuporte?: string;
   redesSociais?: Partial<
     Record<'instagram' | 'facebook' | 'youtube' | 'twitter', string>
   >;

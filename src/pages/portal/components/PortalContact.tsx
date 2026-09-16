@@ -9,15 +9,18 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useDadosOficiais } from "@/hooks/useDadosOficiais";
 
+import { useTenant } from '@/core/tenant';
 export function PortalContact() {
   const { enderecoCompleto, emailInstitucional, obterValor } = useDadosOficiais();
-  const telefone = obterValor('telefone', '(95) 0000-0000');
+  const { contato, endereco } = useTenant();
+  // Banco → perfil do tenant. Sem literal de cliente como último recurso.
+  const telefone = obterValor('telefone', contato?.telefone ?? '');
 
   const contactInfo = [
     {
       icon: MapPin,
       title: "Endereço",
-      content: enderecoCompleto || "Boa Vista, Roraima",
+      content: enderecoCompleto || [endereco?.cidade, endereco?.uf].filter(Boolean).join(" - "),
       color: "text-blue-500",
     },
     {
@@ -29,7 +32,7 @@ export function PortalContact() {
     {
       icon: Mail,
       title: "E-mail",
-      content: emailInstitucional || "contato@idjuv.rr.gov.br",
+      content: emailInstitucional || contato?.email || "",
       color: "text-amber-500",
     },
     {
