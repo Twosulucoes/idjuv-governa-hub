@@ -3,6 +3,7 @@ import type { PreCadastro } from '@/types/preCadastro';
 import { formatCPF } from '@/lib/formatters';
 import { DOCUMENTOS_CHECKLIST } from '@/types/preCadastro';
 
+import { nomeEntidadeSuperiorDocumentos, nomeOficialDocumentos } from './pdfTemplate';
 // Cores institucionais
 const CORES = {
   primaria: { r: 0, g: 82, b: 147 },
@@ -49,11 +50,11 @@ function desenharHeader(doc: jsPDF): number {
   setColor(doc, CORES.primaria);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', PAGINA.largura / 2, y, { align: 'center' });
+  doc.text(nomeEntidadeSuperiorDocumentos(), PAGINA.largura / 2, y, { align: 'center' });
   y += 6;
 
   doc.setFontSize(11);
-  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER – IDJUV', PAGINA.largura / 2, y, { align: 'center' });
+  doc.text(nomeOficialDocumentos(), PAGINA.largura / 2, y, { align: 'center' });
   y += 8;
 
   // Título do documento

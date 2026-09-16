@@ -35,6 +35,7 @@ import { Portaria } from '@/types/portaria';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+import { useTenant } from '@/core/tenant';
 const formSchema = z.object({
   doe_numero: z.string().min(1, 'Número do DOE é obrigatório'),
   doe_data: z.date({ required_error: 'Data do DOE é obrigatória' }),
@@ -58,6 +59,7 @@ export function RegistrarPublicacaoDialog({
   onSuccess,
 }: RegistrarPublicacaoDialogProps) {
   const registrarPublicacao = useRegistrarPublicacao();
+  const { integracoes } = useTenant();
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -283,7 +285,7 @@ export function RegistrarPublicacaoDialog({
                   <FormControl>
                     <Input 
                       type="url" 
-                      placeholder="https://diario.rr.gov.br/..." 
+                      placeholder={`${integracoes?.diarioOficialUrl ?? "https://diario.orgao.gov.br"}/...`} 
                       {...field} 
                     />
                   </FormControl>

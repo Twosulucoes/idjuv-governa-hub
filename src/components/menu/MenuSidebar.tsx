@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
+import { Logo } from "@/components/ui/Logo";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -43,8 +43,10 @@ import {
 } from "@/components/ui/collapsible";
 import { MenuSearch } from "./MenuSearch";
 
+import { useIdentidade } from '@/core/tenant';
 export function MenuSidebar() {
   const { state, toggleSidebar } = useSidebar();
+  const { sigla } = useIdentidade();
   const isCollapsed = state === "collapsed";
   
   const {
@@ -236,9 +238,9 @@ export function MenuSidebar() {
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center justify-between">
           <Link to="/admin" className="flex items-center gap-2">
-            <LogoIdjuv className={cn("logo-sidebar", isCollapsed && "h-6")} />
+            <Logo className={cn("logo-sidebar", isCollapsed && "h-6")} />
             {!isCollapsed && (
-              <span className="font-semibold text-sm text-foreground">IDJUV</span>
+              <span className="font-semibold text-sm text-foreground">{sigla}</span>
             )}
           </Link>
           <Button
@@ -319,7 +321,7 @@ export function MenuSidebar() {
       <SidebarFooter className="border-t p-2">
         {!isCollapsed && (
           <div className="text-xs text-muted-foreground text-center">
-            IDJUV — Sistema Administrativo
+            {sigla} — Sistema Administrativo
           </div>
         )}
       </SidebarFooter>

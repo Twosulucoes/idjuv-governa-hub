@@ -1,16 +1,35 @@
 /**
  * Estilos compartilhados para relatórios (CSS-in-JS)
- * 
+ *
  * Usado para garantir consistência entre componentes React e geração de PDF.
+ *
+ * White Label — Fase 4: a cor primária vem do perfil da instituição, mesma
+ * fonte do CSS e dos PDFs. Antes havia três paletas divergentes para a mesma
+ * marca (CSS azul, PDF #004444, relatórios #004444).
  */
+
+import { getTenantSnapshot } from '@/core/tenant';
+
+/** "#164069" → { r, g, b }. */
+function hexParaRGB(hex: string): { r: number; g: number; b: number } {
+  const limpo = hex.replace('#', '');
+  const cheio = limpo.length === 3 ? limpo.split('').map((c) => c + c).join('') : limpo;
+  return {
+    r: parseInt(cheio.slice(0, 2), 16),
+    g: parseInt(cheio.slice(2, 4), 16),
+    b: parseInt(cheio.slice(4, 6), 16),
+  };
+}
+
+const COR_PRIMARIA_HEX = getTenantSnapshot().marca.corPrimariaHex;
 
 /**
  * Cores institucionais (valores HSL para consistência com Tailwind)
  */
 export const REPORT_COLORS = {
-  // Verde institucional IDJuv
-  primary: "hsl(180, 100%, 13%)", // #004444
-  primaryRgb: { r: 0, g: 68, b: 68 },
+  // Cor institucional do tenant
+  primary: COR_PRIMARIA_HEX,
+  primaryRgb: hexParaRGB(COR_PRIMARIA_HEX),
   
   // Verde secundário
   secondary: "hsl(145, 63%, 42%)", // #27AE60

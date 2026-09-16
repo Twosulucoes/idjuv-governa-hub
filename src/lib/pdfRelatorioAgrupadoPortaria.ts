@@ -3,6 +3,7 @@
  * Lista servidores organizados por número de portaria
  */
 import jsPDF from 'jspdf';
+import { getTenantSnapshot } from '@/core/tenant';
 import {
   loadLogos,
   generateInstitutionalHeader,
@@ -289,7 +290,7 @@ export const generateRelatorioAgrupadoPortaria = async (data: RelatorioAgrupadoP
   doc.text(`(${percentCom}% regularizados)`, col2, y);
   doc.text(`(${percentSem}% pendentes)`, col3, y);
   
-  generateInstitutionalFooter(doc, { sistema: 'Sistema de Gestão de RH - IDJUV' });
+  generateInstitutionalFooter(doc, { sistema: `Sistema de Gestão de RH - ${getTenantSnapshot().identidade.sigla}` });
   addPageNumbers(doc);
   
   doc.save(`Relatorio_Servidores_Por_Portaria_${data.dataGeracao.replace(/\//g, '-')}.pdf`);

@@ -29,6 +29,8 @@ export { getTenantSnapshot, getTenantSnapshotOuNulo, definirTenant } from './sna
 export { aplicarTema, cssDoTema } from './tema';
 export { fallbackDadosOficiais } from './dadosOficiais';
 export { getMarcaAssets, logoOrgao, logoEntidadeSuperior } from './marca';
+export { useLogoOrgao, useLogoEntidadeSuperior } from './useLogo';
+export type { VarianteLogo } from './useLogo';
 export { TenantProvider } from './TenantProvider';
 export { TenantContext } from './context';
 export {

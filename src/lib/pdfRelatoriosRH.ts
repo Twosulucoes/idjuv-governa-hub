@@ -3,6 +3,7 @@
  * Utiliza template institucional unificado
  */
 import jsPDF from 'jspdf';
+import { getTenantSnapshot } from '@/core/tenant';
 import {
   loadLogos,
   generateInstitutionalHeader,
@@ -305,7 +306,7 @@ export const generateRelatorioServidoresDiretoria = async (data: RelatorioServid
     y += 5;
   });
   
-  generateInstitutionalFooter(doc, { sistema: 'Sistema de Gestão de RH - IDJUV' });
+  generateInstitutionalFooter(doc, { sistema: `Sistema de Gestão de RH - ${getTenantSnapshot().identidade.sigla}` });
   addPageNumbers(doc);
   
   doc.save(`Relatorio_Servidores_Estrutura_${data.dataGeracao.replace(/\//g, '-')}.pdf`);
@@ -392,7 +393,7 @@ export const generateRelatorioServidoresVinculo = async (data: RelatorioServidor
     y += 5;
   });
   
-  generateInstitutionalFooter(doc, { sistema: 'Sistema de Gestão de RH - IDJUV' });
+  generateInstitutionalFooter(doc, { sistema: `Sistema de Gestão de RH - ${getTenantSnapshot().identidade.sigla}` });
   addPageNumbers(doc);
   
   doc.save(`Relatorio_Servidores_Vinculo_${data.dataGeracao.replace(/\//g, '-')}.pdf`);
@@ -597,7 +598,7 @@ export const generateRelatorioHistoricoFuncional = async (data: RelatorioHistori
     y += 10;
   }
   
-  generateInstitutionalFooter(doc, { sistema: 'Sistema de Gestão de RH - IDJUV' });
+  generateInstitutionalFooter(doc, { sistema: `Sistema de Gestão de RH - ${getTenantSnapshot().identidade.sigla}` });
   addPageNumbers(doc);
   
   const nomeArquivo = data.servidor.nome.replace(/\s+/g, '_').substring(0, 30);
@@ -757,7 +758,7 @@ export const generateRelatorioVagasCargo = async (data: RelatorioVagasCargoData)
   doc.setFontSize(10);
   doc.text(`Taxa de Ocupação: ${data.percentualGeral.toFixed(1)}%`, barX + barWidth + 10, barY + 8);
   
-  generateInstitutionalFooter(doc, { sistema: 'Sistema de Gestão de RH - IDJUV' });
+  generateInstitutionalFooter(doc, { sistema: `Sistema de Gestão de RH - ${getTenantSnapshot().identidade.sigla}` });
   addPageNumbers(doc);
   
   doc.save(`Relatorio_Vagas_Cargo_${data.dataGeracao.replace(/\//g, '-')}.pdf`);
@@ -909,7 +910,7 @@ export const generateRelatorioServidoresPortarias = async (data: RelatorioServid
   doc.setFontSize(9);
   doc.text(`RESUMO: ${data.totalServidores} servidores com ${data.totalPortarias} portarias vinculadas`, PAGINA.margemEsquerda + 5, y + 2);
   
-  generateInstitutionalFooter(doc, { sistema: 'Sistema de Gestão de RH - IDJUV' });
+  generateInstitutionalFooter(doc, { sistema: `Sistema de Gestão de RH - ${getTenantSnapshot().identidade.sigla}` });
   addPageNumbers(doc);
   
   doc.save(`Relatorio_Servidores_Portarias_${data.dataGeracao.replace(/\//g, '-')}.pdf`);

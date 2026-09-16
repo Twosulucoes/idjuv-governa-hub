@@ -1,4 +1,5 @@
- /**
+
+import { getTenantSnapshot } from '@/core/tenant'; /**
   * Gerador de PDF: Listagem Geral de Unidades Locais
   * Relatório tabular com visão consolidada de todas as unidades
   */
@@ -178,7 +179,7 @@
    doc.line(PAGINA.margemEsquerda, y, PAGINA.margemEsquerda + contentWidth, y);
  
    // Rodapé e paginação
-   generateInstitutionalFooter(doc, { sistema: 'Sistema IDJuv - Unidades Locais' });
+   generateInstitutionalFooter(doc, { sistema: `Sistema ${getTenantSnapshot().identidade.nomeCurto} - Unidades Locais` });
    addPageNumbers(doc);
  
    // Salvar PDF

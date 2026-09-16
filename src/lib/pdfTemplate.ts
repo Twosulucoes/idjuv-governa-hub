@@ -1,19 +1,41 @@
 /**
- * Template institucional unificado para geração de PDFs do IDJUV-RR
- * Centraliza estilos, cabeçalhos, rodapés e componentes reutilizáveis
+ * Template institucional unificado para geração de PDFs.
+ * Centraliza estilos, cabeçalhos, rodapés e componentes reutilizáveis.
+ *
+ * White Label — Fase 4: a identidade impressa (nome, entidade superior, cor)
+ * vem do perfil do tenant. Use `cabecalhoOficial`/`rodapeOficial` em vez de
+ * repetir os literais em cada gerador.
  */
 import jsPDF from 'jspdf';
 import { getLogosPDF, LOGO_CONFIG_PADRAO } from './pdfLogos';
 
-import { getMarcaAssets } from '@/core/tenant';
+import { getMarcaAssets, getTenantSnapshot } from '@/core/tenant';
 
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
 const { entidadeSuperiorLight: logoGovernoSrc, logoDark: logoIDJUVDarkSrc, logoLight: logoIDJUVOficialSrc } = getMarcaAssets();
 
+/** "#164069" → { r, g, b }, para o jsPDF, que não entende hex. */
+function hexParaRGB(hex: string): { r: number; g: number; b: number } {
+  const limpo = hex.replace('#', '');
+  const cheio =
+    limpo.length === 3
+      ? limpo.split('').map((c) => c + c).join('')
+      : limpo;
+  return {
+    r: parseInt(cheio.slice(0, 2), 16),
+    g: parseInt(cheio.slice(2, 4), 16),
+    b: parseInt(cheio.slice(4, 6), 16),
+  };
+}
+
 // ============ CORES INSTITUCIONAIS ============
 export const CORES = {
-  // Verde institucional IDJUV
-  primaria: { r: 0, g: 68, b: 68 },           // #004444
+  /**
+   * Cor institucional do tenant. Unifica as três paletas divergentes que
+   * existiam (CSS azul, PDF #004444 verde-petróleo, relatórios verde): a
+   * fonte única passa a ser `marca.corPrimariaHex`.
+   */
+  primaria: hexParaRGB(getTenantSnapshot().marca.corPrimariaHex),
   secundaria: { r: 39, g: 174, b: 96 },       // #27AE60
   
   // Tons de cinza
@@ -363,7 +385,9 @@ export const generateInstitutionalFooter = (
   config: FooterConfig = {}
 ) => {
   const { width, height } = getPageDimensions(doc);
-  const sistema = config.sistema || 'Sistema de Governança Digital IDJUV';
+  const { identidade } = getTenantSnapshot();
+  const sistema =
+    config.sistema || `Sistema de Governança Digital ${identidade.sigla}`;
   
   setColor(doc, CORES.cinzaClaro);
   doc.setFontSize(7);
@@ -779,4 +803,77 @@ export const CATEGORIA_LABELS: Record<string, string> = {
   funcao_gratificada: 'Função Gratificada',
   temporario: 'Temporário',
   estagiario: 'Estagiário',
+};
+
+
+// ============ IDENTIDADE INSTITUCIONAL (White Label — Fase 4) ============
+
+/**
+ * Escreve as duas linhas de identificação no topo do documento:
+ * entidade superior (quando houver) e nome do órgão.
+ *
+ * Substitui o par de `doc.text(...)` literal que estava repetido nos
+ * geradores. Devolve o Y da última linha escrita, para o chamador seguir.
+ */
+export const cabecalhoOficial = (
+  doc: jsPDF,
+  opts: {
+    /** Y da primeira linha. */
+    y?: number;
+    /** X do centro; por padrão, o centro da página. */
+    x?: number;
+    /** Espaço entre as duas linhas. */
+    espacamento?: number;
+    /** Corpo da fonte da primeira linha; a segunda usa 1pt a menos. */
+    tamanho?: number;
+  } = {}
+): number => {
+  const { identidade, entidadeSuperior } = getTenantSnapshot();
+  const { width } = getPageDimensions(doc);
+  const x = opts.x ?? width / 2;
+  const espacamento = opts.espacamento ?? 5;
+  const tamanho = opts.tamanho ?? 10;
+  let y = opts.y ?? 15;
+
+  if (entidadeSuperior?.exibirEmDocumentos) {
+    doc.setFontSize(tamanho);
+    doc.text(entidadeSuperior.nome.toUpperCase(), x, y, { align: 'center' });
+    y += espacamento;
+  }
+
+  doc.setFontSize(Math.max(tamanho - 1, 6));
+  doc.text(nomeOficialDocumentos(), x, y, { align: 'center' });
+  return y;
+};
+
+/** Nome do órgão como deve sair impresso, em caixa alta. */
+export const nomeOficialDocumentos = (): string => {
+  const { identidade } = getTenantSnapshot();
+  return identidade.nomeParaDocumentos ?? identidade.nomeOficial.toUpperCase();
+};
+
+/** Nome da entidade superior em caixa alta, ou string vazia se não houver. */
+export const nomeEntidadeSuperiorDocumentos = (): string => {
+  const { entidadeSuperior } = getTenantSnapshot();
+  return entidadeSuperior?.exibirEmDocumentos
+    ? entidadeSuperior.nome.toUpperCase()
+    : '';
+};
+
+/**
+ * Rodapé de autoria do sistema, usado pelos geradores que não passam pelo
+ * `generateInstitutionalFooter`.
+ */
+export const rodapeOficial = (doc: jsPDF, y?: number): void => {
+  const { identidade } = getTenantSnapshot();
+  const { width, height } = getPageDimensions(doc);
+  setColor(doc, CORES.cinzaClaro);
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.text(
+    `Documento gerado pelo Sistema de Governança Digital ${identidade.sigla}`,
+    width / 2,
+    y ?? height - 12,
+    { align: 'center' }
+  );
 };

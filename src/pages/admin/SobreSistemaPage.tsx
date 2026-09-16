@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Info, Mail, Shield, Server, Database, Layout } from "lucide-react";
 import logoTwoSolucoes from "@/assets/logo-two-solucoes.png";
-import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
+import { Logo } from "@/components/ui/Logo";
 import { useDadosOficiais } from "@/hooks/useDadosOficiais";
 
 export default function SobreSistemaPage() {
@@ -15,7 +15,7 @@ export default function SobreSistemaPage() {
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header institucional */}
         <div className="text-center space-y-4">
-          <LogoIdjuv className="h-16 mx-auto" />
+          <Logo className="h-16 mx-auto" />
           <div>
             <h1 className="text-2xl font-bold text-foreground">{nomeCurto}</h1>
             <p className="text-muted-foreground">{nomeOficial}</p>

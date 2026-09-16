@@ -3,6 +3,7 @@
  * Utiliza template institucional unificado
  */
 import jsPDF from 'jspdf';
+import { getTenantSnapshot } from '@/core/tenant';
 import {
   loadLogos,
   generateInstitutionalHeader,
@@ -201,7 +202,7 @@ export async function generateTermoAutorizacao(data: TermoAutorizacaoData): Prom
   ], y);
 
   // Rodapé
-  generateInstitutionalFooter(doc, { sistema: 'Sistema de Governança Digital IDJUV' });
+  generateInstitutionalFooter(doc, { sistema: `Sistema de Governança Digital ${getTenantSnapshot().identidade.sigla}` });
   addPageNumbers(doc);
 
   doc.save(`Termo_Autorizacao_${data.numero.replace('/', '_')}_${data.ano}.pdf`);

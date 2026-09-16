@@ -23,6 +23,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
+import { getTenantSnapshot } from '@/core/tenant';
 // ================================
 // TIPOS
 // ================================
@@ -279,4 +280,42 @@ export function getModuloCorClass(cor: string | null): string {
 export function getModuleForMenuSection(sectionId: string): Modulo | null {
   const config = MODULES_CONFIG.find(m => m.menuSectionIds.includes(sectionId));
   return config?.codigo || null;
+}
+
+// ================================
+// MÓDULOS CONTRATADOS (White Label — Fase 6)
+// ================================
+
+/**
+ * `MODULES_CONFIG` é o CATÁLOGO do produto: tudo que o sistema sabe fazer.
+ * O que a instituição contratou é o subconjunto declarado em `tenant.modulos`.
+ *
+ * Separar os dois é o que permite vender o núcleo sem a vertical de esporte,
+ * ou um recorte só de RH, sem tocar no código.
+ */
+
+/** Códigos dos módulos contratados pela instituição ativa. */
+export function modulosContratados(): Modulo[] {
+  return getTenantSnapshot().modulos;
+}
+
+/** `true` se a instituição contratou o módulo. */
+export function moduloHabilitado(codigo: Modulo | string): boolean {
+  return (modulosContratados() as string[]).includes(codigo);
+}
+
+/** Catálogo filtrado pelos módulos contratados. */
+export function modulosHabilitados(): ModuleConfig[] {
+  return MODULES_CONFIG.filter((m) => moduloHabilitado(m.codigo));
+}
+
+/**
+ * Módulo a que uma rota pertence, ou null.
+ * Usado pelo guard de rota para decidir 404 antes de montar a página.
+ */
+export function moduloDaRota(pathname: string): Modulo | null {
+  const config = MODULES_CONFIG.find((m) =>
+    m.rotas.some((rota) => pathname === rota || pathname.startsWith(rota + '/'))
+  );
+  return config?.codigo ?? null;
 }

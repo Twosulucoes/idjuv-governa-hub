@@ -6,7 +6,7 @@
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { loadLogos, calculateLogoDimensions, type LogoCache } from './pdfTemplate';
+import { calculateLogoDimensions, loadLogos, nomeEntidadeSuperiorDocumentos, type LogoCache } from './pdfTemplate';
 
 export interface ArbitroExportData {
   [key: string]: unknown;
@@ -75,7 +75,7 @@ export async function gerarRelatorioArbitrosPDF(
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, currentY + 5, { align: 'center' });
+    doc.text(nomeEntidadeSuperiorDocumentos(), pageWidth / 2, currentY + 5, { align: 'center' });
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
     doc.text('Instituto de Desporto, Juventude e Lazer do Estado de Roraima', pageWidth / 2, currentY + 9, { align: 'center' });

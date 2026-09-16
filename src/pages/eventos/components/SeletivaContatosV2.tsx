@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { LucideIcon } from "lucide-react";
+import { useTenant } from '@/core/tenant';
 interface Contato {
   id: string;
   tipo: string;
@@ -28,48 +29,63 @@ const iconMap: Record<string, LucideIcon> = {
   "map-pin": MapPin
 };
 
-// Dados padrão caso não haja no banco
-const contatosPadrao: Contato[] = [{
-  id: "1",
-  tipo: "site_oficial",
-  titulo: "Jogos da Juventude",
-  subtitulo: "Site Oficial do COB",
-  valor: "https://jogosdajuventude.org.br",
-  icone: "trophy",
-  ordem: 1
-}, {
-  id: "2",
-  tipo: "site_oficial",
-  titulo: "Jogos Escolares",
-  subtitulo: "Site Oficial do JERS",
-  valor: "https://www.jogosescolaresrr.com.br",
-  icone: "graduation-cap",
-  ordem: 2
-}, {
-  id: "3",
-  tipo: "site_oficial",
-  titulo: "Portal IDJuv",
-  subtitulo: "Site Oficial do IDJuv",
-  valor: "https://idjuv.online",
-  icone: "globe",
-  ordem: 3
-}, {
-  id: "4",
-  tipo: "coordenador",
-  titulo: "Coordenação das Seleções",
-  subtitulo: "IDJuv - Diretoria de Esportes",
-  valor: "idjuv.diesp@gmail.com",
-  icone: "mail",
-  ordem: 4
-}, {
-  id: "5",
-  tipo: "telefone",
-  titulo: "Telefone de Contato",
-  subtitulo: "Atendimento das 8h às 14h",
-  valor: "(95) 3621-XXXX",
-  icone: "phone",
-  ordem: 5
-}];
+/**
+ * Lista exibida quando a tabela de contatos está vazia.
+ *
+ * Os sites de eventos são da vertical de esporte (Fase 6 do White Label);
+ * os contatos da instituição vêm do perfil do tenant, para que nenhum dado de
+ * cliente fique fixo aqui.
+ */
+function contatosPadrao(
+  identidade: { nomeCurto: string },
+  contato?: { email?: string; telefone?: string; site?: string }
+): Contato[] {
+  const base: Contato[] = [{
+    id: "1",
+    tipo: "site_oficial",
+    titulo: "Jogos da Juventude",
+    subtitulo: "Site Oficial do COB",
+    valor: "https://jogosdajuventude.org.br",
+    icone: "trophy",
+    ordem: 1
+  }];
+
+  if (contato?.site) {
+    base.push({
+      id: "3",
+      tipo: "site_oficial",
+      titulo: `Portal ${identidade.nomeCurto}`,
+      subtitulo: `Site oficial do ${identidade.nomeCurto}`,
+      valor: contato.site,
+      icone: "globe",
+      ordem: 3
+    });
+  }
+  if (contato?.email) {
+    base.push({
+      id: "4",
+      tipo: "coordenador",
+      titulo: "Coordenação das Seleções",
+      subtitulo: `${identidade.nomeCurto} - Diretoria de Esportes`,
+      valor: contato.email,
+      icone: "mail",
+      ordem: 4
+    });
+  }
+  if (contato?.telefone) {
+    base.push({
+      id: "5",
+      tipo: "telefone",
+      titulo: "Telefone de Contato",
+      subtitulo: "Atendimento em horário de expediente",
+      valor: contato.telefone,
+      icone: "phone",
+      ordem: 5
+    });
+  }
+  return base;
+}
+
 function getIcon(iconName: string | null): LucideIcon {
   if (!iconName) return Globe;
   return iconMap[iconName] || Globe;
@@ -84,6 +100,7 @@ function isPhone(valor: string): boolean {
   return valor.startsWith("(") || valor.startsWith("+");
 }
 export function SeletivaContatosV2() {
+  const { identidade, contato } = useTenant();
   const {
     data: contatos
   } = useQuery({
@@ -99,7 +116,10 @@ export function SeletivaContatosV2() {
       return data as Contato[];
     }
   });
-  const displayContatos = contatos && contatos.length > 0 ? contatos : contatosPadrao;
+  const displayContatos =
+    contatos && contatos.length > 0
+      ? contatos
+      : contatosPadrao(identidade, contato);
 
   // Separar por tipo
   const sitesOficiais = displayContatos.filter(c => c.tipo === "site_oficial");

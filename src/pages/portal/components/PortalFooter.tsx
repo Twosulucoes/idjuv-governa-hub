@@ -12,34 +12,31 @@ import {
   ExternalLink,
   Heart
 } from "lucide-react";
-import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
+import { Logo } from "@/components/ui/Logo";
 import { useDadosOficiais } from "@/hooks/useDadosOficiais";
 
-import { getMarcaAssets } from '@/core/tenant';
-
-// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
-const { entidadeSuperiorLight: logoGoverno } = getMarcaAssets();
-
-// Configuração das redes sociais oficiais do IDJUV
-const SOCIAL_CONFIG = {
-  instagram: "idjuv_rr",
-  facebook: "idjuvrr",
-  youtube: "@idjuv_rr",
-  twitter: "idjuv_rr",
-};
+import { useTenant } from '@/core/tenant';
+import { LogoEntidadeSuperior } from '@/components/ui/Logo';
 
 export function PortalFooter() {
   const { nomeOficial, nomeCurto } = useDadosOficiais();
+  const {
+    entidadeSuperior,
+    identidade: { sigla },
+    contato,
+  } = useTenant();
 
+  // Só entra no rodapé a rede que a instituição declarou ter.
+  const redes = contato?.redesSociais ?? {};
   const socialLinks = [
-    { icon: Facebook, href: `https://facebook.com/${SOCIAL_CONFIG.facebook}`, label: "Facebook" },
-    { icon: Instagram, href: `https://instagram.com/${SOCIAL_CONFIG.instagram}`, label: "Instagram" },
-    { icon: Youtube, href: `https://youtube.com/${SOCIAL_CONFIG.youtube}`, label: "YouTube" },
-    { icon: Twitter, href: `https://twitter.com/${SOCIAL_CONFIG.twitter}`, label: "Twitter" },
-  ];
+    redes.facebook && { icon: Facebook, href: `https://facebook.com/${redes.facebook}`, label: "Facebook" },
+    redes.instagram && { icon: Instagram, href: `https://instagram.com/${redes.instagram}`, label: "Instagram" },
+    redes.youtube && { icon: Youtube, href: `https://youtube.com/${redes.youtube}`, label: "YouTube" },
+    redes.twitter && { icon: Twitter, href: `https://twitter.com/${redes.twitter}`, label: "Twitter" },
+  ].filter(Boolean) as { icon: typeof Facebook; href: string; label: string }[];
 
   const quickLinks = [
-    { label: "Sobre o IDJUV", href: "/sobre" },
+    { label: `Sobre o ${sigla}`, href: "/sobre" },
     { label: "Programas", href: "#programas" },
     { label: "Notícias", href: "/noticias" },
     { label: "Transparência", href: "/transparencia" },
@@ -78,7 +75,7 @@ export function PortalFooter() {
               className="lg:col-span-1"
             >
               <div className="flex items-center gap-3 mb-6">
-                <LogoIdjuv variant="dark" className="h-14" />
+                <Logo variant="dark" className="h-14" />
               </div>
               <p className="text-primary-foreground/70 text-sm mb-6 leading-relaxed">
                 {nomeOficial}. Promovendo o desenvolvimento esportivo e social da juventude roraimense.
@@ -152,13 +149,9 @@ export function PortalFooter() {
               viewport={{ once: true }}
               transition={{ delay: 0.3 }}
             >
-              <h4 className="font-semibold text-lg mb-6">Governo de Roraima</h4>
+              <h4 className="font-semibold text-lg mb-6">{entidadeSuperior?.nome}</h4>
               <div className="bg-white rounded-xl p-4 mb-4">
-                <img 
-                  src={logoGoverno} 
-                  alt="Governo de Roraima"
-                  className="h-12 w-auto mx-auto"
-                />
+                <LogoEntidadeSuperior variant="light" className="h-12 w-auto mx-auto" />
               </div>
               <p className="text-primary-foreground/70 text-sm text-center">
                 Autarquia vinculada à Secretaria de Estado da Educação e Desporto – SEED

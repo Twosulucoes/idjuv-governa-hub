@@ -2,6 +2,8 @@ import jsPDF from "jspdf";
 import { formatCPF } from "@/lib/formatters";
 import type { PreCadastro } from "@/types/preCadastro";
 
+import { nomeOficialDocumentos } from '@/lib/pdfTemplate';
+import { getTenantSnapshot } from '@/core/tenant';
 interface PendenciaItem {
   tipo: "esocial" | "bancaria" | "pessoal" | "opcional";
   campo: string;
@@ -49,7 +51,7 @@ function addHeader(doc: jsPDF, titulo: string): number {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text("IDJUV - Instituto de Desporto e Juventude de Roraima", pageWidth / 2, 12, { align: "center" });
+  doc.text(nomeOficialDocumentos(), pageWidth / 2, 12, { align: "center" });
 
   doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
@@ -72,7 +74,7 @@ function addFooter(doc: jsPDF, pageNumber: number): void {
   doc.setFontSize(8);
   doc.setTextColor(128, 128, 128);
   doc.text(`Página ${pageNumber}`, pageWidth / 2, pageHeight - 8, { align: "center" });
-  doc.text("Documento gerado pelo Sistema IDJUV", 15, pageHeight - 8);
+  doc.text(`Documento gerado pelo Sistema ${getTenantSnapshot().identidade.sigla}`, 15, pageHeight - 8);
 }
 
 function checkNewPage(doc: jsPDF, currentY: number, neededSpace: number, pageNumber: { value: number }): number {

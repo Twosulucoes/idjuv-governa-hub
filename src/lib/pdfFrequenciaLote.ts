@@ -40,6 +40,7 @@ import { getLogosPDF } from './pdfLogos';
 
 import { getMarcaAssets } from '@/core/tenant';
 
+import { nomeEntidadeSuperiorDocumentos } from './pdfTemplate';
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
 const { entidadeSuperiorLight: logoGoverno, logoLight: logoIdjuv } = getMarcaAssets();
 
@@ -237,7 +238,7 @@ function gerarCapaLote(doc: jsPDF, params: CapaParams) {
   doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, textCenterY - 3, { align: 'center' });
+  doc.text(nomeEntidadeSuperiorDocumentos(), pageWidth / 2, textCenterY - 3, { align: 'center' });
   
   doc.setFontSize(8);
   doc.setTextColor(CORES.texto.r, CORES.texto.g, CORES.texto.b);

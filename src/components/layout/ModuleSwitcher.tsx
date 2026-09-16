@@ -10,7 +10,7 @@ import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useModulosUsuario } from "@/hooks/useModulosUsuario";
-import { MODULES_CONFIG, type Modulo } from "@/shared/config/modules.config";
+import { MODULES_CONFIG, modulosHabilitados, type Modulo } from "@/shared/config/modules.config";
 
 // Rotas de dashboard de cada módulo
 const MODULE_ROUTES: Record<Modulo, string> = {
@@ -37,10 +37,13 @@ export function ModuleSwitcher() {
   const location = useLocation();
   const { modulosAutorizados, isSuperAdmin } = useModulosUsuario();
 
-  // Determinar módulos disponíveis
+  // Determinar módulos disponíveis.
+  // Parte do catálogo CONTRATADO, não do catálogo do produto: módulo não
+  // contratado não aparece nem para o super admin (White Label — Fase 6).
+  const contratados = modulosHabilitados();
   const availableModules = isSuperAdmin
-    ? MODULES_CONFIG
-    : MODULES_CONFIG.filter(m => modulosAutorizados.includes(m.codigo));
+    ? contratados
+    : contratados.filter(m => modulosAutorizados.includes(m.codigo));
 
   // Se só tem 1 módulo, não mostrar
   if (availableModules.length <= 1) return null;

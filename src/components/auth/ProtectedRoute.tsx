@@ -5,17 +5,21 @@
 //   1. Enquanto carrega a sessão, exibe um loader.
 //   2. Sem autenticação → redireciona para /auth (guardando a origem).
 //   3. Troca de senha obrigatória → força /trocar-senha-obrigatoria.
-//   4. Super admin → bypass total.
-//   5. requiredModule / requiredPermissions → checa via AuthContext.
+//   4. Módulo não contratado pela instituição → 404 (antes do bypass de super
+//      admin: se a instituição não contratou, nem o super admin deve ver).
+//   5. Super admin → bypass total.
+//   6. requiredModule / requiredPermissions → checa via AuthContext.
 //      requiredModule checa o módulo (user_modules); requiredPermissions exige
 //      o código granular, que vem de role_permissions, user_permissions ou
 //      user_modules.permissions. Ter o módulo "rh" NÃO concede "rh.*".
-//   6. Sem acesso → redireciona para a página de acesso negado.
+//   7. Sem acesso → redireciona para a página de acesso negado.
 
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { moduloHabilitado } from '@/shared/config/modules.config';
+import NotFound from '@/pages/NotFound';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -61,17 +65,27 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to={ROTA_TROCA_SENHA} replace />;
   }
 
-  // 4. Super admin acessa tudo
+  // 4. Módulo não contratado pela instituição
+  //
+  // Vem ANTES do bypass de super admin de propósito: "não contratado" não é
+  // falta de permissão, é funcionalidade que não existe nesta instância. E
+  // devolve 404, não /acesso-negado, para não revelar o catálogo do produto a
+  // quem não o contratou.
+  if (requiredModule && !moduloHabilitado(requiredModule)) {
+    return <NotFound />;
+  }
+
+  // 5. Super admin acessa tudo
   if (isSuperAdmin) {
     return <>{children}</>;
   }
 
-  // 5. Verificação por módulo
+  // 6. Verificação por módulo
   if (requiredModule && !hasPermission(requiredModule)) {
     return <Navigate to={accessDeniedPath} replace />;
   }
 
-  // 5. Verificação por permissões (basta ter uma das declaradas)
+  // 7. Verificação por permissões (basta ter uma das declaradas)
   if (requiredPermissions) {
     const perms = Array.isArray(requiredPermissions)
       ? requiredPermissions
@@ -81,7 +95,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
   }
 
-  // 6. Autorizado
+  // 8. Autorizado
   return <>{children}</>;
 };
 

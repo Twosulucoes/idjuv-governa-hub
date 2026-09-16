@@ -4,7 +4,7 @@
  */
 
 import { Link } from 'react-router-dom';
-import { useLogoIdjuv } from '@/hooks/useLogoIdjuv';
+import { useLogoOrgao } from '@/core/tenant';
 
 import { getMarcaAssets } from '@/core/tenant';
 
@@ -20,7 +20,7 @@ export function HeaderPublico({
   titulo = "Credenciamento de Gestores Escolares",
   subtitulo = "Jogos Escolares de Roraima - JER's 2026"
 }: HeaderPublicoProps) {
-  const logoIdjuv = useLogoIdjuv();
+  const logoIdjuv = useLogoOrgao();
 
   return (
     <header className="bg-primary text-primary-foreground">

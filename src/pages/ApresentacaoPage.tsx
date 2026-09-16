@@ -22,13 +22,15 @@ import {
   Newspaper,
   CalendarDays
 } from "lucide-react";
-import { LogoIdjuv, logoIdjuvOficial } from "@/components/ui/LogoIdjuv";
+import { Logo } from "@/components/ui/Logo";
 import { getMarcaAssets } from '@/core/tenant';
 
+import { useTenant } from '@/core/tenant';
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
 const { entidadeSuperiorLight: logoGoverno } = getMarcaAssets();
 
 export default function ApresentacaoPage() {
+  const { contato } = useTenant();
   const valores = [
     { icon: Heart, titulo: "Compromisso", descricao: "Dedicação integral ao desenvolvimento da juventude roraimense" },
     { icon: Users, titulo: "Inclusão", descricao: "Políticas públicas acessíveis a todos os jovens do estado" },
@@ -162,10 +164,9 @@ export default function ApresentacaoPage() {
             
             <div className="flex-shrink-0 animate-fade-in" style={{ animationDelay: "0.2s" }}>
               <div className="bg-white/95 rounded-2xl p-6 shadow-2xl">
-                <img 
-                  src={logoIdjuvOficial} 
-                  alt="IDJUV - Instituto de Desporto, Juventude e Lazer" 
-                  className="h-48 md:h-64 w-auto object-contain"
+                <Logo
+                  variant="light"
+                  className="h-48 md:h-64 w-auto"
                 />
               </div>
             </div>
@@ -476,7 +477,7 @@ export default function ApresentacaoPage() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-foreground">Telefone</h4>
-                      <p className="text-muted-foreground">(95) 3621-0000</p>
+                      <p className="text-muted-foreground">{contato?.telefone}</p>
                     </div>
                   </div>
 
@@ -486,7 +487,7 @@ export default function ApresentacaoPage() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-foreground">E-mail</h4>
-                      <p className="text-muted-foreground">contato@idjuv.rr.gov.br</p>
+                      <p className="text-muted-foreground">{contato?.email}</p>
                     </div>
                   </div>
 
@@ -546,7 +547,7 @@ export default function ApresentacaoPage() {
 
                 <div className="mt-8 pt-6 border-t border-border">
                   <div className="flex items-center justify-center gap-6">
-                    <LogoIdjuv 
+                    <Logo 
                       className="h-16 w-auto"
                     />
                     <img 

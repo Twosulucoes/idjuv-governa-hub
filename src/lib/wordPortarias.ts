@@ -15,6 +15,8 @@ import { saveAs } from 'file-saver';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+import { nomeEntidadeSuperiorDocumentos, nomeOficialDocumentos } from './pdfTemplate';
+import { getTenantSnapshot } from '@/core/tenant';
 // Função auxiliar para formatar CPF
 function formatarCPF(cpf: string): string {
   const numeros = cpf.replace(/\D/g, '');
@@ -46,12 +48,23 @@ function formatarCabecalhoPortaria(numero: string, dataDocumento: string): strin
   return `PORTARIA Nº ${numeroLimpo}/IDJuv/PRESI/GAB/${ano} DE ${dataFormatada}`;
 }
 
-// Configurações do Presidente
-const PRESIDENTE = {
-  nome: 'MARCELO DE MAGALHÃES NUNES',
-  cargo: 'Presidente do Instituto de Desporto, Juventude e Lazer',
-  orgao: 'do Estado de Roraima',
-};
+/**
+ * Dados do dirigente que assina o ato, lidos do perfil da instituição.
+ *
+ * TODO (White Label — Fase 5): preâmbulos, artigos e a numeração
+ * `.../IDJuv/PRESI/GAB/...` seguem fixos neste arquivo. São texto jurídico e
+ * identificação de ato administrativo — escopo da tabela `modelos_atos`.
+ */
+const PRESIDENTE = (() => {
+  const { legal, identidade } = getTenantSnapshot();
+  return {
+    nome: (legal?.dirigenteNome ?? '').toUpperCase(),
+    cargo: legal?.dirigenteCargo
+      ? `${legal.dirigenteCargo} do ${identidade.nomeCurto}`
+      : identidade.nomeCurto,
+    orgao: '',
+  };
+})();
 
 // Tamanhos de fonte em half-points (Word usa half-points)
 const FONT_SIZE_10 = 20; // 10pt
@@ -205,7 +218,7 @@ export async function generatePortariaColetivaWord(
           new Paragraph({
             children: [
               new TextRun({
-                text: 'GOVERNO DO ESTADO DE RORAIMA',
+                text: nomeEntidadeSuperiorDocumentos(),
                 bold: true,
                 font: 'Times New Roman',
                 size: FONT_SIZE_10,
@@ -217,7 +230,7 @@ export async function generatePortariaColetivaWord(
           new Paragraph({
             children: [
               new TextRun({
-                text: 'INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA',
+                text: nomeOficialDocumentos(),
                 font: 'Times New Roman',
                 size: FONT_SIZE_9,
               }),
@@ -228,7 +241,7 @@ export async function generatePortariaColetivaWord(
           new Paragraph({
             children: [
               new TextRun({
-                text: 'IDJuv',
+                text: getTenantSnapshot().identidade.nomeCurto,
                 font: 'Times New Roman',
                 size: FONT_SIZE_9,
               }),

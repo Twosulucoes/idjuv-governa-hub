@@ -3,6 +3,7 @@
  * Agrupa servidores em: COM PORTARIA e SEM PORTARIA
  */
 import jsPDF from 'jspdf';
+import { getTenantSnapshot } from '@/core/tenant';
 import {
   loadLogos,
   generateInstitutionalHeader,
@@ -288,7 +289,7 @@ export const generateRelatorioSituacaoPortaria = async (data: RelatorioSituacaoP
   doc.text(`(${percentCom}% regularizados)`, col2, y);
   doc.text(`(${percentSem}% pendentes)`, col3, y);
   
-  generateInstitutionalFooter(doc, { sistema: 'Sistema de Gestão de RH - IDJUV' });
+  generateInstitutionalFooter(doc, { sistema: `Sistema de Gestão de RH - ${getTenantSnapshot().identidade.sigla}` });
   addPageNumbers(doc);
   
   doc.save(`Relatorio_Situacao_Portaria_${data.dataGeracao.replace(/\//g, '-')}.pdf`);

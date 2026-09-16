@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { ChevronDown, Play, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import heroImage from "@/assets/portal/hero-athletes.jpg";
-import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
+import { Logo } from "@/components/ui/Logo";
 
 export function PortalHero() {
   const scrollToContent = () => {
@@ -79,7 +79,7 @@ export function PortalHero() {
             transition={{ duration: 0.6, delay: 0.2 }}
           >
             <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20">
-              <LogoIdjuv variant="dark" className="h-16 md:h-20" />
+              <Logo variant="dark" className="h-16 md:h-20" />
             </div>
           </motion.div>
 

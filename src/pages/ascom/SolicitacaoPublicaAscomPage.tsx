@@ -37,7 +37,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { LogoIdjuv } from '@/components/ui/LogoIdjuv';
+import { Logo } from "@/components/ui/Logo";
 
 import {
   CategoriaDemandasAscom,
@@ -332,7 +332,7 @@ export default function SolicitacaoPublicaAscomPage() {
       <header className="bg-background border-b sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <LogoIdjuv className="h-10 w-auto" />
+            <Logo className="h-10 w-auto" />
             <div>
               <h1 className="font-semibold text-lg">IDJuv - ASCOM</h1>
               <p className="text-sm text-muted-foreground">Assessoria de Comunicação</p>

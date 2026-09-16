@@ -8,6 +8,7 @@
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useIdentidade } from "@/core/tenant";
 
 interface ReportFooterProps {
   /** Nome do usuário que gerou o relatório */
@@ -32,6 +33,7 @@ export function ReportFooter({
   mostrarPaginacao = false,
   className,
 }: ReportFooterProps) {
+  const identidade = useIdentidade();
   const dataFormatada = format(dataGeracao, "dd/MM/yyyy 'às' HH:mm", {
     locale: ptBR,
   });
@@ -46,7 +48,7 @@ export function ReportFooter({
     >
       <div className="flex items-center justify-between text-xs text-muted-foreground px-4 py-2">
         {/* Sistema */}
-        <span>Sistema IDJuv</span>
+        <span>Sistema {identidade.nomeCurto}</span>
 
         {/* Data e Usuário */}
         <span>

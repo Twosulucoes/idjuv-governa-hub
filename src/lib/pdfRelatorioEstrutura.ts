@@ -5,6 +5,7 @@
  * Colunas: Órgão (Sigla Secretaria), Nome da Unidade, Sigla da Unidade, Sigla Unidade Vinculada, E-mail
  */
 import jsPDF from 'jspdf';
+import { nomeEntidadeSuperiorDocumentos } from './pdfTemplate';
 import {
   criarDocumentoInstitucional,
   finalizarDocumentoInstitucional,
@@ -74,7 +75,7 @@ export const generateRelatorioEstruturaPDF = async (
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', largura / 2, 10, { align: 'center' });
+  doc.text(nomeEntidadeSuperiorDocumentos(), largura / 2, 10, { align: 'center' });
 
   doc.setFontSize(9);
   doc.text('Instituto de Desporto, Juventude e Lazer do Estado de Roraima', largura / 2, 16, { align: 'center' });

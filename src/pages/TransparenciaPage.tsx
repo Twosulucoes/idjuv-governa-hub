@@ -7,55 +7,77 @@ import { Button } from "@/components/ui/button";
 import { useTransparenciaPublicacoesPublicas } from "@/hooks/useTransparenciaPublicacoes";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
-const transparenciaItems = [
-  {
-    title: "Portal da Transparência",
-    description: "Acesso ao portal de transparência do Governo do Estado de Roraima",
-    icon: ExternalLink,
-    external: true,
-    href: "https://transparencia.rr.gov.br",
-  },
-  {
-    title: "Cargos e Remuneração",
-    description: "Quadro de cargos comissionados, com vínculo, valores e ocupantes",
-    icon: Users,
-    href: "/transparencia/cargos",
-  },
-  {
-    title: "Estrutura Organizacional",
-    description: "Diretorias, divisões e núcleos, com o organograma do Instituto",
-    icon: Building2,
-    href: "/governanca/estrutura",
-  },
-  {
-    title: "Licitações e Contratos",
-    description: "Processos licitatórios e contratos administrativos",
-    icon: FileText,
-    href: "/transparencia/licitacoes",
-  },
-  {
-    title: "Execução Orçamentária",
-    description: "Receitas, despesas e execução do orçamento",
-    icon: BarChart3,
-    href: "/transparencia/orcamento",
-  },
-  {
-    title: "Patrimônio",
-    description: "Bens patrimoniais e imóveis sob responsabilidade do Instituto",
-    icon: Package,
-    href: "/transparencia/patrimonio",
-  },
-  {
-    title: "Acesso à Informação (LAI)",
-    description: "Registre pedidos de informação e acompanhe as respostas",
-    icon: MessageSquareQuote,
-    href: "/transparencia/lai",
-  },
-];
+import { useTenant } from "@/core/tenant";
 
 export default function TransparenciaPage() {
   const { publicacoes, isLoading } = useTransparenciaPublicacoesPublicas();
+  const { entidadeSuperior, integracoes } = useTenant();
+
+  interface ItemTransparencia {
+    title: string;
+    description: string;
+    icon: typeof ExternalLink;
+    href: string;
+    /** Abre fora do sistema; ausente nas páginas internas. */
+    external?: boolean;
+  }
+
+  // Itens internos: sempre presentes, são páginas do próprio sistema.
+  const itensInternos: ItemTransparencia[] = [
+    {
+      title: "Cargos e Remuneração",
+      description: "Quadro de cargos comissionados, com vínculo, valores e ocupantes",
+      icon: Users,
+      href: "/transparencia/cargos",
+    },
+    {
+      title: "Estrutura Organizacional",
+      description: "Diretorias, divisões e núcleos, com o organograma do Instituto",
+      icon: Building2,
+      href: "/governanca/estrutura",
+    },
+    {
+      title: "Licitações e Contratos",
+      description: "Processos licitatórios e contratos administrativos",
+      icon: FileText,
+      href: "/transparencia/licitacoes",
+    },
+    {
+      title: "Execução Orçamentária",
+      description: "Receitas, despesas e execução do orçamento",
+      icon: BarChart3,
+      href: "/transparencia/orcamento",
+    },
+    {
+      title: "Patrimônio",
+      description: "Bens patrimoniais e imóveis sob responsabilidade do Instituto",
+      icon: Package,
+      href: "/transparencia/patrimonio",
+    },
+    {
+      title: "Acesso à Informação (LAI)",
+      description: "Registre pedidos de informação e acompanhe as respostas",
+      icon: MessageSquareQuote,
+      href: "/transparencia/lai",
+    },
+  ];
+
+  // O portal externo é do tenant: só entra na lista se a instituição o declarou
+  // (White Label — Fase 3). Antes era link fixo para o portal do Estado.
+  const transparenciaItems: ItemTransparencia[] = integracoes?.portalTransparenciaUrl
+    ? [
+        {
+          title: "Portal da Transparência",
+          description: `Acesso ao portal de transparência${
+            entidadeSuperior ? ` do ${entidadeSuperior.nome}` : ""
+          }`,
+          icon: ExternalLink,
+          external: true,
+          href: integracoes.portalTransparenciaUrl,
+        },
+        ...itensInternos,
+      ]
+    : itensInternos;
 
   return (
     <MainLayout>
@@ -190,10 +212,10 @@ export default function TransparenciaPage() {
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
                 Para solicitar informações não disponíveis neste portal, utilize o 
-                Serviço de Informação ao Cidadão (SIC) do Estado de Roraima.
+                Serviço de Informação ao Cidadão (SIC){entidadeSuperior ? ` do ${entidadeSuperior.nome}` : ""}.
               </p>
               <a 
-                href="https://transparencia.rr.gov.br" 
+                href={integracoes?.portalTransparenciaUrl}
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-info hover:underline font-medium"

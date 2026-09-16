@@ -38,6 +38,8 @@ export const idjuvConfig: TenantConfig = {
     naturezaJuridica: 'Autarquia Estadual',
     tratamentoDirigente:
       'O PRESIDENTE DO INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA – IDJuv',
+    // Forma já impressa nos atos emitidos — mantida byte a byte na Fase 4.
+    nomeParaDocumentos: 'INSTITUTO DE DESPORTO, JUVENTUDE E LAZER - IDJUV',
   },
 
   entidadeSuperior: {
@@ -144,6 +146,7 @@ export const idjuvConfig: TenantConfig = {
   contato: {
     email: 'idjuv.gab@gmail.com',
     telefone: '(95) 9133-0044',
+    emailSuporte: 'ti@idjuv.rr.gov.br',
     redesSociais: {
       instagram: 'idjuv_rr',
       facebook: 'idjuvrr',

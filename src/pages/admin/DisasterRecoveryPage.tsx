@@ -13,7 +13,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useTenant } from '@/core/tenant';
 const DisasterRecoveryPage = () => {
+  const { contato } = useTenant();
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, section: string) => {
@@ -485,7 +487,7 @@ BACKUP_ENCRYPTION_KEY=sua_chave_hex_64_caracteres`}
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="p-3 border rounded">
                     <p className="font-medium">TI - Suporte</p>
-                    <p className="text-muted-foreground">ti@idjuv.rr.gov.br</p>
+                    <p className="text-muted-foreground">{contato?.emailSuporte ?? contato?.email}</p>
                   </div>
                   <div className="p-3 border rounded">
                     <p className="font-medium">Supabase Support</p>

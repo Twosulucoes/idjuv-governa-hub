@@ -5,6 +5,7 @@
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getTenantSnapshot } from '@/core/tenant';
 import {
   loadLogos,
   generateInstitutionalHeader,
@@ -215,7 +216,7 @@ export async function gerarRelatorioSegundoVinculo(data: RelatorioSegundoVinculo
     y += 4;
   });
 
-  generateInstitutionalFooter(doc, { sistema: 'Sistema de Gestão de RH - IDJUV' });
+  generateInstitutionalFooter(doc, { sistema: `Sistema de Gestão de RH - ${getTenantSnapshot().identidade.sigla}` });
   addPageNumbers(doc);
 
   const nomeArquivo = `Relatorio_Segundo_Vinculo_${format(new Date(), 'yyyy-MM-dd-HHmm')}.pdf`;

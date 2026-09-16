@@ -490,7 +490,7 @@ export default function GestaoOrganogramaPage() {
                     id="telefone"
                     value={formData.telefone}
                     onChange={(e) => setFormData(prev => ({ ...prev, telefone: e.target.value }))}
-                    placeholder="(95) 3621-0000"
+                    placeholder="(00) 0000-0000"
                     maxLength={20}
                   />
                 </div>
@@ -511,7 +511,7 @@ export default function GestaoOrganogramaPage() {
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="unidade@idjuv.rr.gov.br"
+                    placeholder="unidade@orgao.gov.br"
                     maxLength={100}
                   />
                 </div>

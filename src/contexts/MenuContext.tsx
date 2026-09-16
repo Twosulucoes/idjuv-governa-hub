@@ -17,7 +17,7 @@ import {
   type MenuSection,
   type PermissaoInstitucional 
 } from '@/config/menu.config';
-import { getModuleForMenuSection, type Modulo } from '@/shared/config/modules.config';
+import { getModuleForMenuSection, moduloHabilitado, type Modulo } from '@/shared/config/modules.config';
 import { useModulosUsuario } from '@/hooks/useModulosUsuario';
 
 // ================================
@@ -199,6 +199,12 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Verificar se a seção está mapeada a um módulo
       const moduloDaSecao = getModuleForMenuSection(section.id);
       
+      // Módulo não contratado pela instituição: a seção não existe para
+      // ninguém, nem para o super admin (White Label — Fase 6).
+      if (moduloDaSecao && !moduloHabilitado(moduloDaSecao)) {
+        continue;
+      }
+
       // Se mapeada a um módulo, verificar acesso
       if (moduloDaSecao && !hasModuleAccess(moduloDaSecao)) {
         continue; // Pular seção inteira se não tem acesso ao módulo

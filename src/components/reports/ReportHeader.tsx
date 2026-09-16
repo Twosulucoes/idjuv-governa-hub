@@ -6,10 +6,8 @@
  */
 
 import { cn } from "@/lib/utils";
-import { getMarcaAssets } from '@/core/tenant';
-
-// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
-const { entidadeSuperiorLight: logoGoverno, logoLight: logoIdjuv } = getMarcaAssets();
+import { useTenant } from '@/core/tenant';
+import { Logo, LogoEntidadeSuperior } from '@/components/ui/Logo';
 
 interface ReportHeaderProps {
   /** Título principal do documento (obrigatório) */
@@ -35,6 +33,7 @@ export function ReportHeader({
   className,
 }: ReportHeaderProps) {
   const isEscuro = variante === "escuro";
+  const { identidade, entidadeSuperior } = useTenant();
 
   return (
     <header className={cn("print:break-inside-avoid", className)}>
@@ -48,12 +47,11 @@ export function ReportHeader({
         )}
       >
         {/* Logo Governo (esquerda) */}
-        {mostrarLogos && (
+        {mostrarLogos && entidadeSuperior && (
           <div className="flex-shrink-0">
-            <img
-              src={logoGoverno}
-              alt="Governo do Estado de Roraima"
-              className="h-10 w-auto object-contain"
+            <LogoEntidadeSuperior
+              variant="light"
+              className="h-10 w-auto"
             />
           </div>
         )}
@@ -66,7 +64,7 @@ export function ReportHeader({
               isEscuro ? "text-white" : "text-primary"
             )}
           >
-            GOVERNO DO ESTADO DE RORAIMA
+            {entidadeSuperior?.nome.toUpperCase()}
           </p>
           <p
             className={cn(
@@ -74,18 +72,14 @@ export function ReportHeader({
               isEscuro ? "text-white/90" : "text-muted-foreground"
             )}
           >
-            Instituto de Desporto, Juventude e Lazer do Estado de Roraima
+            {identidade.nomeOficial}
           </p>
         </div>
 
-        {/* Logo IDJuv (direita) */}
+        {/* Logo do órgão (direita) */}
         {mostrarLogos && (
           <div className="flex-shrink-0">
-            <img
-              src={logoIdjuv}
-              alt="IDJuv"
-              className="h-10 w-auto object-contain"
-            />
+            <Logo variant="light" className="h-10 w-auto" />
           </div>
         )}
 

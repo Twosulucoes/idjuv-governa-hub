@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 
 import { getMarcaAssets } from '@/core/tenant';
 
+import { nomeEntidadeSuperiorDocumentos, nomeOficialDocumentos } from './pdfTemplate';
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
 const { entidadeSuperiorLight: logoGovernoSrc, logoDark: logoIDJUVDarkSrc, logoLight: logoIDJUVOficialSrc } = getMarcaAssets();
 
@@ -76,8 +77,8 @@ interface TermoResponsabilidadeData {
 const generateHeader = (doc: jsPDF, header: DocumentHeader) => {
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', 105, 15, { align: 'center' });
-  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER - IDJUV', 105, 20, { align: 'center' });
+  doc.text(nomeEntidadeSuperiorDocumentos(), 105, 15, { align: 'center' });
+  doc.text(nomeOficialDocumentos(), 105, 20, { align: 'center' });
   
   doc.setLineWidth(0.5);
   doc.line(20, 25, 190, 25);
@@ -508,8 +509,8 @@ export const generateRelatorioCargos = (data: RelatorioCargosData): void => {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0, 51, 102);
-    doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, 15, { align: 'center' });
-    doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER - IDJUV', pageWidth / 2, 20, { align: 'center' });
+    doc.text(nomeEntidadeSuperiorDocumentos(), pageWidth / 2, 15, { align: 'center' });
+    doc.text(nomeOficialDocumentos(), pageWidth / 2, 20, { align: 'center' });
     
     doc.setLineWidth(0.5);
     doc.setDrawColor(0, 51, 102);
@@ -1165,9 +1166,9 @@ export const generateFichaCadastral = (data: FichaCadastralData): void => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(255, 255, 255);
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, 8, { align: 'center' });
+  doc.text(nomeEntidadeSuperiorDocumentos(), pageWidth / 2, 8, { align: 'center' });
   doc.setFontSize(10);
-  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER - IDJUV', pageWidth / 2, 14, { align: 'center' });
+  doc.text(nomeOficialDocumentos(), pageWidth / 2, 14, { align: 'center' });
   doc.setFontSize(12);
   doc.text('FICHA CADASTRAL DO SERVIDOR', pageWidth / 2, 21, { align: 'center' });
   
@@ -1406,9 +1407,9 @@ export const generateDeclaracaoAcumulacao = (data: DeclaracaoAcumulacaoData): vo
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(255, 255, 255);
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, 10, { align: 'center' });
+  doc.text(nomeEntidadeSuperiorDocumentos(), pageWidth / 2, 10, { align: 'center' });
   doc.setFontSize(10);
-  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER - IDJUV', pageWidth / 2, 17, { align: 'center' });
+  doc.text(nomeOficialDocumentos(), pageWidth / 2, 17, { align: 'center' });
   doc.setFontSize(9);
   doc.text('Departamento de Recursos Humanos', pageWidth / 2, 24, { align: 'center' });
   
@@ -1510,9 +1511,9 @@ export const generateDeclaracaoBens = (data: DeclaracaoBensData): void => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(255, 255, 255);
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, 10, { align: 'center' });
+  doc.text(nomeEntidadeSuperiorDocumentos(), pageWidth / 2, 10, { align: 'center' });
   doc.setFontSize(10);
-  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER - IDJUV', pageWidth / 2, 17, { align: 'center' });
+  doc.text(nomeOficialDocumentos(), pageWidth / 2, 17, { align: 'center' });
   doc.setFontSize(9);
   doc.text('Departamento de Recursos Humanos', pageWidth / 2, 24, { align: 'center' });
   
@@ -1637,9 +1638,9 @@ export const generateDeclaracaoResidencia = (data: DeclaracaoResidenciaData): vo
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(255, 255, 255);
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, 10, { align: 'center' });
+  doc.text(nomeEntidadeSuperiorDocumentos(), pageWidth / 2, 10, { align: 'center' });
   doc.setFontSize(10);
-  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER - IDJUV', pageWidth / 2, 17, { align: 'center' });
+  doc.text(nomeOficialDocumentos(), pageWidth / 2, 17, { align: 'center' });
   doc.setFontSize(9);
   doc.text('Departamento de Recursos Humanos', pageWidth / 2, 24, { align: 'center' });
   
@@ -2118,9 +2119,9 @@ export const generateDeclaracaoAcumulacaoModelo = (): void => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(255, 255, 255);
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, 10, { align: 'center' });
+  doc.text(nomeEntidadeSuperiorDocumentos(), pageWidth / 2, 10, { align: 'center' });
   doc.setFontSize(10);
-  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER - IDJUV', pageWidth / 2, 17, { align: 'center' });
+  doc.text(nomeOficialDocumentos(), pageWidth / 2, 17, { align: 'center' });
   doc.setFontSize(9);
   doc.text('Departamento de Recursos Humanos', pageWidth / 2, 24, { align: 'center' });
   
@@ -2204,9 +2205,9 @@ export const generateDeclaracaoBensModelo = (): void => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(255, 255, 255);
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, 10, { align: 'center' });
+  doc.text(nomeEntidadeSuperiorDocumentos(), pageWidth / 2, 10, { align: 'center' });
   doc.setFontSize(10);
-  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER - IDJUV', pageWidth / 2, 17, { align: 'center' });
+  doc.text(nomeOficialDocumentos(), pageWidth / 2, 17, { align: 'center' });
   doc.setFontSize(9);
   doc.text('Departamento de Recursos Humanos', pageWidth / 2, 24, { align: 'center' });
   
