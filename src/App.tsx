@@ -209,6 +209,7 @@ import ProcessoDetalhePage from "./pages/workflow/ProcessoDetalhePage";
 import PatrimonioMobileUnificadoPage from "./pages/mobile/PatrimonioMobileUnificadoPage";
 import InstalarAppPage from "./pages/mobile/InstalarAppPage";
 
+import { ModuloHabilitado } from "@/components/auth/ModuloHabilitado";
 // Financeiro (ERP)
 import {
   DashboardFinanceiroPage,
@@ -391,26 +392,32 @@ const App = () => (
               
               {/* Cadastro de Árbitros - público */}
               <Route path="/cadastro-arbitros" element={
-                <PublicPageGuard rota="/cadastro-arbitros">
-                  <CadastroArbitroPage />
-                </PublicPageGuard>
+                <ModuloHabilitado codigo="arbitros">
+                  <PublicPageGuard rota="/cadastro-arbitros">
+                    <CadastroArbitroPage />
+                  </PublicPageGuard>
+                </ModuloHabilitado>
               } />
               
               {/* Admin Árbitros */}
               <Route path="/cadastro-arbitros/admin" element={
-                <ProtectedRoute><ArbitrosAdminPage /></ProtectedRoute>
+                <ProtectedRoute requiredModule="arbitros"><ArbitrosAdminPage /></ProtectedRoute>
               } />
 
               {/* Credenciamento Gestores Escolares - JER */}
               <Route path="/cadastrogestores" element={
-                <PublicPageGuard rota="/cadastrogestores">
-                  <FormularioGestorPage />
-                </PublicPageGuard>
+                <ModuloHabilitado codigo="gestores_escolares">
+                  <PublicPageGuard rota="/cadastrogestores">
+                    <FormularioGestorPage />
+                  </PublicPageGuard>
+                </ModuloHabilitado>
               } />
               <Route path="/cadastrogestores/consulta" element={
-                <PublicPageGuard rota="/cadastrogestores" fallbackRota="/cadastrogestores">
-                  <ConsultaGestorPage />
-                </PublicPageGuard>
+                <ModuloHabilitado codigo="gestores_escolares">
+                  <PublicPageGuard rota="/cadastrogestores" fallbackRota="/cadastrogestores">
+                    <ConsultaGestorPage />
+                  </PublicPageGuard>
+                </ModuloHabilitado>
               } />
               
               {/* ============================================ */}
