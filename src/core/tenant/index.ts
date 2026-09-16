@@ -12,6 +12,7 @@ export type {
   TenantIdentidade,
   TenantEntidadeSuperior,
   TenantMarca,
+  TenantAssets,
   TenantEndereco,
   TenantContato,
   TenantLegal,
@@ -27,6 +28,13 @@ export { TENANT_ATIVO, resolverTenant } from './resolver';
 export { getTenantSnapshot, getTenantSnapshotOuNulo, definirTenant } from './snapshot';
 export { aplicarTema, cssDoTema } from './tema';
 export { fallbackDadosOficiais } from './dadosOficiais';
+export { getMarcaAssets, logoOrgao, logoEntidadeSuperior } from './marca';
 export { TenantProvider } from './TenantProvider';
 export { TenantContext } from './context';
-export { useTenant, useIdentidade, useMarca, useModuloHabilitado } from './useTenant';
+export {
+  useTenant,
+  useIdentidade,
+  useMarca,
+  useMarcaAssets,
+  useModuloHabilitado,
+} from './useTenant';

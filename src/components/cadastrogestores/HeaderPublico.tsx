@@ -4,9 +4,12 @@
  */
 
 import { Link } from 'react-router-dom';
-import logoGoverno from '@/assets/logo-governo-roraima.jpg';
-import logoGovernoDark from '@/assets/logo-governo-roraima-dark.png';
 import { useLogoIdjuv } from '@/hooks/useLogoIdjuv';
+
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { entidadeSuperiorDark: logoGovernoDark, entidadeSuperiorLight: logoGoverno } = getMarcaAssets();
 
 interface HeaderPublicoProps {
   titulo?: string;

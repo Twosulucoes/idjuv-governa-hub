@@ -20,10 +20,12 @@ import jsPDF from 'jspdf';
 import { DIAS_SEMANA_SIGLA, type DiaNaoUtil } from '@/types/frequencia';
 import { verificarDoisTurnos } from '@/lib/frequenciaCalculoService';
 
-// Importar logos
-import logoGoverno from '@/assets/logo-governo-roraima.jpg';
-import logoIdjuv from '@/assets/logo-idjuv-oficial.png';
+import { getMarcaAssets } from '@/core/tenant';
 
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { entidadeSuperiorLight: logoGoverno, logoLight: logoIdjuv } = getMarcaAssets();
+
+// Importar logos
 // ============================================
 // INTERFACES
 // ============================================

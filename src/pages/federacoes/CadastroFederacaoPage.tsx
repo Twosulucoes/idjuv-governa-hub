@@ -19,7 +19,10 @@ import {
 } from '@/components/ui/form';
 import { FaixaBrasil } from '@/components/ui/FaixaBrasil';
 
-import logoIdjuv from '@/assets/logo-idjuv-oficial.png';
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { logoLight: logoIdjuv } = getMarcaAssets();
 
 // Schema de validação
 const federacaoSchema = z.object({

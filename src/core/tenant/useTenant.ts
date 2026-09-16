@@ -11,6 +11,7 @@ import type {
   TenantConfig,
   TenantIdentidade,
   TenantMarca,
+  TenantAssets,
 } from './types';
 
 /** Perfil completo da instituição ativa. */
@@ -26,6 +27,11 @@ export function useIdentidade(): TenantIdentidade {
 /** Atalho para marca (paleta, cor canônica, proporções de logo). */
 export function useMarca(): TenantMarca {
   return useContext(TenantContext).marca;
+}
+
+/** Atalho para as imagens da instituição (logos, ícones). */
+export function useMarcaAssets(): TenantAssets {
+  return useContext(TenantContext).marca.assets;
 }
 
 /** Verifica se um módulo está contratado por esta instituição. */

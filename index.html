@@ -1,28 +1,36 @@
 <!doctype html>
-<html lang="pt-BR">
+<!--
+  Metadados injetados no build a partir de `tenants/<slug>/metadata.ts`,
+  selecionado por VITE_TENANT_SLUG. Ver docs/WHITE_LABEL.md §3.
+
+  Não escreva nome, marca ou cor de instituição aqui: os placeholders %TENANT_*%
+  são substituídos pelo plugin `tenantHtml` em vite.config.ts. Sem substituição
+  (ex.: abrir este arquivo direto no navegador), o que aparece é o placeholder —
+  e não a marca de outro cliente.
+-->
+<html lang="%TENANT_LANG%">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>IDJUV - Instituto de Desporto, Juventude e Lazer de Roraima</title>
-    <meta name="description" content="Portal de Governança e Transparência do Instituto de Desporto, Juventude e Lazer de Roraima - IDJUV" />
-    <meta name="author" content="IDJUV - Governo de Roraima" />
+    <title>%TENANT_APP_NAME%</title>
+    <meta name="description" content="%TENANT_APP_DESCRIPTION%" />
+    <meta name="author" content="%TENANT_AUTHOR%" />
     <link rel="icon" href="/favicon.png" type="image/png" />
-    
+
     <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#1e40af" />
+    <meta name="theme-color" content="%TENANT_THEME_COLOR%" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="IDJUV" />
+    <meta name="apple-mobile-web-app-title" content="%TENANT_APP_SHORT_NAME%" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
 
-    <meta property="og:title" content="IDJUV - Instituto de Desporto, Juventude e Lazer de Roraima" />
-    <meta property="og:description" content="Portal de Governança e Transparência do IDJUV" />
+    <meta property="og:title" content="%TENANT_APP_NAME%" />
+    <meta property="og:description" content="%TENANT_APP_DESCRIPTION%" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="/favicon.png" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@GovernoRoraima" />
     <meta name="twitter:image" content="/favicon.png" />
   </head>
 

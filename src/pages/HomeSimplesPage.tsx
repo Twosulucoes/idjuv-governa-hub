@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FileText, Building2, MapPin, Phone, Mail, Clock } from "lucide-react";
 import { LogoIdjuv, logoIdjuvOficial } from "@/components/ui/LogoIdjuv";
-import logoGoverno from "@/assets/logo-governo-roraima.jpg";
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { entidadeSuperiorLight: logoGoverno } = getMarcaAssets();
 
 export default function HomeSimplesPage() {
   return (

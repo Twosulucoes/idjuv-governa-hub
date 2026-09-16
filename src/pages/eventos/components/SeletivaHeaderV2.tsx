@@ -6,10 +6,13 @@
 import { Link } from "react-router-dom";
 import { Instagram, Moon, Sun } from "lucide-react";
 import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
-import logoGoverno from "@/assets/logo-governo-roraima.jpg";
-import logoGovernoDark from "@/assets/logo-governo-roraima-dark.png";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
+
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { entidadeSuperiorDark: logoGovernoDark, entidadeSuperiorLight: logoGoverno } = getMarcaAssets();
 
 export function SeletivaHeaderV2() {
   const { theme, setTheme } = useTheme();

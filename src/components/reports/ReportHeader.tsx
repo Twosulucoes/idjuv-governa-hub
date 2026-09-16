@@ -6,8 +6,10 @@
  */
 
 import { cn } from "@/lib/utils";
-import logoGoverno from "@/assets/logo-governo-roraima.jpg";
-import logoIdjuv from "@/assets/logo-idjuv-oficial.png";
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { entidadeSuperiorLight: logoGoverno, logoLight: logoIdjuv } = getMarcaAssets();
 
 interface ReportHeaderProps {
   /** Título principal do documento (obrigatório) */

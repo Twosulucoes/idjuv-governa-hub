@@ -31,7 +31,10 @@ import { usePreCadastro } from "@/hooks/usePreCadastro";
 import { useFormFieldConfig } from "@/hooks/useFormFieldConfig";
 import { gerarPdfMiniCurriculo } from "@/lib/pdfMiniCurriculo";
 import type { PreCadastro } from "@/types/preCadastro";
-import logoIdjuv from "@/assets/logo-idjuv-oficial.png";
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { logoLight: logoIdjuv } = getMarcaAssets();
 
 // Mapeamento step → chave de seção na config
 const STEP_SECTION_MAP: Record<number, string | null> = {

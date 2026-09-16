@@ -16,6 +16,17 @@
 
 import type { TenantConfig } from '@/core/tenant/types';
 
+// Imagens da instituição. O bundler resolve cada import numa URL final com
+// hash — é assim que o núcleo consome marca sem conhecer caminho de cliente.
+import logoLight from './assets/logo-light.png';
+import logoDark from './assets/logo-dark.png';
+import entidadeSuperiorLight from './assets/entidade-superior.jpg';
+import entidadeSuperiorDark from './assets/entidade-superior-dark.png';
+import favicon from './assets/favicon.png';
+import appleTouchIcon from './assets/apple-touch-icon.png';
+import pwa192 from './assets/pwa-192x192.png';
+import pwa512 from './assets/pwa-512x512.png';
+
 export const idjuvConfig: TenantConfig = {
   slug: 'idjuv',
 
@@ -35,6 +46,17 @@ export const idjuvConfig: TenantConfig = {
   },
 
   marca: {
+    assets: {
+      logoLight,
+      logoDark,
+      entidadeSuperiorLight,
+      entidadeSuperiorDark,
+      favicon,
+      appleTouchIcon,
+      pwa192,
+      pwa512,
+    },
+
     /**
      * COR INSTITUCIONAL CANÔNICA: azul #164069 (hsl 210 65% 25%).
      *

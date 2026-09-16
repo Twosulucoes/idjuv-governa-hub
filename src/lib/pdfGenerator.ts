@@ -1,5 +1,10 @@
 import jsPDF from 'jspdf';
 
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { entidadeSuperiorLight: logoGovernoSrc, logoDark: logoIDJUVDarkSrc, logoLight: logoIDJUVOficialSrc } = getMarcaAssets();
+
 interface DocumentHeader {
   titulo: string;
   numero: string;
@@ -1720,10 +1725,6 @@ const loadImageAsBase64 = async (src: string): Promise<string> => {
 };
 
 // Importar logos do sistema
-import logoGovernoSrc from '@/assets/logo-governo-roraima.jpg';
-import logoIDJUVOficialSrc from '@/assets/logo-idjuv-oficial.png';
-import logoIDJUVDarkSrc from '@/assets/logo-idjuv-dark4.png';
-
 const loadLogos = async () => {
   if (!cachedLogoGoverno) {
     try {

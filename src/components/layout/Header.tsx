@@ -13,10 +13,14 @@ import {
 } from "@/components/ui/navigation-menu";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import logoGoverno from "@/assets/logo-governo-roraima.jpg";
 import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { useConfigMenuPublico } from "@/hooks/useConfigMenuPublico";
+
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { entidadeSuperiorLight: logoGoverno } = getMarcaAssets();
 
 const menuItems = [
   // Itens no ar (visíveis por padrão). Os demais grupos abaixo ficam ocultos

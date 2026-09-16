@@ -23,7 +23,10 @@ import {
   CalendarDays
 } from "lucide-react";
 import { LogoIdjuv, logoIdjuvOficial } from "@/components/ui/LogoIdjuv";
-import logoGoverno from "@/assets/logo-governo-roraima.jpg";
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { entidadeSuperiorLight: logoGoverno } = getMarcaAssets();
 
 export default function ApresentacaoPage() {
   const valores = [

@@ -1,16 +1,19 @@
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
-// Importar ambas as versões das logos
-import logoOficial from "@/assets/logo-idjuv-oficial.png";
-import logoDark from "@/assets/logo-idjuv-dark4.png";
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { logoDark, logoLight: logoOficial } = getMarcaAssets();
 
 /**
  * Hook para retornar a logo correta do IDJUV baseada no tema atual.
  * 
  * Regras:
- * - Fundo claro (light theme) → logo-idjuv-oficial.png
- * - Fundo escuro (dark theme) → logo-idjuv-dark4.png
+ * - Fundo claro (light theme) → logo do órgão para fundo claro
+ * - Fundo escuro (dark theme) → logo do órgão para fundo escuro
+ *
+ * As imagens vêm de `tenants/<slug>/assets/` via `getMarcaAssets()`.
  * 
  * @param forceVariant - Força uma variante específica ('light' | 'dark')
  * @returns O caminho da logo apropriada

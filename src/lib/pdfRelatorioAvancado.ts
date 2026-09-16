@@ -10,6 +10,7 @@ import type {
 import { CAMPOS_POR_TIPO, TIPO_RELATORIO_LABELS } from '@/types/relatorios';
 import { STATUS_PORTARIA_LABELS } from '@/types/portaria';
 
+import { getMarcaAssets } from '@/core/tenant';
 // ================================================================
 // GERADOR DE PDF AVANÇADO PARA RELATÓRIOS
 // ================================================================
@@ -44,9 +45,12 @@ async function carregarImagem(src: string): Promise<HTMLImageElement | null> {
 
 // Carregar logos
 async function carregarLogos(): Promise<LogosCarregados> {
+  const marca = getMarcaAssets();
   const [gov, idjuv] = await Promise.all([
-    carregarImagem('/assets/logo-governo-roraima.jpg'),
-    carregarImagem('/assets/logo-idjuv-oficial.png'),
+    marca.entidadeSuperiorLight
+      ? carregarImagem(marca.entidadeSuperiorLight)
+      : Promise.resolve(null),
+    carregarImagem(marca.logoLight),
   ]);
   return { gov, idjuv };
 }
