@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fallbackDadosOficiais } from '@/core/tenant';
 
 interface DadoOficial {
   id: string;
@@ -44,30 +45,12 @@ interface UseDadosOficiaisReturn {
   emailInstitucional: string;
 }
 
-const FALLBACK_DATA: Record<string, string> = {
-  nome_oficial: 'Instituto de Desporto, Juventude e Lazer do Estado de Roraima – IDJuv',
-  nome_curto: 'IDJuv',
-  natureza_juridica: 'Autarquia Estadual',
-  cnpj: '64.689.510/0001-09',
-  data_criacao: '29/12/2025',
-  atividade_principal: '84.11-6-00 - Administração pública em geral',
-  vinculacao: 'Secretaria de Estado da Educação e Desporto – SEED',
-  endereco_logradouro: 'Av. Brigadeiro Eduardo Gomes',
-  endereco_numero: '3232',
-  endereco_complemento: 'Anexo IDJuv',
-  endereco_bairro: 'Estados',
-  endereco_cep: '69.305-455',
-  endereco_cidade: 'Boa Vista',
-  endereco_uf: 'RR',
-  endereco_pais: 'Brasil',
-  email_institucional: 'idjuv.gab@gmail.com',
-  telefone: '(95) 9133-0044',
-  lei_criacao: 'Lei nº 2.301, de 29 de dezembro de 2025',
-  decreto_regulamentacao: 'Decreto nº 39.840-E, de 23 de janeiro de 2026',
-  presidente_nome: 'Marcelo de Magalhães Nunes',
-  presidente_cargo: 'Presidente',
-  presidente_decreto_nomeacao: 'Decreto nº 86-P, de 12 de janeiro de 2026',
-};
+/**
+ * Fallback usado enquanto a tabela `dados_oficiais` não responde.
+ * Vem do perfil da instituição (tenants/<slug>/tenant.config.ts) — não de
+ * literais aqui. Ver docs/WHITE_LABEL.md.
+ */
+const FALLBACK_DATA: Record<string, string> = fallbackDadosOficiais();
 
 export function useDadosOficiais(): UseDadosOficiaisReturn {
   const [dados, setDados] = useState<DadoOficial[]>([]);

@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+*.tsbuildinfo
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +23,22 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# ---------------------------------------------------------------------------
+# White Label — dados de cliente e dumps NUNCA em public/
+# `public/` é servido sem autenticação e em caminho previsível. Dumps de schema,
+# políticas de RLS e documentos institucionais não pertencem a ele.
+#   - dumps de disaster recovery  → supabase/disaster-recovery/
+#   - documentos da instituição   → tenants/<slug>/assets/documentos/
+# Ver docs/WHITE_LABEL.md
+# ---------------------------------------------------------------------------
+public/disaster-recovery/
+public/documentos/
+public/**/*.sql
+public/**/*.dump
+
+# Backups e exports locais
+*.dump
+*.sql.gz
+*.bak
+backups/
