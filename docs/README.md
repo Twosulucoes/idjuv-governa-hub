@@ -1,7 +1,11 @@
 # Documentação do Sistema — IDJUV Governa Hub
 
-Índice central da documentação técnica e funcional do sistema. Comece por aqui.
+Índice central da documentação técnica e funcional do sistema.
 
+> **Comece por [`DOCUMENTACAO_TECNICA.md`](../DOCUMENTACAO_TECNICA.md)** na raiz —
+> documento-mestre que consolida arquitetura, mapa do acoplamento à marca do
+> cliente e as diretrizes de White Label. Os arquivos abaixo são os aprofundamentos.
+>
 > Para o guia rápido de contexto orientado ao Claude Code / onboarding de
 > desenvolvedores, veja o [`CLAUDE.md`](../CLAUDE.md) na raiz do repositório.
 
@@ -18,6 +22,8 @@
 | [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md) | Funções serverless (Deno) do Supabase |
 | [DESENVOLVIMENTO.md](./DESENVOLVIMENTO.md) | Setup, comandos, fluxo Git, deploy, como adicionar features |
 | [AUDITORIA_USUARIOS.md](./AUDITORIA_USUARIOS.md) | Auditoria de segurança do sistema de usuários (achados e hardening) |
+| [INVENTARIO_HARDCODE.md](./INVENTARIO_HARDCODE.md) | Mapa do hardcode do cliente (IDJUV) no código — base do White Label |
+| [WHITE_LABEL.md](./WHITE_LABEL.md) | Arquitetura-alvo, roadmap e critérios de aceite para o modelo White Label |
 
 ## Documentos operacionais (já existentes)
 
@@ -33,13 +39,19 @@
 
 ## Números do sistema (snapshot)
 
-- **~241** páginas em `src/pages/` (organizadas por domínio)
-- **~282** componentes em `src/components/`
-- **~80** hooks de dados em `src/hooks/`
+> Medido em 2026-09-16.
+
+- **736** arquivos `.ts`/`.tsx` em `src/`
+- **241** páginas em `src/pages/` (organizadas por domínio)
+- **265** componentes `.tsx` em `src/components/`
+- **61** hooks de dados em `src/hooks/`
+- **38** geradores de PDF em `src/lib/`
+- **239** rotas declaradas em `src/App.tsx` (1.281 linhas)
 - **231** tabelas, **15** views e **47** funções (RPC) no Postgres
-- **9** Edge Functions (Deno) no Supabase
-- **~240** migrações SQL versionadas
+- **8** Edge Functions (Deno) no Supabase
+- **246** migrações SQL versionadas
 - **17** módulos funcionais
+- **~1.070** ocorrências de "IDJUV" em **224** arquivos (ver [INVENTARIO_HARDCODE.md](./INVENTARIO_HARDCODE.md))
 
 > A pasta [`.lovable/`](../.lovable/) contém relatórios e planos históricos
 > gerados pelo Lovable (auditorias, refatorações, fases de implementação) — útil
