@@ -6,7 +6,9 @@
 |---|---|
 | **Finalidade deste arquivo** | Instruir o preenchimento do DFD pela unidade demandante do IDJUV |
 | **Órgão** | IDJUV — Instituto de Desporto, Juventude e Lazer do Estado de Roraima |
-| **Base normativa** | Decreto nº 10.947/2022, art. 2º, II · Lei nº 14.133/2021, arts. 12, VII e 18 |
+| **Natureza jurídica** | Autarquia Estadual (Lei nº 2.301, de 29/12/2025; Decreto nº 39.840-E, de 23/01/2026) |
+| **Base normativa** | Decreto nº 10.947/2022, art. 2º, II · Lei nº 14.133/2021, arts. 6º, XX e XXIII; 12, VII; 18; 23; 40 e 106 · LGPD (Lei nº 13.709/2018) · LAI (Lei nº 12.527/2011) |
+| **Etapa do processo** | **Fase preparatória — primeiro documento.** O DFD antecede e fundamenta o ETP, o Termo de Referência e a pesquisa de preços |
 | **Documento técnico de apoio** | [`PROPOSTA_CONTRATACAO_IDJUV.md`](./PROPOSTA_CONTRATACAO_IDJUV.md) (ETP/TR) e [`DOCUMENTACAO_TECNICA.md`](./DOCUMENTACAO_TECNICA.md) |
 | **Data de referência** | 16/09/2026 |
 
@@ -39,6 +41,16 @@ campo há três blocos:
 > **3. Os valores são estimativa de referência**, por composição de custos, não
 > pesquisa de mercado. Servem para dimensionar a demanda no PCA. O preço
 > estimado exige a pesquisa do art. 23 da Lei nº 14.133/2021.
+
+### Dados a levantar antes de preencher
+
+| Dado | Onde obter | Campo do DFD |
+|---|---|---|
+| Número do processo administrativo (SEI/protocolo) | Protocolo do Instituto | Cabeçalho |
+| Item do Plano de Contratações Anual (PCA) | Setor de Planejamento | Seção 6 |
+| Dotação orçamentária e elemento de despesa | Setor Orçamentário/Contábil | Seções 5 e 6 |
+| Nome, matrícula e cargo do responsável pela demanda | Unidade demandante | Seções 1 e 11 |
+| Quantitativo de servidores, unidades locais e processos por exercício | RH e Patrimônio | Seções 2 e 3 |
 
 ---
 
@@ -98,6 +110,26 @@ o campo mais importante do DFD e o que mais costuma ser mal preenchido.
 > administrativa, a confiabilidade da informação e a capacidade do Instituto de
 > cumprir tempestivamente suas obrigações legais.
 
+## 2.1 Consequências da não contratação
+
+Tabela para transcrição no campo, ou como anexo do DFD. O quadro registra
+também a **situação de fato**: a operação atual já se apoia em plataforma
+implantada no Instituto **sem instrumento contratual que a ampare**.
+
+| Lacuna atual | Consequência para o Instituto |
+|---|---|
+| Ausência de sistema integrado de gestão | Retrabalho, divergência entre controles de pessoal, folha, patrimônio e orçamento, e ausência de visão gerencial consolidada |
+| Ausência de contrato de sustentação | Indisponibilidade sem prazo de recuperação exigível — risco de paralisação da folha de pagamento e da execução financeira |
+| Ausência de responsável formal por backup e recuperação | Risco de perda irreversível das bases de pessoal, folha e patrimônio |
+| Ausência de obrigação de manutenção legal | Descumprimento de obrigação acessória por desatualização de alíquota, leiaute fiscal ou norma de contratações |
+| Ausência de SLA de suporte | Dependência informal para restabelecer rotinas críticas |
+| Titularidade da infraestrutura não definida contratualmente | Insegurança quanto à propriedade e à portabilidade do dado público |
+
+> **Registre a situação de fato no processo.** Omitir que a plataforma já opera
+> no Instituto compromete a instrução: o ETP precisará justificar o levantamento
+> dos itens de implantação já executados (Seção 5.3). Tratar o ponto abertamente
+> é mais seguro do que silenciá-lo.
+
 **O que evitar:**
 
 - Descrever o sistema desejado em vez do problema. "Precisamos do Governa Hub"
@@ -105,6 +137,9 @@ o campo mais importante do DFD e o que mais costuma ser mal preenchido.
 - Citar marca ou fornecedor neste campo.
 - Genéricos sem lastro ("modernizar a gestão", "avançar na transformação
   digital") desacompanhados do que exatamente não funciona hoje.
+- Deixar de quantificar. Informe servidores atendidos, unidades locais sob
+  gestão patrimonial e processos administrativos por exercício — quantitativo
+  ausente no DFD inviabiliza o dimensionamento no ETP.
 
 ---
 
@@ -138,13 +173,72 @@ suficiente para o PCA. O detalhamento cabe ao ETP e ao Termo de Referência.
 > semanas, não em anos, e o comportamento do sistema é verificável antes da
 > contratação.
 
+## 3.1 Composição funcional — os 17 módulos
+
+Anexe esta tabela ao DFD ou transcreva-a no campo de detalhamento do objeto. Ela
+demonstra a abrangência da demanda sem redigir o Termo de Referência no DFD.
+
+### Núcleo de gestão pública
+
+| # | Módulo | Abrangência funcional |
+|---:|---|---|
+| 1 | **Administração** | Usuários, perfis de acesso, auditoria, reuniões, backup, configurações do sistema |
+| 2 | **Recursos Humanos** | Servidores, lotações, designações, frequência, férias, licenças, viagens, portarias, contracheques |
+| 3 | **Folha de Pagamento** *(integrada ao módulo de RH)* | Cálculo com INSS e IRRF, rubricas, consignações, remessa CNAB e eventos do eSocial |
+| 4 | **Processos** | Tramitação de processos administrativos com despachos, pareceres, prazos e controle de sigilo |
+| 5 | **Compras** | Licitações e aquisições |
+| 6 | **Contratos** | Gestão e execução contratual, atas de registro de preço e fornecedores |
+| 7 | **Financeiro** | Orçamento, QDD, alterações orçamentárias, empenhos, liquidações, pagamentos, adiantamentos e restos a pagar |
+| 8 | **Patrimônio** | Bens patrimoniais, movimentações, campanhas de inventário, almoxarifado, manutenções e baixas |
+| 9 | **Patrimônio Mobile (PWA)** | Aplicativo móvel de coleta de inventário em campo, com leitura de QR Code e operação offline |
+| 10 | **Governança** | Estrutura organizacional, organograma, cargos, matriz RACI, riscos e controles internos |
+| 11 | **Integridade** | Canal de denúncias, código de ética, conflito de interesses e compliance |
+| 12 | **Transparência** | Portal público de transparência ativa e atendimento ao e-SIC (LAI) |
+| 13 | **Comunicação (ASCOM)** | Demandas de comunicação e gestão de conteúdo do portal institucional |
+| 14 | **Gabinete** | Painel executivo da Presidência: pré-cadastros, portarias e ordens de missão |
+
+### Vertical Desporto, Juventude e Lazer
+
+| # | Módulo | Abrangência funcional |
+|---:|---|---|
+| 15 | **Programas** | Programas sociais e esportivos, incluindo Bolsa Atleta, Juventude Cidadã, Esporte na Comunidade, Jovem Empreendedor, Jogos Escolares e seletivas estudantis |
+| 16 | **Gestores Escolares** | Credenciamento de gestores para os Jogos Escolares de Roraima |
+| 17 | **Organizações** | Federações desportivas, instituições e entidades parceiras |
+| 18 | **Árbitros** | Cadastro e gestão de árbitros desportivos |
+
+> *A numeração acima é de apresentação. O catálogo canônico de 17 módulos consta
+> do arquivo de configuração da solução; Folha integra o módulo de RH.*
+
+## 3.2 Dimensão verificada da solução
+
+Números apurados por inspeção direta do código-fonte em 16/09/2026. Use-os para
+demonstrar que a solução é **pronta**, e não projeto a desenvolver.
+
+| Métrica | Valor |
+|---|---:|
+| Módulos funcionais | **17** |
+| Telas/páginas do sistema | **241** |
+| Rotas de navegação declaradas | **239** |
+| Tabelas no banco de dados | **231** |
+| Views de transparência e relatório | **15** |
+| Funções de negócio no banco (RPC) | **47** |
+| Migrações de banco versionadas | **246** |
+| Funções serverless em produção | **8** |
+| Geradores de documento PDF | **38** |
+| Arquivos de código-fonte | **736** |
+| Linhas de código | **~224.700** |
+
 **O que evitar:**
 
-- Redigir aqui o Termo de Referência inteiro. O DFD é sucinto.
+- Redigir aqui o Termo de Referência inteiro. O DFD é sucinto — as tabelas de
+  3.1 e 3.2 vão como anexo, não como corpo do campo.
 - Omitir que o objeto inclui **serviço continuado**: isso muda o enquadramento
   orçamentário e a vigência possível (art. 106 da Lei nº 14.133/2021).
 - Descrever apenas "aquisição de software", o que sugere licença perpétua de
   prateleira e não reflete a natureza da contratação.
+- Suprimir a expressão **"instância dedicada e isolada"**. É requisito de
+  segurança e de titularidade do dado público, e precisa nascer no DFD para ser
+  exigível no Termo de Referência.
 
 ---
 
@@ -192,6 +286,18 @@ público, e por que a solução pretendida é adequada.
 > permite à fiscalização vincular o pagamento mensal ao cumprimento efetivo do
 > nível de serviço.
 
+## 4.1 Resultados pretendidos
+
+| Dimensão | Resultado esperado |
+|---|---|
+| **Continuidade** | Operação de folha, orçamento e patrimônio com disponibilidade contratualmente exigível |
+| **Conformidade** | Cumprimento tempestivo de LAI, LGPD, eSocial e Lei nº 14.133/2021 |
+| **Segurança do dado** | Backup em ambiente independente, com restauração testada periodicamente — hoje inexistente como obrigação |
+| **Eficiência** | Eliminação de controles paralelos e de retrabalho entre pessoal, folha, orçamento e patrimônio |
+| **Redução de dependência** | Documentação operacional e capacitação de administradores internos do Instituto |
+| **Transparência** | Portal público mantido e atualizado, com dado pessoal filtrado na origem |
+| **Previsibilidade orçamentária** | Custo de TI conhecido e estável, substituindo despesa não formalizada |
+
 **O que evitar:**
 
 - Justificar pela conveniência do fornecedor ou pela relação já existente. A
@@ -199,6 +305,9 @@ público, e por que a solução pretendida é adequada.
 - Afirmar exclusividade ou inviabilidade de competição neste campo — ver Seção 9.
 - Prometer economia sem memória de cálculo. Se afirmar redução de custo, anexe o
   comparativo.
+- Omitir as limitações conhecidas da solução. O ETP de apoio já as registra
+  (ausência de suíte de testes automatizados, dívidas técnicas mapeadas e itens
+  de correção exigidos na implantação); o DFD deve remeter a elas, não ocultá-las.
 
 ---
 
@@ -206,6 +315,8 @@ público, e por que a solução pretendida é adequada.
 
 **O que o campo pede:** a ordem de grandeza do gasto, para dimensionamento no
 PCA e reserva orçamentária.
+
+## 5.1 Regra estruturante: duas parcelas de natureza distinta
 
 > A contratação deve ser estruturada e orçada em **duas parcelas de natureza
 > distinta**, com dotações e fatos geradores próprios:
@@ -215,24 +326,93 @@ PCA e reserva orçamentária.
 | **A — Implantação** | Despesa **não recorrente**, por entrega | Setup da infraestrutura, parametrização da instância do IDJUV, migração de dados e capacitação | Parcela única ou em marcos, **contra aceite** de cada etapa |
 | **B — Manutenção e sustentação da stack** | Despesa **continuada**, por disponibilidade | Infraestrutura em nuvem, backups, segurança, atualizações e suporte técnico | **Mensal**, vinculada ao cumprimento do nível de serviço |
 
-> **Estimativa de referência (a confirmar em pesquisa de preços):**
+> A separação é **material, e não formal**: os fatos geradores são distintos, os
+> critérios de aceite são distintos e a classificação orçamentária pode ser
+> distinta. A diluição do valor de implantação dentro da mensalidade impede que a
+> fiscalização glose serviço continuado não prestado sem, com isso, inviabilizar
+> o licenciamento de uso da plataforma.
 
-| Parcela | Composição resumida | Valor estimado |
-|---|---|---:|
-| **A — Implantação** | Provisionamento da instância dedicada e do ambiente de homologação; parametrização institucional, de marca e dos modelos de ato; migração e conciliação de dados de pessoal, patrimônio, contratos e execução orçamentária; homologação assistida; capacitação em três trilhas; documentação operacional | R$ 118.500,00 |
-| **B — Sustentação mensal** | Infraestrutura, nuvem e backup off-site (R$ 850,00) + suporte técnico, manutenção corretiva, manutenção adaptativa a mudanças legais, atualização de stack e segurança, operação de backup e recuperação, gestão de acessos e relatórios gerenciais (R$ 14.140,00) | R$ 14.990,00 |
-| **Primeiro exercício** | Parcela A + 12 parcelas B | **R$ 298.380,00** |
-| **Exercícios subsequentes** | 12 parcelas B | R$ 179.880,00 |
+## 5.2 Composição de cada parcela
+
+Detalhamento para instrução do ETP. No DFD, basta o quadro-resumo de 5.4.
+
+### Parcela A — Implantação (valor único, não recorrente)
+
+| # | Item | Escopo essencial |
+|---:|---|---|
+| 1 | Planejamento e gestão do projeto | Plano de implantação, cronograma, acompanhamento e relatório de encerramento |
+| 2 | Setup de infraestrutura | Provisionamento do ambiente dedicado, aplicação do schema de banco, configuração de autenticação e armazenamento, publicação das funções serverless, domínio, DNS e certificados, **ambiente secundário de backup** e **ambiente de homologação segregado** |
+| 3 | Parametrização institucional | Identidade do Instituto, marca e tema visual, habilitação dos módulos, estrutura organizacional e cargos, perfis de acesso e matriz de permissões, configuração de folha, frequência e numeração de documentos |
+| 4 | Parametrização jurídico-documental | Modelos de ato com fundamentação legal vigente, cabeçalho e rodapé oficiais nos documentos gerados, publicação de lei de criação, decreto e regimento, configuração das páginas públicas |
+| 5 | Migração de dados | Mapeamento das bases de origem, higienização, carga de servidores, cargos, lotações, histórico funcional, bens patrimoniais, contratos, execução orçamentária e histórico de folha, com **relatório de conciliação e divergências** |
+| 6 | Homologação assistida | Plano de testes de aceite por módulo, validação fiscal de CNAB e eSocial, verificação das publicações de transparência quanto a exposição de dado pessoal, correção dos apontamentos |
+| 7 | Capacitação | Trilhas de usuário final, multiplicador/gestor e administrador, com material didático e turmas de reforço |
+| 8 | Documentação e transferência de conhecimento | Manual do administrador, procedimento de backup e recuperação, runbook de incidentes e matriz de acessos |
+
+### Parcela B.1 — Custos diretos de infraestrutura e nuvem
+
+| # | Item | Especificação |
+|---:|---|---|
+| 1 | Backend principal | Banco de dados dedicado do Instituto, autenticação, armazenamento, funções serverless e backups gerenciados, sem pausa por inatividade |
+| 2 | Backend secundário (recuperação de desastre) | Ambiente independente, destino do backup off-site |
+| 3 | Excedentes de consumo | Provisão para banco, armazenamento de documentos, fotos de inventário e anexos, tráfego e usuários ativos acima da franquia |
+| 4 | Hospedagem do front-end | CDN, TLS automático, ambientes de pré-visualização e proteção de publicação |
+| 5 | E-mail transacional | Convocações, notificações e comunicações do sistema |
+| 6 | Domínio, DNS e certificados | Rateio mensal do custo anual |
+| 7 | Monitoramento e observabilidade | Retenção de logs, alertas de indisponibilidade e de erro |
+
+> **Advertência cambial.** Os planos de infraestrutura são tarifados em dólar. O
+> componente cambial deve ser **isolado na planilha de custos** e submetido a
+> cláusula de repactuação anual, sob pena de o reajuste da infraestrutura
+> contaminar a remuneração dos serviços.
+
+### Parcela B.2 — Serviços de sustentação
+
+| # | Item | Escopo |
+|---:|---|---|
+| 8 | Suporte técnico N1 e N2 | Atendimento a chamados, diagnóstico, orientação ao usuário e apoio ao administrador, dentro do SLA |
+| 9 | Manutenção corretiva | Correção de defeitos em qualquer módulo, tela ou função do banco, sem custo adicional |
+| 10 | Manutenção adaptativa e evolutiva legal | Adequação a tabelas de INSS e IRRF, leiaute e versão do eSocial, leiaute CNAB, Lei nº 14.133/2021, LAI e LGPD |
+| 11 | Atualização de stack e segurança | Atualização de dependências, correção de vulnerabilidades, acompanhamento de versões e revisão das políticas de acesso no banco |
+| 12 | Operação de backup e recuperação | Verificação do backup off-site e **teste de restauração com periodicidade mínima trimestral** |
+| 13 | Gestão de acessos e auditoria | Criação, alteração e revogação de contas, revisão da matriz de permissões e extração de trilha de auditoria |
+| 14 | Gestão contratual e relatórios | Relatório mensal de serviço, apuração de indicadores e reunião de acompanhamento |
+
+## 5.3 Levantamento prévio obrigatório
 
 > **Observação obrigatória no processo:** a plataforma pretendida **já se
 > encontra implantada e em operação** no Instituto, fora de instrumento
 > contratual. Parte relevante dos serviços da Parcela A já foi executada. A
 > unidade demandante deve promover **levantamento de situação** antes da
 > contratação, para que a Parcela A remunere apenas o que efetivamente resta
-> executar — notadamente comprovação e teste do backup e do ambiente de
-> homologação, homologação formal com aceite documentado, capacitação e
-> documentação operacional. Em cenário de regularização, a Parcela A situa-se em
-> ordem de grandeza inferior, a ser apurada pelo levantamento.
+> executar.
+>
+> Permanecem devidos em qualquer hipótese, por não terem sido formalmente
+> executados:
+>
+> - comprovação e teste efetivo do ambiente secundário de backup e do ambiente de
+>   homologação segregado;
+> - homologação formal com aceite documentado por módulo;
+> - capacitação formal dos servidores e documentação operacional — cuja ausência
+>   constitui, hoje, o principal risco de dependência técnica do fornecedor.
+>
+> Em cenário de regularização, a Parcela A situa-se em ordem de grandeza
+> inferior, a ser apurada pelo levantamento.
+
+## 5.4 Quadro-resumo para o campo de valor estimado
+
+> **Estimativa de referência (a confirmar em pesquisa de preços):**
+
+| Parcela | Composição resumida | Valor estimado |
+|---|---|---:|
+| **A — Implantação** (cenário integral) | Itens 1 a 8 da Parcela A: provisionamento da instância dedicada e do ambiente de homologação; parametrização institucional, de marca e dos modelos de ato; migração e conciliação de dados; homologação assistida; capacitação em três trilhas; documentação operacional | R$ 118.500,00 |
+| **A — Implantação** (cenário de regularização) | Apenas os itens remanescentes apurados no levantamento da Seção 5.3 | ordem de grandeza inferior, a apurar |
+| **B — Sustentação mensal** | Infraestrutura, nuvem e backup off-site (R$ 850,00) + suporte técnico, manutenção corretiva, manutenção adaptativa a mudanças legais, atualização de stack e segurança, operação de backup e recuperação, gestão de acessos e relatórios gerenciais (R$ 14.140,00) | R$ 14.990,00 |
+| **Primeiro exercício** | Parcela A (cenário integral) + 12 parcelas B | **R$ 298.380,00** |
+| **Exercícios subsequentes** | 12 parcelas B | R$ 179.880,00 |
+
+> O licenciamento de uso da plataforma está compreendido no valor mensal, **sem
+> cobrança por usuário nomeado**.
 
 **O que evitar:**
 
@@ -240,10 +420,13 @@ PCA e reserva orçamentária.
   danosa: impede a fiscalização de glosar serviço continuado não prestado sem
   inviabilizar o licenciamento, e mascara o custo real de entrada.
 - Lançar o valor anual como despesa de capital. Licenciamento por assinatura e
-  sustentação são **custeio**.
+  sustentação são **custeio**. Confirme a classificação com o setor contábil
+  antes de indicar o elemento de despesa.
 - Omitir que a Parcela B se repete nos exercícios seguintes — a reserva
   plurianual deve constar do planejamento.
 - Apresentar a estimativa como preço pesquisado. Não é.
+- Registrar a Parcela A pelo cenário integral sem ressalvar o levantamento da
+  Seção 5.3 — o Instituto não deve pagar por entrega já realizada.
 
 ---
 
@@ -261,6 +444,9 @@ planejamento institucional.
 > **Contratações correlatas:** não há contratação vigente com objeto sobreposto.
 > Verificar contratos de conectividade e de licenças de escritório, cujos objetos
 > são distintos e complementares.
+
+**O que evitar:** prosseguir sem verificar a previsão no PCA. Não havendo
+previsão, instrua o pedido de inclusão ou alteração antes de seguir.
 
 ---
 
@@ -350,11 +536,12 @@ do que omiti-lo.
 | 1 | Este DFD, preenchido e assinado pelo responsável da unidade demandante | IDJUV |
 | 2 | Estudo Técnico Preliminar e Termo de Referência | [`PROPOSTA_CONTRATACAO_IDJUV.md`](./PROPOSTA_CONTRATACAO_IDJUV.md) |
 | 3 | Documentação técnica da solução (arquitetura, módulos, stack) | [`DOCUMENTACAO_TECNICA.md`](./DOCUMENTACAO_TECNICA.md) |
-| 4 | Levantamento de situação do que já está implantado | IDJUV — a produzir |
-| 5 | Pesquisa de preços (art. 23 da Lei nº 14.133/2021) | IDJUV — a produzir |
-| 6 | Declaração de disponibilidade orçamentária | IDJUV |
-| 7 | Comprovação de inclusão no PCA | IDJUV |
-| 8 | Parecer jurídico sobre a forma de contratação | Assessoria jurídica |
+| 4 | Composição funcional e dimensão da solução (Seções 3.1 e 3.2 deste guia) | IDJUV — extrair deste guia |
+| 5 | Levantamento de situação do que já está implantado | IDJUV — a produzir |
+| 6 | Pesquisa de preços (art. 23 da Lei nº 14.133/2021) | IDJUV — a produzir |
+| 7 | Declaração de disponibilidade orçamentária | IDJUV |
+| 8 | Comprovação de inclusão no PCA | IDJUV |
+| 9 | Parecer jurídico sobre a forma de contratação | Assessoria jurídica |
 
 ---
 
@@ -373,12 +560,66 @@ do que omiti-lo.
 
 ---
 
-## Referências
+# 12 — Checklist de conferência antes da assinatura
+
+- [ ] A necessidade (Seção 2) está descrita como **problema administrativo**, não como pedido de produto
+- [ ] Os quantitativos foram preenchidos (servidores, unidades locais, processos por exercício)
+- [ ] O objeto (Seção 3) enuncia os três componentes: **licenciamento + implantação + sustentação**
+- [ ] Consta expressamente que **não se trata de desenvolvimento sob encomenda**
+- [ ] Consta a exigência de **instância dedicada e isolada**
+- [ ] A justificativa (Seção 4) vincula a demanda a **obrigações legais exigíveis**
+- [ ] O DFD **não** conclui sobre forma de contratação nem indica fornecedor (Seção 9)
+- [ ] As limitações conhecidas da solução estão referenciadas, não omitidas
+- [ ] Os valores estão **separados** entre parcela única de implantação e mensalidade continuada
+- [ ] Os valores estão rotulados como **estimativa de referência** sujeita ao art. 23
+- [ ] Consta a ressalva do **levantamento prévio** dos itens de implantação já executados (Seção 5.3)
+- [ ] A classificação orçamentária foi confirmada com o setor contábil
+- [ ] O item do PCA e a dotação orçamentária foram informados
+- [ ] Os requisitos mínimos da Seção 8 foram revisados pela unidade demandante
+- [ ] O documento está assinado e encaminhado à autoridade competente
+
+---
+
+# 13 — Encaminhamento após o DFD
+
+| Etapa | Documento | Responsável |
+|---|---|---|
+| 1 | **DFD** — formalização da demanda | Unidade demandante |
+| 2 | Aprovação da demanda e designação da equipe de planejamento | Autoridade competente |
+| 3 | **ETP** — Estudo Técnico Preliminar, com análise de alternativas e viabilidade | Equipe de planejamento |
+| 4 | **Pesquisa de preços** (art. 23) | Setor de contratações |
+| 5 | **Termo de Referência** | Equipe de planejamento |
+| 6 | Análise jurídica e definição da forma de contratação | Assessoria jurídica |
+| 7 | Reserva orçamentária e autorização | Ordenador de despesa |
+
+> Os documentos das etapas 3 e 5 já possuem minuta técnica de apoio em
+> [`PROPOSTA_CONTRATACAO_IDJUV.md`](./PROPOSTA_CONTRATACAO_IDJUV.md), que
+> aprofunda arquitetura, requisitos, SLA, indicadores e glosas, propriedade
+> intelectual, portabilidade, proteção de dados, análise de alternativas e matriz
+> de riscos.
+
+---
+
+## Referências e rastreabilidade
+
+Todas as informações quantitativas deste guia foram extraídas do repositório do
+sistema em 16/09/2026.
 
 | Documento | Conteúdo |
 |---|---|
 | [`PROPOSTA_CONTRATACAO_IDJUV.md`](./PROPOSTA_CONTRATACAO_IDJUV.md) | ETP/TR simplificado — objeto detalhado, stack, composição de custos, SLA e cláusulas contratuais |
 | [`DOCUMENTACAO_TECNICA.md`](./DOCUMENTACAO_TECNICA.md) | Arquitetura, stack e fluxos da plataforma |
-| [`docs/MODULOS.md`](./docs/MODULOS.md) | Detalhamento funcional dos 17 módulos |
+| [`docs/VISAO_GERAL.md`](./docs/VISAO_GERAL.md) | Público, objetivos e mapa dos 17 módulos |
+| [`docs/MODULOS.md`](./docs/MODULOS.md) | Detalhamento funcional dos 17 módulos (base da Seção 3.1) |
+| [`docs/ARQUITETURA.md`](./docs/ARQUITETURA.md) | Camadas, fluxo de dados e contagens da Seção 3.2 |
 | [`docs/RBAC_PERMISSOES.md`](./docs/RBAC_PERMISSOES.md) | Modelo de controle de acesso |
 | [`docs/BACKUP_CONTINGENCIA.md`](./docs/BACKUP_CONTINGENCIA.md) | Backup, contingência e recuperação |
+| [`docs/EDGE_FUNCTIONS.md`](./docs/EDGE_FUNCTIONS.md) | Funções serverless em produção |
+| [`docs/WHITE_LABEL.md`](./docs/WHITE_LABEL.md) · [`docs/MIGRACAO_SUPABASE_PROPRIO.md`](./docs/MIGRACAO_SUPABASE_PROPRIO.md) | Modelo de instância dedicada por instituição |
+| `src/shared/config/modules.config.ts` | Catálogo canônico de módulos |
+| `tenants/idjuv/tenant.config.ts` | Dados institucionais, legais e de contato do Instituto |
+
+> **Aviso.** Os valores monetários citados são **estimativas de referência para
+> instrução processual**, construídas por composição de custos. Não constituem
+> proposta comercial nem substituem a pesquisa de preços exigida pelo art. 23 da
+> Lei nº 14.133/2021.

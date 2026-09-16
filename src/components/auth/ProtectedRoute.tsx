@@ -9,8 +9,10 @@
 //      admin: se a instituição não contratou, nem o super admin deve ver).
 //   5. Super admin → bypass total.
 //   6. requiredModule / requiredPermissions → checa via AuthContext.
-//      As permissões são hierárquicas (ter o módulo "rh" concede "rh.*").
-//   6. Sem acesso → redireciona para a página de acesso negado.
+//      requiredModule checa o módulo (user_modules); requiredPermissions exige
+//      o código granular, que vem de role_permissions, user_permissions ou
+//      user_modules.permissions. Ter o módulo "rh" NÃO concede "rh.*".
+//   7. Sem acesso → redireciona para a página de acesso negado.
 
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';

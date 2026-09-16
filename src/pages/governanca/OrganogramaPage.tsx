@@ -64,6 +64,21 @@ const orgUnits: OrgUnit[] = [
     responsavel: "Assessor Jurídico"
   },
   {
+    id: "assessoria-comunicacao",
+    name: "Assessoria de Comunicação",
+    shortName: "ASCOM",
+    level: "assessoria",
+    parent: "presidencia",
+    description: "Responsável pela comunicação institucional e pelo relacionamento com a imprensa.",
+    competencias: [
+      "Coordenar a comunicação institucional",
+      "Gerenciar redes sociais e portal",
+      "Produzir conteúdo informativo",
+      "Atender a imprensa"
+    ],
+    responsavel: "Assessor de Comunicação"
+  },
+  {
     id: "controle-interno",
     name: "Controle Interno",
     shortName: "CI",
@@ -320,6 +335,7 @@ const OrganogramaPage = () => {
                 {selectedUnit?.level === "presidencia" && <Building2 className="w-5 h-5" />}
                 {selectedUnit?.level === "assessoria" && <Shield className="w-5 h-5" />}
                 {selectedUnit?.level === "diretoria" && <Briefcase className="w-5 h-5" />}
+                {selectedUnit?.level === "coordenacao" && <FileText className="w-5 h-5" />}
                 {selectedUnit?.name}
               </DialogTitle>
               <DialogDescription>
@@ -347,6 +363,15 @@ const OrganogramaPage = () => {
                     ))}
                   </ul>
                 </div>
+
+                {selectedUnit.parent && (
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground mb-1">Vinculação</h4>
+                    <p className="text-sm">
+                      {orgUnits.find(u => u.id === selectedUnit.parent)?.name}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </DialogContent>

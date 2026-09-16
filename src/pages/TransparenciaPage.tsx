@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Eye, ExternalLink, FileText, Download, Calendar, Loader2 } from "lucide-react";
+import { Eye, ExternalLink, FileText, Download, Calendar, Loader2, Users, Building2, BarChart3, Package, MessageSquareQuote } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -13,8 +13,58 @@ export default function TransparenciaPage() {
   const { publicacoes, isLoading } = useTransparenciaPublicacoesPublicas();
   const { entidadeSuperior, integracoes } = useTenant();
 
-  // O portal externo é do tenant: só entra na lista se a instituição o declarou.
-  const transparenciaItems = integracoes?.portalTransparenciaUrl
+  interface ItemTransparencia {
+    title: string;
+    description: string;
+    icon: typeof ExternalLink;
+    href: string;
+    /** Abre fora do sistema; ausente nas páginas internas. */
+    external?: boolean;
+  }
+
+  // Itens internos: sempre presentes, são páginas do próprio sistema.
+  const itensInternos: ItemTransparencia[] = [
+    {
+      title: "Cargos e Remuneração",
+      description: "Quadro de cargos comissionados, com vínculo, valores e ocupantes",
+      icon: Users,
+      href: "/transparencia/cargos",
+    },
+    {
+      title: "Estrutura Organizacional",
+      description: "Diretorias, divisões e núcleos, com o organograma do Instituto",
+      icon: Building2,
+      href: "/governanca/estrutura",
+    },
+    {
+      title: "Licitações e Contratos",
+      description: "Processos licitatórios e contratos administrativos",
+      icon: FileText,
+      href: "/transparencia/licitacoes",
+    },
+    {
+      title: "Execução Orçamentária",
+      description: "Receitas, despesas e execução do orçamento",
+      icon: BarChart3,
+      href: "/transparencia/orcamento",
+    },
+    {
+      title: "Patrimônio",
+      description: "Bens patrimoniais e imóveis sob responsabilidade do Instituto",
+      icon: Package,
+      href: "/transparencia/patrimonio",
+    },
+    {
+      title: "Acesso à Informação (LAI)",
+      description: "Registre pedidos de informação e acompanhe as respostas",
+      icon: MessageSquareQuote,
+      href: "/transparencia/lai",
+    },
+  ];
+
+  // O portal externo é do tenant: só entra na lista se a instituição o declarou
+  // (White Label — Fase 3). Antes era link fixo para o portal do Estado.
+  const transparenciaItems: ItemTransparencia[] = integracoes?.portalTransparenciaUrl
     ? [
         {
           title: "Portal da Transparência",
@@ -25,8 +75,9 @@ export default function TransparenciaPage() {
           external: true,
           href: integracoes.portalTransparenciaUrl,
         },
+        ...itensInternos,
       ]
-    : [];
+    : itensInternos;
 
   return (
     <MainLayout>
@@ -119,8 +170,8 @@ export default function TransparenciaPage() {
             {/* Grid de itens */}
             <h2 className="font-serif text-2xl font-bold mb-6">Informações Disponíveis</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {transparenciaItems.map((item) => (
-                <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer">
+              {transparenciaItems.map((item) => {
+                const conteudo = (
                   <Card className="h-full hover:shadow-lg transition-all hover:border-success group">
                     <CardHeader className="flex flex-row items-start gap-4">
                       <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -129,7 +180,7 @@ export default function TransparenciaPage() {
                       <div>
                         <CardTitle className="text-lg group-hover:text-success transition-colors flex items-center gap-2">
                           {item.title}
-                          <ExternalLink className="w-4 h-4" />
+                          {item.external && <ExternalLink className="w-4 h-4" />}
                         </CardTitle>
                         <CardDescription className="mt-1">
                           {item.description}
@@ -137,8 +188,20 @@ export default function TransparenciaPage() {
                       </div>
                     </CardHeader>
                   </Card>
-                </a>
-              ))}
+                );
+
+                // Destinos internos navegam pelo router; só o portal do Estado
+                // abre em aba nova.
+                return item.external ? (
+                  <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer">
+                    {conteudo}
+                  </a>
+                ) : (
+                  <Link key={item.href} to={item.href}>
+                    {conteudo}
+                  </Link>
+                );
+              })}
             </div>
 
             {/* LAI */}
