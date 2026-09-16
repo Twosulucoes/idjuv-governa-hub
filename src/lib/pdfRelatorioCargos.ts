@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import { getTenantSnapshot } from '@/core/tenant';
 import { 
   generateInstitutionalHeader, 
   generateInstitutionalFooter, 
@@ -239,7 +240,7 @@ export async function gerarRelatorioCargos98PDF(
 
   // Rodapé institucional
   generateInstitutionalFooter(pdf, {
-    sistema: 'Sistema de Governança Digital IDJUV',
+    sistema: `Sistema de Governança Digital ${getTenantSnapshot().identidade.sigla}`,
     mostrarData: true
   });
 

@@ -1,9 +1,10 @@
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { loadLogos, calculateLogoDimensions, LogoCache, CORES } from './pdfTemplate';
+import { CORES, LogoCache, calculateLogoDimensions, loadLogos, nomeEntidadeSuperiorDocumentos, nomeOficialDocumentos } from './pdfTemplate';
 import { Artigo, ConfiguracaoTabela, ConfiguracaoAssinatura, ColunaTabela, COLUNA_LABELS } from '@/types/portariaUnificada';
 
+import { getTenantSnapshot } from '@/core/tenant';
 // Configurações do documento - Margens padrão ABNT
 const CONFIG = {
   marginLeft: 25,
@@ -52,12 +53,27 @@ interface DadosUnidade {
   sigla?: string;
 }
 
-// Configurações do Presidente
-const PRESIDENTE = {
-  nome: 'MARCELO DE MAGALHÃES NUNES',
-  cargo: 'Presidente do Instituto de Desporto, Juventude e Lazer',
-  orgao: 'do Estado de Roraima',
-};
+/**
+ * Dados do dirigente que assina o ato, lidos do perfil da instituição.
+ * Trocam com a posse de um novo dirigente sem tocar no código.
+ */
+const PRESIDENTE = (() => {
+  const { legal, identidade } = getTenantSnapshot();
+  return {
+    nome: (legal?.dirigenteNome ?? '').toUpperCase(),
+    cargo: legal?.dirigenteCargo
+      ? `${legal.dirigenteCargo} do ${identidade.nomeCurto}`
+      : identidade.nomeCurto,
+    orgao: '',
+  };
+})();
+
+/**
+ * TODO (White Label — Fase 5): preâmbulos, artigos e a numeração
+ * `.../IDJuv/PRESI/GAB/...` continuam fixos aqui. São texto jurídico e
+ * identificação de ato administrativo — mudá-los exige validação do jurídico
+ * do cliente, e é o escopo da tabela `modelos_atos`.
+ */
 
 // Função auxiliar para formatar data por extenso
 function formatarDataExtenso(dataString: string): string {
@@ -120,16 +136,16 @@ async function addHeaderWithLogos(doc: jsPDF): Promise<number> {
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', centerX, y, { align: 'center' });
+  doc.text(nomeEntidadeSuperiorDocumentos(), centerX, y, { align: 'center' });
   
   y += 5;
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA', centerX, y, { align: 'center' });
+  doc.text(nomeOficialDocumentos(), centerX, y, { align: 'center' });
   
   y += 4;
   doc.setFont('helvetica', 'bold');
-  doc.text('IDJuv', centerX, y, { align: 'center' });
+  doc.text(getTenantSnapshot().identidade.nomeCurto, centerX, y, { align: 'center' });
   
   // Linha separadora
   y += 4;
@@ -545,12 +561,12 @@ interface DadosUnidade {
 function addHeader(doc: jsPDF) {
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', CONFIG.pageWidth / 2, CONFIG.marginTop, { align: 'center' });
+  doc.text(nomeEntidadeSuperiorDocumentos(), CONFIG.pageWidth / 2, CONFIG.marginTop, { align: 'center' });
   
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA', CONFIG.pageWidth / 2, CONFIG.marginTop + 5, { align: 'center' });
-  doc.text('IDJuv', CONFIG.pageWidth / 2, CONFIG.marginTop + 10, { align: 'center' });
+  doc.text(nomeOficialDocumentos(), CONFIG.pageWidth / 2, CONFIG.marginTop + 5, { align: 'center' });
+  doc.text(getTenantSnapshot().identidade.nomeCurto, CONFIG.pageWidth / 2, CONFIG.marginTop + 10, { align: 'center' });
   
   doc.setLineWidth(0.3);
   doc.line(CONFIG.marginLeft, CONFIG.marginTop + 14, CONFIG.pageWidth - CONFIG.marginRight, CONFIG.marginTop + 14);

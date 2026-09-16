@@ -59,6 +59,13 @@ export interface TenantIdentidade {
   naturezaJuridica: string;
   /** Abertura dos atos administrativos: "O PRESIDENTE DO INSTITUTO ..." */
   tratamentoDirigente: string;
+  /**
+   * Nome como aparece no cabeçalho de documentos oficiais (PDF/Word), em caixa
+   * alta. Existe separado de `nomeOficial` porque o texto impresso em atos já
+   * emitidos costuma ter forma própria, e mudá-lo altera documento oficial.
+   * Ausente: usa `nomeOficial` em caixa alta.
+   */
+  nomeParaDocumentos?: string;
 }
 
 /**

@@ -2,6 +2,8 @@ import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+import { nomeEntidadeSuperiorDocumentos, nomeOficialDocumentos } from './pdfTemplate';
+import { getTenantSnapshot } from '@/core/tenant';
 // Interfaces
 interface PendenciaItem {
   tipo: "elegibilidade" | "esocial" | "bancaria" | "pessoal";
@@ -59,8 +61,8 @@ function addHeader(doc: jsPDF, titulo: string): number {
   doc.setFontSize(10);
   doc.setTextColor(...CORES.primaria);
   doc.setFont("helvetica", "bold");
-  doc.text("GOVERNO DO ESTADO DE RORAIMA", pageWidth / 2, 15, { align: "center" });
-  doc.text("IDJUV - Instituto de Desenvolvimento da Juventude", pageWidth / 2, 21, { align: "center" });
+  doc.text(nomeEntidadeSuperiorDocumentos(), pageWidth / 2, 15, { align: "center" });
+  doc.text(nomeOficialDocumentos(), pageWidth / 2, 21, { align: "center" });
   
   // Linha separadora
   doc.setDrawColor(...CORES.primaria);
@@ -88,7 +90,7 @@ function addFooter(doc: jsPDF, pageNumber: number): void {
   doc.setFontSize(8);
   doc.setTextColor(...CORES.cinza);
   doc.text(`Página ${pageNumber}`, pageWidth / 2, pageHeight - 10, { align: "center" });
-  doc.text("Sistema IDJuv - Módulo RH", pageWidth - 20, pageHeight - 10, { align: "right" });
+  doc.text(`Sistema ${getTenantSnapshot().identidade.nomeCurto} - Módulo RH`, pageWidth - 20, pageHeight - 10, { align: "right" });
 }
 
 function checkNewPage(doc: jsPDF, currentY: number, neededSpace: number, pageNumber: { value: number }): number {

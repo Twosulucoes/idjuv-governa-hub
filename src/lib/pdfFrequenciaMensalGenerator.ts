@@ -22,6 +22,7 @@ import { verificarDoisTurnos } from '@/lib/frequenciaCalculoService';
 
 import { getMarcaAssets } from '@/core/tenant';
 
+import { nomeEntidadeSuperiorDocumentos } from './pdfTemplate';
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
 const { entidadeSuperiorLight: logoGoverno, logoLight: logoIdjuv } = getMarcaAssets();
 
@@ -302,7 +303,7 @@ function renderizarBloco1Cabecalho(params: RenderBloco1Params): number {
   doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9); // Aumentado de 8 para 9
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', textCenterX, y + 6, { align: 'center' });
+  doc.text(nomeEntidadeSuperiorDocumentos(), textCenterX, y + 6, { align: 'center' });
   
   doc.setFontSize(7.5); // Aumentado de 6.5 para 7.5
   doc.setFont('helvetica', 'normal');

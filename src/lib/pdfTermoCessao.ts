@@ -3,6 +3,7 @@
  * Utiliza template institucional unificado
  */
 import jsPDF from 'jspdf';
+import { getTenantSnapshot } from '@/core/tenant';
 import {
   loadLogos,
   generateInstitutionalHeader,
@@ -129,7 +130,7 @@ export async function generateTermoCessao(data: TermoCessaoData): Promise<void> 
   addLocalData(doc, `${data.municipio}/RR`, assinaturaY + 25);
 
   // Rodapé
-  generateInstitutionalFooter(doc, { sistema: 'Sistema de Governança Digital IDJUV' });
+  generateInstitutionalFooter(doc, { sistema: `Sistema de Governança Digital ${getTenantSnapshot().identidade.sigla}` });
   addPageNumbers(doc);
 
   doc.save(`Termo_Cessao_${data.numero.replace('/', '_')}.pdf`);

@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { TIPO_ATO_LABELS } from "@/types/unidadesLocais";
 
+import { nomeEntidadeSuperiorDocumentos } from '@/lib/pdfTemplate';
 interface DadosMemorandoDesignacao {
   servidorNome: string;
   cargo: string;
@@ -29,7 +30,7 @@ export function generateMemorandoDesignacao(dados: DadosMemorandoDesignacao) {
   // ===== CABEÇALHO =====
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.text("GOVERNO DO ESTADO DE RORAIMA", pageWidth / 2, y, { align: "center" });
+  doc.text(nomeEntidadeSuperiorDocumentos(), pageWidth / 2, y, { align: "center" });
   y += 6;
   doc.setFontSize(10);
   doc.text("INSTITUTO DE DESPORTO E JUVENTUDE DE RORAIMA - IDJUV", pageWidth / 2, y, { align: "center" });

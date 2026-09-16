@@ -3,6 +3,7 @@
  * Utiliza template institucional unificado
  */
 import jsPDF from 'jspdf';
+import { getTenantSnapshot } from '@/core/tenant';
 import {
   loadLogos,
   generateInstitutionalHeader,
@@ -172,7 +173,7 @@ export async function generateTermoResponsabilidade(data: TermoResponsabilidadeD
   ], y);
 
   // Rodapé
-  generateInstitutionalFooter(doc, { sistema: 'Sistema de Governança Digital IDJUV' });
+  generateInstitutionalFooter(doc, { sistema: `Sistema de Governança Digital ${getTenantSnapshot().identidade.sigla}` });
   addPageNumbers(doc);
 
   doc.save(`Termo_Responsabilidade_${data.numero.replace('/', '_')}_${data.ano}.pdf`);

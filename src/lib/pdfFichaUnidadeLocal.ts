@@ -1,4 +1,5 @@
- /**
+
+import { getTenantSnapshot } from '@/core/tenant'; /**
   * Gerador de PDF: Ficha Cadastral de Unidade Local
   * Documento oficial completo com todos os dados de uma unidade
   */
@@ -107,7 +108,7 @@
    }
  
    // Rodapé e paginação
-   generateInstitutionalFooter(doc, { sistema: 'Sistema IDJuv - Unidades Locais' });
+   generateInstitutionalFooter(doc, { sistema: `Sistema ${getTenantSnapshot().identidade.nomeCurto} - Unidades Locais` });
    addPageNumbers(doc);
  
    // Salvar PDF

@@ -30,6 +30,7 @@ import { LOGO_ASPECTOS, getLogosPDF } from './pdfLogos';
 
 import { getMarcaAssets } from '@/core/tenant';
 
+import { nomeEntidadeSuperiorDocumentos } from './pdfTemplate';
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
 const { entidadeSuperiorLight: logoGovernoSrc, logoDark: logoIDJUVDarkSrc, logoLight: logoIDJUVOficialSrc } = getMarcaAssets();
 
@@ -307,7 +308,7 @@ export const gerarCabecalhoInstitucional = async (
     // Textos institucionais
     setCor(doc, CORES_INSTITUCIONAIS.textoBranco);
     setTipografia(doc, TIPOGRAFIA.governo);
-    doc.text('GOVERNO DO ESTADO DE RORAIMA', largura / 2, 13, { align: 'center' });
+    doc.text(nomeEntidadeSuperiorDocumentos(), largura / 2, 13, { align: 'center' });
     
     setTipografia(doc, TIPOGRAFIA.orgao);
     doc.text('Instituto de Desporto, Juventude e Lazer do Estado de Roraima', largura / 2, 19, { align: 'center' });
@@ -356,7 +357,7 @@ export const gerarCabecalhoInstitucional = async (
     // Textos institucionais
     setCor(doc, CORES_INSTITUCIONAIS.primaria);
     setTipografia(doc, TIPOGRAFIA.governo);
-    doc.text('GOVERNO DO ESTADO DE RORAIMA', largura / 2, 13, { align: 'center' });
+    doc.text(nomeEntidadeSuperiorDocumentos(), largura / 2, 13, { align: 'center' });
     
     setTipografia(doc, TIPOGRAFIA.orgao);
     setCor(doc, CORES_INSTITUCIONAIS.textoEscuro);

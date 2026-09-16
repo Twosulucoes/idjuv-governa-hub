@@ -8,6 +8,7 @@
  * @version 2.0.0 - Refatorado para padrão institucional
  */
 import jsPDF from 'jspdf';
+import { getTenantSnapshot } from '@/core/tenant';
 import {
   loadLogos,
   generateInstitutionalHeader,
@@ -293,7 +294,7 @@ export const generateContracheque = async (dados: DadosContracheque): Promise<vo
   doc.text(`Dependentes IRRF: ${ficha.quantidade_dependentes || 0}`, PAGINA.margemEsquerda + 5, y);
   
   // Footer
-  generateInstitutionalFooter(doc, { sistema: 'Sistema de Folha de Pagamento - IDJUV' });
+  generateInstitutionalFooter(doc, { sistema: `Sistema de Folha de Pagamento - ${getTenantSnapshot().identidade.sigla}` });
   addPageNumbers(doc);
   
   const nomeArquivo = (ficha.servidor?.nome_completo || 'servidor').replace(/\s+/g, '_').substring(0, 20);
@@ -437,7 +438,7 @@ export const generateContrachequeEmLote = async (fichas: FichaFinanceira[], comp
     doc.text('VALOR LÍQUIDO:', PAGINA.margemEsquerda + 10, y + 2);
     doc.text(formatarMoeda(ficha.valor_liquido), width - PAGINA.margemDireita - 10, y + 2, { align: 'right' });
     
-    generateInstitutionalFooter(doc, { sistema: 'Sistema de Folha de Pagamento - IDJUV' });
+    generateInstitutionalFooter(doc, { sistema: `Sistema de Folha de Pagamento - ${getTenantSnapshot().identidade.sigla}` });
   }
   
   addPageNumbers(doc);

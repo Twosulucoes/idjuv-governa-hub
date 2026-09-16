@@ -38,6 +38,8 @@ export const idjuvConfig: TenantConfig = {
     naturezaJuridica: 'Autarquia Estadual',
     tratamentoDirigente:
       'O PRESIDENTE DO INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA – IDJuv',
+    // Forma já impressa nos atos emitidos — mantida byte a byte na Fase 4.
+    nomeParaDocumentos: 'INSTITUTO DE DESPORTO, JUVENTUDE E LAZER - IDJUV',
   },
 
   entidadeSuperior: {

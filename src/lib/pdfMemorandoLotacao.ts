@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 
+import { nomeEntidadeSuperiorDocumentos, nomeOficialDocumentos } from './pdfTemplate';
 export interface MemorandoLotacaoData {
   numeroProtocolo: string;
   dataEmissao: string;
@@ -39,8 +40,8 @@ export const generateMemorandoLotacao = (data: MemorandoLotacaoData): jsPDF => {
   // Header
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, 15, { align: 'center' });
-  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER - IDJUV', pageWidth / 2, 20, { align: 'center' });
+  doc.text(nomeEntidadeSuperiorDocumentos(), pageWidth / 2, 15, { align: 'center' });
+  doc.text(nomeOficialDocumentos(), pageWidth / 2, 20, { align: 'center' });
   doc.text('DIRETORIA ADMINISTRATIVA E FINANCEIRA - DIRAF', pageWidth / 2, 25, { align: 'center' });
   doc.text('DIVISÃO DE RECURSOS HUMANOS - DRH', pageWidth / 2, 30, { align: 'center' });
   

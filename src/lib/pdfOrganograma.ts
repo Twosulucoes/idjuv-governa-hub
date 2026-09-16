@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { UnidadeOrganizacional, LABELS_UNIDADE } from '@/types/organograma';
+import { getTenantSnapshot } from '@/core/tenant';
 import { 
   generateInstitutionalHeader, 
   generateInstitutionalFooter, 
@@ -297,7 +298,7 @@ export async function gerarOrganogramaPDF(data: OrganogramaData): Promise<void> 
 
   // Rodapé institucional padrão
   generateInstitutionalFooter(pdf, {
-    sistema: 'Sistema de Governança Digital IDJUV',
+    sistema: `Sistema de Governança Digital ${getTenantSnapshot().identidade.sigla}`,
     mostrarData: true
   });
 
@@ -628,7 +629,7 @@ export async function gerarOrganogramaListaPDF(data: OrganogramaData): Promise<v
 
   // Rodapé institucional padrão
   generateInstitutionalFooter(pdf, {
-    sistema: 'Sistema de Governança Digital IDJUV',
+    sistema: `Sistema de Governança Digital ${getTenantSnapshot().identidade.sigla}`,
     mostrarData: true
   });
 

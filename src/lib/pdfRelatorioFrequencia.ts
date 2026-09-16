@@ -3,6 +3,7 @@
  * Utiliza template institucional unificado
  */
 import jsPDF from 'jspdf';
+import { getTenantSnapshot } from '@/core/tenant';
 import {
   loadLogos,
   generateInstitutionalHeader,
@@ -180,7 +181,7 @@ export const generateRelatorioFrequenciaGeral = async (data: RelatorioFrequencia
   doc.setFont('helvetica', 'bold');
   doc.text(`RESUMO: ${data.servidores.length} servidores | Total de faltas: ${totalFaltas} | Média de presença: ${mediaPresenca.toFixed(1)}%`, PAGINA.margemEsquerda + 5, y + 2);
   
-  generateInstitutionalFooter(doc, { sistema: 'Sistema de Gestão de RH - IDJUV' });
+  generateInstitutionalFooter(doc, { sistema: `Sistema de Gestão de RH - ${getTenantSnapshot().identidade.sigla}` });
   addPageNumbers(doc);
   
   doc.save(`Relatorio_Frequencia_${data.competencia.replace('/', '-')}.pdf`);
@@ -332,7 +333,7 @@ export const generateRelatorioFrequenciaIndividual = async (data: RelatorioFrequ
   doc.text('Assinatura do Servidor', PAGINA.margemEsquerda + assinaturaWidth / 2, y, { align: 'center' });
   doc.text('Assinatura do Chefe Imediato', col2 + assinaturaWidth / 2, y, { align: 'center' });
   
-  generateInstitutionalFooter(doc, { sistema: 'Sistema de Gestão de RH - IDJUV' });
+  generateInstitutionalFooter(doc, { sistema: `Sistema de Gestão de RH - ${getTenantSnapshot().identidade.sigla}` });
   addPageNumbers(doc);
   
   const nomeArquivo = data.servidor.nome.replace(/\s+/g, '_').substring(0, 20);

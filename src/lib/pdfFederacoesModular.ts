@@ -12,7 +12,7 @@
 import jsPDF from 'jspdf';
 import { format, isPast, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { loadLogos, calculateLogoDimensions, CORES, type LogoCache } from './pdfTemplate';
+import { CORES, calculateLogoDimensions, loadLogos, nomeEntidadeSuperiorDocumentos, nomeOficialDocumentos, type LogoCache } from './pdfTemplate';
 import { getLogosPDF, LOGO_CONFIG_PADRAO } from './pdfLogos';
 
 // ============================================================
@@ -160,10 +160,10 @@ async function renderizarCabecalho(
   doc.setTextColor(CORES.primaria.r, CORES.primaria.g, CORES.primaria.b);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.text('GOVERNO DO ESTADO DE RORAIMA', pageWidth / 2, y + 5, { align: 'center' });
+  doc.text(nomeEntidadeSuperiorDocumentos(), pageWidth / 2, y + 5, { align: 'center' });
   
   doc.setFontSize(9);
-  doc.text('INSTITUTO DE DESPORTO, JUVENTUDE E LAZER - IDJUV', pageWidth / 2, y + 10, { align: 'center' });
+  doc.text(nomeOficialDocumentos(), pageWidth / 2, y + 10, { align: 'center' });
   
   y += LOGO_ALTURA + 4;
   
