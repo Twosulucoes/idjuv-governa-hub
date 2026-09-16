@@ -4,7 +4,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Home, FileText, Copy } from "lucide-react";
 import { toast } from "sonner";
-import logoIdjuv from "@/assets/logo-idjuv-oficial.png";
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { logoLight: logoIdjuv } = getMarcaAssets();
 
 export default function MiniCurriculoSucessoPage() {
   const location = useLocation();

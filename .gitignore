@@ -42,3 +42,11 @@ public/**/*.dump
 *.sql.gz
 *.bak
 backups/
+
+# Ícones gerados no build a partir de tenants/<slug>/assets/ (White Label — Fase 1).
+# O original versionado é o do perfil do tenant, não estes.
+/public/favicon.png
+/public/favicon.ico
+/public/apple-touch-icon.png
+/public/pwa-192x192.png
+/public/pwa-512x512.png

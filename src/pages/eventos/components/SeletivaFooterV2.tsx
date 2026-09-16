@@ -4,7 +4,10 @@
  */
 
 import { LogoIdjuv } from "@/components/ui/LogoIdjuv";
-import logoGovernoDark from "@/assets/logo-governo-roraima-dark.png";
+import { getMarcaAssets } from '@/core/tenant';
+
+// Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
+const { entidadeSuperiorDark: logoGovernoDark } = getMarcaAssets();
 
 export function SeletivaFooterV2() {
   return (
