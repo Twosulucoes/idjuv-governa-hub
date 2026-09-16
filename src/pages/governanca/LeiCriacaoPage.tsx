@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import leiPdf from "@tenants/idjuv/assets/documentos/LEI_2301_29-12-2025.pdf?url";
 import { FileText, Download, BookOpen } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +12,7 @@ export default function LeiCriacaoPage() {
   const { obterValor } = useDadosOficiais();
   
   const handleDownload = () => {
-    window.open('/documentos/LEI_2301_29-12-2025.pdf', '_blank');
+    window.open(leiPdf, '_blank');
   };
 
   return (

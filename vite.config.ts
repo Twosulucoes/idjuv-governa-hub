@@ -71,6 +71,7 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@tenants": path.resolve(__dirname, "./tenants"),
     },
     dedupe: ["react", "react-dom"],
   },

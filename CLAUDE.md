@@ -74,6 +74,7 @@ Definidas em `.env` (prefixo `VITE_`, expostas ao client):
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_PUBLISHABLE_KEY`
 - `VITE_SUPABASE_PROJECT_ID`
+- `VITE_TENANT_SLUG` — perfil da instituição em `tenants/<slug>/`
 
 O cliente Supabase é criado em `src/integrations/supabase/client.ts` (arquivo
 **gerado** — não editar manualmente) e há um wrapper em `src/lib/supabase.ts`
@@ -158,6 +159,18 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
   arbitros`.
 - Menu lateral: `src/config/menu.config.ts` e `module-menus.config.ts`.
 
+### Tenant / White Label
+- O sistema é **tenant-agnóstico**: identidade da instituição (nome, marca,
+  paleta, dados legais, módulos) vive em `tenants/<slug>/tenant.config.ts`, não
+  no código. O slug ativo vem de `VITE_TENANT_SLUG` no `.env`.
+- Consuma sempre por `@/core/tenant`: `useTenant()`/`useIdentidade()`/`useMarca()`
+  no React, `getTenantSnapshot()` em código puro (geradores de PDF, formatters).
+- **Nunca** importe `tenants/<slug>` direto de `src/`, e **nunca** adicione
+  literal com nome de cliente em `src/` — vai para o perfil do tenant.
+- Slug ausente/desconhecido cai no perfil neutro `_template`, nunca no IDJUV.
+- Detalhes em `src/core/tenant/README.md`, `tenants/README.md` e
+  `docs/WHITE_LABEL.md`.
+
 ### Dados (React Query + Supabase)
 - A camada de acesso a dados fica em **hooks** (`src/hooks/use<Coisa>.ts`), que
   usam `supabase` + React Query. Padrão: reutilize/estenda o hook existente do
@@ -221,7 +234,12 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 4. **`App.tsx` é grande:** mudanças de rota ficam todas lá. Cuidado com merges.
 5. **Sem testes automatizados:** valide com `lint` + `build` e, quando possível,
    rode o app (`bun run dev`) para conferir o comportamento.
-6. **Há duplicação histórica de wrappers Supabase** (`src/lib/supabase.ts`,
+6. **Nada de dados de cliente em `public/`** — esse diretório é servido sem
+   autenticação e em caminho previsível. Dumps de schema vão para
+   `supabase/disaster-recovery/`; documentos institucionais, para
+   `tenants/<slug>/assets/documentos/` (importados com `?url` quando a UI
+   precisar deles). O `.gitignore` já barra `public/**/*.sql`.
+7. **Há duplicação histórica de wrappers Supabase** (`src/lib/supabase.ts`,
    `src/lib/supabaseClient.ts`, `src/integrations/supabase/client.ts`). Prefira
    `@/lib/supabase` ou `@/integrations/supabase/client` conforme o padrão do
    arquivo onde está trabalhando.

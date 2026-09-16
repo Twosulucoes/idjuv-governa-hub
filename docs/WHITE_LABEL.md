@@ -438,7 +438,7 @@ RPC, view ou política de RLS referencia os nomes antigos antes de aplicar.
 | `enviar-convite-reuniao/index.ts` — `RESEND_FROM` default e corpo do e-mail | Default neutro + template lendo `config_institucional` |
 | `database-schema/index.ts:124` — mapa `'unidade_idjuv'` | Atualizar após a migração de colunas (§9) |
 | `protected-users.config.ts` — UUID + `handfabiano@gmail.com` | `SUPER_ADMIN_ID`/`SUPER_ADMIN_EMAIL` por ambiente. **Manter o fallback por e-mail** — a justificativa documentada no arquivo (UUID muda ao trocar de projeto Supabase) vale ainda mais no cenário multi-instância |
-| `public/documentos/*.pdf`, `public/disaster-recovery/*.sql` | Mover para Storage por tenant; não versionar documentos e dumps de um cliente no repo do produto |
+| `public/documentos/*.pdf`, `public/disaster-recovery/*.sql` | ✅ **Feito na Fase 0.** `disaster-recovery/` → `supabase/disaster-recovery/` (27 arquivos deixaram de ser servidos); `documentos/` → `tenants/idjuv/assets/documentos/`. As 3 referências em código passaram a importar via `?url`, virando asset com nome hasheado. `.gitignore` passa a barrar `public/**/*.sql` e as duas pastas. **Ressalva:** isso remove o caminho previsível, não é controle de acesso — a URL hasheada segue pública. Bucket privado + URL assinada continua pendente (Fase 8) |
 
 ---
 
@@ -449,7 +449,7 @@ verificável isoladamente (`bun run lint && bun run build`).
 
 | Fase | Escopo | Entregável | Risco |
 |---|---|---|---|
-| **0. Fundação** | `src/core/tenant/` (tipos, provider, snapshot, `aplicarTema`), `tenants/_template/`, `tenants/idjuv/` espelhando o estado atual | Sistema idêntico ao de hoje, mas lendo de config | Baixo |
+| **0. Fundação** ✅ | `src/core/tenant/` (tipos, provider, snapshot, `aplicarTema`), `tenants/_template/`, `tenants/idjuv/` espelhando o estado atual | Sistema idêntico ao de hoje, mas lendo de config | Baixo |
 | **1. Build e metadados** | `.env` estendido, `vite.config.ts` sem literais, `index.html` com placeholders, ícones por tenant | Título, manifest e favicon trocam por env | Baixo |
 | **2. Marca na UI** | `<Logo>` genérico substitui `LogoIdjuv`; Header, Footer, Sidebar, PortalFooter, ReportHeader consomem `useTenant()`; tema injetado do banco | UI 100% sem marca fixa | Baixo |
 | **3. Identidade institucional** | Consolidar `config_institucional`/`config_autarquia`/`dados_oficiais`; remover `FALLBACK_DATA`; e-mails, telefones, URLs e redes sociais para config | Nenhum dado do IDJUV no bundle | Médio |
@@ -461,6 +461,47 @@ verificável isoladamente (`bun run lint && bun run build`).
 
 **Fases 0–2 já entregam a demo comercial** (sistema com outra marca rodando).
 As fases 5 e 7 exigem validação jurídica e janela de manutenção do banco.
+
+### Status da execução
+
+**Fase 0 — CONCLUÍDA.** O que foi entregue:
+
+| Entregue | Onde |
+|---|---|
+| Contrato `TenantConfig` | `src/core/tenant/types.ts` |
+| Resolver por `VITE_TENANT_SLUG` + fallback neutro | `src/core/tenant/resolver.ts` |
+| Snapshot síncrono para libs puras | `src/core/tenant/snapshot.ts` |
+| Aplicação de tema por CSS custom properties | `src/core/tenant/tema.ts` |
+| Provider + hooks (`useTenant`, `useIdentidade`, `useMarca`, `useModuloHabilitado`) | `src/core/tenant/` |
+| Perfil neutro de partida | `tenants/_template/` |
+| Perfil do IDJUV espelhando o estado atual | `tenants/idjuv/tenant.config.ts` |
+| Registro de tenants | `tenants/index.ts` |
+| Alias `@tenants`, `include` do tsconfig, `VITE_TENANT_SLUG` | `vite.config.ts`, `tsconfig*.json`, `.env` |
+
+**Cor institucional canônica decidida: azul `#164069`** (`hsl(210 65% 25%)`),
+registrada em `marca.corPrimariaHex`. Resolve a divergência das três paletas.
+PDFs (`pdfTemplate.CORES` = `#004444`) e `index.html` (`theme-color` = `#1e40af`)
+seguem com os valores antigos — migrá-los muda o visual de documentos já
+emitidos e é escopo da **Fase 4**.
+
+**Verificações executadas** (todas passando):
+
+- 46/46 tokens de marca (light + dark) do perfil do IDJUV conferem com `src/index.css`.
+- 22/22 chaves do `FALLBACK_DATA` de `useDadosOficiais` idênticas após passarem a
+  ser derivadas do perfil.
+- Em browser real: `<style id="tenant-theme">` único no DOM, `--primary`
+  `210 65% 25%` no light e `200 85% 55%` no dark, tenant resolvido para `idjuv`
+  (não para o perfil neutro).
+- Com o Supabase indisponível, o fallback derivado do perfil chega à UI.
+- `tsc -b` sem erros; `bun run build` OK; ESLint sem novos problemas.
+
+**Adiantado da Fase 1 por motivo de segurança:** os documentos institucionais
+saíram de `public/` junto com os dumps (ver §10) — não fazia sentido mover uns e
+deixar os outros no diretório servido sem autenticação.
+
+**Não feito na Fase 0** (continua como planejado): assets de imagem seguem em
+`src/assets/`; `index.html` e o manifest do PWA seguem com literais; a lista
+`modulos` do perfil ainda é informativa (o guard é a Fase 6).
 
 ---
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import schemaUrl from "../../../supabase/disaster-recovery/schema-completo.sql?url";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -94,7 +95,20 @@ const DisasterRecoveryPage = () => {
     }
   ];
 
-  const schemaUrl = "/disaster-recovery/schema-completo.sql";
+  /**
+   * O dump do schema saiu de `public/` — lá ele era baixável por qualquer um,
+   * sem autenticação, num caminho previsível (`/disaster-recovery/*.sql`),
+   * expondo estrutura de tabelas e políticas de RLS.
+   *
+   * Agora vive em `supabase/disaster-recovery/` e entra no build como asset
+   * com nome hasheado, acessível só a partir desta página (protegida por
+   * `admin.disaster_recovery`). Os outros 26 arquivos do diretório deixaram de
+   * ser publicados.
+   *
+   * Isto remove o caminho previsível, não é controle de acesso: a URL hasheada
+   * segue pública para quem a obtiver. A proteção real (bucket privado do
+   * Storage + URL assinada) é a Fase 8 do roadmap — ver docs/WHITE_LABEL.md.
+   */
 
   return (
     <ModuleLayout module="admin">
