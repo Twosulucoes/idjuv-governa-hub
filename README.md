@@ -1,5 +1,9 @@
 # Welcome to your Lovable project
 
+> 📘 **Documentação técnica:** [`DOCUMENTACAO_TECNICA.md`](./DOCUMENTACAO_TECNICA.md)
+> (arquitetura, stack, fluxos, mapa de hardcode do cliente e diretrizes de White Label)
+> · índice completo em [`docs/`](./docs/README.md) · contexto de desenvolvimento em [`CLAUDE.md`](./CLAUDE.md).
+
 ## Project info
 
 **URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
