@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Gate de qualidade antes do push. Ver scripts/gate.sh para o porquê.
+# Pular conscientemente: git push --no-verify
+exec bash "$(git rev-parse --show-toplevel)/scripts/gate.sh"

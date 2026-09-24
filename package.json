@@ -8,7 +8,12 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:docs": "node scripts/check-doc-links.mjs",
+    "check:migrations": "bash scripts/check-migrations.sh",
+    "gate": "bash scripts/gate.sh",
+    "sync:superpowers": "bash scripts/sync-superpowers-skills.sh",
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
