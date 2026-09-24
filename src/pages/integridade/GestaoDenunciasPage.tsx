@@ -26,104 +26,13 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useAtualizarDenuncia, useDenuncias } from "@/hooks/useDenuncias";
+import { labelTipoDenuncia, type Denuncia, type StatusDenuncia } from "@/types/integridade";
 
-type StatusDenuncia = "pendente" | "em_analise" | "em_investigacao" | "concluida" | "arquivada";
-
-interface Denuncia {
-  id: string;
-  protocolo: string;
-  tipo: string;
-  dataRegistro: string;
-  status: StatusDenuncia;
-  anonima: boolean;
-  resumo: string;
-  descricao: string;
-  envolvidos?: string;
-  localizacao?: string;
-  dataOcorrencia?: string;
-  evidencias?: string;
-  parecer?: string;
-  responsavel?: string;
-  dataAtualizacao: string;
+function resumoDenuncia(descricao: string, tamanho = 90): string {
+  if (descricao.length <= tamanho) return descricao;
+  return `${descricao.slice(0, tamanho).trim()}…`;
 }
-
-// Mock data for demonstration
-const mockDenuncias: Denuncia[] = [
-  {
-    id: "1",
-    protocolo: "DEN-2024-001",
-    tipo: "Assédio Moral",
-    dataRegistro: "2024-01-15",
-    status: "em_investigacao",
-    anonima: true,
-    resumo: "Comportamento inadequado de gestor",
-    descricao: "Relato de comportamento inadequado e pressão excessiva por parte de gestor da área administrativa.",
-    envolvidos: "Gestor não identificado",
-    localizacao: "Setor Administrativo",
-    dataOcorrencia: "Janeiro/2024",
-    dataAtualizacao: "2024-01-20"
-  },
-  {
-    id: "2",
-    protocolo: "DEN-2024-002",
-    tipo: "Desvio de Recursos",
-    dataRegistro: "2024-01-18",
-    status: "pendente",
-    anonima: false,
-    resumo: "Suspeita de uso indevido de material",
-    descricao: "Identificação de possível desvio de materiais de escritório para uso pessoal.",
-    envolvidos: "Servidor do almoxarifado",
-    localizacao: "Almoxarifado Central",
-    dataOcorrencia: "Dezembro/2023",
-    dataAtualizacao: "2024-01-18"
-  },
-  {
-    id: "3",
-    protocolo: "DEN-2024-003",
-    tipo: "Conflito de Interesse",
-    dataRegistro: "2024-01-22",
-    status: "em_analise",
-    anonima: true,
-    resumo: "Servidor participando de licitação",
-    descricao: "Servidor que participa de comissão de licitação possui empresa em nome de familiar.",
-    envolvidos: "Membro da comissão de licitação",
-    localizacao: "Setor de Compras",
-    dataOcorrencia: "Janeiro/2024",
-    dataAtualizacao: "2024-01-25"
-  },
-  {
-    id: "4",
-    protocolo: "DEN-2023-045",
-    tipo: "Fraude",
-    dataRegistro: "2023-11-10",
-    status: "concluida",
-    anonima: false,
-    resumo: "Falsificação de documentos",
-    descricao: "Apresentação de documentos falsos para justificar ausências.",
-    envolvidos: "Servidor identificado",
-    localizacao: "Recursos Humanos",
-    dataOcorrencia: "Outubro/2023",
-    parecer: "Após investigação, confirmou-se a irregularidade. Processo administrativo instaurado.",
-    responsavel: "Comissão de Ética",
-    dataAtualizacao: "2023-12-20"
-  },
-  {
-    id: "5",
-    protocolo: "DEN-2023-038",
-    tipo: "Descumprimento de Normas",
-    dataRegistro: "2023-10-05",
-    status: "arquivada",
-    anonima: true,
-    resumo: "Não cumprimento de horário",
-    descricao: "Relato de servidor que não cumpre horário estabelecido.",
-    envolvidos: "Não especificado",
-    localizacao: "Diversos setores",
-    dataOcorrencia: "Setembro/2023",
-    parecer: "Após análise, verificou-se que não havia elementos suficientes para comprovação.",
-    responsavel: "Ouvidoria",
-    dataAtualizacao: "2023-11-15"
-  }
-];
 
 const statusConfig: Record<StatusDenuncia, { label: string; color: string; icon: React.ElementType }> = {
   pendente: { label: "Pendente", color: "bg-amber-100 text-amber-800 border-amber-200", icon: Clock },
@@ -135,7 +44,8 @@ const statusConfig: Record<StatusDenuncia, { label: string; color: string; icon:
 
 const GestaoDenunciasPage = () => {
   const { toast } = useToast();
-  const [denuncias, setDenuncias] = useState<Denuncia[]>(mockDenuncias);
+  const { data: denuncias = [], isLoading, isError } = useDenuncias();
+  const atualizarDenuncia = useAtualizarDenuncia();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [tipoFilter, setTipoFilter] = useState<string>("todos");
@@ -144,6 +54,7 @@ const GestaoDenunciasPage = () => {
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<StatusDenuncia>("pendente");
   const [parecer, setParecer] = useState("");
+  const [responsavel, setResponsavel] = useState("");
 
   // Calculate stats
   const stats = {
@@ -156,9 +67,10 @@ const GestaoDenunciasPage = () => {
 
   // Filter denuncias
   const filteredDenuncias = denuncias.filter(d => {
-    const matchesSearch = d.protocolo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         d.resumo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         d.tipo.toLowerCase().includes(searchTerm.toLowerCase());
+    const termo = searchTerm.toLowerCase();
+    const matchesSearch = d.protocolo.toLowerCase().includes(termo) ||
+                         d.descricao.toLowerCase().includes(termo) ||
+                         labelTipoDenuncia(d.tipo).toLowerCase().includes(termo);
     const matchesStatus = statusFilter === "todos" || d.status === statusFilter;
     const matchesTipo = tipoFilter === "todos" || d.tipo === tipoFilter;
     return matchesSearch && matchesStatus && matchesTipo;
@@ -175,23 +87,32 @@ const GestaoDenunciasPage = () => {
     setSelectedDenuncia(denuncia);
     setNewStatus(denuncia.status);
     setParecer(denuncia.parecer || "");
+    setResponsavel(denuncia.responsavel || "");
     setIsUpdateOpen(true);
   };
 
   const saveStatusUpdate = () => {
     if (!selectedDenuncia) return;
-    
-    setDenuncias(prev => prev.map(d => 
-      d.id === selectedDenuncia.id 
-        ? { ...d, status: newStatus, parecer, dataAtualizacao: new Date().toISOString().split('T')[0] }
-        : d
-    ));
-    
-    setIsUpdateOpen(false);
-    toast({
-      title: "Status atualizado",
-      description: `Denúncia ${selectedDenuncia.protocolo} atualizada com sucesso.`
-    });
+
+    atualizarDenuncia.mutate(
+      { id: selectedDenuncia.id, status: newStatus, parecer, responsavel },
+      {
+        onSuccess: () => {
+          setIsUpdateOpen(false);
+          toast({
+            title: "Status atualizado",
+            description: `Denúncia ${selectedDenuncia.protocolo} atualizada com sucesso.`
+          });
+        },
+        onError: (error) => {
+          toast({
+            title: "Erro ao atualizar",
+            description: error instanceof Error ? error.message : "Tente novamente.",
+            variant: "destructive",
+          });
+        },
+      }
+    );
   };
 
   return (
@@ -316,7 +237,7 @@ const GestaoDenunciasPage = () => {
                     <SelectContent>
                       <SelectItem value="todos">Todos os tipos</SelectItem>
                       {tiposUnicos.map(tipo => (
-                        <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                        <SelectItem key={tipo} value={tipo}>{labelTipoDenuncia(tipo)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -338,7 +259,19 @@ const GestaoDenunciasPage = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredDenuncias.length === 0 ? (
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          Carregando denúncias...
+                        </TableCell>
+                      </TableRow>
+                    ) : isError ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-destructive">
+                          Não foi possível carregar as denúncias. Verifique sua permissão de acesso.
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredDenuncias.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                           Nenhuma denúncia encontrada com os filtros aplicados.
@@ -352,10 +285,10 @@ const GestaoDenunciasPage = () => {
                             <TableCell className="font-mono font-medium text-primary">
                               {denuncia.protocolo}
                             </TableCell>
-                            <TableCell>{denuncia.tipo}</TableCell>
-                            <TableCell className="max-w-xs truncate">{denuncia.resumo}</TableCell>
+                            <TableCell>{labelTipoDenuncia(denuncia.tipo)}</TableCell>
+                            <TableCell className="max-w-xs truncate">{resumoDenuncia(denuncia.descricao)}</TableCell>
                             <TableCell className="text-muted-foreground">
-                              {new Date(denuncia.dataRegistro).toLocaleDateString('pt-BR')}
+                              {new Date(denuncia.created_at).toLocaleDateString('pt-BR')}
                             </TableCell>
                             <TableCell>
                               <Badge 
@@ -421,12 +354,12 @@ const GestaoDenunciasPage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Tipo</p>
-                  <p className="font-medium">{selectedDenuncia.tipo}</p>
+                  <p className="font-medium">{labelTipoDenuncia(selectedDenuncia.tipo)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Status</p>
-                  <Badge 
-                    variant="outline" 
+                  <Badge
+                    variant="outline"
                     className={`${statusConfig[selectedDenuncia.status].color} mt-1`}
                   >
                     {statusConfig[selectedDenuncia.status].label}
@@ -436,7 +369,7 @@ const GestaoDenunciasPage = () => {
                   <p className="text-sm text-muted-foreground">Data do Registro</p>
                   <p className="font-medium flex items-center gap-1">
                     <Calendar className="h-4 w-4" />
-                    {new Date(selectedDenuncia.dataRegistro).toLocaleDateString('pt-BR')}
+                    {new Date(selectedDenuncia.created_at).toLocaleDateString('pt-BR')}
                   </p>
                 </div>
                 <div>
@@ -448,10 +381,22 @@ const GestaoDenunciasPage = () => {
                 </div>
               </div>
 
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Resumo</p>
-                <p className="font-medium">{selectedDenuncia.resumo}</p>
-              </div>
+              {!selectedDenuncia.anonima && (selectedDenuncia.nome_denunciante || selectedDenuncia.email_denunciante) && (
+                <div className="grid grid-cols-2 gap-4 border-t pt-4">
+                  {selectedDenuncia.nome_denunciante && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Denunciante</p>
+                      <p className="font-medium">{selectedDenuncia.nome_denunciante}</p>
+                    </div>
+                  )}
+                  {selectedDenuncia.email_denunciante && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Contato</p>
+                      <p className="font-medium">{selectedDenuncia.email_denunciante}{selectedDenuncia.telefone_denunciante ? ` · ${selectedDenuncia.telefone_denunciante}` : ""}</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Descrição Detalhada</p>
@@ -465,17 +410,24 @@ const GestaoDenunciasPage = () => {
                 </div>
               )}
 
-              {selectedDenuncia.localizacao && (
+              {selectedDenuncia.local_ocorrencia && (
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Localização</p>
-                  <p className="font-medium">{selectedDenuncia.localizacao}</p>
+                  <p className="font-medium">{selectedDenuncia.local_ocorrencia}</p>
                 </div>
               )}
 
-              {selectedDenuncia.dataOcorrencia && (
+              {selectedDenuncia.data_ocorrencia && (
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Data/Período da Ocorrência</p>
-                  <p className="font-medium">{selectedDenuncia.dataOcorrencia}</p>
+                  <p className="font-medium">{selectedDenuncia.data_ocorrencia}</p>
+                </div>
+              )}
+
+              {selectedDenuncia.evidencias && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Evidências relatadas</p>
+                  <p className="font-medium">{selectedDenuncia.evidencias}</p>
                 </div>
               )}
 
@@ -494,7 +446,7 @@ const GestaoDenunciasPage = () => {
               )}
 
               <div className="text-xs text-muted-foreground border-t pt-4">
-                Última atualização: {new Date(selectedDenuncia.dataAtualizacao).toLocaleDateString('pt-BR')}
+                Última atualização: {new Date(selectedDenuncia.updated_at).toLocaleDateString('pt-BR')}
               </div>
             </div>
           )}
@@ -537,14 +489,23 @@ const GestaoDenunciasPage = () => {
                 rows={4}
               />
             </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">Responsável pela apuração</label>
+              <Input
+                placeholder="Ex: Comissão de Ética, Ouvidoria..."
+                value={responsavel}
+                onChange={(e) => setResponsavel(e.target.value)}
+              />
+            </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsUpdateOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={saveStatusUpdate}>
-              Salvar Alterações
+            <Button onClick={saveStatusUpdate} disabled={atualizarDenuncia.isPending}>
+              {atualizarDenuncia.isPending ? "Salvando..." : "Salvar Alterações"}
             </Button>
           </DialogFooter>
         </DialogContent>
