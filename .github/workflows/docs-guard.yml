@@ -1,0 +1,112 @@
+# Docs acompanham o código — guard de PR.
+#
+# Falha quando a PR muda src/** ou supabase/** sem tocar em nenhuma doc
+# (docs/** ou *.md) e sem declarar o escape auditável no corpo da PR:
+#     docs: não se aplica — <motivo real>
+#
+# A matriz "tipo de mudança → documento obrigatório" vive em
+# docs/GOVERNANCA-DOCUMENTACAO.md (§3).
+#
+# Workflow SEPARADO do quality.yml de propósito: o tipo `edited` redispara
+# SÓ este guard quando o autor edita a descrição da PR (para adicionar o
+# escape), sem re-rodar lint/build. O corpo da PR é lido via API em runtime
+# (não do payload do evento) para que "Re-run" também veja a descrição
+# atual — o payload de um re-run é o original, stale.
+#
+# Sem `paths:` de propósito: um required check filtrado por paths nunca
+# reporta status em PR docs-only e travaria o merge para sempre. O job
+# sempre roda e decide internamente (PR sem código sai verde em segundos).
+#
+# Segurança: o corpo da PR NUNCA é interpolado via ${{ }} dentro de run:
+# (injeção de shell); chega por `gh api` numa variável, usada apenas quoted
+# como entrada de grep.
+name: Docs Guard
+
+# DESATIVADO POR PADRÃO de propósito — este é o primeiro gate documental
+# automático deste repositório. Antes de virar bloqueio de merge, o time
+# decide ativá-lo conscientemente, depois de rodar o processo manualmente
+# por um tempo (ver docs/GOVERNANCA-DOCUMENTACAO.md §6). `workflow_dispatch`
+# fica disponível para testar manualmente enquanto isso.
+#
+# Ativar: descomentar o bloco `pull_request` abaixo.
+on:
+  workflow_dispatch: {}
+  # pull_request:
+  #   branches: [main]
+  #   types: [opened, synchronize, reopened, edited]
+
+concurrency:
+  group: docs-guard-${{ github.head_ref }}
+  cancel-in-progress: true
+
+# O token default do runner pode vir restrito (contents: read apenas), e aí o
+# `gh api pulls/N/files` responde 403 "Resource not accessible by integration".
+# Declarar o bloco explícito garante exatamente o que o guard precisa.
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  docs-guard:
+    name: docs-guard
+    # dependabot só muda manifests — o skip explícito é cinto-e-suspensório
+    # para nunca bloquear automação. Job "skipped" conta como sucesso em
+    # required checks.
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Código mudou sem documentação?
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          files=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')
+
+          # Código = src/** e supabase/**, exceto testes (mudança só de teste
+          # não altera comportamento documentável).
+          code=$(printf '%s\n' "$files" \
+            | grep -E '^(src|supabase)/' \
+            | grep -vE '\.test\.(ts|tsx)$|(^|/)__tests__/|^src/test/' || true)
+
+          # Docs = qualquer .md do repo ou qualquer arquivo em docs/.
+          docs=$(printf '%s\n' "$files" | grep -E '^docs/|\.md$' || true)
+
+          if [ -z "$code" ]; then
+            echo "OK: nenhuma mudança de código (src/**, supabase/**) nesta PR."
+            exit 0
+          fi
+          if [ -n "$docs" ]; then
+            echo "OK: código e documentação mudaram juntos."
+            exit 0
+          fi
+
+          # Escape auditável no CORPO da PR (lido via API = sempre atual).
+          # Âncora ^ obrigatória e motivo não-placeholder: o exemplo do
+          # template (indentado/entre crases) não satisfaz o guard.
+          # n(ã|a)o por alternação, não por classe [ãa]: bracket com multibyte
+          # falha em locale C (o ã vira dois bytes soltos na classe).
+          body=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq '.body // ""' | tr -d '\r')
+          if printf '%s\n' "$body" \
+            | grep -Eiq '^docs: ?n(ã|a)o se aplica ?(—|–|-|:) ?[^<[:space:]]'; then
+            echo "OK: escape declarado no corpo da PR (auditável no histórico)."
+            exit 0
+          fi
+
+          echo "::error::Código mudou sem documentação. Arquivos de código nesta PR:"
+          printf '%s\n' "$code" | head -20
+          echo ""
+          echo "Como resolver (um dos dois caminhos):"
+          echo "  1. Atualize a(s) doc(s) exigida(s) pela matriz em docs/GOVERNANCA-DOCUMENTACAO.md:"
+          echo "     - rota/página/menu      -> docs/ARQUITETURA.md (+ docs/MODULOS.md)"
+          echo "     - migration/tabela/RPC  -> docs/BANCO_DE_DADOS.md"
+          echo "     - edge function         -> docs/EDGE_FUNCTIONS.md"
+          echo "     - permissão/RBAC        -> docs/RBAC_PERMISSOES.md"
+          echo "     - White Label/tenant    -> docs/WHITE_LABEL.md"
+          echo "     - front/hooks/libs      -> docs/GUIA_FRONTEND.md"
+          echo "  2. Se NENHUMA doc se aplica, adicione ao corpo da PR uma linha começando em:"
+          echo "       docs: não se aplica — <motivo real>"
+          echo "     (editar a descrição da PR redispara este check automaticamente)."
+          exit 1

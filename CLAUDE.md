@@ -1,11 +1,33 @@
 # CLAUDE.md
 
+@AGENTS.md
+
 Guia de contexto para o Claude Code trabalhar neste repositório. Leia antes de
 fazer alterações. Escrito em português porque é o idioma do time e do domínio.
 
 > 📚 **Documentação detalhada** em [`docs/`](./docs/README.md): visão geral,
 > arquitetura, módulos, banco de dados, RBAC, guia de front-end, edge functions
 > e fluxo de desenvolvimento. Este `CLAUDE.md` é o resumo; o `docs/` é o aprofundamento.
+
+---
+
+## 0. Antes de tudo: prompt curto entra no fluxo estruturado
+
+Pedido de criar ou mudar algo (módulo, página, hook, migração, RPC, Edge
+Function, permissão/RBAC), por mais curto que seja ("cria a tela de X"), →
+invoque o skill **`superpowers`** (`.claude/skills/superpowers/SKILL.md`)
+**antes de qualquer resposta** — antes de perguntar, antes de abrir arquivo.
+Ele encadeia `brainstorming` → aprovação → (`writing-plans` se necessário) →
+execução por subagentes → verificação → docs → PR em rascunho, reconhecendo
+os 4 skills de domínio já existentes (`migracao-segura-idjuv`,
+`novo-modulo-idjuv`, `auditoria-seguranca-idjuv`, `onboarding-cliente-idjuv`)
+como o caminho natural quando o pedido bate com o que eles cobrem. `/superpowers
+<pedido>` faz o mesmo. Bug isolado → `systematic-debugging`. Pergunta que não
+muda código e ajuste trivial (typo, nit de review) não passam pelo fluxo.
+
+Detalhe completo do fluxo de trabalho de agentes, invariantes de segurança e
+regra de documentação obrigatória: [`AGENTS.md`](./AGENTS.md) (importado no
+topo deste arquivo, então vale em toda sessão do Claude Code aqui).
 
 ---
 
@@ -248,7 +270,10 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 
 ## 10. Como adicionar uma feature (receita rápida)
 
-> Há skills do Claude Code em `.claude/skills/` que automatizam isto:
+> Comece pelo skill **`superpowers`** (§0) — ele é o orquestrador que decide o
+> tamanho do fluxo e encadeia os skills de domínio abaixo no momento certo, em
+> vez de você aplicar a receita manualmente. Os skills de domínio em
+> `.claude/skills/` continuam sendo o "como fazer" de cada ponta:
 > `novo-modulo-idjuv` (feature completa), `migracao-segura-idjuv` (schema com
 > RLS), `onboarding-cliente-idjuv` (provisionar instância para outro cliente)
 > e `auditoria-seguranca-idjuv` (checklist de segurança do projeto).
