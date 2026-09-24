@@ -13,6 +13,14 @@ dist-ssr
 *.local
 *.tsbuildinfo
 
+# Variáveis de ambiente locais (chaves VITE_* do Supabase, slug do tenant) —
+# nunca versionar; use .env.example como referência. Removido do rastreamento
+# em 2026-09-24 (estava commitado desde 8d04b5d, achado pelo guard novo de
+# CI "no tracked .env" em quality.yml).
+.env
+.env.local
+.env.*.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
