@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { 
+import {
   AlertTriangle, ArrowLeft, Send, Shield, Lock, Eye, EyeOff,
   FileText, CheckCircle2, Info
 } from "lucide-react";
@@ -14,26 +14,38 @@ import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { useRegistrarDenuncia } from "@/hooks/useDenuncias";
+import { TIPOS_DENUNCIA } from "@/types/integridade";
 
-const tiposDenuncia = [
-  { id: "corrupcao", label: "Corrupção ou desvio de recursos" },
-  { id: "assedio", label: "Assédio moral ou sexual" },
-  { id: "conflito", label: "Conflito de interesses" },
-  { id: "favorecimento", label: "Favorecimento indevido" },
-  { id: "irregularidade", label: "Irregularidade administrativa" },
-  { id: "outro", label: "Outro" },
-];
+const tiposDenuncia = TIPOS_DENUNCIA;
+
+const CAMPOS_INICIAIS = {
+  nome: "",
+  email: "",
+  telefone: "",
+  cargo: "",
+  envolvidos: "",
+  quando: "",
+  onde: "",
+  descricao: "",
+  evidencias: "",
+};
 
 export default function DenunciasPage() {
   const { toast } = useToast();
+  const registrarDenuncia = useRegistrarDenuncia();
   const [isAnonimo, setIsAnonimo] = useState(true);
   const [tipoDenuncia, setTipoDenuncia] = useState("");
   const [aceitaLGPD, setAceitaLGPD] = useState(false);
-  const [enviando, setEnviando] = useState(false);
+  const [campos, setCampos] = useState(CAMPOS_INICIAIS);
+
+  const atualizarCampo = (campo: keyof typeof CAMPOS_INICIAIS) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setCampos((prev) => ({ ...prev, [campo]: e.target.value }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!tipoDenuncia) {
       toast({
         title: "Erro",
@@ -52,17 +64,46 @@ export default function DenunciasPage() {
       return;
     }
 
-    setEnviando(true);
-    
-    // Simular envio
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    toast({
-      title: "Denúncia registrada",
-      description: "Sua denúncia foi registrada com sucesso. Protocolo: DEN-2025-0001",
-    });
-    
-    setEnviando(false);
+    if (!campos.envolvidos || !campos.quando || !campos.onde || !campos.descricao) {
+      toast({
+        title: "Erro",
+        description: "Preencha todos os campos obrigatórios",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const protocolo = await registrarDenuncia.mutateAsync({
+        anonima: isAnonimo,
+        tipo: tipoDenuncia as (typeof TIPOS_DENUNCIA)[number]["id"],
+        envolvidos: campos.envolvidos,
+        dataOcorrencia: campos.quando,
+        localOcorrencia: campos.onde,
+        descricao: campos.descricao,
+        evidencias: campos.evidencias || undefined,
+        nome: isAnonimo ? undefined : campos.nome,
+        email: isAnonimo ? undefined : campos.email,
+        telefone: isAnonimo ? undefined : campos.telefone,
+        cargo: isAnonimo ? undefined : campos.cargo,
+      });
+
+      toast({
+        title: "Denúncia registrada",
+        description: `Sua denúncia foi registrada com sucesso. Protocolo: ${protocolo}`,
+      });
+
+      setCampos(CAMPOS_INICIAIS);
+      setTipoDenuncia("");
+      setAceitaLGPD(false);
+      setIsAnonimo(true);
+    } catch (error) {
+      toast({
+        title: "Erro ao enviar denúncia",
+        description: error instanceof Error ? error.message : "Tente novamente em instantes.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -165,19 +206,19 @@ export default function DenunciasPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
                         <div className="space-y-2">
                           <Label htmlFor="nome">Nome completo</Label>
-                          <Input id="nome" placeholder="Seu nome" />
+                          <Input id="nome" placeholder="Seu nome" value={campos.nome} onChange={atualizarCampo("nome")} />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="email">E-mail</Label>
-                          <Input id="email" type="email" placeholder="seu@email.com" />
+                          <Input id="email" type="email" placeholder="seu@email.com" value={campos.email} onChange={atualizarCampo("email")} />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="telefone">Telefone (opcional)</Label>
-                          <Input id="telefone" placeholder="(00) 00000-0000" />
+                          <Input id="telefone" placeholder="(00) 00000-0000" value={campos.telefone} onChange={atualizarCampo("telefone")} />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="cargo">Cargo/Vínculo (opcional)</Label>
-                          <Input id="cargo" placeholder="Ex: Servidor, Cidadão" />
+                          <Input id="cargo" placeholder="Ex: Servidor, Cidadão" value={campos.cargo} onChange={atualizarCampo("cargo")} />
                         </div>
                       </div>
                     )}
@@ -206,43 +247,53 @@ export default function DenunciasPage() {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="envolvidos">Pessoas ou setores envolvidos *</Label>
-                      <Input 
-                        id="envolvidos" 
+                      <Input
+                        id="envolvidos"
                         placeholder="Descreva quem está envolvido na irregularidade"
+                        value={campos.envolvidos}
+                        onChange={atualizarCampo("envolvidos")}
                         required
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="quando">Quando ocorreu? *</Label>
-                      <Input 
-                        id="quando" 
+                      <Input
+                        id="quando"
                         placeholder="Data aproximada ou período"
+                        value={campos.quando}
+                        onChange={atualizarCampo("quando")}
                         required
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="onde">Onde ocorreu? *</Label>
-                      <Input 
-                        id="onde" 
+                      <Input
+                        id="onde"
                         placeholder="Local ou setor"
+                        value={campos.onde}
+                        onChange={atualizarCampo("onde")}
                         required
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="descricao">Descrição detalhada da denúncia *</Label>
-                      <Textarea 
-                        id="descricao" 
+                      <Textarea
+                        id="descricao"
                         placeholder="Descreva a irregularidade com o máximo de detalhes possível. Inclua informações sobre como teve conhecimento do fato, se há testemunhas, documentos ou outras evidências."
                         className="min-h-[150px]"
+                        value={campos.descricao}
+                        onChange={atualizarCampo("descricao")}
                         required
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="evidencias">Evidências ou documentos (opcional)</Label>
-                      <Textarea 
-                        id="evidencias" 
+                      <Textarea
+                        id="evidencias"
                         placeholder="Descreva documentos, e-mails, registros ou outras evidências que possam comprovar a denúncia"
                         className="min-h-[80px]"
+                        value={campos.evidencias}
+                        onChange={atualizarCampo("evidencias")}
                       />
                     </div>
                   </div>
@@ -282,12 +333,12 @@ export default function DenunciasPage() {
                         Cancelar
                       </Link>
                     </Button>
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       className="btn-gov"
-                      disabled={enviando}
+                      disabled={registrarDenuncia.isPending}
                     >
-                      {enviando ? (
+                      {registrarDenuncia.isPending ? (
                         "Enviando..."
                       ) : (
                         <>

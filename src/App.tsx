@@ -1076,7 +1076,7 @@ const App = () => (
                   <IntegridadeDashboardPage />
                 </ProtectedRoute>
               } />
-              <Route path="/integridade/denuncias" element={<ProtectedRoute><DenunciasPage /></ProtectedRoute>} />
+              <Route path="/integridade/denuncias" element={<PublicPageGuard rota="/integridade/denuncias"><DenunciasPage /></PublicPageGuard>} />
               <Route path="/integridade/gestao-denuncias" element={
                 <ProtectedRoute requiredPermissions="integridade.gerenciar">
                   <GestaoDenunciasPage />
