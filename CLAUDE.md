@@ -268,6 +268,21 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 
 ---
 
+## 10.1 Skills, agentes e Superpowers
+
+- **Superpowers** (`obra/superpowers`) habilitado em `.claude/settings.json`
+  (marketplace `superpowers-dev`). Em sessão local, se não carregar, rode
+  `/plugin marketplace add obra/superpowers` e
+  `/plugin install superpowers@superpowers-dev`.
+- Fluxo: `brainstorming` → `writing-plans` → worktree → `subagent-driven-development`
+  → `requesting-code-review` → `verification-before-completion`. Specs em
+  `docs/superpowers/specs/`, planos em `docs/superpowers/plans/`.
+- Skills de projeto e subagentes (`.claude/agents/`) estão listados em
+  [`AGENTS.md`](./AGENTS.md). Roadmap vivo: `docs/planejamento/ROADMAP.md`.
+- `.claude/skills/supabase*` são cópias de `supabase/agent-skills` (MIT).
+
+---
+
 ## 11. Fluxo de trabalho Git nesta sessão
 
 - Branch de desenvolvimento: **`claude/ooda-project-structure-eID3T`**.
