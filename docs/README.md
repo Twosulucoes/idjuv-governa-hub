@@ -24,6 +24,8 @@
 | [AUDITORIA_USUARIOS.md](./AUDITORIA_USUARIOS.md) | Auditoria de segurança do sistema de usuários (achados e hardening) |
 | [INVENTARIO_HARDCODE.md](./INVENTARIO_HARDCODE.md) | Mapa do hardcode do cliente (IDJUV) no código — base do White Label |
 | [WHITE_LABEL.md](./WHITE_LABEL.md) | Arquitetura-alvo, roadmap e critérios de aceite para o modelo White Label |
+| [GOVERNANCA_DOCUMENTACAO.md](./GOVERNANCA_DOCUMENTACAO.md) | Matriz: tipo de mudança → doc obrigatória |
+| [planejamento/ROADMAP.md](./planejamento/ROADMAP.md) | Backlog e andamento (vivo) |
 
 ## Documentos operacionais (já existentes)
 

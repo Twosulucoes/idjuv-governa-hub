@@ -3,6 +3,8 @@
 Guia de contexto para o Claude Code trabalhar neste repositório. Leia antes de
 fazer alterações. Escrito em português porque é o idioma do time e do domínio.
 
+@AGENTS.md
+
 > 📚 **Documentação detalhada** em [`docs/`](./docs/README.md): visão geral,
 > arquitetura, módulos, banco de dados, RBAC, guia de front-end, edge functions
 > e fluxo de desenvolvimento. Este `CLAUDE.md` é o resumo; o `docs/` é o aprofundamento.
@@ -62,8 +64,11 @@ bun run lint         # ESLint
 bun run preview      # preview do build
 ```
 
-> Não há suíte de testes configurada no momento. A verificação principal é
-> `bun run lint` + `bun run build` (checagem de tipos do TS roda no build).
+> Não há suíte de testes. Verificação: **`bash scripts/gate.sh`** (typecheck + lint
+> + build; compara com `scripts/gate-baseline.json` e falha só se a dívida piorar).
+> Atenção: `vite build` **não** checa tipos; o typecheck é `tsc -p tsconfig.app.json`.
+> O `package-lock.json` está fora de sincronia: use `bun install` ou
+> `npm install --no-package-lock` (não `npm ci`).
 
 ---
 
@@ -270,15 +275,19 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 
 ## 10.1 Skills, agentes e Superpowers
 
-- **Superpowers** (`obra/superpowers`) habilitado em `.claude/settings.json`
-  (marketplace `superpowers-dev`). Em sessão local, se não carregar, rode
-  `/plugin marketplace add obra/superpowers` e
-  `/plugin install superpowers@superpowers-dev`.
-- Fluxo: `brainstorming` → `writing-plans` → worktree → `subagent-driven-development`
-  → `requesting-code-review` → `verification-before-completion`. Specs em
-  `docs/superpowers/specs/`, planos em `docs/superpowers/plans/`.
-- Skills de projeto e subagentes (`.claude/agents/`) estão listados em
-  [`AGENTS.md`](./AGENTS.md). Roadmap vivo: `docs/planejamento/ROADMAP.md`.
+- **Todo pedido de criar/mudar algo** (feature, tela, migração, RPC, Edge Function…)
+  começa pelo skill **`superpowers`** (`/superpowers`) — invoque-o **antes de
+  responder**. Ele orquestra: `brainstorming` → gate de aprovação → `writing-plans`
+  → `subagent-driven-development` → revisão → `verification-before-completion`
+  → docs → PR rascunho. Bug isolado: `systematic-debugging`.
+- Os skills do Superpowers estão **vendorizados** em `.claude/skills/` (funcionam
+  em sessões web/remotas, sem plugin). Atualize com
+  `bash scripts/sync-superpowers-skills.sh`; não edite à mão
+  (`.claude/skills/SUPERPOWERS-VENDOR.md`).
+- Subagentes em `.claude/agents/` (arquiteto, dev-banco, dev-frontend, revisores,
+  documentador): quem executa/revisa cada tarefa está em [`AGENTS.md`](./AGENTS.md).
+- Specs: `docs/superpowers/specs/`; planos: `docs/superpowers/plans/`; roadmap:
+  `docs/planejamento/ROADMAP.md`; matriz de docs: `docs/GOVERNANCA_DOCUMENTACAO.md`.
 - `.claude/skills/supabase*` são cópias de `supabase/agent-skills` (MIT).
 
 ---
