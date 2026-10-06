@@ -12,7 +12,7 @@ Documento vivo, mantido pelo agente `documentador-idjuv`. Fluxo de trabalho: ver
 - _(vazio)_
 
 ## Em planejamento
-- [ ] Estrutura de docs, agentes, skills, hooks/MCP e APIs a partir do ETP de contratação (transversal a todos os módulos) — spec `docs/superpowers/specs/2026-10-06-etp-solucao-gestao-integrada-design.md`, matriz `docs/superpowers/specs/2026-10-06-etp-matriz-rastreabilidade.md`, plano `docs/superpowers/plans/2026-10-06-etp-solucao-gestao-integrada.md` (aguardando aprovação; Fase 0 trata achados de segurança S1–S4 antes da documentação)
+- _(vazio)_
 
 ## Backlog
 - [ ] Higiene: dívida de typecheck (10) e lint (701) — reduzir e rodar `bash scripts/gate.sh --update-baseline`
