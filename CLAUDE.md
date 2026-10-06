@@ -64,8 +64,10 @@ bun run lint         # ESLint
 bun run preview      # preview do build
 ```
 
-> Não há suíte de testes. Verificação: **`bash scripts/gate.sh`** (typecheck + lint
-> + build; compara com `scripts/gate-baseline.json` e falha só se a dívida piorar).
+> Não há suíte de testes. Verificação: **`bash scripts/gate.sh`** (`npm run gate`:
+> guards de migrações/docs + typecheck + lint + build; typecheck e lint comparam com
+> `scripts/gate-baseline.json` e falham só se a dívida piorar). Roda no `pre-push`
+> e no CI (`.github/workflows/quality.yml`) — ver `CONTRIBUTING.md`.
 > Atenção: `vite build` **não** checa tipos; o typecheck é `tsc -p tsconfig.app.json`.
 > O `package-lock.json` está fora de sincronia: use `bun install` ou
 > `npm install --no-package-lock` (não `npm ci`).
@@ -253,7 +255,10 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 
 ## 10. Como adicionar uma feature (receita rápida)
 
-> Há skills do Claude Code em `.claude/skills/` que automatizam isto:
+> Comece pelo skill **`superpowers`** (§10.1) — ele é o orquestrador que decide o
+> tamanho do fluxo e encadeia os skills de domínio abaixo no momento certo, em
+> vez de você aplicar a receita manualmente. Os skills de domínio em
+> `.claude/skills/` continuam sendo o "como fazer" de cada ponta:
 > `novo-modulo-idjuv` (feature completa), `migracao-segura-idjuv` (schema com
 > RLS), `onboarding-cliente-idjuv` (provisionar instância para outro cliente)
 > e `auditoria-seguranca-idjuv` (checklist de segurança do projeto).
@@ -269,7 +274,7 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 6. **Menu/módulo:** se for um item navegável, adicione em
    `src/config/menu.config.ts` e, se for módulo novo, em
    `src/shared/config/modules.config.ts`.
-7. **Verifique:** `bun run lint` e `bun run build`.
+7. **Verifique:** `bash scripts/gate.sh` (ou `npm run gate`).
 
 ---
 
@@ -279,7 +284,8 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
   começa pelo skill **`superpowers`** (`/superpowers`) — invoque-o **antes de
   responder**. Ele orquestra: `brainstorming` → gate de aprovação → `writing-plans`
   → `subagent-driven-development` → revisão → `verification-before-completion`
-  → docs → PR rascunho. Bug isolado: `systematic-debugging`.
+  → docs → PR rascunho. Bug isolado: `systematic-debugging`. Pergunta que não muda
+  código e ajuste trivial (typo, nit de review) não passam pelo fluxo.
 - Os skills do Superpowers estão **vendorizados** em `.claude/skills/` (funcionam
   em sessões web/remotas, sem plugin). Atualize com
   `bash scripts/sync-superpowers-skills.sh`; não edite à mão

@@ -24,8 +24,11 @@
 | [AUDITORIA_USUARIOS.md](./AUDITORIA_USUARIOS.md) | Auditoria de segurança do sistema de usuários (achados e hardening) |
 | [INVENTARIO_HARDCODE.md](./INVENTARIO_HARDCODE.md) | Mapa do hardcode do cliente (IDJUV) no código — base do White Label |
 | [WHITE_LABEL.md](./WHITE_LABEL.md) | Arquitetura-alvo, roadmap e critérios de aceite para o modelo White Label |
-| [GOVERNANCA_DOCUMENTACAO.md](./GOVERNANCA_DOCUMENTACAO.md) | Matriz: tipo de mudança → doc obrigatória |
+| [GOVERNANCA_DOCUMENTACAO.md](./GOVERNANCA_DOCUMENTACAO.md) | Processo documental: matriz mudança→doc, definição de trabalho completo, escape hatch, estado real do enforcement (gate e CI) |
 | [planejamento/ROADMAP.md](./planejamento/ROADMAP.md) | Backlog e andamento (vivo) |
+| [../AGENTS.md](../AGENTS.md) | Instruções persistentes para agentes de IA: invariantes de arquitetura/segurança, fluxo de trabalho (skill `superpowers`), documentação obrigatória |
+| [../CONTRIBUTING.md](../CONTRIBUTING.md) | Gate local de qualidade (`npm run gate`, pre-push) e checklist de PR |
+| [../.claude/skills/superpowers/SKILL.md](../.claude/skills/superpowers/SKILL.md) | Orquestrador `/superpowers`: prompt curto → brainstorming → aprovação → (plano) → execução por subagentes → verificação → docs → PR em rascunho |
 
 ## Documentos operacionais (já existentes)
 

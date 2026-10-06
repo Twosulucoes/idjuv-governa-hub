@@ -1,0 +1,77 @@
+name: Quality Gates
+
+# Primeira vez que este repositório tem CI automático. Gatilho ATIVO de
+# propósito — os checks aqui (lint, build, e os dois guards abaixo) são
+# baratos e seguros, e não custam nada terem sido pausados desde o início:
+# não há histórico de runner indisponível neste repositório, diferente de
+# outros projetos do time. Se algum dia os runners do GitHub Actions pararem
+# de ser alocados para este repo, documente a pausa aqui (com data e link da
+# run que falhou sem log) antes de comentar o trigger — não pause "por via
+# das dúvidas".
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Guard — no tracked .env / secret files
+        run: |
+          tracked=$(git ls-files | grep -E '(^|/)\.env($|\.local$)' || true)
+          if [ -n "$tracked" ]; then
+            echo "::error::Secret files are tracked by git: $tracked"
+            echo "Run: git rm --cached <file>  (keep them local + gitignored)"
+            exit 1
+          fi
+
+      # Guard de migrations: versões (prefixo numérico) duplicadas quebram o
+      # `supabase db push` (a versão é PK em schema_migrations) e envenenam o
+      # deploy do banco. Falhar aqui é barato; reparar o histórico remoto
+      # depois não é. Ver scripts/check-migrations.sh.
+      - name: Guard — migrations sem versão duplicada
+        run: bash scripts/check-migrations.sh
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      # Guard de documentação: referência a arquivo inexistente/vazio nas
+      # docs normativas (LIVING_DOCS). Roda antes do `npm ci` porque só
+      # depende de node + git — se a doc mente, falha em segundos em vez de
+      # depois do build inteiro. Ver scripts/check-doc-links.mjs.
+      - name: Guard — docs sem referência quebrada
+        run: npm run check:docs
+
+      # `npm ci` falha: o package-lock.json está fora de sincronia com o
+      # package.json (ver AGENTS.md). Instala sem tocar no lockfile.
+      - name: Install dependencies
+        run: npm install --no-package-lock --no-audit --no-fund
+
+      # Não há passo de "unit tests": este projeto não tem suíte de testes
+      # automatizados configurada (ver AGENTS.md / CLAUDE.md §3).
+      #
+      # `scripts/gate.sh` é o mesmo gate do pre-push: typecheck (tsc), lint e
+      # build. O repo tem dívida histórica (em 2026-09-24 o `npm run lint`
+      # sozinho falhava com 701 erros pré-existentes, majoritariamente
+      # `@typescript-eslint/no-explicit-any`), então typecheck e lint comparam
+      # com `scripts/gate-baseline.json` e falham SÓ se a contagem AUMENTAR —
+      # o CI não nasce vermelho e ainda bloqueia regressão. `vite build` não
+      # checa tipos; por isso o typecheck é passo próprio do gate. Ao reduzir
+      # a dívida, rode `bash scripts/gate.sh --update-baseline` e commite a
+      # nova baseline. Os dois guards de cima rodam de novo dentro do gate
+      # (baratos); ficam antes do install só para falhar em segundos.
+      - name: Gate (typecheck + lint vs. baseline + build)
+        run: bash scripts/gate.sh

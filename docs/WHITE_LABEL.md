@@ -347,8 +347,12 @@ Placeholders padronizados, resolvidos por um único renderizador:
 {{CARGO}}               {{SIMBOLO}}      {{UNIDADE}}
 ```
 
-Os modelos do IDJUV viram **seed** em `tenants/idjuv/seeds/modelos_atos.sql`.
+Os modelos do IDJUV viram **seed** em `tenants/idjuv/seeds/modelos_atos.sql`
+(caminho-alvo — ainda não criado; ver roadmap abaixo).
 O `_template` traz modelos genéricos com `{{FUNDAMENTO}}` a preencher.
+
+<!-- doc-links-ignore: tenants/idjuv/seeds/modelos_atos.sql -->
+
 
 Mesmo tratamento para as páginas `src/pages/governanca/DecretoPage.tsx`,
 `LeiCriacaoPage.tsx`, `RegimentoInternoPage.tsx` e `ApresentacaoPage.tsx`: viram

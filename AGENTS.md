@@ -7,7 +7,7 @@ importa este arquivo (`@AGENTS.md`). Contexto completo: [`CLAUDE.md`](./CLAUDE.m
 
 - **Projeto:** IDJUV Governa Hub — ERP/governança para órgão público (React 18 + Vite + TypeScript + Supabase).
 - **Idioma:** português (domínio, comentários, UI). Não traduza nomes existentes.
-- **Verificação:** não há testes. Use `bash scripts/gate.sh` (typecheck + lint + build; falha só se piorar vs. `scripts/gate-baseline.json`).
+- **Verificação:** não há testes. Use `bash scripts/gate.sh` (`npm run gate`): guards de migrações e de links de docs + typecheck + lint + build; typecheck e lint falham só se piorarem vs. `scripts/gate-baseline.json`. Roda no `pre-push` (`.githooks/`, ativado por `npm install`) e no CI (`.github/workflows/quality.yml`). Detalhes em [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 - **Alias:** `@` → `src/`. Todas as rotas em `src/App.tsx`.
 - **Instalar deps:** `bun install` ou `npm install --no-package-lock` (o `package-lock.json` está fora de sincronia; `npm ci` falha).
 
@@ -37,7 +37,8 @@ brainstorming → [gate de aprovação] → writing-plans → subagent-driven-de
 - Interativo: pare para o "sim" explícito após desenho/spec/plano. Autônomo: registre premissas e siga; pare só por risco.
 - Bug isolado: `systematic-debugging`. Specs em `docs/superpowers/specs/`, planos em `docs/superpowers/plans/`.
 - **Ler não é verificar:** rode o comando antes de afirmar. Sem evidência fresca, sem "pronto".
-- Documentação: matriz em [`docs/GOVERNANCA_DOCUMENTACAO.md`](./docs/GOVERNANCA_DOCUMENTACAO.md).
+- Documentação: matriz em [`docs/GOVERNANCA_DOCUMENTACAO.md`](./docs/GOVERNANCA_DOCUMENTACAO.md) (§6 diz o que é cobrado automaticamente hoje e o que é só convenção).
+- Commits: descritivos, em português. O repo **não** adota Conventional Commits obrigatório nem versionamento automático (SemVer/Release Please).
 - Roadmap vivo: [`docs/planejamento/ROADMAP.md`](./docs/planejamento/ROADMAP.md).
 
 ## Skills (`.claude/skills/`)

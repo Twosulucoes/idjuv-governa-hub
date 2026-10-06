@@ -9,7 +9,16 @@
 ## Documentação (matriz em docs/GOVERNANCA_DOCUMENTACAO.md)
 
 - [ ] Doc(s) da matriz atualizada(s) na mesma PR
-- [ ] Nada se aplica — `docs: não se aplica — <motivo real>`
+- [ ] Nada se aplica — declarei a linha de escape com motivo real
+
+<!-- Escape (apenas se NENHUMA doc se aplica): escreva numa linha própria, SEM
+     indentação e fora de checkbox, no corpo desta PR, trocando o motivo:
+
+       docs: não se aplica — <motivo real e específico>
+
+     O exemplo acima (indentado, dentro deste comentário) NÃO satisfaz o guard
+     `docs-guard` quando ele estiver ativo (hoje só `workflow_dispatch`; ver
+     docs/GOVERNANCA_DOCUMENTACAO.md §6) — a linha real precisa começar a linha. -->
 
 ## Qualidade e segurança
 
