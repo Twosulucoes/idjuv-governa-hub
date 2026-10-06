@@ -2,32 +2,27 @@
 
 <!-- Resumo objetivo da mudança e do porquê. -->
 
-## Documentação
+## Premissas e fora de escopo
 
-Matriz completa: [docs/GOVERNANCA-DOCUMENTACAO.md](../docs/GOVERNANCA-DOCUMENTACAO.md) §3
-(o guard `docs-guard` existe mas está desativado por padrão — ver §6 — então
-isto ainda é conferido em review, não bloqueado automaticamente)
+<!-- Premissas adotadas (sessão autônoma) e o que ficou de fora, com motivo. -->
 
-- [ ] Rota/página/item de menu → `docs/ARQUITETURA.md` (+ `docs/MODULOS.md` se for de um módulo)
-- [ ] Módulo novo → `docs/MODULOS.md` + `src/shared/config/modules.config.ts`
-- [ ] Migração/tabela/coluna/RPC/RLS → `docs/BANCO_DE_DADOS.md`
-- [ ] Edge Function nova/alterada → `docs/EDGE_FUNCTIONS.md`
-- [ ] Permissão/papel/RBAC → `docs/RBAC_PERMISSOES.md`
-- [ ] Hook/lib/padrão de front → `docs/GUIA_FRONTEND.md`
-- [ ] White Label/tenant/branding → `docs/WHITE_LABEL.md`
-- [ ] Nada disso se aplica → declarei abaixo a linha de escape com motivo real
+## Documentação (matriz em docs/GOVERNANCA_DOCUMENTACAO.md)
 
-<!-- Escape (apenas se NENHUMA doc se aplica): escreva numa linha própria,
-     SEM indentação, no corpo desta PR, substituindo o motivo:
+- [ ] Doc(s) da matriz atualizada(s) na mesma PR
+- [ ] Nada se aplica — declarei a linha de escape com motivo real
+
+<!-- Escape (apenas se NENHUMA doc se aplica): escreva numa linha própria, SEM
+     indentação e fora de checkbox, no corpo desta PR, trocando o motivo:
 
        docs: não se aplica — <motivo real e específico>
 
-     O exemplo acima (indentado, dentro deste comentário) NÃO satisfaz o
-     guard quando ele estiver ativo — a linha real precisa começar a linha. -->
+     O exemplo acima (indentado, dentro deste comentário) NÃO satisfaz o guard
+     `docs-guard` quando ele estiver ativo (hoje só `workflow_dispatch`; ver
+     docs/GOVERNANCA_DOCUMENTACAO.md §6) — a linha real precisa começar a linha. -->
 
-## Qualidade
+## Qualidade e segurança
 
-- [ ] `npm run check:docs && npm run check:migrations && npm run lint && npm run build` verdes (ou `npm run gate`)
-- [ ] RBAC/RLS respeitados quando a mudança toca dado protegido
-- [ ] Nenhum hardcode de nome/marca de cliente introduzido em `src/` fora de `@/core/tenant`
-- [ ] Nenhuma funcionalidade não implementada foi documentada
+- [ ] `bash scripts/gate.sh` verde (typecheck/lint sem piora vs. baseline, build ok) — colar o resultado
+- [ ] Tabela/coluna nova com RLS e políticas na própria migração
+- [ ] RBAC verificado no banco e na rota (não só no front)
+- [ ] Sem nome de cliente em `src/`, sem dados de cliente em `public/`, arquivos gerados do Supabase intocados

@@ -37,12 +37,12 @@ const ROOT = resolve(import.meta.dirname, "..");
 // Documentação normativa: descreve como o sistema É e deve ser hoje.
 // docs/AUDITORIA_USUARIOS.md e docs/INVENTARIO_HARDCODE.md ficam de FORA de
 // propósito — são registros datados de auditorias pontuais, não docs vivas
-// (ver docs/GOVERNANCA-DOCUMENTACAO.md §7).
+// (ver docs/GOVERNANCA_DOCUMENTACAO.md §7).
 const LIVING_DOCS = [
   "CLAUDE.md",
   "AGENTS.md",
   "docs/README.md",
-  "docs/GOVERNANCA-DOCUMENTACAO.md",
+  "docs/GOVERNANCA_DOCUMENTACAO.md",
   "docs/ARQUITETURA.md",
   "docs/MODULOS.md",
   "docs/BANCO_DE_DADOS.md",
@@ -52,6 +52,7 @@ const LIVING_DOCS = [
   "docs/DESENVOLVIMENTO.md",
   "docs/VISAO_GERAL.md",
   "docs/WHITE_LABEL.md",
+  "docs/planejamento/ROADMAP.md",
 ];
 
 const EXT = /\.(tsx?|jsx?|mjs|cjs|css|scss|json|sql|sh|ya?ml|html|md|png|svg|jpe?g|webp|ico|txt|toml)$/i;

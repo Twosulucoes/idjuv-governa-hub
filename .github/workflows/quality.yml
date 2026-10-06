@@ -55,25 +55,23 @@ jobs:
       - name: Guard — docs sem referência quebrada
         run: npm run check:docs
 
+      # `npm ci` falha: o package-lock.json está fora de sincronia com o
+      # package.json (ver AGENTS.md). Instala sem tocar no lockfile.
       - name: Install dependencies
-        run: npm ci || npm install
+        run: npm install --no-package-lock --no-audit --no-fund
 
       # Não há passo de "unit tests": este projeto não tem suíte de testes
-      # automatizados configurada (ver AGENTS.md / CLAUDE.md §3). A checagem
-      # de tipos roda dentro do `build` (o Vite invoca `tsc`).
+      # automatizados configurada (ver AGENTS.md / CLAUDE.md §3).
       #
-      # ATENÇÃO: em 2026-09-24, `npm run lint` falhava com 701 erros
-      # pré-existentes (majoritariamente `@typescript-eslint/no-explicit-any`
-      # em ~40 arquivos de `src/` e `supabase/functions/`), sem relação com a
-      # introdução deste workflow. Isso significa que este passo pode sair
-      # vermelho em PRs que não tocam os arquivos afetados. Não silencie isso
-      # afrouxando a regra do ESLint sem decisão do time — reduza o backlog
-      # (ou, temporariamente, ajuste `eslint.config.js` para avisar em vez de
-      # falhar nessa regra especificamente, com uma nota explicando o porquê,
-      # igual ao raciocínio já usado para "tolerar warnings" em projetos
-      # irmãos deste time).
-      - name: Lint
-        run: npm run lint
-
-      - name: Build
-        run: npm run build
+      # `scripts/gate.sh` é o mesmo gate do pre-push: typecheck (tsc), lint e
+      # build. O repo tem dívida histórica (em 2026-09-24 o `npm run lint`
+      # sozinho falhava com 701 erros pré-existentes, majoritariamente
+      # `@typescript-eslint/no-explicit-any`), então typecheck e lint comparam
+      # com `scripts/gate-baseline.json` e falham SÓ se a contagem AUMENTAR —
+      # o CI não nasce vermelho e ainda bloqueia regressão. `vite build` não
+      # checa tipos; por isso o typecheck é passo próprio do gate. Ao reduzir
+      # a dívida, rode `bash scripts/gate.sh --update-baseline` e commite a
+      # nova baseline. Os dois guards de cima rodam de novo dentro do gate
+      # (baratos); ficam antes do install só para falhar em segundos.
+      - name: Gate (typecheck + lint vs. baseline + build)
+        run: bash scripts/gate.sh

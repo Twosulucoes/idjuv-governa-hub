@@ -14,7 +14,7 @@ pedido como **architectural**:
 **naquela data** — não é atualizado retroativamente para acompanhar o código.
 O estado atual do sistema sempre vive nas docs canônicas listadas em
 [`docs/README.md`](../README.md) e na matriz de
-[`docs/GOVERNANCA-DOCUMENTACAO.md`](../GOVERNANCA-DOCUMENTACAO.md) §2. Se um
+[`docs/GOVERNANCA_DOCUMENTACAO.md`](../GOVERNANCA_DOCUMENTACAO.md) §2. Se um
 plano aqui ficou parcialmente implementado ou foi abandonado, isso se
 descobre comparando com o código real — não se edita o plano para "corrigir"
 a história.

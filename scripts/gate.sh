@@ -1,57 +1,58 @@
 #!/usr/bin/env bash
-# ============================================================================
-# Gate de qualidade LOCAL — os mesmos checks do .github/workflows/quality.yml.
-#
-# Este repositório nunca teve CI (primeira vez que os workflows em
-# .github/workflows/ existem — ver docs/GOVERNANCA-DOCUMENTACAO.md §6).
-# Enquanto isso, e mesmo depois, este script roda na sua máquina antes do
-# push, via .githooks/pre-push (instalado automaticamente por `npm install`,
-# através do script `prepare` do package.json).
-#
-# Não há suíte de testes automatizados configurada neste projeto — a
-# checagem de tipos roda dentro do `build` (tsc via Vite), não como passo
-# isolado.
-#
-# Ordem deliberada: o que falha em segundos vem antes do que leva mais tempo.
-# `set -e`: para no primeiro erro (mais simples que colecionar falhas — o
-# objetivo aqui é feedback rápido no pre-push, não um relatório completo).
-#
-# Uso:
-#   npm run gate              # roda tudo
-#   bun run gate
-#   git push                  # roda via .githooks/pre-push
-#   git push --no-verify      # pula (desaconselhado — ver CONTRIBUTING.md)
-# ============================================================================
-
-set -e
+# Gate de qualidade local do IDJUV Governa Hub: typecheck, lint e build.
+# O repo tem dívida histórica (erros de tipo/lint), então typecheck e lint comparam
+# com scripts/gate-baseline.json: falham só se o número de erros AUMENTAR.
+# Quando reduzir a dívida, rode: bash scripts/gate.sh --update-baseline
+# Antes disso rodam dois guards baratos (migrações sem versão duplicada, docs sem
+# referência quebrada), que falham em qualquer ocorrência — não têm baseline.
+# Roda no pre-push (.githooks/pre-push) e no CI (.github/workflows/quality.yml).
+# Não há suíte de testes. Uso: bash scripts/gate.sh  (ou: npm run gate)
+set -uo pipefail
 cd "$(dirname "$0")/.."
 
-RUN="npm run --silent"
-if command -v bun >/dev/null 2>&1 && [ -f bun.lockb -o -f bun.lock ]; then
-  RUN="bun run"
+VERDE='\033[0;32m'; VERMELHO='\033[0;31m'; AMARELO='\033[0;33m'; SEM='\033[0m'
+BASE=scripts/gate-baseline.json
+falhas=(); inicio=$(date +%s)
+
+[ -d node_modules ] || { echo "node_modules ausente: rode 'bun install' ou 'npm install --no-package-lock'" >&2; exit 2; }
+
+ts_erros()   { npx tsc --noEmit -p tsconfig.app.json 2>&1 | grep -c "error TS" || true; }
+lint_erros() { npx eslint . -f json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).reduce((a,f)=>a+f.errorCount,0))}catch{console.log(-1)}})'; }
+lido()       { node -e "console.log(require('./$BASE').$1)"; }
+
+if [ "${1:-}" = "--update-baseline" ]; then
+  printf '{\n  "typecheck": %s,\n  "lint": %s\n}\n' "$(ts_erros)" "$(lint_erros)" > "$BASE"
+  echo "Baseline atualizada:"; cat "$BASE"; exit 0
 fi
 
-VERDE='\033[0;32m'; VERMELHO='\033[0;31m'; AMARELO='\033[0;33m'; SEM='\033[0m'
-inicio=$(date +%s)
-
-executar() {
-  local nome="$1"; shift
-  printf "\n${AMARELO}▸ %s${SEM}\n" "$nome"
-  if "$@"; then
-    printf "${VERDE}  ✔ %s${SEM}\n" "$nome"
-  else
-    printf "${VERMELHO}  ✘ %s${SEM}\n" "$nome"
-    printf "\n${VERMELHO}Gate vermelho em \"%s\".${SEM} Corrija antes de enviar.\n" "$nome"
-    printf "Para pular conscientemente: git push --no-verify\n"
-    exit 1
-  fi
+comparar() { # nome, atual, chave-da-baseline
+  local nome="$1" atual="$2" max; max=$(lido "$3")
+  printf "\n${AMARELO}▸ %s${SEM}: %s erros (baseline %s)\n" "$nome" "$atual" "$max"
+  if [ "$atual" -lt 0 ]; then printf "${VERMELHO}  ✘ %s não executou${SEM}\n" "$nome"; falhas+=("$nome")
+  elif [ "$atual" -le "$max" ]; then printf "${VERDE}  ✔ %s${SEM}\n" "$nome"
+  else printf "${VERMELHO}  ✘ %s piorou (+%s)${SEM}\n" "$nome" "$((atual-max))"; falhas+=("$nome"); fi
 }
 
-executar "migrations sem versão duplicada" $RUN check:migrations
-executar "docs sem referência quebrada"    $RUN check:docs
-executar "lint"                            $RUN lint
-executar "build"                           $RUN build
+guard() { # nome, comando...
+  local nome="$1"; shift
+  printf "\n${AMARELO}▸ %s${SEM}\n" "$nome"
+  if "$@"; then printf "${VERDE}  ✔ %s${SEM}\n" "$nome"
+  else printf "${VERMELHO}  ✘ %s${SEM}\n" "$nome"; falhas+=("$nome"); fi
+}
 
-duracao=$(( $(date +%s) - inicio ))
+guard "migrações sem versão duplicada" bash scripts/check-migrations.sh
+guard "docs sem referência quebrada" node scripts/check-doc-links.mjs
+
+comparar "typecheck" "$(ts_erros)" typecheck
+comparar "lint" "$(lint_erros)" lint
+
+printf "\n${AMARELO}▸ build${SEM}\n"
+if npx vite build >/tmp/gate-build.log 2>&1; then printf "${VERDE}  ✔ build${SEM}\n"
+else tail -30 /tmp/gate-build.log; printf "${VERMELHO}  ✘ build${SEM}\n"; falhas+=("build"); fi
+
 printf "\n────────────────────────────────────────\n"
-printf "${VERDE}Gate verde em %ss.${SEM}\n" "$duracao"
+duracao=$(( $(date +%s) - inicio ))
+if [ ${#falhas[@]} -eq 0 ]; then printf "${VERDE}Gate verde em %ss.${SEM}\n" "$duracao"; exit 0; fi
+printf "${VERMELHO}Gate vermelho em %ss:${SEM}\n" "$duracao"
+for f in "${falhas[@]}"; do printf "  ${VERMELHO}• %s${SEM}\n" "$f"; done
+exit 1

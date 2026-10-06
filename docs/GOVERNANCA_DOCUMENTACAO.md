@@ -40,6 +40,7 @@
 | [`docs/DESENVOLVIMENTO.md`](./DESENVOLVIMENTO.md) | Setup, comandos, fluxo Git, deploy, como adicionar features |
 | [`docs/WHITE_LABEL.md`](./WHITE_LABEL.md) | Arquitetura-alvo, roadmap e critérios de aceite do modelo White Label |
 | [`docs/VISAO_GERAL.md`](./VISAO_GERAL.md) | O que é o sistema, público, objetivos, mapa de módulos |
+| [`docs/planejamento/ROADMAP.md`](./planejamento/ROADMAP.md) | Backlog e andamento do planejamento (vivo) |
 | [`CLAUDE.md`](../CLAUDE.md) | Guia de contexto para o Claude Code: stack, estrutura, convenções, fluxo de features; importa `AGENTS.md` |
 | [`AGENTS.md`](../AGENTS.md) | Instruções persistentes para agentes: invariantes de segurança/arquitetura, fluxo de trabalho (skill `superpowers`), documentação obrigatória |
 | [`CONTRIBUTING.md`](../CONTRIBUTING.md) | Gate local de qualidade, checklist de PR |
@@ -47,7 +48,8 @@
 
 `docs/AUDITORIA_USUARIOS.md` e `docs/INVENTARIO_HARDCODE.md` **não estão**
 nesta lista: são registros datados de auditorias pontuais, não docs vivas —
-ver §7.
+ver §7. O mesmo vale para specs e planos em `docs/superpowers/`: são registro
+datado de uma decisão, não fonte canônica.
 
 ## 3. Matriz obrigatória — tipo de mudança → documento
 
@@ -63,7 +65,10 @@ Ao abrir uma PR, localize **cada** linha aplicável. A doc da coluna
 | Permissão, papel, RBAC | `docs/RBAC_PERMISSOES.md` | `src/types/auth.ts` (`ROUTE_PERMISSIONS`) |
 | Hook de dados, lib, padrão de front | `docs/GUIA_FRONTEND.md` | — |
 | White Label / tenant / branding | `docs/WHITE_LABEL.md` | `src/core/tenant/README.md`, `tenants/README.md` |
-| Skill vendorizada nova/alterada (`.claude/skills/`) | `.claude/skills/SUPERPOWERS-VENDOR.md` (se vier do plugin) | Skill de domínio nova é autodocumentada (frontmatter + corpo) — não precisa de entrada aqui |
+| Deploy, build, comandos, fluxo Git | `docs/DESENVOLVIMENTO.md` | `CLAUDE.md` §3/§8; `CONTRIBUTING.md` se mudar o gate |
+| Regra para agentes, skill ou subagente novo/alterado | `AGENTS.md` | `CLAUDE.md` §10.1 |
+| Decisão ou andamento de planejamento | `docs/planejamento/ROADMAP.md` | Spec/plano datado em `docs/superpowers/` |
+| Skill vendorizada nova/alterada (`.claude/skills/`) | `.claude/skills/SUPERPOWERS-VENDOR.md` (gerado por `scripts/sync-superpowers-skills.sh` — não editar à mão) | Skill de domínio nova é autodocumentada (frontmatter + corpo) — não precisa de entrada aqui |
 | **Criação de doc canônica nova** | `LIVING_DOCS` em `scripts/check-doc-links.mjs` + linha em `docs/README.md` + linha nesta matriz | — |
 
 **Regra de leitura da matriz**: na dúvida entre "documentar em A ou B",
@@ -74,9 +79,9 @@ duplique conteúdo — cópia é a forma mais rápida de criar drift.
 
 Uma mudança está completa quando:
 
-1. O código passa nos gates disponíveis (`lint`, `build`, e `check:docs`/
-   `check:migrations` quando a mudança toca docs vivas ou `supabase/migrations/`).
-   Não há suíte de testes automatizados configurada neste projeto hoje.
+1. O código passa em `bash scripts/gate.sh` (`npm run gate`): guards de
+   migrações e de links de docs, typecheck e lint sem piora vs. a baseline, e
+   build. Não há suíte de testes automatizados configurada neste projeto hoje.
 2. **Toda linha aplicável da matriz do §3 foi atendida** na mesma PR.
 3. O que foi escrito descreve o que **existe no código agora** — não intenção
    futura.
@@ -109,8 +114,8 @@ conservadores — nem tudo está ativo por padrão ainda:
 |---|---|---|---|
 | **`check:docs`** | Referência a arquivo inexistente/vazio nas docs vivas (`LIVING_DOCS`) | `scripts/check-doc-links.mjs` | Existe e roda local (`npm run check:docs`) e em CI via `quality.yml` |
 | **`check:migrations`** | Versão de migração duplicada / nome fora do padrão `<14 dígitos>_slug.sql` | `scripts/check-migrations.sh` | Existe e roda local e em CI via `quality.yml` |
-| **`npm run gate`** | Roda os dois acima + `lint` + `build` em sequência | `scripts/gate.sh` | Existe; roda automaticamente no `pre-push` (`.githooks/pre-push`, ativado por `npm install` via o script `prepare`) — pulável com `git push --no-verify` |
-| **`quality.yml`** (CI) | `lint` + `build` (+ os dois guards acima) em toda PR | `.github/workflows/quality.yml` | **Ativo** (gatilho `pull_request`) — primeira vez que este repositório tem CI |
+| **`npm run gate`** | Os dois guards acima + `typecheck` + `lint` + `build`. Typecheck e lint comparam com `scripts/gate-baseline.json` e falham **só se a dívida piorar** (o repo tem erros históricos); os guards falham em qualquer ocorrência | `scripts/gate.sh` | Existe; roda automaticamente no `pre-push` (`.githooks/pre-push`, ativado por `npm install` via o script `prepare`) — pulável com `git push --no-verify`. Ao reduzir a dívida: `bash scripts/gate.sh --update-baseline` |
+| **`quality.yml`** (CI) | Guard de `.env` rastreado + `scripts/gate.sh` (os mesmos checks do gate local) em toda PR | `.github/workflows/quality.yml` | **Ativo** (gatilho `pull_request`) — primeira vez que este repositório tem CI |
 | **`docs-guard`** (CI) | PR que muda `src/**`/`supabase/**` sem tocar `docs/**`/`*.md` e sem escape declarado → falha | `.github/workflows/docs-guard.yml` | **Existe mas desativado por padrão** — só `workflow_dispatch`. O gatilho `pull_request`/`pull_request_target` está comentado no arquivo, com uma nota explicando como ativar. Decisão do time, não técnica: ativar exige que a matriz do §3 já esteja sendo seguida na prática antes de virar bloqueio automático |
 | **Template de PR** | Checklist da matriz na abertura de toda PR | `.github/pull_request_template.md` | Ativo (todo PR usa o template por padrão) |
 
@@ -142,6 +147,6 @@ o check aos required status checks da branch protection de `main`.
 ---
 
 *Criado em 2026-09-24, adaptando o processo equivalente do ConectaPol à
-realidade deste repositório. Doc canônica viva — alterações neste processo
-devem ser feitas aqui e refletidas em `AGENTS.md`/`CONTRIBUTING.md` (que
-apenas apontam para cá).*
+realidade deste repositório; unificado em 2026-10-06 com a versão curta que já
+estava no `main`. Doc canônica viva — alterações neste processo devem ser feitas
+aqui e refletidas em `AGENTS.md`/`CONTRIBUTING.md` (que apenas apontam para cá).*

@@ -20,10 +20,15 @@ npm run gate    # ou simplesmente: git push
 (Com `bun`, o `gate.sh` detecta `bun.lockb`/`bun.lock` e usa `bun run`
 automaticamente nos passos internos.)
 
-O gate roda, nesta ordem (o que falha em segundos primeiro):
-`check:migrations` → `check:docs` → `lint` → `build`. Não há suíte de testes
-automatizados configurada neste projeto — a checagem de tipos roda dentro do
-`build` (Vite chama `tsc`), não como passo isolado.
+O gate (`scripts/gate.sh`) roda, nesta ordem (o que falha em segundos primeiro):
+`check:migrations` → `check:docs` → `typecheck` → `lint` → `build`. Não há suíte
+de testes automatizados configurada neste projeto. O `vite build` **não** checa
+tipos, por isso o typecheck (`tsc -p tsconfig.app.json`) é passo próprio.
+
+O repositório carrega dívida histórica de tipos e lint, então `typecheck` e
+`lint` comparam com `scripts/gate-baseline.json` e falham **só se o número de
+erros aumentar**; os dois guards e o build falham em qualquer ocorrência. Ao
+reduzir a dívida: `bash scripts/gate.sh --update-baseline` e commite a baseline.
 
 Para pular conscientemente: `git push --no-verify`. **Isso é desaconselhado**
 — o hook existe justamente para pegar erro de tipo, lint ou build antes de
@@ -40,20 +45,19 @@ automático (`pull_request`) está **comentado de propósito** — hoje ele só
 roda via `workflow_dispatch` manual. A lógica, quando ativada: se a PR muda
 `src/**` ou `supabase/**` (exceto arquivos de teste) sem tocar em nenhuma doc
 (`docs/**` ou qualquer `*.md`) e sem declarar o escape no corpo da PR, o
-check falha. Ver [`docs/GOVERNANCA-DOCUMENTACAO.md`](./docs/GOVERNANCA-DOCUMENTACAO.md)
+check falha. Ver [`docs/GOVERNANCA_DOCUMENTACAO.md`](./docs/GOVERNANCA_DOCUMENTACAO.md)
 §6 para o estado exato de cada mecanismo e o motivo de a ativação ainda não
 ter acontecido — é uma decisão do time (rodar o processo manualmente por um
 tempo antes de virar bloqueio automático), não uma limitação técnica.
 
-`.github/workflows/quality.yml` (lint + build, e os guards de docs/migrações)
-esse sim já roda automaticamente em toda Pull Request.
+`.github/workflows/quality.yml` (guard de `.env` rastreado + o mesmo
+`scripts/gate.sh`) esse sim já roda automaticamente em toda Pull Request.
 
 ## Checklist antes de abrir PR
 
-- [ ] `npm run lint` e `npm run build` passam
-- [ ] `npm run check:docs` e `npm run check:migrations` passam (se a mudança
-      toca uma doc viva ou `supabase/migrations/`)
-- [ ] Consultei a matriz de [`docs/GOVERNANCA-DOCUMENTACAO.md`](./docs/GOVERNANCA-DOCUMENTACAO.md)
+- [ ] `bash scripts/gate.sh` (`npm run gate`) verde — inclui `check:docs`,
+      `check:migrations`, typecheck/lint sem piora vs. baseline e build
+- [ ] Consultei a matriz de [`docs/GOVERNANCA_DOCUMENTACAO.md`](./docs/GOVERNANCA_DOCUMENTACAO.md)
       §3 e atualizei as docs exigidas — ou declarei o escape:
       `docs: não se aplica — <motivo real>` no corpo da PR
       (linha própria, sem indentação)

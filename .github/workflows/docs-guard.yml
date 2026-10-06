@@ -5,7 +5,7 @@
 #     docs: não se aplica — <motivo real>
 #
 # A matriz "tipo de mudança → documento obrigatório" vive em
-# docs/GOVERNANCA-DOCUMENTACAO.md (§3).
+# docs/GOVERNANCA_DOCUMENTACAO.md (§3).
 #
 # Workflow SEPARADO do quality.yml de propósito: o tipo `edited` redispara
 # SÓ este guard quando o autor edita a descrição da PR (para adicionar o
@@ -25,7 +25,7 @@ name: Docs Guard
 # DESATIVADO POR PADRÃO de propósito — este é o primeiro gate documental
 # automático deste repositório. Antes de virar bloqueio de merge, o time
 # decide ativá-lo conscientemente, depois de rodar o processo manualmente
-# por um tempo (ver docs/GOVERNANCA-DOCUMENTACAO.md §6). `workflow_dispatch`
+# por um tempo (ver docs/GOVERNANCA_DOCUMENTACAO.md §6). `workflow_dispatch`
 # fica disponível para testar manualmente enquanto isso.
 #
 # Ativar: descomentar o bloco `pull_request` abaixo.
@@ -99,7 +99,7 @@ jobs:
           printf '%s\n' "$code" | head -20
           echo ""
           echo "Como resolver (um dos dois caminhos):"
-          echo "  1. Atualize a(s) doc(s) exigida(s) pela matriz em docs/GOVERNANCA-DOCUMENTACAO.md:"
+          echo "  1. Atualize a(s) doc(s) exigida(s) pela matriz em docs/GOVERNANCA_DOCUMENTACAO.md:"
           echo "     - rota/página/menu      -> docs/ARQUITETURA.md (+ docs/MODULOS.md)"
           echo "     - migration/tabela/RPC  -> docs/BANCO_DE_DADOS.md"
           echo "     - edge function         -> docs/EDGE_FUNCTIONS.md"

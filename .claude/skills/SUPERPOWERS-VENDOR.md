@@ -1,11 +1,10 @@
 # Skills vendorizados do Superpowers
 
-Origem: https://github.com/obra/superpowers (MIT, © Jesse Vincent)
-Versão: 6.4.1 · sincronizado em 2026-09-24 por `scripts/sync-superpowers-skills.sh`
+Origem: https://github.com/obra/superpowers (MIT, © Jesse Vincent — ver `SUPERPOWERS-LICENSE`)
+Versão: 6.4.2 · sincronizado em 2026-10-01 por `scripts/sync-superpowers-skills.sh`
 
 Cópias fiéis, com uma única alteração mecânica: referências `superpowers:<skill>`
-viram `<skill>` (skill de projeto não tem namespace). **Não edite estas pastas**;
-rode `npm run sync:superpowers` (ou `bun run sync:superpowers`) para atualizar.
+viram `<skill>`. **Não edite estas pastas**; rode o script para atualizar.
 
 - `brainstorming`
 - `writing-plans`
@@ -20,6 +19,6 @@ rode `npm run sync:superpowers` (ou `bun run sync:superpowers`) para atualizar.
 - `using-git-worktrees`
 - `systematic-debugging`
 
-Skills próprios do IDJUV Governa Hub (não vêm do plugin): `superpowers`
-(orquestrador do fluxo, em português), `auditoria-seguranca-idjuv`,
-`migracao-segura-idjuv`, `novo-modulo-idjuv`, `onboarding-cliente-idjuv`.
+Skills próprios do IDJUV (não vêm do Superpowers): `superpowers` (orquestrador do
+fluxo, em português), `novo-modulo-idjuv`, `migracao-segura-idjuv`,
+`auditoria-seguranca-idjuv`, `onboarding-cliente-idjuv`.
