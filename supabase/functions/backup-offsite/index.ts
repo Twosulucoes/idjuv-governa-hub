@@ -282,6 +282,24 @@ serve(async (req) => {
             { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
+
+        // A exportação lê TODAS as tabelas com a service role: estar autenticado não basta.
+        // Mesmo critério das demais ações de backup (TI-admin, Presidência ou admin).
+        const { data: rolesExport } = await supabaseOrigin
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', authUser.id);
+
+        const podeExportar = rolesExport?.some(r =>
+          r.role === 'ti_admin' || r.role === 'presidencia' || r.role === 'admin'
+        );
+
+        if (!podeExportar) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Sem permissão para exportar' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       } else if (!externalApiKey || apiKey !== externalApiKey) {
         return new Response(
           JSON.stringify({ success: false, error: 'API key inválida' }),
@@ -368,7 +386,10 @@ serve(async (req) => {
     // ============================================
     // ENDPOINT PARA LISTAR TABELAS DISPONÍVEIS
     // ============================================
-    if (action === 'list-tables') {
+    // Expõe a estrutura do banco, então NÃO é público: antes da autenticação só responde
+    // com a API key de contingência externa (mesmo critério do external-export). Os demais
+    // chamadores (usuário com papel de backup ou cron) caem no `case 'list-tables'` abaixo.
+    const listarTabelas = () => {
       // Organizar tabelas por categoria
       const categorizedTables: Record<string, string[]> = {};
       for (const table of ALL_TABLES) {
@@ -390,6 +411,10 @@ serve(async (req) => {
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    };
+
+    if (action === 'list-tables' && externalApiKey && apiKey === externalApiKey) {
+      return listarTabelas();
     }
 
     // ============================================
@@ -460,6 +485,9 @@ serve(async (req) => {
     }
 
     switch (action) {
+      case 'list-tables':
+        return listarTabelas();
+
       case 'test-connection': {
         console.log('Testando conexão com destino:', destUrl);
         

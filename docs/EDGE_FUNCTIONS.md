@@ -21,6 +21,23 @@ São invocadas do front via `supabase.functions.invoke('<nome>', { body })`.
 | `backup-offsite` | Executa/orquestra backup off-site (apoia `BackupOffsitePage`). |
 | `cpsi-ai-assistant` | Assistente de IA para o formulário CPSI (`CPSIPage`). |
 
+### Autorização do `backup-offsite`
+
+A função lê todas as tabelas com a service role, então só responde a quem prova
+uma das três coisas abaixo (medido no código em 2026-10-06):
+
+- **Usuário autenticado com papel** `ti_admin`, `presidencia` ou `admin` em
+  `user_roles`. Vale para todas as ações, inclusive `external-export` com
+  `localExport: true` (usado por `useBackupOffsite.ts`) e `list-tables`. Sem esses
+  papéis, `external-export` responde `403`; nas demais ações o erro sai pelo
+  tratamento geral da função (`500` com a mensagem "Sem permissão para executar backup").
+- **Service role** (chamada do cron).
+- **`apiKey` igual a `BACKUP_EXTERNAL_API_KEY`**, somente para `external-export`
+  e `list-tables` (contingência externa, sem JWT; ver `docs/BACKUP_CONTINGENCIA.md`).
+
+`list-tables` era público (sem nenhuma autenticação) até a correção de 2026-10-06;
+quem o chamava sem `apiKey` nem papel passa a receber erro.
+
 ## Boas práticas ao mexer
 
 - **Segredos** (service role key, chaves de e-mail/IA) ficam nas variáveis de

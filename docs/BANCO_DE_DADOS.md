@@ -106,6 +106,13 @@ Legado/compartilhado: `dotacoes_orcamentarias`, `empenhos`, `liquidacoes`,
 `contatos_eventos_esportivos`, `categorias_noticias_eventos`,
 `cadastro_arbitros`, `cadastro_arbitros_modalidades`.
 
+`cadastro_arbitros` e `cadastro_arbitros_modalidades` guardam dado pessoal (CPF,
+RG, e-mail, dados bancários, links de documentos): o visitante anônimo só pode
+**inserir**; a leitura é só para usuário autenticado. O formulário público usa as
+RPCs `arbitro_cpf_cadastrado(p_cpf)` (devolve apenas se o CPF já existe) e
+`obter_protocolo_arbitro(p_id)` (devolve só o protocolo do `id` gerado no navegador).
+Migração `supabase/migrations/20261006230500_endurece_audit_logs_e_cadastro_arbitros.sql`.
+
 ### Gestores escolares (JER)
 `gestores_escolares`, `gestores_escolares_historico`, `escolas_jer`.
 
@@ -141,7 +148,10 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   `usuario_tem_acesso_modulo`, `usuario_tem_acesso_rota`, `usuario_eh_super_admin`,
   `user_has_unit_access`, `user_context`, `get_my_modules`,
   `get_permissions_from_servidor`, `get_diagnostico_acessos`, `can_approve`,
-  `log_audit`.
+  `log_audit`. A tabela `audit_logs` **não aceita INSERT direto** de usuário
+  (nem `anon`, nem `authenticated`): grava-se só por `log_audit` (o front usa
+  essa RPC), pelos triggers de auditoria (`SECURITY DEFINER`) e pela service
+  role das Edge Functions. Migração `supabase/migrations/20261006230500_endurece_audit_logs_e_cadastro_arbitros.sql`.
 - **Folha / RH**: `calcular_inss_servidor`, `calcular_irrf`, `count_dependentes_irrf`,
   `fn_calcular_ferias`, `calcular_horas_trabalhadas`, `fechar_folha`,
   `reabrir_folha`, `usuario_pode_fechar_folha`, `usuario_pode_reabrir_folha`,
