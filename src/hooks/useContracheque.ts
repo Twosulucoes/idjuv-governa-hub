@@ -192,8 +192,8 @@ export function useContrachequeDetalhe(fichaId?: string) {
 export function useLogAcessoContracheque() {
   return useMutation({
     mutationFn: async ({ fichaId, acao }: { fichaId: string; acao: 'visualizar' | 'imprimir' }) => {
-      // Registrar no audit_logs pela RPC: o INSERT direto foi removido (a trilha não pode ser
-      // forjada pelo cliente) e o user_id vem de auth.uid() no servidor.
+      // Registrar no audit_logs pela RPC: o INSERT direto foi removido e o user_id vem de
+      // auth.uid() no servidor (o conteúdo do log continua informado pelo cliente).
       const { error } = await supabase.rpc('log_audit', {
         _action: 'view',
         _entity_type: 'contracheque',

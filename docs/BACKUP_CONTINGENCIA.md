@@ -87,7 +87,8 @@ Após cada backup, o sistema gera um **manifest** com detalhes completos:
    - Confira `tables.list` para ver todas as tabelas descobertas
 
 4. **Via API (list-tables):** exige a `apiKey` de contingência externa
-   (`BACKUP_EXTERNAL_API_KEY`); sem ela a função responde erro.
+   (`BACKUP_EXTERNAL_API_KEY`) ou o JWT de um usuário com papel de backup;
+   sem isso a função responde erro.
    ```bash
    curl -X POST https://tewgloptmijuaychoxnq.supabase.co/functions/v1/backup-offsite \
      -H "Content-Type: application/json" \

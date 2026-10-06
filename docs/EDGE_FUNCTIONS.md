@@ -31,7 +31,8 @@ uma das três coisas abaixo (medido no código em 2026-10-06):
   `localExport: true` (usado por `useBackupOffsite.ts`) e `list-tables`. Sem esses
   papéis, `external-export` responde `403`; nas demais ações o erro sai pelo
   tratamento geral da função (`500` com a mensagem "Sem permissão para executar backup").
-- **Service role** (chamada do cron).
+- **Service role** (chamada do cron), nas ações autenticadas (`list-tables`,
+  `test-connection`, `execute-backup` etc.). Não vale para `external-export`.
 - **`apiKey` igual a `BACKUP_EXTERNAL_API_KEY`**, somente para `external-export`
   e `list-tables` (contingência externa, sem JWT; ver `docs/BACKUP_CONTINGENCIA.md`).
 
