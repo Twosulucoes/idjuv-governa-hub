@@ -772,20 +772,20 @@ DROP POLICY IF EXISTS "rls_delete" ON public.config_incidencias;
 CREATE POLICY "rls_delete" ON public.config_incidencias FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 
--- config_institucional  [catalogo_admin]
+-- config_institucional  [modulo: rh | financeiro]
 DROP POLICY IF EXISTS "rls_select" ON public.config_institucional;
 CREATE POLICY "rls_select" ON public.config_institucional FOR SELECT TO authenticated
-  USING (public.is_active_user());
+  USING ((public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'financeiro')));
 DROP POLICY IF EXISTS "rls_insert" ON public.config_institucional;
 CREATE POLICY "rls_insert" ON public.config_institucional FOR INSERT TO authenticated
-  WITH CHECK (public.is_admin_user(auth.uid()));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'financeiro')));
 DROP POLICY IF EXISTS "rls_update" ON public.config_institucional;
 CREATE POLICY "rls_update" ON public.config_institucional FOR UPDATE TO authenticated
-  USING (public.is_admin_user(auth.uid()))
-  WITH CHECK (public.is_admin_user(auth.uid()));
+  USING ((public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'financeiro')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'financeiro')));
 DROP POLICY IF EXISTS "rls_delete" ON public.config_institucional;
 CREATE POLICY "rls_delete" ON public.config_institucional FOR DELETE TO authenticated
-  USING (public.is_admin_user(auth.uid()));
+  USING ((public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'financeiro')));
 
 -- config_jornada_padrao  [modulo: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.config_jornada_padrao;

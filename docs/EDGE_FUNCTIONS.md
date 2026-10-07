@@ -39,14 +39,18 @@ uma das três coisas abaixo (medido no código em 2026-10-06):
 `list-tables` era público (sem nenhuma autenticação) até a correção de 2026-10-06;
 quem o chamava sem `apiKey` nem papel passa a receber erro.
 
-### Quem age sobre administradores (`admin-reset-password`, `delete-user`)
+### Gestão de usuários (`admin-create-user`, `admin-reset-password`, `delete-user`)
 
-Ambas exigem a permissão `admin.usuarios` (`usuario_tem_permissao`), que o papel `user` recebe
-quando tem o módulo `admin`. Para que isso não vire tomada de conta: se o **alvo** tem papel `admin` em
-`user_roles`, só um **administrador** pode redefinir a senha (`403`) ou excluir (erro "Somente um
-administrador…"). `delete-user` continua protegendo o UUID fixo do super admin do cliente antigo
-(`PROTECTED_SUPER_ADMIN_ID`), que não existe num banco novo: o último administrador de um banco novo
-só é protegido pela regra acima e por não poder excluir a si mesmo.
+As três exigem o **papel** `admin` (`is_admin_user`, que também exige perfil ativo), não só a permissão
+`admin.usuarios`: o papel `user` recebe essa permissão quando tem o módulo `admin`, e com ela
+`admin-create-user` devolvia o UUID de qualquer e-mail (e reativava o perfil), `admin-reset-password` devolvia uma
+senha temporária e `delete-user` apagava a conta de qualquer não-administrador. A senha temporária sai de
+`crypto.getRandomValues`. `delete-user` continua protegendo o UUID fixo do super admin do cliente antigo
+(`PROTECTED_SUPER_ADMIN_ID`), que não existe num banco novo: o último administrador de um banco novo só é protegido
+por não poder excluir a si mesmo.
+
+`backup-offsite`: só o token **igual** à `SUPABASE_SERVICE_ROLE_KEY` vale como chamada de cron (antes decodificava o
+JWT sem validar a assinatura) e o usuário com papel precisa ter o perfil ativo.
 
 ## Boas práticas ao mexer
 

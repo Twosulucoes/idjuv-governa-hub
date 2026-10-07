@@ -816,6 +816,132 @@ BEGIN
   END IF;
 END $$;
 
+-- ---------------------------------------------------------------- correções da 2ª revisão (TRIGGERS LIGADOS)
+-- Executa como a persona e devolve o texto do primeiro valor (sem desfazer; a cópia do banco é descartada).
+CREATE FUNCTION pg_temp.valor_como(p_uid uuid, p_role text, p_sql text) RETURNS text
+LANGUAGE plpgsql AS $$
+DECLARE res text;
+BEGIN
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', p_uid, 'role', p_role)::text, true);
+  EXECUTE format('SET LOCAL ROLE %I', p_role);
+  BEGIN
+    EXECUTE p_sql INTO res;
+  EXCEPTION WHEN OTHERS THEN res := 'erro:' || SQLSTATE || ':' || left(SQLERRM, 90);
+  END;
+  RESET ROLE;
+  RETURN res;
+END $$;
+
+-- Executa um comando (sem retorno) como a persona e MANTÉM o efeito; devolve 'ok' ou 'erro:<sqlstate>:<msg>'.
+CREATE FUNCTION pg_temp.exec_como(p_uid uuid, p_role text, p_sql text) RETURNS text
+LANGUAGE plpgsql AS $$
+DECLARE res text := 'ok';
+BEGIN
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', p_uid, 'role', p_role)::text, true);
+  EXECUTE format('SET LOCAL ROLE %I', p_role);
+  BEGIN
+    EXECUTE p_sql;
+  EXCEPTION WHEN OTHERS THEN res := 'erro:' || SQLSTATE || ':' || left(SQLERRM, 90);
+  END;
+  RESET ROLE;
+  RETURN res;
+END $$;
+
+DO $$
+DECLARE
+  u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
+  u_nenhum uuid := (SELECT uid FROM persona WHERE nome='nenhum');
+  u_inativo uuid := (SELECT uid FROM persona WHERE nome='inativo');
+  u_a uuid := (SELECT uid FROM persona WHERE nome='srv_a');
+  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  sa text := 'b0000000-0000-0000-0000-00000000000a';
+  sx uuid := 'b0000000-0000-0000-0000-0000000000c1';
+  sy uuid := 'b0000000-0000-0000-0000-0000000000c2';
+  px uuid := 'a0000000-0000-0000-0000-0000000000c1';   -- perfil comum ligado ao servidor sx
+  r text; inst text; meta text; folha text; escola text; v_tipo text;
+BEGIN
+  -- ===== B1: o módulo rh (que edita servidores.situacao) não liga/desliga contas por esse caminho
+  INSERT INTO public.servidores (id, nome_completo, cpf, situacao) VALUES (sx, 'Servidor X Teste', '00000000001', 'ativo'), (sy, 'Servidor Y Teste', '00000000002', 'ativo');
+  INSERT INTO auth.users (id, email) VALUES (px, 'px@teste.invalid') ON CONFLICT DO NOTHING;
+  INSERT INTO public.profiles (id, email, is_active, tipo_usuario, servidor_id) VALUES (px, 'px@teste.invalid', true, 'servidor', sx) ON CONFLICT (id) DO UPDATE SET servidor_id = sx, is_active = true;
+  UPDATE public.profiles SET servidor_id = sy WHERE id = u_admin;
+  -- administrador bloqueado à mão (incidente de segurança) ligado a um servidor 'inativo'
+  UPDATE public.servidores SET situacao = 'inativo' WHERE id = sy;
+  UPDATE public.profiles SET is_active = false, blocked_at = now(), blocked_reason = 'incidente de seguranca' WHERE id = u_admin;
+  r := pg_temp.exec_como(u_rh, 'authenticated', format('UPDATE public.servidores SET situacao = ''ativo'' WHERE id = %L', sy));
+  IF (SELECT is_active FROM public.profiles WHERE id = u_admin) THEN PERFORM pg_temp.falha('RH reativa um administrador bloqueado ao mudar servidores.situacao (' || r || ')'); END IF;
+  UPDATE public.profiles SET is_active = true, blocked_at = NULL, blocked_reason = NULL WHERE id = u_admin;  -- restaura a persona
+  -- conta comum bloqueada À MÃO também não é reativada; a bloqueada pelo automatismo volta
+  UPDATE public.profiles SET is_active = false, blocked_at = now(), blocked_reason = 'bloqueio manual' WHERE id = px;
+  UPDATE public.servidores SET situacao = 'inativo' WHERE id = sx;
+  PERFORM pg_temp.exec_como(u_rh, 'authenticated', format('UPDATE public.servidores SET situacao = ''ativo'' WHERE id = %L', sx));
+  IF (SELECT is_active FROM public.profiles WHERE id = px) THEN PERFORM pg_temp.falha('RH reativa conta bloqueada manualmente ao mudar servidores.situacao'); END IF;
+  UPDATE public.profiles SET is_active = true, blocked_at = NULL, blocked_reason = NULL WHERE id = px;
+  r := pg_temp.exec_como(u_rh, 'authenticated', format('UPDATE public.servidores SET situacao = ''exonerado'' WHERE id = %L', sx));
+  IF (SELECT is_active FROM public.profiles WHERE id = px) THEN PERFORM pg_temp.falha('exonerar o servidor não bloqueia a conta ligada a ele (' || coalesce(r, 'sem erro; situacao=' || (SELECT situacao::text FROM public.servidores WHERE id = sx)) || ')'); END IF;
+  PERFORM pg_temp.exec_como(u_rh, 'authenticated', format('UPDATE public.servidores SET situacao = ''ativo'' WHERE id = %L', sx));
+  IF NOT (SELECT is_active FROM public.profiles WHERE id = px) THEN PERFORM pg_temp.falha('reativar o servidor não devolve a conta que o próprio automatismo bloqueou'); END IF;
+
+  -- ===== I3: valor de parâmetro por servidor não vaza pelas RPCs SECURITY DEFINER
+  inst := pg_temp.seed_row('config_institucional');
+  meta := pg_temp.seed_row('config_parametros_meta');
+  INSERT INTO public.config_parametros_valores (instituicao_id, parametro_codigo, servidor_id, valor, vigencia_inicio, ativo)
+  VALUES (inst::uuid, (SELECT codigo FROM public.config_parametros_meta WHERE id = meta::uuid), sa::uuid, '"SEGREDO-INDIVIDUAL"'::jsonb, current_date - 1, true);
+  r := format('SELECT public.obter_parametro_simples(%L::uuid, %L, current_date, %L::uuid)', inst, (SELECT codigo FROM public.config_parametros_meta WHERE id = meta::uuid), sa);
+  IF pg_temp.valor_como(u_nenhum, 'authenticated', r) ILIKE '%SEGREDO%' THEN PERFORM pg_temp.falha('obter_parametro_simples devolve o valor individual de outro servidor a quem não tem módulo'); END IF;
+  IF pg_temp.valor_como(u_inativo, 'authenticated', r) ILIKE '%SEGREDO%' THEN PERFORM pg_temp.falha('obter_parametro_simples devolve valor a usuário inativo'); END IF;
+  IF pg_temp.valor_como(u_a, 'authenticated', r) NOT ILIKE '%SEGREDO%' THEN PERFORM pg_temp.falha('obter_parametro_simples não devolve ao próprio servidor o seu valor'); END IF;
+  IF pg_temp.valor_como(u_rh, 'authenticated', r) NOT ILIKE '%SEGREDO%' THEN PERFORM pg_temp.falha('obter_parametro_simples não devolve ao RH o valor do servidor'); END IF;
+
+  -- ===== I4/M3: fechar/reabrir folha só por quem pode; as RPCs gravam a auditoria
+  folha := pg_temp.seed_row('folhas_pagamento', '{"competencia_ano": 2031, "competencia_mes": 7}'::jsonb);
+  IF folha IS NULL THEN PERFORM pg_temp.falha('não consegui semear folhas_pagamento: ' || (SELECT msg FROM seed_erro WHERE tabela = 'folhas_pagamento' ORDER BY ctid DESC LIMIT 1)); END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', format('UPDATE public.folhas_pagamento SET status = ''fechada'' WHERE id = %L', folha));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('folhas_pagamento: usuário do módulo rh fecha a folha por UPDATE direto (' || r || ')'); END IF;
+  r := pg_temp.valor_como(u_admin, 'authenticated', format('SELECT public.fechar_folha(%L::uuid, ''teste'')::text', folha));
+  IF r NOT LIKE '%"success": true%' THEN PERFORM pg_temp.falha('fechar_folha falha para o administrador (' || left(r, 120) || ')'); END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', format('UPDATE public.folhas_pagamento SET status = ''reaberta'' WHERE id = %L', folha));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('folhas_pagamento: usuário do módulo rh reabre a folha por UPDATE direto (' || r || ')'); END IF;
+  r := pg_temp.valor_como(u_admin, 'authenticated', format('SELECT public.reabrir_folha(%L::uuid, ''teste de reabertura'')::text', folha));
+  IF r NOT LIKE '%"success": true%' THEN PERFORM pg_temp.falha('reabrir_folha falha para o administrador (' || left(r, 120) || ')'); END IF;
+  r := pg_temp.sql_como(u_admin, 'authenticated', 'UPDATE public.config_parametros_valores SET ativo = ativo');
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('escrita em config_parametros_valores falha (fn_audit_parametros): ' || r); END IF;
+
+  -- ===== I5: o formulário público de gestores escolares funciona para anon (trigger atualiza escolas_jer)
+  escola := pg_temp.seed_row('escolas_jer');
+  r := pg_temp.insere_como(NULL, 'anon', 'gestores_escolares', jsonb_build_object('id', 'd1000000-0000-0000-0000-000000000006', 'escola_id', escola, 'status', 'ativo'));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('gestores_escolares: anon não consegue enviar o formulário (' || r || ')');
+  ELSIF NOT (SELECT ja_cadastrada FROM public.escolas_jer WHERE id = escola::uuid) THEN PERFORM pg_temp.falha('gestores_escolares: escolas_jer.ja_cadastrada não foi marcada');
+  ELSIF (SELECT status FROM public.gestores_escolares WHERE id = 'd1000000-0000-0000-0000-000000000006') <> 'aguardando' THEN PERFORM pg_temp.falha('gestores_escolares: anon escolheu o status');
+  END IF;
+
+  -- ===== M2/M6: usuário inativo não grava auditoria; perfil inexistente não é "ativo"
+  r := pg_temp.sql_como(u_inativo, 'authenticated', 'SELECT public.log_audit(_action := ''view'', _entity_type := ''teste'', _module_name := ''rh'', _description := ''teste'')');
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('log_audit grava para usuário inativo (' || r || ')'); END IF;
+  IF public.is_active_user('f1111111-1111-1111-1111-111111111111'::uuid) THEN PERFORM pg_temp.falha('is_active_user(perfil inexistente) = true'); END IF;
+  r := pg_temp.sql_como(NULL, 'anon', 'SELECT public.registrar_denuncia_publica(true, ''outro'', ''x'', ''2026-01-01'', ''x'', ''descricao de teste'', NULL, NULL, NULL, NULL, NULL)');
+  IF r NOT LIKE 'ok:%' THEN PERFORM pg_temp.falha('registrar_denuncia_publica (anon) falha (' || r || ')'); END IF;
+
+  -- ===== M4: colunas de autoria e rejeição também não são escolhidas pelo servidor
+  v_tipo := pg_temp.seed_row('tipos_abono');
+  r := pg_temp.insere_como(u_a, 'authenticated', 'solicitacoes_abono', jsonb_build_object('id', 'd1000000-0000-0000-0000-000000000007', 'servidor_id', sa, 'tipo_abono_id', v_tipo, 'created_by', u_admin::text, 'motivo_rejeicao', 'forjado: rejeitado por RH'));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('solicitacoes_abono: pedido do servidor falhou (' || r || ')');
+  ELSIF (SELECT created_by IS DISTINCT FROM u_a OR motivo_rejeicao IS NOT NULL FROM public.solicitacoes_abono WHERE id = 'd1000000-0000-0000-0000-000000000007') THEN
+    PERFORM pg_temp.falha('solicitacoes_abono: servidor forjou created_by/motivo_rejeicao');
+  END IF;
+
+  -- ===== M8: links do formulário público só do bucket arbitros-docs
+  r := pg_temp.insere_como(NULL, 'anon', 'cadastro_arbitros', jsonb_build_object('id', 'd1000000-0000-0000-0000-000000000008', 'foto_url', 'javascript:alert(1)',
+         'documentos_urls', jsonb_build_array('javascript:x', 'https://evil.example/login', 'https://api.exemplo.org/storage/v1/object/public/arbitros-docs/documentos/a.pdf')));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('cadastro_arbitros: anon com links não envia (' || r || ')');
+  ELSE
+    IF (SELECT foto_url FROM public.cadastro_arbitros WHERE id = 'd1000000-0000-0000-0000-000000000008') IS NOT NULL THEN PERFORM pg_temp.falha('cadastro_arbitros: foto_url javascript: aceita'); END IF;
+    IF (SELECT documentos_urls::text FROM public.cadastro_arbitros WHERE id = 'd1000000-0000-0000-0000-000000000008') <> '["https://api.exemplo.org/storage/v1/object/public/arbitros-docs/documentos/a.pdf"]' THEN
+      PERFORM pg_temp.falha('cadastro_arbitros: documentos_urls com link fora do bucket aceitos: ' || (SELECT documentos_urls::text FROM public.cadastro_arbitros WHERE id = 'd1000000-0000-0000-0000-000000000008'));
+    END IF;
+  END IF;
+END $$;
+
 -- ---------------------------------------------------------------- resumo
 SELECT nivel, msg FROM resultado ORDER BY nivel DESC, msg;
 \set QUIET off

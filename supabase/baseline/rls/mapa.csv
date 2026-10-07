@@ -48,7 +48,7 @@ config_compensacao,rh,modulo,alta,,,,
 config_fechamento_folha,rh,modulo,alta,,,,
 config_fechamento_frequencia,rh,modulo,alta,,,,
 config_incidencias,rh,modulo,alta,,,,
-config_institucional,,catalogo_admin,alta,lido pelo app de qualquer usuário ativo (identidade da instituição em documentos); escrita só do papel admin,,,
+config_institucional,rh|financeiro,modulo,media,"identidade da instituição para documentos (tem CPF e contato do responsável legal, por isso não é catálogo aberto): RH e financeiro; REVISAR se outro módulo imprime documentos",,,
 config_jornada_padrao,rh,modulo,alta,,,,
 config_menu_publico,,publico_admin,alta,leitura pública (portal); só o papel admin altera (as policies antigas ignoravam perfil bloqueado),,Apenas admins podem alterar menu publico|Leitura publica dos itens de menu,select
 config_motivos_desligamento,rh,modulo,alta,,,,

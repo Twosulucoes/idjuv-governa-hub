@@ -61,7 +61,8 @@ Conecte **direto ao Postgres** (túnel SSH ou rede do Docker), como o papel `pos
 não pelo pooler em modo transação:
 
 ```bash
-bash supabase/baseline/aplicar.sh "postgresql://postgres:SENHA@127.0.0.1:5432/postgres"
+# a senha vai em PGPASSWORD (a URL com senha apareceria em `ps` e no histórico do shell)
+PGPASSWORD='...' bash supabase/baseline/aplicar.sh "postgresql://postgres@127.0.0.1:5432/postgres"
 ```
 
 O script recusa um banco cujo `public` já tenha tabelas e aplica tudo numa **única transação**: se
@@ -71,12 +72,12 @@ usuários já criados, o trigger `on_auth_user_created` passa a valer só para o
 
 ## 5. Primeiro administrador
 
-Num banco vazio não há quem ative usuários. Crie o usuário no Studio (Authentication → Add user) e
-promova (precisa de `psql` 13+; o e-mail é procurado em `auth.users`; o script **recusa** se já houver
-um administrador ativo, a menos que se passe `-v forcar=1`):
+Num banco vazio não há quem ative usuários. Crie o usuário no Studio (Authentication → Add user, marcando
+**Auto Confirm User**) e promova (precisa de `psql` 13+; o e-mail é procurado em `auth.users` e precisa estar
+confirmado; o script **recusa** se já houver um administrador ativo, a menos que se passe `-v forcar=1`):
 
 ```bash
-psql "postgresql://postgres:SENHA@127.0.0.1:5432/postgres" \
+PGPASSWORD='...' psql "postgresql://postgres@127.0.0.1:5432/postgres" \
   -v email='pessoa@orgao.gov.br' -f supabase/baseline/bootstrap-admin.sql
 ```
 
@@ -93,6 +94,9 @@ Os demais usuários entram pelo app (Admin → Usuários). Guarde as credenciais
   front), `RESEND_API_KEY`/`RESEND_FROM` (e-mail), `GEMINI_API_KEY`/`GEMINI_MODEL` (assistente),
   `BACKUP_ENCRYPTION_KEY`, `BACKUP_EXTERNAL_API_KEY`, `BACKUP_DEST_SUPABASE_URL`,
   `BACKUP_DEST_SERVICE_ROLE_KEY` (backup externo). Defina só os das funções que for ligar.
+- **Defina `FUNCTIONS_VERIFY_JWT=true`** no `.env` das Edge Functions (no self-hosted o exemplo costuma vir
+  `false`; confirme na sua versão). `backup-offsite` só aceita como "cron" a própria service role key, mas as
+  demais funções confiam no gateway para validar o JWT.
 - O baseline **não** cria agendamento (`pg_cron`): `backup_config.schedule_cron` é só configuração.
   Agende o `backup-offsite` por fora (cron do sistema chamando a função) — ver
   [BACKUP_CONTINGENCIA.md](./BACKUP_CONTINGENCIA.md).

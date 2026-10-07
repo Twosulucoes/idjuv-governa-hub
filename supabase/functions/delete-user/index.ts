@@ -49,10 +49,10 @@ serve(async (req) => {
       throw new Error("Usuário não autenticado");
     }
 
-    // Autorização padronizada: permissão institucional admin.usuarios
+    // Autorização: papel de administrador (is_admin_user). A permissão admin.usuarios, concedida por módulo ao papel `user`,
+    // não basta: o usuário não consegue gerir papéis/módulos pela RLS e, aqui, tomaria a conta de qualquer não-administrador.
     const { data: temPermissao, error: permError } = await supabaseClient.rpc(
-      "usuario_tem_permissao",
-      { _user_id: requestingUser.id, _codigo_funcao: "admin.usuarios" }
+      "is_admin_user", { _user_id: requestingUser.id }
     );
 
     if (permError) {
@@ -61,7 +61,7 @@ serve(async (req) => {
 
     if (!temPermissao) {
       return new Response(
-        JSON.stringify({ success: false, error: "Acesso negado. Requer permissão admin.usuarios." }),
+        JSON.stringify({ success: false, error: "Acesso negado. Requer papel de administrador." }),
         { status: 403, headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
@@ -86,17 +86,6 @@ serve(async (req) => {
       throw new Error("Este usuário é protegido e não pode ser excluído");
     }
 
-    // Quem só tem a permissão admin.usuarios (concedida por módulo ao papel `user`) não exclui um administrador.
-    const { data: papeis } = await supabaseAdmin
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "admin")
-      .in("user_id", [userId, requestingUser.id]);
-    const ehAdmin = (id: string) => (papeis ?? []).some((p) => p.user_id === id);
-    if (ehAdmin(userId) && !ehAdmin(requestingUser.id)) {
-      throw new Error("Somente um administrador pode excluir outro administrador");
-    }
-
     // Buscar dados do usuário antes de excluir (para log)
     const { data: userToDelete } = await supabaseAdmin
       .from("profiles")
@@ -117,7 +106,7 @@ serve(async (req) => {
 
     // Registrar no audit log
     await supabaseAdmin.from("audit_logs").insert({
-      action: "DELETE",
+      action: "delete",
       entity_type: "user",
       entity_id: userId,
       user_id: requestingUser.id,

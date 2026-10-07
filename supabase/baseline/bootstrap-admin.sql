@@ -28,9 +28,9 @@ DECLARE
   v_ids    uuid[];
   v_admins integer;
 BEGIN
-  SELECT array_agg(id) INTO v_ids FROM auth.users WHERE lower(email) = v_email;
+  SELECT array_agg(id) INTO v_ids FROM auth.users WHERE lower(email) = v_email AND email_confirmed_at IS NOT NULL;
   IF v_ids IS NULL THEN
-    RAISE EXCEPTION 'nenhum usuário no Auth com o e-mail %: crie-o antes', v_email;
+    RAISE EXCEPTION 'nenhum usuário com e-mail CONFIRMADO no Auth para %: crie-o (marcando "Auto Confirm User") antes', v_email;
   ELSIF array_length(v_ids, 1) > 1 THEN
     RAISE EXCEPTION 'mais de um usuário no Auth com o e-mail %', v_email;
   END IF;

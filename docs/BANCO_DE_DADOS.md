@@ -28,7 +28,10 @@ muda em relação ao estado das migrações:
 - **`anon`** só tem as 4 RPCs públicas e as tabelas de formulário/portal declaradas no mapa (coluna `anon`);
   `authenticated` mantém os privilégios padrão de tabela (menos `TRUNCATE`/`TRIGGER`, e sem escrita em
   `audit_logs`), limitados pela RLS. As exceções são as funções `SECURITY DEFINER` de apoio listadas no teste.
-- **Formulários e pedidos.** Quem não gere o módulo não escolhe `status` nem campos de aprovação.
+- **Formulários e pedidos.** Quem não gere o módulo não escolhe `status`, aprovação nem autoria; os links
+  do formulário de árbitros só podem apontar para o bucket `arbitros-docs`.
+- **Fechamento de folha** só por quem pode (trigger em `folhas_pagamento`), e o bloqueio automático por
+  `servidores.situacao` nunca reativa administrador nem conta bloqueada à mão.
 - **Storage** por módulo; anônimo só envia arquivo (imagem/PDF até 5 MB) nas pastas do formulário de árbitros.
 - Corrige `handle_new_user` (cadastro no Auth falhava) e as funções de folha que dependiam de funções removidas.
 - Sementes só de catálogo/parâmetros: sem servidores, usuários ou auditoria.

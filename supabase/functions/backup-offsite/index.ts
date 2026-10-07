@@ -225,6 +225,14 @@ function jsonToSql(tableName: string, data: Record<string, unknown>[]): string {
   return sqlLines.join('\n');
 }
 
+// Compara strings em tempo constante (o token do cron contra a service role key).
+function iguaisEmTempoConstante(a: string, b: string): boolean {
+  if (!a || !b || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -294,7 +302,11 @@ serve(async (req) => {
           r.role === 'ti_admin' || r.role === 'presidencia' || r.role === 'admin'
         );
 
-        if (!podeExportar) {
+        // Bloquear o usuário no app não derruba a sessão do Auth: o perfil precisa estar ativo.
+        const { data: perfilExport } = await supabaseOrigin
+          .from('profiles').select('is_active').eq('id', authUser.id).maybeSingle();
+
+        if (!podeExportar || !perfilExport?.is_active) {
           return new Response(
             JSON.stringify({ success: false, error: 'Sem permissão para exportar' }),
             { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -443,15 +455,10 @@ serve(async (req) => {
     // ATENÇÃO: a anon key é pública (embarcada no bundle do frontend), portanto
     // NÃO pode ser tratada como cron — isso permitiria a qualquer um executar
     // ações privilegiadas (backup, sync, cleanup) sem autenticação real.
-    let isCronCall = false;
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      if (payload.role === 'service_role') {
-        isCronCall = true;
-      }
-    } catch {
-      // Token inválido - não é cron
-    }
+    // Só vale o token IGUAL à service role key. Decodificar o JWT e confiar em `role: service_role` não
+    // valida a assinatura: com o gateway sem verificação de JWT (FUNCTIONS_VERIFY_JWT=false, comum em
+    // self-hosted), um token forjado passava por cron e liberava backup, sync e download do DDL.
+    const isCronCall = iguaisEmTempoConstante(token, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 
     let user: { id: string } | null = null;
 
@@ -479,7 +486,10 @@ serve(async (req) => {
         r.role === 'ti_admin' || r.role === 'presidencia' || r.role === 'admin'
       );
 
-      if (!hasPermission) {
+      const { data: perfil } = await supabaseOrigin
+        .from('profiles').select('is_active').eq('id', authUser.id).maybeSingle();
+
+      if (!hasPermission || !perfil?.is_active) {
         throw new Error('Sem permissão para executar backup');
       }
     }

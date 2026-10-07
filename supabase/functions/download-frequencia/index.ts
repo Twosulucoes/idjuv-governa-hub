@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
     // Registrar acesso (log de auditoria)
     try {
       await supabase.from('audit_logs').insert({
-        action: 'read',
+        action: 'download',
         entity_type: 'frequencia_pacote',
         entity_id: pacote.id,
         user_id: user.id,

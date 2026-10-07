@@ -30,8 +30,8 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 | 4 | `overlay/10_funcoes_acesso.sql` | `is_admin_user`, `is_admin_atual`, `has_permission_code`, `meu_servidor_id` exigem perfil **ativo**; fim dos stubs “acesso total”; alias `usuario_eh_admin` | à mão |
 | 5 | `overlay/12_protecao_profiles.sql` | trigger: quem não é admin não muda `is_active`, `servidor_id`, bloqueio, tipo, CPF, e-mail; policies de `profiles` sem duplicatas | à mão |
 | 6 | `overlay/15_novo_usuario.sql` | `handle_new_user` (antes quebrava o cadastro) + trigger em `auth.users` | à mão |
-| 7 | `overlay/18_funcoes_rpc.sql` | `fn_gerar_numero_financeiro` com lista fechada (injeção de SQL), `registrar_transicao_folha`, RPCs de leitura com dado pessoal viram `SECURITY INVOKER` | à mão |
-| 8 | `overlay/20_campos_iniciais.sql` | trigger: formulários públicos e pedidos do servidor não escolhem `status`/aprovação | à mão |
+| 7 | `overlay/18_funcoes_rpc.sql` | `fn_gerar_numero_financeiro` com lista fechada (injeção de SQL); RPCs de leitura com dado pessoal viram `SECURITY INVOKER`; `obter_parametro_*` não vazam valor individual; `sync_usuario_servidor_status` não reativa administrador; trigger de fechamento de folha; correção da auditoria de folha/parâmetros (`entity_id` uuid); `log_audit` recusa usuário inativo | à mão |
+| 8 | `overlay/20_campos_iniciais.sql` | triggers: formulários públicos e pedidos do servidor não escolhem `status`, aprovação, autoria; links do formulário de árbitros só do próprio bucket | à mão |
 | 9 | `overlay/30_remover_acesso_total.sql` | apaga as policies `acesso_total_*` e a tabela morta `_backup_usuario_modulos_old` | à mão |
 | 10 | `rls/35_policies_geradas.sql` | policies por módulo, **falha fechada** | **gerado** de `rls/mapa.csv` |
 | 11 | `overlay/40_privilegios.sql` | `anon` só com as exceções públicas; sem EXECUTE para PUBLIC em função nova; sem TRUNCATE/TRIGGER; `audit_logs` só-acréscimo; RPCs que escrevem fechadas | à mão |
@@ -52,11 +52,11 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`):
 
 | Classe | Tabelas | Regra |
 |---|---|---|
-| `modulo` | 178 | módulo(s) do mapa leem e escrevem; admin (papel) também |
+| `modulo` | 179 | módulo(s) do mapa leem e escrevem; admin (papel) também |
 | `trilha` | 9 | módulo lê; **ninguém escreve por API** (auditoria e históricos gravados por trigger) |
 | `proprio_leitura` / `proprio` / `proprio_filho` | 12 / 3 / 3 | módulo + o próprio servidor lê; em `proprio*` o servidor também cria o próprio pedido (status/aprovação forçados pelo overlay 20) |
 | `catalogo` | 6 | qualquer usuário ativo lê; escrita por módulo |
-| `catalogo_admin` | 6 | qualquer usuário ativo lê (o app lê no login); só o papel admin escreve |
+| `catalogo_admin` | 5 | qualquer usuário ativo lê (o app lê no login); só o papel admin escreve |
 | `proprio_user` | 4 | cada usuário lê as suas linhas (`user_roles`, `user_modules`, `user_permissions`, `user_org_units`); só admin escreve |
 | `admin` / `admin_leitura` | 8 / 1 | só o papel admin (a segunda: lê, ninguém escreve — `audit_logs`) |
 | `publico_admin` | 3 | `anon` e logados leem (portal público); só admin escreve |
@@ -65,8 +65,9 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`):
 - Toda tabela de `public` precisa de uma linha no mapa e de RLS ligado: o teste de RLS reprova
   tabela fora do mapa (o gerador não enxerga o banco; o teste sim). Tabela nova só passa depois
   que alguém decide o módulo dono.
-- Coluna `confianca`: `alta` (220), `media` (13), `baixa` (2). **Revise as 15 linhas não-altas**
-  (`confianca != alta`), principalmente `viagens_diarias`, `documentos` e `acesso_processo_sigiloso`.
+- Coluna `confianca`: `alta` (219), `media` (14), `baixa` (2). **Revise as 16 linhas não-altas**
+  (`confianca != alta`), principalmente `viagens_diarias`, `documentos`, `acesso_processo_sigiloso` e
+  `config_institucional` (tem CPF e contato do responsável legal: só RH e financeiro leem).
 - Para mudar uma regra: edite `mapa.csv`, rode `node scripts/db/gerar-rls.mjs` e confirme com
   `scripts/db/validar-baseline.sh`. O gate (`npm run gate`) falha se o SQL gerado estiver defasado.
 
@@ -137,8 +138,10 @@ Decisões de negócio (o baseline escolheu o mais restritivo que mantém o app f
   `consignacoes`, `remessas_bancarias` e `fichas_financeiras` abrem a qualquer usuário com o módulo `rh`
   (só `denuncias` usa permissão granular). Separar por `has_permission_code` exige confirmar com o RH.
 - **`role_permissions` dá permissões `admin.*` ao papel `user`.** Quem tem o módulo `admin` passa a ter
-  `admin.usuarios`; `admin-reset-password` e `delete-user` agora recusam agir sobre administrador sem ser
-  um, mas `admin-create-user` e as demais telas de admin continuam abertas a esse perfil.
+  `admin.usuarios`. As Edge Functions `admin-create-user`, `admin-reset-password` e `delete-user` agora exigem o
+  **papel** admin (`is_admin_user`), porque `admin-create-user` devolvia o UUID de qualquer e-mail e reativava o
+  perfil, e as outras duas tomavam ou apagavam contas de não-administradores. `database-schema` e as demais telas
+  de admin ainda aceitam a permissão `admin.*` concedida por módulo.
 
 Limites conhecidos:
 
@@ -157,5 +160,17 @@ Limites conhecidos:
   (skill `migracao-segura-idjuv`).
 - `processar_folha_pagamento` e `fn_atualizar_situacao_servidor` ficam sem EXECUTE para `authenticated` (a folha
   está bloqueada — débito técnico DT-2026-001); ao ativá-la, reabra com guarda `can_access_module` no corpo.
+- Tabelas com fluxo de aprovação por RPC e UPDATE livre para o módulo: `folhas_pagamento` foi protegida (só quem
+  pode fechar/reabrir muda o status), mas `conteudo_rascunho` (comunicação) ainda deixa o módulo marcar
+  `status = 'publicado'` sem passar por `promover_rascunho`. Revise outras tabelas com `status` de aprovação.
+- A folha está bloqueada e não foi exercitada de ponta a ponta: `fn_gerar_esocial_s1200` usa uma coluna
+  inexistente (`lancamentos_folha.folha_id`) e falha para todos; `fechar_folha`/`reabrir_folha` e
+  `fn_audit_parametros` foram consertados (auditoria gravava texto em coluna uuid).
+- `backup-offsite`: só a própria service role key vale como "cron" e o perfil do usuário precisa estar ativo.
+  No self-hosted, confirme `FUNCTIONS_VERIFY_JWT=true` no `.env`; outras Edge Functions (`download-frequencia`,
+  `cpsi-ai-assistant`, `enviar-convite-reuniao`) aceitam qualquer sessão, sem checar módulo nem perfil ativo.
+- `overlay/40_privilegios.sql` ajusta os privilégios padrão só do papel `postgres`; objetos criados pelo Studio
+  self-hosted (que conecta como `supabase_admin`) herdam os padrões da plataforma (EXECUTE para anon e authenticated).
+  Funções criadas por ali precisam de `REVOKE` explícito.
 - Os dados pessoais de servidores seguem no histórico git e na migração `20260110184920`.
 - O banco ao vivo nunca foi inspecionado: o baseline foi derivado só dos arquivos do repositório.
