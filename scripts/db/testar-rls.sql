@@ -339,7 +339,110 @@ BEGIN
   IF r <> 'negado' THEN PERFORM pg_temp.falha('admin consegue INSERT direto em audit_logs'); END IF;
 END $$;
 
+-- ---------------------------------------------------------------- storage (overlay/50_storage.sql)
+-- Um objeto fictício por bucket; cada persona só enxerga/escreve onde o módulo do bucket permite.
+CREATE FUNCTION pg_temp.sel_obj(p_uid uuid, p_role text, p_bucket text) RETURNS int
+LANGUAGE plpgsql AS $$
+DECLARE n int;
+BEGIN
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', p_uid, 'role', p_role)::text, true);
+  EXECUTE format('SET LOCAL ROLE %I', p_role);
+  BEGIN
+    SELECT count(*) INTO n FROM storage.objects WHERE bucket_id = p_bucket;
+  EXCEPTION WHEN insufficient_privilege THEN n := -1;
+  END;
+  RESET ROLE;
+  RETURN n;
+END $$;
+
+CREATE FUNCTION pg_temp.ins_obj(p_uid uuid, p_role text, p_bucket text) RETURNS text
+LANGUAGE plpgsql AS $$
+DECLARE res text;
+BEGIN
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', p_uid, 'role', p_role)::text, true);
+  EXECUTE format('SET LOCAL ROLE %I', p_role);
+  BEGIN
+    INSERT INTO storage.objects (bucket_id, name) VALUES (p_bucket, 'teste-' || gen_random_uuid());
+    RAISE EXCEPTION USING ERRCODE = 'P0099', MESSAGE = 'desfazer';
+  EXCEPTION
+    WHEN SQLSTATE '42501' THEN res := 'negado';
+    WHEN SQLSTATE 'P0099' THEN res := 'passou';
+    WHEN OTHERS THEN res := 'passou';
+  END;
+  RESET ROLE;
+  RETURN res;
+END $$;
+
+CREATE TEMP TABLE bucket_modulos (bucket text, modulos text[]);
+INSERT INTO bucket_modulos VALUES
+  ('arbitros-docs', ARRAY['arbitros']), ('ascom-demandas', ARRAY['comunicacao']),
+  ('documentos', ARRAY['workflow','rh']), ('documentos-requerimento', ARRAY['rh']),
+  ('frequencias', ARRAY['rh']), ('inventario-fotos', ARRAY['patrimonio','patrimonio_mobile']),
+  ('patrimonio-docs', ARRAY['patrimonio','patrimonio_mobile']), ('patrimonio-fotos', ARRAY['patrimonio','patrimonio_mobile']),
+  ('transparencia-publicacoes', ARRAY['transparencia']);
+
+INSERT INTO storage.objects (bucket_id, name) SELECT bucket, 'semente.bin' FROM bucket_modulos;
+
+DO $$
+DECLARE b record; p record; esperado int; n int; r text; permitido boolean;
+        u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
+        u_anon uuid := '00000000-0000-0000-0000-000000000000';
+BEGIN
+  IF (SELECT count(*) FROM storage.buckets WHERE id IN (SELECT bucket FROM bucket_modulos)) <> (SELECT count(*) FROM bucket_modulos) THEN
+    PERFORM pg_temp.falha('storage: faltam buckets do overlay');
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects'
+             AND (qual ILIKE '%auth.uid() IS NOT NULL%' OR with_check ILIKE '%auth.uid() IS NOT NULL%')) THEN
+    PERFORM pg_temp.falha('storage: ainda há policy liberada a qualquer usuário logado');
+  END IF;
+  FOR b IN SELECT * FROM bucket_modulos LOOP
+    FOR p IN SELECT * FROM persona LOOP
+      permitido := p.nome = 'admin' OR (p.nome LIKE 'mod_%' AND substr(p.nome, 5) = ANY (b.modulos));
+      esperado := CASE WHEN permitido THEN 1 ELSE 0 END;
+      n := pg_temp.sel_obj(p.uid, 'authenticated', b.bucket);
+      IF n <> esperado THEN PERFORM pg_temp.falha(format('storage %s: %s vê %s objeto(s), esperado %s', b.bucket, p.nome, n, esperado)); END IF;
+      r := pg_temp.ins_obj(p.uid, 'authenticated', b.bucket);
+      IF (r = 'passou') <> permitido THEN PERFORM pg_temp.falha(format('storage %s: %s INSERT = %s, esperado %s', b.bucket, p.nome, r, CASE WHEN permitido THEN 'passou' ELSE 'negado' END)); END IF;
+    END LOOP;
+    n := pg_temp.sel_obj(u_anon, 'anon', b.bucket);
+    IF n > 0 THEN PERFORM pg_temp.falha(format('storage %s: anon lista %s objeto(s)', b.bucket, n)); END IF;
+    r := pg_temp.ins_obj(u_anon, 'anon', b.bucket);
+    IF (r = 'passou') <> (b.bucket = 'arbitros-docs') THEN
+      PERFORM pg_temp.falha(format('storage %s: anon INSERT = %s (só arbitros-docs aceita)', b.bucket, r));
+    END IF;
+  END LOOP;
+  PERFORM pg_temp.nota('storage: ' || (SELECT count(*) FROM bucket_modulos) || ' buckets x ' || (SELECT count(*) FROM persona) || ' personas verificados');
+END $$;
+
 RESET session_replication_role;
+
+-- ---------------------------------------------------------------- handle_new_user (overlay/15_novo_usuario.sql)
+-- Com triggers LIGADOS: criar usuário no Auth tem de gerar perfil inativo + papel 'user'.
+DO $$
+DECLARE novo uuid := 'c0000000-0000-0000-0000-0000000000a1'; novo_t uuid := 'c0000000-0000-0000-0000-0000000000a2'; x record;
+BEGIN
+  INSERT INTO auth.users (id, email, raw_user_meta_data)
+  VALUES (novo, 'novo@teste.invalid', '{"full_name":"Fulano de Tal"}'::jsonb);
+  INSERT INTO auth.users (id, email, raw_user_meta_data)
+  VALUES (novo_t, 'tecnico@teste.invalid', '{"tipo_usuario":"tecnico"}'::jsonb);
+
+  SELECT * INTO x FROM public.profiles WHERE id = novo;
+  IF NOT FOUND THEN PERFORM pg_temp.falha('handle_new_user: perfil não foi criado');
+  ELSE
+    IF x.is_active THEN PERFORM pg_temp.falha('handle_new_user: perfil nasceu ATIVO'); END IF;
+    IF x.tipo_usuario <> 'servidor' THEN PERFORM pg_temp.falha('handle_new_user: tipo_usuario padrão = ' || x.tipo_usuario); END IF;
+    IF x.full_name <> 'Fulano de Tal' THEN PERFORM pg_temp.falha('handle_new_user: full_name = ' || coalesce(x.full_name, 'NULL')); END IF;
+  END IF;
+  IF (SELECT role::text FROM public.user_roles WHERE user_id = novo) IS DISTINCT FROM 'user' THEN
+    PERFORM pg_temp.falha('handle_new_user: papel inicial deveria ser user');
+  END IF;
+  IF (SELECT tipo_usuario FROM public.profiles WHERE id = novo_t) IS DISTINCT FROM 'tecnico' THEN
+    PERFORM pg_temp.falha('handle_new_user: tipo_usuario=tecnico não foi respeitado');
+  END IF;
+  -- usuário recém-criado não ganha módulo nem acesso: está inativo
+  IF public.can_access_module(novo, 'rh') THEN PERFORM pg_temp.falha('usuário novo (inativo) acessa o módulo rh'); END IF;
+  IF (SELECT count(*) FROM public.user_modules WHERE user_id = novo) > 0 THEN PERFORM pg_temp.falha('usuário novo já nasce com módulos'); END IF;
+END $$;
 
 -- ---------------------------------------------------------------- resumo
 SELECT nivel, msg FROM resultado ORDER BY nivel DESC, msg;
