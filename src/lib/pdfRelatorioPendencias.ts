@@ -42,7 +42,7 @@ const CORES = {
 
 function addHeader(doc: jsPDF, titulo: string): number {
   const pageWidth = doc.internal.pageSize.getWidth();
-  let y = 15;
+  const y = 15;
 
   // Cabeçalho institucional
   doc.setFillColor(...CORES.primaria);

@@ -99,7 +99,7 @@ export default function CargosRemuneracaoPage() {
   const filteredCargos = useMemo(() => {
     if (!data) return [];
     
-    let result = data.cargos.filter((cargo) => {
+    const result = data.cargos.filter((cargo) => {
       const matchesSearch =
         cargo.cargo.toLowerCase().includes(searchTerm.toLowerCase()) ||
         cargo.unidade_setor.toLowerCase().includes(searchTerm.toLowerCase()) ||

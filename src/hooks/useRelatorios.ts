@@ -124,7 +124,7 @@ async function buscarDadosServidores(filtros: Record<string, unknown>): Promise<
   }> = {};
   
   // Mapa para portarias de nomeação
-  let portariasNomeacao: Record<string, { numero: string | null; data_documento: string | null }> = {};
+  const portariasNomeacao: Record<string, { numero: string | null; data_documento: string | null }> = {};
   
   // Mapa para provimentos (datas funcionais)
   let provimentosMap: Record<string, { data_nomeacao: string | null; data_posse: string | null; data_exercicio: string | null }> = {};

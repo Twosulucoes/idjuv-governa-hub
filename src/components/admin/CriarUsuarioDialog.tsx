@@ -124,8 +124,8 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
       const cargoIds = servidoresData?.filter(s => s.cargo_atual_id).map(s => s.cargo_atual_id) || [];
       const unidadeIds = servidoresData?.filter(s => s.unidade_atual_id).map(s => s.unidade_atual_id) || [];
 
-      let cargosMap: Record<string, string> = {};
-      let unidadesMap: Record<string, string> = {};
+      const cargosMap: Record<string, string> = {};
+      const unidadesMap: Record<string, string> = {};
 
       if (cargoIds.length > 0) {
         const { data: cargos } = await supabase

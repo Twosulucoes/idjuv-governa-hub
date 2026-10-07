@@ -307,7 +307,7 @@ export async function calcularResumoMensalParametrizado(
   let diasTrabalhados = 0;
   let horasTrabalhadas = 0;
   let faltas = 0;
-  let atrasos = 0;
+  const atrasos = 0;
   const abonos: Record<string, number> = {};
 
   // Processar registros

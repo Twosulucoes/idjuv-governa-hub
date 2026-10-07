@@ -132,7 +132,7 @@ export default function ExportacaoPlanilhaPage() {
       }
       
       // Buscar portarias de nomeação vinculadas aos servidores
-      let portariasMap: Record<string, { numero: string; data_documento: string }> = {};
+      const portariasMap: Record<string, { numero: string; data_documento: string }> = {};
       if (servidorIds.length > 0) {
         const { data: portarias } = await supabase
           .from("documentos")
