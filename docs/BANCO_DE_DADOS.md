@@ -160,7 +160,9 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   role; o front usa essa RPC), pelos triggers de auditoria (`SECURITY DEFINER`)
   e pela service role das Edge Functions. Antes disso, `admin_only_*` permitia
   ao administrador inserir, alterar e apagar a trilha, e `log_audit` aceitava
-  chamada anônima. `list_public_tables()` passa a ser só da service role.
+  chamada anônima. A RPC `log_audit` falhava em toda chamada, porque inseria
+  `audit_logs.role_at_time`, coluna que a tabela nunca teve; a migração a cria.
+  `list_public_tables()` passa a ser só da service role.
 - **Folha / RH**: `calcular_inss_servidor`, `calcular_irrf`, `count_dependentes_irrf`,
   `fn_calcular_ferias`, `calcular_horas_trabalhadas`, `fechar_folha`,
   `reabrir_folha`, `usuario_pode_fechar_folha`, `usuario_pode_reabrir_folha`,

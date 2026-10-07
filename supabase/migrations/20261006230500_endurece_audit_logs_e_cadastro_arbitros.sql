@@ -6,7 +6,11 @@
 --        (a) administrador podia inserir, ALTERAR e APAGAR linhas da trilha (a migração
 --            20260131033148 queria a trilha imutável);
 --        (b) log_audit (SECURITY DEFINER) estava com EXECUTE para PUBLIC: qualquer visitante
---            anônimo gravava linhas na trilha, com user_id nulo.
+--            anônimo gravava linhas na trilha, com user_id nulo;
+--        (c) log_audit INSERE a coluna audit_logs.role_at_time, que a tabela nunca teve (nem o
+--            banco ao vivo, conforme types.ts): toda chamada falhava com "column role_at_time
+--            does not exist" e o log de auditoria feito pelo app nunca gravou. Esta migração
+--            adiciona a coluna.
 --      Passa a ser trilha só de acréscimo: ninguém insere direto, altera ou apaga. Grava-se
 --      por log_audit (somente usuário autenticado), pelos triggers SECURITY DEFINER
 --      (fn_audit_trigger, fn_audit_parametros, audit_permission_changes, fechar_folha,
@@ -60,6 +64,9 @@ BEGIN
       WITH CHECK (true);
   END IF;
 END $$;
+
+-- log_audit insere audit_logs.role_at_time (papel de quem agiu); a coluna não existia.
+ALTER TABLE public.audit_logs ADD COLUMN IF NOT EXISTS role_at_time public.app_role;
 
 -- log_audit: só usuário autenticado e service role. Nenhum fluxo do front a chama sem login.
 -- Percorre todas as sobrecargas existentes em vez de fixar uma assinatura.
