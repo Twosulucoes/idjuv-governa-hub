@@ -8,6 +8,25 @@ tipos TypeScript de todo o schema são gerados em
 > `YYYYMMDDHHMMSS_<uuid>.sql`). Para mudar o schema, crie uma migração nova
 > (ou use o fluxo do Lovable) e regenere os tipos. Não edite migrações antigas.
 
+## Baseline limpo e RLS por módulo (banco novo)
+
+Para criar um banco **novo e vazio** use `supabase/baseline/` (guia: [NOVO_BANCO.md](./NOVO_BANCO.md);
+conteúdo e manutenção: [`supabase/baseline/README.md`](../supabase/baseline/README.md)). Ele não substitui
+as migrações: é um schema consolidado, gerado do replay delas, mais uma camada de correções. O que
+muda em relação ao estado das migrações:
+
+- **RLS por módulo, falha fechada.** As policies `acesso_total_*` (qualquer usuário logado) saem; cada
+  tabela recebe policies de `can_access_module` conforme `supabase/baseline/rls/mapa.csv` (fonte da
+  verdade, gerada em `rls/35_policies_geradas.sql`). Tabela fora do mapa reprova no teste.
+- **`anon`** só tem as 4 RPCs públicas e as tabelas de formulário/portal declaradas no mapa
+  (coluna `anon`); `authenticated` mantém os privilégios padrão, limitados pela RLS.
+- **Storage** por módulo; anônimo só envia arquivo no bucket de árbitros.
+- Corrige `handle_new_user` (cadastro no Auth falhava) e as funções de acesso.
+- Sementes só de catálogo/parâmetros: sem servidores, usuários ou auditoria.
+
+Alterar RLS do baseline = editar `rls/mapa.csv` e rodar `node scripts/db/gerar-rls.mjs`; mudança de
+schema continua por migração nova (e regeneração do baseline). Tabela nova precisa de linha no mapa.
+
 ## Tabelas por domínio
 
 ### Autenticação, RBAC e administração

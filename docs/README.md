@@ -35,7 +35,8 @@
 | Documento | Conteúdo |
 |---|---|
 | [EXPORTAR_DADOS.md](./EXPORTAR_DADOS.md) | Como exportar dados do sistema |
-| [MIGRACAO_SUPABASE_PROPRIO.md](./MIGRACAO_SUPABASE_PROPRIO.md) | Migrar para uma instância Supabase própria |
+| [NOVO_BANCO.md](./NOVO_BANCO.md) | **Criar um banco novo e vazio** (Supabase self-hosted/validação em Postgres) a partir do baseline com RLS por módulo |
+| [MIGRACAO_SUPABASE_PROPRIO.md](./MIGRACAO_SUPABASE_PROPRIO.md) | (defasado — substituído por NOVO_BANCO.md) Migrar para uma instância Supabase própria |
 | [BACKUP_CONTINGENCIA.md](./BACKUP_CONTINGENCIA.md) | Estratégia de backup e contingência |
 | [SCHEMA_SUPABASE_PROPRIO.sql](./SCHEMA_SUPABASE_PROPRIO.sql) | Dump do schema para instância própria |
 | [CORRECOES_BANCO.sql](./CORRECOES_BANCO.sql) | Scripts de correção de banco |

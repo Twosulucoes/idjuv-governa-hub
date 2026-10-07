@@ -46,6 +46,7 @@ const LIVING_DOCS = [
   "docs/ARQUITETURA.md",
   "docs/MODULOS.md",
   "docs/BANCO_DE_DADOS.md",
+  "docs/NOVO_BANCO.md",
   "docs/RBAC_PERMISSOES.md",
   "docs/GUIA_FRONTEND.md",
   "docs/EDGE_FUNCTIONS.md",

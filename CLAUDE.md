@@ -196,6 +196,8 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 - Migrações em `supabase/migrations/` (nome `YYYYMMDDHHMMSS_<uuid>.sql`,
   tipicamente geradas pelo Lovable). Edge Functions em `supabase/functions/`
   (Deno/TypeScript).
+- Banco novo e vazio (schema consolidado + RLS por módulo): `supabase/baseline/`,
+  guia em `docs/NOVO_BANCO.md`; validação em Postgres puro: `scripts/db/validar-baseline.sh`.
 - Há ferramentas MCP do Supabase disponíveis nesta sessão (listar tabelas,
   aplicar migração, logs, advisors). Antes de mudar schema, use `list_tables`
   para entender a estrutura; prefira inspecionar antes de aplicar.

@@ -304,6 +304,18 @@ END $$;
 DO $$
 DECLARE n int; u_admin uuid := (SELECT uid FROM persona WHERE nome='admin'); u_nenhum uuid := (SELECT uid FROM persona WHERE nome='nenhum'); r text; x record;
 BEGIN
+  -- cobertura: toda tabela de public está no mapa (e vice-versa) e tem RLS ligado
+  FOR x IN SELECT c.relname FROM pg_class c WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r','p')
+           AND NOT EXISTS (SELECT 1 FROM mapa m WHERE m.tabela = c.relname) LOOP
+    PERFORM pg_temp.falha(x.relname || ': tabela fora de rls/mapa.csv (decida o módulo dono)');
+  END LOOP;
+  FOR x IN SELECT m.tabela FROM mapa m WHERE NOT EXISTS (SELECT 1 FROM pg_class c WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r','p') AND c.relname = m.tabela) LOOP
+    PERFORM pg_temp.falha(x.tabela || ': consta em rls/mapa.csv mas não existe no banco');
+  END LOOP;
+  FOR x IN SELECT c.relname FROM pg_class c WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r','p') AND NOT c.relrowsecurity LOOP
+    PERFORM pg_temp.falha(x.relname || ': RLS desligado');
+  END LOOP;
+
   SELECT count(*) INTO n FROM pg_policies WHERE schemaname = 'public' AND policyname ILIKE 'acesso_total%';
   IF n > 0 THEN PERFORM pg_temp.falha('ainda existem ' || n || ' policies acesso_total'); END IF;
 
