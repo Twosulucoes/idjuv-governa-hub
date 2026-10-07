@@ -1,0 +1,77 @@
+-- Privilégios: `anon` não recebe nada por padrão; só as exceções públicas intencionais.
+--
+-- Por padrão o Supabase concede ALL em tudo que o postgres cria em public a anon/authenticated/
+-- service_role, e funções ficam executáveis por PUBLIC. A RLS protege as tabelas, mas FUNÇÕES
+-- SECURITY DEFINER não passam por RLS: no estado atual, 159 funções de public eram executáveis
+-- por anon (133 SECURITY DEFINER), entre elas processar_folha_pagamento, fechar_folha,
+-- fn_gerar_esocial_s2200 e generate_schema_ddl().
+--
+-- Este arquivo é idempotente e também serve a um banco já em uso (revisar a lista de exceções
+-- antes). authenticated e service_role mantêm os privilégios padrão.
+
+-- ---- tabelas e sequências: anon sem nada ----
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon;
+
+-- ---- funções: ninguém executa por PUBLIC; anon só as RPCs públicas abaixo ----
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon;
+
+-- ---- objetos futuros herdam o mesmo padrão fechado ----
+-- O EXECUTE para PUBLIC é um privilégio padrão GLOBAL do Postgres: `IN SCHEMA` só revoga o que foi
+-- concedido por default privileges daquele schema e NÃO o remove. Sem a linha global, uma função
+-- criada depois deste arquivo nascia executável por anon (verificado em banco vazio).
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON TABLES FROM anon;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON SEQUENCES FROM anon;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon;
+-- Funções novas ainda nascem executáveis por `authenticated` (padrão do Supabase, usado pelas
+-- policies e pelo front). Toda função SECURITY DEFINER nova precisa checar quem chama ou receber
+-- REVOKE explícito: scripts/db/testar-rls.sql falha se aparecer uma sem checagem fora da lista revisada.
+
+-- ---- TRUNCATE/TRIGGER/REFERENCES não servem à API: ninguém de fora precisa deles ----
+REVOKE TRUNCATE, TRIGGER, REFERENCES ON ALL TABLES IN SCHEMA public FROM anon, authenticated;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE TRUNCATE, TRIGGER, REFERENCES ON TABLES FROM anon, authenticated;
+
+-- ---- trilha de auditoria: só acréscimo, por privilégio e por RLS ----
+-- (migração 20261006230500; o dump do schema não leva GRANT/REVOKE, então a revogação volta aqui)
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.audit_logs FROM anon, authenticated;
+
+-- ---- exceções públicas intencionais: tabelas ----
+-- leitura (portal e formulários públicos); as policies de RLS filtram o conteúdo
+GRANT SELECT ON public.config_menu_publico, public.config_paginas_publicas, public.links_uteis,
+                public.escolas_jer, public.form_field_config, public.publicacoes_lai TO anon;
+-- escrita (formulários públicos de cadastro); sem SELECT: ver as RPCs abaixo
+GRANT INSERT ON public.cadastro_arbitros, public.cadastro_arbitros_modalidades,
+                public.federacoes_esportivas, public.gestores_escolares TO anon;
+
+-- ---- exceções públicas intencionais: RPCs ----
+GRANT EXECUTE ON FUNCTION public.registrar_denuncia_publica(boolean, text, text, text, text, text, text, text, text, text, text) TO anon;
+GRANT EXECUTE ON FUNCTION public.obter_dado_oficial(text) TO anon;
+GRANT EXECUTE ON FUNCTION public.arbitro_cpf_cadastrado(text) TO anon;
+GRANT EXECUTE ON FUNCTION public.obter_protocolo_arbitro(uuid) TO anon;
+GRANT EXECUTE ON FUNCTION public.consultar_gestor_por_cpf(text) TO anon;
+GRANT EXECUTE ON FUNCTION public.registrar_gestor_publico(uuid, text, text, text, date, text, text, text) TO anon;
+
+-- ---- funções só da service role (Edge Functions): fecham também para authenticated ----
+REVOKE EXECUTE ON FUNCTION public.list_public_tables() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.generate_schema_ddl() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.list_public_tables() TO service_role;
+GRANT EXECUTE ON FUNCTION public.generate_schema_ddl() TO service_role;
+
+-- ---- funções que ESCREVEM e não são chamadas por usuário logado ----
+-- processar_folha_pagamento (folha bloqueada — débito técnico DT-2026-001) apagava e recriava
+-- fichas_financeiras para qualquer logado; fn_atualizar_situacao_servidor só é chamada por triggers
+-- SECURITY DEFINER. Ao ativar a folha, reabra o EXECUTE com uma guarda can_access_module no corpo.
+DO $$
+DECLARE f record;
+BEGIN
+  FOR f IN
+    SELECT p.oid::regprocedure AS assinatura
+    FROM pg_proc p
+    WHERE p.pronamespace = 'public'::regnamespace
+      AND p.proname IN ('processar_folha_pagamento', 'fn_atualizar_situacao_servidor')
+  LOOP
+    EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM authenticated', f.assinatura);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', f.assinatura);
+  END LOOP;
+END $$;

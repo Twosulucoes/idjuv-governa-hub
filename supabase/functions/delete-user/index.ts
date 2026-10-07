@@ -49,10 +49,10 @@ serve(async (req) => {
       throw new Error("Usuário não autenticado");
     }
 
-    // Autorização padronizada: permissão institucional admin.usuarios
+    // Autorização: papel de administrador (is_admin_user). A permissão admin.usuarios, concedida por módulo ao papel `user`,
+    // não basta: o usuário não consegue gerir papéis/módulos pela RLS e, aqui, tomaria a conta de qualquer não-administrador.
     const { data: temPermissao, error: permError } = await supabaseClient.rpc(
-      "usuario_tem_permissao",
-      { _user_id: requestingUser.id, _codigo_funcao: "admin.usuarios" }
+      "is_admin_user", { _user_id: requestingUser.id }
     );
 
     if (permError) {
@@ -61,7 +61,7 @@ serve(async (req) => {
 
     if (!temPermissao) {
       return new Response(
-        JSON.stringify({ success: false, error: "Acesso negado. Requer permissão admin.usuarios." }),
+        JSON.stringify({ success: false, error: "Acesso negado. Requer papel de administrador." }),
         { status: 403, headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
@@ -106,7 +106,7 @@ serve(async (req) => {
 
     // Registrar no audit log
     await supabaseAdmin.from("audit_logs").insert({
-      action: "DELETE",
+      action: "delete",
       entity_type: "user",
       entity_id: userId,
       user_id: requestingUser.id,

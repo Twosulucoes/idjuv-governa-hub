@@ -78,6 +78,18 @@ const STEPS = [
   { label: 'Revisão', icon: CheckCircle2 },
 ];
 
+
+/** UUID v4 para o id do cadastro. Cai em getRandomValues onde crypto.randomUUID não existe
+ *  (navegadores antigos), pois o formulário público é aberto a qualquer dispositivo. */
+function gerarUuid(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, '0'));
+  return `${h.slice(0, 4).join('')}-${h.slice(4, 6).join('')}-${h.slice(6, 8).join('')}-${h.slice(8, 10).join('')}-${h.slice(10).join('')}`;
+}
+
 export default function CadastroArbitroPage() {
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<ArbitroFormData>(INITIAL_DATA);
@@ -108,22 +120,30 @@ export default function CadastroArbitroPage() {
     try {
       const cpfLimpo = formData.cpf.replace(/\D/g, '');
       
-      // Verificar duplicata de CPF
-      const { data: existente } = await supabase
-        .from('cadastro_arbitros' as any)
-        .select('id, nome, protocolo, cpf')
-        .or(`cpf.eq.${formData.cpf.trim()},cpf.eq.${cpfLimpo}`)
-        .limit(1);
+      // Verificar duplicata de CPF. A RPC devolve só se existe: o visitante anônimo não lê
+      // mais nome nem protocolo de quem já se cadastrou.
+      const { data: cpfJaCadastrado, error: erroCpf } = await supabase.rpc('arbitro_cpf_cadastrado' as never, {
+        p_cpf: cpfLimpo,
+      } as never);
 
-      if (existente && (existente as any[]).length > 0) {
-        const reg = (existente as any[])[0];
-        toast.error(`CPF já cadastrado! Protocolo existente: ${reg.protocolo || 'N/A'}. Nome: ${reg.nome}`);
+      if (erroCpf) {
+        // Não bloqueia o envio (comportamento anterior), mas deixa rastro de que a checagem falhou.
+        console.warn('[CadastroArbitro] Não foi possível checar CPF duplicado:', erroCpf.message);
+      }
+
+      if (cpfJaCadastrado === true) {
+        toast.error('CPF já cadastrado. Se você já enviou seu cadastro, utilize o protocolo que recebeu.');
         setLoading(false);
         return;
       }
 
+      // O id nasce aqui para recuperar o protocolo sem precisar ler a tabela (leitura anônima
+      // foi removida); o UUID não é enumerável por terceiros.
+      const novoId = gerarUuid();
+
       // 1. Inserir registro principal
       const insertPayload: Record<string, any> = {
+        id: novoId,
         nome: formData.nome.trim(),
         nacionalidade: formData.nacionalidade,
         sexo: formData.sexo,
@@ -155,26 +175,21 @@ export default function CadastroArbitroPage() {
         documentos_urls: formData.documentos_urls.length > 0 ? formData.documentos_urls : null,
       };
 
-      console.log('[CadastroArbitro] Enviando payload:', JSON.stringify(insertPayload, null, 2));
-
-      const { data: insertResult, error } = await supabase
+      const { error } = await supabase
         .from('cadastro_arbitros' as any)
-        .insert(insertPayload)
-        .select('id, protocolo')
-        .single();
+        .insert(insertPayload);
 
       if (error) {
         console.error('[CadastroArbitro] Erro ao inserir:', error);
         throw new Error(`Erro ao salvar cadastro: ${error.message}`);
       }
 
-      const insertData = insertResult as any;
-      console.log('[CadastroArbitro] Registro criado:', insertData);
+      console.log('[CadastroArbitro] Registro criado:', novoId);
 
       // 2. Inserir modalidades na tabela filha
-      if (insertData?.id && formData.modalidades.length > 0) {
+      if (formData.modalidades.length > 0) {
         const modalidadesInsert = formData.modalidades.map(m => ({
-          arbitro_id: insertData.id,
+          arbitro_id: novoId,
           modalidade: m.modalidade,
           categoria: m.categoria,
           documentos_urls: m.documentos_urls.length > 0 ? m.documentos_urls : [],
@@ -190,7 +205,15 @@ export default function CadastroArbitroPage() {
         }
       }
 
-      setProtocolo(insertData?.protocolo || 'Gerado');
+      const { data: protocoloGerado, error: erroProtocolo } = await supabase.rpc('obter_protocolo_arbitro' as never, {
+        p_id: novoId,
+      } as never);
+
+      if (erroProtocolo) {
+        console.warn('[CadastroArbitro] Não foi possível obter o protocolo:', erroProtocolo.message);
+      }
+
+      setProtocolo((protocoloGerado as unknown as string | null) || 'Gerado');
       toast.success('Cadastro enviado com sucesso!');
     } catch (err: any) {
       console.error('[CadastroArbitro] Erro completo:', err);

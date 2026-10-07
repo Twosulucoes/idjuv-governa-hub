@@ -45,17 +45,11 @@ export function useGestoresEscolares() {
   const buscarPorCpf = async (cpf: string): Promise<GestorEscolar | null> => {
     const cpfLimpo = cpf.replace(/\D/g, '');
     
-    const { data, error } = await supabase
-      .from('gestores_escolares')
-      .select(`
-        *,
-        escola:escolas_jer(*)
-      `)
-      .eq('cpf', cpfLimpo)
-      .maybeSingle();
+    // RPC pública: devolve só id, nome, status e nome da escola (a leitura anônima da tabela foi fechada).
+    const { data, error } = await supabase.rpc('consultar_gestor_por_cpf' as never, { p_cpf: cpfLimpo } as never);
 
     if (error) throw error;
-    return data as GestorEscolar | null;
+    return (data as unknown as GestorEscolar | null) ?? null;
   };
 
   // Criar pré-cadastro (público)
@@ -64,34 +58,22 @@ export function useGestoresEscolares() {
       const cpfLimpo = dados.cpf.replace(/\D/g, '');
       const celularLimpo = dados.celular.replace(/\D/g, '');
 
-      const { data, error } = await supabase
-        .from('gestores_escolares')
-        .insert({
-          escola_id: dados.escola_id,
-          nome: dados.nome.toUpperCase().trim(),
-          cpf: cpfLimpo,
-          rg: dados.rg?.trim() || null,
-          data_nascimento: dados.data_nascimento || null,
-          email: dados.email.toLowerCase().trim(),
-          celular: celularLimpo,
-          endereco: dados.endereco?.trim() || null,
-          status: 'aguardando' as StatusGestor,
-        })
-        .select(`
-          *,
-          escola:escolas_jer(*)
-        `)
-        .single();
+      // RPC pública (SECURITY DEFINER): `anon` só tem INSERT/EXECUTE, sem SELECT; o status inicial é do banco
+      // e o trigger de gestores_escolares já marca a escola como cadastrada.
+      const { data, error } = await supabase.rpc('registrar_gestor_publico' as never, {
+        p_escola_id: dados.escola_id,
+        p_nome: dados.nome.toUpperCase().trim(),
+        p_cpf: cpfLimpo,
+        p_rg: dados.rg?.trim() || null,
+        p_data_nascimento: dados.data_nascimento || null,
+        p_email: dados.email.toLowerCase().trim(),
+        p_celular: celularLimpo,
+        p_endereco: dados.endereco?.trim() || null,
+      } as never);
 
       if (error) throw error;
 
-      // Mark school as already registered
-      await supabase
-        .from('escolas_jer')
-        .update({ ja_cadastrada: true })
-        .eq('id', dados.escola_id);
-
-      return data as GestorEscolar;
+      return data as unknown as GestorEscolar;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
