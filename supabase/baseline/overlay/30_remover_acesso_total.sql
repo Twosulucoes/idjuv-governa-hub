@@ -1,6 +1,6 @@
 -- Remove TODAS as policies `acesso_total_*` (SELECT/INSERT/UPDATE/DELETE para qualquer usuário
 -- logado, `auth.uid() IS NOT NULL`) deixadas pela migração 20260220132907.
--- Aplicar ANTES de rls/20_policies_geradas.sql.
+-- Aplicar ANTES de rls/35_policies_geradas.sql.
 DO $$
 DECLARE
   r record;

@@ -3,7 +3,7 @@
  * Gera as policies de RLS do baseline a partir do mapa tabela -> módulo.
  *
  *   entrada : supabase/baseline/rls/mapa.csv   (fonte da verdade, revisada por pessoas)
- *   saída   : supabase/baseline/rls/20_policies_geradas.sql   (NÃO edite à mão)
+ *   saída   : supabase/baseline/rls/35_policies_geradas.sql   (NÃO edite à mão)
  *
  * Uso:  node scripts/db/gerar-rls.mjs            -> reescreve o SQL
  *       node scripts/db/gerar-rls.mjs --check    -> falha (exit 1) se o SQL estiver defasado
@@ -31,7 +31,7 @@ import { fileURLToPath } from "node:url";
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const ENTRADA = resolve(raiz, "supabase/baseline/rls/mapa.csv");
-const SAIDA = resolve(raiz, "supabase/baseline/rls/20_policies_geradas.sql");
+const SAIDA = resolve(raiz, "supabase/baseline/rls/35_policies_geradas.sql");
 const CLASSES = new Set([
   "modulo", "catalogo", "proprio_leitura", "proprio", "proprio_filho", "admin", "preservar", "fechada",
 ]);
@@ -175,7 +175,7 @@ if (process.argv.includes("--check")) {
   let atual = "";
   try { atual = readFileSync(SAIDA, "utf8"); } catch { /* ausente */ }
   if (atual !== sql) {
-    console.error("20_policies_geradas.sql está defasado: rode `node scripts/db/gerar-rls.mjs`");
+    console.error("35_policies_geradas.sql está defasado: rode `node scripts/db/gerar-rls.mjs`");
     process.exit(1);
   }
   console.log(`OK: ${blocos.length} tabelas, SQL em dia com o mapa.`);
