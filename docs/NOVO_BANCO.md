@@ -31,10 +31,11 @@ bash scripts/db/validar-baseline.sh
 ```
 
 Saída esperada: `baseline APROVADO` (aplicação, banco vazio de dados pessoais, RLS por módulo com
-UPDATE/DELETE, storage, identidade, RPCs e triggers). O script **apaga e recria** o banco
-`idjuv_baseline` e recusa um `PGHOST` que não seja local (exceto com `PERMITIR_REMOTO=1`). Para
-comparar também com o replay das migrações, rode antes `scripts/db/validar-migracoes.sh` e informe
-`PG_REPLAY=<banco do replay>`. Use `pg_dump` da versão do servidor ou mais nova.
+UPDATE/DELETE, storage, identidade, RPCs e triggers). O script **apaga e recria** os bancos `idjuv_baseline`,
+`idjuv_baseline_ref` e `idjuv_baseline_teste`, e recusa um `PGHOST` que não seja local (exceto com
+`PERMITIR_REMOTO=1`). Precisa de `bash` 4+, `node`, `perl`, `psql` e `pg_dump` (da versão do servidor ou mais
+nova) no PATH. Para comparar também com o replay das migrações, rode antes `scripts/db/validar-migracoes.sh` e
+informe `PG_REPLAY=<banco do replay>` (`EXIGIR_REPLAY=1` reprova se ele faltar).
 
 ## 3. Subir o Supabase self-hosted
 
@@ -108,8 +109,8 @@ Rode estas consultas como `postgres` no banco novo:
 ```sql
 -- 0 policies "acesso total"
 SELECT count(*) FROM pg_policies WHERE schemaname = 'public' AND policyname ILIKE 'acesso_total%';
--- anon executa exatamente 4 funções (registrar_denuncia_publica, obter_dado_oficial,
--- arbitro_cpf_cadastrado, obter_protocolo_arbitro)
+-- anon executa exatamente 6 funções (registrar_denuncia_publica, obter_dado_oficial, arbitro_cpf_cadastrado,
+-- obter_protocolo_arbitro, consultar_gestor_por_cpf, registrar_gestor_publico)
 SELECT p.oid::regprocedure FROM pg_proc p
  WHERE p.pronamespace = 'public'::regnamespace AND has_function_privilege('anon', p.oid, 'EXECUTE');
 -- toda tabela com RLS ligado (esperado: nenhuma linha)
@@ -137,5 +138,5 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   seção “Pendências e decisões em aberto”.
 - Buckets públicos ainda entregam o arquivo a quem tem a URL; fechar exige bucket privado + URL
   assinada no front.
-- A migração `20260110184920` e o histórico git contêm nomes e CPF de 74 servidores; o baseline não os
-  leva, mas o repositório os mantém até uma decisão sobre limpeza de histórico.
+- A migração `20260110184920` e o histórico git contêm 74 nomes de servidores (CPF placeholder); o baseline não
+  os leva, mas o repositório os mantém até uma decisão sobre limpeza de histórico.

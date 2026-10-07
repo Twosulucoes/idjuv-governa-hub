@@ -25,7 +25,7 @@ muda em relação ao estado das migrações:
 - **RPCs.** `fn_gerar_numero_financeiro` aceita só tipos de uma lista (havia injeção de SQL); as RPCs de
   leitura com dado pessoal rodam como o usuário (`SECURITY INVOKER`); as que escrevem na folha perdem o
   EXECUTE de `authenticated`; função nova não nasce executável por `anon` nem por PUBLIC.
-- **`anon`** só tem as 4 RPCs públicas e as tabelas de formulário/portal declaradas no mapa (coluna `anon`);
+- **`anon`** só tem as 6 RPCs públicas (denúncia, dado oficial, árbitros, gestores escolares) e as tabelas de formulário/portal declaradas no mapa (coluna `anon`);
   `authenticated` mantém os privilégios padrão de tabela (menos `TRUNCATE`/`TRIGGER`, e sem escrita em
   `audit_logs`), limitados pela RLS. As exceções são as funções `SECURITY DEFINER` de apoio listadas no teste.
 - **Formulários e pedidos.** Quem não gere o módulo não escolhe `status`, aprovação nem autoria; os links

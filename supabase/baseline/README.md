@@ -74,12 +74,12 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`):
 ## Verificação
 
 ```bash
-bash scripts/db/validar-migracoes.sh                       # replay das migrações → banco PG_REPLAY
-PG_REPLAY=idjuv_validacao bash scripts/db/validar-baseline.sh
+bash scripts/db/validar-migracoes.sh                       # replay das migrações → banco idjuv_validacao
+PG_REPLAY=idjuv_validacao bash scripts/db/validar-baseline.sh   # EXIGIR_REPLAY=1 reprova se o passo 5 for pulado
 ```
 
 `validar-baseline.sh` recria um banco vazio com o shim do Supabase (`scripts/db/shim-supabase.sql`),
-aplica o baseline, confirma que uma segunda aplicação é recusada e que não há dado pessoal, roda
+aplica o baseline, confirma que uma segunda aplicação é recusada e que só as 19 tabelas de catálogo têm linhas, roda
 `scripts/db/testar-rls.sh` e, com `PG_REPLAY`, compara schema, privilégios e storage com o replay das
 migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + claims do JWT):
 
@@ -106,19 +106,19 @@ O dump sai do banco do **replay das migrações, sem os overlays** (os overlays 
 versionadas à parte):
 
 ```bash
-bash scripts/db/validar-migracoes.sh                         # deixa o replay em idjuv_validacao
+bash scripts/db/validar-migracoes.sh                         # deixa o replay em PG_DB (padrão idjuv_validacao)
 PG_DB=idjuv_validacao bash scripts/db/gerar-baseline.sh      # reescreve supabase/baseline/schema/
 PG_REPLAY=idjuv_validacao bash scripts/db/validar-baseline.sh
 ```
 
 As sementes saem com **UUIDs e datas novos** a cada geração (snapshot do replay); regenere só quando o
-catálogo mudar de fato. O `pg_dump` precisa ser da versão do servidor do replay ou mais nova; um
-`pg_dump` 17 emite `SET transaction_timeout`, que o Postgres 15/16 rejeita — mantenha o `pg_dump` 16.
+catálogo mudar de fato. O `pg_dump` precisa ser da versão do servidor do replay ou mais nova; o `gerar-baseline.sh`
+remove o `SET transaction_timeout` (do `pg_dump` 17, rejeitado pelo Postgres 15/16) e os `\restrict` do `psql`.
 
 ## O que NÃO está aqui
 
-- **Dados pessoais.** `servidores` e `vinculos_servidor` (74 nomes com CPF, inseridos pela migração
-  `20260110184920`), `audit_logs`, `portal_diretoria` e outras tabelas operacionais ficam fora das
+- **Dados pessoais.** `servidores` e `vinculos_servidor` (74 nomes de pessoas, com CPF placeholder
+  `00000000001`…`74`, inseridos pela migração `20260110184920`), `audit_logs`, `portal_diretoria` e outras tabelas operacionais ficam fora das
   sementes. As migrações antigas continuam com esses dados no histórico (ver pendências).
 - Usuários, papéis e módulos: o primeiro administrador nasce com `bootstrap-admin.sql`.
 - Extensões da plataforma (`pg_cron`, `pg_net`, `pg_graphql`, `supabase_vault`), configuração do
@@ -172,5 +172,9 @@ Limites conhecidos:
 - `overlay/40_privilegios.sql` ajusta os privilégios padrão só do papel `postgres`; objetos criados pelo Studio
   self-hosted (que conecta como `supabase_admin`) herdam os padrões da plataforma (EXECUTE para anon e authenticated).
   Funções criadas por ali precisam de `REVOKE` explícito.
-- Os dados pessoais de servidores seguem no histórico git e na migração `20260110184920`.
+- Os 74 nomes de servidores seguem no histórico git e na migração `20260110184920` (os CPFs ali são placeholders).
+- **Formulário público de gestores escolares:** a leitura anônima de `gestores_escolares` (CPF, RG, e-mail e celular
+  de todos) foi fechada; as telas públicas passam a usar as RPCs `consultar_gestor_por_cpf` e
+  `registrar_gestor_publico` (só devolvem id, nome, status e nome da escola). O front foi ajustado
+  (`useGestoresEscolares.ts`); `anon` executa **6** RPCs públicas no total.
 - O banco ao vivo nunca foi inspecionado: o baseline foi derivado só dos arquivos do repositório.

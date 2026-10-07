@@ -49,6 +49,8 @@ GRANT EXECUTE ON FUNCTION public.registrar_denuncia_publica(boolean, text, text,
 GRANT EXECUTE ON FUNCTION public.obter_dado_oficial(text) TO anon;
 GRANT EXECUTE ON FUNCTION public.arbitro_cpf_cadastrado(text) TO anon;
 GRANT EXECUTE ON FUNCTION public.obter_protocolo_arbitro(uuid) TO anon;
+GRANT EXECUTE ON FUNCTION public.consultar_gestor_por_cpf(text) TO anon;
+GRANT EXECUTE ON FUNCTION public.registrar_gestor_publico(uuid, text, text, text, date, text, text, text) TO anon;
 
 -- ---- funções só da service role (Edge Functions): fecham também para authenticated ----
 REVOKE EXECUTE ON FUNCTION public.list_public_tables() FROM authenticated;

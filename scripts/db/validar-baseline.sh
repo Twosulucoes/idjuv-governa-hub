@@ -15,6 +15,9 @@
 # Variáveis: PGHOST (127.0.0.1) PGPORT (54329) PG_SUPERUSER (supabase_admin)
 #            PG_DB (idjuv_baseline — SERÁ APAGADO E RECRIADO)  PG_REPLAY (opcional)
 #            PERMITIR_REMOTO=1 para aceitar um PGHOST que não seja loopback (o script APAGA bancos)
+#            EXIGIR_REPLAY=1 para reprovar quando PG_REPLAY não for informado (padrão: o passo 5 é pulado)
+# Apaga e recria PG_DB, ${PG_DB}_ref (passo 5) e ${PG_DB}_teste (copia criada por testar-rls.sh). Precisa de
+# bash 4+, node (gerar-rls.mjs) e perl (normalização do dump) no PATH, e de pg_dump na versão do servidor ou mais nova.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -30,7 +33,16 @@ case "$PGHOST" in
   127.0.0.1|localhost|::1|/*) ;;
   *) [[ "${PERMITIR_REMOTO:-}" == "1" ]] || { echo "recusado: PGHOST=$PGHOST não é local (o script apaga e recria bancos). Use PERMITIR_REMOTO=1 só num servidor de validação." >&2; exit 2; } ;;
 esac
-TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+for ferramenta in node perl pg_dump psql; do
+  command -v "$ferramenta" >/dev/null || { echo "faltando no PATH: $ferramenta" >&2; exit 2; }
+done
+(( BASH_VERSINFO[0] >= 4 )) || { echo "precisa de bash 4+ (mapfile)" >&2; exit 2; }
+if [[ -n "$REPLAY" && ( "$REPLAY" == "$REF" || "$REPLAY" == "${DB}_teste" ) ]]; then
+  echo "recusado: PG_REPLAY=$REPLAY coincide com um banco que o script apaga" >&2; exit 2
+fi
+TMP="$(mktemp -d)"
+limpar() { psql -U "$SUPER" -X -q -d postgres -c "drop database if exists \"$REF\" with (force);" -c "drop database if exists \"${DB}_teste\" with (force);" >/dev/null 2>&1; rm -rf "$TMP"; }
+trap limpar EXIT
 falhas=0
 ok()   { echo "  ok    $*"; }
 erro() { echo "  FALHA $*"; falhas=$((falhas+1)); }
@@ -65,6 +77,15 @@ for t in servidores vinculos_servidor profiles user_roles user_modules audit_log
 done
 n=$(psql_s -d "$DB" -At -c "select count(*) from storage.objects")
 [[ "$n" == "0" ]] && ok "storage.objects vazio" || erro "storage.objects tem $n linha(s)"
+# só as tabelas semeadas (schema/02_dados_catalogo.sql) podem ter linhas
+mapfile -t semeadas < <(grep -oE '^INSERT INTO public\.[a-z_0-9]+' supabase/baseline/schema/02_dados_catalogo.sql | sed 's/INSERT INTO public\.//' | sort -u)
+psql_s -d "$DB" -At -c "select format('select %L, count(*) from public.%I', relname, relname) from pg_class where relnamespace = 'public'::regnamespace and relkind in ('r','p') order by relname" > "$TMP/contagens.sql" || erro "não consegui listar as tabelas"
+fora=0
+while IFS='|' read -r tabela linhas; do
+  [[ "$linhas" == "0" ]] && continue
+  if ! printf '%s\n' "${semeadas[@]}" | grep -qx "$tabela"; then erro "$tabela tem $linhas linha(s) e não é tabela de catálogo"; fora=1; fi
+done < <(psql_s -d "$DB" -At -F'|' -f "$TMP/contagens.sql")
+(( fora == 0 )) && ok "só as ${#semeadas[@]} tabelas de catálogo têm linhas"
 n=$(psql_s -d "$DB" -At -c "select count(*) from public.role_permissions")
 [[ "$n" -gt 0 ]] && ok "catálogo semeado (role_permissions: $n)" || erro "catálogo não foi semeado"
 
@@ -76,7 +97,10 @@ else erro "teste de RLS reprovou (rc=$rc; saída completa abaixo)"; tail -25 "$T
 
 echo "== 5. schema igual ao do replay + overlays"
 if [[ -z "$REPLAY" ]]; then
-  echo "  PULADO: defina PG_REPLAY=<banco deixado por validar-migracoes.sh> para comparar com o replay"
+  if [[ "${EXIGIR_REPLAY:-}" == "1" ]]; then erro "PG_REPLAY não informado (EXIGIR_REPLAY=1)"
+  else echo "  PULADO: defina PG_REPLAY=<banco deixado por validar-migracoes.sh> para comparar com o replay"; fi
+elif [[ "$(psql_s -d postgres -At -c "select 1 from pg_database where datname = '$REPLAY'" 2>/dev/null)" == "1" && "$(psql_s -d "$REPLAY" -At -c "select count(*) from pg_policies where schemaname = 'public' and policyname ilike 'acesso_total%'" 2>/dev/null)" == "0" ]]; then
+  erro "PG_REPLAY=$REPLAY não parece o replay das migrações (não tem as policies acesso_total_*; já recebeu o baseline ou um overlay?)"
 elif ! psql_s -d postgres -At -c "select 1 from pg_database where datname = '$REPLAY'" | grep -q 1; then
   erro "PG_REPLAY=$REPLAY não existe"
 else
@@ -104,10 +128,15 @@ else
       fi
       q="select policyname||'|'||cmd||'|'||coalesce(roles::text,'')||'|'||coalesce(qual,'')||'|'||coalesce(with_check,'') from pg_policies where schemaname='storage' and tablename='objects' order by 1"
       b="select id||'|'||public||'|'||coalesce(file_size_limit::text,'')||'|'||coalesce(allowed_mime_types::text,'') from storage.buckets order by 1"
-      if diff <(psql_s -d "$REF" -At -c "$q") <(psql_s -d "$DB" -At -c "$q") >/dev/null; then ok "policies de storage idênticas"; else erro "policies de storage diferem do replay + overlays"; fi
-      if diff <(psql_s -d "$REF" -At -c "$b") <(psql_s -d "$DB" -At -c "$b") >/dev/null; then ok "buckets idênticos"; else erro "buckets diferem do replay + overlays"; fi
       p="select p.oid::regprocedure||'|'||array_to_string(coalesce(p.proacl,'{}'),',') from pg_proc p where pronamespace='public'::regnamespace order by 1"
-      if diff <(psql_s -d "$REF" -At -c "$p") <(psql_s -d "$DB" -At -c "$p") >/dev/null; then ok "ACL de funções idêntica"; else erro "ACL de funções difere do replay + overlays"; fi
+      comparar_consulta() {  # comparar_consulta <rótulo> <sql>: roda nos dois bancos, exige saída não vazia e igual
+        if psql_s -d "$REF" -At -c "$2" >"$TMP/c_ref.txt" 2>/dev/null && psql_s -d "$DB" -At -c "$2" >"$TMP/c_novo.txt" 2>/dev/null && [[ -s "$TMP/c_ref.txt" ]]; then
+          if diff -q "$TMP/c_ref.txt" "$TMP/c_novo.txt" >/dev/null; then ok "$1 idênticos"; else erro "$1 diferem do replay + overlays"; fi
+        else erro "$1: a consulta falhou ou veio vazia"; fi
+      }
+      comparar_consulta "policies de storage" "$q"
+      comparar_consulta "buckets" "$b"
+      comparar_consulta "ACL de funções" "$p"
     else
       cat "$TMP/ref.txt"; erro "não consegui aplicar overlays/RLS sobre a cópia do replay"
     fi
@@ -117,4 +146,4 @@ fi
 
 echo
 if (( falhas > 0 )); then echo "baseline REPROVADO: $falhas falha(s)"; exit 1; fi
-echo "baseline APROVADO${REPLAY:+}$([[ -z "$REPLAY" ]] && echo ' (sem comparação com o replay: defina PG_REPLAY)')"
+echo "baseline APROVADO$([[ -z "$REPLAY" ]] && echo ' (sem comparação com o replay: defina PG_REPLAY)')"

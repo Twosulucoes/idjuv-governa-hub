@@ -5,11 +5,23 @@
 --
 --   modulo           módulo do mapa vê/insere; outro módulo, sem módulo e inativo NÃO; admin vê; anon nega
 --   catalogo         qualquer ativo lê; escrita só por módulo
---   admin            só o papel admin (módulo "admin" sozinho não basta)
+--   catalogo_admin   qualquer ativo lê; escrita só do papel admin (módulo "admin" não basta)
+--   admin            só o papel admin (módulo "admin" sozinho não basta; admin bloqueado não)
+--   admin_leitura    só o admin lê; ninguém escreve por API (audit_logs)
+--   trilha           o módulo lê; ninguém escreve por API (nem o admin)
+--   publico_admin    anon e logados leem; só o admin escreve
 --   proprio_*        o servidor A vê só o seu; B só o seu; sem módulo não vê o do outro; módulo vê ambos
+--   proprio_user     cada usuário lê as suas linhas; admin lê todas; só admin escreve
 --   fechada          ninguém lê (nem admin)
---   preservar        não testada tabela a tabela (policies existentes são o desenho)
+--   preservar        profiles e denuncias: testes próprios no bloco "cobertura adicional"
+--   UPDATE/DELETE    por tabela e persona (SET col = DEFAULT, sem WHERE: mede só a policy de UPDATE)
+--   storage          SELECT/INSERT/UPDATE/DELETE por bucket e persona; upload anônimo só nas pastas do formulário
+--   identidade/RPCs  auto-ativação, servidor_id alheio, injeção de SQL, SECURITY DEFINER sem checagem, privilégios
+--                    padrão, campos que o autor não escolhe, links do formulário, fechamento de folha, views
 --   global           anon só nas exceções; nenhuma policy acesso_total; funções-stub não existem
+--
+-- Cobertura é exigida: tabela sem linha semente, fora do mapa ou sem RLS é FALHA. As tabelas temporárias do teste
+-- (mapa, persona, semeado...) são lidas por papéis com SET ROLE, então recebem GRANT explícito.
 --
 -- Saída: uma linha "FALHA ..." por violação e um resumo. Termina com erro se houver falha.
 
@@ -17,7 +29,14 @@
 \set QUIET on
 
 CREATE TEMP TABLE mapa (tabela text, modulos text, classe text, confianca text, nota text, extra text, remover_policies text, anon text);
-\copy mapa FROM 'supabase/baseline/rls/mapa.csv' CSV HEADER
+-- FORCE_NOT_NULL: campo vazio do CSV vira '' e não NULL. Com NULL, `m.anon <> 'insert'` dá NULL e o IF não
+-- dispara: seis asserções por tabela ficavam mortas em 225 das 235 tabelas.
+\copy mapa FROM 'supabase/baseline/rls/mapa.csv' WITH (FORMAT csv, HEADER, FORCE_NOT_NULL (modulos, nota, extra, remover_policies, anon))
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM mapa WHERE anon IS NULL OR modulos IS NULL OR extra IS NULL) THEN
+    RAISE EXCEPTION 'mapa carregado com NULL em colunas que as asserções comparam (anon/modulos/extra)';
+  END IF;
+END $$;
 
 CREATE TEMP TABLE resultado (nivel text, msg text);
 CREATE TEMP TABLE semeado (tabela text PRIMARY KEY, ok boolean, id_a text, id_b text);
@@ -515,7 +534,7 @@ BEGIN
 
   -- anon: só as exceções públicas
   SELECT count(*) INTO n FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.prokind IN ('f','p') AND has_function_privilege('anon', p.oid, 'EXECUTE');
-  IF n <> 4 THEN PERFORM pg_temp.falha('anon executa ' || n || ' funções (esperado: 4 RPCs públicas)'); END IF;
+  IF n <> 6 THEN PERFORM pg_temp.falha('anon executa ' || n || ' funções (esperado: 6 RPCs públicas)'); END IF;
   SELECT count(*) INTO n FROM pg_class c WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r','p') AND (has_table_privilege('anon', c.oid, 'SELECT') OR has_table_privilege('anon', c.oid, 'INSERT') OR has_table_privilege('anon', c.oid, 'UPDATE') OR has_table_privilege('anon', c.oid, 'DELETE'));
   IF n <> (SELECT count(*) FROM mapa WHERE anon <> '') THEN PERFORM pg_temp.falha('anon tem privilégio em ' || n || ' tabelas; o mapa declara ' || (SELECT count(*) FROM mapa WHERE anon <> '')); END IF;
   FOR x IN SELECT tabela, anon FROM mapa WHERE anon <> '' LOOP
@@ -740,7 +759,10 @@ BEGIN
     'can_access_module','has_module','has_permission','has_permission_code','is_active_user','is_admin_user','is_user_active',
     'get_user_permission_codes','get_user_permissions','get_permissions_from_servidor','listar_permissoes_usuario',
     -- RPCs públicas (formulários e portal): anon executa
-    'arbitro_cpf_cadastrado','obter_protocolo_arbitro','obter_dado_oficial','registrar_denuncia_publica','consultar_protocolo_sic'];
+    'arbitro_cpf_cadastrado','obter_protocolo_arbitro','obter_dado_oficial','registrar_denuncia_publica',
+    'consultar_gestor_por_cpf','registrar_gestor_publico',
+    -- só authenticated executa (anon não); incrementa o contador de bloqueio por token errado
+    'consultar_protocolo_sic'];
   FOR f IN
     SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args FROM pg_proc p
     WHERE p.pronamespace = 'public'::regnamespace AND p.prosecdef AND p.prorettype <> 'trigger'::regtype
@@ -940,6 +962,125 @@ BEGIN
       PERFORM pg_temp.falha('cadastro_arbitros: documentos_urls com link fora do bucket aceitos: ' || (SELECT documentos_urls::text FROM public.cadastro_arbitros WHERE id = 'd1000000-0000-0000-0000-000000000008'));
     END IF;
   END IF;
+END $$;
+
+-- ---------------------------------------------------------------- cobertura adicional (3ª revisão)
+-- UPDATE/DELETE em storage.objects por persona e bucket: sem WHERE (não exige visibilidade pelas policies de SELECT),
+-- com as linhas dos OUTROS buckets removidas dentro da sub-transação, para medir só o bucket testado.
+CREATE FUNCTION pg_temp.mut_obj(p_uid uuid, p_role text, p_bucket text, p_op text) RETURNS int
+LANGUAGE plpgsql AS $$
+DECLARE n int := -1;
+BEGIN
+  BEGIN
+    DELETE FROM storage.objects WHERE bucket_id <> p_bucket;           -- como superusuário, desfeito adiante
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', p_uid, 'role', p_role)::text, true);
+    EXECUTE format('SET LOCAL ROLE %I', p_role);
+    BEGIN
+      IF p_op = 'UPDATE' THEN UPDATE storage.objects SET updated_at = DEFAULT; ELSE DELETE FROM storage.objects; END IF;
+      GET DIAGNOSTICS n = ROW_COUNT;
+    EXCEPTION WHEN insufficient_privilege THEN n := -1;
+    END;
+    RESET ROLE;
+    RAISE EXCEPTION USING ERRCODE = 'P0099', MESSAGE = 'desfazer';
+  EXCEPTION WHEN SQLSTATE 'P0099' THEN NULL;
+  END;
+  RETURN n;
+END $$;
+
+DO $$
+DECLARE b record; p record; permitido boolean; n int; op text; f record; t text; cols text[]; col text; vals text[]; i int;
+        u_nenhum uuid := (SELECT uid FROM persona WHERE nome='nenhum');
+        u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
+        u_srv_i uuid := (SELECT uid FROM persona WHERE nome='srv_inativo');
+        u_a uuid := (SELECT uid FROM persona WHERE nome='srv_a');
+        u_den uuid := 'a0000000-0000-0000-0000-0000000000d1';
+        r text; den text;
+BEGIN
+  -- ===== storage: UPDATE e DELETE por bucket (SELECT/INSERT já são testados acima)
+  FOR b IN SELECT * FROM bucket_modulos LOOP
+    FOR p IN SELECT * FROM persona WHERE nome IN ('admin','admin_inativo','nenhum','inativo','srv_a','mod_admin') OR nome IN (SELECT 'mod_' || x FROM unnest(b.modulos) x) LOOP
+      permitido := p.nome = 'admin' OR (p.nome LIKE 'mod_%' AND substr(p.nome, 5) = ANY (b.modulos));
+      FOREACH op IN ARRAY ARRAY['UPDATE', 'DELETE'] LOOP
+        n := pg_temp.mut_obj(p.uid, 'authenticated', b.bucket, op);
+        IF permitido AND n < 1 THEN PERFORM pg_temp.falha(format('storage %s: %s deveria conseguir %s (afetou %s)', b.bucket, p.nome, op, n)); END IF;
+        IF NOT permitido AND n > 0 THEN PERFORM pg_temp.falha(format('storage %s: %s consegue %s (%s objeto(s))', b.bucket, p.nome, op, n)); END IF;
+      END LOOP;
+    END LOOP;
+    IF pg_temp.mut_obj(NULL, 'anon', b.bucket, 'UPDATE') > 0 OR pg_temp.mut_obj(NULL, 'anon', b.bucket, 'DELETE') > 0 THEN
+      PERFORM pg_temp.falha('storage ' || b.bucket || ': anon consegue UPDATE/DELETE');
+    END IF;
+  END LOOP;
+
+  -- ===== views: security_invoker e sem SELECT para anon (view com dono postgres leria tudo, ignorando a RLS)
+  FOR f IN SELECT c.relname FROM pg_class c WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('v', 'm')
+           AND NOT (coalesce(c.reloptions, '{}') && ARRAY['security_invoker=on', 'security_invoker=true']) LOOP
+    PERFORM pg_temp.falha('view ' || f.relname || ' sem security_invoker (ignora a RLS das tabelas de origem)');
+  END LOOP;
+  FOR f IN SELECT c.relname FROM pg_class c WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('v', 'm')
+           AND has_table_privilege('anon', c.oid, 'SELECT') LOOP
+    PERFORM pg_temp.falha('view ' || f.relname || ': anon tem SELECT');
+  END LOOP;
+
+  -- ===== profiles: cada coluna protegida, uma por vez (não basta uma para o trigger reprovar)
+  FOREACH t IN ARRAY ARRAY['email = ''x@y.z''', 'cpf = ''1''', 'blocked_at = now()', 'blocked_reason = ''x''',
+                           'restringir_modulos = true', 'tipo_usuario = ''tecnico''', 'is_active = false',
+                           'servidor_id = ''b0000000-0000-0000-0000-00000000000b'''] LOOP
+    r := pg_temp.sql_como(u_nenhum, 'authenticated', 'UPDATE public.profiles SET ' || t || ' WHERE id = auth.uid()');
+    IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('profiles: usuário comum consegue alterar (' || t || '): ' || r); END IF;
+  END LOOP;
+  -- sem WHERE (PATCH sem filtro): a policy de UPDATE só pode alcançar a PRÓPRIA linha
+  r := pg_temp.sql_como(u_nenhum, 'authenticated', 'UPDATE public.profiles SET avatar_url = DEFAULT');
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('profiles: UPDATE sem filtro alcança ' || r || ' linha(s) (esperado ok:1, só a própria)'); END IF;
+  r := pg_temp.sql_como(u_nenhum, 'authenticated', 'DELETE FROM public.profiles');
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('profiles: usuário comum apaga perfis (' || r || ')'); END IF;
+  IF pg_temp.sel(u_nenhum, 'authenticated', 'profiles') <> 1 THEN PERFORM pg_temp.falha('profiles: usuário comum enxerga ' || pg_temp.sel(u_nenhum, 'authenticated', 'profiles') || ' perfis (esperado só o próprio)'); END IF;
+  IF pg_temp.sel(NULL, 'anon', 'profiles') <> -1 THEN PERFORM pg_temp.falha('profiles: anon consegue SELECT'); END IF;
+  IF pg_temp.sel(u_admin, 'authenticated', 'profiles') < (SELECT count(*) FROM persona) THEN PERFORM pg_temp.falha('profiles: admin não enxerga todos os perfis'); END IF;
+
+  -- ===== denuncias (policies próprias por permissão granular): só quem tem integridade.gerenciar
+  INSERT INTO auth.users (id, email) VALUES (u_den, 'denuncias@teste.invalid');
+  -- handle_new_user (trigger ligado aqui) já criou o perfil INATIVO e o papel `user`: só falta ativar
+  UPDATE public.profiles SET is_active = true WHERE id = u_den;
+  INSERT INTO public.user_permissions (user_id, permission) VALUES (u_den, 'integridade.gerenciar');
+  den := pg_temp.seed_row('denuncias');
+  IF den IS NULL THEN PERFORM pg_temp.falha('não consegui semear denuncias: ' || (SELECT msg FROM seed_erro WHERE tabela = 'denuncias' LIMIT 1));
+  ELSE
+    IF pg_temp.sel(u_den, 'authenticated', 'denuncias') < 1 THEN PERFORM pg_temp.falha('denuncias: quem tem integridade.gerenciar não lê'); END IF;
+    IF pg_temp.upd(u_den, 'authenticated', 'denuncias') < 1 THEN PERFORM pg_temp.falha('denuncias: quem tem integridade.gerenciar não atualiza'); END IF;
+    FOR p IN SELECT * FROM persona WHERE nome IN ('nenhum', 'inativo', 'srv_a', 'admin_inativo', 'mod_integridade') LOOP
+      IF pg_temp.sel(p.uid, 'authenticated', 'denuncias') > 0 THEN PERFORM pg_temp.falha('denuncias: ' || p.nome || ' enxerga denúncias'); END IF;
+      IF pg_temp.upd(p.uid, 'authenticated', 'denuncias') > 0 OR pg_temp.del(p.uid, 'authenticated', 'denuncias') > 0 THEN PERFORM pg_temp.falha('denuncias: ' || p.nome || ' altera/apaga denúncias'); END IF;
+    END LOOP;
+    IF pg_temp.del(u_den, 'authenticated', 'denuncias') > 0 THEN PERFORM pg_temp.falha('denuncias: ninguém deveria apagar denúncia por API'); END IF;
+    IF pg_temp.sel(NULL, 'anon', 'denuncias') <> -1 THEN PERFORM pg_temp.falha('denuncias: anon consegue SELECT'); END IF;
+  END IF;
+
+  -- ===== triggers de campos iniciais existem nas 8 tabelas do overlay 20 (e o de links em 2)
+  FOREACH t IN ARRAY ARRAY['cadastro_arbitros','cadastro_arbitros_modalidades','federacoes_esportivas','gestores_escolares','solicitacoes_abono','justificativas_ponto','solicitacoes_ajuste_ponto','documentos_requerimento_servidor'] LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = ('public.' || t)::regclass AND tgname = 'trg_forcar_campos_iniciais' AND NOT tgisinternal AND tgenabled <> 'D') THEN
+      PERFORM pg_temp.falha(t || ': falta o trigger trg_forcar_campos_iniciais');
+    END IF;
+  END LOOP;
+  FOREACH t IN ARRAY ARRAY['cadastro_arbitros','cadastro_arbitros_modalidades'] LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = ('public.' || t)::regclass AND tgname = 'trg_forcar_urls_arbitros' AND NOT tgisinternal AND tgenabled <> 'D') THEN
+      PERFORM pg_temp.falha(t || ': falta o trigger trg_forcar_urls_arbitros');
+    END IF;
+  END LOOP;
+
+  -- ===== trilhas: nem o admin insere por API
+  FOR f IN SELECT tabela FROM mapa WHERE classe IN ('trilha', 'admin_leitura') LOOP
+    IF pg_temp.ins(u_admin, 'authenticated', f.tabela) <> 'negado' THEN PERFORM pg_temp.falha(f.tabela || ': admin consegue INSERT em trilha por API'); END IF;
+  END LOOP;
+
+  -- ===== gestores escolares: as duas RPCs públicas funcionam para anon (e só devolvem nome, status e escola)
+  r := pg_temp.valor_como(NULL, 'anon', format('SELECT public.registrar_gestor_publico(%L::uuid, ''FULANO'', ''12345678901'', NULL, NULL, ''f@teste.invalid'', ''95999999999'', NULL)::text',
+         (SELECT id FROM public.escolas_jer LIMIT 1)));
+  IF r IS NULL OR r LIKE 'erro:%' THEN PERFORM pg_temp.falha('registrar_gestor_publico (anon) falha: ' || coalesce(r, 'NULL')); END IF;
+  IF r ~* 'cpf|email|celular|12345678901' THEN PERFORM pg_temp.falha('registrar_gestor_publico devolve dado pessoal: ' || r); END IF;
+  r := pg_temp.valor_como(NULL, 'anon', 'SELECT public.consultar_gestor_por_cpf(''123.456.789-01'')::text');
+  IF r IS NULL OR r LIKE 'erro:%' OR r NOT LIKE '%FULANO%' THEN PERFORM pg_temp.falha('consultar_gestor_por_cpf (anon) não acha o gestor: ' || coalesce(r, 'NULL')); END IF;
+  IF r ~* 'cpf|email|celular|12345678901' THEN PERFORM pg_temp.falha('consultar_gestor_por_cpf devolve dado pessoal: ' || r); END IF;
+  IF pg_temp.valor_como(NULL, 'anon', 'SELECT public.consultar_gestor_por_cpf(''000'')::text') IS NOT NULL THEN PERFORM pg_temp.falha('consultar_gestor_por_cpf aceita CPF inválido'); END IF;
 END $$;
 
 -- ---------------------------------------------------------------- resumo

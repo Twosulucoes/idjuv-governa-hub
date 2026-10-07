@@ -24,7 +24,7 @@ DB="${PG_DB:-idjuv_validacao}"
 SAIDA=supabase/baseline/schema
 
 # Tabelas cujas linhas (vindas das migrações) são catálogo/parâmetro. NÃO entram: servidores e
-# vinculos_servidor (nomes e CPF reais — migração 20260110184920), audit_logs, portal_diretoria,
+# vinculos_servidor (74 nomes de pessoas, CPF placeholder — migração 20260110184920), audit_logs, portal_diretoria,
 # contatos_eventos_esportivos, debitos_tecnicos e config_paginas_historico (conteúdo operacional).
 SEMENTES=(
   backup_config categorias_noticias_eventos cms_categorias config_agrupamento_unidades

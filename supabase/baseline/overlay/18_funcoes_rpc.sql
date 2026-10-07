@@ -483,3 +483,36 @@ CREATE OR REPLACE FUNCTION public.is_active_user(p_user_id uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT COALESCE((SELECT is_active FROM public.profiles WHERE id = p_user_id), false);
 $$;
+
+-- I5) Formulário público de gestores escolares. A leitura anônima de gestores_escolares (CPF, RG, e-mail,
+--     celular de TODOS os gestores) foi fechada; as duas telas públicas só precisam de nome, status e nome da
+--     escola, então passam a usar estas RPCs (mesma ideia das de árbitros: nada de dado pessoal além do que
+--     a própria pessoa informou ou já conhece). Quem envia continua sem escolher o status (trigger do overlay 20).
+CREATE OR REPLACE FUNCTION public.consultar_gestor_por_cpf(p_cpf text)
+RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT jsonb_build_object(
+           'id', g.id, 'nome', g.nome, 'status', g.status,
+           'escola', jsonb_build_object('id', e.id, 'nome', e.nome))
+  FROM public.gestores_escolares g
+  LEFT JOIN public.escolas_jer e ON e.id = g.escola_id
+  WHERE length(regexp_replace(coalesce(p_cpf, ''), '\D', '', 'g')) = 11
+    AND regexp_replace(coalesce(g.cpf, ''), '\D', '', 'g') = regexp_replace(p_cpf, '\D', '', 'g')
+  LIMIT 1;
+$$;
+
+CREATE OR REPLACE FUNCTION public.registrar_gestor_publico(
+  p_escola_id uuid, p_nome text, p_cpf text, p_rg text, p_data_nascimento date,
+  p_email text, p_celular text, p_endereco text
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_id uuid;
+BEGIN
+  INSERT INTO public.gestores_escolares (escola_id, nome, cpf, rg, data_nascimento, email, celular, endereco, status)
+  VALUES (p_escola_id, p_nome, p_cpf, p_rg, p_data_nascimento, p_email, p_celular, p_endereco, 'aguardando')
+  RETURNING id INTO v_id;
+  RETURN (SELECT jsonb_build_object('id', g.id, 'nome', g.nome, 'status', g.status,
+                                    'escola', jsonb_build_object('id', e.id, 'nome', e.nome))
+          FROM public.gestores_escolares g LEFT JOIN public.escolas_jer e ON e.id = g.escola_id
+          WHERE g.id = v_id);
+END;
+$$;
