@@ -14,14 +14,14 @@
 -- UNIQUE(codigo), exigida por INSERT ... ON CONFLICT (codigo)).
 --
 -- Origem das definições: supabase/disaster-recovery/SCHEMA-TODAS-TABELAS.sql (dump antigo,
--- ~82 tabelas). NÃO foram comparadas com o banco ao vivo: antes de tratar este arquivo como
--- fiel, rode `scripts/db/comparar-schema.sh` contra um `pg_dump --schema-only` do banco real.
+-- ~82 tabelas). NÃO foram comparadas com o banco ao vivo (nunca inspecionado): antes de tratar este
+-- arquivo como fiel, compare-o com um `pg_dump --schema-only` do banco real.
 --
 -- Fica FORA de supabase/migrations/ de propósito: uma migração retroativa (timestamp antigo)
 -- quebra a ordem esperada pelo Supabase CLI e pela sincronização do Lovable no banco atual.
 -- É idempotente (IF NOT EXISTS), então é seguro mesmo onde as tabelas já existem.
 --
--- Usado por: scripts/db/validar-baseline.sh (intercalado na ordem das migrações).
+-- Usado por: scripts/db/validar-migracoes.sh (intercalado na ordem das migrações).
 
 CREATE TABLE IF NOT EXISTS public.perfis (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS public.usuario_perfis (
 );
 
 -- Perfis que migrações do período referenciam por código (SELECT id FROM perfis WHERE codigo = ...)
--- e que existiam no banco ao vivo. Só catálogo; nenhuma linha de usuário.
+-- e que, pelas migrações, existiam no banco do período. Só catálogo; nenhuma linha de usuário.
 INSERT INTO public.perfis (nome, codigo, descricao, is_sistema) VALUES
   ('Super Administrador', 'super_admin', 'Perfil de sistema (transitório no histórico)', true),
   ('Administrador', 'admin', 'Perfil de sistema (transitório no histórico)', true),

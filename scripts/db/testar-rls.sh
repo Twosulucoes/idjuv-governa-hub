@@ -12,6 +12,10 @@ SUPER="${PG_SUPERUSER:-supabase_admin}"
 FONTE="${PG_DB:?informe PG_DB (banco com schema+overlay+rls aplicados)}"
 COPIA="${PG_COPIA:-${FONTE}_teste}"
 [[ "$COPIA" == "postgres" || "$COPIA" == "$FONTE" ]] && { echo "recusado: PG_COPIA=$COPIA" >&2; exit 2; }
+case "$PGHOST" in
+  127.0.0.1|localhost|::1|/*) ;;
+  *) [[ "${PERMITIR_REMOTO:-}" == "1" ]] || { echo "recusado: PGHOST=$PGHOST não é local (o script apaga e recria bancos). Use PERMITIR_REMOTO=1 só num servidor de validação." >&2; exit 2; } ;;
+esac
 
 psql -U "$SUPER" -d postgres -q -v ON_ERROR_STOP=1 \
   -c "drop database if exists \"$COPIA\" with (force);" \

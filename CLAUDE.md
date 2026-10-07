@@ -65,7 +65,7 @@ bun run preview      # preview do build
 ```
 
 > Não há suíte de testes. Verificação: **`bash scripts/gate.sh`** (`npm run gate`:
-> guards de migrações/docs + typecheck + lint + build; typecheck e lint comparam com
+> guards de migrações/docs/RLS do baseline + typecheck + lint + build; typecheck e lint comparam com
 > `scripts/gate-baseline.json` e falham só se a dívida piorar). Roda no `pre-push`
 > e no CI (`.github/workflows/quality.yml`) — ver `CONTRIBUTING.md`.
 > Atenção: `vite build` **não** checa tipos; o typecheck é `tsc -p tsconfig.app.json`.

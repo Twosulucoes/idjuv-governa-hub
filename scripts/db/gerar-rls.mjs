@@ -74,6 +74,9 @@ function lerCsv(texto) {
 }
 
 const [cab, ...dados] = lerCsv(readFileSync(ENTRADA, "utf8"));
+const COLUNAS = ["tabela", "modulos", "classe", "confianca", "nota", "extra", "remover_policies", "anon"];
+// scripts/db/testar-rls.sql lê o CSV por POSIÇÃO (\copy): a ordem das colunas é contrato.
+if (cab.join(",") !== COLUNAS.join(",")) { console.error(`mapa.csv: cabeçalho deve ser exatamente ${COLUNAS.join(",")}`); process.exit(2); }
 const idx = Object.fromEntries(cab.map((n, i) => [n, i]));
 for (const col of ["tabela", "modulos", "classe", "confianca", "nota", "extra", "remover_policies", "anon"]) {
   if (!(col in idx)) { console.error(`mapa.csv sem a coluna ${col}`); process.exit(2); }

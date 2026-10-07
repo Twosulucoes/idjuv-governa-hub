@@ -39,6 +39,15 @@ uma das três coisas abaixo (medido no código em 2026-10-06):
 `list-tables` era público (sem nenhuma autenticação) até a correção de 2026-10-06;
 quem o chamava sem `apiKey` nem papel passa a receber erro.
 
+### Quem age sobre administradores (`admin-reset-password`, `delete-user`)
+
+Ambas exigem a permissão `admin.usuarios` (`usuario_tem_permissao`), que o papel `user` recebe
+quando tem o módulo `admin`. Para que isso não vire tomada de conta: se o **alvo** tem papel `admin` em
+`user_roles`, só um **administrador** pode redefinir a senha (`403`) ou excluir (erro "Somente um
+administrador…"). `delete-user` continua protegendo o UUID fixo do super admin do cliente antigo
+(`PROTECTED_SUPER_ADMIN_ID`), que não existe num banco novo: o último administrador de um banco novo
+só é protegido pela regra acima e por não poder excluir a si mesmo.
+
 ## Boas práticas ao mexer
 
 - **Segredos** (service role key, chaves de e-mail/IA) ficam nas variáveis de

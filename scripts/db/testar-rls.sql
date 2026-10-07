@@ -338,7 +338,7 @@ BEGIN
       PERFORM pg_temp.falha(m.tabela || ': usuário inativo consegue INSERT');
     END IF;
     IF m.classe NOT IN ('catalogo', 'catalogo_admin') AND m.anon <> 'select' AND coalesce(ok_seed, false) THEN
-      IF pg_temp.sel(u_inativo, 'authenticated', m.tabela) > 0 AND NOT (m.classe IN ('proprio_leitura','proprio','proprio_filho') AND false) THEN
+      IF pg_temp.sel(u_inativo, 'authenticated', m.tabela) > 0 THEN
         PERFORM pg_temp.falha(m.tabela || ': usuário inativo enxerga linhas');
       END IF;
     END IF;
@@ -526,7 +526,7 @@ BEGIN
       PERFORM pg_temp.falha(x.tabela || ': o mapa declara inserção anônima, mas anon não tem INSERT');
     END IF;
   END LOOP;
-  SELECT count(*) INTO n FROM pg_policies WHERE schemaname = 'public' AND roles && ARRAY['anon','public']::name[] AND cmd IN ('UPDATE','DELETE') AND NOT (qual ILIKE '%user_roles%');
+  SELECT count(*) INTO n FROM pg_policies WHERE schemaname = 'public' AND roles && ARRAY['anon','public']::name[] AND cmd IN ('UPDATE','DELETE','ALL') AND NOT (qual ILIKE '%user_roles%');
   IF n > 0 THEN PERFORM pg_temp.falha(n || ' policies de UPDATE/DELETE valem para anon/public sem checar papel'); END IF;
 
   -- stubs de acesso total não podem voltar

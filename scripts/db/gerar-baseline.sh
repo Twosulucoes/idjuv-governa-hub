@@ -43,6 +43,7 @@ COMUM=(-U "$SUPER" -d "$DB" --schema=public --no-owner --no-privileges --no-tabl
 limpar() {
   perl -0pe '
     s/^\\(un)?restrict [^\n]*\n//mg;
+    s/^SET transaction_timeout[^\n]*\n//mg;
     s/--\n-- Name: public; Type: SCHEMA; Schema: -; Owner: -\n--\n\nCREATE SCHEMA public;\n\n\n//;
     s/--\n-- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -\n--\n\nCOMMENT ON SCHEMA public IS [^\n]*\n\n\n//;
   '
@@ -57,6 +58,9 @@ targs=(); for t in "${SEMENTES[@]}"; do targs+=(--table="public.$t"); done
 } > "$SAIDA/02_dados_catalogo.sql"
 
 { cab "pós-dados"; pg_dump "${COMUM[@]}" --section=post-data | limpar; } > "$SAIDA/03_post_data.sql"
+
+# Nenhum meta-comando do psql (\...) pode sobrar nos arquivos versionados.
+if grep -n -E '^\\' "$SAIDA"/*.sql; then echo "meta-comando do psql encontrado em $SAIDA (veja acima)" >&2; exit 1; fi
 
 wc -l "$SAIDA"/*.sql
 echo "linhas INSERT no catálogo: $(grep -c '^INSERT INTO' "$SAIDA/02_dados_catalogo.sql")"

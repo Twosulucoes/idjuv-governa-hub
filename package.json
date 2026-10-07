@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "check:docs": "node scripts/check-doc-links.mjs",
     "check:migrations": "bash scripts/check-migrations.sh",
+    "check:rls": "node scripts/db/gerar-rls.mjs --check",
     "gate": "bash scripts/gate.sh",
     "sync:superpowers": "bash scripts/sync-superpowers-skills.sh",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"

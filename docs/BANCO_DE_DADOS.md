@@ -18,14 +18,23 @@ muda em relação ao estado das migrações:
 - **RLS por módulo, falha fechada.** As policies `acesso_total_*` (qualquer usuário logado) saem; cada
   tabela recebe policies de `can_access_module` conforme `supabase/baseline/rls/mapa.csv` (fonte da
   verdade, gerada em `rls/35_policies_geradas.sql`). Tabela fora do mapa reprova no teste.
-- **`anon`** só tem as 4 RPCs públicas e as tabelas de formulário/portal declaradas no mapa
-  (coluna `anon`); `authenticated` mantém os privilégios padrão, limitados pela RLS.
-- **Storage** por módulo; anônimo só envia arquivo no bucket de árbitros.
-- Corrige `handle_new_user` (cadastro no Auth falhava) e as funções de acesso.
+- **Perfil ativo é pré-condição.** `is_admin_user`, `has_permission_code` e `meu_servidor_id` passam a
+  exigir `profiles.is_active`; administrador bloqueado deixa de ser administrador.
+- **`profiles` protegido.** Um trigger impede quem não é admin de mudar `is_active`, `servidor_id`,
+  bloqueio, tipo, CPF e e-mail; antes qualquer usuário se ativava e assumia o servidor de outro.
+- **RPCs.** `fn_gerar_numero_financeiro` aceita só tipos de uma lista (havia injeção de SQL); as RPCs de
+  leitura com dado pessoal rodam como o usuário (`SECURITY INVOKER`); as que escrevem na folha perdem o
+  EXECUTE de `authenticated`; função nova não nasce executável por `anon` nem por PUBLIC.
+- **`anon`** só tem as 4 RPCs públicas e as tabelas de formulário/portal declaradas no mapa (coluna `anon`);
+  `authenticated` mantém os privilégios padrão de tabela (menos `TRUNCATE`/`TRIGGER`, e sem escrita em
+  `audit_logs`), limitados pela RLS. As exceções são as funções `SECURITY DEFINER` de apoio listadas no teste.
+- **Formulários e pedidos.** Quem não gere o módulo não escolhe `status` nem campos de aprovação.
+- **Storage** por módulo; anônimo só envia arquivo (imagem/PDF até 5 MB) nas pastas do formulário de árbitros.
+- Corrige `handle_new_user` (cadastro no Auth falhava) e as funções de folha que dependiam de funções removidas.
 - Sementes só de catálogo/parâmetros: sem servidores, usuários ou auditoria.
 
-Alterar RLS do baseline = editar `rls/mapa.csv` e rodar `node scripts/db/gerar-rls.mjs`; mudança de
-schema continua por migração nova (e regeneração do baseline). Tabela nova precisa de linha no mapa.
+Alterar RLS do baseline = editar `rls/mapa.csv` e rodar `node scripts/db/gerar-rls.mjs` (o gate confere);
+mudança de schema continua por migração nova (e regeneração do baseline). Tabela nova precisa de linha no mapa.
 
 ## Tabelas por domínio
 
