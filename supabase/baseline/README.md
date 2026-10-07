@@ -176,5 +176,8 @@ Limites conhecidos:
 - **Formulário público de gestores escolares:** a leitura anônima de `gestores_escolares` (CPF, RG, e-mail e celular
   de todos) foi fechada; as telas públicas passam a usar as RPCs `consultar_gestor_por_cpf` e
   `registrar_gestor_publico` (só devolvem id, nome, status e nome da escola). O front foi ajustado
-  (`useGestoresEscolares.ts`); `anon` executa **6** RPCs públicas no total.
+  (`useGestoresEscolares.ts`), que cai no acesso direto à tabela quando a RPC não existe (banco anterior, sem o
+  baseline); `anon` executa **6** RPCs públicas no total. O formulário de árbitros segue o mesmo princípio e
+  tolera a falta das RPCs (`CadastroArbitroPage.tsx`), mas o log de acesso ao contracheque e o cadastro de
+  árbitros só ficam íntegros depois de aplicada a migração `20261006230500`.
 - O banco ao vivo nunca foi inspecionado: o baseline foi derivado só dos arquivos do repositório.
