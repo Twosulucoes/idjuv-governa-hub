@@ -86,6 +86,17 @@ serve(async (req) => {
       throw new Error("Este usuário é protegido e não pode ser excluído");
     }
 
+    // Quem só tem a permissão admin.usuarios (concedida por módulo ao papel `user`) não exclui um administrador.
+    const { data: papeis } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "admin")
+      .in("user_id", [userId, requestingUser.id]);
+    const ehAdmin = (id: string) => (papeis ?? []).some((p) => p.user_id === id);
+    if (ehAdmin(userId) && !ehAdmin(requestingUser.id)) {
+      throw new Error("Somente um administrador pode excluir outro administrador");
+    }
+
     // Buscar dados do usuário antes de excluir (para log)
     const { data: userToDelete } = await supabaseAdmin
       .from("profiles")

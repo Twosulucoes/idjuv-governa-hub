@@ -9,6 +9,10 @@
 -- permissão granular via has_permission_code(). can_access_module(uuid, text) já estava correta
 -- (perfil ativo E (papel admin OU módulo concedido)) e é a base das policies por módulo.
 --
+-- Perfil ATIVO é pré-condição de tudo: is_admin_user, is_admin_atual, has_permission_code e
+-- meu_servidor_id não olhavam profiles.is_active, então um administrador bloqueado continuava
+-- administrador e um servidor bloqueado continuava lendo a própria ficha. Agora olham.
+--
 -- Todas SECURITY DEFINER com search_path fixo, como o resto do schema. Aplicar DEPOIS do schema.
 
 CREATE OR REPLACE FUNCTION public.usuario_eh_super_admin(check_user_id uuid DEFAULT NULL)
@@ -92,5 +96,39 @@ $$;
 -- (contracheque, ponto, pedidos). Definer para não depender da RLS de profiles.
 CREATE OR REPLACE FUNCTION public.meu_servidor_id()
 RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT servidor_id FROM public.profiles WHERE id = auth.uid();
+  SELECT servidor_id FROM public.profiles WHERE id = auth.uid() AND is_active;
+$$;
+
+-- ---- perfil ativo como pré-condição ----
+CREATE OR REPLACE FUNCTION public.is_admin_user(_user_id uuid DEFAULT auth.uid())
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.user_roles ur
+    JOIN public.profiles p ON p.id = ur.user_id
+    WHERE ur.user_id = _user_id AND ur.role = 'admin' AND p.is_active
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_admin_atual()
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT public.is_admin_user(auth.uid());
+$$;
+
+-- Os triggers de folha chamam usuario_eh_admin(uuid), função transitória removida em 20260207182933
+-- sem que seus chamadores fossem atualizados: fechar/reabrir/enviar folha para conferência sempre
+-- falhava. O alias devolve a função ao modelo vigente.
+CREATE OR REPLACE FUNCTION public.usuario_eh_admin(check_user_id uuid DEFAULT NULL)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT public.is_admin_user(COALESCE(check_user_id, auth.uid()));
+$$;
+
+CREATE OR REPLACE FUNCTION public.has_permission_code(_user_id uuid, _permission text)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT COALESCE((SELECT p.is_active FROM public.profiles p WHERE p.id = _user_id), false)
+     AND (
+       -- super admin passa por cima
+       EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = _user_id AND role = 'admin')
+       OR _permission = ANY (public.get_user_permission_codes(_user_id))
+     );
 $$;

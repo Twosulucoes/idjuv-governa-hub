@@ -17,7 +17,15 @@
  *   proprio          idem, e o próprio servidor também pode INSERIR (pedidos/requerimentos).
  *   proprio_filho    como proprio_leitura, mas a posse vem da tabela pai: extra=pai=<tabela>.<fk>;
  *                    com `;insere` o servidor também pode INSERIR registros ligados a pai seu.
+ *   catalogo_admin   SELECT para qualquer usuário ativo; escrita só do papel admin (catálogos de permissão,
+ *                    configuração de módulos, dados oficiais: o app os lê no login/rodapé, mas só admin altera).
+ *   proprio_user     dado de configuração por usuário: extra=coluna=<col_do_usuario>; o próprio usuário (ativo)
+ *                    lê as suas linhas, admin lê todas; escrita só do papel admin.
+ *   trilha           trilha de auditoria/histórico: SELECT por módulo; NINGUÉM escreve por API (os registros
+ *                    nascem em triggers SECURITY DEFINER e na service role).
  *   admin            só o papel admin (is_admin_user(auth.uid())).
+ *   admin_leitura    SELECT só do papel admin; ninguém escreve por API (ex.: audit_logs).
+ *   publico_admin    SELECT para anon e authenticated (configuração do portal público); escrita só do papel admin.
  *   preservar        nada é gerado (as policies existentes são o desenho); só remover_policies.
  *   fechada          nada é gerado: RLS ligado e sem policy = negado a todos (exceto service_role).
  *
@@ -33,7 +41,8 @@ const raiz = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const ENTRADA = resolve(raiz, "supabase/baseline/rls/mapa.csv");
 const SAIDA = resolve(raiz, "supabase/baseline/rls/35_policies_geradas.sql");
 const CLASSES = new Set([
-  "modulo", "catalogo", "proprio_leitura", "proprio", "proprio_filho", "admin", "preservar", "fechada",
+  "modulo", "catalogo", "catalogo_admin", "proprio_leitura", "proprio", "proprio_filho", "proprio_user",
+  "trilha", "admin", "admin_leitura", "publico_admin", "preservar", "fechada",
 ]);
 const MODULOS = new Set([
   "rh", "financeiro", "compras", "patrimonio", "contratos", "workflow", "governanca", "transparencia",
@@ -74,6 +83,7 @@ const q = (s) => `'${s.replace(/'/g, "''")}'`;
 const id = (s) => `"${s.replace(/"/g, '""')}"`;
 const erros = [];
 const blocos = [];
+const vistas = new Set();
 
 for (const r of dados) {
   const t = r[idx.tabela].trim();
@@ -85,9 +95,11 @@ for (const r of dados) {
   if (!['', 'select', 'insert'].includes(anon)) erros.push(`${t}: anon deve ser vazio, select ou insert`);
 
   if (!/^[a-z_][a-z0-9_]*$/.test(t)) { erros.push(`${t}: nome de tabela inválido`); continue; }
+  if (vistas.has(t)) { erros.push(`${t}: tabela repetida no mapa`); continue; }
+  vistas.add(t);
   if (!CLASSES.has(classe)) { erros.push(`${t}: classe desconhecida "${classe}"`); continue; }
   for (const m of mods) if (!MODULOS.has(m)) erros.push(`${t}: módulo "${m}" não existe em app_module`);
-  if (["modulo", "catalogo", "proprio_leitura", "proprio", "proprio_filho"].includes(classe) && mods.length === 0)
+  if (["modulo", "catalogo", "proprio_leitura", "proprio", "proprio_filho", "trilha"].includes(classe) && mods.length === 0)
     erros.push(`${t}: classe ${classe} exige ao menos um módulo`);
 
   const L = [`-- ${t}  [${classe}${mods.length ? ": " + mods.join(" | ") : ""}]`];
@@ -136,10 +148,43 @@ for (const r of dados) {
       const doServidor = (ref) =>
         `EXISTS (SELECT 1 FROM public.${pai} p WHERE p.id = ${ref} AND p.servidor_id = public.meu_servidor_id())`;
       politica("rls_select", "SELECT", `${M} OR ${doServidor(`${t}.${fk}`)}`, null);
-      if (insere) politica("rls_insert", "INSERT", null, `${M} OR ${doServidor(fk)}`);
+      if (insere) politica("rls_insert", "INSERT", null, `${M} OR ${doServidor(`${t}.${fk}`)}`);
       else politica("rls_insert", "INSERT", null, M);
       politica("rls_update", "UPDATE", M, M);
       politica("rls_delete", "DELETE", M, null);
+      break;
+    }
+    case "catalogo_admin": {
+      const A = "public.is_admin_user(auth.uid())";
+      politica("rls_select", "SELECT", "public.is_active_user()", null);
+      politica("rls_insert", "INSERT", null, A);
+      politica("rls_update", "UPDATE", A, A);
+      politica("rls_delete", "DELETE", A, null);
+      break;
+    }
+    case "proprio_user": {
+      const m = /^coluna=([a-z_][a-z0-9_]*)$/.exec(extra);
+      if (!m) { erros.push(`${t}: extra deve ser coluna=<coluna_do_usuario>`); break; }
+      const A = "public.is_admin_user(auth.uid())";
+      politica("rls_select", "SELECT", `${A} OR (${m[1]} = auth.uid() AND public.is_active_user())`, null);
+      politica("rls_insert", "INSERT", null, A);
+      politica("rls_update", "UPDATE", A, A);
+      politica("rls_delete", "DELETE", A, null);
+      break;
+    }
+    case "trilha":
+      politica("rls_select", "SELECT", M, null);
+      break;
+    case "admin_leitura":
+      politica("rls_select", "SELECT", "public.is_admin_user(auth.uid())", null);
+      break;
+    case "publico_admin": {
+      const A = "public.is_admin_user(auth.uid())";
+      L.push(`DROP POLICY IF EXISTS "rls_select" ON public.${t};`);
+      L.push(`CREATE POLICY "rls_select" ON public.${t} FOR SELECT TO anon, authenticated\n  USING (true);`);
+      politica("rls_insert", "INSERT", null, A);
+      politica("rls_update", "UPDATE", A, A);
+      politica("rls_delete", "DELETE", A, null);
       break;
     }
     case "admin": {
@@ -164,9 +209,9 @@ if (erros.length) {
 const cabecalho = `-- GERADO por scripts/db/gerar-rls.mjs a partir de supabase/baseline/rls/mapa.csv.
 -- NÃO edite à mão: altere o mapa e rode \`node scripts/db/gerar-rls.mjs\`.
 --
--- Depende de: overlay/10_funcoes_acesso.sql (can_access_module, is_active_user,
--- is_admin_user, meu_servidor_id corrigidos) e de overlay/30_remover_acesso_total.sql
--- (remove as policies acesso_total_* antes de estas entrarem).
+-- Depende de: overlay/10_funcoes_acesso.sql (is_active_user, is_admin_user, meu_servidor_id
+-- reescritos para exigir perfil ativo; can_access_module já era correta) e de
+-- overlay/30_remover_acesso_total.sql (remove as policies acesso_total_* antes de estas entrarem).
 -- Todas as policies são TO authenticated; nenhuma concede acesso a anon.
 `;
 const sql = cabecalho + "\n" + blocos.join("\n\n") + "\n";

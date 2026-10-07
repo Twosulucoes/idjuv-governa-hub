@@ -13,3 +13,7 @@ BEGIN
     EXECUTE format('DROP POLICY %I ON %I.%I', r.policyname, r.schemaname, r.tablename);
   END LOOP;
 END $$;
+
+-- Cópia de segurança legada de user_modules (migração de 2026): sem uso no app nem em funções, e
+-- sem dado num banco novo. Não faz sentido nascer junto com o schema.
+DROP TABLE IF EXISTS public._backup_usuario_modulos_old;

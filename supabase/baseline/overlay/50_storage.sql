@@ -36,7 +36,7 @@ END $$;
 
 -- Buckets (idempotente). public = leitura por URL sem login.
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES
-  ('arbitros-docs',             'arbitros-docs',             true,  NULL,     NULL),
+  ('arbitros-docs',             'arbitros-docs',             true,  5242880,  ARRAY['image/jpeg','image/png','image/webp','image/heic','image/heif','application/pdf']),
   ('ascom-demandas',            'ascom-demandas',            false, NULL,     NULL),
   ('documentos',                'documentos',                false, 52428800, ARRAY['application/pdf','image/jpeg','image/png','image/webp']),
   ('documentos-requerimento',   'documentos-requerimento',   false, NULL,     NULL),
@@ -81,8 +81,10 @@ BEGIN
 END $$;
 
 -- Formulário público de árbitros: upload de foto/documentos sem login (só INSERT; a leitura
--- fica para o módulo arbitros acima).
+-- fica para o módulo arbitros acima). Só nas três pastas que o formulário usa; o bucket limita tamanho
+-- (5 MB; o front limita a 2 MB, mas isso é só do navegador) e tipo (imagem e PDF). Continua sem
+-- limite de taxa: aplique no proxy (Kong/nginx) e use CAPTCHA no formulário (docs/NOVO_BANCO.md).
 DROP POLICY IF EXISTS "st_arbitros-docs_insert_anon" ON storage.objects;
 CREATE POLICY "st_arbitros-docs_insert_anon" ON storage.objects
   FOR INSERT TO anon
-  WITH CHECK (bucket_id = 'arbitros-docs');
+  WITH CHECK (bucket_id = 'arbitros-docs' AND (storage.foldername(name))[1] IN ('fotos', 'documentos', 'modalidades'));

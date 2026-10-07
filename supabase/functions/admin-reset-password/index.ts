@@ -148,6 +148,21 @@ serve(async (req) => {
       });
     }
 
+    // Quem só tem a permissão admin.usuarios (concedida por módulo ao papel `user`) não redefine a senha
+    // de um administrador: isso seria tomar a conta dele. Só um administrador redefine a de outro.
+    const { data: papeis } = await admin
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "admin")
+      .in("user_id", [targetUserId, requesterId]);
+    const ehAdmin = (id: string) => (papeis ?? []).some((p) => p.user_id === id);
+    if (ehAdmin(targetUserId) && !ehAdmin(requesterId)) {
+      return new Response(JSON.stringify({ error: "Somente um administrador redefine a senha de outro administrador" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const senhaTemporaria = generateTempPassword();
 
     // Atualizar senha do usuário (admin)
