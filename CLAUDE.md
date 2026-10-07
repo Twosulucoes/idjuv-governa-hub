@@ -65,7 +65,7 @@ bun run preview      # preview do build
 ```
 
 > Não há suíte de testes. Verificação: **`bash scripts/gate.sh`** (`npm run gate`:
-> guards de migrações/docs + typecheck + lint + build; typecheck e lint comparam com
+> guards de migrações/docs/RLS do baseline + typecheck + lint + build; typecheck e lint comparam com
 > `scripts/gate-baseline.json` e falham só se a dívida piorar). Roda no `pre-push`
 > e no CI (`.github/workflows/quality.yml`) — ver `CONTRIBUTING.md`.
 > Atenção: `vite build` **não** checa tipos; o typecheck é `tsc -p tsconfig.app.json`.
@@ -196,6 +196,8 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 - Migrações em `supabase/migrations/` (nome `YYYYMMDDHHMMSS_<uuid>.sql`,
   tipicamente geradas pelo Lovable). Edge Functions em `supabase/functions/`
   (Deno/TypeScript).
+- Banco novo e vazio (schema consolidado + RLS por módulo): `supabase/baseline/`,
+  guia em `docs/NOVO_BANCO.md`; validação em Postgres puro: `scripts/db/validar-baseline.sh`.
 - Há ferramentas MCP do Supabase disponíveis nesta sessão (listar tabelas,
   aplicar migração, logs, advisors). Antes de mudar schema, use `list_tables`
   para entender a estrutura; prefira inspecionar antes de aplicar.

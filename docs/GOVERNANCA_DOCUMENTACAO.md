@@ -34,6 +34,7 @@
 | [`docs/ARQUITETURA.md`](./ARQUITETURA.md) | Stack, camadas, fluxo de dados, autenticação, deploy |
 | [`docs/MODULOS.md`](./MODULOS.md) | Detalhamento funcional de cada módulo e suas páginas |
 | [`docs/BANCO_DE_DADOS.md`](./BANCO_DE_DADOS.md) | Tabelas, views e funções (RPC) do Postgres/Supabase, política de migrações |
+| [`docs/NOVO_BANCO.md`](./NOVO_BANCO.md) | Criar banco novo e vazio a partir de `supabase/baseline/` (Supabase self-hosted, validação em Postgres), primeiro administrador, conferência |
 | [`docs/RBAC_PERMISSOES.md`](./RBAC_PERMISSOES.md) | Modelo de permissões, perfis, rotas protegidas |
 | [`docs/GUIA_FRONTEND.md`](./GUIA_FRONTEND.md) | Estrutura do front, hooks, libs, padrões de código |
 | [`docs/EDGE_FUNCTIONS.md`](./EDGE_FUNCTIONS.md) | Funções serverless (Deno) do Supabase |
@@ -61,6 +62,7 @@ Ao abrir uma PR, localize **cada** linha aplicável. A doc da coluna
 | Rota, página ou item de menu novo | `docs/ARQUITETURA.md` | `docs/MODULOS.md` (se a página pertence a um módulo existente) |
 | Módulo novo (registrado em `MODULOS`) | `docs/MODULOS.md` + `src/shared/config/modules.config.ts` mencionado | `docs/ARQUITETURA.md`; skill `novo-modulo-idjuv` |
 | Migração, tabela, coluna, RPC, RLS | `docs/BANCO_DE_DADOS.md` | Skill `migracao-segura-idjuv` |
+| Baseline do banco (`supabase/baseline/`), `rls/mapa.csv`, overlay, scripts `scripts/db/` | `docs/NOVO_BANCO.md` + `supabase/baseline/README.md` | `docs/BANCO_DE_DADOS.md`; rode `scripts/db/validar-baseline.sh` |
 | Edge Function nova ou alterada | `docs/EDGE_FUNCTIONS.md` | Checagem de auth (`AGENTS.md`) |
 | Permissão, papel, RBAC | `docs/RBAC_PERMISSOES.md` | `src/types/auth.ts` (`ROUTE_PERMISSIONS`) |
 | Hook de dados, lib, padrão de front | `docs/GUIA_FRONTEND.md` | — |
@@ -114,7 +116,8 @@ conservadores — nem tudo está ativo por padrão ainda:
 |---|---|---|---|
 | **`check:docs`** | Referência a arquivo inexistente/vazio nas docs vivas (`LIVING_DOCS`) | `scripts/check-doc-links.mjs` | Existe e roda local (`npm run check:docs`) e em CI via `quality.yml` |
 | **`check:migrations`** | Versão de migração duplicada / nome fora do padrão `<14 dígitos>_slug.sql` | `scripts/check-migrations.sh` | Existe e roda local e em CI via `quality.yml` |
-| **`npm run gate`** | Os dois guards acima + `typecheck` + `lint` + `build`. Typecheck e lint comparam com `scripts/gate-baseline.json` e falham **só se a dívida piorar** (o repo tem erros históricos); os guards falham em qualquer ocorrência | `scripts/gate.sh` | Existe; roda automaticamente no `pre-push` (`.githooks/pre-push`, ativado por `npm install` via o script `prepare`) — pulável com `git push --no-verify`. Ao reduzir a dívida: `bash scripts/gate.sh --update-baseline` |
+| **`check:rls`** | `supabase/baseline/rls/35_policies_geradas.sql` defasado em relação a `rls/mapa.csv` | `scripts/db/gerar-rls.mjs --check` | Existe e roda local e em CI (dentro do gate). **Não** executa o teste de RLS: ele exige um Postgres (`scripts/db/validar-baseline.sh`, manual) |
+| **`npm run gate`** | Os três guards acima + `typecheck` + `lint` + `build`. Typecheck e lint comparam com `scripts/gate-baseline.json` e falham **só se a dívida piorar** (o repo tem erros históricos); os guards falham em qualquer ocorrência | `scripts/gate.sh` | Existe; roda automaticamente no `pre-push` (`.githooks/pre-push`, ativado por `npm install` via o script `prepare`) — pulável com `git push --no-verify`. Ao reduzir a dívida: `bash scripts/gate.sh --update-baseline` |
 | **`quality.yml`** (CI) | Guard de `.env` rastreado + `scripts/gate.sh` (os mesmos checks do gate local) em toda PR | `.github/workflows/quality.yml` | **Ativo** (gatilho `pull_request`) — primeira vez que este repositório tem CI |
 | **`docs-guard`** (CI) | PR que muda `src/**`/`supabase/**` sem tocar `docs/**`/`*.md` e sem escape declarado → falha | `.github/workflows/docs-guard.yml` | **Existe mas desativado por padrão** — só `workflow_dispatch`. O gatilho `pull_request`/`pull_request_target` está comentado no arquivo, com uma nota explicando como ativar. Decisão do time, não técnica: ativar exige que a matriz do §3 já esteja sendo seguida na prática antes de virar bloqueio automático |
 | **Template de PR** | Checklist da matriz na abertura de toda PR | `.github/pull_request_template.md` | Ativo (todo PR usa o template por padrão) |

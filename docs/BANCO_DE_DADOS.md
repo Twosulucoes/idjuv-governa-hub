@@ -8,6 +8,37 @@ tipos TypeScript de todo o schema são gerados em
 > `YYYYMMDDHHMMSS_<uuid>.sql`). Para mudar o schema, crie uma migração nova
 > (ou use o fluxo do Lovable) e regenere os tipos. Não edite migrações antigas.
 
+## Baseline limpo e RLS por módulo (banco novo)
+
+Para criar um banco **novo e vazio** use `supabase/baseline/` (guia: [NOVO_BANCO.md](./NOVO_BANCO.md);
+conteúdo e manutenção: [`supabase/baseline/README.md`](../supabase/baseline/README.md)). Ele não substitui
+as migrações: é um schema consolidado, gerado do replay delas, mais uma camada de correções. O que
+muda em relação ao estado das migrações:
+
+- **RLS por módulo, falha fechada.** As policies `acesso_total_*` (qualquer usuário logado) saem; cada
+  tabela recebe policies de `can_access_module` conforme `supabase/baseline/rls/mapa.csv` (fonte da
+  verdade, gerada em `rls/35_policies_geradas.sql`). Tabela fora do mapa reprova no teste.
+- **Perfil ativo é pré-condição.** `is_admin_user`, `has_permission_code` e `meu_servidor_id` passam a
+  exigir `profiles.is_active`; administrador bloqueado deixa de ser administrador.
+- **`profiles` protegido.** Um trigger impede quem não é admin de mudar `is_active`, `servidor_id`,
+  bloqueio, tipo, CPF e e-mail; antes qualquer usuário se ativava e assumia o servidor de outro.
+- **RPCs.** `fn_gerar_numero_financeiro` aceita só tipos de uma lista (havia injeção de SQL); as RPCs de
+  leitura com dado pessoal rodam como o usuário (`SECURITY INVOKER`); as que escrevem na folha perdem o
+  EXECUTE de `authenticated`; função nova não nasce executável por `anon` nem por PUBLIC.
+- **`anon`** só tem as 6 RPCs públicas (denúncia, dado oficial, árbitros, gestores escolares) e as tabelas de formulário/portal declaradas no mapa (coluna `anon`);
+  `authenticated` mantém os privilégios padrão de tabela (menos `TRUNCATE`/`TRIGGER`, e sem escrita em
+  `audit_logs`), limitados pela RLS. As exceções são as funções `SECURITY DEFINER` de apoio listadas no teste.
+- **Formulários e pedidos.** Quem não gere o módulo não escolhe `status`, aprovação nem autoria; os links
+  do formulário de árbitros só podem apontar para o bucket `arbitros-docs`.
+- **Fechamento de folha** só por quem pode (trigger em `folhas_pagamento`), e o bloqueio automático por
+  `servidores.situacao` nunca reativa administrador nem conta bloqueada à mão.
+- **Storage** por módulo; anônimo só envia arquivo (imagem/PDF até 5 MB) nas pastas do formulário de árbitros.
+- Corrige `handle_new_user` (cadastro no Auth falhava) e as funções de folha que dependiam de funções removidas.
+- Sementes só de catálogo/parâmetros: sem servidores, usuários ou auditoria.
+
+Alterar RLS do baseline = editar `rls/mapa.csv` e rodar `node scripts/db/gerar-rls.mjs` (o gate confere);
+mudança de schema continua por migração nova (e regeneração do baseline). Tabela nova precisa de linha no mapa.
+
 ## Tabelas por domínio
 
 ### Autenticação, RBAC e administração
@@ -106,6 +137,17 @@ Legado/compartilhado: `dotacoes_orcamentarias`, `empenhos`, `liquidacoes`,
 `contatos_eventos_esportivos`, `categorias_noticias_eventos`,
 `cadastro_arbitros`, `cadastro_arbitros_modalidades`.
 
+`cadastro_arbitros` e `cadastro_arbitros_modalidades` guardam dado pessoal (CPF,
+RG, e-mail, dados bancários, links de documentos). **A partir da migração
+`supabase/migrations/20261006230500_endurece_audit_logs_e_cadastro_arbitros.sql`
+(criada em 2026-10-06, ainda não aplicada em remoto)**, o visitante anônimo só
+pode **inserir**; a leitura é só para usuário autenticado. O formulário público usa
+as RPCs `arbitro_cpf_cadastrado(p_cpf)` (devolve apenas se o CPF já existe) e
+`obter_protocolo_arbitro(p_id)` (devolve só o protocolo do `id` gerado no
+navegador). O bucket `arbitros-docs` deixa de aceitar listagem anônima, mas
+**continua público**: quem tem a URL de um arquivo ainda o baixa (fechar isso
+exige bucket privado com URL assinada; pendência).
+
 ### Gestores escolares (JER)
 `gestores_escolares`, `gestores_escolares_historico`, `escolas_jer`.
 
@@ -141,7 +183,17 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   `usuario_tem_acesso_modulo`, `usuario_tem_acesso_rota`, `usuario_eh_super_admin`,
   `user_has_unit_access`, `user_context`, `get_my_modules`,
   `get_permissions_from_servidor`, `get_diagnostico_acessos`, `can_approve`,
-  `log_audit`.
+  `log_audit`. **A partir da migração
+  `supabase/migrations/20261006230500_endurece_audit_logs_e_cadastro_arbitros.sql`
+  (ainda não aplicada em remoto)**, `audit_logs` é só de acréscimo: nem `anon`
+  nem `authenticated` (inclusive administrador) inserem direto, alteram ou
+  apagam linhas. Grava-se por `log_audit` (só usuário autenticado e service
+  role; o front usa essa RPC), pelos triggers de auditoria (`SECURITY DEFINER`)
+  e pela service role das Edge Functions. Antes disso, `admin_only_*` permitia
+  ao administrador inserir, alterar e apagar a trilha, e `log_audit` aceitava
+  chamada anônima. A RPC `log_audit` falhava em toda chamada, porque inseria
+  `audit_logs.role_at_time`, coluna que a tabela nunca teve; a migração a cria.
+  `list_public_tables()` passa a ser só da service role.
 - **Folha / RH**: `calcular_inss_servidor`, `calcular_irrf`, `count_dependentes_irrf`,
   `fn_calcular_ferias`, `calcular_horas_trabalhadas`, `fechar_folha`,
   `reabrir_folha`, `usuario_pode_fechar_folha`, `usuario_pode_reabrir_folha`,

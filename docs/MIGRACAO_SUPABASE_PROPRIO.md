@@ -1,5 +1,8 @@
 # Guia de Migração para Supabase Próprio
 
+> **Defasado.** Descreve um banco de 88 tabelas e 62 migrações. Para criar um banco novo e vazio com o
+> schema atual e RLS por módulo, use [NOVO_BANCO.md](./NOVO_BANCO.md).
+
 ## 📋 Visão Geral
 
 Este documento descreve como migrar o sistema IDJuv do Lovable Cloud para um Supabase próprio, garantindo independência total sobre banco de dados, autenticação e permissões.

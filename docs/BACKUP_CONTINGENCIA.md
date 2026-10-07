@@ -86,10 +86,13 @@ Após cada backup, o sistema gera um **manifest** com detalhes completos:
    - Confira `discovery.mode === 'automatic'`
    - Confira `tables.list` para ver todas as tabelas descobertas
 
-4. **Via API (list-tables):**
+4. **Via API (list-tables):** exige a `apiKey` de contingência externa
+   (`BACKUP_EXTERNAL_API_KEY`) ou o JWT de um usuário com papel de backup;
+   sem isso a função responde erro.
    ```bash
    curl -X POST https://tewgloptmijuaychoxnq.supabase.co/functions/v1/backup-offsite \
-     -d '{"action": "list-tables"}'
+     -H "Content-Type: application/json" \
+     -d '{"action": "list-tables", "apiKey": "SUA_API_KEY"}'
    ```
 
    Resposta:
@@ -215,7 +218,7 @@ curl -X POST https://tewgloptmijuaychoxnq.supabase.co/functions/v1/backup-offsit
 ```bash
 curl -X POST https://tewgloptmijuaychoxnq.supabase.co/functions/v1/backup-offsite \
   -H "Content-Type: application/json" \
-  -d '{"action": "list-tables"}'
+  -d '{"action": "list-tables", "apiKey": "SUA_API_KEY"}'
 ```
 
 ---

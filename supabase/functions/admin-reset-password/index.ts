@@ -25,9 +25,13 @@ function buildCors(req: Request) {
 
 function generateTempPassword(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%";
+  // crypto.getRandomValues (e não Math.random): é uma senha de acesso. Descarta valores que
+  // enviesariam a escolha (256 não é múltiplo de chars.length).
+  const limite = 256 - (256 % chars.length);
   let password = "";
-  for (let i = 0; i < 12; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  while (password.length < 12) {
+    const [b] = crypto.getRandomValues(new Uint8Array(1));
+    if (b < limite) password += chars.charAt(b % chars.length);
   }
   return password;
 }
@@ -100,13 +104,10 @@ serve(async (req) => {
       );
     }
 
-    // Autorizar: verificar se tem permissão admin.usuarios via RPC (no contexto do usuário)
+    // Autorizar: só o papel de administrador (is_admin_user) redefine senhas; a permissão admin.usuarios, concedida
+    // por módulo ao papel `user`, deixaria um não-administrador tomar a conta de qualquer usuário.
     const { data: temPermissao, error: permError } = await supabaseClient.rpc(
-      "usuario_tem_permissao",
-      {
-        _user_id: requesterId,
-        _codigo_funcao: "admin.usuarios",
-      }
+      "is_admin_user", { _user_id: requesterId }
     );
 
     if (permError) {

@@ -1,0 +1,7 @@
+# Migrações que NÃO aplicam do zero em banco vazio e por isso rodam instrução a instrução
+# (psql sem --single-transaction, ON_ERROR_STOP=0) na validação. Uma por linha; # comenta.
+#
+# 20260318204856: faz setval(seq, COALESCE(MAX(...), 0), true), inválido quando a tabela está
+# vazia (valor 0 fora do intervalo da sequência). O resto do arquivo (sequência, função
+# gerar_protocolo_arbitro) aplica normalmente. Num banco com dados o setval funciona.
+20260318204856_5b05734e-d62a-4bbb-8687-9582815f1724.sql

@@ -190,20 +190,19 @@ export function useContrachequeDetalhe(fichaId?: string) {
 
 // Hook para registrar log de acesso ao contracheque
 export function useLogAcessoContracheque() {
-  const { user } = useAuth();
-  
   return useMutation({
     mutationFn: async ({ fichaId, acao }: { fichaId: string; acao: 'visualizar' | 'imprimir' }) => {
-      // Registrar no audit_logs
-      const { error } = await supabase.from('audit_logs').insert({
-        action: 'view',
-        entity_type: 'contracheque',
-        entity_id: fichaId,
-        user_id: user?.id,
-        description: acao === 'imprimir' 
-          ? 'Contracheque impresso/baixado' 
+      // Registrar no audit_logs pela RPC: o INSERT direto foi removido e o user_id vem de
+      // auth.uid() no servidor (o conteúdo do log continua informado pelo cliente).
+      const { error } = await supabase.rpc('log_audit', {
+        _action: 'view',
+        _entity_type: 'contracheque',
+        _entity_id: fichaId,
+        _module_name: 'rh',
+        _description: acao === 'imprimir'
+          ? 'Contracheque impresso/baixado'
           : 'Contracheque visualizado',
-        metadata: { acao },
+        _metadata: { acao },
       });
       
       if (error) {
