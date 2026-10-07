@@ -121,7 +121,7 @@ function agruparDados(
   const grupos: Record<string, Record<string, unknown>[]> = {};
 
   dados.forEach((item) => {
-    let chave = String(obterValor(item, agrupamento.campo) || 'Não definido');
+    const chave = String(obterValor(item, agrupamento.campo) || 'Não definido');
     if (!grupos[chave]) grupos[chave] = [];
     grupos[chave].push(item);
   });

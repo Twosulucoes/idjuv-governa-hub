@@ -64,7 +64,7 @@ export function useUsuarios() {
         ?.filter(p => p.servidor_id)
         .map(p => p.servidor_id) || [];
 
-      let servidoresMap: Record<string, any> = {};
+      const servidoresMap: Record<string, any> = {};
       if (servidorIds.length > 0) {
         const { data: servidores } = await supabase
           .from('servidores')
@@ -83,8 +83,8 @@ export function useUsuarios() {
         const cargoIds = servidores?.filter(s => s.cargo_atual_id).map(s => s.cargo_atual_id) || [];
         const unidadeIds = servidores?.filter(s => s.unidade_atual_id).map(s => s.unidade_atual_id) || [];
 
-        let cargosMap: Record<string, string> = {};
-        let unidadesMap: Record<string, string> = {};
+        const cargosMap: Record<string, string> = {};
+        const unidadesMap: Record<string, string> = {};
 
         if (cargoIds.length > 0) {
           const { data: cargos } = await supabase

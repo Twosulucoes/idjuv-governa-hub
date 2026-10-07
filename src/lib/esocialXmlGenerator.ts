@@ -391,7 +391,7 @@ export function criarDetVerbas(
   // Tentar identificar rubrica padrão
   const descricaoUpper = descricao.toUpperCase();
   let codRubr = codigoRubrica || "RBR001";
-  let ideTabRubr = idTabela;
+  const ideTabRubr = idTabela;
 
   if (descricaoUpper.includes("INSS") || descricaoUpper.includes("PREVIDENCIA")) {
     codRubr = RUBRICAS_ESOCIAL.INSS.codRubr;

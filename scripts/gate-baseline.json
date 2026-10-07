@@ -1,1 +1,4 @@
-{ "typecheck": 10, "lint": 701 }
+{
+  "typecheck": 10,
+  "lint": 679
+}

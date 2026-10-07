@@ -252,7 +252,7 @@ export default function DiagnosticoPendenciasServidoresPage() {
 
       // Buscar vencimento dos cargos
       const cargoIdsVinc = [...new Set((vinculosAtivos || []).map(v => v.cargo_id).filter(Boolean))];
-      let cargosVencMap: Record<string, number | null> = {};
+      const cargosVencMap: Record<string, number | null> = {};
       if (cargoIdsVinc.length > 0) {
         const { data: cargosVenc } = await supabase.from("cargos").select("id, vencimento_base").in("id", cargoIdsVinc);
         (cargosVenc || []).forEach(c => { cargosVencMap[c.id] = c.vencimento_base; });

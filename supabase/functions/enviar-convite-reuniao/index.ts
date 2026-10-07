@@ -383,7 +383,7 @@ Contamos com sua presença.
 Atenciosamente,`;
 
     const assuntoFinal = modelo?.assunto || assuntoPadrao;
-    let corpoFinal = mensagem_personalizada || modelo?.conteudo_html || corpoPadrao;
+    const corpoFinal = mensagem_personalizada || modelo?.conteudo_html || corpoPadrao;
 
     const resultados: { participante_id: string; sucesso: boolean; erro?: string; link_whatsapp?: string }[] = [];
 

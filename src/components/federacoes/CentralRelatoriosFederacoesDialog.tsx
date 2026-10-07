@@ -165,7 +165,7 @@ export function CentralRelatoriosFederacoesDialog({
   const dadosOrdenados = useMemo(() => {
     if (!dadosRelatorio?.dados) return [];
     
-    let dados = [...dadosRelatorio.dados];
+    const dados = [...dadosRelatorio.dados];
     
     if (sortColumn) {
       dados.sort((a, b) => {

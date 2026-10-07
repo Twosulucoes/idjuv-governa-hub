@@ -104,7 +104,7 @@ export async function gerarRelatorioCargos98PDF(
   desenharCabecalhoTabela();
 
   // Agrupar por unidade se configurado
-  let dadosOrdenados = [...dados];
+  const dadosOrdenados = [...dados];
   if (agruparPorUnidade) {
     dadosOrdenados.sort((a, b) => {
       const unidadeCompare = (a.unidade_nome || '').localeCompare(b.unidade_nome || '');

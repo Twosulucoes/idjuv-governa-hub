@@ -137,7 +137,7 @@ export async function gerarOrganogramaPDF(data: OrganogramaData): Promise<void> 
     // Calcular largura das caixas baseado na quantidade
     const totalUnidades = unidadesNivel.length;
     const availableWidth = contentWidth - boxSpacing * (totalUnidades - 1);
-    let boxWidth = Math.min(boxMaxWidth, Math.max(boxMinWidth, availableWidth / totalUnidades));
+    const boxWidth = Math.min(boxMaxWidth, Math.max(boxMinWidth, availableWidth / totalUnidades));
     
     // Se não couber, ajustar
     const totalBoxWidth = totalUnidades * boxWidth + (totalUnidades - 1) * boxSpacing;

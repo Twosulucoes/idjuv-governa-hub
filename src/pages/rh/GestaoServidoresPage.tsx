@@ -206,7 +206,7 @@ export default function GestaoServidoresPage() {
 
   // Filter
   const filteredServidores = useMemo(() => {
-    let result = servidores.filter((s) => {
+    const result = servidores.filter((s) => {
       const matchesSearch =
         s.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.cpf?.includes(searchTerm) ||
