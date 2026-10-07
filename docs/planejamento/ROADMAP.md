@@ -15,6 +15,8 @@ Documento vivo, mantido pelo agente `documentador-idjuv`. Fluxo de trabalho: ver
 - _(vazio)_
 
 ## Backlog
+- [ ] **RH — Fase 0/1 (P0):** verificar RLS real e estancar acesso aberto em folha/dados sensíveis — ver [ANALISE_RH.md](./ANALISE_RH.md) §6
+- [ ] RH — Fases 2–7 (higiene, fundação de dados, autoatendimento, carreira, eSocial, seguridade) — ver [ANALISE_RH.md](./ANALISE_RH.md)
 - [ ] Higiene: dívida de typecheck (10) e lint (701) — reduzir e rodar `bash scripts/gate.sh --update-baseline`
 - [ ] Higiene: `package-lock.json` fora de sincronia (`npm ci` falha)
 - [ ] Hardening de RLS pendente (ver `docs/AUDITORIA_USUARIOS.md`, `docs/RLS_USUARIOS_PROPOSTA.sql`)
