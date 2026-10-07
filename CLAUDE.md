@@ -300,7 +300,10 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 
 ## 11. Fluxo de trabalho Git nesta sessão
 
-- Branch de desenvolvimento: **`claude/ooda-project-structure-eID3T`**.
+- Branch de desenvolvimento: a que a sessão indicar (formato `claude/<nome>-<id>`);
+  nunca direto em `main`. Se ela já foi mergeada ou apagada no remoto, recrie-a a
+  partir do `main` atualizado (`git fetch origin main` e avance/recrie a partir de
+  `origin/main`) — não empilhe commits novos sobre histórico já mergeado.
 - Faça commits descritivos e dê push para essa branch (`git push -u origin
   <branch>`). Após o push, abra um Pull Request **draft** se ainda não existir.
 - Repositório GitHub: `twosulucoes/idjuv-governa-hub`.
