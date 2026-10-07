@@ -9,6 +9,14 @@ import type { GestorEscolar, GestorFormData, StatusGestor } from '@/types/gestor
 
 const QUERY_KEY = ['gestores-escolares'];
 
+/**
+ * As RPCs públicas `consultar_gestor_por_cpf` e `registrar_gestor_publico` vêm com o baseline do banco novo
+ * (supabase/baseline/overlay/18_funcoes_rpc.sql) e NÃO existem no banco anterior. Quando faltam, o hook cai
+ * no caminho antigo (leitura/escrita direta na tabela), para o formulário público funcionar nos dois bancos.
+ */
+const rpcAusente = (erro: { code?: string; message?: string } | null): boolean =>
+  !!erro && (erro.code === 'PGRST202' || erro.code === '42883' || /could not find the function|does not exist/i.test(erro.message ?? ''));
+
 export function useGestoresEscolares() {
   const queryClient = useQueryClient();
 
@@ -45,11 +53,24 @@ export function useGestoresEscolares() {
   const buscarPorCpf = async (cpf: string): Promise<GestorEscolar | null> => {
     const cpfLimpo = cpf.replace(/\D/g, '');
     
-    // RPC pública: devolve só id, nome, status e nome da escola (a leitura anônima da tabela foi fechada).
+    // RPC pública: devolve só id, nome, status e nome da escola (no banco novo a leitura anônima da tabela é fechada).
     const { data, error } = await supabase.rpc('consultar_gestor_por_cpf' as never, { p_cpf: cpfLimpo } as never);
 
-    if (error) throw error;
-    return (data as unknown as GestorEscolar | null) ?? null;
+    if (!error) return (data as unknown as GestorEscolar | null) ?? null;
+    if (!rpcAusente(error)) throw error;
+
+    // Banco anterior, sem a RPC: leitura direta, como antes.
+    const { data: legado, error: erroLegado } = await supabase
+      .from('gestores_escolares')
+      .select(`
+        *,
+        escola:escolas_jer(*)
+      `)
+      .eq('cpf', cpfLimpo)
+      .maybeSingle();
+
+    if (erroLegado) throw erroLegado;
+    return legado as GestorEscolar | null;
   };
 
   // Criar pré-cadastro (público)
@@ -71,9 +92,37 @@ export function useGestoresEscolares() {
         p_endereco: dados.endereco?.trim() || null,
       } as never);
 
-      if (error) throw error;
+      if (!error) return data as unknown as GestorEscolar;
+      if (!rpcAusente(error)) throw error;
 
-      return data as unknown as GestorEscolar;
+      // Banco anterior, sem a RPC: INSERT direto e marcação da escola, como antes.
+      const { data: legado, error: erroLegado } = await supabase
+        .from('gestores_escolares')
+        .insert({
+          escola_id: dados.escola_id,
+          nome: dados.nome.toUpperCase().trim(),
+          cpf: cpfLimpo,
+          rg: dados.rg?.trim() || null,
+          data_nascimento: dados.data_nascimento || null,
+          email: dados.email.toLowerCase().trim(),
+          celular: celularLimpo,
+          endereco: dados.endereco?.trim() || null,
+          status: 'aguardando' as StatusGestor,
+        })
+        .select(`
+          *,
+          escola:escolas_jer(*)
+        `)
+        .single();
+
+      if (erroLegado) throw erroLegado;
+
+      await supabase
+        .from('escolas_jer')
+        .update({ ja_cadastrada: true })
+        .eq('id', dados.escola_id);
+
+      return legado as GestorEscolar;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
