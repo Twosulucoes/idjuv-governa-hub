@@ -18,8 +18,12 @@ async function fetchRHStats(): Promise<RHStats> {
 
   const [servidoresAtivos, emFerias, viagensPendentes, frequenciaData] = await Promise.all([
     countQuery("servidores", { situacao: "ativo" }),
-    countQuery("ferias_servidor", { status: "fruindo" }),
-    countQuery("processos_administrativos", { tipo_processo: "diarias", status: "aberto" }),
+    // Status válidos de ferias_servidor (CHECK no banco): programada, em_gozo,
+    // concluida, interrompida, cancelada — "fruindo" não existe e contava 0.
+    countQuery("ferias_servidor", { status: "em_gozo" }),
+    // A tela /rh/viagens grava em viagens_diarias; "pendente" = solicitada e
+    // ainda não autorizada (status do CHECK: solicitada, autorizada, ...).
+    countQuery("viagens_diarias", { status: "solicitada" }),
     selectQuery<{ percentual_presenca: number | null }>(
       "frequencia_mensal",
       "percentual_presenca",
