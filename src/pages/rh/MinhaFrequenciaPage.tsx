@@ -26,6 +26,7 @@ import {
 } from "@/hooks/useParametrizacoesFrequencia";
 import { MESES } from "@/types/folha";
 import { STATUS_FECHAMENTO_LABELS } from "@/types/frequencia";
+import { lancamentoBloqueado } from "@/lib/frequenciaFluxo";
 import { SolicitarAbonoDialog } from "@/components/frequencia/SolicitarAbonoDialog";
 import { MinhasSolicitacoesAbonoTable } from "@/components/frequencia/MinhasSolicitacoesAbonoTable";
 
@@ -67,12 +68,13 @@ export default function MinhaFrequenciaPage() {
   const { data: configFechamento } = useConfigFechamento(ano, mes);
   const { data: solicitacoes = [], isLoading: loadingSolicitacoes } = useSolicitacoesAbono({
     servidorId: servidor?.id,
+    enabled: !!servidor?.id,
   });
   const salvarSolicitacao = useSalvarSolicitacaoAbono();
 
   const anos = Array.from({ length: 3 }, (_, i) => anoAtual - i);
   const competencia = `${MESES[mes - 1]}/${ano}`;
-  const consolidada = configFechamento?.status === "consolidado" || (!!fechamento?.consolidado_rh && !fechamento.reaberto);
+  const consolidada = lancamentoBloqueado(configFechamento?.status, fechamento).bloqueado;
 
   if (isLoading) {
     return (

@@ -33,9 +33,9 @@ export function abonoEmAberto(s: Pick<SolicitacaoAbono, "status">): boolean {
   return STATUS_ABONO_EM_ABERTO.includes(s.status);
 }
 
-/** Chefia só decide o que ainda está pendente. */
-export function podeAprovarChefia(s: Pick<SolicitacaoAbono, "status">): boolean {
-  return s.status === "pendente";
+/** Chefia só decide o que ainda está pendente — e só quando o tipo de abono exige a chefia. */
+export function podeAprovarChefia(s: Pick<SolicitacaoAbono, "status" | "tipo_abono">): boolean {
+  return s.status === "pendente" && s.tipo_abono?.exige_aprovacao_chefia !== false;
 }
 
 /**
@@ -105,10 +105,9 @@ export function lancamentoBloqueado(
   return { bloqueado: false };
 }
 
-/** Chefia valida enquanto não validou — ou de novo após reabertura. */
+/** Chefia valida enquanto não validou (a reabertura zera a validação, então o ciclo recomeça). */
 export function podeValidarChefia(f: FechamentoFlags | null | undefined): boolean {
-  if (!f) return true;
-  return !f.validado_chefia || !!f.reaberto;
+  return !f || !f.validado_chefia;
 }
 
 /** RH consolida depois da chefia; se já consolidou, só após reabrir. */
@@ -117,11 +116,27 @@ export function podeConsolidarRH(f: FechamentoFlags | null | undefined): boolean
   return !f.consolidado_rh || !!f.reaberto;
 }
 
+export interface RegrasReabertura {
+  /** `config_fechamento_frequencia.permite_reabertura` (null/undefined = permite). */
+  permiteReabertura?: boolean | null;
+  /** `config_fechamento_frequencia.prazo_reabertura_dias` contados da consolidação (0/null = sem prazo). */
+  prazoDias?: number | null;
+}
+
+const MS_POR_DIA = 86_400_000;
+
+/** Reabre só o consolidado e não reaberto, se a config permite e dentro do prazo (quando houver). */
 export function podeReabrir(
-  f: FechamentoFlags | null | undefined,
-  permiteReabertura: boolean | null | undefined = true,
+  f: (FechamentoFlags & Pick<FrequenciaFechamento, "consolidado_rh_em">) | null | undefined,
+  regras: RegrasReabertura = {},
+  hoje: Date = new Date(),
 ): boolean {
-  return permiteReabertura !== false && fechamentoTravado(f);
+  if (regras.permiteReabertura === false || !fechamentoTravado(f)) return false;
+  if (regras.prazoDias && f.consolidado_rh_em) {
+    const dias = (hoje.getTime() - new Date(f.consolidado_rh_em).getTime()) / MS_POR_DIA;
+    if (dias > regras.prazoDias) return false;
+  }
+  return true;
 }
 
 export interface SituacaoFechamentoCompetencia {

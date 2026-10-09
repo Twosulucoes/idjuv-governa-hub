@@ -112,15 +112,29 @@ não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos 
 
 ### Frequência: validação e autoatendimento
 
-- `/rh/frequencia/validacao` (`ValidacaoFrequenciaPage`) exige `rh.frequencia.lancar`
-  (`ROUTE_PERMISSIONS` e `ProtectedRoute`); no menu o item usa `rh.aprovar`. Não há
-  permissão fina `rh.frequencia.validar/consolidar` no catálogo.
-- `/rh/minha-frequencia` (`MinhaFrequenciaPage`) só exige login, como `/rh/meus-dados`:
-  a RLS de `solicitacoes_abono`, `frequencia_fechamento` e `frequencia_mensal` filtra pelo
-  servidor do usuário (`meu_servidor_id()`).
-- UPDATE em `solicitacoes_abono` e `frequencia_fechamento` é permitido pela RLS só a quem
-  tem o módulo `rh`: a chefia sem o módulo vê a tela, mas o banco recusa a ação (policies
-  da chefia ficam para outra entrega).
+- `/rh/frequencia/validacao` (`ValidacaoFrequenciaPage`) abre para quem tem `rh.aprovar` **ou**
+  `rh.frequencia.lancar` (rota, `ROUTE_PERMISSIONS` e item de menu com `permissions`). Dentro da
+  página, a etapa da chefia (aprovar abono, validar fechamento) aparece só com `rh.aprovar`; as
+  etapas do RH (aprovar como RH, consolidar, reabrir) só com `rh.frequencia.lancar`; fechar a
+  competência só com `rh.frequencia.configurar` (mesma permissão de `/rh/frequencia/configuracao`).
+  Ninguém decide sobre a própria solicitação nem sobre o próprio fechamento (comparação com o
+  servidor vinculado ao usuário, `useMeuServidor`). Não há permissão fina
+  `rh.frequencia.validar/consolidar` no catálogo.
+- **Essa separação por papel e a trava de auto-aprovação existem só no front.** A RLS de
+  `solicitacoes_abono`, `frequencia_fechamento` e `config_fechamento_frequencia` libera UPDATE/INSERT
+  para qualquer usuário com o módulo `rh` (`can_access_module`), sem checar etapa, chefia, própria
+  linha nem `permite_reabertura`. Quem tem o módulo consegue, pela API, aprovar o próprio abono,
+  pular a chefia ou fechar a competência. A chefia **sem** o módulo vê a tela, mas o banco recusa
+  a ação. Pendência registrada para a migração de RLS: `is_chefia_de(servidor_id)`,
+  `servidor_id <> meu_servidor_id()` e `usuario_tem_permissao('rh.frequencia.configurar')` em
+  `config_fechamento_frequencia` (ver spec `docs/superpowers/specs/2026-10-09-fluxo-frequencia-design.md`).
+- `/rh/minha-frequencia` (`MinhaFrequenciaPage`) só exige login, como `/rh/meus-dados`. As
+  queries são filtradas pelo `servidores.user_id = auth.uid()` e a RLS de `solicitacoes_abono`,
+  `frequencia_fechamento` e `frequencia_mensal` tem a cláusula própria (`meu_servidor_id()`).
+  Porém a leitura de `servidores` hoje só é liberada a quem tem o módulo `rh`, então na prática
+  o autoatendimento funciona só para esse perfil — e para ele a cláusula própria não é barreira.
+  Mesma dívida de `/rh/meus-dados`: policy de leitura da própria linha em `servidores` e
+  alinhamento `profiles.servidor_id` ↔ `servidores.user_id` (migração de RLS).
 
 ## Enforcement de rota (`ProtectedRoute`)
 

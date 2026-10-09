@@ -14,6 +14,20 @@ Data: 2026-10-09 · Módulo: `rh` · Classificação: architectural (rotas e pá
 4. Permissões finas (`rh.frequencia.validar/consolidar`) não existem no catálogo; a página de validação usa
    `rh.frequencia.lancar` por ora. Catálogo é seed no banco (fora da Onda C).
 5. Fechamento da competência é feito no front em lote (N upserts); atomicidade só com RPC (Onda B/D).
+6. **Separação por papel só no front** (revisão de segurança): rota aberta a `rh.aprovar` ou
+   `rh.frequencia.lancar`; etapa da chefia com `rh.aprovar`, etapas do RH com `rh.frequencia.lancar`,
+   fechar competência com `rh.frequencia.configurar`; ninguém age sobre a própria solicitação/fechamento.
+   O banco não checa nada disso para quem tem o módulo `rh` — fica para a migração de RLS da Onda B:
+   `is_chefia_de(servidor_id)`, `servidor_id <> meu_servidor_id()` nas policies de UPDATE de
+   `solicitacoes_abono`/`frequencia_fechamento`, permissão `configurar` em `config_fechamento_frequencia`,
+   e trigger em `registros_ponto` recusando lançamento em competência consolidada (hoje o guard-rail é só cliente).
+7. **Autoatendimento depende da leitura de `servidores`**: a policy de SELECT só libera o módulo `rh`, então
+   `useMeuServidor` devolve `null` para quem não tem o módulo e a página mostra "não vinculado". A policy de
+   linha própria em `servidores` (e o alinhamento `profiles.servidor_id` ↔ `servidores.user_id`) entra na
+   mesma migração.
+8. **Reabrir recomeça o ciclo**: `useReabrirFrequencia` zera `validado_chefia` e `consolidado_rh` (a chefia
+   revalida, o RH reconsolida e aí `reaberto` volta a `false`). `prazo_reabertura_dias` da config é
+   respeitado no front (`podeReabrir`); `reabertura_exige_justificativa` é tratado como sempre obrigatório.
 
 ## O que já existe (evidência)
 
@@ -38,7 +52,7 @@ Data: 2026-10-09 · Módulo: `rh` · Classificação: architectural (rotas e pá
 | Rota | Página | Guard | Menu |
 |---|---|---|---|
 | `/rh/minha-frequencia` | `MinhaFrequenciaPage` | `<ProtectedRoute>` (autoatendimento, como `/rh/meus-dados`) | junto a "Meus Dados" (`rh.self`) |
-| `/rh/frequencia/validacao` | `ValidacaoFrequenciaPage` | `requiredPermissions="rh.frequencia.lancar"` | submenu Frequência, "Validação e fechamento" |
+| `/rh/frequencia/validacao` | `ValidacaoFrequenciaPage` | `requiredPermissions={["rh.aprovar", "rh.frequencia.lancar"]}` (qualquer uma) | submenu Frequência, "Validação e Fechamento" (`permissions` com as mesmas duas) |
 
 `ROUTE_PERMISSIONS` (`src/types/auth.ts`) ganha `/rh/frequencia/validacao`.
 

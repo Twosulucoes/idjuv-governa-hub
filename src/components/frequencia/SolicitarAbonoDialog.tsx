@@ -6,6 +6,7 @@
  */
 
 import { useEffect } from "react";
+import { format } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -67,7 +68,7 @@ export function SolicitarAbonoDialog({
     const hoje = new Date();
     const mesmaCompetencia = hoje.getFullYear() === ano && hoje.getMonth() + 1 === mes;
     const dataSugerida = mesmaCompetencia
-      ? hoje.toISOString().slice(0, 10)
+      ? format(hoje, "yyyy-MM-dd")
       : `${ano}-${String(mes).padStart(2, "0")}-01`;
     form.reset({
       tipo_abono_id: "",

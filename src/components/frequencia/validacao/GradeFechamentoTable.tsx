@@ -4,6 +4,8 @@
  *
  * Regras em @/lib/frequenciaFluxo: chefia valida o que ainda não validou (ou o reaberto);
  * RH consolida depois da chefia; reabrir só o consolidado e sempre com justificativa.
+ * Etapa da chefia só com `podeChefia`, etapas do RH só com `podeRH`; ninguém mexe no
+ * próprio fechamento (`meuServidorId`).
  */
 
 import { useState } from "react";
@@ -23,7 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, Users, CheckCircle, Circle, UserCheck, ShieldCheck, Unlock } from "lucide-react";
 import type { FrequenciaFechamento } from "@/types/frequencia";
-import { podeConsolidarRH, podeReabrir, podeValidarChefia } from "@/lib/frequenciaFluxo";
+import { podeConsolidarRH, podeReabrir, podeValidarChefia, type RegrasReabertura } from "@/lib/frequenciaFluxo";
 
 export interface LinhaFechamento {
   servidor_id: string;
@@ -38,7 +40,11 @@ interface GradeFechamentoTableProps {
   linhas: LinhaFechamento[];
   isLoading?: boolean;
   processando?: boolean;
-  permiteReabertura?: boolean;
+  regrasReabertura?: RegrasReabertura;
+  /** Servidor vinculado ao usuário logado: a própria linha não tem ações nem seleção. */
+  meuServidorId?: string;
+  podeChefia?: boolean;
+  podeRH?: boolean;
   selecionados: string[];
   onSelecionadosChange: (ids: string[]) => void;
   onValidarChefia: (servidorId: string) => void;
@@ -61,7 +67,10 @@ export function GradeFechamentoTable({
   linhas,
   isLoading,
   processando,
-  permiteReabertura = true,
+  regrasReabertura,
+  meuServidorId,
+  podeChefia = false,
+  podeRH = false,
   selecionados,
   onSelecionadosChange,
   onValidarChefia,
@@ -71,7 +80,10 @@ export function GradeFechamentoTable({
   const [reabrindo, setReabrindo] = useState<LinhaFechamento | null>(null);
   const [justificativa, setJustificativa] = useState("");
 
-  const consolidaveis = linhas.filter((l) => podeConsolidarRH(l.fechamento)).map((l) => l.servidor_id);
+  const ehPropria = (l: LinhaFechamento) => !!meuServidorId && l.servidor_id === meuServidorId;
+  const consolidaveis = linhas
+    .filter((l) => podeRH && !ehPropria(l) && podeConsolidarRH(l.fechamento))
+    .map((l) => l.servidor_id);
   const todosSelecionados = consolidaveis.length > 0 && consolidaveis.every((id) => selecionados.includes(id));
 
   const alternarTodos = (marcar: boolean) => onSelecionadosChange(marcar ? consolidaveis : []);
@@ -80,9 +92,13 @@ export function GradeFechamentoTable({
 
   const confirmarReabertura = async () => {
     if (!reabrindo || justificativa.trim().length < 5) return;
-    await onReabrir(reabrindo.servidor_id, justificativa.trim());
-    setReabrindo(null);
-    setJustificativa("");
+    try {
+      await onReabrir(reabrindo.servidor_id, justificativa.trim());
+      setReabrindo(null);
+      setJustificativa("");
+    } catch {
+      // toast já emitido pelo hook; o diálogo fica aberto para nova tentativa
+    }
   };
 
   if (isLoading) {
@@ -128,7 +144,8 @@ export function GradeFechamentoTable({
           <TableBody>
             {linhas.map((l) => {
               const f = l.fechamento;
-              const consolidavel = podeConsolidarRH(f);
+              const propria = ehPropria(l);
+              const consolidavel = consolidaveis.includes(l.servidor_id);
               return (
                 <TableRow key={l.servidor_id}>
                   <TableCell>
@@ -163,8 +180,11 @@ export function GradeFechamentoTable({
                     )}
                   </TableCell>
                   <TableCell className="text-right">
+                    {propria ? (
+                      <span className="text-xs text-muted-foreground">Seu próprio fechamento</span>
+                    ) : (
                     <div className="flex justify-end gap-1 flex-wrap">
-                      {podeValidarChefia(f) && (
+                      {podeChefia && podeValidarChefia(f) && (
                         <Button size="sm" variant="outline" disabled={processando} onClick={() => onValidarChefia(l.servidor_id)}>
                           <UserCheck className="mr-1 h-4 w-4" />
                           Validar (chefia)
@@ -176,13 +196,14 @@ export function GradeFechamentoTable({
                           Consolidar (RH)
                         </Button>
                       )}
-                      {podeReabrir(f, permiteReabertura) && (
+                      {podeRH && podeReabrir(f, regrasReabertura) && (
                         <Button size="sm" variant="ghost" disabled={processando} onClick={() => setReabrindo(l)}>
                           <Unlock className="mr-1 h-4 w-4" />
                           Reabrir
                         </Button>
                       )}
                     </div>
+                    )}
                   </TableCell>
                 </TableRow>
               );

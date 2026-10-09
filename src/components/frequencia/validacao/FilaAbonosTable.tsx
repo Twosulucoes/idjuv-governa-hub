@@ -4,6 +4,9 @@
  * Encadeamento (regras em @/lib/frequenciaFluxo): chefia aprova o pendente;
  * RH aprova depois da chefia (ou direto, se o tipo de abono dispensa a chefia);
  * rejeitar exige motivo. A RLS hoje só permite UPDATE a quem tem o módulo RH.
+ *
+ * Quem age: etapa da chefia só com `podeChefia` (rh.aprovar), etapa do RH só com
+ * `podeRH` (rh.frequencia.lancar). Ninguém decide sobre a própria solicitação.
  */
 
 import { useState } from "react";
@@ -28,6 +31,10 @@ interface FilaAbonosTableProps {
   solicitacoes: SolicitacaoAbono[];
   isLoading?: boolean;
   processando?: boolean;
+  /** Servidor vinculado ao usuário logado: a própria solicitação não tem ações. */
+  meuServidorId?: string;
+  podeChefia?: boolean;
+  podeRH?: boolean;
   onAprovarChefia: (s: SolicitacaoAbono, encerra: boolean) => void;
   onAprovarRH: (s: SolicitacaoAbono) => void;
   onRejeitar: (s: SolicitacaoAbono, motivo: string) => Promise<unknown>;
@@ -37,6 +44,9 @@ export function FilaAbonosTable({
   solicitacoes,
   isLoading,
   processando,
+  meuServidorId,
+  podeChefia = false,
+  podeRH = false,
   onAprovarChefia,
   onAprovarRH,
   onRejeitar,
@@ -46,9 +56,13 @@ export function FilaAbonosTable({
 
   const confirmarRejeicao = async () => {
     if (!rejeitando || motivo.trim().length < 5) return;
-    await onRejeitar(rejeitando, motivo.trim());
-    setRejeitando(null);
-    setMotivo("");
+    try {
+      await onRejeitar(rejeitando, motivo.trim());
+      setRejeitando(null);
+      setMotivo("");
+    } catch {
+      // toast já emitido pelo hook; o diálogo fica aberto para nova tentativa
+    }
   };
 
   if (isLoading) {
@@ -86,6 +100,7 @@ export function FilaAbonosTable({
           <TableBody>
             {solicitacoes.map((s) => {
               const encerraNaChefia = chefiaEncerraFluxo(s);
+              const propria = !!meuServidorId && s.servidor_id === meuServidorId;
               return (
                 <TableRow key={s.id}>
                   <TableCell>
@@ -121,8 +136,11 @@ export function FilaAbonosTable({
                     <StatusAbonoBadge status={s.status} />
                   </TableCell>
                   <TableCell className="text-right">
+                    {propria ? (
+                      <span className="text-xs text-muted-foreground">Sua própria solicitação</span>
+                    ) : (
                     <div className="flex justify-end gap-1 flex-wrap">
-                      {podeAprovarChefia(s) && (
+                      {podeChefia && podeAprovarChefia(s) && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -134,13 +152,13 @@ export function FilaAbonosTable({
                           Aprovar (chefia)
                         </Button>
                       )}
-                      {podeAprovarRH(s) && (
+                      {podeRH && podeAprovarRH(s) && (
                         <Button size="sm" disabled={processando} onClick={() => onAprovarRH(s)}>
                           <ShieldCheck className="mr-1 h-4 w-4" />
                           Aprovar (RH)
                         </Button>
                       )}
-                      {podeRejeitar(s) && (
+                      {(podeChefia || podeRH) && podeRejeitar(s) && (
                         <Button
                           size="sm"
                           variant="ghost"
@@ -153,6 +171,7 @@ export function FilaAbonosTable({
                         </Button>
                       )}
                     </div>
+                    )}
                   </TableCell>
                 </TableRow>
               );

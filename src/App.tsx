@@ -866,7 +866,7 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/rh/frequencia/validacao" element={
-                <ProtectedRoute requiredPermissions="rh.frequencia.lancar">
+                <ProtectedRoute requiredPermissions={["rh.aprovar", "rh.frequencia.lancar"]}>
                   <ValidacaoFrequenciaPage />
                 </ProtectedRoute>
               } />

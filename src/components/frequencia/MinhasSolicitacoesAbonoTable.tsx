@@ -76,7 +76,7 @@ export function MinhasSolicitacoesAbonoTable({ solicitacoes, isLoading }: Minhas
                 <StatusAbonoBadge status={s.status} />
               </TableCell>
               <TableCell className="whitespace-nowrap text-muted-foreground">
-                {s.created_at ? formatDateBR(s.created_at.slice(0, 10)) : "-"}
+                {s.created_at ? formatDateBR(s.created_at) : "-"}
               </TableCell>
             </TableRow>
           ))}

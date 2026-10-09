@@ -526,21 +526,26 @@ export interface FiltrosSolicitacoesAbono {
   status?: StatusSolicitacaoAbono | StatusSolicitacaoAbono[];
   /** Filtra pela unidade atual do servidor (servidores.unidade_atual_id). */
   unidadeId?: string;
+  /** Desliga a query enquanto um filtro obrigatório ainda não carregou (ex.: servidorId). */
+  enabled?: boolean;
 }
 
 export function useSolicitacoesAbono(filtros: FiltrosSolicitacoesAbono = {}) {
-  const { servidorId, status, unidadeId } = filtros;
+  const { servidorId, status, unidadeId, enabled = true } = filtros;
   const statusKey = Array.isArray(status) ? status.join(",") : status;
 
   return useQuery({
     queryKey: ["solicitacoes-abono", servidorId ?? null, statusKey ?? null, unidadeId ?? null],
+    enabled,
     queryFn: async () => {
-      // `!inner` para o filtro de unidade valer sobre a solicitação, não só sobre o embed
+      // `!inner` só com filtro de unidade: ele faz o filtro valer sobre a solicitação, mas também
+      // descarta a linha quando a RLS de `servidores` esconde o embed (caso do servidor sem módulo RH).
+      const embedServidor = `servidor:servidor_id${unidadeId ? "!inner" : ""}(nome_completo, matricula, unidade_atual_id, unidade:unidade_atual_id(nome, sigla))`;
       let query = supabase
         .from("solicitacoes_abono")
         .select(`
           *,
-          servidor:servidor_id!inner(nome_completo, matricula, unidade_atual_id, unidade:unidade_atual_id(nome, sigla)),
+          ${embedServidor},
           tipo_abono:tipo_abono_id(*)
         `)
         .order("created_at", { ascending: false });
@@ -733,7 +738,7 @@ export function useAssinarFrequencia() {
       queryClient.invalidateQueries({ 
         queryKey: ["frequencia-fechamento", data.servidor_id, data.ano, data.mes] 
       });
-      queryClient.invalidateQueries({ queryKey: ["frequencia-fechamentos", data.ano, data.mes] });
+      queryClient.invalidateQueries({ queryKey: ["frequencia-fechamento", "competencia", data.ano, data.mes] });
       toast.success("Frequência assinada com sucesso!");
     },
     onError: (error) => {
@@ -779,7 +784,7 @@ export function useValidarFrequenciaChefia() {
       queryClient.invalidateQueries({ 
         queryKey: ["frequencia-fechamento", data.servidor_id, data.ano, data.mes] 
       });
-      queryClient.invalidateQueries({ queryKey: ["frequencia-fechamentos", data.ano, data.mes] });
+      queryClient.invalidateQueries({ queryKey: ["frequencia-fechamento", "competencia", data.ano, data.mes] });
       toast.success("Frequência validada pela chefia!");
     },
     onError: (error) => {
@@ -826,7 +831,7 @@ export function useConsolidarFrequenciaRH() {
       queryClient.invalidateQueries({ 
         queryKey: ["frequencia-fechamento", data.servidor_id, data.ano, data.mes] 
       });
-      queryClient.invalidateQueries({ queryKey: ["frequencia-fechamentos", data.ano, data.mes] });
+      queryClient.invalidateQueries({ queryKey: ["frequencia-fechamento", "competencia", data.ano, data.mes] });
       toast.success("Frequência consolidada pelo RH!");
     },
     onError: (error) => {
@@ -843,7 +848,7 @@ export function useConsolidarFrequenciaRH() {
 /** Fechamentos individuais da competência, com o servidor embutido. */
 export function useFechamentosCompetencia(ano: number, mes: number) {
   return useQuery({
-    queryKey: ["frequencia-fechamentos", ano, mes],
+    queryKey: ["frequencia-fechamento", "competencia", ano, mes],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("frequencia_fechamento")
@@ -891,7 +896,7 @@ export function useConsolidarFrequenciaLote() {
       return data;
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["frequencia-fechamentos", variables.ano, variables.mes] });
+      queryClient.invalidateQueries({ queryKey: ["frequencia-fechamento", "competencia", variables.ano, variables.mes] });
       queryClient.invalidateQueries({ queryKey: ["frequencia-fechamento"] });
       toast.success(`${variables.servidorIds.length} frequência(s) consolidada(s) pelo RH.`);
     },
@@ -922,6 +927,7 @@ export function useReabrirFrequencia() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
+      // Reabrir recomeça o ciclo: chefia valida de novo e o RH reconsolida (que zera `reaberto`).
       const { data, error } = await supabase
         .from("frequencia_fechamento")
         .update({
@@ -929,6 +935,12 @@ export function useReabrirFrequencia() {
           reaberto_por: user.id,
           reaberto_em: new Date().toISOString(),
           justificativa_reabertura: justificativa.trim(),
+          validado_chefia: false,
+          validado_chefia_por: null,
+          validado_chefia_em: null,
+          consolidado_rh: false,
+          consolidado_rh_por: null,
+          consolidado_rh_em: null,
         })
         .eq("servidor_id", servidorId)
         .eq("ano", ano)
@@ -941,7 +953,7 @@ export function useReabrirFrequencia() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["frequencia-fechamento", data.servidor_id, data.ano, data.mes] });
-      queryClient.invalidateQueries({ queryKey: ["frequencia-fechamentos", data.ano, data.mes] });
+      queryClient.invalidateQueries({ queryKey: ["frequencia-fechamento", "competencia", data.ano, data.mes] });
       toast.success("Frequência reaberta.");
     },
     onError: (error) => {

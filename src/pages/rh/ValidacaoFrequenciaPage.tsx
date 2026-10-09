@@ -5,8 +5,11 @@
  * Aba "Fechamento": grade servidor × etapas com validação da chefia, consolidação do RH
  * (por linha ou em lote), reabertura com justificativa e fechamento da competência.
  *
- * Premissa da spec: a RLS de hoje só deixa quem tem o módulo RH atualizar; a chefia sem
- * o módulo enxerga a tela mas o banco recusa a ação (policies da chefia ficam para a Onda B).
+ * Quem faz o quê (só no front, até a Onda B levar isso para a RLS): etapa da chefia com
+ * `rh.aprovar`, etapas do RH com `rh.frequencia.lancar`, fechar a competência com
+ * `rh.frequencia.configurar`; ninguém decide sobre a própria solicitação/fechamento.
+ * A RLS de hoje só deixa quem tem o módulo RH atualizar; a chefia sem o módulo enxerga a
+ * tela mas o banco recusa a ação.
  */
 
 import { useCallback, useMemo, useState } from "react";
@@ -18,6 +21,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClipboardCheck, Search, Lock, ShieldCheck, Inbox, Users } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useMeuServidor } from "@/hooks/useMeusDados";
 import { useFrequenciaResumo } from "@/hooks/useFrequencia";
 import {
   useAprovarSolicitacaoAbono,
@@ -54,7 +59,8 @@ const MINHA_EQUIPE = "equipe";
 const EM_ABERTO = "em_aberto";
 const TODOS_STATUS = "todos";
 
-const STATUS_OPCOES: StatusSolicitacaoAbono[] = ["pendente", "aprovado_chefia", "aprovado", "rejeitado", "cancelado"];
+// `aprovado_rh` existe no CHECK do banco (registros legados); nenhum hook grava esse valor hoje.
+const STATUS_OPCOES: StatusSolicitacaoAbono[] = ["pendente", "aprovado_chefia", "aprovado_rh", "aprovado", "rejeitado", "cancelado"];
 
 export default function ValidacaoFrequenciaPage() {
   const anoAtual = new Date().getFullYear();
@@ -66,6 +72,15 @@ export default function ValidacaoFrequenciaPage() {
   const [busca, setBusca] = useState("");
   const [selecionados, setSelecionados] = useState<string[]>([]);
   const [abrirFechar, setAbrirFechar] = useState(false);
+
+  // Quem está logado e o que pode fazer (ver cabeçalho do arquivo)
+  const { hasPermission } = useAuth();
+  const { data: meuServidor } = useMeuServidor();
+  const meuServidorId = meuServidor?.id;
+  const podeChefia = hasPermission("rh.aprovar");
+  const podeRH = hasPermission("rh.frequencia.lancar");
+  const podeFecharCompetencia = hasPermission("rh.frequencia.configurar");
+  const ehProprio = (servidorId: string) => !!meuServidorId && servidorId === meuServidorId;
 
   // Dados
   const { data: resumo = [], isLoading: loadingResumo } = useFrequenciaResumo(ano, mes);
@@ -159,25 +174,51 @@ export default function ValidacaoFrequenciaPage() {
 
   const competenciaConsolidada = configFechamento?.status === "consolidado";
 
-  // Handlers
-  const handleAprovarChefia = (s: SolicitacaoAbono, encerra: boolean) =>
+  // Handlers — as tabelas já escondem as ações indevidas; a checagem aqui é a segunda barreira
+  // (erros de RLS viram toast no hook; o catch evita a rejeição não tratada)
+  const handleAprovarChefia = (s: SolicitacaoAbono, encerra: boolean) => {
+    if (!podeChefia || ehProprio(s.servidor_id)) return;
     aprovar.mutate({ id: s.id, nivel: "chefia", encerra });
-  const handleAprovarRH = (s: SolicitacaoAbono) => aprovar.mutate({ id: s.id, nivel: "rh" });
-  const handleRejeitar = (s: SolicitacaoAbono, motivo: string) => rejeitar.mutateAsync({ id: s.id, motivo });
-  const handleValidarChefia = (servidorId: string) => validarChefia.mutate({ servidor_id: servidorId, ano, mes });
+  };
+  const handleAprovarRH = (s: SolicitacaoAbono) => {
+    if (!podeRH || ehProprio(s.servidor_id)) return;
+    aprovar.mutate({ id: s.id, nivel: "rh" });
+  };
+  const handleRejeitar = (s: SolicitacaoAbono, motivo: string) => {
+    if (!(podeChefia || podeRH) || ehProprio(s.servidor_id)) return Promise.resolve();
+    return rejeitar.mutateAsync({ id: s.id, motivo });
+  };
+  const handleValidarChefia = (servidorId: string) => {
+    if (!podeChefia || ehProprio(servidorId)) return;
+    validarChefia.mutate({ servidor_id: servidorId, ano, mes });
+  };
   const handleConsolidarRH = (servidorId: string) => {
+    if (!podeRH || ehProprio(servidorId)) return;
     consolidarRH.mutate({ servidor_id: servidorId, ano, mes });
     setSelecionados((prev) => prev.filter((id) => id !== servidorId));
   };
   const handleConsolidarLote = async () => {
-    await consolidarLote.mutateAsync({ servidorIds: selecionados, ano, mes });
-    setSelecionados([]);
+    const ids = selecionados.filter((id) => !ehProprio(id));
+    if (!podeRH || ids.length === 0) return;
+    try {
+      await consolidarLote.mutateAsync({ servidorIds: ids, ano, mes });
+      setSelecionados([]);
+    } catch {
+      // toast já emitido pelo hook
+    }
   };
-  const handleReabrir = (servidorId: string, justificativa: string) =>
-    reabrir.mutateAsync({ servidorId, ano, mes, justificativa });
+  const handleReabrir = (servidorId: string, justificativa: string) => {
+    if (!podeRH || ehProprio(servidorId)) return Promise.resolve();
+    return reabrir.mutateAsync({ servidorId, ano, mes, justificativa });
+  };
   const handleFecharCompetencia = async () => {
-    await fecharCompetencia.mutateAsync({ ano, mes });
-    setAbrirFechar(false);
+    if (!podeFecharCompetencia) return;
+    try {
+      await fecharCompetencia.mutateAsync({ ano, mes });
+      setAbrirFechar(false);
+    } catch {
+      // toast já emitido pelo hook
+    }
   };
 
   return (
@@ -331,6 +372,9 @@ export default function ValidacaoFrequenciaPage() {
                   solicitacoes={filaFiltrada}
                   isLoading={loadingFila}
                   processando={processando}
+                  meuServidorId={meuServidorId}
+                  podeChefia={podeChefia}
+                  podeRH={podeRH}
                   onAprovarChefia={handleAprovarChefia}
                   onAprovarRH={handleAprovarRH}
                   onRejeitar={handleRejeitar}
@@ -350,18 +394,22 @@ export default function ValidacaoFrequenciaPage() {
                     </CardDescription>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      disabled={selecionados.length === 0 || processando}
-                      onClick={handleConsolidarLote}
-                    >
-                      <ShieldCheck className="mr-2 h-4 w-4" />
-                      Consolidar selecionados ({selecionados.length})
-                    </Button>
-                    <Button disabled={competenciaConsolidada || processando} onClick={() => setAbrirFechar(true)}>
-                      <Lock className="mr-2 h-4 w-4" />
-                      {competenciaConsolidada ? "Competência fechada" : "Fechar competência"}
-                    </Button>
+                    {podeRH && (
+                      <Button
+                        variant="outline"
+                        disabled={selecionados.length === 0 || processando}
+                        onClick={handleConsolidarLote}
+                      >
+                        <ShieldCheck className="mr-2 h-4 w-4" />
+                        Consolidar selecionados ({selecionados.length})
+                      </Button>
+                    )}
+                    {podeFecharCompetencia && (
+                      <Button disabled={competenciaConsolidada || processando} onClick={() => setAbrirFechar(true)}>
+                        <Lock className="mr-2 h-4 w-4" />
+                        {competenciaConsolidada ? "Competência fechada" : "Fechar competência"}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -370,7 +418,13 @@ export default function ValidacaoFrequenciaPage() {
                   linhas={linhas}
                   isLoading={loadingResumo || loadingFechamentos}
                   processando={processando}
-                  permiteReabertura={configFechamento?.permite_reabertura ?? true}
+                  regrasReabertura={{
+                    permiteReabertura: configFechamento?.permite_reabertura,
+                    prazoDias: configFechamento?.prazo_reabertura_dias,
+                  }}
+                  meuServidorId={meuServidorId}
+                  podeChefia={podeChefia}
+                  podeRH={podeRH}
                   selecionados={selecionados}
                   onSelecionadosChange={setSelecionados}
                   onValidarChefia={handleValidarChefia}
