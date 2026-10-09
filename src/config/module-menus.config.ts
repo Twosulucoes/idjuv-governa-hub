@@ -53,6 +53,7 @@ import {
   Smartphone,
   ArrowRightLeft,
   Bell,
+  Mail,
 } from "lucide-react";
 import type { Modulo } from "@/shared/config/modules.config";
 
@@ -321,6 +322,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "banco-dados", label: "Banco de Dados", icon: Database, route: "/admin/database" },
       { id: "backup", label: "Backup", icon: Archive, route: "/admin/backup" },
       { id: "importacoes", label: "Importação de Dados", icon: Upload, route: "/admin/importacoes" },
+      { id: "envios", label: "E-mail e WhatsApp", icon: Mail, route: "/admin/envios" },
       { id: "modulos", label: "Gestão de Módulos", icon: Package, route: "/admin/modulos" },
       { id: "permissoes", label: "Painel de Permissões", icon: Shield, route: "/admin/permissoes" },
       { id: "ajuda", label: "Ajuda", icon: HelpCircle, route: "/admin/ajuda" },

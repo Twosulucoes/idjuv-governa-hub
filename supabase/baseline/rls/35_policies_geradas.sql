@@ -733,6 +733,9 @@ DROP POLICY IF EXISTS "rls_delete" ON public.config_compensacao;
 CREATE POLICY "rls_delete" ON public.config_compensacao FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 
+-- config_envio  [preservar: admin]
+-- (nenhuma policy gerada)
+
 -- config_fechamento_folha  [modulo: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.config_fechamento_folha;
 CREATE POLICY "rls_select" ON public.config_fechamento_folha FOR SELECT TO authenticated
@@ -1430,6 +1433,9 @@ CREATE POLICY "rls_update" ON public.encaminhamentos FOR UPDATE TO authenticated
 DROP POLICY IF EXISTS "rls_delete" ON public.encaminhamentos;
 CREATE POLICY "rls_delete" ON public.encaminhamentos FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'workflow')));
+
+-- envios_log  [preservar: admin]
+-- (nenhuma policy gerada)
 
 -- escolas_jer  [modulo: gestores_escolares]
 DROP POLICY IF EXISTS "rls_select" ON public.escolas_jer;

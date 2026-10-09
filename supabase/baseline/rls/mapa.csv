@@ -47,6 +47,7 @@ config_assinatura_frequencia,rh,catalogo,alta,"configuração de assinatura da f
 config_assinatura_reuniao,gabinete,modulo,alta,,,,
 config_autarquia,rh|financeiro,modulo,alta,dados da autarquia para remessa bancária e eSocial (folha); RH e financeiro,,,
 config_compensacao,rh,modulo,alta,,,,
+config_envio,admin,preservar,alta,"policies próprias na migração 20261009150000 (admin.envios / admin.envios.configurar; credencial no Vault); entra no schema na próxima regeneração do baseline",,,
 config_fechamento_folha,rh,modulo,alta,,,,
 config_fechamento_frequencia,rh,modulo,alta,,,,
 config_incidencias,rh,modulo,alta,,,,
@@ -94,6 +95,7 @@ documentos_requerimento_servidor,rh,proprio,alta,RH vê tudo; o servidor lê e c
 dotacoes_orcamentarias,financeiro,modulo,alta,"policies por módulo (as mesmas do replay, agora geradas e testadas)",,fin_module_delete|fin_module_select|fin_module_update|fin_module_write,
 empenhos,financeiro,modulo,alta,"policies por módulo (as mesmas do replay, agora geradas e testadas)",,fin_module_delete|fin_module_select|fin_module_update|fin_module_write,
 encaminhamentos,workflow,modulo,alta,,,,
+envios_log,admin,preservar,alta,"policies próprias na migração 20261009150000 (admin.envios / admin.envios.configurar; credencial no Vault); entra no schema na próxima regeneração do baseline",,,
 escolas_jer,gestores_escolares,modulo,media,leitura pública das escolas mantida (formulário); gestão por módulo gestores_escolares,,,select
 estoque,patrimonio|patrimonio_mobile,modulo,alta,,,,
 estrutura_organizacional,organizacoes,catalogo,media,organograma lido por todos os usuários ativos (nomes de unidade); escrita por organizacoes,,,

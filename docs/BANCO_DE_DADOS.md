@@ -137,6 +137,14 @@ vigente; escrita exige `avisos.gerenciar` (`pode_gerenciar_avisos()`); cada usu�
 próprias leituras. No baseline as três tabelas estão no `rls/mapa.csv` como `preservar` e entram no
 schema na próxima regeneração.
 
+Envio de e-mail e WhatsApp (**migração `20261009150000_config_envio_email_whatsapp.sql`, ainda não
+aplicada em remoto**): `config_envio` (uma linha por canal: provedor, remetente, SMTP, identidade visual,
+número e templates do WhatsApp) e `envios_log` (trilha dos disparos, sem corpo). A credencial fica no
+Supabase Vault: `config_envio.segredo_id` não é legível pela API, `salvar_segredo_envio` só grava e
+`config_envio_servidor` (config + segredo decifrado) só a service role executa. RLS: leitura com
+`admin.envios` ou `admin.envios.configurar`, escrita com `admin.envios.configurar`; `envios_log` só é
+gravada pelas Edge Functions. No baseline as duas tabelas estão no `rls/mapa.csv` como `preservar`.
+
 ### Unidades locais e cessões
 `unidades_locais`, `agenda_unidade`, `agrupamento_unidade_vinculo`,
 `config_agrupamento_unidades`, `cessoes`, `termos_cessao`, `documentos_cedencia`.
@@ -238,6 +246,8 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
 - **Avisos**: `pode_gerenciar_avisos`, `alcanca_modulos_alvo` (usadas pelas policies) e
   `aniversariantes_do_mes(p_mes)`, que devolve só nome e dia do aniversário de servidores ativos a
   qualquer usuário ativo (sem ano, CPF, contato ou lotação).
+- **Envios**: `pode_ver_envios`, `pode_configurar_envios` (policies), `salvar_segredo_envio(canal, segredo)`
+  (grava a credencial no Vault) e `config_envio_servidor(canal)` (só service role).
 - **Bancário**: `get_proximo_numero_remessa`.
 
 ## Convenções

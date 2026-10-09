@@ -21,6 +21,10 @@ Gestão do próprio sistema. Páginas em `src/pages/admin/` (~25):
   `DatabaseSchemaPage`, `CalibradorSegadPage`, `SobreSistemaPage`, `AdminHelpPage`.
 - **Importação de dados**: `ImportacoesPage` (`/admin/importacoes`) lista os importadores que o usuário
   pode usar e o histórico (`importacoes`). Primeiro importador: QDD do FIPLAN (financeiro).
+- **Envio de e-mail e WhatsApp**: `ConfigEnviosPage` (`/admin/envios`, menu "E-mail e WhatsApp"). O
+  cliente configura o remetente (SMTP próprio ou Resend), a identidade visual do e-mail e o WhatsApp
+  oficial (Meta Cloud API, templates por uso), grava as credenciais (só escrita, no Vault), envia teste
+  e consulta o histórico. Desenho: `docs/superpowers/specs/2026-10-09-envio-email-whatsapp-design.md`.
 
 ## Recursos Humanos (`rh`)
 

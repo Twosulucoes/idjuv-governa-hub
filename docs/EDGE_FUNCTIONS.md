@@ -15,11 +15,25 @@ São invocadas do front via `supabase.functions.invoke('<nome>', { body })`.
 | `admin-reset-password` | Reseta/redefine senha de um usuário pela administração. |
 | `create-test-user` | Cria usuário de teste (provisionamento/QA). |
 | `delete-user` | Exclui usuário do Auth e dados associados. |
-| `enviar-convite-reuniao` | Envia convites de reunião (e-mail) aos participantes. |
+| `enviar-convite-reuniao` | Envia convites de reunião aos participantes por e-mail ou WhatsApp (pelo núcleo `_shared/envio`). |
+| `enviar-notificacao` | Disparos pela configuração de envio da instância. Hoje só a ação `teste` (exige `admin.envios.configurar`). |
 | `download-frequencia` | Gera/serve arquivos de frequência para download. |
 | `database-schema` | Inspeciona o schema do banco (apoia a tela `DatabaseSchemaPage`). |
 | `backup-offsite` | Executa/orquestra backup off-site (apoia `BackupOffsitePage`). |
 | `cpsi-ai-assistant` | Assistente de IA para o formulário CPSI (`CPSIPage`). |
+
+### Envio de e-mail e WhatsApp (`_shared/envio`)
+
+O núcleo `supabase/functions/_shared/envio/` lê a configuração da instância (`config_envio`, preenchida
+pelo cliente em `/admin/envios`) e a credencial do Vault pela RPC `config_envio_servidor`, que só a
+service role executa. Funções: `enviarEmail` (SMTP via denomailer ou Resend), `enviarWhatsAppTemplate`
+(Meta Cloud API, só templates aprovados), `carregarIdentidade` + `montarEmailInstitucional` (cabeçalho e
+rodapé com a marca do cliente) e o registro em `envios_log` (sem corpo da mensagem).
+
+Quem chama autentica o usuário, checa a permissão da própria ação e monta o conteúdo no servidor; o
+núcleo não deve virar relay de texto livre. Sem configuração ativa, e-mail cai em `RESEND_API_KEY`/
+`RESEND_FROM` e o convite por WhatsApp volta ao link `wa.me`. Um novo uso (ex.: avisos) entra como ação
+nova em `enviar-notificacao`, recebendo o id do registro e checando a permissão do domínio.
 
 ### Autorização do `backup-offsite`
 

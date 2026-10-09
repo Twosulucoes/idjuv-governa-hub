@@ -273,7 +273,7 @@ Já o **núcleo genérico** (vendável a qualquer órgão público) é: `admin`,
 | Item | Local | Problema |
 |---|---|---|
 | Bucket `idjuv-backups` | `supabase/functions/backup-offsite/index.ts` (23 ocorrências, inclusive `createBucket`) | Nome do bucket de destino fixo no código da Edge Function |
-| Remetente de e-mail | `supabase/functions/enviar-convite-reuniao/index.ts:6` — `RESEND_FROM ?? "IDJUV <onboarding@resend.dev>"` | Default com marca; corpo do e-mail (linhas 167, 220) também traz o nome por extenso |
+| Remetente de e-mail | ~~`supabase/functions/enviar-convite-reuniao/index.ts:6` — `RESEND_FROM ?? "IDJUV <onboarding@resend.dev>"`~~ | ✅ Resolvido em 2026-10-09: remetente e marca vêm de `config_envio` (`/admin/envios`) |
 | Mapa de tabela legada | `supabase/functions/database-schema/index.ts:124` — `'unidade_idjuv': 'estrutura_organizacional'` | Depende do nome de coluna do cliente |
 | Super admin protegido | `src/shared/config/protected-users.config.ts` | UUID **e e-mail pessoal** (`handfabiano@gmail.com`) fixos no código. Precisa virar configuração por instância |
 | Migrações históricas | `supabase/migrations/` — 147 ocorrências em 26 arquivos (a maior: 74 numa única migração) | **Não reescrever.** Histórico imutável; corrigir só com migração nova |
