@@ -7,9 +7,9 @@ import { REGRAS_TIPO_SERVIDOR, type TipoServidor } from "@/types/servidor";
  * Validação do formulário de servidor (ServidorFormPage).
  *
  * O formulário tem ~100 campos em `useState`; em vez de migrar tudo para
- * react-hook-form, o schema cobre só os campos com regra de negócio e deixa
- * os demais passarem (`passthrough`). A página chama `validarServidorForm`
- * no submit e mostra a primeira mensagem de cada campo.
+ * react-hook-form, o schema cobre só os campos com regra de negócio e ignora
+ * os demais. A página chama `validarServidorForm` no submit e mostra a
+ * primeira mensagem de cada campo.
  */
 
 const somenteDigitos = (valor: string) => valor.replace(/\D/g, "");
@@ -47,8 +47,8 @@ const campos = {
     data_admissao: z.string(),
 };
 
-// `passthrough` deixa passar os demais campos do formulário sem validá-los.
-const camposServidorSchema = z.object(campos).passthrough();
+// Os demais campos do formulário são ignorados pelo schema (só os issues são usados).
+const camposServidorSchema = z.object(campos);
 
 export type CampoServidorForm = keyof typeof campos;
 export type ServidorFormCampos = Record<CampoServidorForm, string>;

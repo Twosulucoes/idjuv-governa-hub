@@ -82,12 +82,16 @@ class VinculoNaoCriadoError extends Error {
   }
 }
 
+/** Violação da unique `servidores_cpf_key` no insert/update em `servidores`. */
+function cpfDuplicado(error: unknown): boolean {
+  const err = error as { code?: string; message?: string } | null;
+  return err?.code === "23505" && !!err.message?.includes("cpf");
+}
+
 /** Mensagem amigável para o erro do insert/update em `servidores`. */
 function mensagemErroSalvar(error: unknown): string {
-  const err = error as { code?: string; message?: string } | null;
-  if (err?.code === "23505" && err.message?.includes("cpf")) {
-    return "Já existe um servidor cadastrado com este CPF.";
-  }
+  if (cpfDuplicado(error)) return "Já existe um servidor cadastrado com este CPF.";
+  const err = error as { message?: string } | null;
   return `Erro ao salvar: ${err?.message ?? "erro desconhecido"}`;
 }
 
@@ -587,11 +591,16 @@ export default function ServidorFormPage() {
         // O servidor existe: leva ao detalhe, onde o vínculo pode ser criado à mão.
         queryClient.invalidateQueries({ queryKey: ["servidores-rh"] });
         toast.error(`Servidor cadastrado, mas o vínculo funcional não foi criado: ${error.message}`, {
-          description: "Abra a aba de vínculos do servidor para registrá-lo.",
+          description: "Abra a aba Histórico do servidor para registrar o vínculo.",
           duration: 10000,
         });
         navigate(`/rh/servidores/${error.servidorId}`);
         return;
+      }
+      if (cpfDuplicado(error)) {
+        // Marca o campo além do toast, já que os erros são limpos antes do mutate
+        setErros({ cpf: "CPF já cadastrado" });
+        setAbaAtiva("documentos");
       }
       toast.error(mensagemErroSalvar(error));
     },
