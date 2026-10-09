@@ -44,6 +44,19 @@ export const TIPO_SERVIDOR_LABELS: Record<TipoServidor, string> = {
   cedido_saida: 'Cedido para Outro Órgão (Saída)',
 };
 
+// Valor do enum `tipo_vinculo_servidor` (tabela vinculos_servidor) para cada tipo
+// de servidor do formulário — os dois conjuntos não coincidem (ex.: 'efetivo_idjuv'
+// não existe no enum), e inserir o tipo do formulário direto viola o enum.
+export const TIPO_VINCULO_POR_TIPO_SERVIDOR: Record<
+  TipoServidor,
+  'efetivo' | 'comissionado' | 'cedido_entrada'
+> = {
+  efetivo_idjuv: 'efetivo',
+  comissionado_idjuv: 'comissionado',
+  cedido_entrada: 'cedido_entrada',
+  cedido_saida: 'efetivo', // efetivo do quadro cedido para fora; o destino fica no vínculo externo
+};
+
 export const TIPO_SERVIDOR_COLORS: Record<TipoServidor, string> = {
   efetivo_idjuv: 'bg-success/20 text-success border-success/30',
   comissionado_idjuv: 'bg-primary/20 text-primary border-primary/30',
