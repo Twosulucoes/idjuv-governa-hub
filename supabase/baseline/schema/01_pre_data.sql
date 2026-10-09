@@ -3302,6 +3302,22 @@ $$;
 
 
 --
+-- Name: fn_campanhas_inventario_unidades_autoria(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_campanhas_inventario_unidades_autoria() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  NEW.created_by := auth.uid();
+  NEW.updated_by := auth.uid();
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: fn_contar_processos_por_status(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -3385,6 +3401,25 @@ BEGIN
     UPDATE public.vinculos_funcionais 
     SET ativo = false, data_fim = COALESCE(data_fim, NEW.data_inicio - INTERVAL '1 day')
     WHERE servidor_id = NEW.servidor_id AND ativo = true AND id != NEW.id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fn_fotos_vistoria_inventario_imutavel(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_fotos_vistoria_inventario_imutavel() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF (to_jsonb(NEW) - ARRAY['legenda', 'tem_pessoa', 'codigo_objeto'])
+     IS DISTINCT FROM (to_jsonb(OLD) - ARRAY['legenda', 'tem_pessoa', 'codigo_objeto']) THEN
+    RAISE EXCEPTION 'fotos_vistoria_inventario: só legenda, tem_pessoa e codigo_objeto podem ser alterados'
+      USING ERRCODE = 'check_violation';
   END IF;
   RETURN NEW;
 END;
@@ -7451,6 +7486,38 @@ ALTER TABLE ONLY public.campanhas_inventario FORCE ROW LEVEL SECURITY;
 
 
 --
+-- Name: campanhas_inventario_unidades; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.campanhas_inventario_unidades (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    campanha_id uuid NOT NULL,
+    unidade_local_id uuid NOT NULL,
+    situacao text DEFAULT 'a_visitar'::text NOT NULL,
+    equipe text,
+    data_prevista date,
+    iniciada_em timestamp with time zone,
+    concluida_em timestamp with time zone,
+    observacao text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_by uuid DEFAULT auth.uid(),
+    CONSTRAINT campanhas_inventario_unidades_observacao_check CHECK ((length(observacao) <= 2000)),
+    CONSTRAINT campanhas_inventario_unidades_situacao_check CHECK ((situacao = ANY (ARRAY['a_visitar'::text, 'em_vistoria'::text, 'concluida'::text, 'com_pendencia'::text, 'excluida'::text])))
+);
+
+ALTER TABLE ONLY public.campanhas_inventario_unidades FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: TABLE campanhas_inventario_unidades; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.campanhas_inventario_unidades IS 'Situação de cada unidade local numa campanha de inventário (complementa campanhas_inventario.unidades_abrangidas).';
+
+
+--
 -- Name: cargo_unidade_compatibilidade; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -10906,6 +10973,48 @@ CREATE TABLE public.fornecedores (
 
 
 --
+-- Name: fotos_vistoria_inventario; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fotos_vistoria_inventario (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    campanha_id uuid NOT NULL,
+    unidade_local_id uuid NOT NULL,
+    bem_id uuid,
+    codigo_objeto text,
+    legenda text,
+    storage_path text NOT NULL,
+    hash_sha256 text NOT NULL,
+    latitude numeric(10,8),
+    longitude numeric(11,8),
+    precisao_m numeric(8,2),
+    capturada_em timestamp with time zone NOT NULL,
+    enviada_em timestamp with time zone DEFAULT now() NOT NULL,
+    mime_type text,
+    tamanho_bytes integer,
+    tem_pessoa boolean DEFAULT false NOT NULL,
+    dispositivo_info jsonb,
+    usuario_id uuid DEFAULT auth.uid() NOT NULL,
+    CONSTRAINT fotos_vistoria_inventario_hash_sha256_check CHECK ((hash_sha256 ~ '^[0-9a-f]{64}$'::text)),
+    CONSTRAINT fotos_vistoria_inventario_latitude_check CHECK (((latitude >= ('-90'::integer)::numeric) AND (latitude <= (90)::numeric))),
+    CONSTRAINT fotos_vistoria_inventario_legenda_check CHECK ((length(legenda) <= 500)),
+    CONSTRAINT fotos_vistoria_inventario_longitude_check CHECK (((longitude >= ('-180'::integer)::numeric) AND (longitude <= (180)::numeric))),
+    CONSTRAINT fotos_vistoria_inventario_mime_type_check CHECK ((mime_type = ANY (ARRAY['image/jpeg'::text, 'image/webp'::text]))),
+    CONSTRAINT fotos_vistoria_inventario_precisao_m_check CHECK ((precisao_m >= (0)::numeric)),
+    CONSTRAINT fotos_vistoria_inventario_tamanho_bytes_check CHECK (((tamanho_bytes > 0) AND (tamanho_bytes <= 10485760)))
+);
+
+ALTER TABLE ONLY public.fotos_vistoria_inventario FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: TABLE fotos_vistoria_inventario; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fotos_vistoria_inventario IS 'Evidência fotográfica da vistoria de inventário. Arquivo no bucket privado inventario-evidencias; hash, caminho, captura, coordenadas e autor são imutáveis.';
+
+
+--
 -- Name: frequencia_arquivos; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -13713,7 +13822,21 @@ CREATE TABLE public.unidades_locais (
     unidade_administrativa character varying(100),
     autoridade_autorizadora character varying(150),
     estrutura_disponivel text,
-    historico_alteracoes jsonb DEFAULT '[]'::jsonb
+    historico_alteracoes jsonb DEFAULT '[]'::jsonb,
+    latitude numeric(10,8),
+    longitude numeric(11,8),
+    poligono_geojson jsonb,
+    area_terreno_m2 numeric(14,2),
+    area_construida_m2 numeric(14,2),
+    fonte_geometria text,
+    geometria_atualizada_em timestamp with time zone,
+    geometria_atualizada_por uuid,
+    CONSTRAINT unidades_locais_area_construida_m2_check CHECK ((area_construida_m2 >= (0)::numeric)),
+    CONSTRAINT unidades_locais_area_terreno_m2_check CHECK ((area_terreno_m2 >= (0)::numeric)),
+    CONSTRAINT unidades_locais_fonte_geometria_check CHECK ((fonte_geometria = ANY (ARRAY['manual'::text, 'gps'::text, 'kml'::text]))),
+    CONSTRAINT unidades_locais_latitude_check CHECK (((latitude >= ('-90'::integer)::numeric) AND (latitude <= (90)::numeric))),
+    CONSTRAINT unidades_locais_longitude_check CHECK (((longitude >= ('-180'::integer)::numeric) AND (longitude <= (180)::numeric))),
+    CONSTRAINT unidades_locais_poligono_geojson_check CHECK (((poligono_geojson IS NULL) OR ((poligono_geojson ->> 'type'::text) = ANY (ARRAY['Polygon'::text, 'MultiPolygon'::text]))))
 );
 
 

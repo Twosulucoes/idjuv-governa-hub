@@ -127,6 +127,18 @@ Camadas complementares:
   front). Ver item C2 da auditoria sobre o reforço pendente das tabelas de usuário.
 - O **menu** (`menu.config.ts`) é filtrado por permissão — controla o que aparece.
 
+### Exemplo: inventário de campo (fase 1)
+
+- Rota `/inventario/campanhas/:id/painel`: `patrimonio.visualizar` no
+  `ProtectedRoute`. O modo "Vistoria de Unidade" fica dentro de
+  `/patrimonio-mobile`.
+- No banco (migração `20261009120000`): ler e gravar a situação das unidades e
+  enviar fotos exige o módulo `patrimonio` ou `patrimonio_mobile`. A permissão
+  granular `patrimonio.tramitar` (`has_permission_code`) é exigida para apagar
+  foto de evidência, para alterar foto de outro autor e para sobrescrever ou
+  apagar arquivo no bucket `inventario-evidencias`. Detalhes em
+  [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
+
 ## Rotas públicas
 
 Rotas sob `<PublicPageGuard rota="...">` não exigem login; verificam apenas o

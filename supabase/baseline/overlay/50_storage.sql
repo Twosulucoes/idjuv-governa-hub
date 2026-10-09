@@ -41,6 +41,7 @@ INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
   ('documentos',                'documentos',                false, 52428800, ARRAY['application/pdf','image/jpeg','image/png','image/webp']),
   ('documentos-requerimento',   'documentos-requerimento',   false, NULL,     NULL),
   ('frequencias',               'frequencias',               false, 52428800, ARRAY['application/pdf','application/zip','application/x-zip-compressed']),
+  ('inventario-evidencias',     'inventario-evidencias',     false, 10485760, ARRAY['image/jpeg','image/webp']),
   ('inventario-fotos',          'inventario-fotos',          true,  5242880,  ARRAY['image/jpeg','image/png','image/webp']),
   ('patrimonio-docs',           'patrimonio-docs',           false, 10485760, NULL),
   ('patrimonio-fotos',          'patrimonio-fotos',          true,  NULL,     NULL),
@@ -61,6 +62,7 @@ BEGIN
     ('documentos',                ARRAY['workflow','rh']),
     ('documentos-requerimento',   ARRAY['rh']),
     ('frequencias',               ARRAY['rh']),
+    ('inventario-evidencias',     ARRAY['patrimonio','patrimonio_mobile']),
     ('inventario-fotos',          ARRAY['patrimonio','patrimonio_mobile']),
     ('patrimonio-docs',           ARRAY['patrimonio','patrimonio_mobile']),
     ('patrimonio-fotos',          ARRAY['patrimonio','patrimonio_mobile']),
@@ -79,6 +81,17 @@ BEGIN
     END LOOP;
   END LOOP;
 END $$;
+
+-- Evidências do inventário de campo (migração 20261009120000): o arquivo tem o hash gravado em
+-- fotos_vistoria_inventario, então sobrescrever (UPDATE) ou apagar exige patrimonio.tramitar, como o
+-- DELETE da tabela. Ler e enviar continuam por módulo (policies do laço acima).
+DROP POLICY IF EXISTS "st_inventario-evidencias_update" ON storage.objects;
+CREATE POLICY "st_inventario-evidencias_update" ON storage.objects FOR UPDATE TO authenticated
+  USING (bucket_id = 'inventario-evidencias' AND public.has_permission_code(auth.uid(), 'patrimonio.tramitar'))
+  WITH CHECK (bucket_id = 'inventario-evidencias' AND public.has_permission_code(auth.uid(), 'patrimonio.tramitar'));
+DROP POLICY IF EXISTS "st_inventario-evidencias_delete" ON storage.objects;
+CREATE POLICY "st_inventario-evidencias_delete" ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'inventario-evidencias' AND public.has_permission_code(auth.uid(), 'patrimonio.tramitar'));
 
 -- Formulário público de árbitros: upload de foto/documentos sem login (só INSERT; a leitura
 -- fica para o módulo arbitros acima). Só nas três pastas que o formulário usa; o bucket limita tamanho

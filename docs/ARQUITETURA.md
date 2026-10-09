@@ -53,7 +53,12 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
     publicação da rota (configurável em `config_paginas_publicas`).
   - **Protegidas** — `<ProtectedRoute>`: exige autenticação. Aceita props
     `requiredModule`/`requiredPermissions` (ver observação no RBAC).
-  - **Mobile/PWA** — `/patrimonio-mobile`, `/instalar`.
+  - **Mobile/PWA** — `/patrimonio-mobile`, `/instalar`. O `/patrimonio-mobile`
+    inclui o modo "Vistoria de Unidade" do inventário de campo (fotos com fila
+    offline; ver [MODULOS.md](./MODULOS.md)).
+- Inventário de campo: `/inventario/campanhas/:id/painel` (painel com mapa,
+  `ProtectedRoute requiredPermissions="patrimonio.visualizar"`), com link na
+  página de detalhe da campanha.
 
 ## Autenticação
 
@@ -92,7 +97,13 @@ caches relevantes. Estatísticas de dashboard ficam em `use<Modulo>DashboardStat
   `usuario_tem_acesso_modulo` apoiam essas políticas.
 - **Migrações**: `supabase/migrations/*.sql` (~240), nomeadas
   `YYYYMMDDHHMMSS_<uuid>.sql`, geradas tipicamente pelo Lovable.
-- **Storage**: anexos (documentos, demandas ASCOM, galerias, frequência).
+- **Storage**: anexos (documentos, demandas ASCOM, galerias, frequência) e
+  evidências do inventário de campo (bucket privado `inventario-evidencias`,
+  lido por URL assinada).
+- **Serviços externos no navegador**: o mapa do painel de campo carrega tiles
+  de Esri World Imagery e OpenStreetMap direto do navegador (Leaflet), com
+  atribuição visível. Os termos de uso da Esri para uso institucional ainda
+  precisam ser confirmados.
 - **Edge Functions**: ver [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md).
 
 ## Geração de documentos (offline, no client)

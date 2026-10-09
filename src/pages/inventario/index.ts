@@ -10,6 +10,7 @@ export { default as MovimentacoesPatrimonioPage } from './MovimentacoesPatrimoni
 export { default as CampanhasInventarioPage } from './CampanhasInventarioPage';
 export { default as CampanhaDetalhePage } from './CampanhaDetalhePage';
 export { default as ColetaInventarioPage } from './ColetaInventarioPage';
+export { default as PainelCampoInventarioPage } from './PainelCampoInventarioPage';
 export { default as AlmoxarifadoEstoquePage } from './AlmoxarifadoEstoquePage';
 export { default as RequisicoesMaterialPage } from './RequisicoesMaterialPage';
 export { default as ManutencoesBensPage } from './ManutencoesBensPage';
