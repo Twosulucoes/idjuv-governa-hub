@@ -24,10 +24,11 @@ Há também um **portal público** (notícias, galerias, transparência, formul�
 de cadastro como gestores escolares, árbitros, federações e mini-currículo) e um
 **PWA mobile** para coleta de inventário de patrimônio em campo.
 
-O backend é o **Supabase**. O código vive só neste repositório GitHub, sem
-sincronização automática com ferramentas externas. O banco de produção
-(`qvbhejhcktcaftiamksd`) ainda está fora da conta Supabase do time — a migração
-para conta própria está em [`docs/MIGRACAO_SUPABASE_PROPRIO.md`](./docs/MIGRACAO_SUPABASE_PROPRIO.md).
+O backend é o **Supabase self-hosted** na VPS do time (`bd.idjuv.online`), que é
+o banco consumido em produção (`idjuv.online`) — ver [`docs/NOVO_BANCO.md`](./docs/NOVO_BANCO.md).
+O código vive só neste repositório GitHub, sem sincronização automática com
+ferramentas externas. O antigo projeto `qvbhejhcktcaftiamksd` (Lovable Cloud)
+não é mais usado pelo site publicado.
 
 ---
 
