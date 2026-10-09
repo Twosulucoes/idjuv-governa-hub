@@ -516,6 +516,29 @@ export const FERIAS_STATUS_LABELS: Record<StatusFeriasServidor, string> = {
   cancelada: 'Cancelada',
 };
 
+/** Dados editáveis de um lançamento de férias (criar/atualizar). */
+export type FeriasServidorInput = Omit<FeriasServidor, 'id' | 'created_at' | 'created_by'>;
+
+/** Férias com o servidor vinculado (join usado na listagem). */
+export interface FeriasServidorComServidor extends FeriasServidor {
+  servidor?: { id: string; nome_completo: string };
+}
+
+/**
+ * Período em que o servidor já está "ocupado" (férias, licença/afastamento ou
+ * cessão de saída). Usado para detectar sobreposição ao programar férias.
+ * `fim` nulo = em aberto (sem data de término).
+ */
+export interface Ocupacao {
+  id: string;
+  tipo: 'ferias' | 'licenca' | 'cessao';
+  inicio: string;
+  fim: string | null;
+  descricao: string;
+  /** Status original do registro (para ignorar férias canceladas, por exemplo). */
+  status?: string;
+}
+
 export interface LicencaAfastamento {
   id: string;
   servidor_id: string;
