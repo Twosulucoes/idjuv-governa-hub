@@ -1,18 +1,8 @@
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { AlertTriangle, CheckCircle2, Info, Palette, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, XCircle } from "lucide-react";
+import { PageHeader } from "@/components/design-system";
+import { ComponentesDemo } from "./design-system/ComponentesDemo";
 
 /**
  * Vitrine do design system: mostra os tokens e componentes base com o tema do
@@ -49,18 +39,6 @@ const ESCALA = [
   { classe: "text-caption", uso: "Metadado e legenda" },
 ] as const;
 
-const CLASSE_STATUS = {
-  success: "text-success",
-  warning: "text-warning",
-  destructive: "text-destructive",
-} as const;
-
-const LINHAS_EXEMPLO = [
-  { matricula: "000123", nome: "Servidor de exemplo A", valor: "R$ 4.512,30", status: "success", rotulo: "Ativo" },
-  { matricula: "000981", nome: "Servidor de exemplo B", valor: "R$ 12.087,00", status: "warning", rotulo: "Pendente" },
-  { matricula: "001477", nome: "Servidor de exemplo C", valor: "R$ 987,45", status: "destructive", rotulo: "Cancelado" },
-] as const;
-
 function Amostra({ token, nome }: { token: string; nome: string }) {
   return (
     <div className="space-y-2">
@@ -85,15 +63,11 @@ export default function DesignSystemPage() {
   return (
     <ModuleLayout module="admin">
       <div className="max-w-6xl mx-auto space-y-8">
-        <header className="space-y-1">
-          <h1 className="text-h1 flex items-center gap-2">
-            <Palette className="h-6 w-6 text-primary" aria-hidden="true" />
-            Design System
-          </h1>
-          <p className="text-body text-muted-foreground">
-            Tokens e componentes base com o tema da instituição ativa. Alterne claro/escuro para conferir os dois modos.
-          </p>
-        </header>
+        <PageHeader
+          migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Design System" }]}
+          titulo="Design System"
+          descricao="Tokens e componentes de padrão com o tema da instituição ativa. Alterne claro/escuro para conferir os dois modos."
+        />
 
         <Card>
           <CardHeader>
@@ -180,62 +154,7 @@ export default function DesignSystemPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-h2">Componentes base</CardTitle>
-            <CardDescription>Botões, campo de formulário e tabela com números tabulares.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex flex-wrap gap-3">
-              <Button>Primário</Button>
-              <Button variant="secondary">Secundário</Button>
-              <Button variant="outline">Contorno</Button>
-              <Button variant="ghost">Fantasma</Button>
-              <Button variant="destructive">Excluir</Button>
-              <Button variant="link">Link</Button>
-              <Button disabled>Desabilitado</Button>
-            </div>
-            <div className="grid sm:grid-cols-2 gap-4 max-w-2xl">
-              <div className="space-y-1.5">
-                <Label htmlFor="ds-nome">Nome completo</Label>
-                <Input id="ds-nome" placeholder="Digite o nome" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="ds-cpf">CPF</Label>
-                <Input id="ds-cpf" aria-invalid="true" aria-describedby="ds-cpf-erro" className="border-destructive" />
-                <p id="ds-cpf-erro" role="alert" className="text-caption text-destructive">
-                  Informe um CPF válido.
-                </p>
-              </div>
-            </div>
-            <div className="overflow-x-auto rounded-md border border-border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Matrícula</TableHead>
-                    <TableHead>Nome</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead>Situação</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {LINHAS_EXEMPLO.map((l) => (
-                    <TableRow key={l.matricula}>
-                      <TableCell>{l.matricula}</TableCell>
-                      <TableCell>{l.nome}</TableCell>
-                      <TableCell className="text-right">{l.valor}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={`${CLASSE_STATUS[l.status]} border-current`}>
-                          {l.rotulo}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+        <ComponentesDemo />
       </div>
     </ModuleLayout>
   );

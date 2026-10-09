@@ -30,7 +30,13 @@ no lugar de `*-subtle` e `--module-*` adiado para a tarefa 2.6. A vitrine (1.6) 
 
 Revisão: `revisor-codigo-idjuv`; `revisor-seguranca-idjuv` só para a rota nova (1.6).
 
-## Fase 2 — Componentes de padrão (sem mudar telas)
+## Fase 2 — Componentes de padrão (sem mudar telas) ✅
+
+Feita em 2026-10-09, sem dependência nova: o `DataTable` é próprio, sobre `<table>` (cabeçalho fixo
+exige que a rolagem seja da própria tabela, o `ui/table` envolve em outro contêiner). A tarefa 2.6
+**não foi feita**: `MODULO_COR_CLASSES` já usa pares 100/800 e 800/200 com contraste AA nos dois
+modos, cores de módulo são do produto (não variam por tenant) e ficam em `.ts`, fora do guard de cor
+crua — trocar por 48 tokens não traria ganho visível. Fica para quando um tenant precisar mudá-las.
 
 | # | Tarefa | Arquivos |
 |---|---|---|

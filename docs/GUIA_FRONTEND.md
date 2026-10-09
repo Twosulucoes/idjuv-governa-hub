@@ -98,6 +98,18 @@ de chamar `supabase` direto dentro da página.
     `@/components/ui/chart` — nada de `fill="#…"`.
   - **Movimento:** `--duration-fast` (150ms) / `--duration-base` (200ms); `prefers-reduced-motion`
     é respeitado globalmente em `src/index.css` (exceto `animate-spin`, que sinaliza carregamento).
+  - **Componentes de padrão** em `@/components/design-system` (use-os em telas novas e migradas):
+    - `PageHeader` — migalhas, `h1` na escala nova, situação, descrição e ações (uma primária).
+    - `DataTable` — busca (`buscarPor`), ordenação (`ordenarPor`), seleção + `acoesEmLote`,
+      `acoesLinha`, paginação no cliente, densidade lembrada no navegador, estados
+      `carregando`/`erro`/`vazio` e cartões abaixo de `md` (`mobile: "titulo" | "oculta"` por coluna).
+    - `StatusBadge` — cor + ícone + texto; o tom sai do texto (`tomDaSituacao`: ativo, pendente,
+      em análise, cancelado…) ou de `tom` explícito.
+    - `EmptyState`, `KpiCard` (variação com sinal e ícone; `subirEhBom={false}` para despesas/faltas),
+      `ChartCard` (gráfico com alternância para tabela de dados).
+    - `FormSection` (fieldset com legenda) e `ErrorSummary` (resumo focável dos erros do
+      react-hook-form, com link para cada campo; use `shouldFocusError: false` no `useForm`).
+    - `Button` aceita `loading` (spinner, `disabled` e `aria-busy`).
   - Consulte o skill `ui-ux-pro-max` (`.claude/skills/UI-UX-PRO-MAX-VENDOR.md`) para decisões
     de UI/UX e acessibilidade.
 - **Ícones**: `lucide-react`.
