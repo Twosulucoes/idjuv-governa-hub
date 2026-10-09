@@ -78,8 +78,11 @@ Para o app rodar de verdade na nuvem, cadastre essas variáveis nas
 **configurações do ambiente** do Claude Code na web (variáveis de ambiente do
 environment). Só valores públicos: a publishable key é a chave anônima
 protegida por RLS. **Nunca** coloque a service role key ali nem no `.env` do
-front. Use um projeto Supabase de **desenvolvimento** (branch do Supabase ou
-projeto separado), não o de produção.
+front. Use um Supabase de **desenvolvimento**, não o de produção. Com instância
+**self-hosted** (caso do IDJUV, na VPS do cliente), `VITE_SUPABASE_URL` é a URL
+dessa instância, a publishable key é a `anon key` dela e `VITE_SUPABASE_PROJECT_ID`
+pode ficar vazio; branches do Supabase só existem na nuvem oficial, então o
+ambiente de dev é uma segunda instância ou um `supabase start` local.
 
 Gerador de prompts para o dia a dia: [`prompts/README.md`](../prompts/README.md)
 (`/prompt`, `/pendencias`, `/finalizar`).

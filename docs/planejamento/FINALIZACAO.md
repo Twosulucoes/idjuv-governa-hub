@@ -90,6 +90,12 @@ dependem de acesso ao Supabase do IDJUV.
 6. ~~`/prompt ajuste --modulo rh Pendências de portarias …`~~ → PR #42
 
 **Onda B — segurança (P0 da ANALISE_RH §6, precisa do banco real)**
+> O site publicado usa um Supabase **self-hosted na VPS do cliente** (conferido em
+> 2026-10-09), não o projeto da Lovable. O conector Supabase do Claude não alcança
+> instância própria: a verificação exige uma connection string Postgres somente
+> leitura de um banco de **desenvolvimento**, guardada como segredo do ambiente de
+> nuvem (`IDJUV_DB_URL`), e migrações são aplicadas com `supabase db push --db-url`
+> ou `psql`, nunca direto em produção.
 7. `/prompt revisao --modulo rh Verificar no banco real as policies e funções S1–S7 da ANALISE_RH`
 8. `/prompt migracao --modulo rh RLS granular em folha, fichas, consignações, licenças e storage; search_path e permissão em processar_folha_pagamento`
 9. `/prompt migracao --modulo rh Trilha de auditoria (trigger genérico em audit_logs ou supa_audit) nas tabelas sensíveis do RH`
