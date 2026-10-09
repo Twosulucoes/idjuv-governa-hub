@@ -33,6 +33,8 @@ O maior módulo. Páginas em `src/pages/rh/` (~20), além de `folha/` e `curricu
 - **Portarias**: `CentralPortariasPage`, `PendenciasPortariasPage`,
   `AtribuicaoPortariasPage`.
 - **Contracheques**: `MeuContrachequePage`, `ConsultaContrachequesPage`.
+- **Autoatendimento**: `MeusDadosPage` (`/rh/meus-dados`, só leitura: dados pessoais,
+  contato, endereço, funcionais, bancários, vínculos e lotações do servidor logado).
 - **Apoio**: `RelatoriosRHPage`, `ModelosDocumentosPage`, `ExportacaoPlanilhaPage`.
 - **Folha** (`src/pages/folha/`): `GestaoFolhaPagamentoPage`, `ConfiguracaoFolhaPage`,
   `FolhaDetalhePage`, `FolhaBloqueadaPage`. Inclui cálculo (INSS/IRRF), rubricas,

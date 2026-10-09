@@ -53,6 +53,9 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
     publicação da rota (configurável em `config_paginas_publicas`).
   - **Protegidas** — `<ProtectedRoute>`: exige autenticação. Aceita props
     `requiredModule`/`requiredPermissions` (ver observação no RBAC).
+    Rotas de **autoatendimento** (`/rh/meu-contracheque`, `/rh/meus-dados`) usam
+    `<ProtectedRoute>` sem permissão: a página filtra pelo servidor vinculado ao
+    usuário logado (`servidores.user_id`) e só mostra os dados dele.
   - **Mobile/PWA** — `/patrimonio-mobile`, `/instalar`.
 
 ## Autenticação

@@ -114,6 +114,7 @@ import AniversariantesPage from "./pages/rh/AniversariantesPage";
 import GestaoLotacaoPage from "./pages/rh/GestaoLotacaoPage";
 import ControlePacotesFrequenciaPage from "./pages/rh/ControlePacotesFrequenciaPage";
 import MeuContrachequePage from "./pages/rh/MeuContrachequePage";
+import MeusDadosPage from "./pages/rh/MeusDadosPage";
 import ConsultaContrachequesPage from "./pages/rh/ConsultaContrachequesPage";
 
 // Folha de Pagamento
@@ -870,6 +871,12 @@ const App = () => (
               <Route path="/rh/meu-contracheque" element={
                 <ProtectedRoute>
                   <MeuContrachequePage />
+                </ProtectedRoute>
+              } />
+              {/* Autoatendimento: só exige login; a página filtra pelo servidor do usuário */}
+              <Route path="/rh/meus-dados" element={
+                <ProtectedRoute>
+                  <MeusDadosPage />
                 </ProtectedRoute>
               } />
               <Route path="/rh/contracheques" element={
