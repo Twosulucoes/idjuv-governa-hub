@@ -65,8 +65,40 @@ import {
   CATEGORIAS_RESERVA
 } from "@/types/rh";
 import { SegundoVinculoSection } from "@/components/rh/SegundoVinculoSection";
-import { VinculoFuncionalForm, useVinculoFuncionalValidation } from "@/components/rh/VinculoFuncionalForm";
-import type { TipoServidor } from "@/types/servidor";
+import { VinculoFuncionalForm } from "@/components/rh/VinculoFuncionalForm";
+import { TIPO_VINCULO_POR_TIPO_SERVIDOR, type TipoServidor } from "@/types/servidor";
+import {
+  ABA_DO_CAMPO,
+  validarServidorForm,
+  type CampoServidorForm,
+  type ErrosServidorForm,
+} from "@/lib/servidorFormSchema";
+
+/** O servidor foi gravado, mas o vínculo funcional inicial não — a tela precisa avisar sem perder o cadastro. */
+class VinculoNaoCriadoError extends Error {
+  constructor(public readonly servidorId: string, causa: string) {
+    super(causa);
+    this.name = "VinculoNaoCriadoError";
+  }
+}
+
+/** Violação da unique `servidores_cpf_key` no insert/update em `servidores`. */
+function cpfDuplicado(error: unknown): boolean {
+  const err = error as { code?: string; message?: string } | null;
+  return err?.code === "23505" && !!err.message?.includes("cpf");
+}
+
+/** Mensagem amigável para o erro do insert/update em `servidores`. */
+function mensagemErroSalvar(error: unknown): string {
+  if (cpfDuplicado(error)) return "Já existe um servidor cadastrado com este CPF.";
+  const err = error as { message?: string } | null;
+  return `Erro ao salvar: ${err?.message ?? "erro desconhecido"}`;
+}
+
+function ErroCampo({ mensagem }: { mensagem?: string }) {
+  if (!mensagem) return null;
+  return <p className="text-sm text-destructive mt-1">{mensagem}</p>;
+}
 
 type FormData = {
   nome_completo: string;
@@ -263,6 +295,8 @@ export default function ServidorFormPage() {
   const isAdmin = isSuperAdmin || hasAnyPermission(['admin', 'rh.servidores.editar']);
 
   const [formData, setFormData] = useState<FormData>(initialFormData);
+  const [erros, setErros] = useState<ErrosServidorForm>({});
+  const [abaAtiva, setAbaAtiva] = useState("pessoal");
 
   // Fetch servidor se editando
   const { data: servidor, isLoading: isLoadingServidor } = useQuery({
@@ -530,22 +564,20 @@ export default function ServidorFormPage() {
 
        
 
-        // Criar vínculo inicial (fonte única: vinculos_servidor)
-        if (servidorId && data.unidade_atual_id) {
-          try {
-            await supabase.from('vinculos_servidor').insert({
-              servidor_id: servidorId,
-              tipo: (data as any).tipo_servidor || 'comissionado',
-              origem: 'idjuv',
-              cargo_id: data.cargo_atual_id || null,
-              unidade_id: data.unidade_atual_id,
-              data_inicio: data.data_admissao || new Date().toISOString().split('T')[0],
-              ativo: true,
-            });
-          } catch (vinculoError) {
-            console.error('Erro ao criar vínculo:', vinculoError);
-            // Não lançar erro - servidor foi criado com sucesso
-          }
+        // Criar vínculo inicial (fonte única: vinculos_servidor). O tipo do
+        // formulário é traduzido para o enum da tabela; a validação do submit
+        // garante tipo, unidade e data preenchidos.
+        if (servidorId && data.tipo_servidor && data.unidade_atual_id) {
+          const { error: vinculoError } = await supabase.from('vinculos_servidor').insert({
+            servidor_id: servidorId,
+            tipo: TIPO_VINCULO_POR_TIPO_SERVIDOR[data.tipo_servidor],
+            origem: 'idjuv',
+            cargo_id: data.cargo_atual_id || null,
+            unidade_id: data.unidade_atual_id,
+            data_inicio: data.data_admissao,
+            ativo: true,
+          });
+          if (vinculoError) throw new VinculoNaoCriadoError(servidorId, vinculoError.message);
         }
       }
     },
@@ -554,8 +586,23 @@ export default function ServidorFormPage() {
       toast.success(isEditing ? "Servidor atualizado!" : "Servidor cadastrado!");
       navigate("/rh/servidores");
     },
-    onError: (error: any) => {
-      toast.error(`Erro ao salvar: ${error.message}`);
+    onError: (error: unknown) => {
+      if (error instanceof VinculoNaoCriadoError) {
+        // O servidor existe: leva ao detalhe, onde o vínculo pode ser criado à mão.
+        queryClient.invalidateQueries({ queryKey: ["servidores-rh"] });
+        toast.error(`Servidor cadastrado, mas o vínculo funcional não foi criado: ${error.message}`, {
+          description: "Abra a aba Histórico do servidor para registrar o vínculo.",
+          duration: 10000,
+        });
+        navigate(`/rh/servidores/${error.servidorId}`);
+        return;
+      }
+      if (cpfDuplicado(error)) {
+        // Marca o campo além do toast, já que os erros são limpos antes do mutate
+        setErros({ cpf: "CPF já cadastrado" });
+        setAbaAtiva("documentos");
+      }
+      toast.error(mensagemErroSalvar(error));
     },
   });
 
@@ -571,16 +618,29 @@ export default function ServidorFormPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.nome_completo || !formData.cpf) {
-      toast.error("Nome e CPF são obrigatórios");
+    const validacao = validarServidorForm(formData, { exigirVinculo: !isEditing });
+    if (!validacao.ok) {
+      const campo = validacao.primeiroCampo;
+      setErros(validacao.erros);
+      const aba = campo ? ABA_DO_CAMPO[campo] : null;
+      if (aba) setAbaAtiva(aba);
+      toast.error((campo && validacao.erros[campo]) || "Verifique os campos destacados");
       return;
     }
+    setErros({});
     mutation.mutate(formData);
   };
 
   const updateField = (field: keyof FormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Limpa o erro do campo assim que o usuário o altera
+    if (erros[field as CampoServidorForm]) {
+      setErros(prev => ({ ...prev, [field]: undefined }));
+    }
   };
+
+  const erroVinculo =
+    erros.tipo_servidor || erros.unidade_atual_id || erros.cargo_atual_id || erros.data_admissao;
 
   if (isEditing && isLoadingServidor) {
     return (
@@ -698,7 +758,7 @@ export default function ServidorFormPage() {
           </div>
 
           <form onSubmit={handleSubmit}>
-            <Tabs defaultValue="pessoal" className="space-y-6">
+            <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="space-y-6">
               <TabsList className="grid grid-cols-3 lg:grid-cols-6 gap-2">
                 <TabsTrigger value="pessoal" className="flex items-center gap-2">
                   <User className="h-4 w-4" />
@@ -744,7 +804,9 @@ export default function ServidorFormPage() {
                           onChange={(value) => updateField('nome_completo', value)}
                           placeholder="Nome completo do servidor"
                           required
+                          aria-invalid={!!erros.nome_completo}
                         />
+                        <ErroCampo mensagem={erros.nome_completo} />
                       </div>
                       <div>
                         <Label>Nome Social</Label>
@@ -760,7 +822,9 @@ export default function ServidorFormPage() {
                           type="date"
                           value={formData.data_nascimento}
                           onChange={(e) => updateField('data_nascimento', e.target.value)}
+                          aria-invalid={!!erros.data_nascimento}
                         />
+                        <ErroCampo mensagem={erros.data_nascimento} />
                       </div>
                       <div>
                         <Label>Sexo</Label>
@@ -962,7 +1026,9 @@ export default function ServidorFormPage() {
                           type="email"
                           value={formData.email_pessoal}
                           onChange={(e) => updateField('email_pessoal', e.target.value)}
+                          aria-invalid={!!erros.email_pessoal}
                         />
+                        <ErroCampo mensagem={erros.email_pessoal} />
                       </div>
                       <div>
                         <Label>Email Institucional</Label>
@@ -970,7 +1036,9 @@ export default function ServidorFormPage() {
                           type="email"
                           value={formData.email_institucional}
                           onChange={(e) => updateField('email_institucional', e.target.value)}
+                          aria-invalid={!!erros.email_institucional}
                         />
+                        <ErroCampo mensagem={erros.email_institucional} />
                       </div>
                       <div>
                         <Label>Telefone Fixo</Label>
@@ -1002,7 +1070,12 @@ export default function ServidorFormPage() {
                       Vínculo Funcional
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-4">
+                    {erroVinculo && (
+                      <p role="alert" className="text-sm text-destructive rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2">
+                        {erroVinculo}
+                      </p>
+                    )}
                     <VinculoFuncionalForm
                       tipoServidor={formData.tipo_servidor}
                       cargoId={formData.cargo_atual_id}
@@ -1035,7 +1108,9 @@ export default function ServidorFormPage() {
                           value={formData.cpf}
                           onChange={(value) => updateField('cpf', value)}
                           required
+                          aria-invalid={!!erros.cpf}
                         />
+                        <ErroCampo mensagem={erros.cpf} />
                       </div>
                       <div>
                         <Label>RG</Label>
@@ -1080,7 +1155,9 @@ export default function ServidorFormPage() {
                           mask="pis"
                           value={formData.pis_pasep}
                           onChange={(value) => updateField('pis_pasep', value)}
+                          aria-invalid={!!erros.pis_pasep}
                         />
+                        <ErroCampo mensagem={erros.pis_pasep} />
                       </div>
                     </div>
 
@@ -1266,7 +1343,9 @@ export default function ServidorFormPage() {
                           mask="cep"
                           value={formData.endereco_cep}
                           onChange={(value) => updateField('endereco_cep', value)}
+                          aria-invalid={!!erros.endereco_cep}
                         />
+                        <ErroCampo mensagem={erros.endereco_cep} />
                       </div>
                       <div className="md:col-span-3">
                         <Label>Logradouro</Label>
@@ -1366,7 +1445,9 @@ export default function ServidorFormPage() {
                           type="number"
                           value={formData.ano_conclusao}
                           onChange={(e) => updateField('ano_conclusao', e.target.value)}
+                          aria-invalid={!!erros.ano_conclusao}
                         />
+                        <ErroCampo mensagem={erros.ano_conclusao} />
                       </div>
                     </div>
 
@@ -1494,7 +1575,9 @@ export default function ServidorFormPage() {
                       type="number"
                       value={formData.carga_horaria}
                       onChange={(e) => updateField('carga_horaria', e.target.value)}
+                      aria-invalid={!!erros.carga_horaria}
                     />
+                    <ErroCampo mensagem={erros.carga_horaria} />
                   </div>
                 </div>
                 

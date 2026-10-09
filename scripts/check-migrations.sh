@@ -25,7 +25,7 @@
 #   1. Nenhum prefixo de versão duplicado entre os arquivos de migração.
 #   2. Todo arquivo segue o padrão <14 dígitos>_<slug>.sql.
 #
-# As ~248 migrações deste repositório (geradas pelo Lovable) já seguem esse
+# As ~248 migrações deste repositório já seguem esse
 # padrão hoje (checado em 2026-09-24: nenhuma duplicata de versão, nenhum nome
 # fora do padrão) — o slug depois do timestamp é um UUID com hífens em boa
 # parte delas, e isso é aceito de propósito (ver comentário no passo 2).
@@ -68,7 +68,7 @@ fi
 # --- 2. Padrão de nome ------------------------------------------------------
 # Exige apenas o prefixo de 14 dígitos + separador — o suficiente para que a
 # versão seja extraível (e a checagem de duplicidade acima seja confiável). O
-# slug em si é livre: as migrations deste repo (geradas pelo Lovable) usam
+# slug em si é livre: as migrations deste repo usam
 # majoritariamente UUID com hífens como slug, e isso é legítimo.
 while IFS= read -r f; do
   base=$(basename "$f")

@@ -21,13 +21,18 @@ npm run gate    # ou simplesmente: git push
 automaticamente nos passos internos.)
 
 O gate (`scripts/gate.sh`) roda, nesta ordem (o que falha em segundos primeiro):
-`check:migrations` → `check:docs` → `check:rls` → `typecheck` → `lint` → `build`. Não há suíte
+`check:migrations` → `check:docs` → `check:rls` → `check:contraste` → `typecheck` → `lint` →
+cor crua → `build`. Não há suíte
 de testes automatizados configurada neste projeto. O `vite build` **não** checa
 tipos, por isso o typecheck (`tsc -p tsconfig.app.json`) é passo próprio.
 
 O repositório carrega dívida histórica de tipos e lint, então `typecheck` e
 `lint` comparam com `scripts/gate-baseline.json` e falham **só se o número de
-erros aumentar**; os três guards e o build falham em qualquer ocorrência. Ao
+erros aumentar**. O mesmo vale para a **cor crua** (`bg-blue-500`, `#1e40af`… em
+`src/**/*.tsx`, contada por `scripts/check-cor-crua.mjs`): pode cair, nunca subir —
+use token semântico (ver `docs/GUIA_FRONTEND.md`, Design System). Os quatro guards
+(migrações, docs, RLS e contraste AA dos tokens de cor de `src/index.css` e de cada
+`tenants/*`) e o build falham em qualquer ocorrência. Ao
 reduzir a dívida: `bash scripts/gate.sh --update-baseline` e commite a baseline.
 
 Para pular conscientemente: `git push --no-verify`. **Isso é desaconselhado**

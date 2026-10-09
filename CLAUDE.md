@@ -24,8 +24,11 @@ Há também um **portal público** (notícias, galerias, transparência, formul�
 de cadastro como gestores escolares, árbitros, federações e mini-currículo) e um
 **PWA mobile** para coleta de inventário de patrimônio em campo.
 
-O projeto nasceu no **Lovable** (`lovable.dev`) e está conectado ao **Supabase**.
-Alterações via Lovable são commitadas automaticamente no repo, e vice-versa.
+O backend é o **Supabase self-hosted** na VPS do time (`bd.idjuv.online`), que é
+o banco consumido em produção (`idjuv.online`) — ver [`docs/NOVO_BANCO.md`](./docs/NOVO_BANCO.md).
+O código vive só neste repositório GitHub, sem sincronização automática com
+ferramentas externas. O antigo projeto `qvbhejhcktcaftiamksd` (Lovable Cloud)
+não é mais usado pelo site publicado.
 
 ---
 
@@ -48,7 +51,7 @@ Alterações via Lovable são commitadas automaticamente no repo, e vice-versa.
 | Notificações | **sonner** + toaster do shadcn |
 | Tema | **next-themes** (light/dark) |
 
-Gerenciador de pacotes: o repo tem **`bun.lockb`/`bun.lock`** e
+Gerenciador de pacotes: o repo tem **`bun.lock`** e
 `package-lock.json`. Prefira **bun** se disponível; senão `npm`.
 
 ---
@@ -65,8 +68,8 @@ bun run preview      # preview do build
 ```
 
 > Não há suíte de testes. Verificação: **`bash scripts/gate.sh`** (`npm run gate`:
-> guards de migrações/docs/RLS do baseline + typecheck + lint + build; typecheck e lint comparam com
-> `scripts/gate-baseline.json` e falham só se a dívida piorar). Roda no `pre-push`
+> guards de migrações/docs/RLS do baseline/contraste AA dos tokens + typecheck + lint + cor crua + build;
+> typecheck, lint e cor crua comparam com `scripts/gate-baseline.json` e falham só se a dívida piorar). Roda no `pre-push`
 > e no CI (`.github/workflows/quality.yml`) — ver `CONTRIBUTING.md`.
 > Atenção: `vite build` **não** checa tipos; o typecheck é `tsc -p tsconfig.app.json`.
 > O `package-lock.json` está fora de sincronia: use `bun install` ou
@@ -119,13 +122,13 @@ src/
 └── assets/                # imagens/estáticos
 
 supabase/
-├── migrations/            # ~240 migrações SQL (timestamp_uuid.sql) — geradas pelo Lovable
+├── migrations/            # ~240 migrações SQL (timestamp_uuid.sql)
 ├── functions/             # Edge Functions (Deno): admin-create-user, delete-user,
 │                          #   backup-offsite, cpsi-ai-assistant, download-frequencia, ...
 └── config.toml
 
 docs/        # Documentação de operação (migração Supabase, backup, SQL de correção)
-.lovable/    # Relatórios/planos gerados pelo Lovable (auditorias, refatorações, fases)
+             #   docs/historico/ guarda relatórios e planos antigos (só contexto)
 ```
 
 ---
@@ -193,8 +196,8 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
   `esocialGenerator.ts`, `esocialXmlGenerator.ts`.
 
 ### Banco de dados (Supabase)
-- Migrações em `supabase/migrations/` (nome `YYYYMMDDHHMMSS_<uuid>.sql`,
-  tipicamente geradas pelo Lovable). Edge Functions em `supabase/functions/`
+- Migrações em `supabase/migrations/` (nome `YYYYMMDDHHMMSS_<uuid>.sql`
+  ou `YYYYMMDDHHMMSS_<slug>.sql`). Edge Functions em `supabase/functions/`
   (Deno/TypeScript).
 - Banco novo e vazio (schema consolidado + RLS por módulo): `supabase/baseline/`,
   guia em `docs/NOVO_BANCO.md`; validação em Postgres puro: `scripts/db/validar-baseline.sh`.
@@ -223,9 +226,10 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 
 ## 8. Deploy
 
-- **Vercel** (`vercel.json` faz rewrite SPA de tudo para `/index.html`). Também
-  publicável via Lovable (Share → Publish).
-- Backend hospedado no Supabase. Edge Functions são deployadas no Supabase.
+- **Vercel** (`vercel.json` faz rewrite SPA de tudo para `/index.html`).
+- Backend: Supabase self-hosted na VPS do órgão. Edge Functions são deployadas no Supabase.
+- **Migrações:** aplicadas automaticamente pelo CI (`.github/workflows/migracoes-banco.yml`):
+  simulação no PR, aplicação no merge na `main`. Detalhes em `docs/DESENVOLVIMENTO.md`.
 
 ---
 
@@ -237,9 +241,8 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
    `ProtectedRoute` já aplica RBAC (ver §6), mas trate isso como UX, não como
    controle de acesso suficiente sozinho. Ao criar tabela/coluna nova, use o
    skill `migracao-segura-idjuv` (RLS obrigatório desde a migração).
-3. **Sincronização com Lovable:** o Lovable commita automaticamente. Evite
-   reformatações massivas/sem necessidade que gerem conflito; mantenha
-   alterações focadas.
+3. **Diffs focados:** evite reformatações massivas/sem necessidade que gerem
+   conflito entre branches; mantenha alterações focadas.
 4. **`App.tsx` é grande:** mudanças de rota ficam todas lá. Cuidado com merges.
 5. **Sem testes automatizados:** valide com `lint` + `build` e, quando possível,
    rode o app (`bun run dev`) para conferir o comportamento.
@@ -297,6 +300,10 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 - Specs: `docs/superpowers/specs/`; planos: `docs/superpowers/plans/`; roadmap:
   `docs/planejamento/ROADMAP.md`; matriz de docs: `docs/GOVERNANCA_DOCUMENTACAO.md`.
 - `.claude/skills/supabase*` são cópias de `supabase/agent-skills` (MIT).
+- `.claude/skills/ui-ux-pro-max` é cópia de `nextlevelbuilder/ui-ux-pro-max-skill` (MIT) — base de
+  conhecimento de UI/UX para qualquer mudança visual; origem, revisão e uso em
+  `.claude/skills/UI-UX-PRO-MAX-VENDOR.md`. Direção do design system:
+  `docs/superpowers/specs/2026-10-09-design-system-design.md`.
 
 ---
 

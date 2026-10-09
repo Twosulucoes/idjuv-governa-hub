@@ -243,6 +243,13 @@ Chamado pelo `TenantProvider` assim que o perfil resolve. O `src/index.css` mant
 os tokens, mas com **valores neutros** (cinza-azulado de produto), e os comentários
 "da logo IDJUV" saem.
 
+**Contraste é contrato do tenant.** Toda paleta em `tenants/*/tenant.config.ts` passa pelo guard
+`scripts/check-contraste.mjs` no gate: cada `*Foreground` sobre seu token ≥ 4,5:1, `primary`
+como texto sobre o fundo ≥ 4,5:1 e `ring` ≥ 3:1, em claro e escuro. Ao mudar o matiz de um estado
+(`success`, `warning`, `info`, `accent`, `secondary`), defina também o token de texto
+(`successText`, `warningText`…), usado por `text-success` etc. — o guard falha se faltar, para o
+texto não herdar o matiz de `src/index.css`.
+
 Cuidado a observar: existem **três paletas divergentes** hoje (CSS `--primary`
 azul, `pdfTemplate.CORES.primaria` verde-petróleo #004444, `report.styles.ts`
 verde). O white label é a oportunidade de unificar — a paleta do tenant deve ser
@@ -546,7 +553,6 @@ fi
 
 | Risco | Mitigação |
 |---|---|
-| **Sincronização com o Lovable** — commita automaticamente e pode reintroduzir hardcode | Fazer o white label em fases curtas e mergeadas rápido; a guarda de CI (§12) detecta reintrodução |
 | **`App.tsx` com 1.281 linhas e 239 rotas** — alto risco de conflito de merge | Tratar o guard de módulo como wrapper, não reorganizar o arquivo na mesma fase |
 | **`types.ts` gerado (~23 mil linhas)** | Nunca editar à mão; regenerar após cada migração (§9) |
 | **Templates jurídicos** | Fase 5 exige validação do jurídico do cliente — errar o fundamento legal invalida o ato administrativo |

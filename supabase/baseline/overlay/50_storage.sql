@@ -82,7 +82,7 @@ BEGIN
   END LOOP;
 END $$;
 
--- Evidências do inventário de campo (migração 20261009120000): o arquivo tem o hash gravado em
+-- Evidências do inventário de campo (migração 20261009160000): o arquivo tem o hash gravado em
 -- fotos_vistoria_inventario, então sobrescrever (UPDATE) ou apagar exige patrimonio.tramitar, como o
 -- DELETE da tabela. Ler e enviar continuam por módulo (policies do laço acima).
 DROP POLICY IF EXISTS "st_inventario-evidencias_update" ON storage.objects;

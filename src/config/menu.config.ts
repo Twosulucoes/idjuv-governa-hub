@@ -29,6 +29,7 @@ import {
   Globe,
   Settings,
   Database,
+  Upload,
   HelpCircle,
   Send,
   TrendingUp,
@@ -61,6 +62,7 @@ import {
   Download,
   Gavel,
   type LucideIcon,
+  Bell,
 } from "lucide-react";
 
 // ================================
@@ -99,6 +101,7 @@ export type PermissaoInstitucional =
   | 'orcamento.visualizar'
   | 'orcamento.criar'
   | 'orcamento.aprovar'
+  | 'orcamento.importar'
   // Patrimônio
   | 'patrimonio.visualizar'
   | 'patrimonio.criar'
@@ -1033,6 +1036,12 @@ export const menuConfig: MenuSection[] = [
         route: "/comunicacao/aniversariantes",
         icon: Cake,
       },
+      {
+        id: "avisos-datas",
+        label: "Avisos e Datas",
+        route: "/avisos",
+        icon: Bell,
+      },
     ],
   },
 
@@ -1194,6 +1203,13 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/backup",
         icon: Database,
         permission: "admin.backup",
+      },
+      {
+        id: "importacoes",
+        label: "Importação de Dados",
+        route: "/admin/importacoes",
+        icon: Upload,
+        permission: "orcamento.importar",
       },
       {
         id: "ajuda",

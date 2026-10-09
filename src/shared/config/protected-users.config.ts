@@ -19,7 +19,7 @@ export const PROTECTED_SUPER_ADMIN_EMAIL = 'handfabiano@gmail.com';
  * Verifica se um usuário é o Super Admin protegido.
  *
  * Checa por UUID (auth.users.id) e por e-mail. O UUID muda ao trocar de
- * projeto Supabase (Lovable Cloud hoje, instância própria depois) mesmo
+ * projeto Supabase (ex.: migração para outra conta ou instância) mesmo
  * sendo a mesma pessoa — sem o fallback por e-mail, essa proteção pararia
  * de reconhecer o super admin silenciosamente após a migração, e outro
  * admin poderia alterar/remover as próprias permissões dele pelo painel

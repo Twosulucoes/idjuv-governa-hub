@@ -103,6 +103,25 @@ Definido em `src/types/auth.ts` (`module_access_scopes` no banco):
 - **`src/shared/config/protected-users.config.ts`** — usuários protegidos.
 - Hooks: `useRBAC`, `usePermissions`, `usePermissoesUsuario`, `useModulosUsuario`.
 
+### Avisos e datas importantes
+
+`avisos.gerenciar` (catálogo do módulo `comunicacao`, concedida em `user_modules.permissions` ou
+`user_permissions`; admin passa por cima) libera publicar avisos e cadastrar datas. A mesma permissão
+é exigida pela RLS de `avisos` e `datas_importantes` e mostra a aba Gerenciar em `/avisos`. Ler avisos
+não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos módulos do aviso).
+
+### Importação de dados
+
+Cada importador declara a sua permissão (`src/lib/importacao/registro.ts`) e a RPC dele confere a
+mesma no banco. Hoje: `orcamento.importar` (catálogo do módulo `financeiro`) para o QDD do FIPLAN —
+exigida pela RPC `importar_qdd_fiplan` (junto com acesso ao módulo financeiro), pela rota
+`/admin/importacoes` e pelo botão "Importar QDD (FIPLAN)" em `/financeiro/qdd`. Quem só tem
+`orcamento.visualizar` vê o QDD mas não importa. Atenção: a RLS atual de `fin_dotacoes` e dos
+catálogos orçamentários libera escrita a quem acessa o módulo financeiro, então `orcamento.importar`
+controla a tela e a RPC (e garante o registro em `importacoes`), não a escrita direta nessas tabelas.
+Restringir isso é mudança de RLS existente (pendente, exige decisão). O histórico (`importacoes`) é lido por quem acessa o
+módulo da importação.
+
 ## Enforcement de rota (`ProtectedRoute`)
 
 O componente `src/components/auth/ProtectedRoute.tsx` aplica o controle de acesso
@@ -132,7 +151,7 @@ Camadas complementares:
 - Rota `/inventario/campanhas/:id/painel`: `patrimonio.visualizar` no
   `ProtectedRoute`. O modo "Vistoria de Unidade" fica dentro de
   `/patrimonio-mobile`.
-- No banco (migração `20261009120000`): ler e gravar a situação das unidades e
+- No banco (migração `20261009160000`): ler e gravar a situação das unidades e
   enviar fotos exige o módulo `patrimonio` ou `patrimonio_mobile`. A permissão
   granular `patrimonio.tramitar` (`has_permission_code`) é exigida para apagar
   foto de evidência, para alterar foto de outro autor e para sobrescrever ou

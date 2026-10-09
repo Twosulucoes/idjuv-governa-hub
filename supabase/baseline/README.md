@@ -60,7 +60,7 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`):
 | `proprio_user` | 4 | cada usuário lê as suas linhas (`user_roles`, `user_modules`, `user_permissions`, `user_org_units`); só admin escreve |
 | `admin` / `admin_leitura` | 8 / 1 | só o papel admin (a segunda: lê, ninguém escreve — `audit_logs`) |
 | `publico_admin` | 3 | `anon` e logados leem (portal público); só admin escreve |
-| `preservar` | 3 | `denuncias`, `profiles` e `fotos_vistoria_inventario`: policies próprias (`has_permission_code`; overlay 12; migração `20261009120000`, que chegam pelo replay em `schema/03_post_data.sql`) |
+| `preservar` | 7 | `denuncias` e `profiles`: policies próprias (`has_permission_code`; overlay 12); `fotos_vistoria_inventario`: policies da migração `20261009160000`, que chegam pelo replay em `schema/03_post_data.sql`; `avisos`, `avisos_leituras`, `datas_importantes` e `importacoes`: policies da própria migração (entram no schema na próxima regeneração do baseline) |
 
 - Toda tabela de `public` precisa de uma linha no mapa e de RLS ligado: o teste de RLS reprova
   tabela fora do mapa (o gerador não enxerga o banco; o teste sim). Tabela nova só passa depois

@@ -140,6 +140,6 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   ainda entregam o arquivo a quem tem a URL; fechar exige bucket privado + URL assinada no front. O
   `inventario-evidencias` (fotos da vistoria de inventário) já nasce privado e o front lê por URL assinada.
 - `fotos_vistoria_inventario` é da classe `preservar` do mapa de RLS: as policies vêm da migração
-  `20261009120000` pelo replay, não do gerador ([detalhe](../supabase/baseline/README.md)).
+  `20261009160000` pelo replay, não do gerador ([detalhe](../supabase/baseline/README.md)).
 - A migração `20260110184920` e o histórico git contêm 74 nomes de servidores (CPF placeholder); o baseline não
   os leva, mas o repositório os mantém até uma decisão sobre limpeza de histórico.

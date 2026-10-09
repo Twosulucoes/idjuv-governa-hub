@@ -17,7 +17,7 @@
 │  Edge Functions (Deno) — operações privilegiadas/admin         │
 └──────────────────────────────────────────────────────────────┘
 
-Hospedagem do front: Vercel (SPA, rewrite p/ index.html) / Lovable.
+Hospedagem do front: Vercel (SPA, rewrite p/ index.html).
 ```
 
 O front é uma **SPA** que fala diretamente com o Supabase via `supabase-js`
@@ -53,9 +53,19 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
     publicação da rota (configurável em `config_paginas_publicas`).
   - **Protegidas** — `<ProtectedRoute>`: exige autenticação. Aceita props
     `requiredModule`/`requiredPermissions` (ver observação no RBAC).
+    Rotas de **autoatendimento** (`/rh/meu-contracheque`, `/rh/meus-dados`) usam
+    `<ProtectedRoute>` sem permissão: a página filtra pelo servidor vinculado ao
+    usuário logado (`servidores.user_id`) e só mostra os dados dele.
   - **Mobile/PWA** — `/patrimonio-mobile`, `/instalar`. O `/patrimonio-mobile`
     inclui o modo "Vistoria de Unidade" do inventário de campo (fotos com fila
     offline; ver [MODULOS.md](./MODULOS.md)).
+- Telas de módulo usam `ModuleLayout` (`src/components/layout/`), que inclui o sino de avisos
+  (`AvisosSino`, no cabeçalho) e a faixa de avisos em destaque (`AvisosDestaque`, no topo do
+  conteúdo); o mural completo fica em `/avisos` (protegida, qualquer usuário logado).
+- **Central de Importações** em `/admin/importacoes` (`ImportacoesPage`): a rota exige a permissão de
+  algum importador (`PERMISSOES_IMPORTACAO`, de `src/lib/importacao/registro.ts`); o mesmo assistente
+  também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver
+  `docs/GUIA_FRONTEND.md` (Importação de dados).
 - Inventário de campo: `/inventario/campanhas/:id/painel` (painel com mapa,
   `ProtectedRoute requiredPermissions="patrimonio.visualizar"`), com link na
   página de detalhe da campanha.
@@ -96,7 +106,7 @@ caches relevantes. Estatísticas de dashboard ficam em `use<Modulo>DashboardStat
   funções como `has_permission`, `has_role`, `user_has_unit_access`,
   `usuario_tem_acesso_modulo` apoiam essas políticas.
 - **Migrações**: `supabase/migrations/*.sql` (~240), nomeadas
-  `YYYYMMDDHHMMSS_<uuid>.sql`, geradas tipicamente pelo Lovable.
+  `YYYYMMDDHHMMSS_<uuid>.sql` (ou `_<slug>.sql`).
 - **Storage**: anexos (documentos, demandas ASCOM, galerias, frequência) e
   evidências do inventário de campo (bucket privado `inventario-evidencias`,
   lido por URL assinada).

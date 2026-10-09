@@ -57,7 +57,6 @@ Veja o detalhamento de cada um em [MODULOS.md](./MODULOS.md).
 
 ## Origem e ecossistema
 
-- Construído na plataforma **Lovable** (`lovable.dev`), com sincronização
-  bidirecional com o GitHub: alterações no Lovable viram commits e vice-versa.
+- Código-fonte no GitHub, sem sincronização automática com ferramentas externas.
 - Backend **Supabase** (Postgres + Auth + Storage + Edge Functions).
-- Deploy do front na **Vercel** (e também publicável via Lovable).
+- Deploy do front na **Vercel**.

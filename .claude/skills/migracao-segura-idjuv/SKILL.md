@@ -59,8 +59,10 @@ quê — não deixe "sem RLS" como forma de simular "é pública".
 
 ## Depois de aplicar
 
-1. Aplique a migração (via MCP `apply_migration` se disponível, senão
-   documente para o usuário aplicar).
+1. Não aplique a migração direto no banco de produção: ela é aplicada pelo CI no merge
+   (`.github/workflows/migracoes-banco.yml`, ver `docs/DESENVOLVIMENTO.md`). Valide antes num
+   Postgres local (`scripts/db/validar-baseline.sh` + a migração por cima) e confira no PR o resumo
+   do job "Migrações do banco" (dry-run) com a lista do que vai rodar.
 2. Rode `get_advisors` (MCP Supabase) e resolva qualquer alerta de "RLS
    disabled" ou "policy missing" antes de considerar a migração pronta.
 3. Regenere os tipos TypeScript (`generate_typescript_types` via MCP, ou

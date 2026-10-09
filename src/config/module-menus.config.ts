@@ -43,6 +43,7 @@ import {
   Database,
   HelpCircle,
   Archive,
+  Upload,
   Send,
   Workflow,
   Network,
@@ -51,6 +52,7 @@ import {
   FolderOpen,
   Smartphone,
   ArrowRightLeft,
+  Bell,
 } from "lucide-react";
 import type { Modulo } from "@/shared/config/modules.config";
 
@@ -240,6 +242,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       },
       { id: "aniversariantes", label: "Aniversariantes", icon: Cake, route: "/comunicacao/aniversariantes" },
       { id: "calendario", label: "Calendário", icon: Calendar, route: "/comunicacao/calendario" },
+      { id: "avisos", label: "Avisos e Datas", icon: Bell, route: "/avisos" },
     ],
   },
 
@@ -316,6 +319,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "auditoria", label: "Auditoria", icon: Shield, route: "/admin/auditoria" },
       { id: "banco-dados", label: "Banco de Dados", icon: Database, route: "/admin/database" },
       { id: "backup", label: "Backup", icon: Archive, route: "/admin/backup" },
+      { id: "importacoes", label: "Importação de Dados", icon: Upload, route: "/admin/importacoes" },
       { id: "modulos", label: "Gestão de Módulos", icon: Package, route: "/admin/modulos" },
       { id: "permissoes", label: "Painel de Permissões", icon: Shield, route: "/admin/permissoes" },
       { id: "ajuda", label: "Ajuda", icon: HelpCircle, route: "/admin/ajuda" },

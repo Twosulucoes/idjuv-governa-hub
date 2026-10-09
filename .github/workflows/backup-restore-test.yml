@@ -1,0 +1,109 @@
+name: Teste de restauração do backup
+
+# Uma vez por mês baixa o backup mais recente da VPS (gerado por scripts/backup/backup-vps.sh),
+# decifra, restaura num Postgres descartável com a mesma imagem do Supabase self-hosted e confere
+# a contagem de linhas contra o manifesto. Backup que nunca foi restaurado não é backup.
+#
+# Secrets (Settings → Secrets and variables → Actions), explicados em docs/BACKUP.md:
+#   BACKUP_RCLONE_CONF   conteúdo do rclone.conf com o remoto do backup (pode ser só-leitura)
+#   BACKUP_RCLONE_REMOTE remoto + bucket, igual ao da VPS (ex.: r2:idjuv-backups)
+#   BACKUP_AGE_KEY       chave PRIVADA do age (arquivo gerado por age-keygen)
+# Variável opcional: SUPABASE_PG_IMAGE (padrão abaixo) — use a mesma imagem do container db da VPS.
+#
+# O log mostra só contagens e a primeira linha de cada erro do pg_restore, nunca dados.
+on:
+  schedule:
+    - cron: "0 9 3 * *" # dia 3 de cada mês, 06:00 em Brasília
+  workflow_dispatch:
+    inputs:
+      pasta:
+        description: "Pasta do backup no remoto (vazio = diário mais recente). Ex.: mensal/2026-10-01"
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-restore-test
+  cancel-in-progress: false
+
+jobs:
+  restaurar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      RCLONE_CONF: ${{ secrets.BACKUP_RCLONE_CONF }}
+      REMOTO: ${{ secrets.BACKUP_RCLONE_REMOTE }}
+      AGE_KEY: ${{ secrets.BACKUP_AGE_KEY }}
+      IMAGEM: ${{ vars.SUPABASE_PG_IMAGE || 'supabase/postgres:17.6.1.136' }}
+      PASTA: ${{ inputs.pasta }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Conferir configuração
+        id: cfg
+        run: |
+          if [ -z "$RCLONE_CONF" ] || [ -z "$REMOTO" ] || [ -z "$AGE_KEY" ]; then
+            echo "::warning::Backup ainda não configurado (faltam secrets BACKUP_*). Ver docs/BACKUP.md."
+            echo "pronto=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "pronto=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Instalar rclone e age
+        if: steps.cfg.outputs.pronto == 'true'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq rclone age
+
+      - name: Baixar e decifrar o backup
+        if: steps.cfg.outputs.pronto == 'true'
+        run: |
+          set -euo pipefail
+          umask 077
+          PASTA_INFORMADA="$PASTA"
+          mkdir -p ~/.config/rclone "$RUNNER_TEMP/bk" "$RUNNER_TEMP/dados"
+          printf '%s\n' "$RCLONE_CONF" > ~/.config/rclone/rclone.conf
+          printf '%s\n' "$AGE_KEY" > "$RUNNER_TEMP/chave.key"
+          if [ -z "$PASTA" ]; then
+            ultimo=$(rclone lsf --dirs-only "$REMOTO/diario" | sort | tail -1)
+            [ -n "$ultimo" ] || { echo "::error::nenhum backup em $REMOTO/diario"; exit 1; }
+            PASTA="diario/${ultimo%/}"
+          fi
+          echo "Backup testado: $PASTA"
+          echo "### Backup testado: \`$PASTA\`" >> "$GITHUB_STEP_SUMMARY"
+          idade=$(( ( $(date -u +%s) - $(date -u -d "${PASTA##*/}" +%s) ) / 86400 ))
+          if [ "$idade" -gt 2 ] && [ -z "$PASTA_INFORMADA" ]; then
+            echo "::error::o backup diário mais recente tem $idade dias: o cron da VPS parou?"; exit 1
+          fi
+          rclone copy "$REMOTO/$PASTA" "$RUNNER_TEMP/bk"
+          cp "$RUNNER_TEMP/bk/manifesto.tsv" "$RUNNER_TEMP/dados/"
+          for f in banco.dump papeis.sql; do
+            age -d -i "$RUNNER_TEMP/chave.key" -o "$RUNNER_TEMP/dados/$f" "$RUNNER_TEMP/bk/$f.age"
+          done
+          if [ -f "$RUNNER_TEMP/bk/storage.tar.gz.age" ]; then
+            age -d -i "$RUNNER_TEMP/chave.key" "$RUNNER_TEMP/bk/storage.tar.gz.age" | tar -tzf - | wc -l \
+              | xargs -I{} echo "Storage: {} entradas no arquivo" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          rm -f "$RUNNER_TEMP/chave.key"
+
+      - name: Restaurar e conferir
+        if: steps.cfg.outputs.pronto == 'true'
+        run: |
+          set -euo pipefail
+          docker run -d --name pgteste -e POSTGRES_PASSWORD=postgres \
+            -v "$RUNNER_TEMP/dados:/restore" -v "$PWD/scripts/backup:/scripts:ro" "$IMAGEM" >/dev/null
+          for i in $(seq 1 60); do
+            docker exec pgteste pg_isready -U postgres -h 127.0.0.1 >/dev/null 2>&1 && break; sleep 2
+          done
+          sleep 5 # o entrypoint da imagem reinicia o Postgres depois dos scripts de init
+          for i in $(seq 1 30); do
+            docker exec pgteste pg_isready -U postgres -h 127.0.0.1 >/dev/null 2>&1 && break; sleep 2
+          done
+          docker exec -e PGHOST=127.0.0.1 -e PGUSER=supabase_admin -e PGPASSWORD=postgres pgteste \
+            bash /scripts/testar-restauracao.sh /restore | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Limpar
+        if: always()
+        run: |
+          docker rm -f pgteste >/dev/null 2>&1 || true
+          sudo rm -rf "$RUNNER_TEMP/bk" "$RUNNER_TEMP/dados" ~/.config/rclone

@@ -19,6 +19,8 @@ Gestão do próprio sistema. Páginas em `src/pages/admin/` (~25):
 - **Reuniões**: `ReunioesPage`, `ConfiguracaoReunioesPage`, `CheckinReuniaoPage`.
 - **Infra**: `AuditoriaPage`, `BackupOffsitePage`, `DisasterRecoveryPage`,
   `DatabaseSchemaPage`, `CalibradorSegadPage`, `SobreSistemaPage`, `AdminHelpPage`.
+- **Importação de dados**: `ImportacoesPage` (`/admin/importacoes`) lista os importadores que o usuário
+  pode usar e o histórico (`importacoes`). Primeiro importador: QDD do FIPLAN (financeiro).
 
 ## Recursos Humanos (`rh`)
 
@@ -33,6 +35,8 @@ O maior módulo. Páginas em `src/pages/rh/` (~20), além de `folha/` e `curricu
 - **Portarias**: `CentralPortariasPage`, `PendenciasPortariasPage`,
   `AtribuicaoPortariasPage`.
 - **Contracheques**: `MeuContrachequePage`, `ConsultaContrachequesPage`.
+- **Autoatendimento**: `MeusDadosPage` (`/rh/meus-dados`, só leitura: dados pessoais,
+  contato, endereço, funcionais, bancários, vínculos e lotações do servidor logado).
 - **Apoio**: `RelatoriosRHPage`, `ModelosDocumentosPage`, `ExportacaoPlanilhaPage`.
 - **Folha** (`src/pages/folha/`): `GestaoFolhaPagamentoPage`, `ConfiguracaoFolhaPage`,
   `FolhaDetalhePage`, `FolhaBloqueadaPage`. Inclui cálculo (INSS/IRRF), rubricas,
@@ -61,6 +65,9 @@ ERP orçamentário. `src/pages/financeiro/` (~14):
 `SubEmpenhosPage`, `LiquidacoesPage`, `PagamentosPage`, `AdiantamentosPage`,
 `RestosAPagarPage`, `ContasBancariasPage`, `RelatoriosFinanceiroPage`.
 Fluxo: orçamento → solicitação → empenho → liquidação → pagamento.
+O `QDDPage` importa o PDF "Quadro de Detalhamento da Despesa - QDD" exportado do FIPLAN
+(permissão `orcamento.importar`), que cria/atualiza `fin_dotacoes` do exercício; o antigo
+import de planilha XLSX saiu (a exportação XLSX continua).
 
 ## Patrimônio (`patrimonio`) e Mobile (`patrimonio_mobile`)
 
@@ -72,8 +79,8 @@ Bens, inventário, almoxarifado e unidades.
   `AlmoxarifadoEstoquePage`, `RequisicoesMaterialPage`, `ManutencoesBensPage`,
   `BaixasPatrimonioPage`, `RelatoriosPatrimonioPage`, `CadastroBemSimplificadoPage`,
   `PainelCampoInventarioPage`.
-- **Inventário de campo — fase 1** (migração `20261009120000`, ainda não aplicada
-  em remoto): `PainelCampoInventarioPage` em `/inventario/campanhas/:id/painel`
+- **Inventário de campo — fase 1** (migração `20261009160000`, aplicada em
+  produção em 2026-10-09): `PainelCampoInventarioPage` em `/inventario/campanhas/:id/painel`
   (`patrimonio.visualizar`; link "Painel de campo" no detalhe da campanha) mostra
   mapa satélite/ruas com as unidades por situação, contadores, lista filtrável e
   o detalhe da unidade com as fotos de evidência. Ações: incluir unidades na
@@ -121,6 +128,14 @@ Demandas e CMS. `src/pages/ascom/` + `comunicacao/`: `GestaoDemandasAscomPage`,
 (público) e `ConsultaProtocoloAscomPage` (público). CMS: `CMSConteudosPage`,
 `CMSEditorPage`, `CMSBannersPage`, `CMSGaleriasPage`. Mais
 `CalendarioComunicacaoPage` e `AniversariantesComunicacaoPage`.
+
+**Avisos e datas importantes** (`src/pages/avisos/AvisosPage.tsx`, rota `/avisos`, item "Avisos e
+Datas" no menu da Comunicação). Aberta a qualquer usuário logado: aba **Mural** com os avisos
+vigentes do seu público e aba **Datas** com o calendário do mês (datas cadastradas, feriados de
+`dias_nao_uteis` completados pela BrasilAPI e aniversariantes do mês). A aba **Gerenciar** aparece
+para quem tem `avisos.gerenciar`. Todas as telas de módulo (`ModuleLayout`) mostram o sino de avisos
+não lidos e próximas datas (`AvisosSino`) e, no topo do conteúdo, os avisos em destaque ou urgentes
+ainda não lidos (`AvisosDestaque`). Desenho: `docs/superpowers/specs/2026-10-09-avisos-e-datas-importantes-design.md`.
 
 ## Programas (`programas`)
 

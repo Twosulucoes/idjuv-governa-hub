@@ -20,7 +20,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { 
-  ArrowLeft, 
   Pencil,
   User, 
   MapPin, 
@@ -29,6 +28,7 @@ import {
   GraduationCap,
   Wallet,
   Loader2,
+  UserX,
   Calendar,
   Plane,
   FileDown,
@@ -47,16 +47,17 @@ import { ptBR } from "date-fns/locale";
 import { 
   type Servidor,
   type HistoricoFuncional,
-  type SituacaoFuncional,
-  SITUACAO_LABELS,
-  SITUACAO_COLORS,
   MOVIMENTACAO_LABELS,
   VINCULO_EXTERNO_ESFERA_LABELS,
   VINCULO_EXTERNO_SITUACAO_LABELS,
   VINCULO_EXTERNO_FORMA_LABELS,
   type VinculoExternoEsfera,
   type VinculoExternoSituacao,
-  type VinculoExternoForma
+  type VinculoExternoForma,
+  FERIAS_STATUS_LABELS,
+  VIAGEM_STATUS_LABELS,
+  type StatusFeriasServidor,
+  type StatusViagemDiaria,
 } from "@/types/rh";
 import { formatDateBR } from "@/lib/formatters";
 import { type TipoServidor } from "@/types/servidor";
@@ -64,6 +65,8 @@ import { HistoricoFuncionalTab } from "@/components/rh/HistoricoFuncionalTab";
 import { ServidorFrequenciaConfigCard } from "@/components/rh/ServidorFrequenciaConfigCard";
 import { DesignacoesUnidadeTab } from "@/components/rh/DesignacoesUnidadeTab";
 import { DocumentosServidorTab } from "@/components/rh/DocumentosServidorTab";
+import { SituacaoServidorBadge } from "@/components/rh/SituacaoServidorBadge";
+import { EmptyState, PageHeader } from "@/components/design-system";
 
 export default function ServidorDetalheePage() {
   const navigate = useNavigate();
@@ -194,8 +197,9 @@ export default function ServidorDetalheePage() {
     return (
       <ProtectedRoute requiredModule="rh">
         <ModuleLayout module="rh">
-          <div className="flex items-center justify-center h-[60vh]">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="flex items-center justify-center h-[60vh]" role="status">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+            <span className="sr-only">Carregando ficha do servidor…</span>
           </div>
         </ModuleLayout>
       </ProtectedRoute>
@@ -206,55 +210,20 @@ export default function ServidorDetalheePage() {
     return (
       <ProtectedRoute requiredModule="rh">
         <ModuleLayout module="rh">
-          <div className="container mx-auto py-8 px-4 text-center">
-            <p className="text-muted-foreground">Servidor não encontrado.</p>
-            <Button className="mt-4" onClick={() => navigate('/rh/servidores')}>
-              Voltar
-            </Button>
-          </div>
+          <EmptyState
+            icone={UserX}
+            titulo="Servidor não encontrado"
+            descricao="O cadastro pode ter sido removido ou o endereço está incorreto."
+            acao={<Button onClick={() => navigate('/rh/servidores')}>Voltar para servidores</Button>}
+          />
         </ModuleLayout>
       </ProtectedRoute>
     );
   }
 
-  return (
-    <ProtectedRoute requiredModule="rh">
-      <ModuleLayout module="rh">
-        <div className="container mx-auto py-8 px-4">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
-            <div className="flex items-start gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={servidor.foto_url || undefined} />
-                <AvatarFallback className="bg-primary/10 text-primary text-2xl">
-                  {getInitials(servidor.nome_completo)}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">{servidor.nome_completo}</h1>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge className={SITUACAO_COLORS[servidor.situacao as SituacaoFuncional]}>
-                    {SITUACAO_LABELS[servidor.situacao as SituacaoFuncional]}
-                  </Badge>
-                  {(servidor as any).codigo_interno && (
-                    <Badge variant="outline" className="font-mono bg-muted/50">
-                      {(servidor as any).codigo_interno}
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-muted-foreground mt-1">
-                  {lotacaoVigente?.cargo?.sigla ? `${lotacaoVigente.cargo.sigla} - ${lotacaoVigente.cargo.nome}` : lotacaoVigente?.cargo?.nome || servidor.cargo?.nome || 'Sem cargo'} • {lotacaoVigente?.unidade?.sigla || lotacaoVigente?.unidade?.nome || servidor.unidade?.sigla || servidor.unidade?.nome || 'Sem lotação'}
-                </p>
-                {servidor.matricula && (
-                  <p className="text-sm text-muted-foreground">Matrícula: {servidor.matricula}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex gap-2">
+  // Ações do cabeçalho (fichas em PDF e editar), passadas ao PageHeader
+  const acoesFicha = (
+            <>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline">
@@ -360,8 +329,48 @@ export default function ServidorDetalheePage() {
                 <Pencil className="h-4 w-4 mr-2" />
                 Editar
               </Button>
-            </div>
-          </div>
+            </>
+  );
+
+  return (
+    <ProtectedRoute requiredModule="rh">
+      <ModuleLayout module="rh">
+        <div className="space-y-6">
+          <PageHeader
+            migalhas={[
+              { rotulo: "Recursos Humanos", href: "/rh" },
+              { rotulo: "Servidores", href: "/rh/servidores" },
+              { rotulo: servidor.nome_completo },
+            ]}
+            midia={
+              <Avatar className="h-16 w-16 md:h-20 md:w-20">
+                <AvatarImage src={servidor.foto_url || undefined} alt="" />
+                <AvatarFallback className="bg-primary/10 text-primary text-2xl">
+                  {getInitials(servidor.nome_completo)}
+                </AvatarFallback>
+              </Avatar>
+            }
+            titulo={servidor.nome_completo}
+            status={
+              <>
+                <SituacaoServidorBadge situacao={servidor.situacao} />
+                {(servidor as any).codigo_interno && (
+                  <Badge variant="outline" className="font-mono bg-muted/50">
+                    {(servidor as any).codigo_interno}
+                  </Badge>
+                )}
+              </>
+            }
+            descricao={
+              <>
+                <p>
+                  {lotacaoVigente?.cargo?.sigla ? `${lotacaoVigente.cargo.sigla} - ${lotacaoVigente.cargo.nome}` : lotacaoVigente?.cargo?.nome || servidor.cargo?.nome || 'Sem cargo'} • {lotacaoVigente?.unidade?.sigla || lotacaoVigente?.unidade?.nome || servidor.unidade?.sigla || servidor.unidade?.nome || 'Sem lotação'}
+                </p>
+                {servidor.matricula && <p className="text-caption">Matrícula: {servidor.matricula}</p>}
+              </>
+            }
+            acoes={acoesFicha}
+          />
 
           <Tabs defaultValue="dados" className="space-y-6">
             <TabsList className="grid grid-cols-3 lg:grid-cols-6 gap-2">
@@ -596,7 +605,7 @@ export default function ServidorDetalheePage() {
                             </p>
                           </div>
                           <Badge variant={f.status === 'concluida' ? 'secondary' : 'default'}>
-                            {f.status}
+                            {FERIAS_STATUS_LABELS[f.status as StatusFeriasServidor] ?? f.status}
                           </Badge>
                         </div>
                       ))}
@@ -635,7 +644,7 @@ export default function ServidorDetalheePage() {
                           </div>
                           <div className="text-right">
                             <Badge variant={v.status === 'concluida' ? 'secondary' : 'default'}>
-                              {v.status}
+                              {VIAGEM_STATUS_LABELS[v.status as StatusViagemDiaria] ?? v.status}
                             </Badge>
                             {v.valor_total && (
                               <p className="text-sm font-medium mt-1">
@@ -675,7 +684,7 @@ function SecondVinculoCard({ servidor }: { servidor: any }) {
       if (!servidor.vinculo_externo_ato_id) return null;
       const { data, error } = await supabase
         .from("documentos")
-        .select("id, numero, titulo, data_documento")
+        .select("id, numero, titulo, data_documento, arquivo_url")
         .eq("id", servidor.vinculo_externo_ato_id)
         .single();
       if (error) return null;
@@ -683,8 +692,6 @@ function SecondVinculoCard({ servidor }: { servidor: any }) {
     },
     enabled: !!servidor.vinculo_externo_ato_id,
   });
-
-  const navigate = useNavigate();
 
   const esferaLabel = servidor.vinculo_externo_esfera 
     ? VINCULO_EXTERNO_ESFERA_LABELS[servidor.vinculo_externo_esfera as VinculoExternoEsfera] 
@@ -722,16 +729,24 @@ function SecondVinculoCard({ servidor }: { servidor: any }) {
         {documento && (
           <div className="flex justify-between items-center text-sm">
             <span className="text-muted-foreground">Ato Formal</span>
-            <Button
-              variant="link"
-              size="sm"
-              className="h-auto p-0 text-primary"
-              onClick={() => navigate(`/documentos/${documento.id}`)}
-            >
-              <FileText className="h-3 w-3 mr-1" />
-              {documento.numero ? `Portaria ${documento.numero}` : documento.titulo}
-              <ExternalLink className="h-3 w-3 ml-1" />
-            </Button>
+            {/* Não há rota de detalhe de documento; abre o arquivo publicado, como em /governanca/portarias */}
+            {documento.arquivo_url ? (
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-primary"
+                onClick={() => window.open(documento.arquivo_url!, '_blank', 'noopener,noreferrer')}
+              >
+                <FileText className="h-3 w-3 mr-1" />
+                {documento.numero ? `Portaria ${documento.numero}` : documento.titulo}
+                <ExternalLink className="h-3 w-3 ml-1" />
+              </Button>
+            ) : (
+              <span className="font-medium text-foreground flex items-center">
+                <FileText className="h-3 w-3 mr-1" />
+                {documento.numero ? `Portaria ${documento.numero}` : documento.titulo}
+              </span>
+            )}
           </div>
         )}
         {servidor.vinculo_externo_observacoes && (

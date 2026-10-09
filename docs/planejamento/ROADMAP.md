@@ -9,13 +9,15 @@ Documento vivo, mantido pelo agente `documentador-idjuv`. Fluxo de trabalho: ver
 3. Com plano aprovado (`docs/superpowers/plans/`), mova para **Em andamento**; ao mergear, para **Concluído**.
 
 ## Em andamento
-- [ ] **Patrimônio / patrimonio_mobile — Inventário de campo, fase 1** (vistoria de unidades, fotos de evidência com fila offline, painel com mapa, importação de KML): em PR rascunho — spec [2026-10-09-inventario-campo-fase1](../superpowers/specs/2026-10-09-inventario-campo-fase1.md), plano [2026-10-09-inventario-campo-fase1](../superpowers/plans/2026-10-09-inventario-campo-fase1.md). Pendências:
-  - aplicar a migração `supabase/migrations/20261009120000_inventario_campo_fase1.sql` no projeto remoto e regenerar `src/integrations/supabase/types.ts` (o front usa `supabase as any` nas tabelas novas até lá);
+- [ ] **Comunicação — avisos e datas importantes:** mural `/avisos`, sino e destaque nos módulos, calendário com feriados e aniversariantes — [spec](../superpowers/specs/2026-10-09-avisos-e-datas-importantes-design.md), [plano](../superpowers/plans/2026-10-09-avisos-e-datas-importantes.md). Falta aplicar a migração no banco e regenerar os tipos.
+- [ ] **Importação de dados + QDD do FIPLAN:** Central de Importações (`/admin/importacoes`) com assistente ler → simular → confirmar e histórico; primeiro importador lê o PDF do QDD do FIPLAN e atualiza `fin_dotacoes` — [spec](../superpowers/specs/2026-10-09-importacao-dados-qdd-fiplan-design.md). Falta aplicar a migração, regenerar os tipos e conceder `orcamento.importar` a quem vai importar.
+- [ ] **Patrimônio / patrimonio_mobile — Inventário de campo, fase 1** (vistoria de unidades, fotos de evidência com fila offline, painel com mapa, importação de KML): em PR — spec [2026-10-09-inventario-campo-fase1](../superpowers/specs/2026-10-09-inventario-campo-fase1.md), plano [2026-10-09-inventario-campo-fase1](../superpowers/plans/2026-10-09-inventario-campo-fase1.md). Pendências:
+  - a migração `supabase/migrations/20261009160000_inventario_campo_fase1.sql` já está aplicada no banco de produção (foi aplicada à mão em 09/10, e por isso o arquivo foi renomeado de `20261009120000` para `20261009160000`, a versão registrada em `supabase_migrations.schema_migrations`); falta regenerar `src/integrations/supabase/types.ts` (o front usa `supabase as any` nas tabelas novas até lá);
   - decidir a correção das policies `acesso_total_*` em `campanhas_inventario` e `coletas_inventario` no banco ao vivo (o baseline já as remove);
   - confirmar os termos de uso da Esri World Imagery para uso institucional.
 
 ## Em planejamento
-- _(vazio)_
+- [ ] **Reformulação do design / Design System** (transversal) — spec [2026-10-09-design-system-design.md](../superpowers/specs/2026-10-09-design-system-design.md), plano [2026-10-09-design-system.md](../superpowers/plans/2026-10-09-design-system.md). Fases 0 (skill `ui-ux-pro-max` + spec) e 1 (tokens, contraste AA, IBM Plex Sans, guards no gate, vitrine `/admin/design-system`) e 2 (componentes `@/components/design-system`: PageHeader, DataTable, StatusBadge, EmptyState, KpiCard, ChartCard, FormSection, ErrorSummary) feitas; Fase 3 em andamento com o RH como piloto: shell acessível e painel/lista/ficha do servidor migrados; o formulário de servidor entra depois da Onda C do RH.
 
 ## Backlog
 - [ ] **RH — Fase 0/1 (P0):** verificar RLS real e estancar acesso aberto em folha/dados sensíveis — ver [ANALISE_RH.md](./ANALISE_RH.md) §6

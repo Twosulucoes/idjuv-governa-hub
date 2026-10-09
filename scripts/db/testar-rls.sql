@@ -1087,7 +1087,7 @@ BEGIN
   IF pg_temp.valor_como(NULL, 'anon', 'SELECT public.consultar_gestor_por_cpf(''000'')::text') IS NOT NULL THEN PERFORM pg_temp.falha('consultar_gestor_por_cpf aceita CPF inválido'); END IF;
 END $$;
 
--- ---------------------------------------------------------------- inventário de campo (migração 20261009120000)
+-- ---------------------------------------------------------------- inventário de campo (migração 20261009160000)
 -- fotos_vistoria_inventario é `preservar`: módulo lê, INSERT só em nome próprio, UPDATE só do autor ou com
 -- patrimonio.tramitar, DELETE só com patrimonio.tramitar; só legenda/tem_pessoa/codigo_objeto mudam (trigger). O bucket inventario-evidencias segue a mesma regra
 -- para sobrescrever/apagar. TRIGGERS LIGADOS.

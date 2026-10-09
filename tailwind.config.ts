@@ -15,7 +15,7 @@ export default {
   	extend: {
   		fontFamily: {
   			sans: [
-  				'Inter',
+  				'IBM Plex Sans',
   				'ui-sans-serif',
   				'system-ui',
   				'sans-serif',
@@ -104,6 +104,25 @@ export default {
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
   			}
+  		},
+  		// Cor de TEXTO dos estados: `text-success` etc. usam a versão legível do
+  		// matiz (--*-text, ≥ 4,5:1); `bg-success` segue usando o preenchimento.
+  		textColor: {
+  			success: { DEFAULT: 'hsl(var(--success-text))', foreground: 'hsl(var(--success-foreground))' },
+  			warning: { DEFAULT: 'hsl(var(--warning-text))', foreground: 'hsl(var(--warning-foreground))' },
+  			info: { DEFAULT: 'hsl(var(--info-text))', foreground: 'hsl(var(--info-foreground))' },
+  			accent: { DEFAULT: 'hsl(var(--accent-text))', foreground: 'hsl(var(--accent-foreground))' },
+  			secondary: { DEFAULT: 'hsl(var(--secondary-text))', foreground: 'hsl(var(--secondary-foreground))' }
+  		},
+  		// Escala tipográfica do design system (densidade de ERP, base 14px no corpo).
+  		fontSize: {
+  			display: ['1.875rem', { lineHeight: '2.25rem', fontWeight: '600' }],
+  			h1: ['1.5rem', { lineHeight: '2rem', fontWeight: '600' }],
+  			h2: ['1.25rem', { lineHeight: '1.75rem', fontWeight: '600' }],
+  			h3: ['1rem', { lineHeight: '1.5rem', fontWeight: '600' }],
+  			body: ['0.875rem', { lineHeight: '1.25rem' }],
+  			'body-lg': ['1rem', { lineHeight: '1.5rem' }],
+  			caption: ['0.75rem', { lineHeight: '1rem' }]
   		},
   		borderRadius: {
   			lg: 'var(--radius)',

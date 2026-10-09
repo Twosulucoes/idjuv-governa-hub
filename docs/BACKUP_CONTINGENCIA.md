@@ -2,7 +2,7 @@
 
 ## Visão Geral
 
-O sistema de backup foi projetado para garantir **redundância total** dos dados do IDJUV, permitindo operação e leitura dos dados fora da plataforma Lovable em caso de indisponibilidade.
+O sistema de backup foi projetado para garantir **redundância total** dos dados do IDJUV, permitindo operação e leitura dos dados fora da plataforma de hospedagem atual em caso de indisponibilidade.
 
 ### 🚀 Descoberta Automática de Tabelas
 

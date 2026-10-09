@@ -232,8 +232,8 @@ const DisasterRecoveryPage = () => {
                     <div>
                       <h4 className="font-medium">1. Código-fonte (GitHub)</h4>
                       <p className="text-sm text-muted-foreground">
-                        Repositório Git sincronizado bidirecionalmente com Lovable. 
-                        Qualquer alteração é automaticamente versionada.
+                        Repositório Git no GitHub, com histórico completo de alterações.
+                        Toda alteração passa por commit e Pull Request.
                       </p>
                     </div>
                   </div>
