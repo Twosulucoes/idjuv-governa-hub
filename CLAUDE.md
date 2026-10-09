@@ -297,6 +297,10 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 - Specs: `docs/superpowers/specs/`; planos: `docs/superpowers/plans/`; roadmap:
   `docs/planejamento/ROADMAP.md`; matriz de docs: `docs/GOVERNANCA_DOCUMENTACAO.md`.
 - `.claude/skills/supabase*` são cópias de `supabase/agent-skills` (MIT).
+- `.claude/skills/ui-ux-pro-max` é cópia de `nextlevelbuilder/ui-ux-pro-max-skill` (MIT) — base de
+  conhecimento de UI/UX para qualquer mudança visual; origem, revisão e uso em
+  `.claude/skills/UI-UX-PRO-MAX-VENDOR.md`. Direção do design system:
+  `docs/superpowers/specs/2026-10-09-design-system-design.md`.
 
 ---
 

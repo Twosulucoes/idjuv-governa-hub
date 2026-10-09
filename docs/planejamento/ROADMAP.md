@@ -12,7 +12,7 @@ Documento vivo, mantido pelo agente `documentador-idjuv`. Fluxo de trabalho: ver
 - _(vazio)_
 
 ## Em planejamento
-- _(vazio)_
+- [ ] **Reformulação do design / Design System** (transversal) — spec [2026-10-09-design-system-design.md](../superpowers/specs/2026-10-09-design-system-design.md), plano [2026-10-09-design-system.md](../superpowers/plans/2026-10-09-design-system.md). Fase 0 (skill `ui-ux-pro-max` + spec) feita; aguardando decisão de fonte e módulo piloto.
 
 ## Backlog
 - [ ] **RH — Fase 0/1 (P0):** verificar RLS real e estancar acesso aberto em folha/dados sensíveis — ver [ANALISE_RH.md](./ANALISE_RH.md) §6
