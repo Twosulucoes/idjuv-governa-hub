@@ -29,7 +29,7 @@ O RH do IDJUV é **largo, mas raso e inseguro**: cobre cadastro, lotação, desi
 | Banco | ~70 tabelas/views de RH, ~30 enums; `servidores` é a tabela central (≈80 colunas, dados bancários embutidos) |
 | Testes | **Nenhum** (`*.test.*` não existe) |
 | Edge Functions | Nenhuma de RH além de `download-frequencia` e `backup-offsite` |
-| Docs de RH | 6 em `.lovable/`, todas de fev/2026, com planos 100% não marcados como feitos |
+| Docs de RH | 6 em `docs/historico/planos-2026/`, todas de fev/2026, com planos 100% não marcados como feitos |
 
 ### O que funciona de fato (em uso)
 Cadastro de servidores, vínculos múltiplos (`vinculos_servidor`), lotação com encerramento automático do anterior, designações, portarias (numeração por RPC), férias/licenças (CRUD), motor de frequência parametrizado (`frequenciaCalculoService`), fechamento de folha com máquina de estados e hash (`fechar_folha`/`reabrir_folha`), remessa CNAB240, geração de XML eSocial no front, contracheque em PDF.
@@ -70,7 +70,7 @@ Cadastro de servidores, vínculos múltiplos (`vinculos_servidor`), lotação co
 - **Duplicações:** portarias em 3 páginas e 3 formulários; `useConfigFrequencia` (576) × `useParametrizacoesFrequencia` (874) sobre as mesmas 6 tabelas; 2 motores de folha TS + RPC; `menu.config.ts` × `module-menus.config.ts`; `/lotacoes` × `/rh/gestao-lotacao`; 2 diagnósticos de pendências; 2 aniversariantes; formulários de viagem em dois lugares com conteúdo divergente.
 - **Regra de negócio em página:** `RelatoriosRHPage` (1.243 linhas, 15 queries), `GestaoCargosPage`, `GestaoViagensPage` (cálculo de diárias na página), CRUD sem hook em férias/licenças/viagens/cargos; CNAB/eSocial montados dentro de diálogos.
 - Arquivos > 700 linhas: 18 em RH (`ServidorFormPage` 1.601 é o maior).
-- Planos em `.lovable/` (PLANO_CONSOLIDACAO_RH etc.) estão sem status; `periodos_aquisitivos`/`programacao_ferias` existem sem UI.
+- Planos em `docs/historico/planos-2026/` (PLANO_CONSOLIDACAO_RH etc.) estão sem status; `periodos_aquisitivos`/`programacao_ferias` existem sem UI.
 
 ## 4. Referência de mercado
 

@@ -6,7 +6,7 @@ tipos TypeScript de todo o schema são gerados em
 
 > Migrações versionadas em `supabase/migrations/*.sql` (~240 arquivos,
 > `YYYYMMDDHHMMSS_<uuid>.sql`). Para mudar o schema, crie uma migração nova
-> (ou use o fluxo do Lovable) e regenere os tipos. Não edite migrações antigas.
+> e regenere os tipos. Não edite migrações antigas.
 
 ## Baseline limpo e RLS por módulo (banco novo)
 
@@ -126,6 +126,14 @@ Legado/compartilhado: `dotacoes_orcamentarias`, `empenhos`, `liquidacoes`,
 `historico_conteudo_oficial`, `config_paginas_publicas`, `config_paginas_historico`,
 `portal_diretoria`.
 
+Avisos internos (**migração `20261009120000_avisos_e_datas_importantes.sql`, ainda não aplicada em
+remoto**): `avisos` (prioridade, destaque, validade `inicio_em`/`expira_em`, público `todos` ou
+`modulos_alvo`), `avisos_leituras` (quem leu) e `datas_importantes` (prazos, eventos, reuniões; feriados
+continuam em `dias_nao_uteis`). RLS na própria migração: só o usuário ativo do público-alvo lê o aviso
+vigente; escrita exige `avisos.gerenciar` (`pode_gerenciar_avisos()`); cada usuário só registra e vê as
+próprias leituras. No baseline as três tabelas estão no `rls/mapa.csv` como `preservar` e entram no
+schema na próxima regeneração.
+
 ### Unidades locais e cessões
 `unidades_locais`, `agenda_unidade`, `agrupamento_unidade_vinculo`,
 `config_agrupamento_unidades`, `cessoes`, `termos_cessao`, `documentos_cedencia`.
@@ -211,6 +219,9 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   `fn_calcular_nivel_parametro`.
 - **Reuniões**: `verificar_conflito_agenda`.
 - **CMS**: `promover_rascunho`.
+- **Avisos**: `pode_gerenciar_avisos`, `alcanca_modulos_alvo` (usadas pelas policies) e
+  `aniversariantes_do_mes(p_mes)`, que devolve só nome e dia do aniversário de servidores ativos a
+  qualquer usuário ativo (sem ano, CPF, contato ou lotação).
 - **Bancário**: `get_proximo_numero_remessa`.
 
 ## Convenções

@@ -32,7 +32,7 @@ Eixos que o desenho precisa cobrir (levante no código/docs antes de perguntar):
 | RBAC | `docs/RBAC_PERMISSOES.md`, `ROUTE_PERMISSIONS` em `src/types/auth.ts` | Quem vê/edita; permissão exigida na rota **e** no banco |
 | Rota e menu | `src/App.tsx`, `src/config/menu.config.ts` | Guard (Public/Protected), bloco do módulo, item de menu |
 | Dados | `src/hooks/use<Dominio>.ts` | Reusar/estender hook; React Query |
-| UI | `docs/GUIA_FRONTEND.md`, shadcn/ui | Componentes existentes, formulário zod |
+| UI | `docs/GUIA_FRONTEND.md`, shadcn/ui, skill `ui-ux-pro-max`, spec de design system em `docs/superpowers/specs/` | Componentes existentes, formulário zod, tokens (nada de cor crua), acessibilidade AA |
 | White label | `docs/WHITE_LABEL.md` | Nada de nome de cliente em `src/`; textos via tenant |
 | Edge Function | `docs/EDGE_FUNCTIONS.md` | Auth, checagem de papel, secrets |
 | Documentação | `docs/GOVERNANCA_DOCUMENTACAO.md` §3 | Quais docs mudam na mesma entrega |

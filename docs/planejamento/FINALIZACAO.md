@@ -81,7 +81,7 @@ progressão, capacitação.
 Cada item já no formato do gerador. Ondas A e C não mexem em banco; B e D
 dependem de acesso ao Supabase do IDJUV.
 
-**Onda A — consertar o que está quebrado (P, sem banco)** — entregue em 2026-10-09, seis PRs rascunho aguardando revisão
+**Onda A — consertar o que está quebrado (P, sem banco)** — entregue e mesclada em 2026-10-09 (PRs #36, #37, #38, #40, #42, #43)
 1. ~~`/prompt bug --modulo rh KPIs do dashboard do RH …`~~ → PR #36
 2. ~~`/prompt bug --modulo rh Fechar/Reabrir em /folha/:id …`~~ → PR #37
 3. ~~`/prompt bug --modulo rh ServidorDetalhe: Ato Formal e status …`~~ → PR #38

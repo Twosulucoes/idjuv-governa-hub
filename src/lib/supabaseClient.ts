@@ -1,11 +1,11 @@
 /**
- * Helper para obter o cliente Supabase - Lovable Cloud
+ * Helper para obter o cliente Supabase
  */
 
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 /**
- * Retorna o cliente Supabase ativo (Lovable Cloud)
+ * Retorna o cliente Supabase ativo (definido por VITE_SUPABASE_URL)
  */
 export function getActiveSupabaseClient() {
   return supabase;

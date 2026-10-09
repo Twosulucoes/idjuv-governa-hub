@@ -309,6 +309,7 @@ export const MODULE_PERMISSIONS = {
     'ascom.demandas.criar',
     'ascom.demandas.tratar',
     'ascom.demandas.publicar',
+    'avisos.gerenciar',
   ],
   federacoes: [
     'federacoes.visualizar',

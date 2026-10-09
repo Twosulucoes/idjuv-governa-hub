@@ -33,6 +33,8 @@ O maior módulo. Páginas em `src/pages/rh/` (~20), além de `folha/` e `curricu
 - **Portarias**: `CentralPortariasPage`, `PendenciasPortariasPage`,
   `AtribuicaoPortariasPage`.
 - **Contracheques**: `MeuContrachequePage`, `ConsultaContrachequesPage`.
+- **Autoatendimento**: `MeusDadosPage` (`/rh/meus-dados`, só leitura: dados pessoais,
+  contato, endereço, funcionais, bancários, vínculos e lotações do servidor logado).
 - **Apoio**: `RelatoriosRHPage`, `ModelosDocumentosPage`, `ExportacaoPlanilhaPage`.
 - **Folha** (`src/pages/folha/`): `GestaoFolhaPagamentoPage`, `ConfiguracaoFolhaPage`,
   `FolhaDetalhePage`, `FolhaBloqueadaPage`. Inclui cálculo (INSS/IRRF), rubricas,
@@ -107,6 +109,14 @@ Demandas e CMS. `src/pages/ascom/` + `comunicacao/`: `GestaoDemandasAscomPage`,
 (público) e `ConsultaProtocoloAscomPage` (público). CMS: `CMSConteudosPage`,
 `CMSEditorPage`, `CMSBannersPage`, `CMSGaleriasPage`. Mais
 `CalendarioComunicacaoPage` e `AniversariantesComunicacaoPage`.
+
+**Avisos e datas importantes** (`src/pages/avisos/AvisosPage.tsx`, rota `/avisos`, item "Avisos e
+Datas" no menu da Comunicação). Aberta a qualquer usuário logado: aba **Mural** com os avisos
+vigentes do seu público e aba **Datas** com o calendário do mês (datas cadastradas, feriados de
+`dias_nao_uteis` completados pela BrasilAPI e aniversariantes do mês). A aba **Gerenciar** aparece
+para quem tem `avisos.gerenciar`. Todas as telas de módulo (`ModuleLayout`) mostram o sino de avisos
+não lidos e próximas datas (`AvisosSino`) e, no topo do conteúdo, os avisos em destaque ou urgentes
+ainda não lidos (`AvisosDestaque`). Desenho: `docs/superpowers/specs/2026-10-09-avisos-e-datas-importantes-design.md`.
 
 ## Programas (`programas`)
 

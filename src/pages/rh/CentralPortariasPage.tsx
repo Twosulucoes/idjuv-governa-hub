@@ -1,14 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Plus,
   LayoutGrid,
   Table as TableIcon,
   Filter,
   Search,
-  Download,
   BarChart3,
-  AlertTriangle,
-  Pencil,
 } from 'lucide-react';
 
 import { ModuleLayout } from '@/components/layout';
@@ -23,14 +21,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -40,7 +30,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
 
 import {
   PortariaKanban,
@@ -50,22 +39,13 @@ import {
 } from '@/components/portarias';
 import { NovaPortariaSimplificada } from '@/components/portarias/NovaPortariaSimplificada';
 import { RelatorioPortariasDialog } from '@/components/portarias/RelatorioPortariasDialog';
+import { VisualizarPortariaDialog } from '@/components/portarias/VisualizarPortariaDialog';
 import { CentralRelatoriosDialog } from '@/components/relatorios/CentralRelatoriosDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { usePortarias, useDeletePortaria } from '@/hooks/usePortarias';
 import { StatusPortaria, STATUS_PORTARIA_LABELS, Portaria } from '@/types/portaria';
 import { toast } from 'sonner';
 import { buildPortariaPdfDoc, savePortariaPdf } from '@/lib/portariaPdf';
-
-function htmlToText(html?: string | null) {
-  if (!html) return '';
-  try {
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    return (doc.body.textContent || '').trim();
-  } catch {
-    return html;
-  }
-}
 
 export default function CentralPortariasPage() {
   const [view, setView] = useState<'kanban' | 'table'>('kanban');
@@ -89,11 +69,22 @@ export default function CentralPortariasPage() {
   });
 
   const { data: portarias = [], isLoading, refetch } = usePortarias(filters);
-  const deletePortaria = useDeletePortaria();
 
-  const selectedPortariaText = useMemo(() => {
-    return htmlToText(selectedPortaria?.conteudo_html);
-  }, [selectedPortaria?.conteudo_html]);
+  // ?id=<uuid> (link vindo de /rh/portarias/pendencias) abre a portaria direto.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const idParam = searchParams.get('id');
+  useEffect(() => {
+    if (!idParam || isLoading) return;
+    const alvo = portarias.find((p) => p.id === idParam);
+    if (alvo) {
+      setSelectedPortaria(alvo);
+      setViewDialogOpen(true);
+    } else {
+      toast.error('Portaria não encontrada nos filtros atuais.');
+    }
+    setSearchParams((prev) => { prev.delete('id'); return prev; }, { replace: true });
+  }, [idParam, isLoading, portarias, setSearchParams]);
+  const deletePortaria = useDeletePortaria();
 
   const handleView = (portaria: Portaria) => {
     setSelectedPortaria(portaria);
@@ -387,198 +378,17 @@ export default function CentralPortariasPage() {
       </AlertDialog>
 
       {/* Dialog Visualizar */}
-      <Dialog
+      <VisualizarPortariaDialog
+        portaria={selectedPortaria}
         open={viewDialogOpen}
         onOpenChange={(open) => {
           setViewDialogOpen(open);
           if (!open) setSelectedPortaria(null);
         }}
-      >
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedPortaria ? `Portaria nº ${selectedPortaria.numero}` : 'Portaria'}
-            </DialogTitle>
-            <DialogDescription>
-              {selectedPortaria?.ementa || selectedPortaria?.titulo || ''}
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedPortaria && (
-            <div className="space-y-4">
-              {/* Status e Categoria */}
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">
-                  {STATUS_PORTARIA_LABELS[selectedPortaria.status]}
-                </Badge>
-                {selectedPortaria.categoria && (
-                  <Badge variant="outline" className="capitalize">
-                    {selectedPortaria.categoria}
-                  </Badge>
-                )}
-              </div>
-
-              {/* Grid de informações */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground">Data do Documento</p>
-                  <p className="text-sm font-semibold">
-                    {new Date(selectedPortaria.data_documento).toLocaleDateString('pt-BR')}
-                  </p>
-                </div>
-
-                <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground">Assinatura</p>
-                  <p className="text-sm font-semibold">
-                    {selectedPortaria.data_assinatura
-                      ? new Date(selectedPortaria.data_assinatura).toLocaleDateString('pt-BR')
-                      : <span className="text-muted-foreground font-normal">Não assinada</span>}
-                  </p>
-                  {selectedPortaria.assinante?.full_name && (
-                    <p className="text-xs text-muted-foreground">{selectedPortaria.assinante.full_name}</p>
-                  )}
-                </div>
-
-                <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground">DOE (Diário Oficial)</p>
-                  {selectedPortaria.doe_numero || selectedPortaria.doe_data ? (
-                    <>
-                      {selectedPortaria.doe_numero && (
-                        <p className="text-sm font-semibold">Nº {selectedPortaria.doe_numero}</p>
-                      )}
-                      {selectedPortaria.doe_data && (
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(selectedPortaria.doe_data).toLocaleDateString('pt-BR')}
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <div className="flex items-center gap-1 text-warning">
-                      <AlertTriangle className="h-3 w-3" />
-                      <span className="text-xs font-medium">Não informado</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground">Anexo / Arquivo</p>
-                  {selectedPortaria.arquivo_assinado_url ? (
-                    <a href={selectedPortaria.arquivo_assinado_url} target="_blank" rel="noreferrer"
-                       className="text-sm text-primary underline font-medium">
-                      📎 Arquivo assinado
-                    </a>
-                  ) : selectedPortaria.arquivo_url ? (
-                    <a href={selectedPortaria.arquivo_url} target="_blank" rel="noreferrer"
-                       className="text-sm text-primary underline font-medium">
-                      📎 Arquivo anexado
-                    </a>
-                  ) : (
-                    <div className="flex items-center gap-1 text-warning">
-                      <AlertTriangle className="h-3 w-3" />
-                      <span className="text-xs font-medium">Sem anexo</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Servidor / Cargo / Unidade */}
-              {(selectedPortaria.servidor || selectedPortaria.cargo || selectedPortaria.unidade) && (
-                <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground">Vínculos</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {selectedPortaria.servidor && (
-                      <div>
-                        <p className="text-[10px] text-muted-foreground uppercase">Servidor</p>
-                        <p className="text-sm">{selectedPortaria.servidor.nome_completo}</p>
-                        {selectedPortaria.servidor.matricula && (
-                          <p className="text-xs text-muted-foreground">Mat. {selectedPortaria.servidor.matricula}</p>
-                        )}
-                      </div>
-                    )}
-                    {selectedPortaria.cargo && (
-                      <div>
-                        <p className="text-[10px] text-muted-foreground uppercase">Cargo</p>
-                        <p className="text-sm">{selectedPortaria.cargo.nome}</p>
-                        {selectedPortaria.cargo.sigla && (
-                          <p className="text-xs text-muted-foreground">{selectedPortaria.cargo.sigla}</p>
-                        )}
-                      </div>
-                    )}
-                    {selectedPortaria.unidade && (
-                      <div>
-                        <p className="text-[10px] text-muted-foreground uppercase">Unidade</p>
-                        <p className="text-sm">{selectedPortaria.unidade.nome}</p>
-                        {selectedPortaria.unidade.sigla && (
-                          <p className="text-xs text-muted-foreground">{selectedPortaria.unidade.sigla}</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Servidores vinculados (múltiplos) */}
-              {selectedPortaria.servidores_ids && selectedPortaria.servidores_ids.length > 0 && !selectedPortaria.servidor && (
-                <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground">Servidores vinculados</p>
-                  <p className="text-sm">{selectedPortaria.servidores_ids.length} servidor(es)</p>
-                </div>
-              )}
-
-              {/* Vigência */}
-              {(selectedPortaria.data_vigencia_inicio || selectedPortaria.data_vigencia_fim) && (
-                <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground">Vigência</p>
-                  <p className="text-sm">
-                    {selectedPortaria.data_vigencia_inicio && new Date(selectedPortaria.data_vigencia_inicio).toLocaleDateString('pt-BR')}
-                    {selectedPortaria.data_vigencia_inicio && selectedPortaria.data_vigencia_fim && ' a '}
-                    {selectedPortaria.data_vigencia_fim && new Date(selectedPortaria.data_vigencia_fim).toLocaleDateString('pt-BR')}
-                  </p>
-                </div>
-              )}
-
-              {/* Conteúdo */}
-              {selectedPortariaText && (
-                <div className="rounded-lg border bg-muted/20 p-3">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Conteúdo</p>
-                  <pre className="whitespace-pre-wrap text-sm text-foreground/80 max-h-[30vh] overflow-auto">
-                    {selectedPortariaText}
-                  </pre>
-                </div>
-              )}
-
-              {/* Observações */}
-              {selectedPortaria.observacoes && (
-                <div className="rounded-lg border bg-muted/20 p-3">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Observações</p>
-                  <p className="text-sm text-foreground/80">{selectedPortaria.observacoes}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
-              Fechar
-            </Button>
-            {selectedPortaria && (
-              <>
-                <Button variant="outline" onClick={() => {
-                  setViewDialogOpen(false);
-                  handleEdit(selectedPortaria);
-                }}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Editar
-                </Button>
-                <Button onClick={() => handleGeneratePdf(selectedPortaria)} disabled={isGeneratingPdf}>
-                  <Download className="h-4 w-4 mr-2" />
-                  {isGeneratingPdf ? 'Gerando PDF...' : 'Baixar PDF'}
-                </Button>
-              </>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onEditar={handleEdit}
+        onBaixarPdf={handleGeneratePdf}
+        gerandoPdf={isGeneratingPdf}
+      />
 
       {/* Dialog Registrar Assinatura */}
       <RegistrarAssinaturaDialog

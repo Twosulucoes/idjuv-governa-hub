@@ -77,6 +77,41 @@ de chamar `supabase` direto dentro da página.
 - **shadcn/ui** (Radix) em `@/components/ui/*` + **Tailwind**. Componha; evite CSS
   solto. Use os tokens de cor existentes (ex.: `MODULO_COR_CLASSES`,
   `statusColors.ts`) e suporte a dark mode (`next-themes`).
+- **Design System** (direção em
+  [`superpowers/specs/2026-10-09-design-system-design.md`](./superpowers/specs/2026-10-09-design-system-design.md),
+  fases em [`superpowers/plans/2026-10-09-design-system.md`](./superpowers/plans/2026-10-09-design-system.md);
+  vitrine viva em `/admin/design-system`, `src/pages/admin/DesignSystemPage.tsx`):
+  - **Cor só por token** (`bg-primary`, `text-muted-foreground`, `border-input`). Cor crua
+    (`bg-blue-500`, hex) é contada no gate e não pode aumentar.
+  - **Texto de estado:** `text-success|warning|info|accent|secondary` já resolvem para a versão
+    legível do matiz (`--*-text`, configurado em `textColor` no `tailwind.config.ts`); `bg-*`
+    continua sendo o preenchimento. Badge suave: `bg-warning/15 text-warning`.
+  - **Contraste AA:** texto ≥ 4,5:1, borda de campo (`--input`) e foco (`--ring`) ≥ 3:1, claro e
+    escuro — `npm run check:contraste` (roda no gate). `--border` é só divisória decorativa.
+  - **Tipografia:** IBM Plex Sans (`font-sans`) em tudo, inclusive `h1`–`h3`; Merriweather
+    (`font-serif`) só quando pedido explicitamente. Escala: `text-display`, `text-h1`, `text-h2`,
+    `text-h3`, `text-body` (14px, corpo do sistema), `text-body-lg`, `text-caption` (12px, mínimo).
+    Tabelas usam números tabulares por padrão. As tags `h1`–`h3` ainda têm o tamanho antigo
+    (base de `src/index.css`); telas novas ou migradas usam as classes da escala (`text-h1`…), e
+    o tamanho base é alinhado quando o `PageHeader` da Fase 2 existir.
+  - **Gráficos:** série `--chart-1` a `--chart-8` via `ChartContainer`/`chartConfig` de
+    `@/components/ui/chart` — nada de `fill="#…"`.
+  - **Movimento:** `--duration-fast` (150ms) / `--duration-base` (200ms); `prefers-reduced-motion`
+    é respeitado globalmente em `src/index.css` (exceto `animate-spin`, que sinaliza carregamento).
+  - **Componentes de padrão** em `@/components/design-system` (use-os em telas novas e migradas):
+    - `PageHeader` — migalhas, `h1` na escala nova, situação, descrição e ações (uma primária).
+    - `DataTable` — busca (`buscarPor`), ordenação (`ordenarPor`), seleção + `acoesEmLote`,
+      `acoesLinha`, paginação no cliente, densidade lembrada no navegador, estados
+      `carregando`/`erro`/`vazio` e cartões abaixo de `md` (`mobile: "titulo" | "oculta"` por coluna).
+    - `StatusBadge` — cor + ícone + texto; o tom sai do texto (`tomDaSituacao`: ativo, pendente,
+      em análise, cancelado…) ou de `tom` explícito.
+    - `EmptyState`, `KpiCard` (variação com sinal e ícone; `subirEhBom={false}` para despesas/faltas),
+      `ChartCard` (gráfico com alternância para tabela de dados).
+    - `FormSection` (fieldset com legenda) e `ErrorSummary` (resumo focável dos erros do
+      react-hook-form, com link para cada campo; use `shouldFocusError: false` no `useForm`).
+    - `Button` aceita `loading` (spinner, `disabled` e `aria-busy`).
+  - Consulte o skill `ui-ux-pro-max` (`.claude/skills/UI-UX-PRO-MAX-VENDOR.md`) para decisões
+    de UI/UX e acessibilidade.
 - **Ícones**: `lucide-react`.
 - **Formulários**: `react-hook-form` + `zod` (`zodResolver`).
 - **Notificações**: `useToast` (`@/hooks/use-toast`) ou `sonner`.

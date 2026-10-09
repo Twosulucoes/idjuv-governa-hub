@@ -217,6 +217,12 @@ DROP POLICY IF EXISTS "rls_delete" ON public.avaliacoes_risco;
 CREATE POLICY "rls_delete" ON public.avaliacoes_risco FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'governanca')));
 
+-- avisos  [preservar: comunicacao]
+-- (nenhuma policy gerada)
+
+-- avisos_leituras  [preservar: comunicacao]
+-- (nenhuma policy gerada)
+
 -- backup_config  [admin]
 DROP POLICY IF EXISTS "admin_only_delete" ON public.backup_config;
 DROP POLICY IF EXISTS "admin_only_insert" ON public.backup_config;
@@ -1140,6 +1146,9 @@ CREATE POLICY "rls_update" ON public.dados_oficiais FOR UPDATE TO authenticated
 DROP POLICY IF EXISTS "rls_delete" ON public.dados_oficiais;
 CREATE POLICY "rls_delete" ON public.dados_oficiais FOR DELETE TO authenticated
   USING (public.is_admin_user(auth.uid()));
+
+-- datas_importantes  [preservar: comunicacao]
+-- (nenhuma policy gerada)
 
 -- debitos_tecnicos  [admin: admin]
 DROP POLICY IF EXISTS "rls_select" ON public.debitos_tecnicos;
