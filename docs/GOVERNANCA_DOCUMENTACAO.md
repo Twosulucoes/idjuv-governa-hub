@@ -46,6 +46,7 @@
 | [`AGENTS.md`](../AGENTS.md) | Instruções persistentes para agentes: invariantes de segurança/arquitetura, fluxo de trabalho (skill `superpowers`), documentação obrigatória |
 | [`CONTRIBUTING.md`](../CONTRIBUTING.md) | Gate local de qualidade, checklist de PR |
 | [`.claude/skills/SUPERPOWERS-VENDOR.md`](../.claude/skills/SUPERPOWERS-VENDOR.md) | Inventário dos skills de processo vendorizados |
+| [`.claude/skills/UI-UX-PRO-MAX-VENDOR.md`](../.claude/skills/UI-UX-PRO-MAX-VENDOR.md) | Origem, revisão de segurança e uso do skill de UI/UX vendorizado |
 
 `docs/AUDITORIA_USUARIOS.md` e `docs/INVENTARIO_HARDCODE.md` **não estão**
 nesta lista: são registros datados de auditorias pontuais, não docs vivas —
@@ -71,7 +72,7 @@ Ao abrir uma PR, localize **cada** linha aplicável. A doc da coluna
 | Deploy, build, comandos, fluxo Git | `docs/DESENVOLVIMENTO.md` | `CLAUDE.md` §3/§8; `CONTRIBUTING.md` se mudar o gate |
 | Regra para agentes, skill ou subagente novo/alterado | `AGENTS.md` | `CLAUDE.md` §10.1 |
 | Decisão ou andamento de planejamento | `docs/planejamento/ROADMAP.md` | Spec/plano datado em `docs/superpowers/` |
-| Skill vendorizada nova/alterada (`.claude/skills/`) | `.claude/skills/SUPERPOWERS-VENDOR.md` (gerado por `scripts/sync-superpowers-skills.sh` — não editar à mão) | Skill de domínio nova é autodocumentada (frontmatter + corpo) — não precisa de entrada aqui |
+| Skill vendorizada nova/alterada (`.claude/skills/`) | `.claude/skills/SUPERPOWERS-VENDOR.md` (gerado por `scripts/sync-superpowers-skills.sh` — não editar à mão); `ui-ux-pro-max` → `.claude/skills/UI-UX-PRO-MAX-VENDOR.md` | Skill de domínio nova é autodocumentada (frontmatter + corpo) — não precisa de entrada aqui |
 | **Criação de doc canônica nova** | `LIVING_DOCS` em `scripts/check-doc-links.mjs` + linha em `docs/README.md` + linha nesta matriz | — |
 
 **Regra de leitura da matriz**: na dúvida entre "documentar em A ou B",

@@ -68,8 +68,8 @@ bun run preview      # preview do build
 ```
 
 > Não há suíte de testes. Verificação: **`bash scripts/gate.sh`** (`npm run gate`:
-> guards de migrações/docs/RLS do baseline + typecheck + lint + build; typecheck e lint comparam com
-> `scripts/gate-baseline.json` e falham só se a dívida piorar). Roda no `pre-push`
+> guards de migrações/docs/RLS do baseline/contraste AA dos tokens + typecheck + lint + cor crua + build;
+> typecheck, lint e cor crua comparam com `scripts/gate-baseline.json` e falham só se a dívida piorar). Roda no `pre-push`
 > e no CI (`.github/workflows/quality.yml`) — ver `CONTRIBUTING.md`.
 > Atenção: `vite build` **não** checa tipos; o typecheck é `tsc -p tsconfig.app.json`.
 > O `package-lock.json` está fora de sincronia: use `bun install` ou
@@ -227,7 +227,9 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 ## 8. Deploy
 
 - **Vercel** (`vercel.json` faz rewrite SPA de tudo para `/index.html`).
-- Backend hospedado no Supabase. Edge Functions são deployadas no Supabase.
+- Backend: Supabase self-hosted na VPS do órgão. Edge Functions são deployadas no Supabase.
+- **Migrações:** aplicadas automaticamente pelo CI (`.github/workflows/migracoes-banco.yml`):
+  simulação no PR, aplicação no merge na `main`. Detalhes em `docs/DESENVOLVIMENTO.md`.
 
 ---
 
@@ -298,6 +300,10 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 - Specs: `docs/superpowers/specs/`; planos: `docs/superpowers/plans/`; roadmap:
   `docs/planejamento/ROADMAP.md`; matriz de docs: `docs/GOVERNANCA_DOCUMENTACAO.md`.
 - `.claude/skills/supabase*` são cópias de `supabase/agent-skills` (MIT).
+- `.claude/skills/ui-ux-pro-max` é cópia de `nextlevelbuilder/ui-ux-pro-max-skill` (MIT) — base de
+  conhecimento de UI/UX para qualquer mudança visual; origem, revisão e uso em
+  `.claude/skills/UI-UX-PRO-MAX-VENDOR.md`. Direção do design system:
+  `docs/superpowers/specs/2026-10-09-design-system-design.md`.
 
 ---
 

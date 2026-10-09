@@ -103,6 +103,13 @@ Definido em `src/types/auth.ts` (`module_access_scopes` no banco):
 - **`src/shared/config/protected-users.config.ts`** — usuários protegidos.
 - Hooks: `useRBAC`, `usePermissions`, `usePermissoesUsuario`, `useModulosUsuario`.
 
+### Avisos e datas importantes
+
+`avisos.gerenciar` (catálogo do módulo `comunicacao`, concedida em `user_modules.permissions` ou
+`user_permissions`; admin passa por cima) libera publicar avisos e cadastrar datas. A mesma permissão
+é exigida pela RLS de `avisos` e `datas_importantes` e mostra a aba Gerenciar em `/avisos`. Ler avisos
+não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos módulos do aviso).
+
 ## Enforcement de rota (`ProtectedRoute`)
 
 O componente `src/components/auth/ProtectedRoute.tsx` aplica o controle de acesso

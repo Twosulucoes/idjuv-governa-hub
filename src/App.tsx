@@ -18,6 +18,7 @@ import LinksUteisPage from "./pages/LinksUteisPage";
 import ApresentacaoPage from "./pages/ApresentacaoPage";
 import LegacySistemaPage from "./pages/Index";
 import SistemaEntryPage from "./pages/sistema/SistemaEntryPage";
+import AvisosPage from "./pages/avisos/AvisosPage";
 
 // Module Dashboards
 import {
@@ -114,6 +115,7 @@ import AniversariantesPage from "./pages/rh/AniversariantesPage";
 import GestaoLotacaoPage from "./pages/rh/GestaoLotacaoPage";
 import ControlePacotesFrequenciaPage from "./pages/rh/ControlePacotesFrequenciaPage";
 import MeuContrachequePage from "./pages/rh/MeuContrachequePage";
+import MeusDadosPage from "./pages/rh/MeusDadosPage";
 import ConsultaContrachequesPage from "./pages/rh/ConsultaContrachequesPage";
 
 // Folha de Pagamento
@@ -159,6 +161,7 @@ import RelatorioAdminPage from "./pages/admin/RelatorioAdminPage";
 import CalibradorSegadPage from "./pages/admin/CalibradorSegadPage";
 import CentralRelatoriosPage from "./pages/admin/CentralRelatoriosPage";
 import SobreSistemaPage from "./pages/admin/SobreSistemaPage";
+import DesignSystemPage from "./pages/admin/DesignSystemPage";
 import GerenciadorPaginasPage from "./pages/admin/GerenciadorPaginasPage";
 import GerenciadorMenuPublicoPage from "./pages/admin/GerenciadorMenuPublicoPage";
 import GerenciadorLinksUteisPage from "./pages/admin/GerenciadorLinksUteisPage";
@@ -442,6 +445,7 @@ const App = () => (
               <Route path="/sistema" element={<ProtectedRoute><SistemaEntryPage /></ProtectedRoute>} />
               <Route path="/sistema/legado" element={<ProtectedRoute><LegacySistemaPage /></ProtectedRoute>} />
               <Route path="/apresentacao" element={<ProtectedRoute><ApresentacaoPage /></ProtectedRoute>} />
+              <Route path="/avisos" element={<ProtectedRoute><AvisosPage /></ProtectedRoute>} />
               <Route path="/noticias" element={<ProtectedRoute><NoticiasPage /></ProtectedRoute>} />
               <Route path="/meu-perfil" element={<ProtectedRoute><MeuPerfilPage /></ProtectedRoute>} />
               <Route path="/trocar-senha-obrigatoria" element={<ProtectedRoute><TrocaSenhaObrigatoriaPage /></ProtectedRoute>} />
@@ -502,6 +506,7 @@ const App = () => (
               <Route path="/admin/relatorio" element={<ProtectedRoute requiredModule="admin"><RelatorioAdminPage /></ProtectedRoute>} />
               <Route path="/admin/central-relatorios" element={<ProtectedRoute requiredModule="admin"><CentralRelatoriosPage /></ProtectedRoute>} />
               <Route path="/admin/sobre" element={<ProtectedRoute requiredModule="admin"><SobreSistemaPage /></ProtectedRoute>} />
+              <Route path="/admin/design-system" element={<ProtectedRoute requiredModule="admin"><DesignSystemPage /></ProtectedRoute>} />
               <Route path="/admin/modulos" element={<ProtectedRoute requiredModule="admin"><GestaoModulosPage /></ProtectedRoute>} />
               <Route path="/admin/permissoes" element={<ProtectedRoute requiredModule="admin"><PainelPermissoesPage /></ProtectedRoute>} />
               <Route path="/acesso" element={<ProtectedRoute requiredModule="admin"><ControleAcessoAdminPage /></ProtectedRoute>} />
@@ -870,6 +875,12 @@ const App = () => (
               <Route path="/rh/meu-contracheque" element={
                 <ProtectedRoute>
                   <MeuContrachequePage />
+                </ProtectedRoute>
+              } />
+              {/* Autoatendimento: só exige login; a página filtra pelo servidor do usuário */}
+              <Route path="/rh/meus-dados" element={
+                <ProtectedRoute>
+                  <MeusDadosPage />
                 </ProtectedRoute>
               } />
               <Route path="/rh/contracheques" element={

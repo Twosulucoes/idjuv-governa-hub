@@ -1,0 +1,110 @@
+name: Migrações do banco
+
+# Aplica supabase/migrations/ no banco de produção (Supabase self-hosted da VPS) sem passo manual:
+#   - pull_request: só SIMULA (`supabase db push --dry-run`) e mostra no resumo do job o que vai rodar;
+#   - push na main (= merge): aplica de verdade.
+# O banco só muda quando o código que depende dele entra na main; PR recusado não deixa tabela órfã.
+#
+# O Postgres da VPS NÃO é exposto na internet: o job abre um túnel SSH até a VPS e fala com o banco
+# pelo túnel (mesma premissa do backup). Segredos (Settings → Secrets and variables → Actions):
+#   VPS_SSH_HOST, VPS_SSH_USER, VPS_SSH_KEY (chave privada de um usuário só para isto),
+#   VPS_SSH_KNOWN_HOSTS (saída de `ssh-keyscan <host>`, fixa a identidade da VPS),
+#   SUPABASE_DB_SENHA (senha do papel postgres).
+# Variável opcional DB_DESTINO_NA_VPS (padrão 127.0.0.1:5432): onde o Postgres escuta, visto da VPS.
+# Sem os segredos o job avisa e não falha (o PR não fica vermelho por isso).
+#
+# Trava de segurança: se o banco remoto não reconhecer o histórico (supabase_migrations.schema_migrations
+# vazio ou divergente), o push tentaria rodar centenas de migrações antigas. Acima de LIMITE_MIGRACOES
+# (variável do repositório, padrão 10) o job falha sem aplicar nada — conserte o histórico com
+# `supabase migration repair` (docs/DESENVOLVIMENTO.md) ou aumente o limite conscientemente.
+on:
+  pull_request:
+    branches: [main]
+    paths: ["supabase/migrations/**"]
+  push:
+    branches: [main]
+    paths: ["supabase/migrations/**"]
+  workflow_dispatch:
+
+# Nunca duas aplicações ao mesmo tempo, e nunca cancelar uma no meio.
+concurrency:
+  group: migracoes-banco-${{ github.event_name == 'pull_request' && github.head_ref || 'producao' }}
+  cancel-in-progress: false
+
+jobs:
+  migracoes:
+    runs-on: ubuntu-latest
+    env:
+      VPS_SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+      VPS_SSH_USER: ${{ secrets.VPS_SSH_USER }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+      SUPABASE_DB_SENHA: ${{ secrets.SUPABASE_DB_SENHA }}
+      DB_DESTINO_NA_VPS: ${{ vars.DB_DESTINO_NA_VPS || '127.0.0.1:5432' }}
+      LIMITE_MIGRACOES: ${{ vars.LIMITE_MIGRACOES || '10' }}
+      APLICAR: ${{ github.event_name != 'pull_request' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Segredo configurado?
+        id: segredo
+        run: |
+          if [ -z "$VPS_SSH_HOST" ] || [ -z "$VPS_SSH_USER" ] || [ -z "$VPS_SSH_KEY" ] \
+             || [ -z "$VPS_SSH_KNOWN_HOSTS" ] || [ -z "$SUPABASE_DB_SENHA" ]; then
+            echo "::warning::Segredos do túnel/banco não configurados: migrações NÃO foram aplicadas. Ver docs/DESENVOLVIMENTO.md."
+            echo "### Migrações não aplicadas: faltam segredos (VPS_SSH_* / SUPABASE_DB_SENHA)" >> "$GITHUB_STEP_SUMMARY"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Guard — migrações sem versão duplicada
+        if: steps.segredo.outputs.ok == 'true'
+        run: bash scripts/check-migrations.sh
+
+      - name: Túnel SSH até a VPS
+        if: steps.segredo.outputs.ok == 'true'
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_vps && chmod 600 ~/.ssh/id_vps
+          printf '%s\n' "$VPS_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # -N: só o túnel, sem shell; StrictHostKeyChecking: só a VPS conhecida
+          ssh -i ~/.ssh/id_vps -o StrictHostKeyChecking=yes -o ExitOnForwardFailure=yes \
+            -o ServerAliveInterval=30 -f -N -L "127.0.0.1:54322:${DB_DESTINO_NA_VPS}" \
+            "${VPS_SSH_USER}@${VPS_SSH_HOST}"
+          senha=$(python3 -c 'import os,urllib.parse;print(urllib.parse.quote(os.environ["SUPABASE_DB_SENHA"],safe=""))')
+          echo "::add-mask::$senha"
+          echo "SUPABASE_DB_URL=postgresql://postgres:${senha}@127.0.0.1:54322/postgres" >> "$GITHUB_ENV"
+
+      - name: Supabase CLI
+        if: steps.segredo.outputs.ok == 'true'
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Simular (dry-run)
+        if: steps.segredo.outputs.ok == 'true'
+        run: |
+          set -o pipefail
+          supabase db push --db-url "$SUPABASE_DB_URL" --dry-run 2>&1 | tee /tmp/dry-run.log
+          pendentes=$(grep -oE '[0-9]{14}_[^ ]*\.sql' /tmp/dry-run.log | sort -u || true)
+          total=$(printf '%s' "$pendentes" | grep -c . || true)
+          {
+            echo "### Migrações pendentes no banco de produção: $total"
+            [ "$total" -gt 0 ] && printf '%s\n' "$pendentes" | sed 's/^/- `/; s/$/`/'
+            echo ""
+            if [ "$APLICAR" = "true" ]; then echo "Serão aplicadas agora (merge na main)."
+            else echo "Só simulação: o banco muda quando este PR for mergeado."; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$total" -gt "$LIMITE_MIGRACOES" ]; then
+            echo "::error::$total migrações pendentes (limite $LIMITE_MIGRACOES). O histórico do banco remoto provavelmente diverge do repositório; nada foi aplicado. Ver docs/DESENVOLVIMENTO.md."
+            exit 1
+          fi
+
+      - name: Aplicar (só no merge)
+        if: steps.segredo.outputs.ok == 'true' && env.APLICAR == 'true'
+        run: |
+          supabase db push --db-url "$SUPABASE_DB_URL" 2>&1 | tee /tmp/push.log
+          echo "### Migrações aplicadas em produção" >> "$GITHUB_STEP_SUMMARY"

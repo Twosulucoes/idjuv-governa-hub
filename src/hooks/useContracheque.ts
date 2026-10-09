@@ -84,9 +84,13 @@ export function useMeusContracheques() {
           valor_irrf,
           quantidade_dependentes,
           created_at,
-          servidor:servidores(id, nome_completo, cpf, matricula, pis_pasep)
+          servidor:servidores(id, nome_completo, cpf, matricula, pis_pasep),
+          folhas_pagamento!inner(status)
         `)
         .eq('servidor_id', servidor.id)
+        // Só folha fechada vira contracheque: prévia, aberta, em processamento
+        // ou reaberta ainda podem mudar e não devem aparecer para o servidor.
+        .eq('folhas_pagamento.status', 'fechada')
         .order('competencia_ano', { ascending: false })
         .order('competencia_mes', { ascending: false });
       
