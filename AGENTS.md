@@ -19,7 +19,7 @@ importa este arquivo (`@AGENTS.md`). Contexto completo: [`CLAUDE.md`](./CLAUDE.m
 4. **Tenant-agnóstico:** nunca importe `tenants/<slug>` em `src/` nem escreva nome de cliente no código (`docs/WHITE_LABEL.md`).
 5. **Segredos só no servidor** (Edge Functions/`supabase secrets`); nada em `src/`, `.env` do front ou docs. Nunca logar token ou dado pessoal (LGPD).
 6. **Nada de dados de cliente em `public/`** (servido sem autenticação).
-7. **Diffs focados:** o Lovable sincroniza este repo; evite reformatação em massa e mudanças em `App.tsx` além do necessário.
+7. **Diffs focados:** evite reformatação em massa e mudanças em `App.tsx` além do necessário.
 8. **Não crie PR** nem aplique migração em projeto remoto sem pedido explícito. Nunca merge automático.
 
 ## Fluxo de trabalho: prompt curto → execução estruturada

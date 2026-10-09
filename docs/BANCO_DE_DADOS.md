@@ -6,7 +6,7 @@ tipos TypeScript de todo o schema são gerados em
 
 > Migrações versionadas em `supabase/migrations/*.sql` (~240 arquivos,
 > `YYYYMMDDHHMMSS_<uuid>.sql`). Para mudar o schema, crie uma migração nova
-> (ou use o fluxo do Lovable) e regenere os tipos. Não edite migrações antigas.
+> e regenere os tipos. Não edite migrações antigas.
 
 ## Baseline limpo e RLS por módulo (banco novo)
 

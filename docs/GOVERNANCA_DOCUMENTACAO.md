@@ -130,7 +130,7 @@ o check aos required status checks da branch protection de `main`.
 ## 7. O que NUNCA fazer
 
 - **Não reescrever registros históricos** (`docs/AUDITORIA_USUARIOS.md`,
-  `docs/INVENTARIO_HARDCODE.md`, planos datados em `.lovable/`). Eles
+  `docs/INVENTARIO_HARDCODE.md`, planos datados em `docs/historico/`). Eles
   registram o passado e continuam verdadeiros como registro, mesmo quando o
   código muda. Para "atualizar" um achado histórico, escreva doc nova ou
   atualize a canônica — nunca edite o registro para fingir que ele já

@@ -59,6 +59,6 @@
 - **17** módulos funcionais
 - **~1.070** ocorrências de "IDJUV" em **224** arquivos (ver [INVENTARIO_HARDCODE.md](./INVENTARIO_HARDCODE.md))
 
-> A pasta [`.lovable/`](../.lovable/) contém relatórios e planos históricos
-> gerados pelo Lovable (auditorias, refatorações, fases de implementação) — útil
+> A pasta [`historico/planos-2026/`](./historico/planos-2026/) contém relatórios e planos históricos
+> (auditorias, refatorações, fases de implementação) — útil
 > como contexto histórico, mas não é documentação canônica.

@@ -59,8 +59,7 @@ JWT sem validar a assinatura) e o usuário com papel precisa ter o perfil ativo.
   do front.
 - Valide a autorização do chamador dentro da função (verifique o JWT/role) antes
   de executar ações privilegiadas.
-- Deploy é feito no Supabase (via CLI `supabase functions deploy <nome>` ou pelo
-  fluxo do Lovable). Em ambiente web/remoto sem CLI, use as ferramentas MCP do
+- Deploy é feito no Supabase (via CLI `supabase functions deploy <nome>`). Em ambiente web/remoto sem CLI, use as ferramentas MCP do
   Supabase quando disponíveis.
 - Mantenha o contrato (formato de `body`/resposta) em sincronia com o hook que a
   consome no front.

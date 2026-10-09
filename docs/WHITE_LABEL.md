@@ -546,7 +546,6 @@ fi
 
 | Risco | Mitigação |
 |---|---|
-| **Sincronização com o Lovable** — commita automaticamente e pode reintroduzir hardcode | Fazer o white label em fases curtas e mergeadas rápido; a guarda de CI (§12) detecta reintrodução |
 | **`App.tsx` com 1.281 linhas e 239 rotas** — alto risco de conflito de merge | Tratar o guard de módulo como wrapper, não reorganizar o arquivo na mesma fase |
 | **`types.ts` gerado (~23 mil linhas)** | Nunca editar à mão; regenerar após cada migração (§9) |
 | **Templates jurídicos** | Fase 5 exige validação do jurídico do cliente — errar o fundamento legal invalida o ato administrativo |

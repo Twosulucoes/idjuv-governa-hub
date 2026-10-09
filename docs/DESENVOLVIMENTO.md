@@ -2,7 +2,7 @@
 
 ## Pré-requisitos
 
-- **Node.js** (LTS) ou **Bun**. O repo tem `bun.lockb`/`bun.lock` e
+- **Node.js** (LTS) ou **Bun**. O repo tem `bun.lock` e
   `package-lock.json` — prefira **bun** se disponível; senão `npm`.
 - Acesso ao projeto **Supabase** (URL + chave anônima) configurado no `.env`.
 
@@ -39,9 +39,9 @@ bun run preview      # serve o build localmente
 ## Banco de dados
 
 - Migrações em `supabase/migrations/*.sql`. Para mudanças de schema, **crie uma
-  migração nova** (ou use o fluxo do Lovable) — não edite migrações antigas.
+  migração nova** — não edite migrações antigas.
 - Após mudar o schema, **regenere** `src/integrations/supabase/types.ts`
-  (via CLI do Supabase `supabase gen types typescript` ou pelo fluxo do Lovable).
+  (via CLI do Supabase `supabase gen types typescript` ou pelo MCP do Supabase).
   Esse arquivo é **gerado** — não editar à mão.
 - Edge Functions: ver [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md).
 
@@ -74,17 +74,12 @@ bun run preview      # serve o build localmente
 - Abra **Pull Request** (draft) para revisão antes do merge.
 - Repositório: `twosulucoes/idjuv-governa-hub`.
 
-## Atenção: sincronização com Lovable
-
-O projeto está conectado ao **Lovable**, que commita automaticamente. Para
-reduzir conflitos:
+## Diffs focados
 
 - Mantenha alterações **focadas**; evite reformatações massivas sem necessidade.
-- Lembre que o Lovable também pode alterar arquivos — faça `git pull` antes de
-  começar e antes de dar push.
+- Faça `git pull` antes de começar e antes de dar push.
 
 ## Deploy
 
 - **Front**: Vercel (deploy automático por push/PR; `vercel.json` faz rewrite SPA).
-  Também publicável via Lovable (Share → Publish).
 - **Backend / Edge Functions**: Supabase.

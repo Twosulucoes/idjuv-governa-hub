@@ -40,14 +40,13 @@ transparência (LAI), comunicação (ASCOM), programas e processos administrativ
 Acompanham o sistema um **portal público** (notícias, galerias, transparência,
 formulários de cadastro) e um **PWA mobile** para inventário de patrimônio em campo.
 
-O projeto nasceu no **Lovable** (`lovable.dev`), que commita automaticamente no
-repositório, e está conectado ao **Supabase**.
+O backend é o **Supabase**; o código vive só neste repositório GitHub.
 
 ## 1.2 Stack
 
 | Camada | Tecnologia |
 |---|---|
-| Build / dev | Vite 5 + `@vitejs/plugin-react-swc`, `lovable-tagger` (dev) |
+| Build / dev | Vite 5 + `@vitejs/plugin-react-swc` |
 | Linguagem | TypeScript 5.8 |
 | UI | React 18, shadcn/ui (Radix), Tailwind CSS 3, `framer-motion` |
 | Roteamento | react-router-dom 6 |
@@ -60,7 +59,7 @@ repositório, e está conectado ao **Supabase**.
 | Tema | next-themes (light/dark) + tokens CSS |
 | Hospedagem | Vercel (SPA, rewrite para `/index.html`) · backend no Supabase |
 
-Gerenciador de pacotes: **bun** preferencialmente (`bun.lockb`); `package-lock.json`
+Gerenciador de pacotes: **bun** preferencialmente (`bun.lock`); `package-lock.json`
 também presente.
 
 ```bash
@@ -208,8 +207,7 @@ Não há servidor de relatórios: 38 geradores `pdf*.ts`, `wordPortarias.ts` (do
 
 ### Banco e migrações
 
-`supabase/migrations/YYYYMMDDHHMMSS_<uuid>.sql` (246 arquivos), tipicamente
-geradas pelo Lovable. **RLS é obrigatório desde a migração** — use o skill
+`supabase/migrations/YYYYMMDDHHMMSS_<uuid>.sql` (246 arquivos). **RLS é obrigatório desde a migração** — use o skill
 `migracao-segura-idjuv`. Detalhes em [`docs/BANCO_DE_DADOS.md`](./docs/BANCO_DE_DADOS.md).
 
 ## 1.7 Armadilhas conhecidas
@@ -217,7 +215,7 @@ geradas pelo Lovable. **RLS é obrigatório desde a migração** — use o skill
 1. **Arquivos gerados** — `src/integrations/supabase/client.ts` e `types.ts`
    (~23 mil linhas) nunca são editados à mão; regenere pelo Supabase.
 2. **`App.tsx` é único e grande** — toda mudança de rota passa por lá; alto risco
-   de conflito de merge com os commits automáticos do Lovable.
+   de conflito de merge entre branches.
 3. **Sem testes automatizados** — a verificação é `bun run lint` + `bun run build`
    (o build faz a checagem de tipos) e, quando possível, rodar o app.
 4. **Wrappers de Supabase duplicados** — `src/lib/supabase.ts`,
@@ -414,7 +412,6 @@ cultura, saúde ou educação.
 
 | Risco | Mitigação |
 |---|---|
-| Lovable commita automaticamente e pode reintroduzir hardcode | Fases curtas mergeadas rápido + guarda de CI |
 | `App.tsx` com 239 rotas — conflito de merge | Guard de módulo como wrapper; não reorganizar o arquivo na mesma fase |
 | Templates jurídicos errados invalidam atos administrativos | Fase 5 com validação do jurídico do cliente |
 | Migração de enum em banco de produção | Aplicar antes em branch do Supabase; verificar RPC, views e políticas de RLS |

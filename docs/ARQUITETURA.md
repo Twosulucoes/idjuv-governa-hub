@@ -17,7 +17,7 @@
 │  Edge Functions (Deno) — operações privilegiadas/admin         │
 └──────────────────────────────────────────────────────────────┘
 
-Hospedagem do front: Vercel (SPA, rewrite p/ index.html) / Lovable.
+Hospedagem do front: Vercel (SPA, rewrite p/ index.html).
 ```
 
 O front é uma **SPA** que fala diretamente com o Supabase via `supabase-js`
@@ -91,7 +91,7 @@ caches relevantes. Estatísticas de dashboard ficam em `use<Modulo>DashboardStat
   funções como `has_permission`, `has_role`, `user_has_unit_access`,
   `usuario_tem_acesso_modulo` apoiam essas políticas.
 - **Migrações**: `supabase/migrations/*.sql` (~240), nomeadas
-  `YYYYMMDDHHMMSS_<uuid>.sql`, geradas tipicamente pelo Lovable.
+  `YYYYMMDDHHMMSS_<uuid>.sql` (ou `_<slug>.sql`).
 - **Storage**: anexos (documentos, demandas ASCOM, galerias, frequência).
 - **Edge Functions**: ver [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md).
 

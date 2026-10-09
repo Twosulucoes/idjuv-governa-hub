@@ -11,7 +11,7 @@
  *
  * Isso é deliberado, não preguiça. Documento que afirma algo sobre o presente
  * ("o sistema faz X") apodrece; registro datado do passado (uma auditoria com
- * data, um plano histórico em `.lovable/`) continua verdadeiro para sempre,
+ * data, um plano histórico em `docs/historico/`) continua verdadeiro para sempre,
  * mesmo depois de o arquivo citado ser deletado. Validar registros históricos
  * contra o estado atual do repo forçaria a reescrever a história para o CI
  * passar — o oposto do que se quer. Ao adicionar uma doc normativa nova,
