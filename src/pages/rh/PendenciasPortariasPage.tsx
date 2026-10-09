@@ -46,7 +46,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { usePortarias } from '@/hooks/usePortarias';
-import { STATUS_PORTARIA_LABELS, StatusPortaria } from '@/types/portaria';
+import { VisualizarPortariaDialog } from '@/components/portarias/VisualizarPortariaDialog';
+import { STATUS_PORTARIA_LABELS, StatusPortaria, Portaria } from '@/types/portaria';
 
 const STATUS_PENDENTES: StatusPortaria[] = ['minuta', 'aguardando_assinatura', 'aguardando_publicacao'];
 
@@ -73,6 +74,8 @@ const STATUS_COLOR: Record<StatusPortaria, string> = {
 export default function PendenciasPortariasPage() {
   const [busca, setBusca] = useState('');
   const [statusFiltro, setStatusFiltro] = useState<StatusPortaria | 'all'>('all');
+  // Visualização em diálogo, para quem é só do RH (a Central exige o módulo gabinete)
+  const [portariaSelecionada, setPortariaSelecionada] = useState<Portaria | null>(null);
 
   const currentYear = new Date().getFullYear();
   
@@ -283,9 +286,17 @@ export default function PendenciasPortariasPage() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button asChild size="sm" variant="ghost">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title="Ver portaria"
+                              onClick={() => setPortariaSelecionada(portaria)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button asChild size="sm" variant="ghost" title="Abrir na Central de Portarias (Gabinete)">
                               <Link to={`/gabinete/portarias?id=${portaria.id}`}>
-                                <Eye className="h-4 w-4" />
+                                <ExternalLink className="h-4 w-4" />
                               </Link>
                             </Button>
                           </TableCell>
@@ -299,6 +310,12 @@ export default function PendenciasPortariasPage() {
           </CardContent>
         </Card>
       </div>
+
+      <VisualizarPortariaDialog
+        portaria={portariaSelecionada}
+        open={!!portariaSelecionada}
+        onOpenChange={(open) => !open && setPortariaSelecionada(null)}
+      />
     </ModuleLayout>
   );
 }
