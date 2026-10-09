@@ -40,13 +40,13 @@ import {
   Trash2
 } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
 import {
   useFerias,
   useServidoresParaFerias,
   useAtualizarStatusFerias,
   useExcluirFerias,
-  SemPermissaoExcluirError,
+  SemPermissaoError,
+  formatarDataFerias,
 } from "@/hooks/useFerias";
 import { FeriasFormDialog } from "@/components/rh/ferias/FeriasFormDialog";
 import { camposEditaveisPorStatus, podeExcluir, statusPermitidos } from "@/lib/feriasRegras";
@@ -68,10 +68,11 @@ export default function GestaoFeriasPage() {
   const [feriasParaExcluir, setFeriasParaExcluir] = useState<FeriasServidorComServidor | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
-  const { isSuperAdmin, hasPermission, hasAnyPermission } = useAuth();
+  const { isSuperAdmin, hasAnyPermission } = useAuth();
   const podeCriar = isSuperAdmin || hasAnyPermission(["rh.ferias.criar", "rh.ferias.gerenciar"]);
   const podeEditar = isSuperAdmin || hasAnyPermission(["rh.ferias.editar", "rh.ferias.gerenciar"]);
-  const isAdmin = isSuperAdmin || hasPermission("admin");
+  // A policy de DELETE em produção usa has_role('admin'), que no front é isSuperAdmin.
+  const isAdmin = isSuperAdmin;
 
   const { data: ferias = [], isLoading } = useFerias();
   const { data: servidores = [] } = useServidoresParaFerias();
@@ -110,8 +111,8 @@ export default function GestaoFeriasPage() {
       {
         onSuccess: () => toast.success("Registro de férias excluído."),
         onError: (error) => {
-          if (error instanceof SemPermissaoExcluirError) {
-            toast.error("Sem permissão para excluir; cancele o registro.");
+          if (error instanceof SemPermissaoError) {
+            toast.error(error.message);
           } else {
             toast.error(`Erro ao excluir: ${error.message}`);
           }
@@ -127,7 +128,7 @@ export default function GestaoFeriasPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const formatDate = (date: string) => format(new Date(date), "dd/MM/yyyy");
+  const formatDate = formatarDataFerias;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -332,6 +333,7 @@ export default function GestaoFeriasPage() {
             }}
             servidores={servidores}
             ferias={feriasEmEdicao}
+            servidorNome={feriasEmEdicao?.servidor?.nome_completo}
           />
 
           {/* Confirmação de exclusão */}

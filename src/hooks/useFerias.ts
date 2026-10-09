@@ -23,7 +23,9 @@ const SELECT_COM_SERVIDOR = `
   servidor:servidores!ferias_servidor_servidor_id_fkey(id, nome_completo)
 `;
 
-const fmt = (d?: string | null) => (d ? format(parseISO(d), "dd/MM/yyyy") : "em aberto");
+/** Formata data `YYYY-MM-DD` sem deslocamento de fuso; vazio = "em aberto". */
+export const formatarDataFerias = (d?: string | null) => (d ? format(parseISO(d), "dd/MM/yyyy") : "em aberto");
+const fmt = formatarDataFerias;
 
 /** Servidor na lista do formulário (data de admissão sugere o período aquisitivo). */
 export interface ServidorParaFerias {
@@ -95,7 +97,7 @@ export function useOcupacoesServidor(servidorId?: string | null) {
           .from("ferias_servidor")
           .select("id, data_inicio, data_fim, status, parcela, total_parcelas")
           .eq("servidor_id", servidorId!)
-          .neq("status", "cancelada"),
+          .or("status.is.null,status.neq.cancelada"),
         supabase
           .from("licencas_afastamentos")
           .select("id, data_inicio, data_fim, status, tipo_afastamento, tipo_licenca")
@@ -168,6 +170,34 @@ function useInvalidarFerias() {
   };
 }
 
+/**
+ * Erro lançado quando a operação não afeta linha alguma: com RLS, UPDATE/DELETE
+ * sem permissão não dá erro, apenas retorna zero linhas.
+ */
+export class SemPermissaoError extends Error {
+  constructor(acao: "alterar" | "excluir") {
+    super(
+      acao === "excluir"
+        ? "Sem permissão para excluir; cancele o registro."
+        : "Sem permissão para alterar o registro.",
+    );
+    this.name = "SemPermissaoError";
+  }
+}
+
+/** Resultado de UPDATE/DELETE: lança se houve erro ou se nenhuma linha foi afetada. */
+function exigirLinhaAfetada<T>(
+  resultado: { data: T[] | null; error: { code?: string; message: string } | null },
+  acao: "alterar" | "excluir",
+): T {
+  if (resultado.error) {
+    if (resultado.error.code === "42501") throw new SemPermissaoError(acao);
+    throw resultado.error;
+  }
+  if (!resultado.data || resultado.data.length === 0) throw new SemPermissaoError(acao);
+  return resultado.data[0];
+}
+
 export function useCriarFerias() {
   const invalidar = useInvalidarFerias();
   return useMutation({
@@ -188,14 +218,8 @@ export function useAtualizarFerias() {
   const invalidar = useInvalidarFerias();
   return useMutation({
     mutationFn: async ({ id, ...input }: Partial<FeriasServidorInput> & { id: string }) => {
-      const { data, error } = await supabase
-        .from("ferias_servidor")
-        .update(input)
-        .eq("id", id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data as FeriasServidor;
+      const resultado = await supabase.from("ferias_servidor").update(input).eq("id", id).select("id, servidor_id");
+      return exigirLinhaAfetada(resultado, "alterar");
     },
     onSuccess: (data) => invalidar(data.servidor_id),
   });
@@ -205,26 +229,13 @@ export function useAtualizarStatusFerias() {
   const invalidar = useInvalidarFerias();
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: StatusFeriasServidor }) => {
-      const { data, error } = await supabase
-        .from("ferias_servidor")
-        .update({ status })
-        .eq("id", id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data as FeriasServidor;
+      const resultado = await supabase.from("ferias_servidor").update({ status }).eq("id", id).select("id, servidor_id");
+      return exigirLinhaAfetada(resultado, "alterar");
     },
     onSuccess: (data) => invalidar(data.servidor_id),
   });
 }
 
-/** Erro lançado quando o DELETE não afeta linha (RLS: só admin exclui). */
-export class SemPermissaoExcluirError extends Error {
-  constructor() {
-    super("Sem permissão para excluir; cancele o registro.");
-    this.name = "SemPermissaoExcluirError";
-  }
-}
 
 export function useExcluirFerias() {
   const invalidar = useInvalidarFerias();
@@ -232,12 +243,8 @@ export function useExcluirFerias() {
     mutationFn: async ({ id, servidorId }: { id: string; servidorId?: string }) => {
       // Com RLS, um DELETE sem permissão não dá erro: retorna zero linhas.
       // O `.select()` permite detectar isso e avisar o usuário.
-      const { data, error } = await supabase.from("ferias_servidor").delete().eq("id", id).select("id");
-      if (error) {
-        if (error.code === "42501") throw new SemPermissaoExcluirError();
-        throw error;
-      }
-      if (!data || data.length === 0) throw new SemPermissaoExcluirError();
+      const resultado = await supabase.from("ferias_servidor").delete().eq("id", id).select("id");
+      exigirLinhaAfetada(resultado, "excluir");
       return servidorId;
     },
     onSuccess: (servidorId) => invalidar(servidorId),

@@ -12,7 +12,8 @@ import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -41,7 +42,7 @@ import {
   validarAbono,
   validarParcelas,
 } from "@/lib/feriasRegras";
-import type { FeriasServidor, FeriasServidorInput } from "@/types/rh";
+import type { FeriasServidor, FeriasServidorInput, Ocupacao } from "@/types/rh";
 
 const schemaBase = z.object({
   servidor_id: z.string().min(1, "Selecione o servidor"),
@@ -58,7 +59,11 @@ const schemaBase = z.object({
   observacoes: z.string().optional(),
 });
 
-type FormData = z.infer<typeof schemaBase>;
+type FeriasFormValues = z.infer<typeof schemaBase>;
+
+// Listas vazias estáveis (evitam recriar o schema a cada render enquanto as queries carregam).
+const SEM_FERIAS: FeriasServidor[] = [];
+const SEM_OCUPACOES: Ocupacao[] = [];
 
 interface FeriasFormDialogProps {
   open: boolean;
@@ -66,9 +71,11 @@ interface FeriasFormDialogProps {
   servidores: ServidorParaFerias[];
   /** Registro em edição; ausente = criar. */
   ferias?: FeriasServidor | null;
+  /** Nome do servidor do registro em edição (para servidor inativo, fora da lista). */
+  servidorNome?: string;
 }
 
-export function FeriasFormDialog({ open, onOpenChange, servidores, ferias }: FeriasFormDialogProps) {
+export function FeriasFormDialog({ open, onOpenChange, servidores, ferias, servidorNome }: FeriasFormDialogProps) {
   const editando = !!ferias;
   const modoEdicao = camposEditaveisPorStatus(ferias?.status);
   const bloqueiaTudo = editando && modoEdicao === "nenhum";
@@ -80,10 +87,10 @@ export function FeriasFormDialog({ open, onOpenChange, servidores, ferias }: Fer
 
   // Resolver dinâmico: as regras dependem das férias/ocupações já carregadas do servidor.
   const schemaRef = useRef<z.ZodTypeAny>(schemaBase);
-  const resolver: Resolver<FormData> = (values, context, options) =>
+  const resolver: Resolver<FeriasFormValues> = (values, context, options) =>
     zodResolver(schemaRef.current)(values, context, options);
 
-  const form = useForm<FormData>({
+  const form = useForm<FeriasFormValues>({
     resolver,
     defaultValues: {
       servidor_id: "",
@@ -109,8 +116,14 @@ export function FeriasFormDialog({ open, onOpenChange, servidores, ferias }: Fer
   const abonoMarcado = form.watch("abono_pecuniario");
   const diasCalculados = calcularDias(dataInicio, dataFim);
 
-  const { data: feriasServidor = [] } = useFeriasServidor(servidorId);
-  const { data: ocupacoes = [] } = useOcupacoesServidor(servidorId);
+  const feriasServidorQuery = useFeriasServidor(servidorId);
+  const ocupacoesQuery = useOcupacoesServidor(servidorId);
+  const feriasServidor = feriasServidorQuery.data ?? SEM_FERIAS;
+  const ocupacoes = ocupacoesQuery.data ?? SEM_OCUPACOES;
+  // Dados do servidor ainda não disponíveis: as regras rodariam com listas vazias.
+  const carregandoDadosServidor =
+    !!servidorId &&
+    (feriasServidorQuery.isPending || feriasServidorQuery.isFetching || ocupacoesQuery.isPending || ocupacoesQuery.isFetching);
 
   // Preenche o formulário ao abrir (criar ou editar).
   useEffect(() => {
@@ -130,6 +143,12 @@ export function FeriasFormDialog({ open, onOpenChange, servidores, ferias }: Fer
       observacoes: ferias?.observacoes ?? "",
     });
   }, [open, ferias, form]);
+
+  // Em edição de servidor inativo (fora da lista de ativos), inclui o próprio para o nome aparecer.
+  const opcoesServidores = useMemo<ServidorParaFerias[]>(() => {
+    if (!ferias || servidores.some((s) => s.id === ferias.servidor_id)) return servidores;
+    return [{ id: ferias.servidor_id, nome_completo: servidorNome || "Servidor inativo" }, ...servidores];
+  }, [servidores, ferias, servidorNome]);
 
   // Ao escolher o servidor (só no criar), sugere o período aquisitivo pela data de admissão.
   const sugerirPA = (id: string) => {
@@ -152,6 +171,10 @@ export function FeriasFormDialog({ open, onOpenChange, servidores, ferias }: Fer
   schemaRef.current = useMemo(
     () =>
       schemaBase.superRefine((d, ctx) => {
+        if (carregandoDadosServidor) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["root"], message: "Aguarde o carregamento das férias e ocupações do servidor." });
+          return;
+        }
         if (d.periodo_aquisitivo_fim < d.periodo_aquisitivo_inicio) {
           ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["periodo_aquisitivo_fim"], message: "O fim do período aquisitivo não pode ser antes do início" });
         }
@@ -173,9 +196,8 @@ export function FeriasFormDialog({ open, onOpenChange, servidores, ferias }: Fer
           parcela: d.parcela,
           total_parcelas: d.total_parcelas,
         });
-        for (const msg of errosParcelas) {
-          const path = msg.includes("total de parcelas") ? "total_parcelas" : msg.includes("limite") ? "data_fim" : "parcela";
-          ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message: msg });
+        for (const erro of errosParcelas) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: [erro.campo], message: erro.mensagem });
         }
 
         const conflitos = detectarSobreposicao({ id: ferias?.id, inicio: d.data_inicio, fim: d.data_fim }, ocupacoes);
@@ -187,10 +209,10 @@ export function FeriasFormDialog({ open, onOpenChange, servidores, ferias }: Fer
           });
         }
       }),
-    [feriasServidor, ocupacoes, ferias?.id],
+    [feriasServidor, ocupacoes, ferias?.id, carregandoDadosServidor],
   );
 
-  const onSubmit = async (d: FormData) => {
+  const onSubmit = async (d: FeriasFormValues) => {
     const dias = calcularDias(d.data_inicio, d.data_fim);
     const input: FeriasServidorInput = {
       servidor_id: d.servidor_id,
@@ -278,7 +300,7 @@ export function FeriasFormDialog({ open, onOpenChange, servidores, ferias }: Fer
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {servidores.map((s) => (
+                      {opcoesServidores.map((s) => (
                         <SelectItem key={s.id} value={s.id}>{s.nome_completo}</SelectItem>
                       ))}
                     </SelectContent>
@@ -354,13 +376,11 @@ export function FeriasFormDialog({ open, onOpenChange, servidores, ferias }: Fer
                   </FormItem>
                 )}
               />
-              <FormItem>
-                <FormLabel>Dias</FormLabel>
-                <FormControl>
-                  <Input type="number" value={diasCalculados} readOnly className="bg-muted" />
-                </FormControl>
-                <FormDescription>Dias corridos, calculado.</FormDescription>
-              </FormItem>
+              <div className="space-y-2">
+                <Label>Dias</Label>
+                <Input type="number" value={diasCalculados} readOnly className="bg-muted" />
+                <p className="text-sm text-muted-foreground">Dias corridos, calculado.</p>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -473,7 +493,7 @@ export function FeriasFormDialog({ open, onOpenChange, servidores, ferias }: Fer
             {erroRoot && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Sobreposição de períodos</AlertTitle>
+                <AlertTitle>Não foi possível validar o período</AlertTitle>
                 <AlertDescription>{erroRoot}</AlertDescription>
               </Alert>
             )}
@@ -482,8 +502,8 @@ export function FeriasFormDialog({ open, onOpenChange, servidores, ferias }: Fer
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={salvando || bloqueiaTudo}>
-                {salvando && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              <Button type="submit" disabled={salvando || bloqueiaTudo || carregandoDadosServidor}>
+                {(salvando || carregandoDadosServidor) && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 {editando ? "Salvar" : "Cadastrar"}
               </Button>
             </DialogFooter>

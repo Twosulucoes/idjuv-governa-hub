@@ -66,40 +66,53 @@ export function calcularSaldoPeriodo(
   return { usados, abono, saldo: DIAS_FERIAS_ANO - usados - abono };
 }
 
+/** Campo do formulário ao qual cada erro de parcela se refere. */
+export interface ErroParcela {
+  campo: "parcela" | "total_parcelas" | "data_fim";
+  mensagem: string;
+}
+
 /**
  * Valida parcela/total e o limite de 30 dias do PA.
  * `registrosDoPA` = demais lançamentos do mesmo período aquisitivo (o próprio
  * registro em edição é ignorado pelo `id`; cancelados também são ignorados).
- * Retorna a lista de mensagens de erro (vazia = válido).
+ * Retorna a lista de erros com o campo a que se referem (vazia = válido).
  */
-export function validarParcelas(registrosDoPA: FeriasParaRegra[], novo: FeriasParaRegra): string[] {
-  const erros: string[] = [];
+export function validarParcelas(registrosDoPA: FeriasParaRegra[], novo: FeriasParaRegra): ErroParcela[] {
+  const erros: ErroParcela[] = [];
   const total = novo.total_parcelas ?? 1;
   const parcela = novo.parcela ?? 1;
   const dias = novo.dias_gozados || 0;
   const abono = novo.dias_abono || 0;
 
   if (!Number.isInteger(total) || total < 1 || total > MAX_PARCELAS) {
-    erros.push(`O total de parcelas deve ser entre 1 e ${MAX_PARCELAS}.`);
+    erros.push({ campo: "total_parcelas", mensagem: `O total de parcelas deve ser entre 1 e ${MAX_PARCELAS}.` });
   }
   if (!Number.isInteger(parcela) || parcela < 1 || parcela > total) {
-    erros.push(`O número da parcela deve ser entre 1 e ${total || 1}.`);
+    erros.push({ campo: "parcela", mensagem: `O número da parcela deve ser entre 1 e ${total || 1}.` });
   }
-  if (dias < MIN_DIAS_PARCELA) {
-    erros.push(`Cada parcela deve ter ao menos ${MIN_DIAS_PARCELA} dias.`);
+  if (total > 1 && dias < MIN_DIAS_PARCELA) {
+    erros.push({ campo: "data_fim", mensagem: `Cada parcela deve ter ao menos ${MIN_DIAS_PARCELA} dias.` });
   }
 
   const outros = registrosDoPA.filter((r) => contaParaSaldo(r) && (!novo.id || r.id !== novo.id));
 
+  if (outros.some((r) => (r.total_parcelas ?? 1) !== total)) {
+    erros.push({
+      campo: "total_parcelas",
+      mensagem: "O total de parcelas difere do já lançado neste período aquisitivo.",
+    });
+  }
   if (outros.some((r) => (r.parcela ?? 1) === parcela)) {
-    erros.push(`A parcela ${parcela} já foi lançada neste período aquisitivo.`);
+    erros.push({ campo: "parcela", mensagem: `A parcela ${parcela} já foi lançada neste período aquisitivo.` });
   }
 
   const totalDias = outros.reduce((acc, r) => acc + (r.dias_gozados || 0) + (r.dias_abono || 0), 0) + dias + abono;
   if (totalDias > DIAS_FERIAS_ANO) {
-    erros.push(
-      `Dias de gozo e abono somam ${totalDias} no período aquisitivo; o limite é ${DIAS_FERIAS_ANO}.`,
-    );
+    erros.push({
+      campo: "data_fim",
+      mensagem: `Dias de gozo e abono somam ${totalDias} no período aquisitivo; o limite é ${DIAS_FERIAS_ANO}.`,
+    });
   }
 
   // Quando fracionado, ao menos uma parcela ≥ 14 dias. Só dá para cobrar quando
@@ -108,7 +121,10 @@ export function validarParcelas(registrosDoPA: FeriasParaRegra[], novo: FeriasPa
     const lancadas = outros.length + 1;
     const temParcelaMaior = dias >= MIN_DIAS_PARCELA_MAIOR || outros.some((r) => (r.dias_gozados || 0) >= MIN_DIAS_PARCELA_MAIOR);
     if (lancadas >= total && !temParcelaMaior) {
-      erros.push(`Férias parceladas exigem ao menos uma parcela com ${MIN_DIAS_PARCELA_MAIOR} dias ou mais.`);
+      erros.push({
+        campo: "data_fim",
+        mensagem: `Férias parceladas exigem ao menos uma parcela com ${MIN_DIAS_PARCELA_MAIOR} dias ou mais.`,
+      });
     }
   }
 
@@ -180,11 +196,23 @@ export function podeExcluir(status?: string | null): boolean {
 }
 
 /**
- * Transições de status permitidas a partir do status atual. `em_gozo` não pode
- * ir direto para `cancelada` (o trigger não restauraria a situação do servidor):
- * interrompe-se primeiro.
+ * Transições de status permitidas a partir do status atual.
+ * - `em_gozo` não vai direto para `cancelada` (decisão de produto: férias já
+ *   iniciadas se interrompem, não se cancelam);
+ * - `concluida` e `cancelada` são finais;
+ * - `interrompida` só pode ser dada como `concluida`.
  */
 export function statusPermitidos(atual?: string | null): FeriasServidor["status"][] {
-  if (atual === "em_gozo") return ["em_gozo", "concluida", "interrompida"];
-  return ["programada", "em_gozo", "concluida", "interrompida", "cancelada"];
+  switch (atual) {
+    case "em_gozo":
+      return ["em_gozo", "concluida", "interrompida"];
+    case "concluida":
+      return ["concluida"];
+    case "cancelada":
+      return ["cancelada"];
+    case "interrompida":
+      return ["interrompida", "concluida"];
+    default:
+      return ["programada", "em_gozo", "concluida", "interrompida", "cancelada"];
+  }
 }
