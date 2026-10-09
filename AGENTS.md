@@ -7,7 +7,7 @@ importa este arquivo (`@AGENTS.md`). Contexto completo: [`CLAUDE.md`](./CLAUDE.m
 
 - **Projeto:** IDJUV Governa Hub — ERP/governança para órgão público (React 18 + Vite + TypeScript + Supabase).
 - **Idioma:** português (domínio, comentários, UI). Não traduza nomes existentes.
-- **Verificação:** não há testes. Use `bash scripts/gate.sh` (`npm run gate`): guards de migrações, de links de docs e de RLS do baseline + typecheck + lint + build; typecheck e lint falham só se piorarem vs. `scripts/gate-baseline.json`. Roda no `pre-push` (`.githooks/`, ativado por `npm install`) e no CI (`.github/workflows/quality.yml`). Detalhes em [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+- **Verificação:** não há testes. Use `bash scripts/gate.sh` (`npm run gate`): guards de migrações, de links de docs, de RLS do baseline e de contraste AA dos tokens + typecheck + lint + cor crua em `.tsx` + build; typecheck, lint e cor crua falham só se piorarem vs. `scripts/gate-baseline.json`. Roda no `pre-push` (`.githooks/`, ativado por `npm install`) e no CI (`.github/workflows/quality.yml`). Detalhes em [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 - **Alias:** `@` → `src/`. Todas as rotas em `src/App.tsx`.
 - **Instalar deps:** `bun install` ou `npm install --no-package-lock` (o `package-lock.json` está fora de sincronia; `npm ci` falha).
 
@@ -52,6 +52,7 @@ brainstorming → [gate de aprovação] → writing-plans → subagent-driven-de
 | `auditoria-seguranca-idjuv` | IDJUV | Antes de release / PR grande |
 | `onboarding-cliente-idjuv` | IDJUV | Nova instância white-label |
 | `supabase`, `supabase-postgres-best-practices` | supabase/agent-skills (MIT) | Qualquer trabalho com Supabase/Postgres |
+| `ui-ux-pro-max` | nextlevelbuilder/ui-ux-pro-max-skill (MIT, ver `.claude/skills/UI-UX-PRO-MAX-VENDOR.md`) | Qualquer mudança visual: tela, componente, cor, tipografia, acessibilidade, gráfico. Design system: `docs/superpowers/specs/2026-10-09-design-system-design.md` |
 
 ## Subagentes (`.claude/agents/`) e quem executa o quê
 

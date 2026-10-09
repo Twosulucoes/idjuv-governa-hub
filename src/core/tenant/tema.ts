@@ -43,10 +43,16 @@ const MAPA_TOKENS: Record<keyof PaletaModo, string> = {
   sidebarAccentForeground: '--sidebar-accent-foreground',
   sidebarBorder: '--sidebar-border',
   sidebarRing: '--sidebar-ring',
+  successText: '--success-text',
+  warningText: '--warning-text',
+  infoText: '--info-text',
+  accentText: '--accent-text',
+  secondaryText: '--secondary-text',
 };
 
 function declaracoes(modo: PaletaModo): string {
   return (Object.keys(MAPA_TOKENS) as (keyof PaletaModo)[])
+    .filter((token) => modo[token] !== undefined)
     .map((token) => `  ${MAPA_TOKENS[token]}: ${modo[token]};`)
     .join('\n');
 }

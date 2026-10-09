@@ -1,11 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&family=Merriweather:wght@400;700&display=swap');
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Inter&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Merriweather&display=swap");
+/* Fontes: IBM Plex Sans (interface) + Merriweather (serif opcional, portal).
+   Design system: docs/superpowers/specs/2026-10-09-design-system-design.md */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Merriweather:wght@400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -15,8 +10,15 @@
    Design System Institucional - Cores do Estado de Roraima
 
    TIPOGRAFIA
-   - Títulos: Merriweather (serif)
-   - Corpo: Source Sans 3 (sans-serif)
+   - Interface e títulos: IBM Plex Sans (sans-serif, números tabulares em tabelas)
+   - Serif opcional (portal/institucional): Merriweather, via `font-serif`
+
+   CONTRASTE
+   - Todo par texto/fundo ≥ 4,5:1 e borda de campo/foco ≥ 3:1, claro e escuro.
+     Conferido por `node scripts/check-contraste.mjs` (roda no gate), inclusive
+     para a paleta de cada tenant.
+   - `text-success|warning|info|accent|secondary` usam os tokens `--*-text`
+     (versão legível do matiz); `bg-*` continua usando o token de preenchimento.
 
    HIERARQUIA
    H1: 2.5rem / 40px - Títulos principais
@@ -45,14 +47,14 @@
     --primary-foreground: 0 0% 100%;
 
     /* Verde vibrante institucional - cor secundária (da logo IDJUV) */
-    --secondary: 120 50% 38%;
+    --secondary: 120 50% 35%;
     --secondary-foreground: 0 0% 100%;
 
     --muted: 200 12% 92%;
-    --muted-foreground: 210 20% 45%;
+    --muted-foreground: 210 20% 42%;
 
     /* Azul claro - accent (seta da logo) */
-    --accent: 200 85% 50%;
+    --accent: 200 85% 37%;
     --accent-foreground: 0 0% 100%;
 
     /* Amarelo/dourado - destaque (bandeira brasileira na logo) */
@@ -63,17 +65,26 @@
     --destructive-foreground: 0 0% 100%;
 
     /* Estados de sucesso, alerta, info */
-    --success: 120 50% 38%;
+    --success: 120 50% 35%;
     --success-foreground: 0 0% 100%;
 
     --warning: 48 95% 50%;
     --warning-foreground: 210 50% 18%;
 
-    --info: 200 85% 50%;
+    --info: 200 85% 37%;
     --info-foreground: 0 0% 100%;
 
+    /* Cor de TEXTO dos estados (text-success, text-warning…): o preenchimento
+       amarelo/verde/azul-claro não tem contraste como texto sobre fundo claro */
+    --success-text: 120 50% 30%;
+    --warning-text: 32 90% 32%;
+    --info-text: 200 85% 33%;
+    --accent-text: 200 85% 33%;
+    --secondary-text: 120 50% 30%;
+
+    /* --border: divisórias decorativas; --input: borda de campo (≥ 3:1) */
     --border: 200 15% 88%;
-    --input: 200 15% 88%;
+    --input: 210 15% 57%;
     --ring: 210 65% 25%;
 
     --radius: 0.5rem;
@@ -81,15 +92,15 @@
     /* Sidebar institucional */
     --sidebar-background: 210 65% 25%;
     --sidebar-foreground: 200 15% 95%;
-    --sidebar-primary: 120 50% 45%;
+    --sidebar-primary: 120 50% 35%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 200 85% 50%;
+    --sidebar-accent: 200 85% 37%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 210 50% 35%;
     --sidebar-ring: 120 50% 45%;
 
     /* Fontes */
-    --font-sans: Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+    --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
     --font-serif: 'Merriweather', Georgia, serif;
 
     /* Sombras consistentes */
@@ -114,11 +125,20 @@
     --logo-card: 2.5rem;
     --logo-hero: 4rem;
     --logo-gov-small: 1.75rem;
-    --chart-1: 41 22.2% 64.6%;
-    --chart-2: 185 11.8% 60%;
-    --chart-3: 227 7% 39.8%;
-    --chart-4: 84 18.9% 82.8%;
-    --chart-5: 70 18.8% 76.9%;
+    /* Gráficos: série categórica institucional (use via ChartContainer/chartConfig) */
+    --chart-1: 210 65% 35%;
+    --chart-2: 120 45% 35%;
+    --chart-3: 38 92% 45%;
+    --chart-4: 200 85% 40%;
+    --chart-5: 12 75% 50%;
+    --chart-6: 175 60% 30%;
+    --chart-7: 215 20% 45%;
+    --chart-8: 48 80% 40%;
+
+    /* Movimento: hover/abrir 150–200ms; saída mais rápida que entrada */
+    --duration-fast: 150ms;
+    --duration-base: 200ms;
+    --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
     --sidebar: 248 0.3% 98.4%;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
@@ -161,8 +181,8 @@
     --highlight: 48 95% 55%;
     --highlight-foreground: 210 30% 8%;
 
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 72% 62%;
+    --destructive-foreground: 210 30% 8%;
 
     /* Estados mais vibrantes no dark mode */
     --success: 120 60% 50%;
@@ -174,9 +194,15 @@
     --info: 200 90% 60%;
     --info-foreground: 210 30% 8%;
 
+    --success-text: 120 60% 50%;
+    --warning-text: 48 95% 55%;
+    --info-text: 200 90% 60%;
+    --accent-text: 200 90% 60%;
+    --secondary-text: 120 55% 50%;
+
     /* Bordas mais visíveis */
     --border: 210 20% 22%;
-    --input: 210 20% 20%;
+    --input: 210 20% 40%;
     --ring: 200 85% 55%;
 
     /* Sidebar com melhor contraste */
@@ -196,16 +222,19 @@
     --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.4), 0 4px 6px -4px hsl(0 0% 0% / 0.35);
     --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.4), 0 8px 10px -6px hsl(0 0% 0% / 0.35);
     --shadow-card: 0 2px 8px -2px hsl(0 0% 0% / 0.4);
-    --chart-1: 264 24.3% 48.8%;
-    --chart-2: 162 17% 69.6%;
-    --chart-3: 70 18.8% 76.9%;
-    --chart-4: 304 26.5% 62.7%;
-    --chart-5: 16 24.6% 64.5%;
+    --chart-1: 210 70% 65%;
+    --chart-2: 120 50% 55%;
+    --chart-3: 38 92% 60%;
+    --chart-4: 200 85% 62%;
+    --chart-5: 12 80% 65%;
+    --chart-6: 175 55% 50%;
+    --chart-7: 215 20% 65%;
+    --chart-8: 48 85% 60%;
     --sidebar: 266 4% 20.8%;
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
     --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
     --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
-    --font-sans: Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+    --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
   }
 }
 
@@ -279,21 +308,21 @@
 
   /* Hierarquia tipográfica consistente */
   h1 {
-    @apply font-serif font-bold tracking-tight;
+    @apply font-sans font-semibold tracking-tight;
     font-size: clamp(2rem, 5vw, 2.5rem);
     line-height: 1.2;
     letter-spacing: -0.02em;
   }
 
   h2 {
-    @apply font-serif font-bold tracking-tight;
+    @apply font-sans font-semibold tracking-tight;
     font-size: clamp(1.5rem, 4vw, 2rem);
     line-height: 1.25;
     letter-spacing: -0.015em;
   }
 
   h3 {
-    @apply font-serif font-bold;
+    @apply font-sans font-semibold;
     font-size: clamp(1.25rem, 3vw, 1.5rem);
     line-height: 1.3;
     letter-spacing: -0.01em;
@@ -331,6 +360,28 @@
   .text-xs, caption {
     font-size: 0.75rem;
     line-height: 1.4;
+  }
+
+  /* Números alinhados em tabelas (valores, matrículas, datas) */
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Respeita quem pede menos movimento no sistema operacional */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *:not(.animate-spin),
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      animation-delay: 0ms !important;
+      transition-duration: 0.01ms !important;
+      transition-delay: 0ms !important;
+    }
   }
 }
 

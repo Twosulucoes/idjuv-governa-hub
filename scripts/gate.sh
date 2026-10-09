@@ -3,9 +3,10 @@
 # O repo tem dívida histórica (erros de tipo/lint), então typecheck e lint comparam
 # com scripts/gate-baseline.json: falham só se o número de erros AUMENTAR.
 # Quando reduzir a dívida, rode: bash scripts/gate.sh --update-baseline
-# Antes disso rodam três guards baratos (migrações sem versão duplicada, docs sem
-# referência quebrada, RLS do baseline em dia com o mapa), que falham em qualquer
-# ocorrência — não têm baseline.
+# Antes disso rodam quatro guards baratos (migrações sem versão duplicada, docs sem
+# referência quebrada, RLS do baseline em dia com o mapa, contraste AA dos tokens
+# de cor), que falham em qualquer ocorrência — não têm baseline. A "cor crua"
+# (paleta fixa do Tailwind/hex em .tsx) também compara com a baseline: só não pode subir.
 # Roda no pre-push (.githooks/pre-push) e no CI (.github/workflows/quality.yml).
 # Não há suíte de testes. Uso: bash scripts/gate.sh  (ou: npm run gate)
 set -uo pipefail
@@ -19,16 +20,17 @@ falhas=(); inicio=$(date +%s)
 
 ts_erros()   { npx tsc --noEmit -p tsconfig.app.json 2>&1 | grep -c "error TS" || true; }
 lint_erros() { npx eslint . -f json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).reduce((a,f)=>a+f.errorCount,0))}catch{console.log(-1)}})'; }
+cor_crua()   { node scripts/check-cor-crua.mjs; }
 lido()       { node -e "console.log(require('./$BASE').$1)"; }
 
 if [ "${1:-}" = "--update-baseline" ]; then
-  printf '{\n  "typecheck": %s,\n  "lint": %s\n}\n' "$(ts_erros)" "$(lint_erros)" > "$BASE"
+  printf '{\n  "typecheck": %s,\n  "lint": %s,\n  "corCrua": %s\n}\n' "$(ts_erros)" "$(lint_erros)" "$(cor_crua)" > "$BASE"
   echo "Baseline atualizada:"; cat "$BASE"; exit 0
 fi
 
-comparar() { # nome, atual, chave-da-baseline
-  local nome="$1" atual="$2" max; max=$(lido "$3")
-  printf "\n${AMARELO}▸ %s${SEM}: %s erros (baseline %s)\n" "$nome" "$atual" "$max"
+comparar() { # nome, atual, chave-da-baseline[, unidade]
+  local nome="$1" atual="$2" max unidade="${4:-erros}"; max=$(lido "$3")
+  printf "\n${AMARELO}▸ %s${SEM}: %s %s (baseline %s)\n" "$nome" "$atual" "$unidade" "$max"
   if [ "$atual" -lt 0 ]; then printf "${VERMELHO}  ✘ %s não executou${SEM}\n" "$nome"; falhas+=("$nome")
   elif [ "$atual" -le "$max" ]; then printf "${VERDE}  ✔ %s${SEM}\n" "$nome"
   else printf "${VERMELHO}  ✘ %s piorou (+%s)${SEM}\n" "$nome" "$((atual-max))"; falhas+=("$nome"); fi
@@ -44,9 +46,11 @@ guard() { # nome, comando...
 guard "migrações sem versão duplicada" bash scripts/check-migrations.sh
 guard "docs sem referência quebrada" node scripts/check-doc-links.mjs
 guard "RLS do baseline em dia com o mapa" node scripts/db/gerar-rls.mjs --check
+guard "contraste AA dos tokens de cor" node scripts/check-contraste.mjs
 
 comparar "typecheck" "$(ts_erros)" typecheck
 comparar "lint" "$(lint_erros)" lint
+comparar "cor crua em .tsx" "$(cor_crua)" corCrua ocorrências
 
 printf "\n${AMARELO}▸ build${SEM}\n"
 if npx vite build >/tmp/gate-build.log 2>&1; then printf "${VERDE}  ✔ build${SEM}\n"
