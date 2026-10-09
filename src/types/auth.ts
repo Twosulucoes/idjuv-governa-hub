@@ -258,6 +258,8 @@ export const MODULE_PERMISSIONS = {
     'rh.designacoes.visualizar',
     'rh.designacoes.criar',
     'rh.ferias.visualizar',
+    'rh.ferias.criar',
+    'rh.ferias.editar',
     'rh.ferias.gerenciar',
     'rh.licencas.visualizar',
     'rh.licencas.gerenciar',
