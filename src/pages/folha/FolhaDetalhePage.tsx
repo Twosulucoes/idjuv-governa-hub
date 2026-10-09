@@ -35,7 +35,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { STATUS_FOLHA_LABELS, STATUS_FOLHA_COLORS, MESES, type StatusFolha } from "@/types/folha";
-import { useUpdateFolhaStatus, useConfigAutarquia, useRemessasFolha, useEventosESocialFolha } from "@/hooks/useFolhaPagamento";
+import { useConfigAutarquia, useRemessasFolha, useEventosESocialFolha } from "@/hooks/useFolhaPagamento";
+import { usePermissoesFolha } from "@/hooks/useFechamentoFolha";
+import { FecharFolhaDialog } from "@/components/folha/FecharFolhaDialog";
+import { ReabrirFolhaDialog } from "@/components/folha/ReabrirFolhaDialog";
 import { ProcessarFolhaDialog } from "@/components/folha/ProcessarFolhaDialog";
 import { PendenciasServidoresDialog } from "@/components/folha/PendenciasServidoresDialog";
 import { GerarRemessaDialog } from "@/components/folha/GerarRemessaDialog";
@@ -51,6 +54,8 @@ export default function FolhaDetalhePage() {
   
   // Estados dos diálogos
   const [showProcessar, setShowProcessar] = useState(false);
+  const [showFechar, setShowFechar] = useState(false);
+  const [showReabrir, setShowReabrir] = useState(false);
   const [showPendencias, setShowPendencias] = useState(false);
   const [showRemessa, setShowRemessa] = useState(false);
   const [showESocial, setShowESocial] = useState(false);
@@ -59,9 +64,9 @@ export default function FolhaDetalhePage() {
   // Estado de busca
   const [busca, setBusca] = useState("");
 
-  // Mutations
-  const updateStatus = useUpdateFolhaStatus();
-  
+  // Permissões de fechamento/reabertura (RPCs usuario_pode_fechar_folha / usuario_pode_reabrir_folha)
+  const { data: permissoes } = usePermissoesFolha();
+
   // Queries
   const { data: configAutarquia, isLoading: loadingConfig } = useConfigAutarquia();
 
@@ -109,17 +114,6 @@ export default function FolhaDetalhePage() {
       style: "currency",
       currency: "BRL",
     });
-  };
-
-  const handleUpdateStatus = async (novoStatus: StatusFolha) => {
-    if (!id) return;
-    try {
-      await updateStatus.mutateAsync({ id, status: novoStatus });
-      queryClient.invalidateQueries({ queryKey: ["folha-detalhe", id] });
-      toast.success(`Status alterado para ${STATUS_FOLHA_LABELS[novoStatus]}`);
-    } catch (error) {
-      console.error("Erro ao atualizar status:", error);
-    }
   };
 
   const handleRefresh = () => {
@@ -174,8 +168,10 @@ export default function FolhaDetalhePage() {
   
   // Determinar ações disponíveis por status
   const podeProcessar = status === "previa" || status === "aberta";
-  const podeFechar = status === "processando";
-  const podeReabrir = status === "fechada" || status === "reaberta";
+  // Fechar/reabrir passam pelas RPCs fechar_folha/reabrir_folha (máquina de
+  // estados, hash e histórico) — mesmas regras da lista em /folha.
+  const podeFechar = (status === "processando" || status === "aberta") && !!permissoes?.podeFechar;
+  const podeReabrir = status === "fechada" && !!permissoes?.podeReabrir;
   const podeGerarRemessa = status !== "previa" && (fichas?.length || 0) > 0;
   const podeGerarESocial = status !== "previa" && (fichas?.length || 0) > 0;
 
@@ -238,8 +234,7 @@ export default function FolhaDetalhePage() {
               <Button
                 variant="default"
                 size="sm"
-                onClick={() => handleUpdateStatus("fechada")}
-                disabled={updateStatus.isPending}
+                onClick={() => setShowFechar(true)}
               >
                 <Lock className="mr-2 h-4 w-4" />
                 Fechar Folha
@@ -250,8 +245,7 @@ export default function FolhaDetalhePage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleUpdateStatus("reaberta")}
-                disabled={updateStatus.isPending}
+                onClick={() => setShowReabrir(true)}
               >
                 <Unlock className="mr-2 h-4 w-4" />
                 Reabrir
@@ -792,6 +786,22 @@ export default function FolhaDetalhePage() {
         onOpenChange={setShowProcessar}
         folhaId={id || ""}
         competencia={competencia}
+      />
+
+      <FecharFolhaDialog
+        open={showFechar}
+        onOpenChange={setShowFechar}
+        folhaId={id || ""}
+        competenciaAno={folha.competencia_ano}
+        competenciaMes={folha.competencia_mes}
+      />
+
+      <ReabrirFolhaDialog
+        open={showReabrir}
+        onOpenChange={setShowReabrir}
+        folhaId={id || ""}
+        competenciaAno={folha.competencia_ano}
+        competenciaMes={folha.competencia_mes}
       />
       
       <PendenciasServidoresDialog

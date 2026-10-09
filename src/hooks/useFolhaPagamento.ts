@@ -7,7 +7,6 @@ type RubricaInsert = Database['public']['Tables']['rubricas']['Insert'];
 type ParametroInsert = Database['public']['Tables']['parametros_folha']['Insert'];
 type ContaInsert = Database['public']['Tables']['contas_autarquia']['Insert'];
 type FolhaInsert = Database['public']['Tables']['folhas_pagamento']['Insert'];
-type FolhaStatus = Database['public']['Enums']['status_folha'];
 type ConfigInsert = Database['public']['Tables']['config_autarquia']['Insert'];
 type FaixaINSSInsert = Database['public']['Tables']['tabela_inss']['Insert'];
 type FaixaIRRFInsert = Database['public']['Tables']['tabela_irrf']['Insert'];
@@ -271,19 +270,6 @@ export function useCreateFolha() {
       return data;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['folhas-pagamento'] }); toast.success('Folha criada!'); },
-    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
-  });
-}
-
-export function useUpdateFolhaStatus() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: FolhaStatus }) => {
-      const { data, error } = await supabase.from('folhas_pagamento').update({ status }).eq('id', id).select().single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['folhas-pagamento'] }); toast.success('Status atualizado!'); },
     onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
   });
 }
