@@ -89,5 +89,13 @@ export const TIPO_DATA_LABEL: Record<EventoDataImportante["tipo"], string> = {
   aniversario: "Aniversário",
 };
 
+/**
+ * Link aceito num aviso: caminho interno ("/rh", nunca "//host" nem "/\\host", que o navegador
+ * trata como outro site) ou https. Mesma regra do CHECK da tabela avisos.
+ */
+export function linkAvisoValido(link: string): boolean {
+  return link.length <= 500 && !/[\s\p{Cc}]/u.test(link) && /^(\/$|\/[^/\\]|https:\/\/[^/\\])/.test(link);
+}
+
 /** Permissão que libera publicar avisos e cadastrar datas (admin passa por cima). */
 export const PERMISSAO_GERENCIAR_AVISOS = "avisos.gerenciar";

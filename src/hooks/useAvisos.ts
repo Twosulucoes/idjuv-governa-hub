@@ -37,13 +37,16 @@ export function ordenarAvisos<T extends Aviso>(avisos: T[]): T[] {
   );
 }
 
+const CINCO_MINUTOS = 5 * 60 * 1000;
+
 export function useAvisosVigentes() {
   const { user } = useAuth();
 
   return useQuery({
     queryKey: ["avisos", "vigentes", user?.id],
     enabled: !!user?.id,
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: CINCO_MINUTOS,
+    refetchInterval: CINCO_MINUTOS,
     queryFn: async (): Promise<AvisoComLeitura[]> => {
       const agora = new Date().toISOString();
       const [avisosRes, leiturasRes] = await Promise.all([
@@ -52,7 +55,8 @@ export function useAvisosVigentes() {
           .select("*")
           .eq("ativo", true)
           .lte("inicio_em", agora)
-          .or(`expira_em.is.null,expira_em.gt.${agora}`)
+          .or(`expira_em.is.null,expira_em.gt."${agora}"`)
+          .order("inicio_em", { ascending: false })
           .limit(100),
         db
           .from("avisos_leituras")
@@ -64,7 +68,12 @@ export function useAvisosVigentes() {
       if (leiturasRes.error) throw leiturasRes.error;
 
       const lidos = new Set(((leiturasRes.data || []) as { aviso_id: string }[]).map((l) => l.aviso_id));
-      const avisos = ((avisosRes.data || []) as Aviso[]).map((a) => ({ ...a, lido: lidos.has(a.id) }));
+      // O gestor recebe da RLS todos os avisos; no sino e na faixa ele só vê os do seu público.
+      const meuPublico = (a: Aviso) =>
+        a.publico === "todos" || user!.isSuperAdmin || a.modulos_alvo.some((m) => user!.modules.includes(m));
+      const avisos = ((avisosRes.data || []) as Aviso[])
+        .filter(meuPublico)
+        .map((a) => ({ ...a, lido: lidos.has(a.id) }));
       return ordenarAvisos(avisos);
     },
   });
@@ -88,10 +97,11 @@ export function useMarcarAvisoLido() {
 
 export function useAvisosGestao(habilitado: boolean) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const query = useQuery({
-    queryKey: ["avisos", "gestao"],
-    enabled: habilitado,
+    queryKey: ["avisos", "gestao", user?.id],
+    enabled: habilitado && !!user?.id,
     queryFn: async (): Promise<(Aviso & { leituras: number })[]> => {
       const { data, error } = await db
         .from("avisos")

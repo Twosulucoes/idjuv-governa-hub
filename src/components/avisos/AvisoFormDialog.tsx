@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { modulosHabilitados, type Modulo } from "@/shared/config/modules.config";
-import { PRIORIDADE_AVISO_LABEL, type Aviso, type AvisoInput } from "@/types/avisos";
+import { PRIORIDADE_AVISO_LABEL, linkAvisoValido, type Aviso, type AvisoInput } from "@/types/avisos";
 
 const schema = z
   .object({
@@ -33,7 +33,7 @@ const schema = z
       .string()
       .trim()
       .optional()
-      .refine((v) => !v || v.startsWith("/") || v.startsWith("https://"), "Use um caminho do sistema (/...) ou https://"),
+      .refine((v) => !v || linkAvisoValido(v), "Use um caminho do sistema (/...) ou https://"),
     ativo: z.boolean(),
   })
   .refine((d) => d.publico === "todos" || d.modulos_alvo.length > 0, {

@@ -25,6 +25,22 @@ VALUES
   ('comunicacao', 'avisos.gerenciar', 'Gerenciar Avisos e Datas Importantes', 'Avisos', 'gerenciar', 520)
 ON CONFLICT (permission_code) DO NOTHING;
 
+-- Perfil do usuário logado está ativo. Definida aqui de propósito: no estado das migrações
+-- is_active_user() é só `auth.uid() IS NOT NULL` e has_permission_code não olha o perfil
+-- (o baseline corrige as duas no overlay 10, o banco atual não). Esta feature não depende disso.
+CREATE OR REPLACE FUNCTION public.perfil_ativo_atual()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE((SELECT p.is_active FROM public.profiles p WHERE p.id = auth.uid()), false);
+$$;
+
+REVOKE ALL ON FUNCTION public.perfil_ativo_atual() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.perfil_ativo_atual() TO authenticated;
+
 -- Gestor ativo de avisos (usado pelas policies abaixo).
 CREATE OR REPLACE FUNCTION public.pode_gerenciar_avisos()
 RETURNS boolean
@@ -33,7 +49,7 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT public.is_active_user()
+  SELECT public.perfil_ativo_atual()
      AND public.has_permission_code(auth.uid(), 'avisos.gerenciar');
 $$;
 
@@ -59,6 +75,27 @@ REVOKE ALL ON FUNCTION public.alcanca_modulos_alvo(public.app_module[]) FROM PUB
 GRANT EXECUTE ON FUNCTION public.alcanca_modulos_alvo(public.app_module[]) TO authenticated;
 
 
+-- Autoria não é escolhida pelo cliente: INSERT grava o usuário logado, UPDATE mantém a original.
+CREATE OR REPLACE FUNCTION public.fixar_autoria_aviso()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    NEW.created_by := auth.uid();
+    NEW.created_at := now();
+  ELSE
+    NEW.created_by := OLD.created_by;
+    NEW.created_at := OLD.created_at;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.fixar_autoria_aviso() FROM PUBLIC, anon, authenticated;
+
+
 -- ----------------------------------------------------------------------------
 -- 2. avisos
 -- ----------------------------------------------------------------------------
@@ -73,7 +110,11 @@ CREATE TABLE IF NOT EXISTS public.avisos (
   modulos_alvo public.app_module[] NOT NULL DEFAULT '{}',
   inicio_em timestamptz NOT NULL DEFAULT now(),
   expira_em timestamptz,
-  link text CHECK (link IS NULL OR link ~ '^(/|https://)'),
+  -- caminho interno (/x, nunca //host nem /\host) ou https; sem espaço/controle
+  link text CHECK (
+    link IS NULL
+    OR (char_length(link) <= 500 AND link ~ '^(/$|/[^/\\]|https://[^/\\])' AND link !~ '[[:space:][:cntrl:]]')
+  ),
   ativo boolean NOT NULL DEFAULT true,
   created_by uuid DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -95,7 +136,7 @@ CREATE POLICY avisos_select ON public.avisos
   USING (
     (SELECT public.pode_gerenciar_avisos())
     OR (
-      (SELECT public.is_active_user())
+      (SELECT public.perfil_ativo_atual())
       AND ativo
       AND inicio_em <= now()
       AND (expira_em IS NULL OR expira_em > now())
@@ -118,6 +159,10 @@ CREATE POLICY avisos_delete ON public.avisos
 
 REVOKE ALL ON public.avisos FROM anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.avisos TO authenticated;
+
+CREATE TRIGGER trg_avisos_autoria
+  BEFORE INSERT OR UPDATE ON public.avisos
+  FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria_aviso();
 
 CREATE TRIGGER trg_avisos_updated_at
   BEFORE UPDATE ON public.avisos
@@ -150,7 +195,7 @@ CREATE POLICY avisos_leituras_insert ON public.avisos_leituras
   FOR INSERT TO authenticated
   WITH CHECK (
     user_id = (SELECT auth.uid())
-    AND (SELECT public.is_active_user())
+    AND (SELECT public.perfil_ativo_atual())
     AND EXISTS (SELECT 1 FROM public.avisos a WHERE a.id = aviso_id)
   );
 
@@ -195,7 +240,7 @@ CREATE POLICY datas_importantes_select ON public.datas_importantes
   USING (
     (SELECT public.pode_gerenciar_avisos())
     OR (
-      (SELECT public.is_active_user())
+      (SELECT public.perfil_ativo_atual())
       AND ativo
       AND public.alcanca_modulos_alvo(modulos_alvo)
     )
@@ -217,6 +262,10 @@ CREATE POLICY datas_importantes_delete ON public.datas_importantes
 REVOKE ALL ON public.datas_importantes FROM anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.datas_importantes TO authenticated;
 
+CREATE TRIGGER trg_datas_importantes_autoria
+  BEFORE INSERT OR UPDATE ON public.datas_importantes
+  FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria_aviso();
+
 CREATE TRIGGER trg_datas_importantes_updated_at
   BEFORE UPDATE ON public.datas_importantes
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -226,7 +275,7 @@ CREATE TRIGGER trg_datas_importantes_updated_at
 -- 5. Aniversariantes do mês (mínimo necessário: nome e dia)
 -- ----------------------------------------------------------------------------
 -- servidores é restrita ao RH. Esta RPC devolve só nome (social, se houver) e dia do
--- aniversário de servidores ativos — sem ano, CPF, contato ou lotação (LGPD: minimização).
+-- aniversário de servidores em exercício (ativo, férias, licença, afastado, cedido) — sem ano, CPF, contato ou lotação (LGPD: minimização).
 CREATE OR REPLACE FUNCTION public.aniversariantes_do_mes(p_mes integer)
 RETURNS TABLE (nome text, dia integer)
 LANGUAGE sql
@@ -237,9 +286,9 @@ AS $$
   SELECT COALESCE(NULLIF(btrim(s.nome_social), ''), s.nome_completo)::text AS nome,
          EXTRACT(DAY FROM s.data_nascimento)::integer AS dia
   FROM public.servidores s
-  WHERE public.is_active_user()
+  WHERE public.perfil_ativo_atual()
     AND p_mes BETWEEN 1 AND 12
-    AND s.situacao = 'ativo'
+    AND s.situacao IN ('ativo', 'afastado', 'cedido', 'licenca', 'ferias')
     AND s.data_nascimento IS NOT NULL
     AND EXTRACT(MONTH FROM s.data_nascimento) = p_mes
   ORDER BY 2, 1;

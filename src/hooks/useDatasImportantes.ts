@@ -12,6 +12,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { addMonths, eachMonthOfInterval, format, startOfMonth } from "date-fns";
 import type { DataImportante, DataImportanteInput, EventoDataImportante } from "@/types/avisos";
@@ -20,13 +21,38 @@ const db = supabase as unknown as SupabaseClient;
 
 const FMT = "yyyy-MM-dd";
 
-/** Ocorrências de uma data recorrente (mês/dia) dentro do período, em cada ano coberto. */
-function ocorrenciasAnuais(mes: number, dia: number, inicio: string, fim: string): string[] {
-  const anos: number[] = [];
-  for (let a = Number(inicio.slice(0, 4)); a <= Number(fim.slice(0, 4)); a++) anos.push(a);
-  return anos
-    .map((a) => `${a}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`)
-    .filter((d) => d >= inicio && d <= fim);
+const CINCO_MINUTOS = 5 * 60 * 1000;
+
+const bissexto = (ano: number) => (ano % 4 === 0 && ano % 100 !== 0) || ano % 400 === 0;
+
+/** "yyyy-MM-dd" do dia/mês no ano dado; 29/02 vira 28/02 em ano não bissexto. */
+function montarData(ano: number, mes: number, dia: number): string {
+  const d = mes === 2 && dia === 29 && !bissexto(ano) ? 28 : dia;
+  return `${ano}-${String(mes).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+/**
+ * Ocorrências de uma data anual que tocam o período. `dataFim` (se houver) é deslocada pelos
+ * mesmos anos, para eventos de vários dias continuarem com a mesma duração.
+ */
+function ocorrenciasAnuais(
+  data: string,
+  dataFim: string | null | undefined,
+  inicio: string,
+  fim: string,
+): { data: string; dataFim: string | null }[] {
+  const [anoBase, mes, dia] = data.split("-").map(Number);
+  const ocorrencias: { data: string; dataFim: string | null }[] = [];
+  for (let ano = Number(inicio.slice(0, 4)) - 1; ano <= Number(fim.slice(0, 4)); ano++) {
+    const ini = montarData(ano, mes, dia);
+    let fimOc: string | null = null;
+    if (dataFim) {
+      const [anoFim, mesFim, diaFim] = dataFim.split("-").map(Number);
+      fimOc = montarData(anoFim + (ano - anoBase), mesFim, diaFim);
+    }
+    if (ini <= fim && (fimOc ?? ini) >= inicio) ocorrencias.push({ data: ini, dataFim: fimOc });
+  }
+  return ocorrencias;
 }
 
 interface FeriadoBrasilApi {
@@ -39,11 +65,16 @@ const feriadosNacionaisCache = new Map<number, Promise<FeriadoBrasilApi[]>>();
 
 function feriadosNacionais(ano: number): Promise<FeriadoBrasilApi[]> {
   if (!feriadosNacionaisCache.has(ano)) {
-    const req = fetch(`https://brasilapi.com.br/api/feriados/v1/${ano}`)
+    // Timeout curto: se a API não responder, o calendário segue só com o banco.
+    const req = fetch(`https://brasilapi.com.br/api/feriados/v1/${ano}`, {
+      signal: AbortSignal.timeout(4000),
+      referrerPolicy: "no-referrer",
+    })
       .then((r) => (r.ok ? (r.json() as Promise<FeriadoBrasilApi[]>) : []))
       .catch(() => [] as FeriadoBrasilApi[]);
     req.then((lista) => {
-      if (lista.length === 0) feriadosNacionaisCache.delete(ano); // tenta de novo depois
+      // falhou: guarda o vazio por 10 min e depois tenta de novo
+      if (lista.length === 0) setTimeout(() => feriadosNacionaisCache.delete(ano), 10 * 60 * 1000);
     });
     feriadosNacionaisCache.set(ano, req);
   }
@@ -61,8 +92,7 @@ async function buscarDatasCadastradas(inicio: string, fim: string): Promise<Even
   return ((data || []) as unknown as DataImportante[]).flatMap((d) => {
     const base = { origem: "data_importante" as const, titulo: d.titulo, descricao: d.descricao, tipo: d.tipo };
     if (!d.recorrente_anual) return [{ ...base, id: d.id, data: d.data, dataFim: d.data_fim }];
-    const [, mes, dia] = d.data.split("-").map(Number);
-    return ocorrenciasAnuais(mes, dia, inicio, fim).map((data) => ({ ...base, id: `${d.id}-${data}`, data }));
+    return ocorrenciasAnuais(d.data, d.data_fim, inicio, fim).map((oc) => ({ ...base, id: `${d.id}-${oc.data}`, ...oc }));
   });
 }
 
@@ -79,10 +109,9 @@ async function buscarFeriados(inicio: string, fim: string): Promise<EventoDataIm
         const tipo = /facultativo/i.test(d.tipo) ? ("ponto_facultativo" as const) : ("feriado" as const);
         const base = { origem: "feriado" as const, titulo: d.nome, descricao: d.observacao, tipo };
         if (!d.recorrente) return [{ ...base, id: d.id, data: d.data }];
-        const [, mesData, diaData] = d.data.split("-").map(Number);
-        return ocorrenciasAnuais(d.mes_recorrente ?? mesData, d.dia_recorrente ?? diaData, inicio, fim).map(
-          (data) => ({ ...base, id: `${d.id}-${data}`, data }),
-        );
+        const [anoData, mesData, diaData] = d.data.split("-").map(Number);
+        const referencia = montarData(anoData, d.mes_recorrente ?? mesData, d.dia_recorrente ?? diaData);
+        return ocorrenciasAnuais(referencia, null, inicio, fim).map((oc) => ({ ...base, id: `${d.id}-${oc.data}`, data: oc.data }));
       });
 
   const cobertas = new Set(locais.map((f) => f.data));
@@ -108,7 +137,7 @@ async function buscarAniversariantes(meses: Date[], inicio: string, fim: string)
       const { data, error } = await db.rpc("aniversariantes_do_mes", { p_mes: m.getMonth() + 1 });
       if (error) return [];
       return ((data || []) as { nome: string; dia: number }[]).map((a, i) => {
-        const dataStr = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}-${String(a.dia).padStart(2, "0")}`;
+        const dataStr = montarData(m.getFullYear(), m.getMonth() + 1, a.dia);
         return {
           id: `aniv-${dataStr}-${i}`,
           origem: "aniversario" as const,
@@ -126,14 +155,18 @@ interface UseDatasImportantesOptions {
   inicio: Date;
   fim: Date;
   incluirAniversarios?: boolean;
+  habilitado?: boolean;
 }
 
-export function useDatasImportantes({ inicio, fim, incluirAniversarios = true }: UseDatasImportantesOptions) {
+export function useDatasImportantes({ inicio, fim, incluirAniversarios = true, habilitado = true }: UseDatasImportantesOptions) {
+  const { user } = useAuth();
   const inicioStr = format(inicio, FMT);
   const fimStr = format(fim, FMT);
 
   return useQuery({
-    queryKey: ["datas-importantes", "calendario", inicioStr, fimStr, incluirAniversarios],
+    queryKey: ["datas-importantes", "calendario", user?.id, inicioStr, fimStr, incluirAniversarios],
+    enabled: habilitado && !!user?.id,
+    staleTime: CINCO_MINUTOS,
     queryFn: async (): Promise<EventoDataImportante[]> => {
       const meses = eachMonthOfInterval({ start: startOfMonth(inicio), end: fim });
       const [cadastradas, feriados, aniversarios] = await Promise.all([
@@ -141,28 +174,32 @@ export function useDatasImportantes({ inicio, fim, incluirAniversarios = true }:
         buscarFeriados(inicioStr, fimStr).catch(() => []),
         incluirAniversarios ? buscarAniversariantes(meses, inicioStr, fimStr).catch(() => []) : [],
       ]);
-      return [...cadastradas, ...feriados, ...aniversarios].sort(
+      // Evento de vários dias que começou antes do período aparece no primeiro dia do período.
+      return [...cadastradas, ...feriados, ...aniversarios]
+        .map((e) => (e.data < inicioStr ? { ...e, data: inicioStr } : e))
+        .sort(
         (a, b) => a.data.localeCompare(b.data) || a.titulo.localeCompare(b.titulo),
       );
     },
   });
 }
 
-/** Próximas datas (hoje + N dias), sem aniversários — usado no sino. */
-export function useProximasDatas(dias = 30) {
+/** Próximas datas (hoje + N dias), sem aniversários — usado no sino, só quando aberto. */
+export function useProximasDatas(dias = 30, habilitado = true) {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const fim = new Date(hoje);
   fim.setDate(fim.getDate() + dias);
-  return useDatasImportantes({ inicio: hoje, fim, incluirAniversarios: false });
+  return useDatasImportantes({ inicio: hoje, fim, incluirAniversarios: false, habilitado });
 }
 
 export function useDatasImportantesGestao(habilitado: boolean) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const query = useQuery({
-    queryKey: ["datas-importantes", "gestao"],
-    enabled: habilitado,
+    queryKey: ["datas-importantes", "gestao", user?.id],
+    enabled: habilitado && !!user?.id,
     queryFn: async (): Promise<DataImportante[]> => {
       const desde = format(addMonths(new Date(), -12), FMT);
       const { data, error } = await db

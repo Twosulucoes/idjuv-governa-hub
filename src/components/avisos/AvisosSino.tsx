@@ -2,6 +2,7 @@
  * Sino do cabeçalho dos módulos: avisos não lidos + próximas datas importantes.
  */
 
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Bell, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,8 +19,10 @@ import { AvisoLink } from "./AvisoLink";
 const MAX_DATAS = 5;
 
 export function AvisosSino() {
+  const [aberto, setAberto] = useState(false);
   const { data: avisos = [] } = useAvisosVigentes();
-  const { data: datas = [] } = useProximasDatas(30);
+  // As datas só são buscadas quando o sino é aberto (ele está em todas as telas de módulo).
+  const { data: datas = [], isLoading: carregandoDatas } = useProximasDatas(30, aberto);
   const marcarLido = useMarcarAvisoLido();
 
   const naoLidos = avisos.filter((a) => !a.lido);
@@ -27,7 +30,7 @@ export function AvisosSino() {
   const proximas = datas.slice(0, MAX_DATAS);
 
   return (
-    <Popover>
+    <Popover open={aberto} onOpenChange={setAberto}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label={`Avisos (${naoLidos.length} não lidos)`}>
           <Bell className={cn("h-5 w-5", urgente && "text-destructive")} />
@@ -82,7 +85,9 @@ export function AvisosSino() {
           <h4 className="flex items-center gap-1 text-sm font-semibold">
             <CalendarDays className="h-4 w-4" /> Próximos 30 dias
           </h4>
-          {proximas.length === 0 ? (
+          {carregandoDatas ? (
+            <p className="text-sm text-muted-foreground">Carregando...</p>
+          ) : proximas.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma data importante.</p>
           ) : (
             <ul className="space-y-1">

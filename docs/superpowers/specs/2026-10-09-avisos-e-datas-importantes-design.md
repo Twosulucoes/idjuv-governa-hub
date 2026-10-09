@@ -7,18 +7,21 @@
 
 1. **Quem publica:** quem tem a permissão nova `avisos.gerenciar` (catálogo do módulo `comunicacao`) e o papel
    admin (que já passa por cima em `has_permission_code`). Ninguém mais escreve.
-2. **Quem vê um aviso:** usuário ativo, aviso ativo e dentro da janela `inicio_em`..`expira_em`, e público
+2. **Quem vê um aviso:** usuário com perfil ativo (checado na própria migração por `perfil_ativo_atual()`,
+   porque no banco atual `is_active_user()` não olha o perfil), aviso ativo e dentro da janela `inicio_em`..`expira_em`, e público
    `todos` ou um dos `modulos_alvo` acessível (`can_access_module`). Filtrado por RLS, não só no front.
 3. **Feriados não ganham tabela nova:** já existem em `dias_nao_uteis` (Configuração de Frequência). O
    calendário os lê dali e completa com os feriados nacionais da BrasilAPI (público, sem chave), sem duplicar
    datas já cadastradas. Se a BrasilAPI falhar, o calendário segue só com o que está no banco.
 4. **Aniversariantes:** a tabela `servidores` é restrita ao RH. Para todos verem os aniversariantes do mês
    sem abrir dado pessoal, uma RPC `aniversariantes_do_mes(mes)` devolve só nome (social, se houver) e dia —
-   sem ano, CPF, contato ou lotação.
+   sem ano, CPF, contato ou lotação — dos servidores em exercício (ativo, férias, licença, afastado,
+   cedido), a qualquer usuário com perfil ativo. Opt-out por servidor e restringir a quem é servidor ficam
+   para decisão do órgão (encarregado LGPD).
 5. **Prazos da folha e demais datas:** cadastrados em `datas_importantes` (tipo `prazo`, `evento`,
    `reuniao`, `comemorativa`, `outro`), com recorrência anual opcional e módulos-alvo opcionais.
 6. **Migração versionada, não aplicada:** ainda não há acesso ao Supabase do IDJUV. Os tipos gerados
-   (`types.ts`) não são editados à mão; os hooks usam `from("<tabela>" as any)` como `useLinksUteis`.
+   (`types.ts`) não são editados à mão; os hooks usam um cliente sem tipos (`supabase as unknown as SupabaseClient`).
 7. **Texto simples:** o conteúdo do aviso é texto puro (renderizado como texto, quebra de linha preservada);
    sem HTML, sem risco de XSS.
 
