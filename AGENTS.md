@@ -20,7 +20,10 @@ importa este arquivo (`@AGENTS.md`). Contexto completo: [`CLAUDE.md`](./CLAUDE.m
 5. **Segredos só no servidor** (Edge Functions/`supabase secrets`); nada em `src/`, `.env` do front ou docs. Nunca logar token ou dado pessoal (LGPD).
 6. **Nada de dados de cliente em `public/`** (servido sem autenticação).
 7. **Diffs focados:** o Lovable sincroniza este repo; evite reformatação em massa e mudanças em `App.tsx` além do necessário.
-8. **Não crie PR** nem aplique migração em projeto remoto sem pedido explícito. Nunca merge automático.
+8. **Não crie PR** sem pedido explícito. Nunca merge automático. **Migração vai para produção pelo CI, não à mão:**
+   o workflow `.github/workflows/migracoes-banco.yml` simula no PR e aplica no merge na `main`
+   (banco: Supabase self-hosted da VPS, acessado por túnel SSH; o Postgres não fica exposto). Agente não aplica migração direto
+   em banco remoto; toda migração do PR deve ser segura para rodar sozinha no merge.
 
 ## Fluxo de trabalho: prompt curto → execução estruturada
 

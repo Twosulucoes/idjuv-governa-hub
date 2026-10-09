@@ -225,7 +225,9 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 
 - **Vercel** (`vercel.json` faz rewrite SPA de tudo para `/index.html`). Também
   publicável via Lovable (Share → Publish).
-- Backend hospedado no Supabase. Edge Functions são deployadas no Supabase.
+- Backend: Supabase self-hosted na VPS do órgão. Edge Functions são deployadas no Supabase.
+- **Migrações:** aplicadas automaticamente pelo CI (`.github/workflows/migracoes-banco.yml`):
+  simulação no PR, aplicação no merge na `main`. Detalhes em `docs/DESENVOLVIMENTO.md`.
 
 ---
 
