@@ -7,7 +7,10 @@
  *   - identidade/rodapé  → identidade, endereço e contato do tenant.
  *
  * Saída: tenants/<slug>/emails/*.html + docker-compose.emails.yml (assuntos e URLs para a VPS).
- * Os placeholders {{ .ConfirmationURL }}, {{ .Token }} etc. são do GoTrue e
+ * Os botões levam direto à tela /auth do app com {{ .TokenHash }} (a tela chama
+ * verifyOtp), em vez do {{ .ConfirmationURL }} do GoTrue: o token só é gasto quando a
+ * pessoa abre a página, não quando um antivírus de e-mail "visita" o link.
+ * Os placeholders {{ .TokenHash }}, {{ .Token }} etc. são do GoTrue e
  * passam intactos. Guia de aplicação: docs/EMAILS_AUTH.md.
  *
  * Uso:  bun scripts/emails/gerar-templates-email.ts            (todos os tenants)
@@ -129,6 +132,8 @@ interface Email {
   /** Parágrafos de abertura (HTML confiável, com placeholders do GoTrue). */
   corpo: string[];
   botao?: string;
+  /** `type` do verifyOtp na tela /auth (obrigatório quando há botão). */
+  tipo?: 'signup' | 'invite' | 'magiclink' | 'recovery' | 'email_change';
   /** Mostra o código de uso único ({{ .Token }}). */
   codigo?: boolean;
   aviso: string;
@@ -142,7 +147,7 @@ function emails(t: TenantConfig): Email[] {
   const naoSolicitou = 'Se você não fez esse pedido, ignore este e-mail: nada muda na sua conta.';
   return [
     {
-      arquivo: 'confirmacao.html', chave: 'CONFIRMATION',
+      arquivo: 'confirmacao.html', chave: 'CONFIRMATION', tipo: 'signup',
       assunto: `Confirme seu e-mail · ${nome}`,
       preheader: `Falta um passo para ativar seu acesso ao ${sistema}.`,
       titulo: 'Confirme seu e-mail',
@@ -151,7 +156,7 @@ function emails(t: TenantConfig): Email[] {
       aviso: naoSolicitou,
     },
     {
-      arquivo: 'convite.html', chave: 'INVITE',
+      arquivo: 'convite.html', chave: 'INVITE', tipo: 'invite',
       assunto: `Convite para o ${sistema}`,
       preheader: `Você recebeu acesso ao ${sistema}. Defina sua senha para entrar.`,
       titulo: 'Você foi convidado',
@@ -160,7 +165,7 @@ function emails(t: TenantConfig): Email[] {
       aviso: 'Se você não esperava este convite, ignore este e-mail ou avise o suporte.',
     },
     {
-      arquivo: 'link-magico.html', chave: 'MAGIC_LINK',
+      arquivo: 'link-magico.html', chave: 'MAGIC_LINK', tipo: 'magiclink',
       assunto: `Seu link de acesso · ${nome}`,
       preheader: 'Entre no sistema com um clique, sem digitar a senha.',
       titulo: 'Seu link de acesso',
@@ -169,7 +174,7 @@ function emails(t: TenantConfig): Email[] {
       aviso: naoSolicitou,
     },
     {
-      arquivo: 'recuperacao-senha.html', chave: 'RECOVERY',
+      arquivo: 'recuperacao-senha.html', chave: 'RECOVERY', tipo: 'recovery',
       assunto: `Redefinição de senha · ${nome}`,
       preheader: 'Recebemos um pedido para redefinir sua senha.',
       titulo: 'Redefina sua senha',
@@ -178,7 +183,7 @@ function emails(t: TenantConfig): Email[] {
       aviso: 'Se você não pediu a redefinição, ignore este e-mail: sua senha atual continua valendo.',
     },
     {
-      arquivo: 'troca-email.html', chave: 'EMAIL_CHANGE',
+      arquivo: 'troca-email.html', chave: 'EMAIL_CHANGE', tipo: 'email_change',
       assunto: `Confirme a troca de e-mail · ${nome}`,
       preheader: 'Confirme o novo endereço de e-mail da sua conta.',
       titulo: 'Confirme a troca de e-mail',
@@ -213,7 +218,14 @@ function rodape(t: TenantConfig): string {
   ].filter(Boolean).join('<br>');
 }
 
+/** Link do botão: tela de acesso do app, que valida o token (ver src/pages/AuthPage.tsx). */
+function link(m: Email): string {
+  if (!m.tipo) throw new Error(`${m.arquivo}: botão sem tipo de verificação`);
+  return `{{ .SiteURL }}/auth?token_hash={{ .TokenHash }}&amp;type=${m.tipo}`;
+}
+
 function render(t: TenantConfig, m: Email, c: Cores, d: Cores): string {
+  const url = m.botao ? link(m) : '';
   const p = (html: string) =>
     `<p class="texto" style="margin:0 0 16px;font-size:16px;line-height:24px;color:${c.texto};">${html}</p>`;
 
@@ -221,7 +233,7 @@ function render(t: TenantConfig, m: Email, c: Cores, d: Cores): string {
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px;">
                 <tr>
                   <td class="botao" bgcolor="${c.marca}" style="border-radius:8px;background:${c.marca};mso-padding-alt:14px 28px;">
-                    <a href="{{ .ConfirmationURL }}" target="_blank" class="botao-link" style="display:inline-block;padding:14px 28px;font-family:${FONTE};font-size:16px;line-height:20px;font-weight:600;color:${c.marcaTexto};text-decoration:none;border-radius:8px;">${m.botao}</a>
+                    <a href="${url}" target="_blank" class="botao-link" style="display:inline-block;padding:14px 28px;font-family:${FONTE};font-size:16px;line-height:20px;font-weight:600;color:${c.marcaTexto};text-decoration:none;border-radius:8px;">${m.botao}</a>
                   </td>
                 </tr>
               </table>` : '';
@@ -237,7 +249,7 @@ function render(t: TenantConfig, m: Email, c: Cores, d: Cores): string {
               </table>` : '';
 
   const linkAlternativo = m.botao ? `
-              <p class="texto-suave" style="margin:0 0 24px;font-size:14px;line-height:20px;color:${c.textoSuave};">Se o botão não funcionar, copie e cole este endereço no navegador:<br><a href="{{ .ConfirmationURL }}" class="link-suave" style="color:${c.textoSuave};text-decoration:underline;word-break:break-all;">{{ .ConfirmationURL }}</a></p>` : '';
+              <p class="texto-suave" style="margin:0 0 24px;font-size:14px;line-height:20px;color:${c.textoSuave};">Se o botão não funcionar, copie e cole este endereço no navegador:<br><a href="${url}" class="link-suave" style="color:${c.textoSuave};text-decoration:underline;word-break:break-all;">${url}</a></p>` : '';
 
   return `<!DOCTYPE html>
 <html lang="pt-BR" xmlns="http://www.w3.org/1999/xhtml">

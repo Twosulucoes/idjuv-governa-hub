@@ -15,14 +15,34 @@ ela só aparece se estiver instalada; senão cai na fonte de sistema (Segoe UI, 
 | `tenants/<slug>/emails/*.html` | Templates gerados por tenant — **não edite à mão** |
 | `tenants/<slug>/emails/docker-compose.emails.yml` | Assuntos + URL de cada template para o serviço `auth` |
 
-| Template | Variável do GoTrue | Placeholders usados |
-|---|---|---|
-| `confirmacao.html` | `CONFIRMATION` | `.ConfirmationURL`, `.Email` |
-| `convite.html` | `INVITE` | `.ConfirmationURL`, `.Email` |
-| `link-magico.html` | `MAGIC_LINK` | `.ConfirmationURL` |
-| `recuperacao-senha.html` | `RECOVERY` | `.ConfirmationURL`, `.Email` |
-| `troca-email.html` | `EMAIL_CHANGE` | `.ConfirmationURL`, `.Email`, `.NewEmail` |
-| `reautenticacao.html` | `REAUTHENTICATION` | `.Token` |
+| Template | Variável do GoTrue | Link do botão (`type`) | Placeholders usados |
+|---|---|---|---|
+| `confirmacao.html` | `CONFIRMATION` | `signup` | `.SiteURL`, `.TokenHash`, `.Email` |
+| `convite.html` | `INVITE` | `invite` | `.SiteURL`, `.TokenHash`, `.Email` |
+| `link-magico.html` | `MAGIC_LINK` | `magiclink` | `.SiteURL`, `.TokenHash` |
+| `recuperacao-senha.html` | `RECOVERY` | `recovery` | `.SiteURL`, `.TokenHash`, `.Email` |
+| `troca-email.html` | `EMAIL_CHANGE` | `email_change` | `.SiteURL`, `.TokenHash`, `.Email`, `.NewEmail` |
+| `reautenticacao.html` | `REAUTHENTICATION` | — (só código) | `.Token` |
+
+## Para onde os links levam
+
+O botão de cada e-mail abre `{{ .SiteURL }}/auth?token_hash=…&type=…`, e a tela de acesso
+(`src/pages/AuthPage.tsx`) valida o token com `supabase.auth.verifyOtp`. Não usamos o
+`{{ .ConfirmationURL }}` do GoTrue porque ele gasta o token no primeiro acesso: filtros de e-mail
+corporativos que "visitam" links queimavam o link antes da pessoa clicar. Na tela:
+
+| `type` | O que a pessoa vê |
+|---|---|
+| `recovery` | "Redefinir senha" → nova senha → volta para o login |
+| `invite` | "Crie sua senha" → primeira senha → volta para o login |
+| `signup`, `magiclink`, `email_change` | Aviso de sucesso e entrada direta no sistema |
+| Link inválido, usado ou expirado (inclusive `#error_code=otp_expired` do GoTrue) | Mensagem clara e o formulário para pedir um novo e-mail |
+
+Links antigos (com `#access_token` ou `?code=`) continuam funcionando.
+
+**Pré-requisito:** o `SITE_URL` do Supabase (vira `GOTRUE_SITE_URL` no serviço `auth`) tem que
+ser o endereço do app, `https://idjuv.online`, sem barra no fim. Se apontar para outro lugar, os
+botões dos e-mails levam para lá.
 
 Todos usam `.Data.full_name` na saudação (`user_metadata.full_name`, gravado pelo `signUp` em
 `src/contexts/AuthContext.tsx`); quando ausente, a saudação fica só "Olá.".
@@ -53,6 +73,7 @@ regenerar após mudar tokens ou perfil é convenção, cobrada na matriz de
 O Studio self-hosted não tem editor de templates; o GoTrue lê cada template de uma **URL HTTP**
 definida em `GOTRUE_MAILER_TEMPLATES_*`. O caminho sugerido usa o próprio Storage:
 
+0. **Confira o `SITE_URL`** no `.env` do Supabase: `SITE_URL=https://idjuv.online`.
 1. **Bucket público `emails`** — no Studio (`bd.idjuv.online`) → Storage → *New bucket* `emails`,
    marcado como público. Envie os seis `.html` de `tenants/idjuv/emails/`. Os templates não
    contêm dado pessoal: os dados do destinatário só entram na hora do envio.

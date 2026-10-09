@@ -79,6 +79,9 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   runtime — ver [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md) e
   [AUDITORIA_USUARIOS.md](./AUDITORIA_USUARIOS.md).)
 - Tokens persistidos em `localStorage`; refresh automático.
+- Links dos e-mails do Auth (senha, convite, confirmação) abrem `/auth?token_hash=…&type=…`;
+  `src/pages/AuthPage.tsx` valida com `verifyOtp` e mostra criar/redefinir senha ou o erro de
+  link expirado — ver [EMAILS_AUTH.md](./EMAILS_AUTH.md).
 - Detalhes do modelo de acesso em [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md).
 
 ## Estado e dados (React Query)
