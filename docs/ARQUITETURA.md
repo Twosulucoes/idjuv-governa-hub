@@ -17,7 +17,7 @@
 │  Edge Functions (Deno) — operações privilegiadas/admin         │
 └──────────────────────────────────────────────────────────────┘
 
-Hospedagem do front: Vercel (SPA, rewrite p/ index.html).
+Hospedagem do front: nginx da VPS (SPA, fallback p/ index.html).
 ```
 
 O front é uma **SPA** que fala diretamente com o Supabase via `supabase-js`
@@ -122,8 +122,10 @@ relatórios), em `src/lib`:
 - **Vite 5** + `@vitejs/plugin-react-swc`. Alias `@` → `src/`.
 - **PWA** via `vite-plugin-pwa` (registrado em `src/main.tsx`); ícones/manifest
   em `public/` — habilita o app mobile de patrimônio.
-- **Deploy**: Vercel (`vercel.json` reescreve todas as rotas para `/index.html`,
-  padrão SPA). Backend e Edge Functions no Supabase.
+- **Deploy**: nginx da VPS, publicado pelo CI a cada merge na `main`
+  (`.github/workflows/deploy-front.yml`; o nginx faz `try_files ... /index.html`, padrão SPA).
+  Backend e Edge Functions no Supabase self-hosted da mesma VPS. Ver
+  [DESENVOLVIMENTO.md](./DESENVOLVIMENTO.md#deploy).
 
 ## Variáveis de ambiente
 

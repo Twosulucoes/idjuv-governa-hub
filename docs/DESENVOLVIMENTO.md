@@ -114,5 +114,36 @@ O workflow `.github/workflows/migracoes-banco.yml` leva `supabase/migrations/` a
 
 ## Deploy
 
-- **Front**: Vercel (deploy automático por push/PR; `vercel.json` faz rewrite SPA).
-- **Backend / Edge Functions**: Supabase.
+A **VPS é a única produção** (`idjuv.online`): nginx servindo o front e Supabase self-hosted
+(`bd.idjuv.online`). A Vercel foi desligada em 2026-10-09 para não existir um segundo site com outra
+versão ou outro banco. Não há prévia por PR: teste local com `bun run dev`.
+
+### Deploy do front (CI)
+
+O workflow `.github/workflows/deploy-front.yml` roda a cada merge na `main` (e manualmente por
+`workflow_dispatch`):
+
+1. Se o commit traz migração, espera o workflow de migrações do mesmo commit terminar com sucesso
+   (o front novo nunca chega antes do schema). Se as migrações falham, o front não é publicado.
+2. Faz o build com as variáveis do repositório e confere que o bundle aponta para `VITE_SUPABASE_URL`.
+3. Copia por `rsync` para a pasta do nginx: primeiro os arquivos com hash (`assets/`), depois
+   os pontos de entrada (index, service worker do PWA e manifest). Quem está com o sistema aberto
+   não quebra; assets antigos são apagados depois de `DIAS_ASSETS_ANTIGOS` dias (padrão 14).
+4. Confere que `FRONT_URL` serve o build novo.
+
+Configuração em Settings → Secrets and variables → Actions:
+
+| Tipo | Nome | Conteúdo |
+|---|---|---|
+| Segredo | `VPS_SSH_HOST`, `VPS_SSH_KNOWN_HOSTS` | os mesmos das migrações |
+| Segredo | `VPS_DEPLOY_USER` | usuário só para o deploy, dono apenas da pasta do site (sem sudo) |
+| Segredo | `VPS_DEPLOY_KEY` | chave privada desse usuário (gere uma só para o CI) |
+| Variável | `VPS_FRONT_DIR` | pasta que o nginx serve (ex.: `/var/www/idjuv`) |
+| Variável | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID`, `VITE_TENANT_SLUG` | os mesmos do `.env` de produção (valores públicos; a chave é a anon) |
+| Variável (opcional) | `FRONT_URL`, `DIAS_ASSETS_ANTIGOS` | padrão `https://idjuv.online` e `14` |
+
+Sem a configuração o job só avisa e não publica. O nginx precisa do fallback de SPA
+(`try_files $uri $uri/ /index.html;`); recomenda-se `Cache-Control: no-cache` no index e no
+service worker e cache longo em `/assets/`.
+
+- **Backend / Edge Functions**: Supabase self-hosted da VPS; migrações pelo CI (seção acima).
