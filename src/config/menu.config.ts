@@ -96,6 +96,7 @@ export type PermissaoInstitucional =
   | 'rh.criar'
   | 'rh.tramitar'
   | 'rh.aprovar'
+  | 'rh.frequencia.lancar'
   | 'rh.self'
   // Orçamento
   | 'orcamento.visualizar'
@@ -133,6 +134,8 @@ export interface MenuItem {
   icon: LucideIcon;
   route?: string;
   permission?: PermissaoInstitucional;
+  /** Alternativa a `permission`: o item aparece para quem tem qualquer uma destas. */
+  permissions?: PermissaoInstitucional[];
   children?: MenuItem[];
   badge?: string | number;
   priority?: number;
@@ -312,6 +315,14 @@ export const menuConfig: MenuSection[] = [
             permission: "rh.visualizar",
           },
           {
+            id: "frequencia-validacao",
+            label: "Validação e Fechamento",
+            labelShort: "Validação",
+            route: "/rh/frequencia/validacao",
+            icon: ClipboardCheck,
+            permissions: ["rh.aprovar", "rh.frequencia.lancar"],
+          },
+          {
             id: "frequencia-config",
             label: "Parametrização",
             labelShort: "Parâmetros",
@@ -449,6 +460,14 @@ export const menuConfig: MenuSection[] = [
         icon: User,
         permission: "rh.self",
         priority: 10,
+      },
+      {
+        id: "minha-frequencia",
+        label: "Minha Frequência",
+        route: "/rh/minha-frequencia",
+        icon: CalendarDays,
+        permission: "rh.self",
+        priority: 11,
       },
     ],
   },

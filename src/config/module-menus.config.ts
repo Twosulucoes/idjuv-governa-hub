@@ -93,6 +93,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
         children: [
           { id: "frequencia-gestao", label: "Gestão", icon: CalendarDays, route: "/rh/frequencia" },
           { id: "frequencia-pacotes", label: "Pacotes", icon: FolderOpen, route: "/rh/frequencia/pacotes" },
+          { id: "frequencia-validacao", label: "Validação", icon: ClipboardCheck, route: "/rh/frequencia/validacao" },
           { id: "frequencia-config", label: "Parâmetros", icon: Settings, route: "/rh/frequencia/configuracao" },
         ]
       },

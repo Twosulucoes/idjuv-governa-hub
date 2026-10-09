@@ -123,6 +123,7 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionCode | PermissionCode[]
   '/rh/ferias': 'rh.ferias.visualizar',
   '/rh/licencas': 'rh.licencas.visualizar',
   '/rh/frequencia': 'rh.frequencia.visualizar',
+  '/rh/frequencia/validacao': ['rh.aprovar', 'rh.frequencia.lancar'],
   '/rh/viagens': 'rh.viagens.visualizar',
   '/rh/relatorios': 'rh.relatorios.visualizar',
   '/rh/aniversariantes': 'rh.servidores.visualizar',
