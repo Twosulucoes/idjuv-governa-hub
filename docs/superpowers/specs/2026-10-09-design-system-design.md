@@ -26,7 +26,7 @@
 |---|---|---|
 | Tokens semânticos já existem e são a maioria | 6.193 usos de `bg/text/border-{primary,muted,…}` em `.tsx` | Base boa: reformular tokens propaga para quase tudo |
 | Cor crua do Tailwind ainda espalhada | 1.937 classes `bg-blue-500`, `text-green-700`… em 153 arquivos; 47 hex em `.tsx`; `MODULO_COR_CLASSES` usa paleta crua | Dark mode e white label quebram nesses pontos |
-| Fontes carregadas sem uso | `src/index.css` importa 8 `@import` do Google Fonts (Source Sans 3, Merriweather ×2, Inter ×2, Lora, Space Mono, DM Sans, Crimson Pro); só **Inter** é usada (o comentário do arquivo diz Merriweather + Source Sans) | Peso de carregamento e documentação contraditória |
+| Fontes carregadas sem uso | `src/index.css` importa 8 `@import` do Google Fonts (Source Sans 3, Merriweather ×2, Inter ×2, Lora, Space Mono, DM Sans, Crimson Pro); usadas de fato: **Inter** (corpo) e **Merriweather** (`h1`–`h3` via `font-serif`); o comentário do arquivo dizia Source Sans | Peso de carregamento e documentação contraditória |
 | Contraste abaixo de WCAG AA em tokens de marca | `accent`/`info` (`200 85% 50%`) com texto branco = **2,79:1**; `secondary`/`success` (`120 50% 38%`) com branco = **4,01:1**; `border`/`input` sobre o fundo = **1,25:1** (campo precisa de 3:1); `destructive` dark com branco = **4,40:1** | Botões, badges e bordas de input ilegíveis para parte dos usuários |
 | Tokens de gráfico sem relação com a marca | `--chart-1..5` são tons cinza-bege genéricos; só 4 usos de `--chart-*` e há `fill="#…"` fixo em gráficos | Gráficos inconsistentes entre módulos |
 | Microtipografia | 987 `text-xs` (12px) e 58 `text-[Npx]` arbitrários | Texto pequeno demais em tabelas e badges |
@@ -187,8 +187,22 @@ Meta: **WCAG 2.2 AA** (e eMAG, por ser órgão público).
 - Migração para Tailwind v4/OKLCH.
 - Mudança em `ProtectedRoute`, `AuthContext`, RLS — nada disso é tocado.
 
-## 8. Decisões pendentes do usuário
+## 8. Decisões
 
-1. **Fonte de UI:** IBM Plex Sans (recomendada) · Atkinson Hyperlegible · manter Inter.
-2. **Módulo piloto** da Fase 3 (recomendado: um módulo sem frente aberta, ex.: Patrimônio ou
-   Governança — RH tem PR aberto).
+1. **Fonte de UI:** IBM Plex Sans — seguida a recomendação quando o usuário mandou seguir
+   ("VAMOS", 2026-10-09).
+2. **Módulo piloto** da Fase 3: pendente (recomendado Patrimônio — RH tem PR aberto).
+
+## 9. Ajustes feitos ao executar a Fase 1 (2026-10-09)
+
+- **Estados como texto:** em vez de `--*-subtle`, foram criados tokens `--success-text`,
+  `--warning-text`, `--info-text`, `--accent-text`, `--secondary-text` e o `tailwind.config.ts`
+  passou a resolver `text-success` etc. para eles. Assim os ~360 usos existentes de
+  `text-success|warning|info|accent|secondary` ficaram legíveis sem tocar em tela; o fundo suave
+  continua sendo `bg-<estado>/15`.
+- **Destrutivo no escuro:** `--destructive` virou `0 72% 62%` com texto escuro, porque o mesmo
+  token serve de preenchimento e de `text-destructive` sobre o fundo escuro.
+- **Títulos:** `h1`–`h3` saíram de Merriweather para IBM Plex Sans semibold (estilo Swiss); os
+  tamanhos atuais foram mantidos — a escala nova (`text-h1`…) é adotada tela a tela.
+- **Tokens de módulo** (`--module-*`) ficaram para a Fase 2, junto com a troca de
+  `MODULO_COR_CLASSES`, que é quem os consome.

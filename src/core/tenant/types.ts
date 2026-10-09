@@ -41,6 +41,18 @@ export interface PaletaModo {
   sidebarAccentForeground: TokenHSL;
   sidebarBorder: TokenHSL;
   sidebarRing: TokenHSL;
+  /**
+   * Cor de TEXTO dos estados (`text-success`, `text-warning`…). Opcionais no
+   * tipo (sem eles valem os de `src/index.css`), mas o guard de contraste
+   * (`scripts/check-contraste.mjs`) exige o `*Text` de todo estado cujo matiz o
+   * perfil sobrepõe — senão o texto herdaria a cor de outra instituição — e
+   * confere ≥ 4,5:1 sobre o fundo.
+   */
+  successText?: TokenHSL;
+  warningText?: TokenHSL;
+  infoText?: TokenHSL;
+  accentText?: TokenHSL;
+  secondaryText?: TokenHSL;
 }
 
 export interface Paleta {

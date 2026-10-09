@@ -159,6 +159,7 @@ import RelatorioAdminPage from "./pages/admin/RelatorioAdminPage";
 import CalibradorSegadPage from "./pages/admin/CalibradorSegadPage";
 import CentralRelatoriosPage from "./pages/admin/CentralRelatoriosPage";
 import SobreSistemaPage from "./pages/admin/SobreSistemaPage";
+import DesignSystemPage from "./pages/admin/DesignSystemPage";
 import GerenciadorPaginasPage from "./pages/admin/GerenciadorPaginasPage";
 import GerenciadorMenuPublicoPage from "./pages/admin/GerenciadorMenuPublicoPage";
 import GerenciadorLinksUteisPage from "./pages/admin/GerenciadorLinksUteisPage";
@@ -502,6 +503,7 @@ const App = () => (
               <Route path="/admin/relatorio" element={<ProtectedRoute requiredModule="admin"><RelatorioAdminPage /></ProtectedRoute>} />
               <Route path="/admin/central-relatorios" element={<ProtectedRoute requiredModule="admin"><CentralRelatoriosPage /></ProtectedRoute>} />
               <Route path="/admin/sobre" element={<ProtectedRoute requiredModule="admin"><SobreSistemaPage /></ProtectedRoute>} />
+              <Route path="/admin/design-system" element={<ProtectedRoute requiredModule="admin"><DesignSystemPage /></ProtectedRoute>} />
               <Route path="/admin/modulos" element={<ProtectedRoute requiredModule="admin"><GestaoModulosPage /></ProtectedRoute>} />
               <Route path="/admin/permissoes" element={<ProtectedRoute requiredModule="admin"><PainelPermissoesPage /></ProtectedRoute>} />
               <Route path="/acesso" element={<ProtectedRoute requiredModule="admin"><ControleAcessoAdminPage /></ProtectedRoute>} />

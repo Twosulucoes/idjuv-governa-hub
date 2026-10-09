@@ -12,7 +12,11 @@
 - Spec do design system + este plano.
 - Registrar o skill em `AGENTS.md`, `CLAUDE.md` §10.1 e no skill `superpowers` (eixo UI).
 
-## Fase 1 — Fundação de tokens (sem mudar telas)
+## Fase 1 — Fundação de tokens (sem mudar telas) ✅ (mesma PR)
+
+Feita em 2026-10-09 com IBM Plex Sans. Desvios do plano registrados na spec §9: tokens `--*-text`
+no lugar de `*-subtle` e `--module-*` adiado para a tarefa 2.6. A vitrine (1.6) ficou com
+`requiredModule="admin"` (página estática, sem dados), não só super admin.
 
 | # | Tarefa | Arquivos | Verificação | Agente |
 |---|---|---|---|---|
@@ -20,7 +24,7 @@
 | 1.2 | Script de contraste: lê `:root`/`.dark` de `index.css` e a paleta de cada `tenants/*/tenant.config.ts`, falha se par texto/fundo < 4,5 ou `input`/`background` < 3 | `scripts/check-contraste.mjs`, `scripts/gate.sh` | Roda vermelho no estado atual (2,79 do accent) e verde após 1.3 | `dev-frontend-idjuv` |
 | 1.3 | Aplicar as correções de contraste (spec §3.2) em `index.css` **e** no perfil `tenants/idjuv` (mesmos valores) e conferir `_template` | `src/index.css`, `tenants/idjuv/tenant.config.ts`, `tenants/_template/tenant.config.ts` | Script 1.2 verde; comparação visual antes/depois em 3 telas | `dev-frontend-idjuv` |
 | 1.4 | Novos tokens: `*-subtle`, `--module-*`, `--chart-1..8`, escala tipográfica, movimento (`--duration-*`) e `prefers-reduced-motion` global | `src/index.css`, `tailwind.config.ts`, `src/core/tenant/types.ts` + `tema.ts` se a marca precisar derivar `chart-*` | Typecheck; página `/admin/design-system` (1.6) mostra todos | `dev-frontend-idjuv` |
-| 1.5 | Guard ratchet de cor crua: conta classes `bg/text/border-<paleta>-<n>` e hex em `src/**/*.tsx`, compara com `scripts/gate-baseline.json` (campo novo `corCrua: 1937`) e falha se subir | `scripts/gate.sh`, `scripts/gate-baseline.json` | Gate verde; adicionar `bg-blue-500` num arquivo faz falhar | `dev-frontend-idjuv` |
+| 1.5 | Guard ratchet de cor crua: conta classes `bg/text/border-<paleta>-<n>` e hex em `src/**/*.tsx`, compara com `scripts/gate-baseline.json` (campo novo `corCrua`, 2010 na criação) e falha se subir | `scripts/gate.sh`, `scripts/gate-baseline.json` | Gate verde; adicionar `bg-blue-500` num arquivo faz falhar | `dev-frontend-idjuv` |
 | 1.6 | Página interna de referência ("vitrine") com tokens, tipografia e componentes, só para super admin | `src/pages/admin/DesignSystemPage.tsx`, rota em `src/App.tsx`, `ROUTE_PERMISSIONS` | Abre em 390px e 1440px, claro e escuro | `dev-frontend-idjuv` |
 | 1.7 | Documentar | `docs/GUIA_FRONTEND.md` (seção Design System), `docs/WHITE_LABEL.md` (contrato de contraste do tenant) | `node scripts/check-doc-links.mjs` | `documentador-idjuv` |
 
