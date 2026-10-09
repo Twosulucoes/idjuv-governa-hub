@@ -15,6 +15,8 @@ Documento vivo, mantido pelo agente `documentador-idjuv`. Fluxo de trabalho: ver
 - _(vazio)_
 
 ## Backlog
+- [ ] **Finalização por módulo:** rodar `/finalizar <codigo>` (começar por `rh`, `financeiro`, `patrimonio`, `governanca`) — ver [FINALIZACAO.md](./FINALIZACAO.md)
+- [ ] Menu aponta para rotas que não existem (404): `/admin/configuracoes`, `/rh/meus-dados`, `/governanca/riscos|controles|decisoes|checklists`, `/gabinete/workflow-rh` — ver [FINALIZACAO.md](./FINALIZACAO.md)
 - [ ] **RH — Fase 0/1 (P0):** verificar RLS real e estancar acesso aberto em folha/dados sensíveis — ver [ANALISE_RH.md](./ANALISE_RH.md) §6
 - [ ] RH — Fases 2–7 (higiene, fundação de dados, autoatendimento, carreira, eSocial, seguridade) — ver [ANALISE_RH.md](./ANALISE_RH.md)
 - [ ] Higiene: dívida de typecheck (10) e lint (679, dos quais 667 são `no-explicit-any`) — reduzir e rodar `bash scripts/gate.sh --update-baseline`
@@ -23,4 +25,5 @@ Documento vivo, mantido pelo agente `documentador-idjuv`. Fluxo de trabalho: ver
 - [ ] Inventário de hardcode de cliente (ver `docs/INVENTARIO_HARDCODE.md`)
 
 ## Concluído
+- [x] Gerador de prompts (`/prompt`, `/pendencias`, `/finalizar`) e hook de sessão em nuvem que gera o `.env` — ver [`prompts/README.md`](../../prompts/README.md)
 - [x] Estrutura de skills, agentes, AGENTS.md, Superpowers vendorizado, orquestrador `superpowers` e gate local

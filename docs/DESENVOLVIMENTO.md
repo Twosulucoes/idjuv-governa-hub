@@ -11,7 +11,7 @@
 ```bash
 bun install           # ou: npm install
 cp .env .env.local    # se precisar de overrides locais (Vite lê ambos)
-bun run dev           # http://localhost:5173 (Vite)
+bun run dev           # http://localhost:8080 (Vite, ver vite.config.ts)
 ```
 
 Variáveis necessárias (`.env`):
@@ -59,6 +59,30 @@ bun run preview      # serve o build localmente
 7. **Permissões** — se aplicável, registrar em `ROUTE_PERMISSIONS`/
    `MODULE_PERMISSIONS` (`src/types/auth.ts`) e na permissão do item de menu.
 8. **Verificar** — `bun run lint` && `bun run build`.
+
+## Ambiente de desenvolvimento em nuvem (Claude Code na web)
+
+Sessões do Claude Code na nuvem clonam o repo num container novo. O hook
+`.claude/hooks/session-start.sh` (registrado em `.claude/settings.json`) prepara o
+ambiente sozinho:
+
+1. instala as dependências (`npm install --no-package-lock`) — lint, typecheck,
+   build e `npm run gate` funcionam sem configuração nenhuma;
+2. se o ambiente de nuvem tiver `VITE_SUPABASE_URL` e
+   `VITE_SUPABASE_PUBLISHABLE_KEY` (e opcionalmente `VITE_SUPABASE_PROJECT_ID`,
+   `VITE_TENANT_SLUG`), grava o `.env` (gitignored) para `npm run dev` conectar
+   no Supabase;
+3. imprime um resumo do ambiente para o Claude.
+
+Para o app rodar de verdade na nuvem, cadastre essas variáveis nas
+**configurações do ambiente** do Claude Code na web (variáveis de ambiente do
+environment). Só valores públicos: a publishable key é a chave anônima
+protegida por RLS. **Nunca** coloque a service role key ali nem no `.env` do
+front. Use um projeto Supabase de **desenvolvimento** (branch do Supabase ou
+projeto separado), não o de produção.
+
+Gerador de prompts para o dia a dia: [`prompts/README.md`](../prompts/README.md)
+(`/prompt`, `/pendencias`, `/finalizar`).
 
 ## Convenções
 

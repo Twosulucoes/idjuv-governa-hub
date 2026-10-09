@@ -42,6 +42,8 @@ const LIVING_DOCS = [
   "CLAUDE.md",
   "AGENTS.md",
   "docs/README.md",
+  "docs/planejamento/FINALIZACAO.md",
+  "prompts/README.md",
   "docs/GOVERNANCA_DOCUMENTACAO.md",
   "docs/ARQUITETURA.md",
   "docs/MODULOS.md",

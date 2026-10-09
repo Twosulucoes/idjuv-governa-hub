@@ -297,6 +297,10 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 - Specs: `docs/superpowers/specs/`; planos: `docs/superpowers/plans/`; roadmap:
   `docs/planejamento/ROADMAP.md`; matriz de docs: `docs/GOVERNANCA_DOCUMENTACAO.md`.
 - `.claude/skills/supabase*` são cópias de `supabase/agent-skills` (MIT).
+- **Gerador de prompts** ([`prompts/README.md`](./prompts/README.md)): `/prompt <tipo> --modulo <codigo> <descrição>`,
+  `/pendencias` e `/finalizar <codigo>` (`.claude/commands/`, motor em `scripts/prompt.mjs`). Se o usuário
+  escrever um desses comandos como texto (ex.: no chat do projeto, onde slash command não expande), siga o
+  arquivo `.claude/commands/<nome>.md` correspondente com o resto da mensagem como `$ARGUMENTS`.
 
 ---
 
