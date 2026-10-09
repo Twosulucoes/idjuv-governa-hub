@@ -57,7 +57,7 @@ O backend é o **Supabase**; o código vive só neste repositório GitHub.
 | Documentos | jspdf, pdf-lib, docx, xlsx, file-saver |
 | PWA | vite-plugin-pwa |
 | Tema | next-themes (light/dark) + tokens CSS |
-| Hospedagem | Vercel (SPA, rewrite para `/index.html`) · backend no Supabase |
+| Hospedagem | nginx da VPS (SPA, fallback para `/index.html`) · backend no Supabase self-hosted da mesma VPS |
 
 Gerenciador de pacotes: **bun** preferencialmente (`bun.lock`); `package-lock.json`
 também presente.

@@ -24,6 +24,8 @@ importa este arquivo (`@AGENTS.md`). Contexto completo: [`CLAUDE.md`](./CLAUDE.m
    o workflow `.github/workflows/migracoes-banco.yml` simula no PR e aplica no merge na `main`
    (banco: Supabase self-hosted da VPS, acessado por túnel SSH; o Postgres não fica exposto). Agente não aplica migração direto
    em banco remoto; toda migração do PR deve ser segura para rodar sozinha no merge.
+   O **front** também: `.github/workflows/deploy-front.yml` publica no nginx da VPS a cada merge, depois das
+   migrações do commit. A VPS é a única produção (a Vercel foi desligada); agente não copia build à mão para a VPS.
 
 ## Fluxo de trabalho: prompt curto → execução estruturada
 
