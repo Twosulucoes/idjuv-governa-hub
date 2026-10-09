@@ -20,6 +20,8 @@ export interface PageHeaderProps {
   titulo: React.ReactNode;
   descricao?: React.ReactNode;
   migalhas?: Migalha[];
+  /** Imagem à esquerda do título (ex.: foto do servidor na ficha). */
+  midia?: React.ReactNode;
   /** Selo de situação ao lado do título (ex.: `<StatusBadge>`). */
   status?: React.ReactNode;
   /** Ações da página, alinhadas à direita. Uma única ação primária por tela. */
@@ -31,7 +33,7 @@ export interface PageHeaderProps {
  * Cabeçalho padrão de página do sistema: migalhas, título (h1), situação,
  * descrição curta e ações. Ver docs/GUIA_FRONTEND.md (Design System).
  */
-export function PageHeader({ titulo, descricao, migalhas, status, acoes, className }: PageHeaderProps) {
+export function PageHeader({ titulo, descricao, migalhas, midia, status, acoes, className }: PageHeaderProps) {
   return (
     <header className={cn("space-y-2 pb-4", className)}>
       {migalhas && migalhas.length > 0 && (
@@ -55,12 +57,15 @@ export function PageHeader({ titulo, descricao, migalhas, status, acoes, classNa
         </Breadcrumb>
       )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-h1 text-foreground text-balance">{titulo}</h1>
-            {status}
+        <div className="flex min-w-0 items-start gap-4">
+          {midia && <div className="shrink-0">{midia}</div>}
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-h1 text-foreground text-balance">{titulo}</h1>
+              {status}
+            </div>
+            {descricao && <div className="text-body text-muted-foreground max-w-prose">{descricao}</div>}
           </div>
-          {descricao && <p className="text-body text-muted-foreground max-w-prose">{descricao}</p>}
         </div>
         {acoes && <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">{acoes}</div>}
       </div>

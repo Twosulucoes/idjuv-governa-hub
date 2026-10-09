@@ -101,9 +101,9 @@ dependem de acesso ao Supabase do IDJUV.
 9. `/prompt migracao --modulo rh Trilha de auditoria (trigger genérico em audit_logs ou supa_audit) nas tabelas sensíveis do RH`
 
 **Onda C — completar os fluxos que já existem**
-10. `/prompt ajuste --modulo rh ServidorForm com zod, validação de CPF/PIS e erro do vínculo tratado`
-11. `/prompt crud --modulo rh Férias completas: editar/excluir, saldo de 30 dias, sobreposição, parcelas, 1/3`
-12. `/prompt tela --modulo rh Fluxo de frequência: abono, validação da chefia, consolidação do RH e fechamento, usando os hooks já existentes`
+10. ~~`/prompt ajuste --modulo rh ServidorForm com zod, validação de CPF/PIS e erro do vínculo tratado`~~ — entregue na PR #49 (mesclada em 2026-10-09)
+11. ~~`/prompt crud --modulo rh Férias completas: editar/excluir, saldo de 30 dias, sobreposição, parcelas, 1/3`~~ — entregue na PR #51 (mesclada em 2026-10-09); 1/3 na folha ficou de fora
+12. `/prompt tela --modulo rh Fluxo de frequência: abono, validação da chefia, consolidação do RH e fechamento, usando os hooks já existentes` — em revisão na PR #52
 13. `/prompt tela --modulo rh Detalhe da folha: editar itens da ficha, consignações e dependentes IRRF`
 14. `/prompt ajuste --modulo rh Viagens: editar/excluir e diária calculada por tabela`
 15. `/prompt relatorio --modulo rh Relatórios de férias, licenças, frequência, viagens e folha`

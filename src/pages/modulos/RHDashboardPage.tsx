@@ -1,107 +1,121 @@
 /**
  * DASHBOARD - RECURSOS HUMANOS
- * Usa ModuleLayout para navegação modular
+ * Usa ModuleLayout para navegação modular e os padrões do design system
+ * (PageHeader, KpiCard). Piloto da Fase 3: docs/superpowers/plans/2026-10-09-design-system.md
  */
 
-import { Users, Calendar, Plane, Clock, UserPlus, Award } from "lucide-react";
+import { Users, Calendar, Plane, Clock, UserPlus, Award, AlertCircle } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { useRHDashboardStats } from "@/hooks/dashboard";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { KpiCard, PageHeader } from "@/components/design-system";
 import { Link } from "react-router-dom";
 
-export default function RHDashboardPage() {
-  const { data: stats, isLoading } = useRHDashboardStats();
+const numero = new Intl.NumberFormat("pt-BR");
 
-  const statCards = [
-    { 
-      label: "Servidores Ativos", 
-      value: isLoading ? "..." : String(stats?.servidoresAtivos || 0), 
-      icon: Users, 
-      href: "/rh/servidores" 
-    },
-    { 
-      label: "Em Férias", 
-      value: isLoading ? "..." : String(stats?.emFerias || 0), 
-      icon: Calendar, 
-      href: "/rh/ferias" 
-    },
-    { 
-      label: "Viagens Pendentes", 
-      value: isLoading ? "..." : String(stats?.viagensPendentes || 0), 
-      icon: Plane, 
-      href: "/rh/viagens" 
-    },
-    { 
-      label: "Frequência Mês", 
-      value: isLoading ? "..." : `${stats?.frequenciaHoje || 0}%`, 
-      icon: Clock, 
-      href: "/rh/frequencia" 
-    },
+interface Indicador {
+  rotulo: string;
+  valor: string;
+  icone: LucideIcon;
+  href: string;
+}
+
+export default function RHDashboardPage() {
+  const { data: stats, isLoading, isError, refetch } = useRHDashboardStats();
+
+  // Sem dado (erro) mostra "—" em vez de um zero que parece real
+  const valor = (n: number | undefined, sufixo = "") =>
+    stats && typeof n === "number" ? `${numero.format(n)}${sufixo}` : "—";
+
+  const indicadores: Indicador[] = [
+    { rotulo: "Servidores ativos", valor: valor(stats?.servidoresAtivos), icone: Users, href: "/rh/servidores" },
+    { rotulo: "Em férias agora", valor: valor(stats?.emFerias), icone: Calendar, href: "/rh/ferias" },
+    { rotulo: "Viagens aguardando autorização", valor: valor(stats?.viagensPendentes), icone: Plane, href: "/rh/viagens" },
+    { rotulo: "Presença média no mês", valor: valor(stats?.frequenciaHoje, "%"), icone: Clock, href: "/rh/frequencia" },
   ];
 
   const quickActions = [
-    { label: "Novo Servidor", description: "Cadastrar servidor", href: "/rh/servidores/novo", icon: UserPlus },
-    { label: "Lançar Férias", description: "Programar férias", href: "/rh/ferias", icon: Calendar },
-    { label: "Nova Viagem", description: "Solicitar diária", href: "/rh/viagens", icon: Plane },
+    { label: "Novo servidor", description: "Cadastrar servidor", href: "/rh/servidores/novo", icon: UserPlus },
+    { label: "Lançar férias", description: "Programar férias", href: "/rh/ferias", icon: Calendar },
+    { label: "Nova viagem", description: "Solicitar diária", href: "/rh/viagens", icon: Plane },
     { label: "Designações", description: "Gerenciar designações", href: "/rh/designacoes", icon: Award },
   ];
 
   return (
     <ModuleLayout module="rh">
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Users className="h-8 w-8 text-blue-500" />
-            Recursos Humanos
-          </h1>
-          <p className="text-muted-foreground">Gestão de pessoal, frequência, férias e viagens</p>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {statCards.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <Link key={stat.label} to={stat.href}>
-                <Card className="hover:shadow-md transition-shadow">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      {stat.label}
-                    </CardTitle>
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stat.value}</div>
-                  </CardContent>
-                </Card>
+        <PageHeader
+          titulo="Recursos Humanos"
+          descricao="Gestão de pessoal, frequência, férias e viagens"
+          acoes={
+            <Button asChild>
+              <Link to="/rh/servidores/novo">
+                <UserPlus className="h-4 w-4" aria-hidden="true" />
+                Novo servidor
               </Link>
-            );
-          })}
-        </div>
+            </Button>
+          }
+        />
+
+        {isError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" aria-hidden="true" />
+            <AlertDescription className="flex flex-wrap items-center gap-2">
+              Não foi possível carregar os indicadores.
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Tentar novamente
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Indicadores: cada cartão leva à tela do assunto */}
+        <section aria-labelledby="rh-indicadores">
+          <h2 id="rh-indicadores" className="sr-only">Indicadores</h2>
+          <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {indicadores.map((ind) => (
+              <li key={ind.rotulo}>
+                <Link
+                  to={ind.href}
+                  className="block h-full rounded-lg transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <KpiCard
+                    rotulo={ind.rotulo}
+                    valor={ind.valor}
+                    icone={ind.icone}
+                    carregando={isLoading}
+                    className="h-full"
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         {/* Quick Actions */}
         <Card>
           <CardHeader>
-            <CardTitle>Ações Rápidas</CardTitle>
+            <h2 className="text-h2 text-foreground">Ações rápidas</h2>
             <CardDescription>Acesse as principais funcionalidades</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {quickActions.map((action) => {
                 const Icon = action.icon;
                 return (
                   <Button
                     key={action.label}
                     variant="outline"
-                    className="h-auto py-4 flex flex-col items-center gap-2"
+                    className="h-auto sm:h-auto py-4 flex flex-col items-center gap-2 whitespace-normal"
                     asChild
                   >
                     <Link to={action.href}>
-                      <Icon className="h-6 w-6" />
+                      <Icon className="h-6 w-6" aria-hidden="true" />
                       <span className="font-medium">{action.label}</span>
-                      <span className="text-xs text-muted-foreground">{action.description}</span>
+                      <span className="text-caption text-muted-foreground">{action.description}</span>
                     </Link>
                   </Button>
                 );

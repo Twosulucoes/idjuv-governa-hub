@@ -33,7 +33,12 @@ const MODULE_ROUTES: Record<Modulo, string> = {
   arbitros: "/cadastro-arbitros/admin",
 };
 
-export function ModuleSwitcher() {
+interface ModuleSwitcherProps {
+  /** Linha que quebra (menu do celular) em vez da coluna da barra lateral. */
+  horizontal?: boolean;
+}
+
+export function ModuleSwitcher({ horizontal = false }: ModuleSwitcherProps = {}) {
   const location = useLocation();
   const { modulosAutorizados, isSuperAdmin } = useModulosUsuario();
 
@@ -55,7 +60,7 @@ export function ModuleSwitcher() {
   };
 
   return (
-    <div className="flex flex-col md:flex-col flex-wrap gap-1 py-2">
+    <div className={cn("flex gap-1", horizontal ? "flex-row flex-wrap" : "flex-col py-2")}>
       {availableModules.map((module) => {
         const Icon = module.icone;
         const isActive = isModuleActive(module.codigo);
@@ -66,13 +71,16 @@ export function ModuleSwitcher() {
             <TooltipTrigger asChild>
               <Link
                 to={route}
+                aria-label={module.nome}
+                aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "flex items-center justify-center w-10 h-10 rounded-lg transition-all",
                   "hover:bg-accent hover:text-accent-foreground",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-card",
                   isActive && "bg-primary text-primary-foreground shadow-sm"
                 )}
               >
-                <Icon className="h-5 w-5" />
+                <Icon className="h-5 w-5" aria-hidden="true" />
               </Link>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={8}>
