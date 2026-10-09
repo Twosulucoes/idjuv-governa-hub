@@ -9,6 +9,7 @@ Documento vivo, mantido pelo agente `documentador-idjuv`. Fluxo de trabalho: ver
 3. Com plano aprovado (`docs/superpowers/plans/`), mova para **Em andamento**; ao mergear, para **Concluído**.
 
 ## Em andamento
+- [ ] **Envio de e-mail e WhatsApp pelo cliente:** tela `/admin/envios` (SMTP próprio ou Resend, WhatsApp oficial da Meta, credencial no Vault, histórico), convites de reunião já usam — [spec](../superpowers/specs/2026-10-09-envio-email-whatsapp-design.md), [plano](../superpowers/plans/2026-10-09-envio-email-whatsapp.md). Falta aplicar a migração, publicar `enviar-notificacao` e ligar os avisos.
 - [ ] **Comunicação — avisos e datas importantes:** mural `/avisos`, sino e destaque nos módulos, calendário com feriados e aniversariantes — [spec](../superpowers/specs/2026-10-09-avisos-e-datas-importantes-design.md), [plano](../superpowers/plans/2026-10-09-avisos-e-datas-importantes.md). Falta aplicar a migração no banco e regenerar os tipos.
 
 ## Em planejamento

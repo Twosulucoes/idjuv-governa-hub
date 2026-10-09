@@ -110,6 +110,14 @@ Definido em `src/types/auth.ts` (`module_access_scopes` no banco):
 é exigida pela RLS de `avisos` e `datas_importantes` e mostra a aba Gerenciar em `/avisos`. Ler avisos
 não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos módulos do aviso).
 
+### Envio de e-mail e WhatsApp
+
+`admin.envios` (ver a tela `/admin/envios` e o histórico) e `admin.envios.configurar` (editar a
+configuração, gravar credenciais e enviar teste), no catálogo do módulo `admin`; admin passa por cima.
+Nenhuma das duas vem por padrão de papel: conceda em `user_permissions` a quem administra o envio (as duas juntas: o item de menu filtra por `admin.envios`). A
+rota aceita qualquer das duas; a RLS de `config_envio`/`envios_log`, a RPC `salvar_segredo_envio` e a
+Edge Function `enviar-notificacao` exigem a mesma permissão.
+
 ## Enforcement de rota (`ProtectedRoute`)
 
 O componente `src/components/auth/ProtectedRoute.tsx` aplica o controle de acesso

@@ -90,9 +90,10 @@ Os demais usuários entram pelo app (Admin → Usuários). Guarde as credenciais
   `VITE_SUPABASE_PROJECT_ID` e `VITE_TENANT_SLUG`. Nada de `SERVICE_ROLE_KEY` no front.
 - Edge Functions (detalhes em [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md)): `admin-create-user`,
   `admin-reset-password`, `delete-user`, `download-frequencia`, `backup-offsite`,
-  `enviar-convite-reuniao`, `cpsi-ai-assistant`, `database-schema`. Segredos lidos pelo código:
+  `enviar-convite-reuniao`, `enviar-notificacao`, `cpsi-ai-assistant`, `database-schema`. Segredos lidos pelo código:
   `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ALLOWED_ORIGINS` (use a URL do
-  front), `RESEND_API_KEY`/`RESEND_FROM` (e-mail), `GEMINI_API_KEY`/`GEMINI_MODEL` (assistente),
+  front), `RESEND_API_KEY`/`RESEND_FROM` (e-mail, só como reserva: o cliente configura o envio em
+  `/admin/envios`, com credencial no Vault), `GEMINI_API_KEY`/`GEMINI_MODEL` (assistente),
   `BACKUP_ENCRYPTION_KEY`, `BACKUP_EXTERNAL_API_KEY`, `BACKUP_DEST_SUPABASE_URL`,
   `BACKUP_DEST_SERVICE_ROLE_KEY` (backup externo). Defina só os das funções que for ligar.
 - **Defina `FUNCTIONS_VERIFY_JWT=true`** no `.env` das Edge Functions (no self-hosted o exemplo costuma vir

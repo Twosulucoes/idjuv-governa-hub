@@ -1,10 +1,18 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "https://esm.sh/resend@2.0.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const resendApiKey = Deno.env.get("RESEND_API_KEY") ?? "";
-const resendFrom = Deno.env.get("RESEND_FROM") ?? "IDJUV <onboarding@resend.dev>";
-const resend = new Resend(resendApiKey);
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import {
+  carregarConfigEnvio,
+  carregarIdentidade,
+  enviarEmail,
+  enviarWhatsAppTemplate,
+  escaparHtml,
+  montarEmailInstitucional,
+  normalizarTelefone,
+  templateConfigurado,
+  textoParaHtml,
+  whatsappDisponivel,
+  type IdentidadeEmail,
+} from "../_shared/envio/index.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -75,7 +83,8 @@ function substituirVariaveis(
   texto: string,
   reuniao: Reuniao,
   participante: Participante,
-  assinatura?: { nome: string; cargo: string; setor?: string }
+  assinatura?: { nome: string; cargo: string; setor?: string },
+  nomeInstituicao = ""
 ): string {
   // Handle servidor which can be array or object from Supabase
   let nomeServidor = "Participante";
@@ -90,7 +99,7 @@ function substituirVariaveis(
 
   const horaInicio = formatarHorario(reuniao.hora_inicio);
   const horaFim = reuniao.hora_fim ? formatarHorario(reuniao.hora_fim) : "";
-  const organizador = assinatura?.nome || "IDJuv";
+  const organizador = assinatura?.nome || nomeInstituicao;
   const unidadeResponsavel = assinatura?.setor || "";
 
   let resultado = texto
@@ -153,76 +162,48 @@ function substituirVariaveis(
   return resultado;
 }
 
-function gerarHtmlEmail(corpo: string, reuniao: Reuniao): string {
-  return `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Convite para Reunião</title>
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #1e3a5f 0%, #0d1b2a 100%); padding: 20px; border-radius: 8px 8px 0 0;">
-    <h1 style="color: white; margin: 0; font-size: 24px;">IDJUV - Instituto de Desenvolvimento da Juventude</h1>
-    <p style="color: #cbd5e1; margin: 5px 0 0 0;">Convite para Reunião</p>
-  </div>
-  
-  <div style="background: #f8fafc; padding: 20px; border: 1px solid #e2e8f0; border-top: none;">
-    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-      <h2 style="color: #1e3a5f; margin-top: 0;">${reuniao.titulo}</h2>
-      
+function tipoLegivel(tipo: string): string {
+  return tipo === "virtual" ? "Virtual" : tipo === "presencial" ? "Presencial" : "Híbrida";
+}
+
+/** Primeiro nome/participante para o template do WhatsApp. */
+function nomeDoParticipante(participante: Participante): string {
+  const s = participante.servidor;
+  const nomeServidor = Array.isArray(s) ? s[0]?.nome_completo : s?.nome_completo;
+  return participante.nome_externo || nomeServidor || "Participante";
+}
+
+function gerarHtmlEmail(corpo: string, reuniao: Reuniao, identidade: IdentidadeEmail): string {
+  const linha = (rotulo: string, valor: string, ultima = false) => `
+        <tr>
+          <td style="padding: 8px 0;${ultima ? "" : " border-bottom: 1px solid #e2e8f0;"}"><strong style="color: #64748b;">${rotulo}</strong></td>
+          <td style="padding: 8px 0;${ultima ? "" : " border-bottom: 1px solid #e2e8f0;"}">${valor}</td>
+        </tr>`;
+  // Só http(s) vira link clicável; o resto aparece como texto.
+  const link = reuniao.link_virtual && /^https?:\/\//i.test(reuniao.link_virtual)
+    ? `<a href="${escaparHtml(reuniao.link_virtual)}" style="color: #2563eb;">${escaparHtml(reuniao.link_virtual)}</a>`
+    : reuniao.link_virtual ? escaparHtml(reuniao.link_virtual) : "";
+
+  const horario = formatarHorario(reuniao.hora_inicio) + (reuniao.hora_fim ? ` às ${formatarHorario(reuniao.hora_fim)}` : "");
+  const local = reuniao.tipo === "virtual" ? "Online" : reuniao.local || "A definir";
+
+  const corpoHtml = `
+    <div style="background: #ffffff; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+      <h2 style="color: #1f2937; margin-top: 0;">${escaparHtml(reuniao.titulo)}</h2>
       <table style="width: 100%; border-collapse: collapse;">
-        <tr>
-          <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
-            <strong style="color: #64748b;">📅 Data:</strong>
-          </td>
-          <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
-            ${formatarData(reuniao.data_reuniao)}
-          </td>
-        </tr>
-        <tr>
-          <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
-            <strong style="color: #64748b;">🕐 Horário:</strong>
-          </td>
-          <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
-            ${formatarHorario(reuniao.hora_inicio)}${reuniao.hora_fim ? ` às ${formatarHorario(reuniao.hora_fim)}` : ""}
-          </td>
-        </tr>
-        <tr>
-          <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
-            <strong style="color: #64748b;">📍 Local:</strong>
-          </td>
-          <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
-            ${reuniao.tipo === "virtual" ? "Online" : reuniao.local || "A definir"}
-          </td>
-        </tr>
-        ${reuniao.link_virtual ? `
-        <tr>
-          <td style="padding: 8px 0;">
-            <strong style="color: #64748b;">🔗 Link:</strong>
-          </td>
-          <td style="padding: 8px 0;">
-            <a href="${reuniao.link_virtual}" style="color: #2563eb;">${reuniao.link_virtual}</a>
-          </td>
-        </tr>
-        ` : ""}
+        ${linha("📅 Data:", escaparHtml(formatarData(reuniao.data_reuniao)))}
+        ${linha("🕐 Horário:", escaparHtml(horario))}
+        ${linha("📍 Local:", escaparHtml(local), !link)}
+        ${link ? linha("🔗 Link:", link, true) : ""}
       </table>
     </div>
-    
-    <div style="white-space: pre-wrap; background: white; padding: 20px; border-radius: 8px;">
-      ${corpo.replace(/\n/g, "<br>")}
-    </div>
-  </div>
-  
-  <div style="background: #1e3a5f; padding: 15px; border-radius: 0 0 8px 8px; text-align: center;">
-    <p style="color: #94a3b8; margin: 0; font-size: 12px;">
-      Instituto de Desenvolvimento da Juventude de Roraima - IDJUV
-    </p>
-  </div>
-</body>
-</html>
-  `;
+    <div style="background: #ffffff; padding: 20px; border-radius: 8px;">${textoParaHtml(corpo)}</div>`;
+
+  return montarEmailInstitucional(identidade, {
+    titulo: "Convite para Reunião",
+    subtitulo: "Convite para Reunião",
+    corpoHtml,
+  });
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -275,10 +256,7 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    console.log("Usuário autenticado:", userData.user.email);
-
     const body: EnviarConviteRequest = await req.json();
-    console.log("Request body:", JSON.stringify(body, null, 2));
 
     const {
       reuniao_id,
@@ -385,11 +363,40 @@ Atenciosamente,`;
     const assuntoFinal = modelo?.assunto || assuntoPadrao;
     const corpoFinal = mensagem_personalizada || modelo?.conteudo_html || corpoPadrao;
 
-    const resultados: { participante_id: string; sucesso: boolean; erro?: string; link_whatsapp?: string }[] = [];
+    // Configuração da instância (e-mail/WhatsApp) e identidade visual, carregadas uma vez.
+    const cfgEmail = canal === "email" ? await carregarConfigEnvio(admin, "email") : null;
+    const cfgWhats = canal === "whatsapp" ? await carregarConfigEnvio(admin, "whatsapp") : null;
+    const identidade = await carregarIdentidade(admin, cfgEmail);
+    const templateConvite = templateConfigurado(cfgWhats, "convite_reuniao");
+    const whatsappPelaApi = whatsappDisponivel(cfgWhats) && !!templateConvite;
+    const origem = { modulo: "reunioes", id: reuniao_id, disparadoPor: userData.user.id };
+
+    const marcarConviteEnviado = (participanteId: string) =>
+      admin
+        .from("participantes_reuniao")
+        .update({
+          convite_enviado: true,
+          convite_enviado_em: new Date().toISOString(),
+          convite_enviado_por: userData.user.id,
+          convite_canal: canal,
+        })
+        .eq("id", participanteId);
+
+    const resultados: {
+      participante_id: string;
+      sucesso: boolean;
+      erro?: string;
+      link_whatsapp?: string;
+      via_api?: boolean;
+    }[] = [];
 
     for (const participante of participantes || []) {
-      const corpoSubstituido = substituirVariaveis(corpoFinal, reuniao as Reuniao, participante as Participante, assinatura);
-      const assuntoSubstituido = substituirVariaveis(assuntoFinal, reuniao as Reuniao, participante as Participante);
+      const corpoSubstituido = substituirVariaveis(
+        corpoFinal, reuniao as Reuniao, participante as Participante, assinatura, identidade.nome
+      );
+      const assuntoSubstituido = substituirVariaveis(
+        assuntoFinal, reuniao as Reuniao, participante as Participante, undefined, identidade.nome
+      );
 
       // Obter dados do servidor (pode ser array ou objeto)
       let servidorData: { nome_completo: string; email_pessoal?: string; telefone_celular?: string } | null = null;
@@ -405,95 +412,59 @@ Atenciosamente,`;
         // Prioriza email_externo, se não tiver usa email_pessoal do servidor
         const email = participante.email_externo || servidorData?.email_pessoal;
         if (!email) {
-          console.log(
-            `Participante ${participante.id} sem email. externo: ${participante.email_externo}, servidor: ${servidorData?.email_pessoal}`
-          );
           resultados.push({ participante_id: participante.id, sucesso: false, erro: "Sem email" });
           continue;
         }
 
-        if (!resendApiKey) {
-          resultados.push({
-            participante_id: participante.id,
-            sucesso: false,
-            erro: "Envio de e-mail não configurado (RESEND_API_KEY ausente)",
-          });
+        const r = await enviarEmail(
+          admin,
+          { para: email, assunto: assuntoSubstituido, html: gerarHtmlEmail(corpoSubstituido, reuniao as Reuniao, identidade) },
+          origem,
+          cfgEmail,
+        );
+        if (r.status !== "enviado") {
+          resultados.push({ participante_id: participante.id, sucesso: false, erro: r.erro || "Falha ao enviar e-mail" });
           continue;
         }
 
-        try {
-          const htmlEmail = gerarHtmlEmail(corpoSubstituido, reuniao as Reuniao);
-
-          const emailResponse = await resend.emails.send({
-            from: resendFrom,
-            to: [email],
-            subject: assuntoSubstituido,
-            html: htmlEmail,
-          });
-
-          if (emailResponse?.error) {
-            console.error("Resend retornou erro:", emailResponse.error);
-            resultados.push({
-              participante_id: participante.id,
-              sucesso: false,
-              erro:
-                emailResponse.error.message ||
-                "Falha ao enviar e-mail (Resend)",
-            });
-            continue;
-          }
-
-          console.log("Email enviado para:", email, emailResponse);
-
-          // Atualizar status do participante (usar admin para bypass RLS)
-          await admin
-            .from("participantes_reuniao")
-            .update({
-              convite_enviado: true,
-              convite_enviado_em: new Date().toISOString(),
-              convite_enviado_por: userData.user.id,
-              convite_canal: "email",
-            })
-            .eq("id", participante.id);
-
-          resultados.push({ participante_id: participante.id, sucesso: true });
-        } catch (emailError: any) {
-          console.error("Erro ao enviar email:", emailError);
-          resultados.push({
-            participante_id: participante.id,
-            sucesso: false,
-            erro: emailError?.message || "Erro desconhecido no envio de e-mail",
-          });
-        }
+        await marcarConviteEnviado(participante.id);
+        resultados.push({ participante_id: participante.id, sucesso: true });
       } else if (canal === "whatsapp") {
         // Prioriza telefone_externo, se não tiver usa telefone_celular do servidor
         const telefone = participante.telefone_externo || servidorData?.telefone_celular;
         if (!telefone) {
-          console.log(`Participante ${participante.id} sem telefone. externo: ${participante.telefone_externo}, servidor: ${servidorData?.telefone_celular}`);
           resultados.push({ participante_id: participante.id, sucesso: false, erro: "Sem telefone" });
           continue;
         }
 
-        // Formatar telefone para WhatsApp (remover caracteres não numéricos e adicionar código do país)
-        let telefoneFormatado = telefone.replace(/\D/g, "");
-        if (!telefoneFormatado.startsWith("55")) {
-          telefoneFormatado = "55" + telefoneFormatado;
+        if (whatsappPelaApi) {
+          // Template aprovado na Meta: {{1}} nome, {{2}} título, {{3}} data, {{4}} horário, {{5}} local ou link
+          const r = reuniao as Reuniao;
+          const horario = formatarHorario(r.hora_inicio) + (r.hora_fim ? ` às ${formatarHorario(r.hora_fim)}` : "");
+          const local = r.tipo === "virtual" ? (r.link_virtual || "Online") : `${r.local || "A definir"} (${tipoLegivel(r.tipo)})`;
+          const envio = await enviarWhatsAppTemplate(
+            admin,
+            telefone,
+            {
+              nome: templateConvite!.nome,
+              idioma: templateConvite!.idioma,
+              parametros: [nomeDoParticipante(participante as Participante), r.titulo, formatarData(r.data_reuniao), horario, local],
+            },
+            origem,
+            cfgWhats,
+          );
+          if (envio.status !== "enviado") {
+            resultados.push({ participante_id: participante.id, sucesso: false, erro: envio.erro || "Falha ao enviar WhatsApp" });
+            continue;
+          }
+          await marcarConviteEnviado(participante.id);
+          resultados.push({ participante_id: participante.id, sucesso: true, via_api: true });
+          continue;
         }
 
-        const mensagemWhatsApp = encodeURIComponent(corpoSubstituido);
-        const linkWhatsApp = `https://wa.me/${telefoneFormatado}?text=${mensagemWhatsApp}`;
-
-        // Atualizar status do participante (usar admin para bypass RLS)
-        await admin
-          .from("participantes_reuniao")
-          .update({ 
-            convite_enviado: true,
-            convite_enviado_em: new Date().toISOString(),
-            convite_enviado_por: userData.user.id,
-            convite_canal: "whatsapp"
-          })
-          .eq("id", participante.id);
-
+        // Sem WhatsApp oficial configurado: link wa.me para quem dispara abrir no próprio WhatsApp.
+        const linkWhatsApp = `https://wa.me/${normalizarTelefone(telefone)}?text=${encodeURIComponent(corpoSubstituido)}`;
+        await marcarConviteEnviado(participante.id);
         resultados.push({ participante_id: participante.id, sucesso: true, link_whatsapp: linkWhatsApp });
       }
     }
@@ -508,7 +479,8 @@ Atenciosamente,`;
         message: `${sucessos} convite(s) processado(s)`,
         resultados,
         sucessos,
-        falhas
+        falhas,
+        enviados_whatsapp_api: resultados.filter(r => r.via_api).length,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

@@ -62,6 +62,7 @@ import {
   Gavel,
   type LucideIcon,
   Bell,
+  Mail,
 } from "lucide-react";
 
 // ================================
@@ -122,7 +123,8 @@ export type PermissaoInstitucional =
   | 'admin.perfis'
   | 'admin.auditoria'
   | 'admin.config'
-  | 'admin.backup';
+  | 'admin.backup'
+  | 'admin.envios';
 
 export interface MenuItem {
   id: string;
@@ -1201,6 +1203,13 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/backup",
         icon: Database,
         permission: "admin.backup",
+      },
+      {
+        id: "envios",
+        label: "E-mail e WhatsApp",
+        route: "/admin/envios",
+        icon: Mail,
+        permission: "admin.envios",
       },
       {
         id: "ajuda",
