@@ -41,4 +41,80 @@ heurística (regex sobre menu, rotas e páginas): confirmar no código antes de 
 
 ## Módulos analisados
 
-_(nenhum ainda — rode `/finalizar <codigo>`)_
+### Recursos Humanos (`rh`) — 2026-10-09
+
+Base: [`ANALISE_RH.md`](./ANALISE_RH.md) (01/10, segurança, modelo de dados e
+mercado) + levantamento página a página do código em `main` (`eea71e7`). Banco
+real **não verificado**: o projeto Supabase do IDJUV não está acessível nesta
+sessão. Correção à análise de 01/10: `periodos_aquisitivos` e
+`programacao_ferias` **não existem** (nem em `types.ts` nem nas migrações); o
+período aquisitivo é texto livre em `ferias_servidor`.
+
+**Placar:** 15 prontas (com ressalvas pequenas), 7 incompletas, 3 quebradas,
+1 item de menu sem rota.
+
+| Rota | Página | Estado | O que falta (evidência) | Esforço |
+|---|---|---|---|---|
+| `/rh` | `pages/modulos/RHDashboardPage.tsx` | **quebrada** | KPI "Em Férias" conta `status: "fruindo"` (`hooks/dashboard/useRHDashboardStats.ts:21`), valor que o CHECK de `ferias_servidor` não aceita, então mostra sempre 0; "Viagens Pendentes" conta `processos_administrativos` (`:22`), mas as viagens ficam em `viagens_diarias` | P |
+| `/rh/servidores/:id` | `rh/ServidorDetalhePage.tsx` | **quebrada** | Botão "Ato Formal" navega para `/documentos/:id` (`:729`), rota inexistente (404); status de férias/viagens exibidos crus (`:600`, `:636`); faltam abas de licenças, frequência, contracheques, dependentes | P–M |
+| `/folha/:id` | `folha/FolhaDetalhePage.tsx` | **quebrada** | "Fechar"/"Reabrir" usam `useUpdateFolhaStatus` (update direto, `hooks/useFolhaPagamento.ts:282`), pulando as RPCs `fechar_folha`/`reabrir_folha` (máquina de estados + hash) que a lista usa; não edita itens da ficha, consignações nem dependentes IRRF (hooks existem sem tela) | M |
+| `/rh/meus-dados` | — | **sem rota** | Item de menu (`config/menu.config.ts:445`) sem `<Route>`: 404 | P–M |
+| `/rh/servidores/novo`, `/:id/editar` | `rh/ServidorFormPage.tsx` | incompleta | Sem zod nem validação de CPF (`:573-576`); erro do insert em `vinculos_servidor` é engolido (`:536-547`); edição grava `cargo_atual_id`/`unidade_atual_id` direto, sem lotação/histórico (`:507-508`); rota de edição sem `requiredPermissions` (`App.tsx:800`) | M |
+| `/rh/ferias` | `rh/GestaoFeriasPage.tsx` | incompleta | Só cria e muda status (`:125`, `:154`); sem editar/excluir, saldo de 30 dias, sobreposição, parcelas, 1/3, portaria | M–G |
+| `/rh/frequencia` | `rh/GestaoFrequenciaPage.tsx` | incompleta | Só lança falta e imprime; o fluxo abono → chefia → RH → fechamento existe só em hooks sem tela (`hooks/useParametrizacoesFrequencia.ts:522+`); sem banco de horas, justificativa, ajuste de ponto | G |
+| `/rh/viagens` | `rh/GestaoViagensPage.tsx` | incompleta | Sem editar/excluir; valor da diária digitado à mão (`:164`); sem prestação de contas nem ordem de missão preenchida | M |
+| `/rh/relatorios` | `rh/RelatoriosRHPage.tsx` | incompleta | 7 PDFs só de cadastro/portarias; nada de férias, licenças, frequência, viagens, folha; 16 queries na página | M |
+| `/rh/portarias/pendencias` | `rh/PendenciasPortariasPage.tsx` | incompleta | Link `/gabinete/portarias?id=` (`:287`) ignora o `id` e exige o módulo `gabinete` | P |
+| `/rh/meu-contracheque` | `rh/MeuContrachequePage.tsx` | incompleta | `useMeusContracheques` não filtra status da folha (`hooks/useContracheque.ts:69-91`): servidor vê folha em rascunho | P |
+| Demais 15 | lotação, servidores, licenças, designações, pendências, modelos, exportar, config. frequência, aniversariantes, pacotes, contracheques, folha (lista e configuração), currículo | pronta | Ressalvas menores: rotas duplicadas (`/lotacoes` × `/rh/gestao-lotacao`), queries em página, `/rh/exportar` sem permissão, modelos de documento em branco e fixos no código | P |
+
+**Tabelas que existem sem tela nenhuma:** `banco_horas`, `lancamentos_banco_horas`,
+`justificativas_ponto`, `solicitacoes_ajuste_ponto`, `solicitacoes_abono`,
+`frequencia_fechamento`, `consignacoes`, `pensoes_alimenticias`, `dependentes_irrf`,
+`lancamentos_folha`, `retornos_bancarios` (retorno do CNAB), `adicionais_tempo_servico`,
+`config_motivos_desligamento`, `ocorrencias_servidor`, `memorandos_lotacao`.
+**Sem tabela:** períodos aquisitivos, avaliação de desempenho, estágio probatório,
+progressão, capacitação.
+
+#### Ordem de ataque
+
+Cada item já no formato do gerador. Ondas A e C não mexem em banco; B e D
+dependem de acesso ao Supabase do IDJUV.
+
+**Onda A — consertar o que está quebrado (P, sem banco)**
+1. `/prompt bug --modulo rh KPIs do dashboard do RH: Em Férias conta status fruindo (inexistente) e Viagens Pendentes lê a tabela errada`
+2. `/prompt bug --modulo rh Fechar/Reabrir em /folha/:id faz update direto em vez das RPCs fechar_folha/reabrir_folha`
+3. `/prompt bug --modulo rh ServidorDetalhe: link Ato Formal para /documentos/:id dá 404 e status de férias/viagens aparecem crus`
+4. `/prompt bug --modulo rh Meu contracheque mostra folha que ainda não foi fechada`
+5. `/prompt tela --modulo rh Meus dados (/rh/meus-dados): o servidor vê os próprios dados cadastrais, lotação e vínculos, só leitura`
+6. `/prompt ajuste --modulo rh Pendências de portarias: link abre a portaria certa e funciona para quem é só do RH`
+
+**Onda B — segurança (P0 da ANALISE_RH §6, precisa do banco real)**
+7. `/prompt revisao --modulo rh Verificar no banco real as policies e funções S1–S7 da ANALISE_RH`
+8. `/prompt migracao --modulo rh RLS granular em folha, fichas, consignações, licenças e storage; search_path e permissão em processar_folha_pagamento`
+9. `/prompt migracao --modulo rh Trilha de auditoria (trigger genérico em audit_logs ou supa_audit) nas tabelas sensíveis do RH`
+
+**Onda C — completar os fluxos que já existem**
+10. `/prompt ajuste --modulo rh ServidorForm com zod, validação de CPF/PIS e erro do vínculo tratado`
+11. `/prompt crud --modulo rh Férias completas: editar/excluir, saldo de 30 dias, sobreposição, parcelas, 1/3`
+12. `/prompt tela --modulo rh Fluxo de frequência: abono, validação da chefia, consolidação do RH e fechamento, usando os hooks já existentes`
+13. `/prompt tela --modulo rh Detalhe da folha: editar itens da ficha, consignações e dependentes IRRF`
+14. `/prompt ajuste --modulo rh Viagens: editar/excluir e diária calculada por tabela`
+15. `/prompt relatorio --modulo rh Relatórios de férias, licenças, frequência, viagens e folha`
+
+**Onda D — profissionalizar (ferramentas do mercado, pesquisa de 2026-10-09)**
+16. Testes de folha, frequência e CNAB com Vitest (open source) e monitoramento de erros com Sentry (plano grátis).
+17. BrasilAPI (CEP, bancos/ISPB, feriados; grátis) e validação de CPF/NIS; Qualificação Cadastral do eSocial em lote (grátis, arquivo via Dataprev) antes do S-2200.
+18. Assinatura gov.br nas portarias (ITI, gratuita para órgãos estaduais; exige norma do órgão e integração com Login gov.br).
+19. Transmissão do eSocial (leiaute S-1.3; certificado e-CNPJ A1 no Supabase Vault): API paga (TecnoSpeed) ou Edge Function própria com assinatura XMLDSig.
+20. Remessa de pessoal ao TCE-RR e transparência da folha (sem CPF completo): pedir o layout ao TCE-RR.
+
+**Onda E — domínios novos (dependem das decisões da ANALISE_RH §7):**
+banco de horas, adicional por tempo de serviço, desligamento padronizado,
+ocorrências funcionais, retorno bancário do CNAB, carreira/estágio probatório/avaliação.
+
+#### Fontes da Onda D
+- eSocial, documentação técnica: https://www.gov.br/esocial/pt-br/documentacao-tecnica
+- Assinatura gov.br para órgãos: https://www.gov.br/governodigital/pt-br/identidade/assinatura-eletronica/assinatura-eletronica-para-orgaos
+- BrasilAPI: https://brasilapi.com.br/docs · Sentry: https://sentry.io/pricing · Vitest: https://vitest.dev
+- TecnoSpeed eSocial: https://blog.tecnospeed.com.br/usar-a-solucao-de-esocial-via-componente-ou-api/
