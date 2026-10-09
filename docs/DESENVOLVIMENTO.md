@@ -56,14 +56,24 @@ O workflow `.github/workflows/migracoes-banco.yml` leva `supabase/migrations/` a
 | Merge na `main` | `supabase db push`: aplica as pendentes |
 | Manual (`workflow_dispatch` na `main`) | aplica as pendentes (útil depois de configurar o segredo) |
 
-- **Segredo obrigatório:** `SUPABASE_DB_URL` em Settings → Secrets and variables → Actions, no formato
-  `postgresql://postgres:<senha>@<host>:5432/postgres`, com a porta acessível pelos runners do GitHub.
-  Sem ele o job só avisa (não falha) e nada é aplicado.
+- **O Postgres da VPS não é exposto na internet.** O job abre um túnel SSH até a VPS e fala com o banco
+  por ele (mesma premissa do backup). Segredos em Settings → Secrets and variables → Actions:
+
+  | Segredo | Conteúdo |
+  |---|---|
+  | `VPS_SSH_HOST` | endereço da VPS |
+  | `VPS_SSH_USER` | usuário só para isto (sem sudo; basta poder abrir túnel) |
+  | `VPS_SSH_KEY` | chave privada desse usuário (gere uma só para o CI) |
+  | `VPS_SSH_KNOWN_HOSTS` | saída de `ssh-keyscan <host>`: fixa a identidade da VPS |
+  | `SUPABASE_DB_SENHA` | senha do papel `postgres` |
+
+  Variável opcional `DB_DESTINO_NA_VPS` (padrão `127.0.0.1:5432`): onde o Postgres escuta, visto de
+  dentro da VPS. Sem os segredos o job só avisa (não falha) e nada é aplicado.
 - **Trava:** se houver mais pendentes que `LIMITE_MIGRACOES` (variável do repositório, padrão 10), o job
   falha sem aplicar nada. Isso pega o caso de o banco não reconhecer o histórico (tabela
   `supabase_migrations.schema_migrations` vazia ou divergente), em que o push tentaria rodar centenas de
   migrações antigas. Conserto: marcar como aplicadas as que já estão no banco com
-  `supabase migration repair --db-url "$SUPABASE_DB_URL" --status applied <versão>...` e rodar de novo.
+  `supabase migration repair --db-url <url pelo túnel> --status applied <versão>...` (de dentro da VPS ou com o mesmo túnel SSH) e rodar de novo.
 - Por isso toda migração precisa ser segura para rodar sozinha no merge: idempotente quando possível
   (`IF NOT EXISTS`), sem depender de passo manual, com RLS na própria migração.
 - Depois do merge, regenere `src/integrations/supabase/types.ts` contra o banco de produção.
