@@ -3,7 +3,7 @@
  * Funciona com qualquer `Importador` (src/lib/importacao/types.ts).
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AlertCircle, AlertTriangle, CheckCircle2, FileUp, Loader2, RotateCcw } from "lucide-react";
@@ -34,12 +34,17 @@ const VARIANTE_ACAO: Record<AcaoLinha, "default" | "secondary" | "outline"> = {
   sem_alteracao: "outline",
 };
 
+/** Arquivos maiores travariam o navegador na leitura; relatórios reais têm poucos MB. */
+const TAMANHO_MAXIMO = 20 * 1024 * 1024;
+
 type Etapa = "arquivo" | "processando" | "conferencia" | "aplicando" | "concluido";
 
 interface Props<TLinha> {
   importador: Importador<TLinha>;
   /** Chamado depois de aplicar, com os parâmetros lidos do arquivo (ex.: exercício) */
   onConcluido?: (resultado: ResultadoBanco, parametros: Record<string, unknown>) => void;
+  /** Avisa quando há leitura ou gravação em curso (o diálogo não deve fechar no meio) */
+  onOcupadoChange?: (ocupado: boolean) => void;
 }
 
 function mensagemErro(e: unknown): string {
@@ -47,7 +52,7 @@ function mensagemErro(e: unknown): string {
   return "Erro inesperado.";
 }
 
-export function ImportacaoWizard<TLinha>({ importador, onConcluido }: Props<TLinha>) {
+export function ImportacaoWizard<TLinha>({ importador, onConcluido, onOcupadoChange }: Props<TLinha>) {
   const queryClient = useQueryClient();
   const [etapa, setEtapa] = useState<Etapa>("arquivo");
   const [arquivo, setArquivo] = useState<MetadadosArquivo | null>(null);
@@ -56,6 +61,13 @@ export function ImportacaoWizard<TLinha>({ importador, onConcluido }: Props<TLin
   const [erroBanco, setErroBanco] = useState<string | null>(null);
   const [jaImportadoEm, setJaImportadoEm] = useState<string | null>(null);
   const [resultado, setResultado] = useState<ResultadoBanco | null>(null);
+  /** Falha ao aplicar (rede, permissão): mostra, mas deixa tentar de novo */
+  const [erroAplicar, setErroAplicar] = useState<string | null>(null);
+
+  const ocupado = etapa === "processando" || etapa === "aplicando";
+  useEffect(() => {
+    onOcupadoChange?.(ocupado);
+  }, [ocupado, onOcupadoChange]);
 
   const reiniciar = () => {
     setEtapa("arquivo");
@@ -65,12 +77,17 @@ export function ImportacaoWizard<TLinha>({ importador, onConcluido }: Props<TLin
     setErroBanco(null);
     setJaImportadoEm(null);
     setResultado(null);
+    setErroAplicar(null);
   };
 
   const selecionar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    if (file.size > TAMANHO_MAXIMO) {
+      toast.error("Arquivo grande demais", { description: "O limite é 20 MB." });
+      return;
+    }
     setEtapa("processando");
     setErroBanco(null);
     try {
@@ -101,6 +118,7 @@ export function ImportacaoWizard<TLinha>({ importador, onConcluido }: Props<TLin
   const aplicar = async () => {
     if (!leitura || !arquivo) return;
     setEtapa("aplicando");
+    setErroAplicar(null);
     try {
       const res = await importador.enviar(leitura, arquivo, false);
       setResultado(res);
@@ -113,7 +131,7 @@ export function ImportacaoWizard<TLinha>({ importador, onConcluido }: Props<TLin
       onConcluido?.(res, leitura.parametros);
     } catch (err) {
       toast.error("A importação não foi aplicada", { description: mensagemErro(err) });
-      setErroBanco(mensagemErro(err));
+      setErroAplicar(mensagemErro(err));
       setEtapa("conferencia");
     }
   };
@@ -155,7 +173,8 @@ export function ImportacaoWizard<TLinha>({ importador, onConcluido }: Props<TLin
   const acaoPorIndice = new Map(final?.linhas.map((l) => [l.indice, l]) ?? []);
   const criados = Object.entries(final?.criados ?? {}).filter(([, itens]) => itens.length > 0);
   const podeAplicar = etapa === "conferencia" && erros.length === 0 && simulacao && !erroBanco;
-  const nadaMuda = simulacao && simulacao.totais.inserir === 0 && simulacao.totais.atualizar === 0;
+  const nadaMuda =
+    simulacao && simulacao.totais.inserir === 0 && simulacao.totais.atualizar === 0 && criados.length === 0;
 
   return (
     <div className="space-y-4">
@@ -198,6 +217,14 @@ export function ImportacaoWizard<TLinha>({ importador, onConcluido }: Props<TLin
               ))}
             </ul>
           </AlertDescription>
+        </Alert>
+      )}
+
+      {erroAplicar && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" aria-hidden />
+          <AlertTitle>A importação não foi aplicada</AlertTitle>
+          <AlertDescription>{erroAplicar} Nada foi gravado; você pode tentar de novo.</AlertDescription>
         </Alert>
       )}
 

@@ -53,6 +53,19 @@ arquivo ─► ler (navegador) ─► problemas de leitura? ─sim─► mostra 
   planilha (`natureza.fonte.IDU`) são reconhecidas e migradas para a chave nova.
 - `valor_atual` e `saldo_disponivel` continuam calculados pela tabela (o "Disponível" do FIPLAN não é gravado).
 
+## Pontos em aberto (registrados na revisão)
+
+- **Execução (empenhado, liquidado, pago):** o importador grava os valores do FIPLAN, mas os triggers de
+  empenho/liquidação/pagamento do módulo financeiro também somam nessas colunas. Se o fluxo interno de
+  empenhos passar a ser usado junto com a importação, os valores contam em dobro. Decisão pedida ao
+  Fabiano; até lá vale "o FIPLAN manda".
+- **`orcamento.importar` não é fronteira de escrita:** a RLS atual de `fin_dotacoes` e dos catálogos libera
+  escrita a quem acessa o módulo financeiro. A permissão controla a tela e a RPC (e garante o log).
+  Endurecer é mudança de RLS existente e fica para uma decisão separada.
+- Só os totais de Inicial e Atual são conferidos: nas linhas de total o FIPLAN desalinha o terceiro valor.
+- Leitura testada com o PDF de exemplo (um PAOE) e com variações sintéticas (dois PAOEs, total do
+  relatório, bloco sem total, IDU faltando). Vale conferir com um QDD real de vários PAOEs.
+
 ## Fora de escopo
 
 - Outros importadores (a estrutura está pronta para eles).

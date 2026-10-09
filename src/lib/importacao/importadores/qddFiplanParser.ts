@@ -134,6 +134,19 @@ function zerados(): Record<CampoValorQdd, number> {
 
 type Ancoras = { campo: CampoValorQdd; xFim: number }[];
 
+/** Colunas de texto da dotação, localizadas pelo centro do título */
+type CampoTextoQdd = "fonte" | "cod_acomp" | "idu" | "tro";
+type AncorasTexto = { campo: CampoTextoQdd; centro: number }[];
+const TITULOS_TEXTO: [string, CampoTextoQdd][] = [
+  ["fonte", "fonte"],
+  ["cod.", "cod_acomp"],
+  ["idu", "idu"],
+  ["tro", "tro"],
+];
+/** Distância máxima (pt) entre o centro do texto e o do título da coluna */
+const DISTANCIA_MAX_TEXTO = 20;
+const centro = (t: TrechoPdf) => (t.x + t.xFim) / 2;
+
 /** Lê a(s) linha(s) de título e devolve a borda direita de cada coluna de valor. */
 function lerAncoras(trechos: TrechoPdf[], ancoras: Ancoras) {
   for (const t of trechos) {
@@ -152,14 +165,44 @@ function lerAncoras(trechos: TrechoPdf[], ancoras: Ancoras) {
   }
 }
 
+function lerAncorasTexto(trechos: TrechoPdf[]): AncorasTexto {
+  const ancoras: AncorasTexto = [];
+  for (const t of trechos) {
+    const achado = TITULOS_TEXTO.find(([titulo]) => normalizar(t.texto) === titulo);
+    if (achado && !ancoras.some((a) => a.campo === achado[1])) ancoras.push({ campo: achado[1], centro: centro(t) });
+  }
+  return ancoras;
+}
+
+/**
+ * Distribui os trechos da linha: números vão para as colunas de valor (borda direita),
+ * textos para as colunas de texto (centro). O que não casar com nenhuma coluna — ou
+ * cair numa coluna já preenchida — volta em `perdidos`, para virar erro de leitura.
+ */
 function atribuirValores(
   trechos: TrechoPdf[],
   ancoras: Ancoras,
-): { valores: Record<CampoValorQdd, number>; perdidos: string[] } {
+  ancorasTexto: AncorasTexto = [],
+): { valores: Record<CampoValorQdd, number>; textos: Partial<Record<CampoTextoQdd, string>>; perdidos: string[] } {
   const valores = zerados();
+  const preenchidos = new Set<CampoValorQdd>();
+  const textos: Partial<Record<CampoTextoQdd, string>> = {};
   const perdidos: string[] = [];
   for (const t of trechos) {
-    if (!RE_VALOR.test(t.texto)) continue;
+    if (!RE_VALOR.test(t.texto)) {
+      let alvo: AncorasTexto[number] | null = null;
+      let dist = Infinity;
+      for (const a of ancorasTexto) {
+        const d = Math.abs(centro(t) - a.centro);
+        if (d < dist) {
+          dist = d;
+          alvo = a;
+        }
+      }
+      if (alvo && dist <= DISTANCIA_MAX_TEXTO && textos[alvo.campo] === undefined) textos[alvo.campo] = t.texto;
+      else perdidos.push(t.texto);
+      continue;
+    }
     let melhor: Ancoras[number] | null = null;
     let distancia = Infinity;
     for (const a of ancoras) {
@@ -169,13 +212,14 @@ function atribuirValores(
         melhor = a;
       }
     }
-    if (!melhor || distancia > DISTANCIA_MAX_COLUNA) {
+    if (!melhor || distancia > DISTANCIA_MAX_COLUNA || preenchidos.has(melhor.campo)) {
       perdidos.push(t.texto);
       continue;
     }
+    preenchidos.add(melhor.campo);
     valores[melhor.campo] = valorBR(t.texto);
   }
-  return { valores, perdidos };
+  return { valores, textos, perdidos };
 }
 
 const centavos = (v: number) => Math.round(v * 100);
@@ -186,6 +230,7 @@ export function interpretarQddFiplan(linhasPdf: LinhaPdf[]): ResultadoLeitura<Li
   const cabecalho: Record<string, string> = {};
   let contexto: Record<string, string> = {};
   let ancoras: Ancoras = [];
+  let ancorasTexto: AncorasTexto = [];
   let lendoTitulos = false;
   /** Índice da primeira linha do bloco ainda não conferido com um "Total Geral" */
   let inicioBloco = 0;
@@ -197,11 +242,32 @@ export function interpretarQddFiplan(linhasPdf: LinhaPdf[]): ResultadoLeitura<Li
     const primeiro = trechos[0]?.texto ?? "";
     const rotulo = normalizar(primeiro.replace(/:$/, ""));
 
-    // 1. Cabeçalho "Rótulo:  valor"
+    // 1. Cabeçalho "Rótulo:  valor" (pode haver mais de um rótulo na mesma linha)
     if (primeiro.endsWith(":") && ROTULOS_CABECALHO.has(rotulo)) {
-      const valor = trechos.slice(1).map((t) => t.texto).join(" ").trim();
-      contexto = { ...contexto, [rotulo]: valor };
-      if (rotulo === "exercicio") exercicios.add(valor);
+      let atual = "";
+      const partes: Record<string, string[]> = {};
+      for (const t of trechos) {
+        const r = normalizar(t.texto.replace(/:$/, ""));
+        if (t.texto.endsWith(":") && ROTULOS_CABECALHO.has(r)) {
+          atual = r;
+          partes[r] = [];
+        } else {
+          partes[atual].push(t.texto);
+        }
+      }
+      for (const [r, textos] of Object.entries(partes)) {
+        const valor = textos.join(" ").trim();
+        // Novo PAOE com linhas ainda não conferidas: o bloco anterior ficou sem "Total Geral".
+        if (r === "paoe" && inicioBloco < linhas.length) {
+          problemas.push({
+            gravidade: "aviso",
+            mensagem: `PAOE ${contexto["paoe"] ?? "?"} sem "Total Geral" no relatório; a soma das linhas não foi conferida.`,
+          });
+          inicioBloco = linhas.length;
+        }
+        contexto = { ...contexto, [r]: valor };
+        if (r === "exercicio") exercicios.add(valor);
+      }
       lendoTitulos = false;
       continue;
     }
@@ -211,6 +277,7 @@ export function interpretarQddFiplan(linhasPdf: LinhaPdf[]): ResultadoLeitura<Li
     if (normalizados.includes("natureza") && normalizados.includes("inicial")) {
       ancoras = [];
       lerAncoras(trechos, ancoras);
+      ancorasTexto = lerAncorasTexto(trechos);
       lendoTitulos = true;
       continue;
     }
@@ -222,16 +289,16 @@ export function interpretarQddFiplan(linhasPdf: LinhaPdf[]): ResultadoLeitura<Li
         problemas.push({ gravidade: "erro", mensagem: `Dotação ${primeiro} antes da linha de títulos das colunas.` });
         continue;
       }
-      const [fonte, codAcomp, idu, tro] = trechos.slice(1, 5).map((t) => t.texto);
+      const { valores, textos, perdidos } = atribuirValores(trechos.slice(1), ancoras, ancorasTexto);
+      const { fonte = "", cod_acomp: codAcomp = "", idu = "", tro = "" } = textos;
       const indice = linhas.length;
-      if (!RE_FONTE.test(fonte ?? "") || !/^\d{4}$/.test(codAcomp ?? "")) {
+      if (!RE_FONTE.test(fonte) || !/^\d{4}$/.test(codAcomp) || !/^[^\d.,\s]{1,6}$/.test(idu)) {
         problemas.push({
           gravidade: "erro",
-          mensagem: `Linha ${primeiro}: fonte "${fonte ?? ""}" ou código de acompanhamento "${codAcomp ?? ""}" fora do padrão.`,
+          mensagem: `Linha ${primeiro}: fonte "${fonte}", código de acompanhamento "${codAcomp}" ou IDU "${idu}" fora do padrão.`,
         });
         continue;
       }
-      const { valores, perdidos } = atribuirValores(trechos.slice(5), ancoras);
       const [programaCodigo, programaNome] = codigoNome(contexto["programa de governo"]);
       const [paoeCodigo, paoeNome] = codigoNome(contexto["paoe"]);
       const [regional] = codigoNome(contexto["regional"]);
@@ -248,8 +315,8 @@ export function interpretarQddFiplan(linhasPdf: LinhaPdf[]): ResultadoLeitura<Li
         natureza: primeiro,
         fonte: fonte.includes(".") ? fonte : `${fonte[0]}.${fonte.slice(1)}`,
         cod_acomp: codAcomp,
-        idu: idu ?? "",
-        tro: tro ?? "",
+        idu,
+        tro,
         valores,
       });
       if (perdidos.length) {
@@ -273,13 +340,16 @@ export function interpretarQddFiplan(linhasPdf: LinhaPdf[]): ResultadoLeitura<Li
       continue;
     }
 
-    // 4. Total Geral do bloco: confere a soma das linhas lidas
+    // 4. Total Geral do bloco: confere a soma das linhas lidas. Nos totais o FIPLAN só alinha
+    //    Inicial e Atual com as colunas das dotações (o terceiro valor sai fora de posição),
+    //    então a conferência usa só essas duas.
     if (normalizados[0] === "total geral") {
       const { valores } = atribuirValores(trechos.slice(1), ancoras);
-      const bloco = linhas.slice(inicioBloco);
-      for (const campo of CAMPOS_VALOR_QDD) {
+      // Sem linhas novas desde o último total: é o total do relatório inteiro.
+      const bloco = inicioBloco < linhas.length ? linhas.slice(inicioBloco) : linhas;
+      for (const campo of ["inicial", "atual"] as const) {
         const soma = bloco.reduce((s, l) => s + l.valores[campo], 0);
-        if (valores[campo] !== 0 && centavos(soma) !== centavos(valores[campo])) {
+        if (centavos(soma) !== centavos(valores[campo])) {
           problemas.push({
             gravidade: "erro",
             mensagem: `PAOE ${contexto["paoe"] ?? "?"}: soma de "${ROTULOS_VALOR_QDD[campo]}" das linhas não bate com o Total Geral do relatório.`,

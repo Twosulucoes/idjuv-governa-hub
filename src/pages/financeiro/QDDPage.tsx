@@ -58,6 +58,7 @@ export default function QDDPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [exercicio, setExercicio] = useState(new Date().getFullYear().toString());
   const [importOpen, setImportOpen] = useState(false);
+  const [importando, setImportando] = useState(false);
   const [filterIDU, setFilterIDU] = useState("todos");
   const { hasPermission } = useAuth();
   const podeImportar = hasPermission(importadorQddFiplan.permissao);
@@ -382,7 +383,7 @@ export default function QDDPage() {
       </Card>
 
       {/* Import Dialog */}
-      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+      <Dialog open={importOpen} onOpenChange={(open) => (open || !importando) && setImportOpen(open)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -393,6 +394,7 @@ export default function QDDPage() {
           </DialogHeader>
           <ImportacaoWizard
             importador={importadorQddFiplan}
+            onOcupadoChange={setImportando}
             onConcluido={(_, parametros) => {
               if (typeof parametros.exercicio === "number") setExercicio(String(parametros.exercicio));
             }}

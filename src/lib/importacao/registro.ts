@@ -16,4 +16,6 @@ export function obterImportador(id: string): Importador<unknown> | undefined {
 }
 
 /** Quem tem a permissão de algum importador entra na Central de Importações. */
-export const PERMISSOES_IMPORTACAO = [...new Set(IMPORTADORES.map((i) => i.permissao))];
+// Nunca vazia: ProtectedRoute com lista vazia liberaria a rota para qualquer usuário logado.
+const permissoes = [...new Set(IMPORTADORES.map((i) => i.permissao).filter(Boolean))];
+export const PERMISSOES_IMPORTACAO = permissoes.length ? permissoes : ["admin"];

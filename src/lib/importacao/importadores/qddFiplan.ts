@@ -72,5 +72,10 @@ export const importadorQddFiplan: Importador<LinhaQdd> = {
     return data as unknown as ResultadoBanco;
   },
 
-  invalidar: [["fin_dotacoes"], ["fin_resumo_orcamentario"]],
+  invalidar: [
+    ["fin_dotacoes"],
+    ["fin_resumo_orcamentario"],
+    ["fin_fontes_recurso"],
+    ["fin_naturezas_despesa"],
+  ],
 };

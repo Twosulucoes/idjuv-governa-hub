@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS public.importacoes (
 );
 
 COMMENT ON TABLE public.importacoes IS
-  'Log das importações de dados aplicadas (tipo do importador, arquivo, hash, resumo e mudanças). Escrita só pelas RPCs de importação.';
+  'Log das importações de dados aplicadas (tipo do importador, arquivo, hash, resumo e mudanças). Escrita só pelas RPCs de importação. Nome e hash do arquivo são informados pelo navegador: servem para conferência, não como prova.';
 
 CREATE INDEX IF NOT EXISTS idx_importacoes_tipo_data ON public.importacoes (tipo, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_importacoes_hash ON public.importacoes (arquivo_sha256);
@@ -59,7 +59,8 @@ CREATE POLICY importacoes_select ON public.importacoes
     AND public.can_access_module(auth.uid(), modulo::text)
   );
 
-REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.importacoes FROM anon, authenticated;
+REVOKE ALL ON public.importacoes FROM anon;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.importacoes FROM authenticated;
 
 
 -- ----------------------------------------------------------------------------
@@ -111,10 +112,13 @@ DECLARE
   v_resumo jsonb;
   v_import_id uuid;
 BEGIN
+  p_simular := COALESCE(p_simular, true);
+
+  -- COALESCE: um NULL em qualquer checagem nega (NOT NULL não dispararia o RAISE).
   IF v_uid IS NULL
-     OR NOT public.perfil_ativo_atual()
-     OR NOT public.can_access_module(v_uid, 'financeiro')
-     OR NOT public.has_permission_code(v_uid, 'orcamento.importar') THEN
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'orcamento.importar'), false) THEN
     RAISE EXCEPTION 'Sem permissão para importar o QDD (orcamento.importar).' USING ERRCODE = '42501';
   END IF;
 
@@ -151,8 +155,8 @@ BEGIN
        OR COALESCE(v_prog, '') !~ '^\d{1,4}$'
        OR COALESCE(v_paoe, '') !~ '^\d{1,4}$'
        OR COALESCE(v_linha->>'regional', '') !~ '^\d{1,4}$'
-       OR char_length(COALESCE(v_linha->>'idu', '')) NOT BETWEEN 1 AND 6
-       OR char_length(COALESCE(v_linha->>'tro', '')) > 10
+       OR COALESCE(v_linha->>'idu', '') !~ '^[^.[:space:][:cntrl:]]{1,6}$'
+       OR COALESCE(v_linha->>'tro', '') !~ '^[^.[:space:][:cntrl:]]{0,10}$'
        OR char_length(COALESCE(v_linha->>'programa_nome', '')) > 255
        OR char_length(COALESCE(v_linha->>'paoe_nome', '')) > 255 THEN
       RAISE EXCEPTION 'Linha %: classificação fora do padrão do QDD.', v_idx + 1 USING ERRCODE = '22023';
@@ -175,7 +179,8 @@ BEGIN
 
     -- Programa
     SELECT id INTO v_prog_id FROM public.fin_programas_orcamentarios
-     WHERE codigo = v_prog AND exercicio = p_exercicio;
+     WHERE exercicio = p_exercicio AND ltrim(codigo, '0') = ltrim(v_prog, '0')
+     ORDER BY (codigo = v_prog) DESC LIMIT 1;
     IF v_prog_id IS NULL THEN
       IF NOT v_prog = ANY (v_cri_prog) THEN v_cri_prog := v_cri_prog || v_prog; END IF;
       IF NOT p_simular THEN
@@ -189,8 +194,8 @@ BEGIN
     v_acao_id := NULL;
     IF v_prog_id IS NOT NULL THEN
       SELECT id INTO v_acao_id FROM public.fin_acoes_orcamentarias
-       WHERE programa_id = v_prog_id AND codigo = v_paoe
-       ORDER BY ativo DESC NULLS LAST, created_at LIMIT 1;
+       WHERE programa_id = v_prog_id AND ltrim(codigo, '0') = ltrim(v_paoe, '0')
+       ORDER BY (codigo = v_paoe) DESC, ativo DESC NULLS LAST, created_at LIMIT 1;
     END IF;
     IF v_acao_id IS NULL THEN
       IF NOT v_paoe_desc = ANY (v_cri_acao) THEN v_cri_acao := v_cri_acao || v_paoe_desc; END IF;
@@ -263,9 +268,21 @@ BEGIN
       'valor_em_liquidacao', COALESCE((v_val->>'em_liquidacao')::numeric, 0),
       'valor_pago',          COALESCE((v_val->>'pago')::numeric, 0),
       'valor_restos_pagar',  COALESCE((v_val->>'restos')::numeric, 0),
+      'paoe',                v_paoe_desc,
+      'regional',            v_linha->>'regional',
+      'cod_acompanhamento',  v_linha->>'cod_acomp',
+      'idu',                 v_linha->>'idu',
       'tro',                 v_linha->>'tro',
       'ativo',               true
-    );
+    )
+    -- Vínculos só entram na comparação quando já existem (na simulação, os que seriam
+    -- criados aparecem em "criados").
+    || jsonb_strip_nulls(jsonb_build_object(
+      'programa_id',         v_prog_id,
+      'acao_id',             v_acao_id,
+      'natureza_despesa_id', v_nat_id,
+      'fonte_recurso_id',    v_fonte_id
+    ));
 
     IF NOT v_achou THEN
       v_ins := v_ins + 1;
@@ -310,7 +327,7 @@ BEGIN
         v_resultado := v_resultado || jsonb_build_object('indice', v_idx, 'acao', 'atualizar', 'mudancas', v_mudancas);
       END IF;
 
-      IF NOT p_simular THEN
+      IF NOT p_simular AND v_mudancas <> '{}'::jsonb THEN
         UPDATE public.fin_dotacoes SET
           codigo_dotacao      = v_codigo,
           programa_id         = COALESCE(v_prog_id, programa_id),

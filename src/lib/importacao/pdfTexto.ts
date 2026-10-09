@@ -26,8 +26,11 @@ export interface LinhaPdf {
   trechos: TrechoPdf[];
 }
 
-/** Trechos com linhas de base a até esta distância (pt) pertencem à mesma linha. */
-const TOLERANCIA_LINHA = 2.5;
+/**
+ * Trechos com linhas de base a até esta distância (pt) pertencem à mesma linha. No QDD do
+ * FIPLAN os números ficam ~2 pt acima do texto da mesma linha; as linhas distam 12 pt.
+ */
+const TOLERANCIA_LINHA = 4;
 
 async function carregarPdfJs() {
   const pdfjs = await import("pdfjs-dist");
@@ -41,7 +44,7 @@ async function carregarPdfJs() {
 /** Lê o PDF e devolve as linhas de texto de todas as páginas, em ordem de leitura. */
 export async function lerLinhasPdf(dados: ArrayBuffer): Promise<LinhaPdf[]> {
   const pdfjs = await carregarPdfJs();
-  const doc = await pdfjs.getDocument({ data: new Uint8Array(dados) }).promise;
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(dados), isEvalSupported: false }).promise;
   try {
     const trechos: TrechoPdf[] = [];
     for (let n = 1; n <= doc.numPages; n++) {

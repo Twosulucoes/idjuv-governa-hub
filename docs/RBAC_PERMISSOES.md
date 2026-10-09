@@ -110,6 +110,18 @@ Definido em `src/types/auth.ts` (`module_access_scopes` no banco):
 é exigida pela RLS de `avisos` e `datas_importantes` e mostra a aba Gerenciar em `/avisos`. Ler avisos
 não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos módulos do aviso).
 
+### Importação de dados
+
+Cada importador declara a sua permissão (`src/lib/importacao/registro.ts`) e a RPC dele confere a
+mesma no banco. Hoje: `orcamento.importar` (catálogo do módulo `financeiro`) para o QDD do FIPLAN —
+exigida pela RPC `importar_qdd_fiplan` (junto com acesso ao módulo financeiro), pela rota
+`/admin/importacoes` e pelo botão "Importar QDD (FIPLAN)" em `/financeiro/qdd`. Quem só tem
+`orcamento.visualizar` vê o QDD mas não importa. Atenção: a RLS atual de `fin_dotacoes` e dos
+catálogos orçamentários libera escrita a quem acessa o módulo financeiro, então `orcamento.importar`
+controla a tela e a RPC (e garante o registro em `importacoes`), não a escrita direta nessas tabelas.
+Restringir isso é mudança de RLS existente (pendente, exige decisão). O histórico (`importacoes`) é lido por quem acessa o
+módulo da importação.
+
 ## Enforcement de rota (`ProtectedRoute`)
 
 O componente `src/components/auth/ProtectedRoute.tsx` aplica o controle de acesso

@@ -20,6 +20,7 @@ import type { Importador } from "@/lib/importacao/types";
 export default function ImportacoesPage() {
   const { hasPermission } = useAuth();
   const [aberto, setAberto] = useState<Importador<unknown> | null>(null);
+  const [ocupado, setOcupado] = useState(false);
   const disponiveis = IMPORTADORES.filter((i) => hasPermission(i.permissao));
 
   return (
@@ -63,13 +64,13 @@ export default function ImportacoesPage() {
         </Card>
       </div>
 
-      <Dialog open={!!aberto} onOpenChange={(open) => !open && setAberto(null)}>
+      <Dialog open={!!aberto} onOpenChange={(open) => !open && !ocupado && setAberto(null)}>
         <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Importar {aberto?.titulo}</DialogTitle>
             <DialogDescription>{aberto?.descricao}</DialogDescription>
           </DialogHeader>
-          {aberto && <ImportacaoWizard importador={aberto} />}
+          {aberto && <ImportacaoWizard importador={aberto} onOcupadoChange={setOcupado} />}
         </DialogContent>
       </Dialog>
     </ModuleLayout>
