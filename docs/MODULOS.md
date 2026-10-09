@@ -28,13 +28,20 @@ O maior módulo. Páginas em `src/pages/rh/` (~20), além de `folha/` e `curricu
   `DiagnosticoPendenciasServidoresPage`, `AniversariantesPage`.
 - **Lotação/designação**: `GestaoLotacaoPage`, `GestaoDesignacoesPage`.
 - **Frequência/ponto**: `GestaoFrequenciaPage`, `ConfiguracaoFrequenciaPage`,
-  `ControlePacotesFrequenciaPage`.
+  `ControlePacotesFrequenciaPage`, `ValidacaoFrequenciaPage` (`/rh/frequencia/validacao`:
+  fila de abonos com aprovação chefia → RH e rejeição com motivo; grade de fechamento
+  servidor × validado/consolidado/reaberto, consolidação em lote, reabertura com
+  justificativa e fechamento da competência — só sem abono em aberto e com todos
+  consolidados). Regras puras em `src/lib/frequenciaFluxo.ts`; `LancarFaltaDialog`
+  bloqueia lançamento em competência `consolidado` ou fechamento consolidado sem reabertura.
 - **Afastamentos**: `GestaoFeriasPage`, `GestaoLicencasPage`, `GestaoViagensPage`.
 - **Portarias**: `CentralPortariasPage`, `PendenciasPortariasPage`,
   `AtribuicaoPortariasPage`.
 - **Contracheques**: `MeuContrachequePage`, `ConsultaContrachequesPage`.
 - **Autoatendimento**: `MeusDadosPage` (`/rh/meus-dados`, só leitura: dados pessoais,
-  contato, endereço, funcionais, bancários, vínculos e lotações do servidor logado).
+  contato, endereço, funcionais, bancários, vínculos e lotações do servidor logado);
+  `MinhaFrequenciaPage` (`/rh/minha-frequencia`: resumo mensal, situação do fechamento
+  e solicitações de abono do servidor logado, com formulário para abrir uma nova).
 - **Apoio**: `RelatoriosRHPage`, `ModelosDocumentosPage`, `ExportacaoPlanilhaPage`.
 - **Folha** (`src/pages/folha/`): `GestaoFolhaPagamentoPage`, `ConfiguracaoFolhaPage`,
   `FolhaDetalhePage`, `FolhaBloqueadaPage`. Inclui cálculo (INSS/IRRF), rubricas,

@@ -116,6 +116,8 @@ import GestaoLotacaoPage from "./pages/rh/GestaoLotacaoPage";
 import ControlePacotesFrequenciaPage from "./pages/rh/ControlePacotesFrequenciaPage";
 import MeuContrachequePage from "./pages/rh/MeuContrachequePage";
 import MeusDadosPage from "./pages/rh/MeusDadosPage";
+import MinhaFrequenciaPage from "./pages/rh/MinhaFrequenciaPage";
+import ValidacaoFrequenciaPage from "./pages/rh/ValidacaoFrequenciaPage";
 import ConsultaContrachequesPage from "./pages/rh/ConsultaContrachequesPage";
 
 // Folha de Pagamento
@@ -863,6 +865,11 @@ const App = () => (
                   <AniversariantesPage />
                 </ProtectedRoute>
               } />
+              <Route path="/rh/frequencia/validacao" element={
+                <ProtectedRoute requiredPermissions="rh.frequencia.lancar">
+                  <ValidacaoFrequenciaPage />
+                </ProtectedRoute>
+              } />
               <Route path="/rh/frequencia/pacotes" element={
                 <ProtectedRoute requiredPermissions="rh.frequencia.visualizar">
                   <ControlePacotesFrequenciaPage />
@@ -881,6 +888,11 @@ const App = () => (
               <Route path="/rh/meus-dados" element={
                 <ProtectedRoute>
                   <MeusDadosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/minha-frequencia" element={
+                <ProtectedRoute>
+                  <MinhaFrequenciaPage />
                 </ProtectedRoute>
               } />
               <Route path="/rh/contracheques" element={

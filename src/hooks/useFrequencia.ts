@@ -24,6 +24,8 @@ import {
   calcularResumoMensalParametrizado,
   calcularDiasUteisParametrizado,
 } from "@/lib/frequenciaCalculoService";
+import { lancamentoBloqueado } from "@/lib/frequenciaFluxo";
+import type { StatusFechamento } from "@/types/frequencia";
 
 // ============================================
 // INTERFACES (mantidas para compatibilidade)
@@ -72,6 +74,7 @@ export interface FrequenciaServidorResumo {
   servidor_cpf?: string;
   servidor_cargo?: string;
   servidor_unidade?: string;
+  servidor_unidade_id?: string;
   dias_uteis: number;
   dias_trabalhados: number;
   faltas: number;
@@ -158,6 +161,7 @@ export function useFrequenciaResumo(ano: number, mes: number) {
           servidor_cpf: s.cpf,
           servidor_cargo: cargo?.nome || undefined,
           servidor_unidade: unidade ? `${unidade.sigla || ''} - ${unidade.nome}` : undefined,
+          servidor_unidade_id: s.unidade_atual_id || undefined,
           dias_uteis: diasUteisMes,
           dias_trabalhados: freq?.dias_trabalhados || 0,
           faltas: freq?.dias_falta || 0,
@@ -295,6 +299,9 @@ export function useLancarFaltaEmLote() {
       tipo: string;
       justificativa?: string;
     }) => {
+      // Guard-rail: competência consolidada ou fechamento do servidor travado não recebe lançamento
+      await verificarCompetenciasAbertas(servidor_id, datas);
+
       const tipoValido = tipo as "normal" | "falta" | "atestado" | "ferias" | "licenca" | "folga" | "feriado";
       const registros = datas.map((data) => ({
         servidor_id,
@@ -318,9 +325,52 @@ export function useLancarFaltaEmLote() {
     },
     onError: (error) => {
       console.error("Erro ao salvar registros:", error);
-      toast.error("Erro ao salvar registros de ponto.");
+      toast.error(error instanceof FrequenciaBloqueadaError ? error.message : "Erro ao salvar registros de ponto.");
     },
   });
+}
+
+export class FrequenciaBloqueadaError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "FrequenciaBloqueadaError";
+  }
+}
+
+/**
+ * Lança `FrequenciaBloqueadaError` se alguma competência das datas estiver
+ * consolidada (config_fechamento_frequencia) ou se o fechamento do servidor
+ * estiver consolidado pelo RH sem reabertura (frequencia_fechamento).
+ */
+async function verificarCompetenciasAbertas(servidorId: string, datas: string[]) {
+  const competencias = new Map<string, { ano: number; mes: number }>();
+  for (const data of datas) {
+    const [ano, mes] = data.split("-").map(Number);
+    if (ano && mes) competencias.set(`${ano}-${mes}`, { ano, mes });
+  }
+
+  for (const { ano, mes } of competencias.values()) {
+    const [configRes, fechamentoRes] = await Promise.all([
+      supabase.from("config_fechamento_frequencia").select("status").eq("ano", ano).eq("mes", mes).maybeSingle(),
+      supabase
+        .from("frequencia_fechamento")
+        .select("validado_chefia, consolidado_rh, reaberto")
+        .eq("servidor_id", servidorId)
+        .eq("ano", ano)
+        .eq("mes", mes)
+        .maybeSingle(),
+    ]);
+    if (configRes.error) throw configRes.error;
+    if (fechamentoRes.error) throw fechamentoRes.error;
+
+    const { bloqueado, motivo } = lancamentoBloqueado(
+      configRes.data?.status as StatusFechamento | undefined,
+      fechamentoRes.data,
+    );
+    if (bloqueado) {
+      throw new FrequenciaBloqueadaError(`${motivo} Reabra a frequência em Validação e Fechamento para lançar.`);
+    }
+  }
 }
 
 /**

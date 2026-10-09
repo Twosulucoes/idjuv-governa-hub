@@ -6,6 +6,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 import type {
   ConfigJornadaPadrao,
   RegimeTrabalho,
@@ -17,6 +18,7 @@ import type {
   SolicitacaoAbono,
   FrequenciaFechamento,
   ServidorRegime,
+  StatusSolicitacaoAbono,
 } from "@/types/frequencia";
 
 // ============================================
@@ -519,22 +521,37 @@ export function useSalvarAssinatura() {
 // SOLICITAÇÕES DE ABONO
 // ============================================
 
-export function useSolicitacoesAbono(status?: string) {
+export interface FiltrosSolicitacoesAbono {
+  servidorId?: string;
+  status?: StatusSolicitacaoAbono | StatusSolicitacaoAbono[];
+  /** Filtra pela unidade atual do servidor (servidores.unidade_atual_id). */
+  unidadeId?: string;
+}
+
+export function useSolicitacoesAbono(filtros: FiltrosSolicitacoesAbono = {}) {
+  const { servidorId, status, unidadeId } = filtros;
+  const statusKey = Array.isArray(status) ? status.join(",") : status;
+
   return useQuery({
-    queryKey: ["solicitacoes-abono", status],
+    queryKey: ["solicitacoes-abono", servidorId ?? null, statusKey ?? null, unidadeId ?? null],
     queryFn: async () => {
+      // `!inner` para o filtro de unidade valer sobre a solicitação, não só sobre o embed
       let query = supabase
         .from("solicitacoes_abono")
         .select(`
           *,
-          servidor:servidor_id(nome_completo, matricula),
+          servidor:servidor_id!inner(nome_completo, matricula, unidade_atual_id, unidade:unidade_atual_id(nome, sigla)),
           tipo_abono:tipo_abono_id(*)
         `)
         .order("created_at", { ascending: false });
 
-      if (status) {
+      if (servidorId) query = query.eq("servidor_id", servidorId);
+      if (Array.isArray(status)) {
+        if (status.length > 0) query = query.in("status", status);
+      } else if (status) {
         query = query.eq("status", status);
       }
+      if (unidadeId) query = query.eq("servidor.unidade_atual_id", unidadeId);
 
       const { data, error } = await query;
       if (error) throw error;
@@ -584,13 +601,22 @@ export function useAprovarSolicitacaoAbono() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, nivel }: { id: string; nivel: 'chefia' | 'rh' }) => {
+    mutationFn: async ({
+      id,
+      nivel,
+      encerra = false,
+    }: {
+      id: string;
+      nivel: 'chefia' | 'rh';
+      /** Chefia encerra o fluxo (status `aprovado`) quando o tipo de abono dispensa o RH. */
+      encerra?: boolean;
+    }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
       const updates = nivel === 'chefia' 
         ? { 
-            status: 'aprovado_chefia' as const,
+            status: encerra ? ('aprovado' as const) : ('aprovado_chefia' as const),
             aprovado_chefia_por: user.id,
             aprovado_chefia_em: new Date().toISOString(),
           }
@@ -707,6 +733,7 @@ export function useAssinarFrequencia() {
       queryClient.invalidateQueries({ 
         queryKey: ["frequencia-fechamento", data.servidor_id, data.ano, data.mes] 
       });
+      queryClient.invalidateQueries({ queryKey: ["frequencia-fechamentos", data.ano, data.mes] });
       toast.success("Frequência assinada com sucesso!");
     },
     onError: (error) => {
@@ -752,6 +779,7 @@ export function useValidarFrequenciaChefia() {
       queryClient.invalidateQueries({ 
         queryKey: ["frequencia-fechamento", data.servidor_id, data.ano, data.mes] 
       });
+      queryClient.invalidateQueries({ queryKey: ["frequencia-fechamentos", data.ano, data.mes] });
       toast.success("Frequência validada pela chefia!");
     },
     onError: (error) => {
@@ -786,6 +814,7 @@ export function useConsolidarFrequenciaRH() {
           consolidado_rh: true,
           consolidado_rh_por: user.id,
           consolidado_rh_em: new Date().toISOString(),
+          reaberto: false,
         }, { onConflict: "servidor_id,ano,mes" })
         .select()
         .single();
@@ -797,11 +826,206 @@ export function useConsolidarFrequenciaRH() {
       queryClient.invalidateQueries({ 
         queryKey: ["frequencia-fechamento", data.servidor_id, data.ano, data.mes] 
       });
+      queryClient.invalidateQueries({ queryKey: ["frequencia-fechamentos", data.ano, data.mes] });
       toast.success("Frequência consolidada pelo RH!");
     },
     onError: (error) => {
       console.error("Erro ao consolidar:", error);
       toast.error("Erro ao consolidar frequência.");
+    },
+  });
+}
+
+// ============================================
+// FECHAMENTO DA COMPETÊNCIA (fluxo chefia → RH)
+// ============================================
+
+/** Fechamentos individuais da competência, com o servidor embutido. */
+export function useFechamentosCompetencia(ano: number, mes: number) {
+  return useQuery({
+    queryKey: ["frequencia-fechamentos", ano, mes],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("frequencia_fechamento")
+        .select(`
+          *,
+          servidor:servidor_id(nome_completo, matricula, unidade_atual_id, unidade:unidade_atual_id(nome, sigla))
+        `)
+        .eq("ano", ano)
+        .eq("mes", mes);
+
+      if (error) throw error;
+      return data as unknown as FrequenciaFechamento[];
+    },
+    enabled: ano > 0 && mes > 0,
+  });
+}
+
+/** Consolida vários servidores de uma vez (N upserts numa chamada; sem atomicidade de RPC). */
+export function useConsolidarFrequenciaLote() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ servidorIds, ano, mes }: { servidorIds: string[]; ano: number; mes: number }) => {
+      if (servidorIds.length === 0) return [];
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      const agora = new Date().toISOString();
+      const linhas = servidorIds.map((servidor_id) => ({
+        servidor_id,
+        ano,
+        mes,
+        consolidado_rh: true,
+        consolidado_rh_por: user.id,
+        consolidado_rh_em: agora,
+        reaberto: false,
+      }));
+
+      const { data, error } = await supabase
+        .from("frequencia_fechamento")
+        .upsert(linhas, { onConflict: "servidor_id,ano,mes" })
+        .select();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["frequencia-fechamentos", variables.ano, variables.mes] });
+      queryClient.invalidateQueries({ queryKey: ["frequencia-fechamento"] });
+      toast.success(`${variables.servidorIds.length} frequência(s) consolidada(s) pelo RH.`);
+    },
+    onError: (error) => {
+      console.error("Erro ao consolidar em lote:", error);
+      toast.error("Erro ao consolidar frequências.");
+    },
+  });
+}
+
+/** Reabre um fechamento consolidado; a justificativa é obrigatória. */
+export function useReabrirFrequencia() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      servidorId,
+      ano,
+      mes,
+      justificativa,
+    }: {
+      servidorId: string;
+      ano: number;
+      mes: number;
+      justificativa: string;
+    }) => {
+      if (!justificativa.trim()) throw new Error("Justificativa obrigatória");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      const { data, error } = await supabase
+        .from("frequencia_fechamento")
+        .update({
+          reaberto: true,
+          reaberto_por: user.id,
+          reaberto_em: new Date().toISOString(),
+          justificativa_reabertura: justificativa.trim(),
+        })
+        .eq("servidor_id", servidorId)
+        .eq("ano", ano)
+        .eq("mes", mes)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["frequencia-fechamento", data.servidor_id, data.ano, data.mes] });
+      queryClient.invalidateQueries({ queryKey: ["frequencia-fechamentos", data.ano, data.mes] });
+      toast.success("Frequência reaberta.");
+    },
+    onError: (error) => {
+      console.error("Erro ao reabrir:", error);
+      toast.error("Erro ao reabrir frequência.");
+    },
+  });
+}
+
+/** Marca a competência como consolidada em `config_fechamento_frequencia`. */
+export function useFecharCompetencia() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ ano, mes }: { ano: number; mes: number }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      const { data, error } = await supabase
+        .from("config_fechamento_frequencia")
+        .upsert(
+          {
+            ano,
+            mes,
+            status: "consolidado",
+            consolidado_em: new Date().toISOString(),
+            consolidado_por: user.id,
+          },
+          { onConflict: "ano,mes" },
+        )
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["config-fechamento", data.ano, data.mes] });
+      toast.success("Competência consolidada.");
+    },
+    onError: (error) => {
+      console.error("Erro ao fechar competência:", error);
+      toast.error("Erro ao fechar a competência.");
+    },
+  });
+}
+
+// ============================================
+// MINHA EQUIPE (chefia)
+// ============================================
+
+export interface MinhaEquipe {
+  /** Unidades em que o usuário logado é o responsável (estrutura_organizacional.servidor_responsavel_id). */
+  unidadeIds: string[];
+  servidores: { id: string; nome_completo: string; matricula?: string | null; unidade_atual_id?: string | null }[];
+}
+
+/** Servidores das unidades chefiadas pelo usuário logado. Vazio para quem não chefia unidade. */
+export function useMinhaEquipe() {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["minha-equipe", user?.id],
+    enabled: !!user?.id,
+    queryFn: async (): Promise<MinhaEquipe> => {
+      const { data: unidades, error: errUnidades } = await supabase
+        .from("estrutura_organizacional")
+        .select("id")
+        .eq("servidor_responsavel_id", user!.id)
+        .eq("ativo", true);
+
+      if (errUnidades) throw errUnidades;
+      const unidadeIds = (unidades || []).map((u) => u.id);
+      if (unidadeIds.length === 0) return { unidadeIds, servidores: [] };
+
+      const { data: servidores, error: errServidores } = await supabase
+        .from("servidores")
+        .select("id, nome_completo, matricula, unidade_atual_id")
+        .in("unidade_atual_id", unidadeIds)
+        .eq("ativo", true)
+        .order("nome_completo");
+
+      if (errServidores) throw errServidores;
+      return { unidadeIds, servidores: servidores || [] };
     },
   });
 }

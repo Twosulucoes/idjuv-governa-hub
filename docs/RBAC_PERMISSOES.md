@@ -110,6 +110,18 @@ Definido em `src/types/auth.ts` (`module_access_scopes` no banco):
 é exigida pela RLS de `avisos` e `datas_importantes` e mostra a aba Gerenciar em `/avisos`. Ler avisos
 não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos módulos do aviso).
 
+### Frequência: validação e autoatendimento
+
+- `/rh/frequencia/validacao` (`ValidacaoFrequenciaPage`) exige `rh.frequencia.lancar`
+  (`ROUTE_PERMISSIONS` e `ProtectedRoute`); no menu o item usa `rh.aprovar`. Não há
+  permissão fina `rh.frequencia.validar/consolidar` no catálogo.
+- `/rh/minha-frequencia` (`MinhaFrequenciaPage`) só exige login, como `/rh/meus-dados`:
+  a RLS de `solicitacoes_abono`, `frequencia_fechamento` e `frequencia_mensal` filtra pelo
+  servidor do usuário (`meu_servidor_id()`).
+- UPDATE em `solicitacoes_abono` e `frequencia_fechamento` é permitido pela RLS só a quem
+  tem o módulo `rh`: a chefia sem o módulo vê a tela, mas o banco recusa a ação (policies
+  da chefia ficam para outra entrega).
+
 ## Enforcement de rota (`ProtectedRoute`)
 
 O componente `src/components/auth/ProtectedRoute.tsx` aplica o controle de acesso
