@@ -477,6 +477,15 @@ export interface ViagemDiaria {
   created_by?: string;
 }
 
+export type StatusViagemDiaria = NonNullable<ViagemDiaria['status']>;
+export const VIAGEM_STATUS_LABELS: Record<StatusViagemDiaria, string> = {
+  solicitada: 'Solicitada',
+  autorizada: 'Autorizada',
+  em_andamento: 'Em Andamento',
+  concluida: 'Concluída',
+  cancelada: 'Cancelada',
+};
+
 export interface FeriasServidor {
   id: string;
   servidor_id: string;
@@ -497,6 +506,15 @@ export interface FeriasServidor {
   created_at?: string;
   created_by?: string;
 }
+
+export type StatusFeriasServidor = NonNullable<FeriasServidor['status']>;
+export const FERIAS_STATUS_LABELS: Record<StatusFeriasServidor, string> = {
+  programada: 'Programada',
+  em_gozo: 'Em Gozo',
+  concluida: 'Concluída',
+  interrompida: 'Interrompida',
+  cancelada: 'Cancelada',
+};
 
 export interface LicencaAfastamento {
   id: string;
