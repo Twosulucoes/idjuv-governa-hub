@@ -81,13 +81,13 @@ progressão, capacitação.
 Cada item já no formato do gerador. Ondas A e C não mexem em banco; B e D
 dependem de acesso ao Supabase do IDJUV.
 
-**Onda A — consertar o que está quebrado (P, sem banco)**
-1. `/prompt bug --modulo rh KPIs do dashboard do RH: Em Férias conta status fruindo (inexistente) e Viagens Pendentes lê a tabela errada`
-2. `/prompt bug --modulo rh Fechar/Reabrir em /folha/:id faz update direto em vez das RPCs fechar_folha/reabrir_folha`
-3. `/prompt bug --modulo rh ServidorDetalhe: link Ato Formal para /documentos/:id dá 404 e status de férias/viagens aparecem crus`
-4. `/prompt bug --modulo rh Meu contracheque mostra folha que ainda não foi fechada`
-5. `/prompt tela --modulo rh Meus dados (/rh/meus-dados): o servidor vê os próprios dados cadastrais, lotação e vínculos, só leitura`
-6. `/prompt ajuste --modulo rh Pendências de portarias: link abre a portaria certa e funciona para quem é só do RH`
+**Onda A — consertar o que está quebrado (P, sem banco)** — entregue em 2026-10-09, seis PRs rascunho aguardando revisão
+1. ~~`/prompt bug --modulo rh KPIs do dashboard do RH …`~~ → PR #36
+2. ~~`/prompt bug --modulo rh Fechar/Reabrir em /folha/:id …`~~ → PR #37
+3. ~~`/prompt bug --modulo rh ServidorDetalhe: Ato Formal e status …`~~ → PR #38
+4. ~~`/prompt bug --modulo rh Meu contracheque …`~~ → PR #40
+5. ~~`/prompt tela --modulo rh Meus dados (/rh/meus-dados) …`~~ → PR #43
+6. ~~`/prompt ajuste --modulo rh Pendências de portarias …`~~ → PR #42
 
 **Onda B — segurança (P0 da ANALISE_RH §6, precisa do banco real)**
 7. `/prompt revisao --modulo rh Verificar no banco real as policies e funções S1–S7 da ANALISE_RH`

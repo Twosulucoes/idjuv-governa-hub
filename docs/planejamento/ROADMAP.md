@@ -12,7 +12,7 @@ Documento vivo, mantido pelo agente `documentador-idjuv`. Fluxo de trabalho: ver
 - _(vazio)_
 
 ## Em planejamento
-- [ ] **RH — finalização em ondas A–E** (A: 6 correções sem banco; B: segurança; C: completar fluxos; D: ferramentas; E: domínios novos) — ver [FINALIZACAO.md](./FINALIZACAO.md#recursos-humanos-rh--2026-10-09)
+- [ ] **RH — finalização em ondas A–E** — Onda A entregue (PRs #36, #37, #38, #40, #42, #43, aguardando revisão) (A: 6 correções sem banco; B: segurança; C: completar fluxos; D: ferramentas; E: domínios novos) — ver [FINALIZACAO.md](./FINALIZACAO.md#recursos-humanos-rh--2026-10-09)
 
 ## Backlog
 - [ ] **Finalização por módulo:** rodar `/finalizar <codigo>` (começar por `rh`, `financeiro`, `patrimonio`, `governanca`) — ver [FINALIZACAO.md](./FINALIZACAO.md)
