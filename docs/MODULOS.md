@@ -108,6 +108,14 @@ Demandas e CMS. `src/pages/ascom/` + `comunicacao/`: `GestaoDemandasAscomPage`,
 `CMSEditorPage`, `CMSBannersPage`, `CMSGaleriasPage`. Mais
 `CalendarioComunicacaoPage` e `AniversariantesComunicacaoPage`.
 
+**Avisos e datas importantes** (`src/pages/avisos/AvisosPage.tsx`, rota `/avisos`, item "Avisos e
+Datas" no menu da Comunicação). Aberta a qualquer usuário logado: aba **Mural** com os avisos
+vigentes do seu público e aba **Datas** com o calendário do mês (datas cadastradas, feriados de
+`dias_nao_uteis` completados pela BrasilAPI e aniversariantes do mês). A aba **Gerenciar** aparece
+para quem tem `avisos.gerenciar`. Todas as telas de módulo (`ModuleLayout`) mostram o sino de avisos
+não lidos e próximas datas (`AvisosSino`) e, no topo do conteúdo, os avisos em destaque ou urgentes
+ainda não lidos (`AvisosDestaque`). Desenho: `docs/superpowers/specs/2026-10-09-avisos-e-datas-importantes-design.md`.
+
 ## Programas (`programas`)
 
 Programas sociais/esportivos. `src/pages/programas/`: `BolsaAtletaPage`,

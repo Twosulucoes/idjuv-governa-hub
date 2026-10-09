@@ -61,6 +61,7 @@ import {
   Download,
   Gavel,
   type LucideIcon,
+  Bell,
 } from "lucide-react";
 
 // ================================
@@ -1032,6 +1033,12 @@ export const menuConfig: MenuSection[] = [
         label: "Aniversariantes",
         route: "/comunicacao/aniversariantes",
         icon: Cake,
+      },
+      {
+        id: "avisos-datas",
+        label: "Avisos e Datas",
+        route: "/avisos",
+        icon: Bell,
       },
     ],
   },

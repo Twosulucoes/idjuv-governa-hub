@@ -9,7 +9,7 @@ Documento vivo, mantido pelo agente `documentador-idjuv`. Fluxo de trabalho: ver
 3. Com plano aprovado (`docs/superpowers/plans/`), mova para **Em andamento**; ao mergear, para **Concluído**.
 
 ## Em andamento
-- _(vazio)_
+- [ ] **Comunicação — avisos e datas importantes:** mural `/avisos`, sino e destaque nos módulos, calendário com feriados e aniversariantes — [spec](../superpowers/specs/2026-10-09-avisos-e-datas-importantes-design.md), [plano](../superpowers/plans/2026-10-09-avisos-e-datas-importantes.md). Falta aplicar a migração no banco e regenerar os tipos.
 
 ## Em planejamento
 - _(vazio)_

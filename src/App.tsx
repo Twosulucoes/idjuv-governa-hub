@@ -18,6 +18,7 @@ import LinksUteisPage from "./pages/LinksUteisPage";
 import ApresentacaoPage from "./pages/ApresentacaoPage";
 import LegacySistemaPage from "./pages/Index";
 import SistemaEntryPage from "./pages/sistema/SistemaEntryPage";
+import AvisosPage from "./pages/avisos/AvisosPage";
 
 // Module Dashboards
 import {
@@ -442,6 +443,7 @@ const App = () => (
               <Route path="/sistema" element={<ProtectedRoute><SistemaEntryPage /></ProtectedRoute>} />
               <Route path="/sistema/legado" element={<ProtectedRoute><LegacySistemaPage /></ProtectedRoute>} />
               <Route path="/apresentacao" element={<ProtectedRoute><ApresentacaoPage /></ProtectedRoute>} />
+              <Route path="/avisos" element={<ProtectedRoute><AvisosPage /></ProtectedRoute>} />
               <Route path="/noticias" element={<ProtectedRoute><NoticiasPage /></ProtectedRoute>} />
               <Route path="/meu-perfil" element={<ProtectedRoute><MeuPerfilPage /></ProtectedRoute>} />
               <Route path="/trocar-senha-obrigatoria" element={<ProtectedRoute><TrocaSenhaObrigatoriaPage /></ProtectedRoute>} />
