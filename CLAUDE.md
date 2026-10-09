@@ -306,6 +306,10 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
   conhecimento de UI/UX para qualquer mudança visual; origem, revisão e uso em
   `.claude/skills/UI-UX-PRO-MAX-VENDOR.md`. Direção do design system:
   `docs/superpowers/specs/2026-10-09-design-system-design.md`.
+- **Gerador de prompts** ([`prompts/README.md`](./prompts/README.md)): `/prompt <tipo> --modulo <codigo> <descrição>`,
+  `/pendencias` e `/finalizar <codigo>` (`.claude/commands/`, motor em `scripts/prompt.mjs`). Se o usuário
+  escrever um desses comandos como texto (ex.: no chat do projeto, onde slash command não expande), siga o
+  arquivo `.claude/commands/<nome>.md` correspondente com o resto da mensagem como `$ARGUMENTS`.
 
 ---
 

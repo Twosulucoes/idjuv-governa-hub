@@ -56,6 +56,7 @@ brainstorming → [gate de aprovação] → writing-plans → subagent-driven-de
 | `migracao-segura-idjuv` | IDJUV | Mudança de schema com RLS |
 | `auditoria-seguranca-idjuv` | IDJUV | Antes de release / PR grande |
 | `onboarding-cliente-idjuv` | IDJUV | Nova instância white-label |
+| Gerador de prompts (`/prompt`, `/pendencias`, `/finalizar` em `.claude/commands/`) | IDJUV | Pedido curto → prompt com contexto real do módulo; ver [`prompts/README.md`](./prompts/README.md) |
 | `supabase`, `supabase-postgres-best-practices` | supabase/agent-skills (MIT) | Qualquer trabalho com Supabase/Postgres |
 | `ui-ux-pro-max` | nextlevelbuilder/ui-ux-pro-max-skill (MIT, ver `.claude/skills/UI-UX-PRO-MAX-VENDOR.md`) | Qualquer mudança visual: tela, componente, cor, tipografia, acessibilidade, gráfico. Design system: `docs/superpowers/specs/2026-10-09-design-system-design.md` |
 

@@ -42,6 +42,8 @@
 | [`docs/WHITE_LABEL.md`](./WHITE_LABEL.md) | Arquitetura-alvo, roadmap e critérios de aceite do modelo White Label |
 | [`docs/VISAO_GERAL.md`](./VISAO_GERAL.md) | O que é o sistema, público, objetivos, mapa de módulos |
 | [`docs/planejamento/ROADMAP.md`](./planejamento/ROADMAP.md) | Backlog e andamento do planejamento (vivo) |
+| [`docs/planejamento/FINALIZACAO.md`](./planejamento/FINALIZACAO.md) | Estado de cada módulo rumo à finalização (página → estado → o que falta) |
+| [`prompts/README.md`](../prompts/README.md) | Gerador de prompts: comandos, tipos de tarefa, como estender |
 | [`CLAUDE.md`](../CLAUDE.md) | Guia de contexto para o Claude Code: stack, estrutura, convenções, fluxo de features; importa `AGENTS.md` |
 | [`AGENTS.md`](../AGENTS.md) | Instruções persistentes para agentes: invariantes de segurança/arquitetura, fluxo de trabalho (skill `superpowers`), documentação obrigatória |
 | [`CONTRIBUTING.md`](../CONTRIBUTING.md) | Gate local de qualidade, checklist de PR |
@@ -71,6 +73,7 @@ Ao abrir uma PR, localize **cada** linha aplicável. A doc da coluna
 | White Label / tenant / branding | `docs/WHITE_LABEL.md` | `src/core/tenant/README.md`, `tenants/README.md` |
 | Deploy, build, comandos, fluxo Git | `docs/DESENVOLVIMENTO.md` | `CLAUDE.md` §3/§8; `CONTRIBUTING.md` se mudar o gate |
 | Regra para agentes, skill ou subagente novo/alterado | `AGENTS.md` | `CLAUDE.md` §10.1 |
+| Template de prompt, comando em `.claude/commands/` ou `scripts/prompt.mjs` | `prompts/README.md` | `CLAUDE.md` §10.1 |
 | Decisão ou andamento de planejamento | `docs/planejamento/ROADMAP.md` | Spec/plano datado em `docs/superpowers/` |
 | Skill vendorizada nova/alterada (`.claude/skills/`) | `.claude/skills/SUPERPOWERS-VENDOR.md` (gerado por `scripts/sync-superpowers-skills.sh` — não editar à mão); `ui-ux-pro-max` → `.claude/skills/UI-UX-PRO-MAX-VENDOR.md` | Skill de domínio nova é autodocumentada (frontmatter + corpo) — não precisa de entrada aqui |
 | **Criação de doc canônica nova** | `LIVING_DOCS` em `scripts/check-doc-links.mjs` + linha em `docs/README.md` + linha nesta matriz | — |
