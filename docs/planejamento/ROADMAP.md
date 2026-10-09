@@ -10,9 +10,10 @@ Documento vivo, mantido pelo agente `documentador-idjuv`. Fluxo de trabalho: ver
 
 ## Em andamento
 - [ ] **Comunicação — avisos e datas importantes:** mural `/avisos`, sino e destaque nos módulos, calendário com feriados e aniversariantes — [spec](../superpowers/specs/2026-10-09-avisos-e-datas-importantes-design.md), [plano](../superpowers/plans/2026-10-09-avisos-e-datas-importantes.md). Falta aplicar a migração no banco e regenerar os tipos.
+- [ ] **Importação de dados + QDD do FIPLAN:** Central de Importações (`/admin/importacoes`) com assistente ler → simular → confirmar e histórico; primeiro importador lê o PDF do QDD do FIPLAN e atualiza `fin_dotacoes` — [spec](../superpowers/specs/2026-10-09-importacao-dados-qdd-fiplan-design.md). Falta aplicar a migração, regenerar os tipos e conceder `orcamento.importar` a quem vai importar.
 
 ## Em planejamento
-- [ ] **Reformulação do design / Design System** (transversal) — spec [2026-10-09-design-system-design.md](../superpowers/specs/2026-10-09-design-system-design.md), plano [2026-10-09-design-system.md](../superpowers/plans/2026-10-09-design-system.md). Fases 0 (skill `ui-ux-pro-max` + spec) e 1 (tokens, contraste AA, IBM Plex Sans, guards no gate, vitrine `/admin/design-system`) e 2 (componentes `@/components/design-system`: PageHeader, DataTable, StatusBadge, EmptyState, KpiCard, ChartCard, FormSection, ErrorSummary) feitas; próxima é a Fase 3 (shell + módulo piloto, a definir).
+- [ ] **Reformulação do design / Design System** (transversal) — spec [2026-10-09-design-system-design.md](../superpowers/specs/2026-10-09-design-system-design.md), plano [2026-10-09-design-system.md](../superpowers/plans/2026-10-09-design-system.md). Fases 0 (skill `ui-ux-pro-max` + spec) e 1 (tokens, contraste AA, IBM Plex Sans, guards no gate, vitrine `/admin/design-system`) e 2 (componentes `@/components/design-system`: PageHeader, DataTable, StatusBadge, EmptyState, KpiCard, ChartCard, FormSection, ErrorSummary) feitas; Fase 3 em andamento com o RH como piloto: shell acessível e painel/lista/ficha do servidor migrados; o formulário de servidor entra depois da Onda C do RH.
 
 ## Backlog
 - [ ] **RH — Fase 0/1 (P0):** verificar RLS real e estancar acesso aberto em folha/dados sensíveis — ver [ANALISE_RH.md](./ANALISE_RH.md) §6

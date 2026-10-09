@@ -1,14 +1,11 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { ModuleLayout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -18,12 +15,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -31,164 +31,95 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Plus, 
+import {
+  Plus,
   Search,
-  Calendar,
   Loader2,
-  Sun
+  Pencil,
+  Sun,
+  Trash2
 } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import {
+  useFerias,
+  useServidoresParaFerias,
+  useAtualizarStatusFerias,
+  useExcluirFerias,
+  SemPermissaoError,
+  formatarDataFerias,
+} from "@/hooks/useFerias";
+import { FeriasFormDialog } from "@/components/rh/ferias/FeriasFormDialog";
+import { camposEditaveisPorStatus, podeExcluir, statusPermitidos } from "@/lib/feriasRegras";
+import {
+  FERIAS_STATUS_LABELS,
+  type FeriasServidorComServidor,
+  type StatusFeriasServidor,
+} from "@/types/rh";
 
-type Ferias = {
-  id: string;
-  servidor_id: string;
-  periodo_aquisitivo_inicio: string;
-  periodo_aquisitivo_fim: string;
-  data_inicio: string;
-  data_fim: string;
-  dias_gozados: number;
-  abono_pecuniario: boolean;
-  dias_abono?: number;
-  parcela: number;
-  total_parcelas: number;
-  portaria_numero?: string;
-  status: string;
-  servidor?: {
-    id: string;
-    nome_completo: string;
-  };
-};
-
-const STATUS_FERIAS = [
-  { value: 'programada', label: 'Programada' },
-  { value: 'em_gozo', label: 'Em Gozo' },
-  { value: 'concluida', label: 'Concluída' },
-  { value: 'interrompida', label: 'Interrompida' },
-  { value: 'cancelada', label: 'Cancelada' },
-];
+const STATUS_FERIAS = (Object.keys(FERIAS_STATUS_LABELS) as StatusFeriasServidor[]).map((value) => ({
+  value,
+  label: FERIAS_STATUS_LABELS[value],
+}));
 
 export default function GestaoFeriasPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [feriasEmEdicao, setFeriasEmEdicao] = useState<FeriasServidorComServidor | null>(null);
+  const [feriasParaExcluir, setFeriasParaExcluir] = useState<FeriasServidorComServidor | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const queryClient = useQueryClient();
 
-  const [formData, setFormData] = useState({
-    servidor_id: '',
-    periodo_aquisitivo_inicio: '',
-    periodo_aquisitivo_fim: '',
-    data_inicio: '',
-    data_fim: '',
-    dias_gozados: '30',
-    abono_pecuniario: false,
-    dias_abono: '',
-    parcela: '1',
-    total_parcelas: '1',
-    portaria_numero: '',
-  });
+  const { isSuperAdmin, hasAnyPermission } = useAuth();
+  const podeCriar = isSuperAdmin || hasAnyPermission(["rh.ferias.criar", "rh.ferias.gerenciar"]);
+  const podeEditar = isSuperAdmin || hasAnyPermission(["rh.ferias.editar", "rh.ferias.gerenciar"]);
+  // A policy de DELETE em produção usa has_role('admin'), que no front é isSuperAdmin.
+  const isAdmin = isSuperAdmin;
 
-  // Fetch férias
-  const { data: ferias = [], isLoading } = useQuery({
-    queryKey: ["ferias"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ferias_servidor")
-        .select(`
-          *,
-          servidor:servidores!ferias_servidor_servidor_id_fkey(id, nome_completo)
-        `)
-        .order("data_inicio", { ascending: false });
-      if (error) throw error;
-      return data as Ferias[];
-    },
-  });
+  const { data: ferias = [], isLoading } = useFerias();
+  const { data: servidores = [] } = useServidoresParaFerias();
+  const atualizarStatus = useAtualizarStatusFerias();
+  const excluir = useExcluirFerias();
 
-  // Fetch servidores
-  const { data: servidores = [] } = useQuery({
-    queryKey: ["servidores-ferias"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("servidores")
-        .select("id, nome_completo")
-        .eq("ativo", true)
-        .order("nome_completo");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Create mutation
-  const createMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
-      const { error } = await supabase.from("ferias_servidor").insert({
-        servidor_id: data.servidor_id,
-        periodo_aquisitivo_inicio: data.periodo_aquisitivo_inicio,
-        periodo_aquisitivo_fim: data.periodo_aquisitivo_fim,
-        data_inicio: data.data_inicio,
-        data_fim: data.data_fim,
-        dias_gozados: parseInt(data.dias_gozados),
-        abono_pecuniario: data.abono_pecuniario,
-        dias_abono: data.abono_pecuniario ? parseInt(data.dias_abono) : null,
-        parcela: parseInt(data.parcela),
-        total_parcelas: parseInt(data.total_parcelas),
-        portaria_numero: data.portaria_numero || null,
-        status: 'programada',
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ferias"] });
-      toast.success("Férias cadastradas com sucesso!");
-      setIsFormOpen(false);
-      resetForm();
-    },
-    onError: (error: any) => {
-      toast.error(`Erro: ${error.message}`);
-    },
-  });
-
-  // Update status mutation
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase
-        .from("ferias_servidor")
-        .update({ status })
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ferias"] });
-      toast.success("Status atualizado!");
-    },
-    onError: (error: any) => {
-      toast.error(`Erro: ${error.message}`);
-    },
-  });
-
-  const resetForm = () => {
-    setFormData({
-      servidor_id: '',
-      periodo_aquisitivo_inicio: '',
-      periodo_aquisitivo_fim: '',
-      data_inicio: '',
-      data_fim: '',
-      dias_gozados: '30',
-      abono_pecuniario: false,
-      dias_abono: '',
-      parcela: '1',
-      total_parcelas: '1',
-      portaria_numero: '',
-    });
+  const abrirNovo = () => {
+    setFeriasEmEdicao(null);
+    setIsFormOpen(true);
   };
 
-  const handleSubmit = () => {
-    if (!formData.servidor_id || !formData.data_inicio || !formData.data_fim) {
-      toast.error("Preencha todos os campos obrigatórios");
+  const abrirEdicao = (f: FeriasServidorComServidor) => {
+    setFeriasEmEdicao(f);
+    setIsFormOpen(true);
+  };
+
+  const mudarStatus = (f: FeriasServidorComServidor, status: StatusFeriasServidor) => {
+    if (status === f.status) return;
+    if (f.status === "em_gozo" && status === "cancelada") {
+      toast.error("Férias em gozo não podem ser canceladas: registre como interrompida.");
       return;
     }
-    createMutation.mutate(formData);
+    atualizarStatus.mutate(
+      { id: f.id, status },
+      {
+        onSuccess: () => toast.success("Status atualizado!"),
+        onError: (error) => toast.error(`Erro: ${error.message}`),
+      },
+    );
+  };
+
+  const confirmarExclusao = () => {
+    if (!feriasParaExcluir) return;
+    excluir.mutate(
+      { id: feriasParaExcluir.id, servidorId: feriasParaExcluir.servidor_id },
+      {
+        onSuccess: () => toast.success("Registro de férias excluído."),
+        onError: (error) => {
+          if (error instanceof SemPermissaoError) {
+            toast.error(error.message);
+          } else {
+            toast.error(`Erro ao excluir: ${error.message}`);
+          }
+        },
+        onSettled: () => setFeriasParaExcluir(null),
+      },
+    );
   };
 
   const filteredFerias = ferias.filter((f) => {
@@ -197,7 +128,7 @@ export default function GestaoFeriasPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const formatDate = (date: string) => format(new Date(date), "dd/MM/yyyy");
+  const formatDate = formatarDataFerias;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -232,10 +163,12 @@ export default function GestaoFeriasPage() {
               </div>
             </div>
 
-            <Button onClick={() => setIsFormOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Programar Férias
-            </Button>
+            {podeCriar && (
+              <Button onClick={abrirNovo}>
+                <Plus className="h-4 w-4 mr-2" />
+                Programar Férias
+              </Button>
+            )}
           </div>
 
           {/* Stats */}
@@ -296,23 +229,28 @@ export default function GestaoFeriasPage() {
                   <TableHead className="text-center">Parcela</TableHead>
                   <TableHead className="text-center">Abono</TableHead>
                   <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                     </TableCell>
                   </TableRow>
                 ) : filteredFerias.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       Nenhum registro de férias encontrado
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredFerias.map((f) => (
+                  filteredFerias.map((f) => {
+                    const editavel = podeEditar && camposEditaveisPorStatus(f.status) !== "nenhum";
+                    const excluivel = isAdmin && podeExcluir(f.status);
+                    const permitidos = statusPermitidos(f.status);
+                    return (
                     <TableRow key={f.id}>
                       <TableCell>
                         <p className="font-medium">{f.servidor?.nome_completo || '-'}</p>
@@ -328,7 +266,7 @@ export default function GestaoFeriasPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-center">{f.dias_gozados}</TableCell>
-                      <TableCell className="text-center">{f.parcela}/{f.total_parcelas}</TableCell>
+                      <TableCell className="text-center">{f.parcela ?? 1}/{f.total_parcelas ?? 1}</TableCell>
                       <TableCell className="text-center">
                         {f.abono_pecuniario ? (
                           <Badge variant="secondary">{f.dias_abono} dias</Badge>
@@ -337,157 +275,98 @@ export default function GestaoFeriasPage() {
                       <TableCell className="text-center">
                         <Select
                           value={f.status}
-                          onValueChange={(v) => updateStatusMutation.mutate({ id: f.id, status: v })}
+                          onValueChange={(v) => mudarStatus(f, v as StatusFeriasServidor)}
+                          disabled={!podeEditar}
                         >
                           <SelectTrigger className="w-[130px]">
                             <Badge className={getStatusColor(f.status)}>
-                              {STATUS_FERIAS.find(s => s.value === f.status)?.label}
+                              {FERIAS_STATUS_LABELS[f.status] ?? f.status}
                             </Badge>
                           </SelectTrigger>
                           <SelectContent>
                             {STATUS_FERIAS.map(s => (
-                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                              <SelectItem key={s.value} value={s.value} disabled={!permitidos.includes(s.value)}>
+                                {s.label}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title={editavel ? "Editar" : "Edição não permitida neste status"}
+                            disabled={!editavel}
+                            onClick={() => abrirEdicao(f)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          {isAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title={excluivel ? "Excluir" : "Só férias programadas ou canceladas podem ser excluídas"}
+                              disabled={!excluivel}
+                              onClick={() => setFeriasParaExcluir(f)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
           </div>
 
-          {/* Form Dialog */}
-          <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Sun className="h-5 w-5 text-primary" />
-                  Programar Férias
-                </DialogTitle>
-              </DialogHeader>
+          {/* Form Dialog (criar/editar) */}
+          <FeriasFormDialog
+            open={isFormOpen}
+            onOpenChange={(open) => {
+              setIsFormOpen(open);
+              if (!open) setFeriasEmEdicao(null);
+            }}
+            servidores={servidores}
+            ferias={feriasEmEdicao}
+            servidorNome={feriasEmEdicao?.servidor?.nome_completo}
+          />
 
-              <div className="space-y-4">
-                <div>
-                  <Label>Servidor *</Label>
-                  <Select value={formData.servidor_id} onValueChange={(v) => setFormData(p => ({ ...p, servidor_id: v }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o servidor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {servidores.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>{s.nome_completo}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Início do Período Aquisitivo</Label>
-                    <Input
-                      type="date"
-                      value={formData.periodo_aquisitivo_inicio}
-                      onChange={(e) => setFormData(p => ({ ...p, periodo_aquisitivo_inicio: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label>Fim do Período Aquisitivo</Label>
-                    <Input
-                      type="date"
-                      value={formData.periodo_aquisitivo_fim}
-                      onChange={(e) => setFormData(p => ({ ...p, periodo_aquisitivo_fim: e.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Início do Gozo *</Label>
-                    <Input
-                      type="date"
-                      value={formData.data_inicio}
-                      onChange={(e) => setFormData(p => ({ ...p, data_inicio: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label>Fim do Gozo *</Label>
-                    <Input
-                      type="date"
-                      value={formData.data_fim}
-                      onChange={(e) => setFormData(p => ({ ...p, data_fim: e.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label>Dias Gozados</Label>
-                    <Input
-                      type="number"
-                      value={formData.dias_gozados}
-                      onChange={(e) => setFormData(p => ({ ...p, dias_gozados: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label>Parcela</Label>
-                    <Input
-                      type="number"
-                      value={formData.parcela}
-                      onChange={(e) => setFormData(p => ({ ...p, parcela: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label>Total Parcelas</Label>
-                    <Input
-                      type="number"
-                      value={formData.total_parcelas}
-                      onChange={(e) => setFormData(p => ({ ...p, total_parcelas: e.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="abono"
-                    checked={formData.abono_pecuniario}
-                    onCheckedChange={(v) => setFormData(p => ({ ...p, abono_pecuniario: v as boolean }))}
-                  />
-                  <Label htmlFor="abono">Abono Pecuniário</Label>
-                </div>
-
-                {formData.abono_pecuniario && (
-                  <div>
-                    <Label>Dias de Abono</Label>
-                    <Input
-                      type="number"
-                      value={formData.dias_abono}
-                      onChange={(e) => setFormData(p => ({ ...p, dias_abono: e.target.value }))}
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <Label>Número da Portaria</Label>
-                  <Input
-                    value={formData.portaria_numero}
-                    onChange={(e) => setFormData(p => ({ ...p, portaria_numero: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button variant="outline" onClick={() => { setIsFormOpen(false); resetForm(); }}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleSubmit} disabled={createMutation.isPending}>
-                  {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                  Cadastrar
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          {/* Confirmação de exclusão */}
+          <AlertDialog open={!!feriasParaExcluir} onOpenChange={(open) => !open && setFeriasParaExcluir(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir registro de férias?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {feriasParaExcluir && (
+                    <>
+                      Férias de <strong>{feriasParaExcluir.servidor?.nome_completo}</strong> de{" "}
+                      {formatDate(feriasParaExcluir.data_inicio)} a {formatDate(feriasParaExcluir.data_fim)} serão
+                      removidas definitivamente. Prefira cancelar o registro para manter o histórico.
+                    </>
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={excluir.isPending}>Voltar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => {
+                    e.preventDefault();
+                    confirmarExclusao();
+                  }}
+                  disabled={excluir.isPending}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {excluir.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </ModuleLayout>
     </ProtectedRoute>

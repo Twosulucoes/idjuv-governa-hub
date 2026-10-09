@@ -19,6 +19,8 @@ Gestão do próprio sistema. Páginas em `src/pages/admin/` (~25):
 - **Reuniões**: `ReunioesPage`, `ConfiguracaoReunioesPage`, `CheckinReuniaoPage`.
 - **Infra**: `AuditoriaPage`, `BackupOffsitePage`, `DisasterRecoveryPage`,
   `DatabaseSchemaPage`, `CalibradorSegadPage`, `SobreSistemaPage`, `AdminHelpPage`.
+- **Importação de dados**: `ImportacoesPage` (`/admin/importacoes`) lista os importadores que o usuário
+  pode usar e o histórico (`importacoes`). Primeiro importador: QDD do FIPLAN (financeiro).
 
 ## Recursos Humanos (`rh`)
 
@@ -70,6 +72,9 @@ ERP orçamentário. `src/pages/financeiro/` (~14):
 `SubEmpenhosPage`, `LiquidacoesPage`, `PagamentosPage`, `AdiantamentosPage`,
 `RestosAPagarPage`, `ContasBancariasPage`, `RelatoriosFinanceiroPage`.
 Fluxo: orçamento → solicitação → empenho → liquidação → pagamento.
+O `QDDPage` importa o PDF "Quadro de Detalhamento da Despesa - QDD" exportado do FIPLAN
+(permissão `orcamento.importar`), que cria/atualiza `fin_dotacoes` do exercício; o antigo
+import de planilha XLSX saiu (a exportação XLSX continua).
 
 ## Patrimônio (`patrimonio`) e Mobile (`patrimonio_mobile`)
 

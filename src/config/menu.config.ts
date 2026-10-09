@@ -29,6 +29,7 @@ import {
   Globe,
   Settings,
   Database,
+  Upload,
   HelpCircle,
   Send,
   TrendingUp,
@@ -101,6 +102,7 @@ export type PermissaoInstitucional =
   | 'orcamento.visualizar'
   | 'orcamento.criar'
   | 'orcamento.aprovar'
+  | 'orcamento.importar'
   // Patrimônio
   | 'patrimonio.visualizar'
   | 'patrimonio.criar'
@@ -1220,6 +1222,13 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/backup",
         icon: Database,
         permission: "admin.backup",
+      },
+      {
+        id: "importacoes",
+        label: "Importação de Dados",
+        route: "/admin/importacoes",
+        icon: Upload,
+        permission: "orcamento.importar",
       },
       {
         id: "ajuda",

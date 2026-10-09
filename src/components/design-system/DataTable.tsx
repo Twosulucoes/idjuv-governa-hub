@@ -250,9 +250,9 @@ export function DataTable<T>({
     <div className={cn("rounded-md border border-border bg-card", className)}>
       {/* Barra: busca, filtros, densidade */}
       {(temBusca || filtros || !conteudo) && (
-        <div className="flex flex-col gap-2 border-b border-border p-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-2 border-b border-border p-3 sm:flex-row sm:flex-wrap sm:items-center">
           {temBusca && (
-            <div className="relative sm:max-w-xs sm:flex-1">
+            <div className="relative sm:min-w-56 sm:max-w-xs sm:flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <Input
                 type="search"

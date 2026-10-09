@@ -154,6 +154,8 @@ import GestaoPerfilPage from "./pages/admin/GestaoPerfilPage";
 // Página PerfilPermissoesPage removida - sistema simplificado
 import BackupOffsitePage from "./pages/admin/BackupOffsitePage";
 import DisasterRecoveryPage from "./pages/admin/DisasterRecoveryPage";
+import ImportacoesPage from "./pages/admin/ImportacoesPage";
+import { PERMISSOES_IMPORTACAO } from "@/lib/importacao/registro";
 import UsuariosTecnicosPage from "./pages/admin/UsuariosTecnicosPage";
 import ReunioesPage from "./pages/admin/ReunioesPage";
 import ConfiguracaoReunioesPage from "./pages/admin/ConfiguracaoReunioesPage";
@@ -553,6 +555,11 @@ const App = () => (
               <Route path="/admin/disaster-recovery" element={
                 <ProtectedRoute requiredPermissions="admin.disaster_recovery">
                   <DisasterRecoveryPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/importacoes" element={
+                <ProtectedRoute requiredPermissions={PERMISSOES_IMPORTACAO}>
+                  <ImportacoesPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/reunioes" element={

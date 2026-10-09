@@ -3,8 +3,10 @@
 // Baseado na legislação administrativa do IDJuv
 // ================================================================
 
+import type { Database } from '@/integrations/supabase/types';
+
 // Tipos de Servidor (princípio estruturante)
-export type TipoServidor = 
+export type TipoServidor =
   | 'efetivo_idjuv'        // Efetivo do IDJuv
   | 'comissionado_idjuv'   // Comissionado do IDJuv
   | 'cedido_entrada'       // Cedido de outro órgão (entrada)
@@ -42,6 +44,22 @@ export const TIPO_SERVIDOR_LABELS: Record<TipoServidor, string> = {
   comissionado_idjuv: 'Comissionado do IDJuv',
   cedido_entrada: 'Cedido de Outro Órgão (Entrada)',
   cedido_saida: 'Cedido para Outro Órgão (Saída)',
+};
+
+// Valor do enum `tipo_vinculo_servidor` (tabela vinculos_servidor) para cada tipo
+// de servidor do formulário — os dois conjuntos não coincidem (ex.: 'efetivo_idjuv'
+// não existe no enum), e inserir o tipo do formulário direto viola o enum.
+// Tipado pelo enum gerado para o tsc acusar se o banco mudar.
+export const TIPO_VINCULO_POR_TIPO_SERVIDOR: Record<
+  TipoServidor,
+  Database['public']['Enums']['tipo_vinculo_servidor']
+> = {
+  efetivo_idjuv: 'efetivo',
+  comissionado_idjuv: 'comissionado',
+  cedido_entrada: 'cedido_entrada',
+  // Efetivo do quadro cedido para fora: o vínculo de origem é 'efetivo'; a cessão
+  // de saída (órgão de destino, ônus) é registrada à parte no painel de vínculos.
+  cedido_saida: 'efetivo',
 };
 
 export const TIPO_SERVIDOR_COLORS: Record<TipoServidor, string> = {

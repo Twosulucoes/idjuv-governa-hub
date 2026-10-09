@@ -2,6 +2,8 @@
 // TIPOS DO SISTEMA DE RH
 // ============================================
 
+import type { Database } from '@/integrations/supabase/types';
+
 // Re-exportar tipos de servidor
 export * from './servidor';
 
@@ -515,6 +517,32 @@ export const FERIAS_STATUS_LABELS: Record<StatusFeriasServidor, string> = {
   interrompida: 'Interrompida',
   cancelada: 'Cancelada',
 };
+
+/** Dados editáveis de um lançamento de férias (criar/atualizar), derivados do schema gerado. */
+export type FeriasServidorInput = Omit<
+  Database['public']['Tables']['ferias_servidor']['Insert'],
+  'id' | 'created_at' | 'created_by'
+>;
+
+/** Férias com o servidor vinculado (join usado na listagem). */
+export interface FeriasServidorComServidor extends FeriasServidor {
+  servidor?: { id: string; nome_completo: string };
+}
+
+/**
+ * Período em que o servidor já está "ocupado" (férias, licença/afastamento ou
+ * cessão de saída). Usado para detectar sobreposição ao programar férias.
+ * `fim` nulo = em aberto (sem data de término).
+ */
+export interface Ocupacao {
+  id: string;
+  tipo: 'ferias' | 'licenca' | 'cessao';
+  inicio: string;
+  fim: string | null;
+  descricao: string;
+  /** Status original do registro (para ignorar férias canceladas, por exemplo). */
+  status?: string;
+}
 
 export interface LicencaAfastamento {
   id: string;
