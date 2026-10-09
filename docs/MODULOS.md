@@ -88,13 +88,27 @@ Bens, inventário, almoxarifado e unidades.
   `BensPatrimoniaisPage`, `BemDetalhePage`, `MovimentacoesPatrimonioPage`,
   `CampanhasInventarioPage`, `CampanhaDetalhePage`, `ColetaInventarioPage`,
   `AlmoxarifadoEstoquePage`, `RequisicoesMaterialPage`, `ManutencoesBensPage`,
-  `BaixasPatrimonioPage`, `RelatoriosPatrimonioPage`, `CadastroBemSimplificadoPage`.
+  `BaixasPatrimonioPage`, `RelatoriosPatrimonioPage`, `CadastroBemSimplificadoPage`,
+  `PainelCampoInventarioPage`.
+- **Inventário de campo — fase 1** (migração `20261009160000`, aplicada em
+  produção em 2026-10-09): `PainelCampoInventarioPage` em `/inventario/campanhas/:id/painel`
+  (`patrimonio.visualizar`; link "Painel de campo" no detalhe da campanha) mostra
+  mapa satélite/ruas com as unidades por situação, contadores, lista filtrável e
+  o detalhe da unidade com as fotos de evidência. Ações: incluir unidades na
+  campanha e importar KML (casa placemarks com unidades pelo nome, com
+  confirmação). Componentes em `src/components/inventario/`
+  (`MapaUnidadesCampanha`, `DetalheUnidadeCampanha`, `ImportarKmlDialog`,
+  `IncluirUnidadesCampanhaDialog`); dados em `useVistoriaInventario`.
 - **Unidades locais** (`src/pages/unidades/`): `GestaoUnidadesLocaisPage`,
   `UnidadeDetalhePage`, `RelatoriosCentralPage`, `RelatoriosUnidadesLocaisPage`,
   `RelatoriosCedenciaPage` (cessões de espaços).
 - **Mobile/PWA** (`src/pages/mobile/`): `PatrimonioMobileUnificadoPage`
   (cadastro + coleta em campo, com leitura de QR via `html5-qrcode` e modo
-  offline via `useColetaOffline`), `InstalarAppPage`.
+  offline via `useColetaOffline`), `InstalarAppPage`. O cartão "Vistoria de
+  Unidade" abre `src/components/mobile/VistoriaUnidade.tsx`: escolher campanha e
+  unidade, ver GPS e precisão, fotografar (as fotos ficam numa fila offline no
+  aparelho até haver conexão), marcar situação e observação (salvas só online) e
+  ver as fotos pendentes de envio.
 
 ## Governança (`governanca`)
 

@@ -42,7 +42,11 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
 - **Financeiro**: `useFinanceiro`, `useAlteracoesOrcamentarias`, `useSubEmpenhos`,
   `useRestosAPagar`.
 - **Patrimônio**: `usePatrimonio`, `useCadastroLote`, `useCadastroBemSimplificado`,
-  `useMovimentacaoLote`, `useAlmoxarifado`, `useColetaOffline`.
+  `useMovimentacaoLote`, `useAlmoxarifado`, `useColetaOffline`. Inventário de
+  campo: `useVistoriaInventario` (unidades da campanha, situação, fotos com URL
+  assinada, importação de KML), `useFilaFotosVistoria` (fila offline de fotos),
+  `useGeolocalizacao` (posição e precisão do GPS); tipos em
+  `src/types/inventarioCampo.ts`.
 - **Comunicação/CMS**: `useCMSConteudos`, `useCMSBanners`, `useCMSGalerias`,
   `useCalendarioComunicacao`, `useDemandasAscom`.
 - **Admin/segurança**: `useAdminUsuarios`, `useUsuarios`, `usePermissions`,
@@ -71,6 +75,28 @@ de chamar `supabase` direto dentro da página.
   IRRF, consignações), `frequenciaCalculoService.ts`.
 - **Utils**: `formatters.ts` (máscaras), `utils.ts` (`cn`, helpers),
   `matriculaUtils.ts`, `statusColors.ts`, `supabase.ts`/`supabaseClient.ts`.
+- **Inventário de campo**: `src/lib/filaFotosOffline.ts` (IndexedDB sem dependência,
+  banco `inventario-campo`, store `fotos-pendentes`; também comprime a imagem e
+  calcula o SHA-256) e `src/lib/kml.ts` (lê KML no navegador com `DOMParser` e devolve
+  ponto/polígono em GeoJSON por placemark).
+
+## Fila offline de fotos (IndexedDB)
+
+Usada na vistoria de unidade do `/patrimonio-mobile`. `useFilaFotosVistoria`
+captura, comprime, calcula o hash e grava a foto (Blob + metadados) no IndexedDB;
+envia ao montar, quando o navegador volta a ficar `online` e sob demanda. O envio
+é idempotente: o `id` da foto é gerado no aparelho, o upload no storage usa
+`upsert: false` e trata "já existe" como enviado, e violação de unicidade
+(`23505`) no INSERT também conta como enviado. Diferente de `useColetaOffline`
+(coleta de bens), esta fila guarda arquivos binários.
+
+## Mapa (Leaflet)
+
+`src/components/inventario/MapaUnidadesCampanha.tsx` usa `leaflet` +
+`react-leaflet` 4.x (compatível com React 18), com camadas de satélite (Esri
+World Imagery) e ruas (OpenStreetMap), ambas com atribuição visível. Os tiles
+vêm direto desses serviços, sem cache offline. Os termos de uso da Esri para uso
+institucional ainda precisam ser confirmados antes de produção.
 
 ## Importação de dados (`src/lib/importacao`)
 

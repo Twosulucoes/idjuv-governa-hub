@@ -35,7 +35,7 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 | 9 | `overlay/30_remover_acesso_total.sql` | apaga as policies `acesso_total_*` e a tabela morta `_backup_usuario_modulos_old` | à mão |
 | 10 | `rls/35_policies_geradas.sql` | policies por módulo, **falha fechada** | **gerado** de `rls/mapa.csv` |
 | 11 | `overlay/40_privilegios.sql` | `anon` só com as exceções públicas; sem EXECUTE para PUBLIC em função nova; sem TRUNCATE/TRIGGER; `audit_logs` só-acréscimo; RPCs que escrevem fechadas | à mão |
-| 12 | `overlay/50_storage.sql` | buckets (com limite de tamanho/tipo no de árbitros) e policies de storage por módulo | à mão |
+| 12 | `overlay/50_storage.sql` | buckets (com limite de tamanho/tipo no de árbitros e no privado `inventario-evidencias`) e policies de storage por módulo | à mão |
 | 13 | `overlay/60_realtime.sql` | publicação realtime (folha) | à mão |
 
 `lacunas/` guarda a migração que cobre as tabelas usadas e nunca criadas; ela só serve ao replay
@@ -52,7 +52,7 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`):
 
 | Classe | Tabelas | Regra |
 |---|---|---|
-| `modulo` | 179 | módulo(s) do mapa leem e escrevem; admin (papel) também |
+| `modulo` | 180 | módulo(s) do mapa leem e escrevem; admin (papel) também |
 | `trilha` | 9 | módulo lê; **ninguém escreve por API** (auditoria e históricos gravados por trigger) |
 | `proprio_leitura` / `proprio` / `proprio_filho` | 12 / 3 / 3 | módulo + o próprio servidor lê; em `proprio*` o servidor também cria o próprio pedido (status/aprovação forçados pelo overlay 20) |
 | `catalogo` | 6 | qualquer usuário ativo lê; escrita por módulo |
@@ -60,12 +60,12 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`):
 | `proprio_user` | 4 | cada usuário lê as suas linhas (`user_roles`, `user_modules`, `user_permissions`, `user_org_units`); só admin escreve |
 | `admin` / `admin_leitura` | 8 / 1 | só o papel admin (a segunda: lê, ninguém escreve — `audit_logs`) |
 | `publico_admin` | 3 | `anon` e logados leem (portal público); só admin escreve |
-| `preservar` | 6 | `denuncias` e `profiles`: policies próprias (`has_permission_code`; overlay 12); `avisos`, `avisos_leituras`, `datas_importantes` e `importacoes`: policies da própria migração (entram no schema na próxima regeneração do baseline) |
+| `preservar` | 7 | `denuncias` e `profiles`: policies próprias (`has_permission_code`; overlay 12); `fotos_vistoria_inventario`: policies da migração `20261009160000`, que chegam pelo replay em `schema/03_post_data.sql`; `avisos`, `avisos_leituras`, `datas_importantes` e `importacoes`: policies da própria migração (entram no schema na próxima regeneração do baseline) |
 
 - Toda tabela de `public` precisa de uma linha no mapa e de RLS ligado: o teste de RLS reprova
   tabela fora do mapa (o gerador não enxerga o banco; o teste sim). Tabela nova só passa depois
   que alguém decide o módulo dono.
-- Coluna `confianca`: `alta` (219), `media` (14), `baixa` (2). **Revise as 16 linhas não-altas**
+- Coluna `confianca` (apurado em 2026-10-09): `alta` (221), `media` (14), `baixa` (2). **Revise as 16 linhas não-altas**
   (`confianca != alta`), principalmente `viagens_diarias`, `documentos`, `acesso_processo_sigiloso` e
   `config_institucional` (tem CPF e contato do responsável legal: só RH e financeiro leem).
 - Para mudar uma regra: edite `mapa.csv`, rode `node scripts/db/gerar-rls.mjs` e confirme com
@@ -86,7 +86,11 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
 - por tabela: `SELECT`, `INSERT`, `UPDATE` e `DELETE` para admin, admin bloqueado, sem módulo, inativo,
   servidores (ativo e bloqueado), cada módulo do mapa e um módulo alheio; `anon` conforme a coluna `anon`;
 - a cobertura é exigida: tabela sem linha semente, fora do mapa ou sem RLS é **falha**;
-- storage: 9 buckets × 25 personas, upload anônimo só nas pastas do formulário, limite do bucket;
+- storage: 10 buckets × 25 personas, upload anônimo só nas pastas do formulário, limite do bucket;
+  `inventario-evidencias` (privado, 10 MB) só deixa sobrescrever ou apagar quem tem `patrimonio.tramitar`;
+- inventário de campo: `fotos_vistoria_inventario` (INSERT só em nome próprio, UPDATE só do autor ou com
+  `patrimonio.tramitar`, DELETE só com `patrimonio.tramitar`, campos de prova imutáveis), no bloco de
+  cobertura adicional de `testar-rls.sql`;
 - identidade: auto-ativação, troca de `servidor_id`, auto-promoção, admin bloqueado, `handle_new_user`;
 - RPCs: injeção de SQL, `SECURITY DEFINER` sem checagem fora de lista revisada, privilégios padrão,
   campos que o autor não pode escolher nos formulários.
@@ -146,6 +150,7 @@ Decisões de negócio (o baseline escolheu o mais restritivo que mantém o app f
 Limites conhecidos:
 
 - Buckets públicos continuam servindo o arquivo por URL; fechar exige bucket privado + URL assinada no front.
+  `inventario-evidencias` já é privado (leitura por URL assinada); `inventario-fotos` e `patrimonio-fotos` seguem públicos.
 - Os RPCs públicos (`arbitro_cpf_cadastrado`, `registrar_denuncia_publica`, os INSERTs anônimos e o upload em
   `arbitros-docs`) não têm limite de taxa: aplique no proxy e use CAPTCHA no formulário. `arbitro_cpf_cadastrado`
   é um oráculo de existência de CPF.

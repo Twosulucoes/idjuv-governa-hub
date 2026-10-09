@@ -414,6 +414,21 @@ DROP POLICY IF EXISTS "rls_delete" ON public.campanhas_inventario;
 CREATE POLICY "rls_delete" ON public.campanhas_inventario FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
 
+-- campanhas_inventario_unidades  [modulo: patrimonio | patrimonio_mobile]
+DROP POLICY IF EXISTS "rls_select" ON public.campanhas_inventario_unidades;
+CREATE POLICY "rls_select" ON public.campanhas_inventario_unidades FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+DROP POLICY IF EXISTS "rls_insert" ON public.campanhas_inventario_unidades;
+CREATE POLICY "rls_insert" ON public.campanhas_inventario_unidades FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+DROP POLICY IF EXISTS "rls_update" ON public.campanhas_inventario_unidades;
+CREATE POLICY "rls_update" ON public.campanhas_inventario_unidades FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+DROP POLICY IF EXISTS "rls_delete" ON public.campanhas_inventario_unidades;
+CREATE POLICY "rls_delete" ON public.campanhas_inventario_unidades FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+
 -- cargo_unidade_compatibilidade  [modulo: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.cargo_unidade_compatibilidade;
 CREATE POLICY "rls_select" ON public.cargo_unidade_compatibilidade FOR SELECT TO authenticated
@@ -2081,6 +2096,9 @@ CREATE POLICY "rls_update" ON public.fornecedores FOR UPDATE TO authenticated
 DROP POLICY IF EXISTS "rls_delete" ON public.fornecedores;
 CREATE POLICY "rls_delete" ON public.fornecedores FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')));
+
+-- fotos_vistoria_inventario  [preservar: patrimonio | patrimonio_mobile]
+-- (nenhuma policy gerada)
 
 -- frequencia_arquivos  [modulo: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.frequencia_arquivos;

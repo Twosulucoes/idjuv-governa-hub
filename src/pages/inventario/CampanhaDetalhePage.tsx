@@ -7,7 +7,7 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, ClipboardCheck, Calendar, Users, BarChart3, 
   CheckCircle2, AlertTriangle, Play, Pause, QrCode, Eye,
-  Package, Clock, FileText, RefreshCw
+  Package, Clock, FileText, RefreshCw, Layers
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -142,6 +142,12 @@ export default function CampanhaDetalhePage() {
       <section className="py-4 border-b">
         <div className="container mx-auto px-4">
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link to={`/inventario/campanhas/${id}/painel`}>
+                <Layers className="w-4 h-4 mr-2" />
+                Painel de campo
+              </Link>
+            </Button>
             {campanha.status === "planejada" && (
               <Button onClick={() => handleStatusChange("em_andamento")} disabled={updateStatus.isPending}>
                 <Play className="w-4 h-4 mr-2" />
