@@ -59,6 +59,22 @@ teclado. Agente: `dev-frontend-idjuv`; revisão `revisor-codigo-idjuv`.
 | 3.2 | Módulo piloto (decisão do usuário) migrado para os padrões de tela da spec §5: lista, detalhe, formulário e painel |
 | 3.3 | Checklist de acessibilidade da spec §6 aplicado no piloto; ajustes de componente voltam para a Fase 2 |
 
+**Andamento (2026-10-09, piloto: RH).** O RH tinha outra frente aberta (Onda C de
+`FINALIZACAO.md`: formulário de servidor, férias, frequência, folha, viagens e relatórios), então o
+piloto foi fatiado para não colidir:
+
+- **3.1 feita** no `ModuleLayout` (vale para todos os módulos): link "Pular para o conteúdo",
+  `<nav>` rotulados (módulos e menu do módulo), `aria-current="page"`, rótulos nos ícones do modo
+  recolhido e nos botões de recolher/expandir, foco visível nos itens, grupo da tela atual aberto
+  ao carregar, painel do módulo ativo só nele mesmo, e menu do celular como diálogo (`Sheet`: foco
+  preso, Esc fecha, foco volta ao botão).
+- **3.2 em parte:** painel do RH (`PageHeader` + `KpiCard`), lista de servidores (`DataTable`,
+  indicadores que filtram, `SituacaoServidorBadge`) e cabeçalho da ficha do servidor (`PageHeader`
+  com `midia`). **Formulário** fica para depois da correção do `ServidorFormPage` da Onda C.
+- **3.3** conferido nas telas migradas com Playwright (390/1440px, claro/escuro, só teclado).
+- Ajustes de componente que o piloto pediu: `PageHeader.midia`, barra do `DataTable` quebra linha
+  com muitos filtros, rótulos em português no `Sheet` e no `Breadcrumb`.
+
 ## Fase 4 — Migração por módulo
 
 Um módulo por PR, na ordem combinada com o usuário, evitando módulos com PR aberta. Cada PR:

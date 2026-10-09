@@ -4,17 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { ModuleLayout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -23,9 +16,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  Plus, 
-  Search, 
+import { DataTable, KpiCard, PageHeader, type ColunaTabela } from "@/components/design-system";
+import {
+  Plus,
   Eye,
   Users,
   UserCheck,
@@ -35,21 +28,20 @@ import {
   AlertTriangle,
   BarChart3,
   Briefcase,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
   Layers,
   Tag,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { CentralRelatoriosDialog } from "@/components/relatorios/CentralRelatoriosDialog";
 import { EdicaoLoteBancarioDialog } from "@/components/rh/EdicaoLoteBancarioDialog";
 import { GerenciarTagsDialog, getTagColorClass } from "@/components/rh/GerenciarTagsDialog";
 import { ServidorTagsPopover } from "@/components/rh/ServidorTagsPopover";
+import { SituacaoServidorBadge } from "@/components/rh/SituacaoServidorBadge";
 import { useNavigate } from "react-router-dom";
-import { 
+import { cn } from "@/lib/utils";
+import {
   type SituacaoFuncional,
   SITUACAO_LABELS,
-  SITUACAO_COLORS,
   type TipoServidor,
   TIPO_SERVIDOR_LABELS,
   TIPO_SERVIDOR_COLORS,
@@ -73,13 +65,73 @@ interface ServidorCompleto {
   unidade?: { id: string; nome: string; sigla?: string };
 }
 
-type SortField = "nome" | "tipo" | "cargo" | "unidade" | "situacao";
-type SortDir = "asc" | "desc";
 type GroupBy = "none" | "tipo_servidor" | "situacao" | "unidade" | "tag";
+
+interface LinhaServidor {
+  /** Única por linha: no agrupamento por tag o mesmo servidor aparece em várias. */
+  chave: string;
+  grupo: string;
+  servidor: ServidorCompleto & { banco_codigo?: string; banco_agencia?: string; banco_conta?: string };
+}
+
+const ROTULO_AGRUPAMENTO: Record<Exclude<GroupBy, "none">, string> = {
+  tipo_servidor: "Tipo",
+  situacao: "Situação",
+  unidade: "Unidade",
+  tag: "Tag",
+};
+
+// O tipo vem da view v_servidor_tipo_derivado (efetivo, comissionado,
+// cedido_entrada…). Filtro e indicadores usam as mesmas categorias, para o
+// clique no indicador e o select mostrarem o mesmo recorte.
+type CategoriaTipo = "efetivos" | "comissionados" | "cedidos_entrada" | "cedidos_saida" | "federais" | "requisitados" | "sem_tipo";
+
+const CATEGORIA_LABELS: Record<CategoriaTipo, string> = {
+  efetivos: "Efetivos",
+  comissionados: "Comissionados",
+  cedidos_entrada: "Cedidos (entrada)",
+  cedidos_saida: "Cedidos (saída)",
+  federais: "Federais",
+  requisitados: "Requisitados",
+  sem_tipo: "Sem classificação",
+};
+
+// A view não tem "cedido para outro órgão": a cessão de saída aparece na
+// situação funcional (o trigger de cessão grava situacao = "cedido").
+function categoriaDoServidor(s: { tipo_servidor?: string; situacao?: string }): CategoriaTipo {
+  if (s.situacao === "cedido" && s.tipo_servidor !== "cedido_entrada" && s.tipo_servidor !== "cedido_comissionado") {
+    return "cedidos_saida";
+  }
+  switch (s.tipo_servidor) {
+    case "efetivo":
+    case "efetivo_comissionado":
+    case "efetivo_idjuv":
+      return "efetivos";
+    case "comissionado":
+    case "comissionado_idjuv":
+      return "comissionados";
+    case "cedido_entrada":
+    case "cedido_comissionado":
+      return "cedidos_entrada";
+    case "federal":
+    case "federal_comissionado":
+      return "federais";
+    case "requisitado":
+      return "requisitados";
+    default:
+      return "sem_tipo";
+  }
+}
+
+const labelTipo = (tipo?: string) =>
+  !tipo || tipo === "nao_classificado"
+    ? "Não classificado"
+    : TIPO_DERIVADO_LABELS[tipo] || TIPO_SERVIDOR_LABELS[tipo as TipoServidor] || tipo;
+
+const numero = new Intl.NumberFormat("pt-BR");
 
 export default function GestaoServidoresPage() {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState("");
   const [filterTipoServidor, setFilterTipoServidor] = useState<string>("all");
   const [filterSituacao, setFilterSituacao] = useState<string>("all");
   const [filterUnidade, setFilterUnidade] = useState<string>("all");
@@ -89,15 +141,11 @@ export default function GestaoServidoresPage() {
   const [centralRelatoriosOpen, setCentralRelatoriosOpen] = useState(false);
   const [gerenciarTagsOpen, setGerenciarTagsOpen] = useState(false);
 
-  // Sorting
-  const [sortField, setSortField] = useState<SortField>("nome");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
-
   // Grouping
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
 
   // Fetch servidores
-  const { data: servidores = [], isLoading } = useQuery({
+  const { data: servidores = [], isLoading, error, refetch } = useQuery({
     queryKey: ["servidores-rh", showInativos],
     queryFn: async () => {
       // Buscar servidores
@@ -121,9 +169,11 @@ export default function GestaoServidoresPage() {
       if (!servidoresData || servidoresData.length === 0) return [];
 
       // Buscar tipo derivado da view
-      const { data: tiposDerivados } = await supabase
+      const { data: tiposDerivados, error: erroTipos } = await supabase
         .from("v_servidor_tipo_derivado")
         .select("servidor_id, tipo_derivado, tipos_ativos");
+      // Sem a view todos cairiam em "Sem classificação" sem aviso
+      if (erroTipos) throw erroTipos;
 
       const tipoMap = new Map<string, string>(
         (tiposDerivados || []).map((t: any) => [t.servidor_id, t.tipo_derivado])
@@ -204,125 +254,80 @@ export default function GestaoServidoresPage() {
     return map;
   }, [allVinculos]);
 
-  // Filter
-  const filteredServidores = useMemo(() => {
-    const result = servidores.filter((s) => {
-      const matchesSearch =
-        s.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.cpf?.includes(searchTerm) ||
-        s.matricula?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.codigo_interno?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesTipo = filterTipoServidor === "all" || 
-        (filterTipoServidor === "sem_tipo" ? !s.tipo_servidor : s.tipo_servidor === filterTipoServidor);
-      const matchesSituacao = filterSituacao === "all" || s.situacao === filterSituacao;
-      const matchesUnidade = filterUnidade === "all" || s.unidade?.id === filterUnidade;
-      const matchesTag = filterTag === "all" || 
-        (filterTag === "sem_tag" ? !(servidorTagsMap.get(s.id)?.length) : servidorTagsMap.get(s.id)?.includes(filterTag));
-      return matchesSearch && matchesTipo && matchesSituacao && matchesUnidade && matchesTag;
-    });
+  // Filtros da página (a busca por texto fica na própria tabela)
+  const filteredServidores = useMemo(
+    () =>
+      servidores.filter((s) => {
+        const matchesTipo = filterTipoServidor === "all" || categoriaDoServidor(s) === filterTipoServidor;
+        const matchesSituacao = filterSituacao === "all" || s.situacao === filterSituacao;
+        const matchesUnidade = filterUnidade === "all" || s.unidade?.id === filterUnidade;
+        const matchesTag =
+          filterTag === "all" ||
+          (filterTag === "sem_tag" ? !servidorTagsMap.get(s.id)?.length : servidorTagsMap.get(s.id)?.includes(filterTag));
+        return matchesTipo && matchesSituacao && matchesUnidade && matchesTag;
+      }),
+    [servidores, filterTipoServidor, filterSituacao, filterUnidade, filterTag, servidorTagsMap],
+  );
 
-    // Sort
-    result.sort((a, b) => {
-      let cmp = 0;
-      switch (sortField) {
-        case "nome": cmp = a.nome_completo.localeCompare(b.nome_completo); break;
-        case "tipo": cmp = (a.tipo_servidor || "zzz").localeCompare(b.tipo_servidor || "zzz"); break;
-        case "cargo": {
-          const ca = a.tipo_servidor === 'cedido_entrada' ? (a.funcao_exercida || "") : (a.cargo?.nome || "");
-          const cb = b.tipo_servidor === 'cedido_entrada' ? (b.funcao_exercida || "") : (b.cargo?.nome || "");
-          cmp = ca.localeCompare(cb);
-          break;
-        }
-        case "unidade": cmp = (a.unidade?.nome || "zzz").localeCompare(b.unidade?.nome || "zzz"); break;
-        case "situacao": cmp = a.situacao.localeCompare(b.situacao); break;
-      }
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-
-    return result;
-  }, [servidores, searchTerm, filterTipoServidor, filterSituacao, filterUnidade, filterTag, sortField, sortDir, servidorTagsMap]);
-
-  // Grouping
-  const groupedServidores = useMemo(() => {
-    if (groupBy === "none") return [{ key: "", label: "", items: filteredServidores }];
-
-    const groups = new Map<string, ServidorCompleto[]>();
+  // Agrupamento: vira a primeira coluna e a ordem inicial da tabela.
+  // Por tag, o servidor aparece uma vez em cada tag que tem.
+  const linhas = useMemo<LinhaServidor[]>(() => {
+    if (groupBy === "none") return filteredServidores.map((s) => ({ chave: s.id, grupo: "", servidor: s }));
+    const resultado: LinhaServidor[] = [];
     filteredServidores.forEach((s) => {
-      let key = "";
+      // id distingue grupos de mesmo nome (tags podem repetir nome)
+      let grupos: { id: string; nome: string }[];
       switch (groupBy) {
-        case "tipo_servidor": key = s.tipo_servidor || "sem_tipo"; break;
-        case "situacao": key = s.situacao; break;
-        case "unidade": key = s.unidade?.sigla || s.unidade?.nome || "Sem lotação"; break;
+        case "tipo_servidor":
+          grupos = [{ id: s.tipo_servidor || "sem_tipo", nome: labelTipo(s.tipo_servidor) }];
+          break;
+        case "situacao":
+          grupos = [{ id: s.situacao, nome: SITUACAO_LABELS[s.situacao] || s.situacao }];
+          break;
+        case "unidade":
+          grupos = [{ id: s.unidade?.id || "sem_lotacao", nome: s.unidade?.sigla || s.unidade?.nome || "Sem lotação" }];
+          break;
         case "tag": {
-          const sTags = servidorTagsMap.get(s.id) || [];
-          if (sTags.length === 0) { key = "Sem tag"; }
-          else {
-            // Add to each tag group
-            sTags.forEach((tagId) => {
-              const tagName = tags.find(t => t.id === tagId)?.nome || tagId;
-              const list = groups.get(tagName) || [];
-              list.push(s);
-              groups.set(tagName, list);
-            });
-            return; // already added
-          }
+          const doServidor = (servidorTagsMap.get(s.id) || [])
+            .map((tagId) => tags.find((t) => t.id === tagId))
+            .filter((t): t is NonNullable<typeof t> => Boolean(t))
+            .map((t) => ({ id: t.id, nome: t.nome }));
+          grupos = doServidor.length > 0 ? doServidor : [{ id: "sem_tag", nome: "Sem tag" }];
           break;
         }
       }
-      const list = groups.get(key) || [];
-      list.push(s);
-      groups.set(key, list);
+      grupos.forEach((g) => resultado.push({ chave: `${g.id}:${s.id}`, grupo: g.nome, servidor: s }));
     });
-
-    return Array.from(groups.entries()).map(([key, items]) => ({
-      key,
-      label: getGroupLabel(groupBy, key),
-      items,
-    }));
+    return resultado.sort((a, b) => a.grupo.localeCompare(b.grupo, "pt-BR"));
   }, [filteredServidores, groupBy, servidorTagsMap, tags]);
 
-  function getGroupLabel(group: GroupBy, key: string): string {
-    switch (group) {
-      case "tipo_servidor":
-        return key === "sem_tipo" ? "Não classificado" : (TIPO_DERIVADO_LABELS[key] || TIPO_SERVIDOR_LABELS[key as TipoServidor] || key);
-      case "situacao":
-        return SITUACAO_LABELS[key as SituacaoFuncional] || key;
-      default:
-        return key;
-    }
-  }
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDir("asc");
-    }
-  };
-
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
-    return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
-  };
-
   // Stats
-  const totalEfetivos = servidores.filter(s => s.tipo_servidor === 'efetivo' || s.tipo_servidor === 'efetivo_comissionado').length;
-  const totalComissionados = servidores.filter(s => s.tipo_servidor === 'comissionado').length;
-  const totalCedidosEntrada = servidores.filter(s => s.tipo_servidor === 'cedido_entrada' || s.tipo_servidor === 'cedido_comissionado').length;
-  const totalCedidosSaida = servidores.filter(s => s.tipo_servidor === 'cedido_saida').length;
-  const totalFederais = servidores.filter(s => s.tipo_servidor === 'federal' || s.tipo_servidor === 'federal_comissionado').length;
-  const totalSemTipo = servidores.filter(s => !s.tipo_servidor || s.tipo_servidor === 'nao_classificado').length;
+  const totalEfetivos = servidores.filter((s) => categoriaDoServidor(s) === "efetivos").length;
+  const totalComissionados = servidores.filter((s) => categoriaDoServidor(s) === "comissionados").length;
+  const totalCedidosEntrada = servidores.filter((s) => categoriaDoServidor(s) === "cedidos_entrada").length;
+  const totalCedidosSaida = servidores.filter((s) => categoriaDoServidor(s) === "cedidos_saida").length;
+  const totalSemTipo = servidores.filter((s) => categoriaDoServidor(s) === "sem_tipo").length;
   const totalSemDadosBancarios = servidores.filter(s => !s.banco_codigo || !s.banco_agencia || !s.banco_conta).length;
+
+  const indicadores: { categoria: CategoriaTipo; rotulo: string; total: number; icone: LucideIcon }[] = [
+    { categoria: "efetivos", rotulo: "Efetivos", total: totalEfetivos, icone: UserCheck },
+    { categoria: "comissionados", rotulo: "Comissionados", total: totalComissionados, icone: Briefcase },
+    { categoria: "cedidos_entrada", rotulo: "Cedidos (entrada)", total: totalCedidosEntrada, icone: ArrowRightLeft },
+    { categoria: "cedidos_saida", rotulo: "Cedidos (saída)", total: totalCedidosSaida, icone: Building2 },
+    ...(totalSemTipo > 0
+      ? [{ categoria: "sem_tipo" as const, rotulo: "Sem classificação", total: totalSemTipo, icone: AlertTriangle }]
+      : []),
+  ];
 
   const getInitials = (nome: string) => nome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
   const formatCPF = (cpf: string) => cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  const cargoOuFuncao = (s: ServidorCompleto) =>
+    s.tipo_servidor === "cedido_entrada" ? s.funcao_exercida || "Função não informada" : s.cargo?.nome || "-";
 
   const getTipoServidorBadge = (tipo?: string) => {
     if (!tipo || tipo === 'nao_classificado') return <Badge variant="outline" className="bg-muted text-muted-foreground">Não classificado</Badge>;
     const colorClass = TIPO_DERIVADO_COLORS[tipo] || TIPO_SERVIDOR_COLORS[tipo as TipoServidor] || "bg-muted text-muted-foreground";
-    const label = TIPO_DERIVADO_LABELS[tipo] || TIPO_SERVIDOR_LABELS[tipo as TipoServidor] || tipo;
-    return <Badge className={colorClass}>{label}</Badge>;
+    return <Badge className={colorClass}>{labelTipo(tipo)}</Badge>;
   };
 
   const renderTagBadges = (servidorId: string) => {
@@ -346,269 +351,278 @@ export default function GestaoServidoresPage() {
     );
   };
 
+  const colunas: ColunaTabela<LinhaServidor>[] = [
+    ...(groupBy !== "none"
+      ? [
+          {
+            id: "grupo",
+            cabecalho: ROTULO_AGRUPAMENTO[groupBy],
+            celula: (l: LinhaServidor) => <span className="font-medium">{l.grupo}</span>,
+            ordenarPor: (l: LinhaServidor) => l.grupo,
+          },
+        ]
+      : []),
+    {
+      id: "servidor",
+      cabecalho: "Servidor",
+      mobile: "titulo",
+      ordenarPor: ({ servidor: s }) => s.nome_completo,
+      buscarPor: ({ servidor: s }) =>
+        [s.nome_completo, s.cpf, s.cpf && formatCPF(s.cpf), s.matricula, s.codigo_interno].filter(Boolean).join(" "),
+      celula: ({ servidor: s }) => (
+        <div className="flex items-center gap-3">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={s.foto_url || undefined} alt="" />
+            <AvatarFallback className="bg-primary/10 text-primary">{getInitials(s.nome_completo)}</AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="font-medium">{s.nome_completo}</p>
+            <p className="text-caption text-muted-foreground">
+              {s.codigo_interno && <span className="font-mono mr-2">{s.codigo_interno}</span>}
+              {s.matricula ? `Mat.: ${s.matricula}` : formatCPF(s.cpf)}
+            </p>
+            {renderTagBadges(s.id)}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "tipo",
+      cabecalho: "Tipo",
+      ordenarPor: ({ servidor: s }) => labelTipo(s.tipo_servidor),
+      celula: ({ servidor: s }) => getTipoServidorBadge(s.tipo_servidor),
+    },
+    {
+      id: "cargo",
+      cabecalho: "Cargo / Função",
+      ordenarPor: ({ servidor: s }) => cargoOuFuncao(s),
+      buscarPor: ({ servidor: s }) => cargoOuFuncao(s),
+      celula: ({ servidor: s }) => cargoOuFuncao(s),
+    },
+    {
+      id: "lotacao",
+      cabecalho: "Lotação",
+      ordenarPor: ({ servidor: s }) =>
+        categoriaDoServidor(s) === "cedidos_saida" ? s.orgao_destino_cessao : s.unidade?.sigla || s.unidade?.nome,
+      buscarPor: ({ servidor: s }) => [s.unidade?.sigla, s.unidade?.nome, s.orgao_origem].filter(Boolean).join(" "),
+      celula: ({ servidor: s }) =>
+        s.tipo_servidor === "cedido_entrada" ? (
+          <div>
+            <p>{s.unidade?.sigla || s.unidade?.nome || "-"}</p>
+            {s.orgao_origem && <p className="text-caption text-muted-foreground">Origem: {s.orgao_origem}</p>}
+          </div>
+        ) : categoriaDoServidor(s) === "cedidos_saida" ? (
+          <div>
+            <p>{s.orgao_destino_cessao || "Órgão não informado"}</p>
+            <p className="text-caption text-muted-foreground">Cedido para outro órgão</p>
+          </div>
+        ) : (
+          s.unidade?.sigla || s.unidade?.nome || "-"
+        ),
+    },
+    {
+      id: "situacao",
+      cabecalho: "Situação",
+      ordenarPor: ({ servidor: s }) => SITUACAO_LABELS[s.situacao] || s.situacao,
+      celula: ({ servidor: s }) => <SituacaoServidorBadge situacao={s.situacao} />,
+    },
+  ];
+
+  const filtrosAtivos =
+    filterTipoServidor !== "all" || filterSituacao !== "all" || filterUnidade !== "all" || filterTag !== "all";
+  const limparFiltros = () => {
+    setFilterTipoServidor("all");
+    setFilterSituacao("all");
+    setFilterUnidade("all");
+    setFilterTag("all");
+  };
+
   return (
     <ProtectedRoute requiredModule="rh">
       <ModuleLayout module="rh">
-        <div className="container mx-auto py-8 px-4">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary/10 rounded-xl">
-                <Users className="h-8 w-8 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-foreground">Gestão de Servidores</h1>
-                <p className="text-muted-foreground">Cadastro e gerenciamento por tipo de servidor</p>
-              </div>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {totalSemDadosBancarios > 0 && (
-                <Button variant="outline" className="border-orange-300 text-orange-600 hover:bg-orange-50"
-                  onClick={() => setShowEdicaoBancaria(true)}>
-                  <AlertTriangle className="h-4 w-4 mr-2" />{totalSemDadosBancarios} sem banco
+        <div className="space-y-6">
+          <PageHeader
+            migalhas={[{ rotulo: "Recursos Humanos", href: "/rh" }, { rotulo: "Servidores" }]}
+            titulo="Servidores"
+            descricao="Cadastro e gerenciamento por tipo de servidor"
+            acoes={
+              <>
+                <Button variant="outline" onClick={() => setShowEdicaoBancaria(true)}>
+                  <CreditCard className="h-4 w-4" aria-hidden="true" />Dados bancários
                 </Button>
-              )}
-              <Button variant="outline" onClick={() => setShowEdicaoBancaria(true)}>
-                <CreditCard className="h-4 w-4 mr-2" />Dados Bancários
-              </Button>
-              <Button variant="outline" onClick={() => setGerenciarTagsOpen(true)}>
-                <Tag className="h-4 w-4 mr-2" />Tags
-              </Button>
-              <Button variant="outline" onClick={() => setCentralRelatoriosOpen(true)}>
-                <BarChart3 className="h-4 w-4 mr-2" />Relatórios
-              </Button>
-              <Button onClick={() => navigate('/rh/servidores/novo')}>
-                <Plus className="h-4 w-4 mr-2" />Novo Servidor
-              </Button>
-            </div>
+                <Button variant="outline" onClick={() => setGerenciarTagsOpen(true)}>
+                  <Tag className="h-4 w-4" aria-hidden="true" />Tags
+                </Button>
+                <Button variant="outline" onClick={() => setCentralRelatoriosOpen(true)}>
+                  <BarChart3 className="h-4 w-4" aria-hidden="true" />Relatórios
+                </Button>
+                <Button onClick={() => navigate('/rh/servidores/novo')}>
+                  <Plus className="h-4 w-4" aria-hidden="true" />Novo servidor
+                </Button>
+              </>
+            }
+          />
+
+          {totalSemDadosBancarios > 0 && (
+            <Alert className="border-warning/40">
+              <AlertTriangle className="h-4 w-4 !text-warning" aria-hidden="true" />
+              <AlertDescription className="flex flex-wrap items-center gap-2">
+                {totalSemDadosBancarios} servidor{totalSemDadosBancarios !== 1 ? "es" : ""} sem dados bancários completos.
+                <Button variant="outline" size="sm" onClick={() => setShowEdicaoBancaria(true)}>
+                  Completar dados bancários
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Indicadores por tipo: clicar filtra a tabela (clicar de novo desfaz) */}
+          <section aria-labelledby="servidores-por-tipo">
+            <h2 id="servidores-por-tipo" className="sr-only">Servidores por tipo</h2>
+            <ul className="grid grid-cols-2 gap-4 md:grid-cols-5">
+              {indicadores.map((ind) => {
+                const ativo = filterTipoServidor === ind.categoria;
+                return (
+                  <li key={ind.categoria}>
+                    <button
+                      type="button"
+                      aria-pressed={ativo}
+                      aria-label={`Filtrar ${ind.rotulo.toLowerCase()}: ${numero.format(ind.total)}`}
+                      onClick={() => setFilterTipoServidor(ativo ? "all" : ind.categoria)}
+                      className={cn(
+                        "block h-full w-full rounded-lg text-left transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                        ativo && "ring-2 ring-primary",
+                      )}
+                    >
+                      <KpiCard
+                        rotulo={ind.rotulo}
+                        valor={numero.format(ind.total)}
+                        icone={ind.icone}
+                        carregando={isLoading}
+                        className="h-full"
+                      />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+
+          <div className="flex items-center gap-2">
+            <Switch id="mostrar-inativos" checked={showInativos} onCheckedChange={setShowInativos} />
+            <Label htmlFor="mostrar-inativos">Incluir exonerados e inativos</Label>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setFilterTipoServidor('efetivo_idjuv')}>
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="p-3 bg-success/10 rounded-lg"><UserCheck className="h-6 w-6 text-success" /></div>
-                <div><p className="text-sm text-muted-foreground">Efetivos IDJuv</p><p className="text-2xl font-bold">{totalEfetivos}</p></div>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setFilterTipoServidor('comissionado_idjuv')}>
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="p-3 bg-primary/10 rounded-lg"><Briefcase className="h-6 w-6 text-primary" /></div>
-                <div><p className="text-sm text-muted-foreground">Comissionados</p><p className="text-2xl font-bold">{totalComissionados}</p></div>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setFilterTipoServidor('cedido_entrada')}>
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="p-3 bg-info/10 rounded-lg"><ArrowRightLeft className="h-6 w-6 text-info" /></div>
-                <div><p className="text-sm text-muted-foreground">Cedidos (Entrada)</p><p className="text-2xl font-bold">{totalCedidosEntrada}</p></div>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setFilterTipoServidor('cedido_saida')}>
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="p-3 bg-warning/10 rounded-lg"><Building2 className="h-6 w-6 text-warning" /></div>
-                <div><p className="text-sm text-muted-foreground">Cedidos (Saída)</p><p className="text-2xl font-bold">{totalCedidosSaida}</p></div>
-              </CardContent>
-            </Card>
-            {totalSemTipo > 0 && (
-              <Card className="cursor-pointer hover:bg-muted/50 transition-colors border-destructive/50" onClick={() => setFilterTipoServidor('sem_tipo')}>
-                <CardContent className="flex items-center gap-4 p-4">
-                  <div className="p-3 bg-destructive/10 rounded-lg"><Users className="h-6 w-6 text-destructive" /></div>
-                  <div><p className="text-sm text-destructive">Sem Tipo</p><p className="text-2xl font-bold text-destructive">{totalSemTipo}</p></div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Toggle Inativos */}
-          <div className="flex items-center gap-2 mb-4">
-            <Button
-              variant={showInativos ? "default" : "outline"}
-              size="sm"
-              onClick={() => setShowInativos(!showInativos)}
-              className="gap-2"
-            >
-              <Users className="h-4 w-4" />
-              {showInativos ? "Mostrando todos (incl. exonerados)" : "Mostrar exonerados/inativos"}
-            </Button>
-            {showInativos && (
-              <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
-                Incluindo servidores inativos
-              </Badge>
-            )}
-          </div>
-
-          {/* Filters */}
-          <div className="flex flex-col lg:flex-row gap-4 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar por nome, CPF ou matrícula..." value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
-            </div>
-            <Select value={filterTipoServidor} onValueChange={setFilterTipoServidor}>
-              <SelectTrigger className="w-full lg:w-[220px]"><SelectValue placeholder="Tipo de Servidor" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os tipos</SelectItem>
-                {Object.entries(TIPO_SERVIDOR_LABELS).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>{label}</SelectItem>
-                ))}
-                <SelectItem value="sem_tipo">Sem classificação</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterSituacao} onValueChange={setFilterSituacao}>
-              <SelectTrigger className="w-full lg:w-[180px]"><SelectValue placeholder="Situação" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as situações</SelectItem>
-                {Object.entries(SITUACAO_LABELS).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterUnidade} onValueChange={setFilterUnidade}>
-              <SelectTrigger className="w-full lg:w-[200px]"><SelectValue placeholder="Unidade" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as unidades</SelectItem>
-                {unidades.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>{u.sigla || u.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Second row: Tag filter + Grouping */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            {tags.length > 0 && (
-              <Select value={filterTag} onValueChange={setFilterTag}>
-                <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue placeholder="Filtrar por tag" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as tags</SelectItem>
-                  <SelectItem value="sem_tag">Sem tag</SelectItem>
-                  {tags.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
-              <SelectTrigger className="w-full sm:w-[220px]">
-                <Layers className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Agrupar por..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sem agrupamento</SelectItem>
-                <SelectItem value="tipo_servidor">Por Tipo de Servidor</SelectItem>
-                <SelectItem value="situacao">Por Situação</SelectItem>
-                <SelectItem value="unidade">Por Unidade</SelectItem>
-                {tags.length > 0 && <SelectItem value="tag">Por Tag</SelectItem>}
-              </SelectContent>
-            </Select>
-            <div className="text-sm text-muted-foreground flex items-center ml-auto">
-              {filteredServidores.length} servidor{filteredServidores.length !== 1 ? "es" : ""}
-            </div>
-          </div>
-
-          {/* Table with Groups */}
-          {groupedServidores.map((group) => (
-            <div key={group.key} className="mb-6">
-              {groupBy !== "none" && (
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-sm font-semibold text-foreground">{group.label}</h3>
-                  <Badge variant="secondary" className="text-xs">{group.items.length}</Badge>
-                </div>
-              )}
-              <div className="bg-card rounded-lg border overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="cursor-pointer select-none" onClick={() => handleSort("nome")}>
-                        <div className="flex items-center gap-1">Servidor <SortIcon field="nome" /></div>
-                      </TableHead>
-                      <TableHead className="cursor-pointer select-none" onClick={() => handleSort("tipo")}>
-                        <div className="flex items-center gap-1">Tipo <SortIcon field="tipo" /></div>
-                      </TableHead>
-                      <TableHead className="cursor-pointer select-none" onClick={() => handleSort("cargo")}>
-                        <div className="flex items-center gap-1">Cargo / Função <SortIcon field="cargo" /></div>
-                      </TableHead>
-                      <TableHead className="cursor-pointer select-none" onClick={() => handleSort("unidade")}>
-                        <div className="flex items-center gap-1">Lotação <SortIcon field="unidade" /></div>
-                      </TableHead>
-                      <TableHead className="cursor-pointer select-none text-center" onClick={() => handleSort("situacao")}>
-                        <div className="flex items-center justify-center gap-1">Situação <SortIcon field="situacao" /></div>
-                      </TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading ? (
-                      <TableRow><TableCell colSpan={6} className="text-center py-8">Carregando...</TableCell></TableRow>
-                    ) : group.items.length === 0 ? (
-                      <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum servidor encontrado</TableCell></TableRow>
-                    ) : (
-                      group.items.map((servidor) => (
-                        <TableRow key={servidor.id} className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => navigate(`/rh/servidores/${servidor.id}`)}>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-10 w-10">
-                                <AvatarImage src={servidor.foto_url || undefined} />
-                                <AvatarFallback className="bg-primary/10 text-primary">{getInitials(servidor.nome_completo)}</AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="font-medium">{servidor.nome_completo}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {servidor.codigo_interno && <span className="font-mono mr-2">{servidor.codigo_interno}</span>}
-                                  {servidor.matricula ? `Mat: ${servidor.matricula}` : formatCPF(servidor.cpf)}
-                                </p>
-                                {renderTagBadges(servidor.id)}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>{getTipoServidorBadge(servidor.tipo_servidor as TipoServidor)}</TableCell>
-                          <TableCell>
-                            {servidor.tipo_servidor === 'cedido_entrada'
-                              ? servidor.funcao_exercida || 'Função não informada'
-                              : servidor.cargo?.nome || '-'}
-                          </TableCell>
-                          <TableCell>
-                            {servidor.tipo_servidor === 'cedido_entrada' ? (
-                              <div>
-                                <p>{servidor.unidade?.sigla || servidor.unidade?.nome || '-'}</p>
-                                {servidor.orgao_origem && <p className="text-xs text-muted-foreground">Origem: {servidor.orgao_origem}</p>}
-                              </div>
-                            ) : servidor.tipo_servidor === 'cedido_saida' ? (
-                              <div>
-                                <p className="text-warning">{servidor.orgao_destino_cessao || 'Órgão não informado'}</p>
-                                <p className="text-xs text-muted-foreground">Cedido para outro órgão</p>
-                              </div>
-                            ) : servidor.unidade?.sigla || servidor.unidade?.nome || '-'}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Badge className={SITUACAO_COLORS[servidor.situacao as SituacaoFuncional]}>
-                              {SITUACAO_LABELS[servidor.situacao as SituacaoFuncional]}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <ServidorTagsPopover servidorId={servidor.id}>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <Tag className="h-4 w-4" />
-                                </Button>
-                              </ServidorTagsPopover>
-                              <Button variant="ghost" size="icon" className="h-8 w-8"
-                                onClick={(e) => { e.stopPropagation(); navigate(`/rh/servidores/${servidor.id}`); }}>
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+          <DataTable
+            rotulo="Servidores"
+            dados={linhas}
+            colunas={colunas}
+            chaveLinha={(l) => l.chave}
+            carregando={isLoading}
+            erro={error ? "Verifique a conexão e tente de novo." : null}
+            aoTentarNovamente={() => refetch()}
+            busca={{ placeholder: "Nome, CPF, matrícula ou cargo…" }}
+            aoClicarLinha={(l) => navigate(`/rh/servidores/${l.servidor.id}`)}
+            tamanhoPagina={50}
+            vazio={
+              filtrosAtivos
+                ? {
+                    icone: Users,
+                    titulo: "Nenhum servidor com esses filtros",
+                    acao: (
+                      <Button variant="outline" onClick={limparFiltros}>
+                        Limpar filtros
+                      </Button>
+                    ),
+                  }
+                : {
+                    icone: Users,
+                    titulo: "Nenhum servidor cadastrado",
+                    acao: <Button onClick={() => navigate('/rh/servidores/novo')}>Novo servidor</Button>,
+                  }
+            }
+            filtros={
+              <>
+                <Select value={filterTipoServidor} onValueChange={setFilterTipoServidor}>
+                  <SelectTrigger className="w-full sm:w-[190px]" aria-label="Filtrar por tipo de servidor">
+                    <SelectValue placeholder="Tipo de servidor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os tipos</SelectItem>
+                    {Object.entries(CATEGORIA_LABELS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={filterSituacao} onValueChange={setFilterSituacao}>
+                  <SelectTrigger className="w-full sm:w-[170px]" aria-label="Filtrar por situação">
+                    <SelectValue placeholder="Situação" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as situações</SelectItem>
+                    {Object.entries(SITUACAO_LABELS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={filterUnidade} onValueChange={setFilterUnidade}>
+                  <SelectTrigger className="w-full sm:w-[170px]" aria-label="Filtrar por unidade">
+                    <SelectValue placeholder="Unidade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as unidades</SelectItem>
+                    {unidades.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>{u.sigla || u.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {tags.length > 0 && (
+                  <Select value={filterTag} onValueChange={setFilterTag}>
+                    <SelectTrigger className="w-full sm:w-[150px]" aria-label="Filtrar por tag">
+                      <SelectValue placeholder="Tag" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as tags</SelectItem>
+                      <SelectItem value="sem_tag">Sem tag</SelectItem>
+                      {tags.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
+                  <SelectTrigger className="w-full sm:w-[190px]" aria-label="Agrupar por">
+                    <Layers className="h-4 w-4 mr-2" aria-hidden="true" />
+                    <SelectValue placeholder="Agrupar por..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem agrupamento</SelectItem>
+                    <SelectItem value="tipo_servidor">Por tipo de servidor</SelectItem>
+                    <SelectItem value="situacao">Por situação</SelectItem>
+                    <SelectItem value="unidade">Por unidade</SelectItem>
+                    {tags.length > 0 && <SelectItem value="tag">Por tag</SelectItem>}
+                  </SelectContent>
+                </Select>
+              </>
+            }
+            acoesLinha={({ servidor: s }) => (
+              <div className="flex items-center justify-end gap-1">
+                <ServidorTagsPopover servidorId={s.id}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Tags de ${s.nome_completo}`}>
+                    <Tag className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </ServidorTagsPopover>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  aria-label={`Ver ficha de ${s.nome_completo}`}
+                  onClick={() => navigate(`/rh/servidores/${s.id}`)}
+                >
+                  <Eye className="h-4 w-4" aria-hidden="true" />
+                </Button>
               </div>
-            </div>
-          ))}
+            )}
+          />
         </div>
 
         {/* Dialogs */}
