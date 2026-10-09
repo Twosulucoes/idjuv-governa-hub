@@ -55,10 +55,10 @@ arquivo ─► ler (navegador) ─► problemas de leitura? ─sim─► mostra 
 
 ## Pontos em aberto (registrados na revisão)
 
-- **Execução (empenhado, liquidado, pago):** o importador grava os valores do FIPLAN, mas os triggers de
-  empenho/liquidação/pagamento do módulo financeiro também somam nessas colunas. Se o fluxo interno de
-  empenhos passar a ser usado junto com a importação, os valores contam em dobro. Decisão pedida ao
-  Fabiano; até lá vale "o FIPLAN manda".
+- **Execução (empenhado, liquidado, pago) — decidido em 2026-10-09 (Fabiano): o FIPLAN manda.** A
+  importação sobrescreve esses valores. Os triggers de empenho/liquidação/pagamento do módulo financeiro
+  também somam nessas colunas, então o fluxo interno de empenhos não deve ser usado para as dotações
+  importadas (contaria em dobro).
 - **`orcamento.importar` não é fronteira de escrita:** a RLS atual de `fin_dotacoes` e dos catálogos libera
   escrita a quem acessa o módulo financeiro. A permissão controla a tela e a RPC (e garante o log).
   Endurecer é mudança de RLS existente e fica para uma decisão separada.
