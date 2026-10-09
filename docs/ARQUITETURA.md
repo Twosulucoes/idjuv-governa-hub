@@ -54,6 +54,9 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   - **Protegidas** — `<ProtectedRoute>`: exige autenticação. Aceita props
     `requiredModule`/`requiredPermissions` (ver observação no RBAC).
   - **Mobile/PWA** — `/patrimonio-mobile`, `/instalar`.
+- Telas de módulo usam `ModuleLayout` (`src/components/layout/`), que inclui o sino de avisos
+  (`AvisosSino`, no cabeçalho) e a faixa de avisos em destaque (`AvisosDestaque`, no topo do
+  conteúdo); o mural completo fica em `/avisos` (protegida, qualquer usuário logado).
 
 ## Autenticação
 
