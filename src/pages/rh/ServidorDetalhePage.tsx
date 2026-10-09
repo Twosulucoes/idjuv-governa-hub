@@ -20,7 +20,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { 
-  ArrowLeft, 
   Pencil,
   User, 
   MapPin, 
@@ -29,6 +28,7 @@ import {
   GraduationCap,
   Wallet,
   Loader2,
+  UserX,
   Calendar,
   Plane,
   FileDown,
@@ -47,9 +47,6 @@ import { ptBR } from "date-fns/locale";
 import { 
   type Servidor,
   type HistoricoFuncional,
-  type SituacaoFuncional,
-  SITUACAO_LABELS,
-  SITUACAO_COLORS,
   MOVIMENTACAO_LABELS,
   VINCULO_EXTERNO_ESFERA_LABELS,
   VINCULO_EXTERNO_SITUACAO_LABELS,
@@ -68,6 +65,8 @@ import { HistoricoFuncionalTab } from "@/components/rh/HistoricoFuncionalTab";
 import { ServidorFrequenciaConfigCard } from "@/components/rh/ServidorFrequenciaConfigCard";
 import { DesignacoesUnidadeTab } from "@/components/rh/DesignacoesUnidadeTab";
 import { DocumentosServidorTab } from "@/components/rh/DocumentosServidorTab";
+import { SituacaoServidorBadge } from "@/components/rh/SituacaoServidorBadge";
+import { EmptyState, PageHeader } from "@/components/design-system";
 
 export default function ServidorDetalheePage() {
   const navigate = useNavigate();
@@ -198,8 +197,9 @@ export default function ServidorDetalheePage() {
     return (
       <ProtectedRoute requiredModule="rh">
         <ModuleLayout module="rh">
-          <div className="flex items-center justify-center h-[60vh]">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="flex items-center justify-center h-[60vh]" role="status">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+            <span className="sr-only">Carregando ficha do servidor…</span>
           </div>
         </ModuleLayout>
       </ProtectedRoute>
@@ -210,55 +210,20 @@ export default function ServidorDetalheePage() {
     return (
       <ProtectedRoute requiredModule="rh">
         <ModuleLayout module="rh">
-          <div className="container mx-auto py-8 px-4 text-center">
-            <p className="text-muted-foreground">Servidor não encontrado.</p>
-            <Button className="mt-4" onClick={() => navigate('/rh/servidores')}>
-              Voltar
-            </Button>
-          </div>
+          <EmptyState
+            icone={UserX}
+            titulo="Servidor não encontrado"
+            descricao="O cadastro pode ter sido removido ou o endereço está incorreto."
+            acao={<Button onClick={() => navigate('/rh/servidores')}>Voltar para servidores</Button>}
+          />
         </ModuleLayout>
       </ProtectedRoute>
     );
   }
 
-  return (
-    <ProtectedRoute requiredModule="rh">
-      <ModuleLayout module="rh">
-        <div className="container mx-auto py-8 px-4">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
-            <div className="flex items-start gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={servidor.foto_url || undefined} />
-                <AvatarFallback className="bg-primary/10 text-primary text-2xl">
-                  {getInitials(servidor.nome_completo)}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">{servidor.nome_completo}</h1>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge className={SITUACAO_COLORS[servidor.situacao as SituacaoFuncional]}>
-                    {SITUACAO_LABELS[servidor.situacao as SituacaoFuncional]}
-                  </Badge>
-                  {(servidor as any).codigo_interno && (
-                    <Badge variant="outline" className="font-mono bg-muted/50">
-                      {(servidor as any).codigo_interno}
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-muted-foreground mt-1">
-                  {lotacaoVigente?.cargo?.sigla ? `${lotacaoVigente.cargo.sigla} - ${lotacaoVigente.cargo.nome}` : lotacaoVigente?.cargo?.nome || servidor.cargo?.nome || 'Sem cargo'} • {lotacaoVigente?.unidade?.sigla || lotacaoVigente?.unidade?.nome || servidor.unidade?.sigla || servidor.unidade?.nome || 'Sem lotação'}
-                </p>
-                {servidor.matricula && (
-                  <p className="text-sm text-muted-foreground">Matrícula: {servidor.matricula}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex gap-2">
+  // Ações do cabeçalho (fichas em PDF e editar), passadas ao PageHeader
+  const acoesFicha = (
+            <>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline">
@@ -364,8 +329,48 @@ export default function ServidorDetalheePage() {
                 <Pencil className="h-4 w-4 mr-2" />
                 Editar
               </Button>
-            </div>
-          </div>
+            </>
+  );
+
+  return (
+    <ProtectedRoute requiredModule="rh">
+      <ModuleLayout module="rh">
+        <div className="space-y-6">
+          <PageHeader
+            migalhas={[
+              { rotulo: "Recursos Humanos", href: "/rh" },
+              { rotulo: "Servidores", href: "/rh/servidores" },
+              { rotulo: servidor.nome_completo },
+            ]}
+            midia={
+              <Avatar className="h-16 w-16 md:h-20 md:w-20">
+                <AvatarImage src={servidor.foto_url || undefined} alt="" />
+                <AvatarFallback className="bg-primary/10 text-primary text-2xl">
+                  {getInitials(servidor.nome_completo)}
+                </AvatarFallback>
+              </Avatar>
+            }
+            titulo={servidor.nome_completo}
+            status={
+              <>
+                <SituacaoServidorBadge situacao={servidor.situacao} />
+                {(servidor as any).codigo_interno && (
+                  <Badge variant="outline" className="font-mono bg-muted/50">
+                    {(servidor as any).codigo_interno}
+                  </Badge>
+                )}
+              </>
+            }
+            descricao={
+              <>
+                <p>
+                  {lotacaoVigente?.cargo?.sigla ? `${lotacaoVigente.cargo.sigla} - ${lotacaoVigente.cargo.nome}` : lotacaoVigente?.cargo?.nome || servidor.cargo?.nome || 'Sem cargo'} • {lotacaoVigente?.unidade?.sigla || lotacaoVigente?.unidade?.nome || servidor.unidade?.sigla || servidor.unidade?.nome || 'Sem lotação'}
+                </p>
+                {servidor.matricula && <p className="text-caption">Matrícula: {servidor.matricula}</p>}
+              </>
+            }
+            acoes={acoesFicha}
+          />
 
           <Tabs defaultValue="dados" className="space-y-6">
             <TabsList className="grid grid-cols-3 lg:grid-cols-6 gap-2">
