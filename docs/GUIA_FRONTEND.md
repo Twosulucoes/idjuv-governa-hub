@@ -72,6 +72,28 @@ de chamar `supabase` direto dentro da página.
 - **Utils**: `formatters.ts` (máscaras), `utils.ts` (`cn`, helpers),
   `matriculaUtils.ts`, `statusColors.ts`, `supabase.ts`/`supabaseClient.ts`.
 
+## Importação de dados (`src/lib/importacao`)
+
+Estrutura genérica para trazer dados de arquivos de outros sistemas, sempre em três passos:
+**ler** (no navegador) → **simular** (o banco diz o que mudaria, nada é gravado) → **aplicar**
+(transação + log em `importacoes`).
+
+- `types.ts` — contrato `Importador<TLinha>`: `id` (vira `importacoes.tipo`), `modulo`, `permissao`,
+  `aceita`, `colunas` da pré-visualização, `ler(arquivo)` → `ResultadoLeitura` (linhas + problemas
+  `erro`/`aviso` + cabeçalho + parâmetros) e `enviar(leitura, arquivo, simular)` → `ResultadoBanco`
+  (ação por linha: `inserir`/`atualizar`/`sem_alteracao`, cadastros criados, ausentes, totais).
+- `registro.ts` — lista `IMPORTADORES` (a Central mostra os que o usuário tem permissão de usar).
+- `pdfTexto.ts` — texto posicionado de PDF via pdf.js (carregado sob demanda), agrupado em linhas,
+  para relatórios tabulares em que colunas vazias somem no texto corrido.
+- `importadores/qddFiplan*.ts` — primeiro importador: PDF do QDD do FIPLAN → `importar_qdd_fiplan`.
+- UI: `ImportacaoWizard` e `HistoricoImportacoes` (`src/components/importacao/`), usados por
+  `ImportacoesPage` e por telas de módulo (ex.: `QDDPage`); hook `useImportacoes`.
+
+**Importador novo:** (1) migração com uma RPC `importar_<algo>(…, p_simular boolean)` `SECURITY DEFINER`
+que confere a permissão, valida cada linha, devolve o formato de `ResultadoBanco` e, ao aplicar, insere em
+`importacoes`; (2) `importadores/<algo>.ts` implementando `Importador`; (3) incluir em `registro.ts`.
+Erro de leitura bloqueia a importação; aviso só informa.
+
 ## Padrões de UI
 
 - **shadcn/ui** (Radix) em `@/components/ui/*` + **Tailwind**. Componha; evite CSS

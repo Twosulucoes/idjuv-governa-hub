@@ -60,6 +60,10 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
 - Telas de módulo usam `ModuleLayout` (`src/components/layout/`), que inclui o sino de avisos
   (`AvisosSino`, no cabeçalho) e a faixa de avisos em destaque (`AvisosDestaque`, no topo do
   conteúdo); o mural completo fica em `/avisos` (protegida, qualquer usuário logado).
+- **Central de Importações** em `/admin/importacoes` (`ImportacoesPage`): a rota exige a permissão de
+  algum importador (`PERMISSOES_IMPORTACAO`, de `src/lib/importacao/registro.ts`); o mesmo assistente
+  também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver
+  `docs/GUIA_FRONTEND.md` (Importação de dados).
 
 ## Autenticação
 

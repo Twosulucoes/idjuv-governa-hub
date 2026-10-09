@@ -107,6 +107,7 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionCode | PermissionCode[]
   '/admin/auditoria': 'admin.auditoria',
   '/admin/database': 'admin.database',
   '/admin/backup': 'admin.backup',
+  '/admin/importacoes': 'orcamento.importar',
   '/admin/disaster-recovery': 'admin.disaster_recovery',
   '/admin/calibrador-segad': 'admin.segad',
   '/admin/reunioes': 'admin.reunioes',
