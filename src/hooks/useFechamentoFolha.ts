@@ -122,6 +122,7 @@ export function useFecharFolha() {
     },
     onSuccess: (_, { folhaId }) => {
       queryClient.invalidateQueries({ queryKey: ['folhas-pagamento'] });
+      queryClient.invalidateQueries({ queryKey: ['folha-detalhe', folhaId] });
       queryClient.invalidateQueries({ queryKey: ['folha-bloqueada', folhaId] });
       queryClient.invalidateQueries({ queryKey: ['historico-status-folha', folhaId] });
       toast.success('Folha fechada com sucesso');
@@ -156,6 +157,7 @@ export function useReabrirFolha() {
     },
     onSuccess: (_, { folhaId }) => {
       queryClient.invalidateQueries({ queryKey: ['folhas-pagamento'] });
+      queryClient.invalidateQueries({ queryKey: ['folha-detalhe', folhaId] });
       queryClient.invalidateQueries({ queryKey: ['folha-bloqueada', folhaId] });
       queryClient.invalidateQueries({ queryKey: ['historico-status-folha', folhaId] });
       toast.success('Folha reaberta com sucesso');
