@@ -51,6 +51,7 @@ import {
   FolderOpen,
   Smartphone,
   ArrowRightLeft,
+  Bell,
 } from "lucide-react";
 import type { Modulo } from "@/shared/config/modules.config";
 
@@ -240,6 +241,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       },
       { id: "aniversariantes", label: "Aniversariantes", icon: Cake, route: "/comunicacao/aniversariantes" },
       { id: "calendario", label: "Calendário", icon: Calendar, route: "/comunicacao/calendario" },
+      { id: "avisos", label: "Avisos e Datas", icon: Bell, route: "/avisos" },
     ],
   },
 

@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, ArrowUp, X } from "lucide-react";
 import type { Modulo } from "@/shared/config/modules.config";
 import { SystemCredits } from "./SystemCredits";
+import { AvisosDestaque } from "@/components/avisos";
 
 interface ModuleLayoutProps {
   children: ReactNode;
@@ -157,6 +158,7 @@ export function ModuleLayout({ children, module, title, description }: ModuleLay
                 )}
               </div>
             )}
+            <AvisosDestaque />
             {children}
 
             {/* Créditos da desenvolvedora */}
