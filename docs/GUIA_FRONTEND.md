@@ -72,6 +72,28 @@ de chamar `supabase` direto dentro da página.
 - **Utils**: `formatters.ts` (máscaras), `utils.ts` (`cn`, helpers),
   `matriculaUtils.ts`, `statusColors.ts`, `supabase.ts`/`supabaseClient.ts`.
 
+## Importação de dados (`src/lib/importacao`)
+
+Estrutura genérica para trazer dados de arquivos de outros sistemas, sempre em três passos:
+**ler** (no navegador) → **simular** (o banco diz o que mudaria, nada é gravado) → **aplicar**
+(transação + log em `importacoes`).
+
+- `types.ts` — contrato `Importador<TLinha>`: `id` (vira `importacoes.tipo`), `modulo`, `permissao`,
+  `aceita`, `colunas` da pré-visualização, `ler(arquivo)` → `ResultadoLeitura` (linhas + problemas
+  `erro`/`aviso` + cabeçalho + parâmetros) e `enviar(leitura, arquivo, simular)` → `ResultadoBanco`
+  (ação por linha: `inserir`/`atualizar`/`sem_alteracao`, cadastros criados, ausentes, totais).
+- `registro.ts` — lista `IMPORTADORES` (a Central mostra os que o usuário tem permissão de usar).
+- `pdfTexto.ts` — texto posicionado de PDF via pdf.js (carregado sob demanda), agrupado em linhas,
+  para relatórios tabulares em que colunas vazias somem no texto corrido.
+- `importadores/qddFiplan*.ts` — primeiro importador: PDF do QDD do FIPLAN → `importar_qdd_fiplan`.
+- UI: `ImportacaoWizard` e `HistoricoImportacoes` (`src/components/importacao/`), usados por
+  `ImportacoesPage` e por telas de módulo (ex.: `QDDPage`); hook `useImportacoes`.
+
+**Importador novo:** (1) migração com uma RPC `importar_<algo>(…, p_simular boolean)` `SECURITY DEFINER`
+que confere a permissão, valida cada linha, devolve o formato de `ResultadoBanco` e, ao aplicar, insere em
+`importacoes`; (2) `importadores/<algo>.ts` implementando `Importador`; (3) incluir em `registro.ts`.
+Erro de leitura bloqueia a importação; aviso só informa.
+
 ## Padrões de UI
 
 - **shadcn/ui** (Radix) em `@/components/ui/*` + **Tailwind**. Componha; evite CSS
@@ -98,6 +120,23 @@ de chamar `supabase` direto dentro da página.
     `@/components/ui/chart` — nada de `fill="#…"`.
   - **Movimento:** `--duration-fast` (150ms) / `--duration-base` (200ms); `prefers-reduced-motion`
     é respeitado globalmente em `src/index.css` (exceto `animate-spin`, que sinaliza carregamento).
+  - **Componentes de padrão** em `@/components/design-system` (use-os em telas novas e migradas):
+    - `PageHeader` — migalhas, `h1` na escala nova, situação, descrição e ações (uma primária);
+      `midia` põe foto/ícone à esquerda do título (ex.: ficha do servidor).
+    - `DataTable` — busca (`buscarPor`), ordenação (`ordenarPor`), seleção + `acoesEmLote`,
+      `acoesLinha`, paginação no cliente, densidade lembrada no navegador, estados
+      `carregando`/`erro`/`vazio` e cartões abaixo de `md` (`mobile: "titulo" | "oculta"` por coluna).
+    - `StatusBadge` — cor + ícone + texto; o tom sai do texto (`tomDaSituacao`: ativo, pendente,
+      em análise, cancelado…) ou de `tom` explícito.
+    - `EmptyState`, `KpiCard` (variação com sinal e ícone; `subirEhBom={false}` para despesas/faltas),
+      `ChartCard` (gráfico com alternância para tabela de dados).
+    - `FormSection` (fieldset com legenda) e `ErrorSummary` (resumo focável dos erros do
+      react-hook-form, com link para cada campo; use `shouldFocusError: false` no `useForm`).
+    - `Button` aceita `loading` (spinner, `disabled` e `aria-busy`).
+  - **Shell (`ModuleLayout`)** já entrega "Pular para o conteúdo", marcos (`header`, `nav`
+    rotulados, `main` focável), `aria-current` no menu e menu do celular como diálogo. A página não
+    repete isso: começa no `PageHeader` (um único `h1`). Referência migrada: RH (painel, lista e
+    ficha do servidor); selo de situação funcional em `@/components/rh/SituacaoServidorBadge`.
   - Consulte o skill `ui-ux-pro-max` (`.claude/skills/UI-UX-PRO-MAX-VENDOR.md`) para decisões
     de UI/UX e acessibilidade.
 - **Ícones**: `lucide-react`.

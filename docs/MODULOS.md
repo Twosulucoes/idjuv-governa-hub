@@ -19,6 +19,8 @@ Gestão do próprio sistema. Páginas em `src/pages/admin/` (~25):
 - **Reuniões**: `ReunioesPage`, `ConfiguracaoReunioesPage`, `CheckinReuniaoPage`.
 - **Infra**: `AuditoriaPage`, `BackupOffsitePage`, `DisasterRecoveryPage`,
   `DatabaseSchemaPage`, `CalibradorSegadPage`, `SobreSistemaPage`, `AdminHelpPage`.
+- **Importação de dados**: `ImportacoesPage` (`/admin/importacoes`) lista os importadores que o usuário
+  pode usar e o histórico (`importacoes`). Primeiro importador: QDD do FIPLAN (financeiro).
 - **Envio de e-mail e WhatsApp**: `ConfigEnviosPage` (`/admin/envios`, menu "E-mail e WhatsApp"). O
   cliente configura o remetente (SMTP próprio ou Resend), a identidade visual do e-mail e o WhatsApp
   oficial (Meta Cloud API, templates por uso), grava as credenciais (só escrita, no Vault), envia teste
@@ -67,6 +69,9 @@ ERP orçamentário. `src/pages/financeiro/` (~14):
 `SubEmpenhosPage`, `LiquidacoesPage`, `PagamentosPage`, `AdiantamentosPage`,
 `RestosAPagarPage`, `ContasBancariasPage`, `RelatoriosFinanceiroPage`.
 Fluxo: orçamento → solicitação → empenho → liquidação → pagamento.
+O `QDDPage` importa o PDF "Quadro de Detalhamento da Despesa - QDD" exportado do FIPLAN
+(permissão `orcamento.importar`), que cria/atualiza `fin_dotacoes` do exercício; o antigo
+import de planilha XLSX saiu (a exportação XLSX continua).
 
 ## Patrimônio (`patrimonio`) e Mobile (`patrimonio_mobile`)
 

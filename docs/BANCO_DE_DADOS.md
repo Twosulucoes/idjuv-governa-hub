@@ -6,7 +6,7 @@ tipos TypeScript de todo o schema são gerados em
 
 > Migrações versionadas em `supabase/migrations/*.sql` (~240 arquivos,
 > `YYYYMMDDHHMMSS_<uuid>.sql`). Para mudar o schema, crie uma migração nova
-> (ou use o fluxo do Lovable) e regenere os tipos. Não edite migrações antigas.
+> e regenere os tipos. Não edite migrações antigas.
 
 ## Baseline limpo e RLS por módulo (banco novo)
 
@@ -83,6 +83,9 @@ Núcleo (prefixo `fin_`): `fin_solicitacoes`, `fin_solicitacao_itens`,
 `fin_lancamentos_contabeis`, `fin_receitas`, `fin_contas_bancarias`,
 `fin_extratos_bancarios`, `fin_extrato_transacoes`, `fin_fechamentos`,
 `fin_checklist_ci`, `fin_documentos`, `fin_parametros`, `fin_audit_log`.
+`fin_dotacoes.codigo_dotacao` das linhas importadas do QDD do FIPLAN segue
+`função.subfunção.programa.PAOE.regional.natureza.fonte.cod_acomp.IDU` (ex.:
+`27.812.030.2544.9900.33903900.1.500.0000.Não`), único por exercício.
 Legado/compartilhado: `dotacoes_orcamentarias`, `empenhos`, `liquidacoes`,
 `pagamentos`, `creditos_adicionais`, `centros_custo`, `contas_autarquia`,
 `config_autarquia`.
@@ -174,6 +177,14 @@ exige bucket privado com URL assinada; pendência).
 ### Programas e documentos gerais
 `programas`, `documentos`.
 
+### Importação de dados
+`importacoes` (migração `20261009153000_importacoes_e_qdd_fiplan.sql`): log de toda importação
+aplicada — `tipo` do importador, `modulo` dono dos dados, nome/tamanho/SHA-256 do arquivo (o arquivo
+não é guardado), `exercicio`, `resumo` (totais, cadastros criados, ausentes) e `detalhes` (antes/depois
+dos campos alterados). RLS: `SELECT` para quem acessa o módulo da linha (`can_access_module`); sem
+policy de escrita e sem `INSERT/UPDATE/DELETE` para `anon`/`authenticated` — só as RPCs de importação
+gravam. No baseline está como `preservar` em `rls/mapa.csv`.
+
 ### Parâmetros e catálogos de configuração
 `config_parametros_meta`, `config_parametros_valores`, `config_regras_calculo`,
 `config_motivos_desligamento`, `config_situacoes_funcionais`, `config_tipos_ato`,
@@ -216,6 +227,11 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   `fn_validar_margem_consignavel`, `fn_validar_teto_remuneratorio`,
   `fn_atualizar_situacao_servidor`.
 - **Financeiro**: `fn_gerar_numero_financeiro`, `fn_inscrever_restos_pagar`.
+- **Importação**: `importar_qdd_fiplan(p_exercicio, p_linhas, p_arquivo, p_simular)` — `SECURITY DEFINER`,
+  exige perfil ativo, módulo financeiro e `orcamento.importar`. Com `p_simular = true` só devolve o
+  que mudaria; com `false` grava numa transação (cria programa, ação/PAOE, natureza e fonte que faltarem,
+  insere/atualiza `fin_dotacoes`, nunca apaga) e registra em `importacoes`. Dotações do antigo import de
+  planilha (`natureza.fonte.IDU`) são reconhecidas e migradas para a chave nova.
 - **Processos / workflow**: `fn_calcular_sla_processo`,
   `fn_contar_processos_por_status`, `fn_pode_arquivar_processo`.
 - **Patrimônio / unidades**: `gerar_numero_tombamento`, `gerar_protocolo_cedencia`,

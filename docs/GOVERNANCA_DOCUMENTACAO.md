@@ -63,6 +63,7 @@ Ao abrir uma PR, localize **cada** linha aplicável. A doc da coluna
 | Rota, página ou item de menu novo | `docs/ARQUITETURA.md` | `docs/MODULOS.md` (se a página pertence a um módulo existente) |
 | Módulo novo (registrado em `MODULOS`) | `docs/MODULOS.md` + `src/shared/config/modules.config.ts` mencionado | `docs/ARQUITETURA.md`; skill `novo-modulo-idjuv` |
 | Migração, tabela, coluna, RPC, RLS | `docs/BANCO_DE_DADOS.md` | Skill `migracao-segura-idjuv` |
+| Backup da VPS (`scripts/backup/`, `.github/workflows/backup-restore-test.yml`) | `docs/BACKUP.md` | — |
 | Baseline do banco (`supabase/baseline/`), `rls/mapa.csv`, overlay, scripts `scripts/db/` | `docs/NOVO_BANCO.md` + `supabase/baseline/README.md` | `docs/BANCO_DE_DADOS.md`; rode `scripts/db/validar-baseline.sh` |
 | Edge Function nova ou alterada | `docs/EDGE_FUNCTIONS.md` | Checagem de auth (`AGENTS.md`) |
 | Permissão, papel, RBAC | `docs/RBAC_PERMISSOES.md` | `src/types/auth.ts` (`ROUTE_PERMISSIONS`) |
@@ -131,7 +132,7 @@ o check aos required status checks da branch protection de `main`.
 ## 7. O que NUNCA fazer
 
 - **Não reescrever registros históricos** (`docs/AUDITORIA_USUARIOS.md`,
-  `docs/INVENTARIO_HARDCODE.md`, planos datados em `.lovable/`). Eles
+  `docs/INVENTARIO_HARDCODE.md`, planos datados em `docs/historico/`). Eles
   registram o passado e continuam verdadeiros como registro, mesmo quando o
   código muda. Para "atualizar" um achado histórico, escreva doc nova ou
   atualize a canônica — nunca edite o registro para fingir que ele já

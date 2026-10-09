@@ -2230,6 +2230,9 @@ DROP POLICY IF EXISTS "rls_delete" ON public.horarios_jornada;
 CREATE POLICY "rls_delete" ON public.horarios_jornada FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 
+-- importacoes  [preservar: financeiro]
+-- (nenhuma policy gerada)
+
 -- instituicoes  [modulo: organizacoes]
 DROP POLICY IF EXISTS "rls_select" ON public.instituicoes;
 CREATE POLICY "rls_select" ON public.instituicoes FOR SELECT TO authenticated

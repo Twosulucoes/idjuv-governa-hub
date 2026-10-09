@@ -37,6 +37,7 @@
 | [EXPORTAR_DADOS.md](./EXPORTAR_DADOS.md) | Como exportar dados do sistema |
 | [NOVO_BANCO.md](./NOVO_BANCO.md) | **Criar um banco novo e vazio** (Supabase self-hosted/validação em Postgres) a partir do baseline com RLS por módulo |
 | [MIGRACAO_SUPABASE_PROPRIO.md](./MIGRACAO_SUPABASE_PROPRIO.md) | (defasado — substituído por NOVO_BANCO.md) Migrar para uma instância Supabase própria |
+| [BACKUP.md](./BACKUP.md) | **Backup da VPS**: dump diário criptografado fora da VPS, retenção, teste mensal de restauração e como restaurar |
 | [BACKUP_CONTINGENCIA.md](./BACKUP_CONTINGENCIA.md) | Estratégia de backup e contingência |
 | [SCHEMA_SUPABASE_PROPRIO.sql](./SCHEMA_SUPABASE_PROPRIO.sql) | (defasado — cobre só uma fração das tabelas; use NOVO_BANCO.md) Dump do schema para instância própria |
 | [CORRECOES_BANCO.sql](./CORRECOES_BANCO.sql) | Scripts de correção de banco |
@@ -59,6 +60,6 @@
 - **17** módulos funcionais
 - **~1.070** ocorrências de "IDJUV" em **224** arquivos (ver [INVENTARIO_HARDCODE.md](./INVENTARIO_HARDCODE.md))
 
-> A pasta [`.lovable/`](../.lovable/) contém relatórios e planos históricos
-> gerados pelo Lovable (auditorias, refatorações, fases de implementação) — útil
+> A pasta [`historico/planos-2026/`](./historico/planos-2026/) contém relatórios e planos históricos
+> (auditorias, refatorações, fases de implementação) — útil
 > como contexto histórico, mas não é documentação canônica.

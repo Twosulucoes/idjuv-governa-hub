@@ -2,12 +2,12 @@
  * QUADRO DE DETALHAMENTO DE DESPESA (QDD)
  * 
  * Visualização completa do orçamento no formato QDD padrão,
- * com importação de planilha XLSX e exportação.
+ * com importação do PDF do FIPLAN (Central de Importações) e exportação XLSX.
  * 
  * @version 1.0.0
  */
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,17 +36,12 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
 import {
   Search,
   Upload,
   Download,
   FileSpreadsheet,
   AlertCircle,
-  CheckCircle,
-  Loader2,
   PieChart,
   TrendingUp,
   DollarSign,
@@ -54,19 +49,27 @@ import {
 import { Link } from "react-router-dom";
 import { formatCurrency } from "@/lib/formatters";
 import { useDotacoes } from "@/hooks/useFinanceiro";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { ImportacaoWizard } from "@/components/importacao";
+import { importadorQddFiplan } from "@/lib/importacao/importadores/qddFiplan";
 import * as XLSX from "xlsx";
 
 export default function QDDPage() {
-  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [exercicio, setExercicio] = useState(new Date().getFullYear().toString());
   const [importOpen, setImportOpen] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [importPreview, setImportPreview] = useState<any[]>([]);
+  const [importando, setImportando] = useState(false);
   const [filterIDU, setFilterIDU] = useState("todos");
+  const { hasPermission } = useAuth();
+  const podeImportar = hasPermission(importadorQddFiplan.permissao);
 
-  const { data: dotacoes, isLoading, refetch } = useDotacoes(parseInt(exercicio));
+  // Exercícios: o próximo (o QDD do ano seguinte sai antes da virada) até 2024
+  const exercicios = useMemo(() => {
+    const proximo = new Date().getFullYear() + 1;
+    return Array.from({ length: proximo - 2024 + 1 }, (_, i) => String(proximo - i));
+  }, []);
+
+  const { data: dotacoes, isLoading } = useDotacoes(parseInt(exercicio));
 
   // Filtro
   const filtered = useMemo(() => {
@@ -109,191 +112,6 @@ export default function QDDPage() {
     });
     return t;
   }, [filtered]);
-
-  // Parse number from string
-  const parseNum = (val: any): number => {
-    if (!val) return 0;
-    if (typeof val === "number") return val;
-    return parseFloat(String(val).replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
-  };
-
-  // Handle file upload for import
-  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const data = await file.arrayBuffer();
-      const wb = XLSX.read(data);
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
-
-      // Find header row
-      const headerIdx = rows.findIndex(r => 
-        r.some(c => String(c).includes("Natureza") || String(c).includes("Fonte"))
-      );
-      
-      if (headerIdx === -1) {
-        toast({ title: "Formato inválido", description: "Não foi possível encontrar o cabeçalho da planilha.", variant: "destructive" });
-        return;
-      }
-
-      const headers = rows[headerIdx].map(h => String(h).trim());
-      const dataRows = rows.slice(headerIdx + 1).filter(r => 
-        r.length > 3 && !String(r[0] || "").toLowerCase().includes("total")
-      );
-
-      const preview = dataRows.map(row => {
-        const get = (name: string) => {
-          const idx = headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
-          return idx >= 0 ? row[idx] : null;
-        };
-
-        return {
-          programa: String(get("Programa") || ""),
-          paoe: String(get("PAOE") || ""),
-          regional: String(get("Regional") || ""),
-          natureza: String(get("Natureza") || ""),
-          fonte: String(get("Fonte") || ""),
-          cod_acomp: String(get("Cod. Acomp") || "0000"),
-          idu: String(get("IDU") || "Não"),
-          tro: String(get("TRO") || "No"),
-          inicial: parseNum(get("Inicial")),
-          suplementado: parseNum(get("Suplementado")),
-          anulado: parseNum(get("Anulado")),
-          atual: parseNum(get("Atual")),
-          bloqueado: parseNum(get("Bloqueado")),
-          reserva: parseNum(get("Cont/Reserva") || get("Reserva")),
-          ped: parseNum(get("PED")),
-          empenhado: parseNum(get("Empenhado")),
-          liquidado: parseNum(get("Liquidado")),
-          em_liquidacao: parseNum(get("Valor em Liquidação") || get("Liquidação")),
-          pago: parseNum(get("Pago")),
-          disponivel: parseNum(get("Disponível")),
-          restos: parseNum(get("Restos")),
-        };
-      });
-
-      setImportPreview(preview);
-      toast({ title: `${preview.length} linhas encontradas` });
-    } catch (err: any) {
-      toast({ title: "Erro ao ler arquivo", description: err.message, variant: "destructive" });
-    }
-  }, [toast]);
-
-  // Execute import
-  const executeImport = async () => {
-    if (importPreview.length === 0) return;
-    setImporting(true);
-
-    try {
-      const ex = parseInt(exercicio);
-
-      // Get existing data for matching
-      const [{ data: programas }, { data: naturezas }, { data: fontes }, { data: dotacoesExistentes }] = await Promise.all([
-        supabase.from('fin_programas_orcamentarios').select('id, codigo, nome').eq('exercicio', ex),
-        supabase.from('fin_naturezas_despesa').select('id, codigo'),
-        supabase.from('fin_fontes_recurso').select('id, codigo'),
-        supabase.from('fin_dotacoes').select('id, codigo_dotacao, paoe').eq('exercicio', ex),
-      ]);
-
-      // Build set of existing keys for deduplication
-      const existingKeys = new Set(
-        dotacoesExistentes?.map(d => `${d.codigo_dotacao}|${d.paoe || ''}`) || []
-      );
-
-      let inserted = 0;
-      let updated = 0;
-      let errors = 0;
-      let skipped = 0;
-
-      for (const row of importPreview) {
-        try {
-          const progCode = row.programa?.split(" - ")[0]?.trim();
-          const prog = programas?.find(p => p.codigo === progCode);
-          const nat = naturezas?.find(n => n.codigo === row.natureza);
-          const fonteCode = row.fonte?.replace(".", "");
-          const fonte = fontes?.find(f => f.codigo === fonteCode || f.codigo === row.fonte);
-
-          const codigoDotacao = `${row.natureza}.${row.fonte}.${row.idu || 'Não'}`;
-          const chaveDedup = `${codigoDotacao}|${row.paoe || ''}`;
-
-          const dotacaoData = {
-            exercicio: ex,
-            codigo_dotacao: codigoDotacao,
-            paoe: row.paoe || null,
-            regional: row.regional || null,
-            cod_acompanhamento: row.cod_acomp || '0000',
-            idu: row.idu || 'Não',
-            tro: row.tro || 'No',
-            programa_id: prog?.id || null,
-            natureza_despesa_id: nat?.id || null,
-            fonte_recurso_id: fonte?.id || null,
-            valor_inicial: row.inicial || 0,
-            valor_suplementado: row.suplementado || 0,
-            valor_reduzido: row.anulado || 0,
-            valor_bloqueado: row.bloqueado || 0,
-            valor_reserva: row.reserva || 0,
-            valor_ped: row.ped || 0,
-            valor_empenhado: row.empenhado || 0,
-            valor_liquidado: row.liquidado || 0,
-            valor_em_liquidacao: row.em_liquidacao || 0,
-            valor_pago: row.pago || 0,
-            valor_restos_pagar: row.restos || 0,
-            ativo: true,
-          } as any;
-
-          if (existingKeys.has(chaveDedup)) {
-            // Update existing dotação
-            const existing = dotacoesExistentes?.find(
-              d => d.codigo_dotacao === codigoDotacao && (d.paoe || '') === (row.paoe || '')
-            );
-            if (existing) {
-              const { error } = await supabase
-                .from('fin_dotacoes')
-                .update(dotacaoData)
-                .eq('id', existing.id);
-              if (error) { errors++; } else { updated++; }
-            } else {
-              skipped++;
-            }
-          } else {
-            // Insert new
-            const { error } = await supabase
-              .from('fin_dotacoes')
-              .insert(dotacaoData);
-            if (error) {
-              console.error('Erro ao inserir dotação:', error);
-              errors++;
-            } else {
-              inserted++;
-              existingKeys.add(chaveDedup);
-            }
-          }
-        } catch {
-          errors++;
-        }
-      }
-
-      const parts = [];
-      if (inserted > 0) parts.push(`${inserted} inseridas`);
-      if (updated > 0) parts.push(`${updated} atualizadas`);
-      if (errors > 0) parts.push(`${errors} erros`);
-
-      toast({
-        title: "Importação concluída",
-        description: parts.join(", ") + ".",
-      });
-
-      setImportOpen(false);
-      setImportPreview([]);
-      refetch();
-    } catch (err: any) {
-      toast({ title: "Erro na importação", description: err.message, variant: "destructive" });
-    } finally {
-      setImporting(false);
-    }
-  };
 
   // Export to XLSX
   const exportToXLSX = () => {
@@ -367,15 +185,17 @@ export default function QDDPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="2026">2026</SelectItem>
-              <SelectItem value="2025">2025</SelectItem>
-              <SelectItem value="2024">2024</SelectItem>
+              {exercicios.map((ano) => (
+                <SelectItem key={ano} value={ano}>{ano}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-            <Upload className="h-4 w-4 mr-2" />
-            Importar QDD
-          </Button>
+          {podeImportar && (
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Importar QDD (FIPLAN)
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={exportToXLSX}>
             <Download className="h-4 w-4 mr-2" />
             Exportar
@@ -550,87 +370,35 @@ export default function QDDPage() {
             <div className="text-center py-12 text-muted-foreground">
               <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="font-medium">Nenhuma dotação encontrada</p>
-              <p className="text-sm mt-1">Importe um arquivo QDD para carregar as dotações orçamentárias.</p>
-              <Button variant="outline" className="mt-4" onClick={() => setImportOpen(true)}>
-                <Upload className="h-4 w-4 mr-2" />
-                Importar QDD
-              </Button>
+              <p className="text-sm mt-1">Importe o PDF do QDD do FIPLAN para carregar as dotações orçamentárias.</p>
+              {podeImportar && (
+                <Button variant="outline" className="mt-4" onClick={() => setImportOpen(true)}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Importar QDD (FIPLAN)
+                </Button>
+              )}
             </div>
           )}
         </CardContent>
       </Card>
 
       {/* Import Dialog */}
-      <Dialog open={importOpen} onOpenChange={setImportOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh]">
+      <Dialog open={importOpen} onOpenChange={(open) => (open || !importando) && setImportOpen(open)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileSpreadsheet className="h-5 w-5" />
-              Importar QDD
+              Importar QDD do FIPLAN
             </DialogTitle>
-            <DialogDescription>
-              Selecione um arquivo XLSX com o formato QDD padrão. As colunas esperadas são:
-              Programa, PAOE, Regional, Natureza, Fonte, IDU, TRO, Inicial, Atual, etc.
-            </DialogDescription>
+            <DialogDescription>{importadorQddFiplan.descricao}</DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="border-2 border-dashed rounded-lg p-6 text-center">
-              <Input
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleFileUpload}
-                className="max-w-sm mx-auto"
-              />
-            </div>
-
-            {importPreview.length > 0 && (
-              <>
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle className="h-4 w-4 text-primary" />
-                  <span className="font-medium">{importPreview.length} linhas prontas para importar</span>
-                  <span className="text-muted-foreground">• Exercício {exercicio}</span>
-                </div>
-
-                <ScrollArea className="h-64 border rounded-md">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="text-xs">
-                        <TableHead>Natureza</TableHead>
-                        <TableHead>Fonte</TableHead>
-                        <TableHead>IDU</TableHead>
-                        <TableHead className="text-right">Inicial</TableHead>
-                        <TableHead className="text-right">Atual</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {importPreview.slice(0, 30).map((row, i) => (
-                        <TableRow key={i} className="text-xs">
-                          <TableCell className="font-mono">{row.natureza}</TableCell>
-                          <TableCell className="font-mono">{row.fonte}</TableCell>
-                          <TableCell>{row.idu}</TableCell>
-                          <TableCell className="text-right font-mono">{formatCurrency(row.inicial)}</TableCell>
-                          <TableCell className="text-right font-mono">{formatCurrency(row.atual)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </ScrollArea>
-
-                <Separator />
-
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => { setImportPreview([]); }}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={executeImport} disabled={importing}>
-                    {importing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Importar {importPreview.length} Dotações
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
+          <ImportacaoWizard
+            importador={importadorQddFiplan}
+            onOcupadoChange={setImportando}
+            onConcluido={(_, parametros) => {
+              if (typeof parametros.exercicio === "number") setExercicio(String(parametros.exercicio));
+            }}
+          />
         </DialogContent>
       </Dialog>
     </div>
