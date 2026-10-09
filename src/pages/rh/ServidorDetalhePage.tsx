@@ -56,7 +56,11 @@ import {
   VINCULO_EXTERNO_FORMA_LABELS,
   type VinculoExternoEsfera,
   type VinculoExternoSituacao,
-  type VinculoExternoForma
+  type VinculoExternoForma,
+  FERIAS_STATUS_LABELS,
+  VIAGEM_STATUS_LABELS,
+  type StatusFeriasServidor,
+  type StatusViagemDiaria,
 } from "@/types/rh";
 import { formatDateBR } from "@/lib/formatters";
 import { type TipoServidor } from "@/types/servidor";
@@ -596,7 +600,7 @@ export default function ServidorDetalheePage() {
                             </p>
                           </div>
                           <Badge variant={f.status === 'concluida' ? 'secondary' : 'default'}>
-                            {f.status}
+                            {FERIAS_STATUS_LABELS[f.status as StatusFeriasServidor] ?? f.status}
                           </Badge>
                         </div>
                       ))}
@@ -635,7 +639,7 @@ export default function ServidorDetalheePage() {
                           </div>
                           <div className="text-right">
                             <Badge variant={v.status === 'concluida' ? 'secondary' : 'default'}>
-                              {v.status}
+                              {VIAGEM_STATUS_LABELS[v.status as StatusViagemDiaria] ?? v.status}
                             </Badge>
                             {v.valor_total && (
                               <p className="text-sm font-medium mt-1">
@@ -675,7 +679,7 @@ function SecondVinculoCard({ servidor }: { servidor: any }) {
       if (!servidor.vinculo_externo_ato_id) return null;
       const { data, error } = await supabase
         .from("documentos")
-        .select("id, numero, titulo, data_documento")
+        .select("id, numero, titulo, data_documento, arquivo_url")
         .eq("id", servidor.vinculo_externo_ato_id)
         .single();
       if (error) return null;
@@ -683,8 +687,6 @@ function SecondVinculoCard({ servidor }: { servidor: any }) {
     },
     enabled: !!servidor.vinculo_externo_ato_id,
   });
-
-  const navigate = useNavigate();
 
   const esferaLabel = servidor.vinculo_externo_esfera 
     ? VINCULO_EXTERNO_ESFERA_LABELS[servidor.vinculo_externo_esfera as VinculoExternoEsfera] 
@@ -722,16 +724,24 @@ function SecondVinculoCard({ servidor }: { servidor: any }) {
         {documento && (
           <div className="flex justify-between items-center text-sm">
             <span className="text-muted-foreground">Ato Formal</span>
-            <Button
-              variant="link"
-              size="sm"
-              className="h-auto p-0 text-primary"
-              onClick={() => navigate(`/documentos/${documento.id}`)}
-            >
-              <FileText className="h-3 w-3 mr-1" />
-              {documento.numero ? `Portaria ${documento.numero}` : documento.titulo}
-              <ExternalLink className="h-3 w-3 ml-1" />
-            </Button>
+            {/* Não há rota de detalhe de documento; abre o arquivo publicado, como em /governanca/portarias */}
+            {documento.arquivo_url ? (
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-primary"
+                onClick={() => window.open(documento.arquivo_url!, '_blank', 'noopener,noreferrer')}
+              >
+                <FileText className="h-3 w-3 mr-1" />
+                {documento.numero ? `Portaria ${documento.numero}` : documento.titulo}
+                <ExternalLink className="h-3 w-3 ml-1" />
+              </Button>
+            ) : (
+              <span className="font-medium text-foreground flex items-center">
+                <FileText className="h-3 w-3 mr-1" />
+                {documento.numero ? `Portaria ${documento.numero}` : documento.titulo}
+              </span>
+            )}
           </div>
         )}
         {servidor.vinculo_externo_observacoes && (
