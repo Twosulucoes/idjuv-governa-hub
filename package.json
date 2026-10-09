@@ -15,6 +15,7 @@
     "check:contraste": "node scripts/check-contraste.mjs",
     "check:cor-crua": "node scripts/check-cor-crua.mjs --arquivos",
     "gate": "bash scripts/gate.sh",
+    "emails:gerar": "bun scripts/emails/gerar-templates-email.ts",
     "sync:superpowers": "bash scripts/sync-superpowers-skills.sh",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
   },

@@ -38,6 +38,7 @@
 | [`docs/RBAC_PERMISSOES.md`](./RBAC_PERMISSOES.md) | Modelo de permissões, perfis, rotas protegidas |
 | [`docs/GUIA_FRONTEND.md`](./GUIA_FRONTEND.md) | Estrutura do front, hooks, libs, padrões de código |
 | [`docs/EDGE_FUNCTIONS.md`](./EDGE_FUNCTIONS.md) | Funções serverless (Deno) do Supabase |
+| [`docs/EMAILS_AUTH.md`](./EMAILS_AUTH.md) | E-mails do Supabase Auth: gerador, templates por tenant, aplicação na VPS |
 | [`docs/DESENVOLVIMENTO.md`](./DESENVOLVIMENTO.md) | Setup, comandos, fluxo Git, deploy, como adicionar features |
 | [`docs/WHITE_LABEL.md`](./WHITE_LABEL.md) | Arquitetura-alvo, roadmap e critérios de aceite do modelo White Label |
 | [`docs/VISAO_GERAL.md`](./VISAO_GERAL.md) | O que é o sistema, público, objetivos, mapa de módulos |
@@ -66,6 +67,7 @@ Ao abrir uma PR, localize **cada** linha aplicável. A doc da coluna
 | Backup da VPS (`scripts/backup/`, `.github/workflows/backup-restore-test.yml`) | `docs/BACKUP.md` | — |
 | Baseline do banco (`supabase/baseline/`), `rls/mapa.csv`, overlay, scripts `scripts/db/` | `docs/NOVO_BANCO.md` + `supabase/baseline/README.md` | `docs/BANCO_DE_DADOS.md`; rode `scripts/db/validar-baseline.sh` |
 | Edge Function nova ou alterada | `docs/EDGE_FUNCTIONS.md` | Checagem de auth (`AGENTS.md`) |
+| E-mails do Supabase Auth (`scripts/emails/`, `tenants/<slug>/emails/`) | `docs/EMAILS_AUTH.md` | Regere com `bun scripts/emails/gerar-templates-email.ts` |
 | Permissão, papel, RBAC | `docs/RBAC_PERMISSOES.md` | `src/types/auth.ts` (`ROUTE_PERMISSIONS`) |
 | Hook de dados, lib, padrão de front | `docs/GUIA_FRONTEND.md` | — |
 | White Label / tenant / branding | `docs/WHITE_LABEL.md` | `src/core/tenant/README.md`, `tenants/README.md` |
@@ -122,6 +124,7 @@ conservadores — nem tudo está ativo por padrão ainda:
 | **`npm run gate`** | Os três guards acima + `typecheck` + `lint` + `build`. Typecheck e lint comparam com `scripts/gate-baseline.json` e falham **só se a dívida piorar** (o repo tem erros históricos); os guards falham em qualquer ocorrência | `scripts/gate.sh` | Existe; roda automaticamente no `pre-push` (`.githooks/pre-push`, ativado por `npm install` via o script `prepare`) — pulável com `git push --no-verify`. Ao reduzir a dívida: `bash scripts/gate.sh --update-baseline` |
 | **`quality.yml`** (CI) | Guard de `.env` rastreado + `scripts/gate.sh` (os mesmos checks do gate local) em toda PR | `.github/workflows/quality.yml` | **Ativo** (gatilho `pull_request`) — primeira vez que este repositório tem CI |
 | **`docs-guard`** (CI) | PR que muda `src/**`/`supabase/**` sem tocar `docs/**`/`*.md` e sem escape declarado → falha | `.github/workflows/docs-guard.yml` | **Existe mas desativado por padrão** — só `workflow_dispatch`. O gatilho `pull_request`/`pull_request_target` está comentado no arquivo, com uma nota explicando como ativar. Decisão do time, não técnica: ativar exige que a matriz do §3 já esteja sendo seguida na prática antes de virar bloqueio automático |
+| **E-mails do Auth em dia** | `tenants/<slug>/emails/` defasado em relação ao gerador, aos tokens ou ao perfil do tenant | `bun scripts/emails/gerar-templates-email.ts --check` | **Só convenção:** roda local; fora do gate e do CI porque depende de bun |
 | **Template de PR** | Checklist da matriz na abertura de toda PR | `.github/pull_request_template.md` | Ativo (todo PR usa o template por padrão) |
 
 **Não afirme, em nenhuma doc ou PR, que "toda PR passa pelo docs-guard"** —

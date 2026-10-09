@@ -1,0 +1,23 @@
+# Templates de e-mail do Supabase Auth — tenant "idjuv".
+# Gerado por scripts/emails/gerar-templates-email.ts — não edite à mão. Ver docs/EMAILS_AUTH.md.
+#
+# Uso na VPS, na pasta do docker-compose do Supabase:
+#   docker compose -f docker-compose.yml -f docker-compose.emails.yml up -d auth
+#
+# O GoTrue busca cada template por HTTP. As URLs apontam para o bucket público "emails"
+# do próprio Storage, lido pela rede interna do Docker (kong:8000), sem sair para a internet.
+services:
+  auth:
+    environment:
+      GOTRUE_MAILER_SUBJECTS_CONFIRMATION: "Confirme seu e-mail · IDJuv"
+      GOTRUE_MAILER_TEMPLATES_CONFIRMATION: "http://kong:8000/storage/v1/object/public/emails/confirmacao.html"
+      GOTRUE_MAILER_SUBJECTS_INVITE: "Convite para o Sistema de Gestão IDJuv"
+      GOTRUE_MAILER_TEMPLATES_INVITE: "http://kong:8000/storage/v1/object/public/emails/convite.html"
+      GOTRUE_MAILER_SUBJECTS_MAGIC_LINK: "Seu link de acesso · IDJuv"
+      GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: "http://kong:8000/storage/v1/object/public/emails/link-magico.html"
+      GOTRUE_MAILER_SUBJECTS_RECOVERY: "Redefinição de senha · IDJuv"
+      GOTRUE_MAILER_TEMPLATES_RECOVERY: "http://kong:8000/storage/v1/object/public/emails/recuperacao-senha.html"
+      GOTRUE_MAILER_SUBJECTS_EMAIL_CHANGE: "Confirme a troca de e-mail · IDJuv"
+      GOTRUE_MAILER_TEMPLATES_EMAIL_CHANGE: "http://kong:8000/storage/v1/object/public/emails/troca-email.html"
+      GOTRUE_MAILER_SUBJECTS_REAUTHENTICATION: "Código de confirmação · IDJuv"
+      GOTRUE_MAILER_TEMPLATES_REAUTHENTICATION: "http://kong:8000/storage/v1/object/public/emails/reautenticacao.html"

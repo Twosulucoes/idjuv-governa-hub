@@ -447,6 +447,7 @@ RPC, view ou política de RLS referencia os nomes antigos antes de aplicar.
 |---|---|
 | `backup-offsite/index.ts` — bucket `idjuv-backups` (23 ocorrências, inclusive `createBucket`) | `Deno.env.get('BACKUP_BUCKET') ?? 'governa-backups'` |
 | `enviar-convite-reuniao/index.ts` — `RESEND_FROM` default e corpo do e-mail | Default neutro + template lendo `config_institucional` |
+| E-mails do Supabase Auth (confirmação, convite, senha…) | ✅ Gerados por tenant a partir do perfil e dos tokens: `scripts/emails/gerar-templates-email.ts` → `tenants/<slug>/emails/`. Ver [`EMAILS_AUTH.md`](./EMAILS_AUTH.md) |
 | `database-schema/index.ts:124` — mapa `'unidade_idjuv'` | Atualizar após a migração de colunas (§9) |
 | `protected-users.config.ts` — UUID + `handfabiano@gmail.com` | `SUPER_ADMIN_ID`/`SUPER_ADMIN_EMAIL` por ambiente. **Manter o fallback por e-mail** — a justificativa documentada no arquivo (UUID muda ao trocar de projeto Supabase) vale ainda mais no cenário multi-instância |
 | `public/documentos/*.pdf`, `public/disaster-recovery/*.sql` | ✅ **Feito na Fase 0.** `disaster-recovery/` → `supabase/disaster-recovery/` (27 arquivos deixaram de ser servidos); `documentos/` → `tenants/idjuv/assets/documentos/`. As 3 referências em código passaram a importar via `?url`, virando asset com nome hasheado. `.gitignore` passa a barrar `public/**/*.sql` e as duas pastas. **Ressalva:** isso remove o caminho previsível, não é controle de acesso — a URL hasheada segue pública. Bucket privado + URL assinada continua pendente (Fase 8) |
