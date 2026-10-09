@@ -3,9 +3,9 @@
  * CORREÇÃO: clearOldSessions não apaga mais a sessão ativa.
  */
 
-import { supabase as lovableSupabase } from '@/integrations/supabase/client';
+import { supabase as clienteSupabase } from '@/integrations/supabase/client';
 
-export const supabase = lovableSupabase;
+export const supabase = clienteSupabase;
 
 export const isSupabaseConfigured = (): boolean => true;
 
@@ -20,7 +20,7 @@ export const getConnectionInfo = () => ({
  * própria (`sb-<ref>-auth-token`) em `clearOldSessions`. Prioriza
  * VITE_SUPABASE_PROJECT_ID; se ausente, deriva do subdomínio de
  * VITE_SUPABASE_URL — nunca hardcoded, para não quebrar login depois de
- * trocar de projeto/instância (Lovable Cloud, Supabase próprio, self-hosted).
+ * trocar de projeto/instância (Supabase Cloud, outra conta ou self-hosted).
  */
 const getCurrentProjectRef = (): string | null => {
   const explicit = import.meta.env.VITE_SUPABASE_PROJECT_ID;
