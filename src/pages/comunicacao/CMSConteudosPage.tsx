@@ -5,7 +5,6 @@
 
 import { useState } from "react";
 import { ModuleLayout } from "@/components/layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   Select,
   SelectContent,
@@ -42,7 +40,6 @@ import {
 import { 
   FileText, 
   Plus, 
-  Search, 
   Edit,
   Trash2,
   Eye,
@@ -68,35 +65,46 @@ import {
   TIPO_LABELS,
   STATUS_LABELS
 } from "@/hooks/cms/useCMSConteudos";
+import {
+  DataTable,
+  KpiCard,
+  PageHeader,
+  StatusBadge,
+  type ColunaTabela,
+  type TomStatus,
+} from "@/components/design-system";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-const STATUS_COLORS: Record<CMSStatus, string> = {
-  rascunho: "bg-muted text-muted-foreground",
-  revisao: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-  aprovado: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  publicado: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  arquivado: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
+// Situação do conteúdo → rótulo (caixa de frase) e tom do StatusBadge
+const STATUS_CONTEUDO: Record<CMSStatus, { label: string; tom: TomStatus }> = {
+  rascunho: { label: "Rascunho", tom: "neutro" },
+  revisao: { label: "Em revisão", tom: "pendente" },
+  aprovado: { label: "Aprovado", tom: "andamento" },
+  publicado: { label: "Publicado", tom: "sucesso" },
+  arquivado: { label: "Arquivado", tom: "neutro" },
 };
 
+const statusConteudo = (s: string | null | undefined) =>
+  STATUS_CONTEUDO[s as CMSStatus] ?? { label: s ?? "Sem situação", tom: "neutro" as TomStatus };
+
 const TIPO_ICONS: Record<CMSTipoConteudo, React.ReactNode> = {
-  noticia: <Newspaper className="h-4 w-4" />,
-  comunicado: <FileText className="h-4 w-4" />,
-  banner: <ImageIcon className="h-4 w-4" />,
-  destaque: <Star className="h-4 w-4" />,
-  evento: <Calendar className="h-4 w-4" />,
-  galeria: <ImageIcon className="h-4 w-4" />,
-  video: <Video className="h-4 w-4" />,
-  documento: <FileText className="h-4 w-4" />,
+  noticia: <Newspaper className="h-4 w-4" aria-hidden="true" />,
+  comunicado: <FileText className="h-4 w-4" aria-hidden="true" />,
+  banner: <ImageIcon className="h-4 w-4" aria-hidden="true" />,
+  destaque: <Star className="h-4 w-4" aria-hidden="true" />,
+  evento: <Calendar className="h-4 w-4" aria-hidden="true" />,
+  galeria: <ImageIcon className="h-4 w-4" aria-hidden="true" />,
+  video: <Video className="h-4 w-4" aria-hidden="true" />,
+  documento: <FileText className="h-4 w-4" aria-hidden="true" />,
 };
 
 export default function CMSConteudosPage() {
   const [filtroDestino, setFiltroDestino] = useState<string>("todos");
   const [filtroTipo, setFiltroTipo] = useState<string>("todos");
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
-  const [busca, setBusca] = useState("");
   
-  const { conteudos, isLoading, createConteudo, updateConteudo, deleteConteudo, publicarConteudo, despublicarConteudo } = useCMSConteudos();
+  const { conteudos, isLoading, error, createConteudo, updateConteudo, deleteConteudo, publicarConteudo, despublicarConteudo } = useCMSConteudos();
   const { categorias } = useCMSCategorias();
   
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -119,11 +127,10 @@ export default function CMSConteudosPage() {
   });
 
   const conteudosFiltrados = conteudos.filter(c => {
-    const matchBusca = c.titulo.toLowerCase().includes(busca.toLowerCase());
     const matchDestino = filtroDestino === "todos" || c.destino === filtroDestino;
     const matchTipo = filtroTipo === "todos" || c.tipo === filtroTipo;
     const matchStatus = filtroStatus === "todos" || c.status === filtroStatus;
-    return matchBusca && matchDestino && matchTipo && matchStatus;
+    return matchDestino && matchTipo && matchStatus;
   });
 
   // Stats por destino
@@ -223,233 +230,223 @@ export default function CMSConteudosPage() {
     });
   };
 
+  const colunas: ColunaTabela<CMSConteudo>[] = [
+    {
+      id: "destaque",
+      cabecalho: <span className="sr-only">Destaque</span>,
+      className: "w-[40px]",
+      celula: (conteudo) => (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          aria-pressed={!!conteudo.destaque}
+          aria-label={`${conteudo.destaque ? "Remover destaque de" : "Destacar"} ${conteudo.titulo}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleToggleDestaque(conteudo);
+          }}
+        >
+          {conteudo.destaque ? (
+            <Star className="h-4 w-4 text-warning fill-warning" aria-hidden="true" />
+          ) : (
+            <StarOff className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          )}
+        </Button>
+      ),
+      ordenarPor: (c) => (c.destaque ? 1 : 0),
+    },
+    {
+      id: "titulo",
+      cabecalho: "Título",
+      mobile: "titulo",
+      celula: (conteudo) => (
+        <div>
+          <p className="font-medium">{conteudo.titulo}</p>
+          {conteudo.subtitulo && (
+            <p className="text-body text-muted-foreground truncate max-w-[300px]">{conteudo.subtitulo}</p>
+          )}
+        </div>
+      ),
+      ordenarPor: (c) => c.titulo,
+      buscarPor: (c) => c.titulo,
+    },
+    {
+      id: "destino",
+      cabecalho: "Destino",
+      celula: (conteudo) => <Badge variant="outline">{DESTINO_LABELS[conteudo.destino]}</Badge>,
+      ordenarPor: (c) => DESTINO_LABELS[c.destino],
+    },
+    {
+      id: "tipo",
+      cabecalho: "Tipo",
+      celula: (conteudo) => (
+        <div className="flex items-center gap-2">
+          {TIPO_ICONS[conteudo.tipo]}
+          <span className="text-body">{TIPO_LABELS[conteudo.tipo]}</span>
+        </div>
+      ),
+      ordenarPor: (c) => TIPO_LABELS[c.tipo],
+    },
+    {
+      id: "status",
+      cabecalho: "Situação",
+      celula: (conteudo) => {
+        const st = statusConteudo(conteudo.status);
+        return <StatusBadge tom={st.tom}>{st.label}</StatusBadge>;
+      },
+      ordenarPor: (c) => statusConteudo(c.status).label,
+    },
+    {
+      id: "data",
+      cabecalho: "Data",
+      className: "text-muted-foreground",
+      celula: (conteudo) => format(new Date(conteudo.created_at), "dd/MM/yyyy", { locale: ptBR }),
+      ordenarPor: (c) => new Date(c.created_at),
+    },
+  ];
+
   return (
     <ModuleLayout module="comunicacao">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <Globe className="h-6 w-6 text-primary" />
-              CMS de Conteúdos
-            </h1>
-            <p className="text-muted-foreground">Gerenciamento centralizado de conteúdo do portal</p>
-          </div>
-          <Button onClick={handleOpenNew} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Novo Conteúdo
-          </Button>
+        <PageHeader
+          migalhas={[{ rotulo: "Comunicação", href: "/comunicacao" }, { rotulo: "Conteúdos" }]}
+          titulo="CMS de conteúdos"
+          descricao="Gerenciamento centralizado de conteúdo do portal"
+          acoes={
+            <Button onClick={handleOpenNew} className="gap-2">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Novo conteúdo
+            </Button>
+          }
+        />
+
+        {/* Indicadores */}
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
+          <KpiCard rotulo="Total" valor={conteudos.length} icone={Globe} carregando={isLoading} />
+          <KpiCard
+            rotulo="Publicados"
+            valor={conteudos.filter(c => c.status === "publicado").length}
+            icone={Send}
+            carregando={isLoading}
+          />
+          <KpiCard
+            rotulo="Rascunhos"
+            valor={conteudos.filter(c => c.status === "rascunho").length}
+            icone={FileText}
+            carregando={isLoading}
+          />
+          <KpiCard
+            rotulo="Em revisão"
+            valor={conteudos.filter(c => c.status === "revisao").length}
+            icone={Eye}
+            carregando={isLoading}
+          />
+          <KpiCard
+            rotulo="Destaques"
+            valor={conteudos.filter(c => c.destaque).length}
+            icone={Star}
+            carregando={isLoading}
+          />
         </div>
 
-        {/* Stats Rápidos */}
-        <div className="grid gap-4 md:grid-cols-5">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Total</CardDescription>
-              <CardTitle className="text-3xl">{conteudos.length}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Publicados</CardDescription>
-              <CardTitle className="text-3xl text-green-600">
-                {conteudos.filter(c => c.status === "publicado").length}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Rascunhos</CardDescription>
-              <CardTitle className="text-3xl text-muted-foreground">
-                {conteudos.filter(c => c.status === "rascunho").length}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Em Revisão</CardDescription>
-              <CardTitle className="text-3xl text-yellow-600">
-                {conteudos.filter(c => c.status === "revisao").length}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Destaques</CardDescription>
-              <CardTitle className="text-3xl text-primary">
-                {conteudos.filter(c => c.destaque).length}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-        </div>
-
-        {/* Filtros */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-wrap gap-4">
-              <div className="flex-1 min-w-[200px] relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por título..."
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+        {/* Tabela */}
+        <DataTable
+          rotulo="Conteúdos do portal"
+          dados={conteudosFiltrados}
+          colunas={colunas}
+          chaveLinha={(c) => c.id}
+          carregando={isLoading}
+          erro={error ? "Não foi possível carregar os conteúdos." : null}
+          busca={{ placeholder: "Buscar por título..." }}
+          filtros={
+            <>
               <Select value={filtroDestino} onValueChange={setFiltroDestino}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[180px]" aria-label="Filtrar por destino">
                   <SelectValue placeholder="Destino" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todos">Todos Destinos</SelectItem>
+                  <SelectItem value="todos">Todos os destinos</SelectItem>
                   {Object.entries(DESTINO_LABELS).map(([key, label]) => (
                     <SelectItem key={key} value={key}>{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-                <SelectTrigger className="w-[150px]">
+                <SelectTrigger className="w-[150px]" aria-label="Filtrar por tipo">
                   <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todos">Todos Tipos</SelectItem>
+                  <SelectItem value="todos">Todos os tipos</SelectItem>
                   {Object.entries(TIPO_LABELS).map(([key, label]) => (
                     <SelectItem key={key} value={key}>{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Status" />
+                <SelectTrigger className="w-[150px]" aria-label="Filtrar por situação">
+                  <SelectValue placeholder="Situação" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                  <SelectItem value="todos">Todas as situações</SelectItem>
+                  {Object.entries(STATUS_CONTEUDO).map(([key, { label }]) => (
                     <SelectItem key={key} value={key}>{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tabela */}
-        <Card>
-          <CardContent className="p-0">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : conteudosFiltrados.length === 0 ? (
-              <div className="text-center py-12">
-                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Nenhum conteúdo encontrado</p>
-                <Button variant="outline" className="mt-4" onClick={handleOpenNew}>
+            </>
+          }
+          vazio={{
+            icone: FileText,
+            titulo: "Nenhum conteúdo encontrado",
+            descricao: conteudos.length > 0 ? "Ajuste os filtros." : undefined,
+            acao:
+              conteudos.length === 0 ? (
+                <Button variant="outline" onClick={handleOpenNew}>
                   Criar primeiro conteúdo
                 </Button>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[40px]"></TableHead>
-                    <TableHead>Título</TableHead>
-                    <TableHead>Destino</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {conteudosFiltrados.map((conteudo) => (
-                    <TableRow key={conteudo.id}>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleToggleDestaque(conteudo)}
-                        >
-                          {conteudo.destaque ? (
-                            <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                          ) : (
-                            <StarOff className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </Button>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{conteudo.titulo}</p>
-                          {conteudo.subtitulo && (
-                            <p className="text-sm text-muted-foreground truncate max-w-[300px]">
-                              {conteudo.subtitulo}
-                            </p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {DESTINO_LABELS[conteudo.destino]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {TIPO_ICONS[conteudo.tipo]}
-                          <span className="text-sm">{TIPO_LABELS[conteudo.tipo]}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={STATUS_COLORS[conteudo.status]}>
-                          {STATUS_LABELS[conteudo.status]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(conteudo.created_at), "dd/MM/yyyy", { locale: ptBR })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleTogglePublish(conteudo)}
-                            title={conteudo.status === "publicado" ? "Despublicar" : "Publicar"}
-                          >
-                            {conteudo.status === "publicado" ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Send className="h-4 w-4" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleEdit(conteudo)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => {
-                              setConteudoDelete(conteudo);
-                              setDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+              ) : undefined,
+          }}
+          acoesLinha={(conteudo) => (
+            <div className="flex items-center justify-end gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => handleTogglePublish(conteudo)}
+                aria-label={`${conteudo.status === "publicado" ? "Despublicar" : "Publicar"} ${conteudo.titulo}`}
+                title={conteudo.status === "publicado" ? "Despublicar" : "Publicar"}
+              >
+                {conteudo.status === "publicado" ? (
+                  <EyeOff className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <Send className="h-4 w-4" aria-hidden="true" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                aria-label={`Editar ${conteudo.titulo}`}
+                onClick={() => handleEdit(conteudo)}
+              >
+                <Edit className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive"
+                aria-label={`Excluir ${conteudo.titulo}`}
+                onClick={() => {
+                  setConteudoDelete(conteudo);
+                  setDeleteDialogOpen(true);
+                }}
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+          )}
+        />
 
         {/* Dialog Editor */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -486,7 +483,7 @@ export default function CMSConteudosPage() {
                 <div className="space-y-2">
                   <Label>Destino</Label>
                   <Select value={form.destino} onValueChange={(v: CMSDestino) => setForm({ ...form, destino: v })}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Destino">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -500,7 +497,7 @@ export default function CMSConteudosPage() {
                 <div className="space-y-2">
                   <Label>Tipo</Label>
                   <Select value={form.tipo} onValueChange={(v: CMSTipoConteudo) => setForm({ ...form, tipo: v })}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Tipo">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -514,7 +511,7 @@ export default function CMSConteudosPage() {
                 <div className="space-y-2">
                   <Label>Categoria</Label>
                   <Select value={form.categoria} onValueChange={(v) => setForm({ ...form, categoria: v })}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Categoria">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
@@ -528,7 +525,7 @@ export default function CMSConteudosPage() {
                 <div className="space-y-2">
                   <Label>Status</Label>
                   <Select value={form.status} onValueChange={(v: CMSStatus) => setForm({ ...form, status: v })}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Situação">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -573,10 +570,11 @@ export default function CMSConteudosPage() {
 
                 <div className="flex items-center gap-3 md:col-span-2">
                   <Switch
+                    id="conteudo_destaque"
                     checked={form.destaque}
                     onCheckedChange={(checked) => setForm({ ...form, destaque: checked })}
                   />
-                  <Label>Marcar como destaque</Label>
+                  <Label htmlFor="conteudo_destaque">Marcar como destaque</Label>
                 </div>
               </div>
             </div>
@@ -590,9 +588,9 @@ export default function CMSConteudosPage() {
                 disabled={!form.titulo || createConteudo.isPending || updateConteudo.isPending}
               >
                 {(createConteudo.isPending || updateConteudo.isPending) && (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
                 )}
-                {conteudoEdit ? "Salvar Alterações" : "Criar Conteúdo"}
+                {conteudoEdit ? "Salvar alterações" : "Criar conteúdo"}
               </Button>
             </DialogFooter>
           </DialogContent>
