@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { EmptyState, KpiCard, PageHeader, StatusBadge, type TomStatus } from '@/components/design-system';
 import { 
   Handshake, 
   FileText, 
@@ -15,11 +15,9 @@ import {
   Building2,
   CheckCircle2,
   Clock,
-  AlertTriangle,
-  ArrowLeft,
   Download,
   Eye,
-  Filter
+  Wallet
 } from 'lucide-react';
 
 const convenios = [
@@ -78,6 +76,14 @@ const etapasFluxo = [
   { numero: 6, titulo: 'Prestação de Contas', descricao: 'Prestação de contas parcial e final' },
 ];
 
+// Situação do convênio → rótulo e tom do selo (status nunca só por cor)
+const SITUACAO_CONVENIO: Record<string, { label: string; tom: TomStatus }> = {
+  vigente: { label: 'Vigente', tom: 'sucesso' },
+  prestacao_contas: { label: 'Prestação de contas', tom: 'pendente' },
+  encerrado: { label: 'Encerrado', tom: 'neutro' },
+  suspenso: { label: 'Suspenso', tom: 'erro' }
+};
+
 const ConveniosProcessoPage: React.FC = () => {
   const [busca, setBusca] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('todos');
@@ -91,14 +97,8 @@ const ConveniosProcessoPage: React.FC = () => {
   });
 
   const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-      vigente: { label: 'Vigente', variant: 'default' },
-      prestacao_contas: { label: 'Prestação de Contas', variant: 'secondary' },
-      encerrado: { label: 'Encerrado', variant: 'outline' },
-      suspenso: { label: 'Suspenso', variant: 'destructive' }
-    };
-    const config = statusConfig[status] || { label: status, variant: 'outline' };
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    const config = SITUACAO_CONVENIO[status] || { label: status, tom: 'neutro' as TomStatus };
+    return <StatusBadge tom={config.tom}>{config.label}</StatusBadge>;
   };
 
   const formatCurrency = (value: number) => {
@@ -111,38 +111,23 @@ const ConveniosProcessoPage: React.FC = () => {
 
   return (
     <ModuleLayout module="compras">
-      <div className="container mx-auto py-8 px-4">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-          <Link to="/processos" className="hover:text-primary flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" />
-            Processos
-          </Link>
-          <span>/</span>
-          <span className="text-foreground">Convênios e Parcerias</span>
-        </div>
-
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-              <Handshake className="h-8 w-8 text-primary" />
-              Convênios e Parcerias
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Gestão de convênios, termos de cooperação e parcerias institucionais
-            </p>
-          </div>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Convênio
-          </Button>
-        </div>
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: 'Processos', href: '/processos' }, { rotulo: 'Convênios e parcerias' }]}
+          titulo="Convênios e parcerias"
+          descricao="Gestão de convênios, termos de cooperação e parcerias institucionais"
+          acoes={
+            <Button>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Novo convênio
+            </Button>
+          }
+        />
 
         <Tabs defaultValue="lista" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="lista">Lista de Convênios</TabsTrigger>
-            <TabsTrigger value="fluxo">Fluxo do Processo</TabsTrigger>
+            <TabsTrigger value="lista">Lista de convênios</TabsTrigger>
+            <TabsTrigger value="fluxo">Fluxo do processo</TabsTrigger>
             <TabsTrigger value="documentos">Documentos</TabsTrigger>
           </TabsList>
 
@@ -153,18 +138,20 @@ const ConveniosProcessoPage: React.FC = () => {
               <CardContent className="pt-6">
                 <div className="flex flex-col md:flex-row gap-4">
                   <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     <Input
                       placeholder="Buscar por título, entidade ou número..."
+                      aria-label="Buscar convênios por título, entidade ou número"
                       className="pl-10"
                       value={busca}
                       onChange={(e) => setBusca(e.target.value)}
                     />
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap" role="group" aria-label="Filtrar por situação">
                     <Button 
                       variant={filtroStatus === 'todos' ? 'default' : 'outline'} 
                       size="sm"
+                      aria-pressed={filtroStatus === 'todos'}
                       onClick={() => setFiltroStatus('todos')}
                     >
                       Todos
@@ -172,6 +159,7 @@ const ConveniosProcessoPage: React.FC = () => {
                     <Button 
                       variant={filtroStatus === 'vigente' ? 'default' : 'outline'} 
                       size="sm"
+                      aria-pressed={filtroStatus === 'vigente'}
                       onClick={() => setFiltroStatus('vigente')}
                     >
                       Vigentes
@@ -179,9 +167,10 @@ const ConveniosProcessoPage: React.FC = () => {
                     <Button 
                       variant={filtroStatus === 'prestacao_contas' ? 'default' : 'outline'} 
                       size="sm"
+                      aria-pressed={filtroStatus === 'prestacao_contas'}
                       onClick={() => setFiltroStatus('prestacao_contas')}
                     >
-                      Prestação de Contas
+                      Prestação de contas
                     </Button>
                   </div>
                 </div>
@@ -190,58 +179,41 @@ const ConveniosProcessoPage: React.FC = () => {
 
             {/* Estatísticas */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card>
-                <CardContent className="pt-6 text-center">
-                  <div className="text-3xl font-bold text-primary">{convenios.length}</div>
-                  <div className="text-sm text-muted-foreground">Total</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6 text-center">
-                  <div className="text-3xl font-bold text-green-600">
-                    {convenios.filter(c => c.status === 'vigente').length}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Vigentes</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6 text-center">
-                  <div className="text-3xl font-bold text-yellow-600">
-                    {convenios.filter(c => c.status === 'prestacao_contas').length}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Prest. Contas</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6 text-center">
-                  <div className="text-3xl font-bold text-foreground">
-                    {formatCurrency(convenios.reduce((acc, c) => acc + c.valor, 0))}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Valor Total</div>
-                </CardContent>
-              </Card>
+              <KpiCard rotulo="Total" valor={convenios.length} icone={Handshake} />
+              <KpiCard rotulo="Vigentes" valor={convenios.filter(c => c.status === 'vigente').length} icone={CheckCircle2} />
+              <KpiCard rotulo="Prestação de contas" valor={convenios.filter(c => c.status === 'prestacao_contas').length} icone={Clock} />
+              <KpiCard rotulo="Valor total" valor={formatCurrency(convenios.reduce((acc, c) => acc + c.valor, 0))} icone={Wallet} />
             </div>
 
             {/* Lista */}
             <div className="space-y-4">
+              {conveniosFiltrados.length === 0 && (
+                <Card>
+                  <EmptyState
+                    icone={Handshake}
+                    titulo="Nenhum convênio encontrado"
+                    descricao="Ajuste a busca ou o filtro de situação."
+                  />
+                </Card>
+              )}
               {conveniosFiltrados.map((convenio) => (
                 <Card key={convenio.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="pt-6">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
+                        <div className="flex flex-wrap items-center gap-3 mb-2">
                           <span className="text-sm font-mono text-muted-foreground">{convenio.id}</span>
                           {getStatusBadge(convenio.status)}
                           <Badge variant="outline">{convenio.tipo}</Badge>
                         </div>
-                        <h3 className="text-lg font-semibold text-foreground mb-1">{convenio.titulo}</h3>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <h2 className="text-lg font-semibold text-foreground mb-1">{convenio.titulo}</h2>
+                        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
-                            <Building2 className="h-4 w-4" />
+                            <Building2 className="h-4 w-4" aria-hidden="true" />
                             {convenio.entidade}
                           </span>
                           <span className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4" />
+                            <Calendar className="h-4 w-4" aria-hidden="true" />
                             {formatDate(convenio.dataInicio)} - {formatDate(convenio.dataFim)}
                           </span>
                         </div>
@@ -251,11 +223,18 @@ const ConveniosProcessoPage: React.FC = () => {
                           {formatCurrency(convenio.valor)}
                         </div>
                         <div className="w-32">
-                          <div className="flex justify-between text-xs mb-1">
+                          <div className="flex justify-between text-caption mb-1" aria-hidden="true">
                             <span>Execução</span>
                             <span>{convenio.percentualExecutado}%</span>
                           </div>
-                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-2 bg-muted rounded-full overflow-hidden"
+                            role="progressbar"
+                            aria-label={`Execução de ${convenio.titulo}`}
+                            aria-valuenow={convenio.percentualExecutado}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                          >
                             <div 
                               className="h-full bg-primary rounded-full transition-all"
                               style={{ width: `${convenio.percentualExecutado}%` }}
@@ -263,8 +242,8 @@ const ConveniosProcessoPage: React.FC = () => {
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            <Eye className="h-4 w-4 mr-1" />
+                          <Button variant="outline" size="sm" aria-label={`Ver detalhes de ${convenio.titulo}`}>
+                            <Eye className="h-4 w-4 mr-1" aria-hidden="true" />
                             Detalhes
                           </Button>
                         </div>
@@ -312,7 +291,7 @@ const ConveniosProcessoPage: React.FC = () => {
           <TabsContent value="documentos" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Documentos e Modelos</CardTitle>
+                <CardTitle>Documentos e modelos</CardTitle>
                 <CardDescription>
                   Modelos de documentos para convênios e parcerias
                 </CardDescription>
@@ -329,13 +308,13 @@ const ConveniosProcessoPage: React.FC = () => {
                     'Termo Aditivo',
                     'Termo de Rescisão'
                   ].map((doc) => (
-                    <div key={doc} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <div key={doc} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-3">
-                        <FileText className="h-5 w-5 text-primary" />
+                        <FileText className="h-5 w-5 text-primary" aria-hidden="true" />
                         <span className="text-sm font-medium">{doc}</span>
                       </div>
-                      <Button variant="ghost" size="sm">
-                        <Download className="h-4 w-4" />
+                      <Button variant="ghost" size="sm" aria-label={`Baixar ${doc}`}>
+                        <Download className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </div>
                   ))}
