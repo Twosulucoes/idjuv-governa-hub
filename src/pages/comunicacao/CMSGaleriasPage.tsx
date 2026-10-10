@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 import { ModuleLayout } from "@/components/layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,18 +46,21 @@ import {
   Send,
   Loader2,
   Image as ImageIcon,
-  FolderOpen
+  FolderOpen,
+  AlertCircle
 } from "lucide-react";
 import { useCMSGalerias, useCMSGaleriaFotos, type CMSGaleria } from "@/hooks/cms/useCMSGalerias";
 import { DESTINO_LABELS, type CMSDestino } from "@/hooks/cms/useCMSConteudos";
 import { GalleryManager, type GalleryPhoto } from "@/components/cms";
+import { EmptyState, KpiCard, PageHeader, StatusBadge, type TomStatus } from "@/components/design-system";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-const STATUS_COLORS: Record<string, string> = {
-  rascunho: "bg-muted text-muted-foreground",
-  publicado: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  arquivado: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
+// Situação da galeria → tom do StatusBadge
+const STATUS_TOM: Record<string, TomStatus> = {
+  rascunho: "neutro",
+  publicado: "sucesso",
+  arquivado: "neutro",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -71,7 +74,7 @@ export default function CMSGaleriasPage() {
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
   const [busca, setBusca] = useState("");
   
-  const { galerias, isLoading, createGaleria, updateGaleria, deleteGaleria, publicarGaleria } = useCMSGalerias();
+  const { galerias, isLoading, error, createGaleria, updateGaleria, deleteGaleria, publicarGaleria } = useCMSGalerias();
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [photosDialogOpen, setPhotosDialogOpen] = useState(false);
@@ -193,53 +196,40 @@ export default function CMSGaleriasPage() {
   return (
     <ModuleLayout module="comunicacao">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <Camera className="h-6 w-6 text-primary" />
-              CMS de Galerias
-            </h1>
-            <p className="text-muted-foreground">Gerenciamento de galerias de fotos</p>
-          </div>
-          <Button onClick={handleOpenNew} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Nova Galeria
-          </Button>
-        </div>
+        <PageHeader
+          migalhas={[{ rotulo: "Comunicação", href: "/comunicacao" }, { rotulo: "Galerias" }]}
+          titulo="CMS de galerias"
+          descricao="Gerenciamento de galerias de fotos"
+          acoes={
+            <Button onClick={handleOpenNew} className="gap-2">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Nova galeria
+            </Button>
+          }
+        />
 
-        {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Total</CardDescription>
-              <CardTitle className="text-3xl">{galerias.length}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Publicadas</CardDescription>
-              <CardTitle className="text-3xl text-green-600">
-                {galerias.filter(g => g.status === "publicado").length}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Rascunhos</CardDescription>
-              <CardTitle className="text-3xl text-muted-foreground">
-                {galerias.filter(g => g.status === "rascunho").length}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Total Fotos</CardDescription>
-              <CardTitle className="text-3xl text-primary">
-                {galerias.reduce((acc, g) => acc + (g.visualizacoes || 0), 0)}
-              </CardTitle>
-            </CardHeader>
-          </Card>
+        {/* Indicadores */}
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+          <KpiCard rotulo="Total" valor={galerias.length} icone={FolderOpen} carregando={isLoading} />
+          <KpiCard
+            rotulo="Publicadas"
+            valor={galerias.filter(g => g.status === "publicado").length}
+            icone={Send}
+            carregando={isLoading}
+          />
+          <KpiCard
+            rotulo="Rascunhos"
+            valor={galerias.filter(g => g.status === "rascunho").length}
+            icone={Edit}
+            carregando={isLoading}
+          />
+          {/* Soma de `visualizacoes` (o rótulo antigo dizia "Total Fotos", mas o valor é de visualizações) */}
+          <KpiCard
+            rotulo="Visualizações"
+            valor={galerias.reduce((acc, g) => acc + (g.visualizacoes || 0), 0)}
+            icone={Eye}
+            carregando={isLoading}
+          />
         </div>
 
         {/* Filtros */}
@@ -247,28 +237,29 @@ export default function CMSGaleriasPage() {
           <CardContent className="pt-6">
             <div className="flex flex-wrap gap-4">
               <div className="flex-1 min-w-[200px] relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 <Input
                   placeholder="Buscar por título..."
+                  aria-label="Buscar galerias por título"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
                   className="pl-10"
                 />
               </div>
               <Select value={filtroDestino} onValueChange={setFiltroDestino}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[180px]" aria-label="Filtrar por destino">
                   <SelectValue placeholder="Destino" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todos">Todos Destinos</SelectItem>
+                  <SelectItem value="todos">Todos os destinos</SelectItem>
                   {Object.entries(DESTINO_LABELS).map(([key, label]) => (
                     <SelectItem key={key} value={key}>{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Status" />
+                <SelectTrigger className="w-[140px]" aria-label="Filtrar por situação">
+                  <SelectValue placeholder="Situação" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
@@ -283,17 +274,35 @@ export default function CMSGaleriasPage() {
 
         {/* Grid de Galerias */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <div className="flex items-center justify-center py-12" role="status">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden="true" />
+            <span className="sr-only">Carregando galerias...</span>
           </div>
+        ) : error ? (
+          <Card>
+            <CardContent className="p-0">
+              <EmptyState
+                icone={AlertCircle}
+                titulo="Não foi possível carregar as galerias"
+                descricao="Recarregue a página e tente novamente."
+              />
+            </CardContent>
+          </Card>
         ) : galeriasFiltradas.length === 0 ? (
           <Card>
-            <CardContent className="text-center py-12">
-              <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Nenhuma galeria encontrada</p>
-              <Button variant="outline" className="mt-4" onClick={handleOpenNew}>
-                Criar primeira galeria
-              </Button>
+            <CardContent className="p-0">
+              <EmptyState
+                icone={FolderOpen}
+                titulo="Nenhuma galeria encontrada"
+                descricao={galerias.length > 0 ? "Ajuste a busca ou os filtros." : undefined}
+                acao={
+                  galerias.length === 0 ? (
+                    <Button variant="outline" onClick={handleOpenNew}>
+                      Criar primeira galeria
+                    </Button>
+                  ) : undefined
+                }
+              />
             </CardContent>
           </Card>
         ) : (
@@ -309,18 +318,18 @@ export default function CMSGaleriasPage() {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                      <ImageIcon className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
                     </div>
                   )}
-                  <div className="absolute top-2 right-2">
-                    <Badge className={STATUS_COLORS[galeria.status]}>
-                      {STATUS_LABELS[galeria.status]}
-                    </Badge>
+                  <div className="absolute top-2 right-2 rounded-full bg-background">
+                    <StatusBadge tom={STATUS_TOM[galeria.status] ?? "neutro"}>
+                      {STATUS_LABELS[galeria.status] ?? galeria.status ?? "Sem situação"}
+                    </StatusBadge>
                   </div>
                 </div>
                 <CardContent className="p-4">
                   <div className="space-y-2">
-                    <h3 className="font-semibold truncate">{galeria.titulo}</h3>
+                    <h2 className="text-h3 truncate">{galeria.titulo}</h2>
                     {galeria.descricao && (
                       <p className="text-sm text-muted-foreground line-clamp-2">
                         {galeria.descricao}
@@ -341,9 +350,10 @@ export default function CMSGaleriasPage() {
                           size="icon"
                           className="h-8 w-8"
                           onClick={() => handleOpenPhotos(galeria)}
+                          aria-label={`Gerenciar fotos de ${galeria.titulo}`}
                           title="Gerenciar fotos"
                         >
-                          <Camera className="h-4 w-4" />
+                          <Camera className="h-4 w-4" aria-hidden="true" />
                         </Button>
                         {galeria.status !== "publicado" && (
                           <Button
@@ -351,29 +361,32 @@ export default function CMSGaleriasPage() {
                             size="icon"
                             className="h-8 w-8"
                             onClick={() => publicarGaleria.mutate(galeria.id)}
+                            aria-label={`Publicar ${galeria.titulo}`}
                             title="Publicar"
                           >
-                            <Send className="h-4 w-4" />
+                            <Send className="h-4 w-4" aria-hidden="true" />
                           </Button>
                         )}
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
+                          aria-label={`Editar ${galeria.titulo}`}
                           onClick={() => handleEdit(galeria)}
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-4 w-4" aria-hidden="true" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive"
+                          aria-label={`Excluir ${galeria.titulo}`}
                           onClick={() => {
                             setGaleriaDelete(galeria);
                             setDeleteDialogOpen(true);
                           }}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </Button>
                       </div>
                     </div>
@@ -420,7 +433,7 @@ export default function CMSGaleriasPage() {
                 <div className="space-y-2">
                   <Label>Destino</Label>
                   <Select value={form.destino} onValueChange={(v: CMSDestino) => setForm({ ...form, destino: v })}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Destino">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -437,7 +450,7 @@ export default function CMSGaleriasPage() {
                     value={form.status} 
                     onValueChange={(v: "rascunho" | "publicado" | "arquivado") => setForm({ ...form, status: v })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Situação">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -459,7 +472,7 @@ export default function CMSGaleriasPage() {
                 />
                 {form.imagem_capa_url && (
                   <div className="mt-2 rounded-lg overflow-hidden bg-muted aspect-video max-w-[300px]">
-                    <img src={form.imagem_capa_url} alt="Preview" className="w-full h-full object-cover" />
+                    <img src={form.imagem_capa_url} alt="Pré-visualização da capa" className="w-full h-full object-cover" />
                   </div>
                 )}
               </div>
@@ -474,7 +487,7 @@ export default function CMSGaleriasPage() {
                 disabled={!form.titulo || createGaleria.isPending || updateGaleria.isPending}
               >
                 {(createGaleria.isPending || updateGaleria.isPending) && (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" aria-hidden="true" />
                 )}
                 Salvar
               </Button>
@@ -506,8 +519,8 @@ export default function CMSGaleriasPage() {
                 onClick={handleSavePhotos}
                 disabled={syncFotos.isPending}
               >
-                {syncFotos.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                Salvar Fotos
+                {syncFotos.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" aria-hidden="true" />}
+                Salvar fotos
               </Button>
             </DialogFooter>
           </DialogContent>

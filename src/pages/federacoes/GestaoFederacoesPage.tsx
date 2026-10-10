@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,12 +6,7 @@ import { format, isValid, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import {
-  Search,
-  Filter,
   Eye,
-  CheckCircle,
-  XCircle,
-  Clock,
   Building2,
   Calendar,
   FileText,
@@ -26,19 +21,10 @@ import { MandatoExpiradoBadge, isMandatoExpirado } from '@/components/federacoes
 import { FederacaoParceriasTab } from '@/components/federacoes/FederacaoParceriasTab';
 
 import { ModuleLayout } from "@/components/layout";
+import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from '@/components/design-system';
+import { useIdentidade } from '@/core/tenant';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   Select,
   SelectContent,
@@ -89,29 +75,82 @@ interface Federacao {
   created_at: string;
 }
 
-const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
-  em_analise: { label: 'Em Análise', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
-  ativo: { label: 'Ativa', color: 'bg-green-100 text-green-800', icon: CheckCircle },
-  inativo: { label: 'Inativa', color: 'bg-gray-100 text-gray-800', icon: XCircle },
-  rejeitado: { label: 'Rejeitada', color: 'bg-red-100 text-red-800', icon: XCircle },
+const statusConfig: Record<string, { label: string; tom: TomStatus }> = {
+  em_analise: { label: 'Em análise', tom: 'andamento' },
+  ativo: { label: 'Ativa', tom: 'sucesso' },
+  inativo: { label: 'Inativa', tom: 'neutro' },
+  rejeitado: { label: 'Rejeitada', tom: 'erro' },
 };
 
 // Fallback seguro para status desconhecido
-const getStatusConfig = (status: string | null | undefined) => {
-  if (!status || !statusConfig[status]) {
-    return { label: 'Desconhecido', color: 'bg-gray-100 text-gray-800', icon: Clock };
-  }
-  return statusConfig[status];
+const getStatusConfig = (status: string | null | undefined) =>
+  (status ? statusConfig[status] : undefined) ?? { label: status || 'Sem situação', tom: 'neutro' as TomStatus };
+
+const formatDate = (date?: string | null) => {
+  if (!date) return '-';
+  // Prefer parseISO for yyyy-mm-dd / timestamps; fall back to raw on invalid.
+  const parsed = parseISO(date);
+  if (!isValid(parsed)) return date;
+  return format(parsed, 'dd/MM/yyyy', { locale: ptBR });
 };
+
+const colunas: ColunaTabela<Federacao>[] = [
+  {
+    id: 'federacao',
+    cabecalho: 'Federação',
+    celula: (fed) => (
+      <div>
+        <div className="font-medium">{fed.sigla || '-'}</div>
+        <div className="max-w-[200px] truncate text-caption text-muted-foreground" title={fed.nome || undefined}>
+          {fed.nome || '-'}
+        </div>
+      </div>
+    ),
+    ordenarPor: (fed) => fed.sigla,
+    buscarPor: (fed) => `${fed.sigla ?? ''} ${fed.nome ?? ''}`,
+    mobile: 'titulo',
+  },
+  {
+    id: 'presidente',
+    cabecalho: 'Presidente',
+    celula: (fed) => fed.presidente_nome || '-',
+    ordenarPor: (fed) => fed.presidente_nome,
+    buscarPor: (fed) => fed.presidente_nome,
+  },
+  {
+    id: 'mandato',
+    cabecalho: 'Mandato',
+    celula: (fed) => (
+      <div className="flex flex-wrap items-center gap-2">
+        <span>
+          {formatDate(fed.mandato_inicio)} - {formatDate(fed.mandato_fim)}
+        </span>
+        {isMandatoExpirado(fed.mandato_fim) && (
+          <MandatoExpiradoBadge mandatoFim={fed.mandato_fim} variant="badge" />
+        )}
+      </div>
+    ),
+    ordenarPor: (fed) => fed.mandato_fim,
+  },
+  {
+    id: 'status',
+    cabecalho: 'Situação',
+    celula: (fed) => {
+      const statusInfo = getStatusConfig(fed.status);
+      return <StatusBadge tom={statusInfo.tom}>{statusInfo.label}</StatusBadge>;
+    },
+    ordenarPor: (fed) => getStatusConfig(fed.status).label,
+  },
+];
 
 export default function GestaoFederacoesPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState('');
+  const { sigla: siglaInstituicao } = useIdentidade();
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [relatoriosOpen, setRelatoriosOpen] = useState(false);
 
-  const { data: federacoes = [], isLoading, isError, error: queryError } = useQuery({
+  const { data: federacoes = [], isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ['federacoes'],
     queryFn: async () => {
       try {
@@ -137,23 +176,14 @@ export default function GestaoFederacoesPage() {
     console.error('[Federações] Query error:', queryError);
   }
 
-  const filteredFederacoes = (federacoes || []).filter((fed) => {
-    if (!fed) return false;
-    
-    const nome = (fed.nome || '').toLowerCase();
-    const sigla = (fed.sigla || '').toLowerCase();
-    const presidenteNome = (fed.presidente_nome || '').toLowerCase();
-    const searchLower = search.toLowerCase();
-    
-    const matchesSearch = 
-      nome.includes(searchLower) ||
-      sigla.includes(searchLower) ||
-      presidenteNome.includes(searchLower);
-    
-    const matchesStatus = statusFilter === 'todos' || fed.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  // Busca por nome/sigla/presidente fica no DataTable; aqui só o filtro de situação
+  const filteredFederacoes = useMemo(
+    () =>
+      (federacoes || []).filter(
+        (fed) => Boolean(fed) && (statusFilter === 'todos' || fed.status === statusFilter),
+      ),
+    [federacoes, statusFilter],
+  );
 
   const stats = {
     total: (federacoes || []).length,
@@ -162,48 +192,31 @@ export default function GestaoFederacoesPage() {
     inativas: (federacoes || []).filter((f) => f?.status === 'inativo').length,
   };
 
+  const indicadores = [
+    { rotulo: 'Total', valor: stats.total },
+    { rotulo: 'Em análise', valor: stats.emAnalise },
+    { rotulo: 'Ativas', valor: stats.ativas },
+    { rotulo: 'Inativas', valor: stats.inativas },
+  ];
+
   const handleViewDetails = useCallback((federacao: Federacao) => {
     navigate(`/admin/federacoes/${federacao.id}`);
   }, [navigate]);
-
-  const formatDate = (date?: string | null) => {
-    if (!date) return '-';
-    // Prefer parseISO for yyyy-mm-dd / timestamps; fall back to raw on invalid.
-    const parsed = parseISO(date);
-    if (!isValid(parsed)) return date;
-    return format(parsed, 'dd/MM/yyyy', { locale: ptBR });
-  };
 
   return (
     <FederacoesErrorBoundary>
     <ModuleLayout module="organizacoes">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Federações Esportivas</h1>
-            <p className="text-muted-foreground">Gerencie as federações vinculadas ao IDJuv</p>
-          </div>
-          <Button onClick={() => setRelatoriosOpen(true)}>
-            <FileText className="h-4 w-4 mr-2" />
-            Central de Relatórios
-          </Button>
-        </div>
-
-        {/* Tabs */}
-        <Tabs defaultValue="federacoes" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
-            <TabsTrigger value="federacoes" className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              Federações
-            </TabsTrigger>
-            <TabsTrigger value="calendario" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Calendário Geral
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="federacoes" className="space-y-6 mt-6">
+        <PageHeader
+          titulo="Federações esportivas"
+          descricao={`Gerencie as federações vinculadas ao ${siglaInstituicao}`}
+          acoes={
+            <Button onClick={() => setRelatoriosOpen(true)}>
+              <FileText className="h-4 w-4" aria-hidden="true" />
+              Central de relatórios
+            </Button>
+          }
+        />
 
         {/* Central de Relatórios Dialog */}
         <CentralRelatoriosFederacoesDialog
@@ -211,136 +224,71 @@ export default function GestaoFederacoesPage() {
           onOpenChange={setRelatoriosOpen}
         />
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="text-2xl font-bold">{stats.total}</div>
-              <div className="text-sm text-muted-foreground">Total</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-yellow-600">{stats.emAnalise}</div>
-              <div className="text-sm text-muted-foreground">Em Análise</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-green-600">{stats.ativas}</div>
-              <div className="text-sm text-muted-foreground">Ativas</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-gray-600">{stats.inativas}</div>
-              <div className="text-sm text-muted-foreground">Inativas</div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Tabs */}
+        <Tabs defaultValue="federacoes" className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="federacoes" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" aria-hidden="true" />
+              Federações
+            </TabsTrigger>
+            <TabsTrigger value="calendario" className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" aria-hidden="true" />
+              Calendário geral
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome, sigla ou presidente..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
+          <TabsContent value="federacoes" className="mt-6 space-y-6">
+            {/* Indicadores */}
+            <section aria-labelledby="federacoes-indicadores">
+              <h2 id="federacoes-indicadores" className="sr-only">Indicadores</h2>
+              <ul className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                {indicadores.map((ind) => (
+                  <li key={ind.rotulo}>
+                    <KpiCard rotulo={ind.rotulo} valor={ind.valor} carregando={isLoading} className="h-full" />
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            <DataTable
+              rotulo="Federações esportivas"
+              dados={filteredFederacoes}
+              colunas={colunas}
+              chaveLinha={(fed) => fed.id}
+              carregando={isLoading}
+              erro={isError ? 'Não foi possível carregar as federações.' : null}
+              aoTentarNovamente={() => refetch()}
+              busca={{ placeholder: 'Buscar por nome, sigla ou presidente' }}
+              filtros={
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full sm:w-48" aria-label="Situação">
+                    <SelectValue placeholder="Situação" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todas as situações</SelectItem>
+                    <SelectItem value="em_analise">Em análise</SelectItem>
+                    <SelectItem value="ativo">Ativas</SelectItem>
+                    <SelectItem value="inativo">Inativas</SelectItem>
+                    <SelectItem value="rejeitado">Rejeitadas</SelectItem>
+                  </SelectContent>
+                </Select>
+              }
+              vazio={{
+                icone: Building2,
+                titulo: 'Nenhuma federação encontrada',
+                descricao: statusFilter === 'todos' ? undefined : 'Ajuste o filtro de situação.',
+              }}
+              acoesLinha={(fed) => (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleViewDetails(fed)}
+                  aria-label={`Ver detalhes de ${fed.sigla || fed.nome || 'federação'}`}
+                >
+                  <Eye className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              )}
             />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-48">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos</SelectItem>
-              <SelectItem value="em_analise">Em Análise</SelectItem>
-              <SelectItem value="ativo">Ativas</SelectItem>
-              <SelectItem value="inativo">Inativas</SelectItem>
-              <SelectItem value="rejeitado">Rejeitadas</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Table */}
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Federação</TableHead>
-                  <TableHead className="hidden md:table-cell">Presidente</TableHead>
-                  <TableHead className="hidden lg:table-cell">Mandato</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
-                      Carregando...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredFederacoes.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      Nenhuma federação encontrada
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredFederacoes.map((fed) => {
-                    const statusInfo = getStatusConfig(fed.status);
-                    const StatusIcon = statusInfo.icon;
-                    return (
-                      <TableRow key={fed.id}>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{fed.sigla || '-'}</div>
-                            <div className="text-sm text-muted-foreground truncate max-w-[200px]">
-                              {fed.nome || '-'}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          <div className="text-sm">{fed.presidente_nome || '-'}</div>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm">
-                              {formatDate(fed.mandato_inicio)} - {formatDate(fed.mandato_fim)}
-                            </span>
-                            {isMandatoExpirado(fed.mandato_fim) && (
-                              <MandatoExpiradoBadge mandatoFim={fed.mandato_fim} variant="badge" />
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={statusInfo.color}>
-                            <StatusIcon className="h-3 w-3 mr-1" />
-                            {statusInfo.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewDetails(fed)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
           </TabsContent>
 
           <TabsContent value="calendario" className="mt-6">

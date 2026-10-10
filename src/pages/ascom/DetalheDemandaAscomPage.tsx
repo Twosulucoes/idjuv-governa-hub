@@ -7,7 +7,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
-  ArrowLeft, 
   Clock, 
   Calendar, 
   User, 
@@ -61,6 +60,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import { EmptyState, PageHeader, StatusBadge, type TomStatus } from '@/components/design-system';
 
 import { useDemandasAscom } from '@/hooks/useDemandasAscom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -70,13 +70,41 @@ import {
   EntregavelDemandaAscom,
   ComentarioDemandaAscom,
   StatusDemandaAscom,
+  PrioridadeDemandaAscom,
   STATUS_DEMANDA_LABELS,
-  STATUS_DEMANDA_COLORS,
   CATEGORIA_DEMANDA_LABELS,
   TIPO_DEMANDA_LABELS,
-  PRIORIDADE_DEMANDA_LABELS,
-  PRIORIDADE_DEMANDA_COLORS
 } from '@/types/ascom';
+
+// Situação da demanda → rótulo (caixa de frase) e tom do StatusBadge
+const STATUS_DEMANDA: Record<StatusDemandaAscom, { label: string; tom: TomStatus }> = {
+  rascunho: { label: 'Rascunho', tom: 'neutro' },
+  enviada: { label: 'Enviada', tom: 'pendente' },
+  em_analise: { label: 'Em análise', tom: 'andamento' },
+  aguardando_autorizacao: { label: 'Aguardando autorização', tom: 'pendente' },
+  aprovada: { label: 'Aprovada', tom: 'sucesso' },
+  em_execucao: { label: 'Em execução', tom: 'andamento' },
+  concluida: { label: 'Concluída', tom: 'sucesso' },
+  indeferida: { label: 'Indeferida', tom: 'erro' },
+  cancelada: { label: 'Cancelada', tom: 'erro' },
+};
+
+const PRIORIDADE_DEMANDA: Record<PrioridadeDemandaAscom, { label: string; tom: TomStatus }> = {
+  baixa: { label: 'Baixa', tom: 'neutro' },
+  normal: { label: 'Normal', tom: 'andamento' },
+  alta: { label: 'Alta', tom: 'pendente' },
+  urgente: { label: 'Urgente', tom: 'destaque' },
+};
+
+const statusDemanda = (s: string | null | undefined) =>
+  STATUS_DEMANDA[s as StatusDemandaAscom] ?? { label: s ?? 'Sem situação', tom: 'neutro' as TomStatus };
+const prioridadeDemanda = (p: string | null | undefined) =>
+  PRIORIDADE_DEMANDA[p as PrioridadeDemandaAscom] ?? { label: p ?? 'Sem prioridade', tom: 'neutro' as TomStatus };
+
+const MIGALHAS_BASE = [
+  { rotulo: 'Comunicação', href: '/comunicacao' },
+  { rotulo: 'Demandas', href: '/ascom/demandas' },
+];
 
 export default function DetalheDemandaAscomPage() {
   const { id } = useParams<{ id: string }>();
@@ -212,8 +240,8 @@ export default function DetalheDemandaAscomPage() {
   if (loading) {
     return (
       <ModuleLayout module="comunicacao">
-        <div className="space-y-6">
-          <Skeleton className="h-8 w-64" />
+        <div className="space-y-6" aria-busy="true">
+          <PageHeader migalhas={[...MIGALHAS_BASE, { rotulo: 'Demanda' }]} titulo="Carregando demanda…" />
           <Skeleton className="h-[400px] w-full" />
         </div>
       </ModuleLayout>
@@ -223,11 +251,18 @@ export default function DetalheDemandaAscomPage() {
   if (!demandaAtual) {
     return (
       <ModuleLayout module="comunicacao">
-        <div className="text-center py-12">
-          <h2 className="text-xl font-semibold">Demanda não encontrada</h2>
-          <Button onClick={() => navigate('/ascom/demandas')} className="mt-4">
-            Voltar
-          </Button>
+        <div className="space-y-6">
+          <PageHeader migalhas={[...MIGALHAS_BASE, { rotulo: 'Não encontrada' }]} titulo="Demanda não encontrada" />
+          <EmptyState
+            icone={FileText}
+            titulo="Demanda não encontrada"
+            descricao="Ela pode ter sido removida ou o endereço está incorreto."
+            acao={
+              <Button variant="outline" onClick={() => navigate('/ascom/demandas')}>
+                Voltar para demandas
+              </Button>
+            }
+          />
         </div>
       </ModuleLayout>
     );
@@ -238,47 +273,37 @@ export default function DetalheDemandaAscomPage() {
   return (
     <ModuleLayout module="comunicacao">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/ascom/demandas')}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold">{demanda.numero_demanda}</h1>
-                <Badge className={STATUS_DEMANDA_COLORS[demanda.status]}>
-                  {STATUS_DEMANDA_LABELS[demanda.status]}
-                </Badge>
-                <Badge className={PRIORIDADE_DEMANDA_COLORS[demanda.prioridade]}>
-                  {PRIORIDADE_DEMANDA_LABELS[demanda.prioridade]}
-                </Badge>
-                {demanda.requer_autorizacao_presidencia && (
-                  <Badge variant="outline" className="border-orange-500 text-orange-500">
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    Requer autorização
-                  </Badge>
-                )}
-              </div>
-              <h2 className="text-xl mt-1">{demanda.titulo}</h2>
-              <p className="text-muted-foreground">
-                {CATEGORIA_DEMANDA_LABELS[demanda.categoria]} • {TIPO_DEMANDA_LABELS[demanda.tipo]}
-              </p>
-            </div>
-          </div>
-
-          {/* Ações */}
-          <div className="flex gap-2">
+        <PageHeader
+          migalhas={[...MIGALHAS_BASE, { rotulo: demanda.numero_demanda }]}
+          titulo={demanda.titulo}
+          descricao={
+            <>
+              <span className="font-mono">{demanda.numero_demanda}</span> • {CATEGORIA_DEMANDA_LABELS[demanda.categoria]} • {TIPO_DEMANDA_LABELS[demanda.tipo]}
+            </>
+          }
+          status={
+            <>
+              <StatusBadge tom={statusDemanda(demanda.status).tom}>{statusDemanda(demanda.status).label}</StatusBadge>
+              <StatusBadge tom={prioridadeDemanda(demanda.prioridade).tom}>
+                Prioridade {prioridadeDemanda(demanda.prioridade).label.toLowerCase()}
+              </StatusBadge>
+              {demanda.requer_autorizacao_presidencia && (
+                <StatusBadge tom="pendente">Requer autorização</StatusBadge>
+              )}
+            </>
+          }
+          acoes={
+          <>
             {demanda.status === 'rascunho' && (
               <Button onClick={() => handleAlterarStatus('enviada')}>
-                <Send className="h-4 w-4 mr-2" />
+                <Send className="h-4 w-4 mr-2" aria-hidden="true" />
                 Enviar
               </Button>
             )}
             
             {demanda.status === 'enviada' && isAscom && (
               <Button onClick={() => handleAlterarStatus('em_analise')}>
-                Iniciar Análise
+                Iniciar análise
               </Button>
             )}
             
@@ -286,16 +311,16 @@ export default function DetalheDemandaAscomPage() {
               <>
                 {demanda.requer_autorizacao_presidencia ? (
                   <Button onClick={() => handleAlterarStatus('aguardando_autorizacao')}>
-                    Solicitar Autorização
+                    Solicitar autorização
                   </Button>
                 ) : (
                   <Button onClick={() => handleAlterarStatus('aprovada')}>
-                    <CheckCircle className="h-4 w-4 mr-2" />
+                    <CheckCircle className="h-4 w-4 mr-2" aria-hidden="true" />
                     Aprovar
                   </Button>
                 )}
                 <Button variant="destructive" onClick={() => setDialogIndeferir(true)}>
-                  <XCircle className="h-4 w-4 mr-2" />
+                  <XCircle className="h-4 w-4 mr-2" aria-hidden="true" />
                   Indeferir
                 </Button>
               </>
@@ -304,26 +329,26 @@ export default function DetalheDemandaAscomPage() {
             {demanda.status === 'aguardando_autorizacao' && isPresidencia && (
               <>
                 <Button onClick={() => handleAutorizarPresidencia(true)}>
-                  <CheckCircle className="h-4 w-4 mr-2" />
+                  <CheckCircle className="h-4 w-4 mr-2" aria-hidden="true" />
                   Autorizar
                 </Button>
                 <Button variant="destructive" onClick={() => handleAutorizarPresidencia(false)}>
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Não Autorizar
+                  <XCircle className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Não autorizar
                 </Button>
               </>
             )}
             
             {demanda.status === 'aprovada' && isAscom && (
               <Button onClick={() => handleAlterarStatus('em_execucao')}>
-                <PlayCircle className="h-4 w-4 mr-2" />
-                Iniciar Execução
+                <PlayCircle className="h-4 w-4 mr-2" aria-hidden="true" />
+                Iniciar execução
               </Button>
             )}
             
             {demanda.status === 'em_execucao' && isAscom && (
               <Button onClick={() => handleAlterarStatus('concluida')}>
-                <CheckCircle className="h-4 w-4 mr-2" />
+                <CheckCircle className="h-4 w-4 mr-2" aria-hidden="true" />
                 Concluir
               </Button>
             )}
@@ -331,7 +356,7 @@ export default function DetalheDemandaAscomPage() {
             {!['concluida', 'cancelada', 'indeferida'].includes(demanda.status) && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline">Cancelar Demanda</Button>
+                  <Button variant="outline">Cancelar demanda</Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
@@ -343,14 +368,15 @@ export default function DetalheDemandaAscomPage() {
                   <AlertDialogFooter>
                     <AlertDialogCancel>Voltar</AlertDialogCancel>
                     <AlertDialogAction onClick={() => handleAlterarStatus('cancelada')}>
-                      Confirmar Cancelamento
+                      Confirmar cancelamento
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
             )}
-          </div>
-        </div>
+          </>
+          }
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Coluna Principal */}
@@ -381,9 +407,9 @@ export default function DetalheDemandaAscomPage() {
                 )}
 
                 {demanda.justificativa_indeferimento && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <Label className="text-red-600">Justificativa do Indeferimento</Label>
-                    <p className="mt-1 text-red-800">{demanda.justificativa_indeferimento}</p>
+                  <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
+                    <Label className="text-destructive">Justificativa do indeferimento</Label>
+                    <p className="mt-1 text-foreground">{demanda.justificativa_indeferimento}</p>
                   </div>
                 )}
               </CardContent>
@@ -395,15 +421,15 @@ export default function DetalheDemandaAscomPage() {
                 <CardHeader>
                   <TabsList>
                     <TabsTrigger value="anexos">
-                      <Paperclip className="h-4 w-4 mr-2" />
+                      <Paperclip className="h-4 w-4 mr-2" aria-hidden="true" />
                       Anexos ({anexos.length})
                     </TabsTrigger>
                     <TabsTrigger value="entregaveis">
-                      <FileText className="h-4 w-4 mr-2" />
+                      <FileText className="h-4 w-4 mr-2" aria-hidden="true" />
                       Entregáveis ({entregaveis.length})
                     </TabsTrigger>
                     <TabsTrigger value="comentarios">
-                      <MessageSquare className="h-4 w-4 mr-2" />
+                      <MessageSquare className="h-4 w-4 mr-2" aria-hidden="true" />
                       Comentários ({comentarios.length})
                     </TabsTrigger>
                   </TabsList>
@@ -416,14 +442,17 @@ export default function DetalheDemandaAscomPage() {
                           type="file"
                           multiple
                           onChange={(e) => handleFileUpload(e, 'solicitacao')}
-                          className="hidden"
+                          className="peer sr-only"
                           id="upload-anexo"
                         />
-                        <label htmlFor="upload-anexo">
+                        <label
+                          htmlFor="upload-anexo"
+                          className="cursor-pointer rounded-md peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2"
+                        >
                           <Button variant="outline" size="sm" asChild>
                             <span>
-                              <Plus className="h-4 w-4 mr-2" />
-                              Adicionar Anexo
+                              <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+                              Adicionar anexo
                             </span>
                           </Button>
                         </label>
@@ -441,26 +470,32 @@ export default function DetalheDemandaAscomPage() {
                               className="flex items-center justify-between p-3 border rounded-lg"
                             >
                               <div className="flex items-center gap-3">
-                                <FileText className="h-5 w-5 text-muted-foreground" />
+                                <FileText className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
                                 <div>
                                   <p className="font-medium">{anexo.nome_arquivo}</p>
-                                  <p className="text-xs text-muted-foreground">
+                                  <p className="text-caption text-muted-foreground">
                                     {anexo.tipo_anexo} • {format(new Date(anexo.created_at), 'dd/MM/yyyy HH:mm')}
                                   </p>
                                 </div>
                               </div>
                               <div className="flex gap-2">
                                 <Button variant="ghost" size="icon" asChild>
-                                  <a href={anexo.url_arquivo} target="_blank" rel="noopener noreferrer">
-                                    <Download className="h-4 w-4" />
+                                  <a
+                                    href={anexo.url_arquivo}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    aria-label={`Baixar anexo ${anexo.nome_arquivo}`}
+                                  >
+                                    <Download className="h-4 w-4" aria-hidden="true" />
                                   </a>
                                 </Button>
                                 <Button 
                                   variant="ghost" 
                                   size="icon"
+                                  aria-label={`Remover anexo ${anexo.nome_arquivo}`}
                                   onClick={() => handleRemoverAnexo(anexo)}
                                 >
-                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                  <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
                                 </Button>
                               </div>
                             </div>
@@ -476,8 +511,8 @@ export default function DetalheDemandaAscomPage() {
                         <Dialog open={dialogEntregavel} onOpenChange={setDialogEntregavel}>
                           <DialogTrigger asChild>
                             <Button variant="outline" size="sm">
-                              <Plus className="h-4 w-4 mr-2" />
-                              Adicionar Entregável
+                              <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+                              Adicionar entregável
                             </Button>
                           </DialogTrigger>
                           <DialogContent>
@@ -543,9 +578,9 @@ export default function DetalheDemandaAscomPage() {
                                       href={entregavel.link_publicacao} 
                                       target="_blank" 
                                       rel="noopener noreferrer"
-                                      className="text-sm text-blue-600 hover:underline flex items-center gap-1 mt-2"
+                                      className="text-body text-primary hover:underline flex items-center gap-1 mt-2"
                                     >
-                                      <Link className="h-3 w-3" />
+                                      <Link className="h-3 w-3" aria-hidden="true" />
                                       Ver publicação
                                     </a>
                                   )}
@@ -604,9 +639,9 @@ export default function DetalheDemandaAscomPage() {
                                 key={comentario.id}
                                 className={`p-3 rounded-lg ${
                                   comentario.tipo === 'interno' 
-                                    ? 'bg-yellow-50 border border-yellow-200' 
+                                    ? 'bg-warning/10 border border-warning/30' 
                                     : comentario.tipo === 'status'
-                                    ? 'bg-blue-50 border border-blue-200'
+                                    ? 'bg-info/10 border border-info/30'
                                     : 'bg-muted'
                                 }`}
                               >
@@ -645,7 +680,7 @@ export default function DetalheDemandaAscomPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
+                  <User className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <span>{demanda.nome_responsavel}</span>
                 </div>
                 {demanda.cargo_funcao && (
@@ -655,19 +690,19 @@ export default function DetalheDemandaAscomPage() {
                 )}
                 {demanda.unidade_solicitante && (
                   <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <Building2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     <span>{demanda.unidade_solicitante.sigla} - {demanda.unidade_solicitante.nome}</span>
                   </div>
                 )}
                 {demanda.contato_telefone && (
                   <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <Phone className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     <span>{demanda.contato_telefone}</span>
                   </div>
                 )}
                 {demanda.contato_email && (
                   <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <Mail className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     <span>{demanda.contato_email}</span>
                   </div>
                 )}
@@ -686,14 +721,17 @@ export default function DetalheDemandaAscomPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Prazo</span>
-                  <span className={
-                    new Date(demanda.prazo_entrega) < new Date() && 
-                    !['concluida', 'cancelada', 'indeferida'].includes(demanda.status)
-                      ? 'text-red-600 font-medium'
-                      : ''
-                  }>
-                    {format(new Date(demanda.prazo_entrega), 'dd/MM/yyyy')}
-                  </span>
+                  {(() => {
+                    const vencido =
+                      new Date(demanda.prazo_entrega) < new Date() &&
+                      !['concluida', 'cancelada', 'indeferida'].includes(demanda.status);
+                    return (
+                      <span className={vencido ? 'text-destructive font-medium' : ''}>
+                        {format(new Date(demanda.prazo_entrega), 'dd/MM/yyyy')}
+                        {vencido && <span className="text-caption"> (vencido)</span>}
+                      </span>
+                    );
+                  })()}
                 </div>
                 {demanda.data_evento && (
                   <div className="flex items-center justify-between">
@@ -747,14 +785,14 @@ export default function DetalheDemandaAscomPage() {
                   <div className="space-y-2">
                     {(demanda.historico_status || []).map((item, index) => (
                       <div key={index} className="flex items-center gap-2 text-sm">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
+                        <Clock className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
                         <span className="text-muted-foreground">
                           {format(new Date(item.data), 'dd/MM HH:mm')}
                         </span>
-                        <span>→</span>
-                        <Badge className={`text-xs ${STATUS_DEMANDA_COLORS[item.status_novo]}`}>
-                          {STATUS_DEMANDA_LABELS[item.status_novo]}
-                        </Badge>
+                        <span aria-hidden="true">→</span>
+                        <StatusBadge tom={statusDemanda(item.status_novo).tom} icone={false}>
+                          {statusDemanda(item.status_novo).label}
+                        </StatusBadge>
                       </div>
                     ))}
                     {(!demanda.historico_status || demanda.historico_status.length === 0) && (

@@ -1,149 +1,116 @@
 import { ModuleLayout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { 
-  Building2, 
-  Users, 
-  FileText, 
-  Plane, 
-  FileCheck, 
-  Workflow,
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
+import { KpiCard, PageHeader } from "@/components/design-system";
+import {
+  Users,
+  FileText,
+  Plane,
+  FileCheck,
   ArrowRight,
   ClipboardList,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
+// Só rotas registradas em src/App.tsx (o atalho "Workflow RH" apontava para
+// /gabinete/workflow-rh, que não existe).
 const quickActions = [
   {
-    title: "Pré-Cadastros",
+    title: "Pré-cadastros",
     description: "Currículos recebidos para análise",
     icon: Users,
     route: "/gabinete/pre-cadastros",
-    color: "text-blue-600",
   },
   {
-    title: "Central de Portarias",
+    title: "Central de portarias",
     description: "Cadastrar e consultar portarias",
     icon: FileText,
     route: "/gabinete/portarias",
-    color: "text-amber-600",
   },
   {
-    title: "Ordem de Missão",
+    title: "Ordem de missão",
     description: "Autorizar viagens a serviço",
     icon: Plane,
     route: "/formularios/ordem-missao",
-    color: "text-green-600",
   },
   {
-    title: "Relatório de Viagem",
+    title: "Relatório de viagem",
     description: "Prestação de contas de viagens",
     icon: FileCheck,
     route: "/formularios/relatorio-viagem",
-    color: "text-purple-600",
   },
-  {
-    title: "Workflow RH",
-    description: "Tramitação de processos de pessoal",
-    icon: Workflow,
-    route: "/gabinete/workflow-rh",
-    color: "text-rose-600",
-  },
+];
+
+// Indicadores ainda sem fonte de dados: mostram "—" (não um zero que pareça real).
+const indicadores = [
+  { rotulo: "Pré-cadastros", icone: Users },
+  { rotulo: "Portarias do mês", icone: FileText },
+  { rotulo: "Missões ativas", icone: Plane },
+  { rotulo: "Pendências", icone: ClipboardList },
 ];
 
 function GabineteDashboardContent() {
   return (
     <ModuleLayout module="gabinete">
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Building2 className="h-7 w-7 text-violet-600" />
-            Gabinete da Presidência
-          </h1>
-          <p className="text-muted-foreground">
-            Gestão de documentos, autorizações e fluxos administrativos
-          </p>
-        </div>
+        <PageHeader
+          titulo="Gabinete da Presidência"
+          descricao="Gestão de documentos, autorizações e fluxos administrativos"
+        />
 
-        {/* Estatísticas rápidas */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
-                <Users className="h-8 w-8 text-blue-600" />
-                <div>
-                  <p className="text-2xl font-bold">--</p>
-                  <p className="text-sm text-muted-foreground">Pré-cadastros</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
-                <FileText className="h-8 w-8 text-amber-600" />
-                <div>
-                  <p className="text-2xl font-bold">--</p>
-                  <p className="text-sm text-muted-foreground">Portarias do mês</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
-                <Plane className="h-8 w-8 text-green-600" />
-                <div>
-                  <p className="text-2xl font-bold">--</p>
-                  <p className="text-sm text-muted-foreground">Missões ativas</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
-                <ClipboardList className="h-8 w-8 text-rose-600" />
-                <div>
-                  <p className="text-2xl font-bold">--</p>
-                  <p className="text-sm text-muted-foreground">Pendências</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <section aria-labelledby="gabinete-indicadores">
+          <h2 id="gabinete-indicadores" className="sr-only">Indicadores</h2>
+          <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {indicadores.map((ind) => (
+              <li key={ind.rotulo}>
+                <KpiCard
+                  rotulo={ind.rotulo}
+                  valor="—"
+                  detalhe="Indicador ainda não disponível"
+                  icone={ind.icone}
+                  className="h-full"
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
 
         {/* Ações rápidas */}
         <Card>
           <CardHeader>
-            <CardTitle>Ações Rápidas</CardTitle>
+            <h2 className="text-h2 text-foreground">Ações rápidas</h2>
             <CardDescription>
               Acesse as principais funcionalidades do Gabinete
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {quickActions.map((action) => (
-                <Link key={action.route} to={action.route}>
-                  <Card className="hover:bg-accent/50 transition-colors cursor-pointer h-full">
+                <li key={action.route}>
+                  <Card className="relative h-full transition-colors hover:bg-accent/50 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
                     <CardContent className="pt-6">
                       <div className="flex items-start gap-4">
-                        <action.icon className={`h-10 w-10 ${action.color}`} />
+                        <action.icon className="h-10 w-10 shrink-0 text-primary" aria-hidden="true" />
                         <div className="flex-1">
-                          <h3 className="font-semibold">{action.title}</h3>
-                          <p className="text-sm text-muted-foreground">
+                          <h3 className="text-h3 text-foreground">
+                            <Link
+                              to={action.route}
+                              className="after:absolute after:inset-0 focus-visible:outline-none"
+                            >
+                              {action.title}
+                            </Link>
+                          </h3>
+                          <p className="text-body text-muted-foreground">
                             {action.description}
                           </p>
                         </div>
-                        <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                        <ArrowRight className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
                       </div>
                     </CardContent>
                   </Card>
-                </Link>
+                </li>
               ))}
-            </div>
+            </ul>
           </CardContent>
         </Card>
       </div>

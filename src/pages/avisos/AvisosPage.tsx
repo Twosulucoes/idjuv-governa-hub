@@ -11,12 +11,12 @@ import { addMonths, format, endOfMonth, startOfMonth, subMonths } from "date-fns
 import { ptBR } from "date-fns/locale";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Megaphone, Pencil, Plus, Settings2, Trash2 } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable, EmptyState, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,7 +65,7 @@ function MuralAvisos() {
   if (avisos.length === 0) {
     return (
       <Card>
-        <CardContent className="py-10 text-center text-muted-foreground">Nenhum aviso no momento.</CardContent>
+        <EmptyState icone={Megaphone} titulo="Nenhum aviso no momento" />
       </Card>
     );
   }
@@ -79,24 +79,28 @@ function MuralAvisos() {
             <CardHeader className="pb-2">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex min-w-0 items-start gap-2">
-                  <Icone className={cn("mt-0.5 h-5 w-5 shrink-0", texto)} />
+                  <Icone className={cn("mt-0.5 h-5 w-5 shrink-0", texto)} aria-hidden="true" />
                   <div className="min-w-0">
-                    <CardTitle className="break-words text-base">{aviso.titulo}</CardTitle>
+                    <h2 className="break-words text-h3 text-foreground">{aviso.titulo}</h2>
                     <CardDescription>Publicado em {formatarDataHora(aviso.inicio_em)}</CardDescription>
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-1">
                   <Badge variant="outline">{PRIORIDADE_AVISO_LABEL[aviso.prioridade]}</Badge>
-                  {aviso.lido ? <Badge variant="secondary">Lido</Badge> : <Badge>Novo</Badge>}
+                  {aviso.lido ? (
+                    <StatusBadge tom="neutro">Lido</StatusBadge>
+                  ) : (
+                    <StatusBadge tom="andamento">Novo</StatusBadge>
+                  )}
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <p className="whitespace-pre-line break-words text-sm">{aviso.conteudo}</p>
+              <p className="whitespace-pre-line break-words text-body">{aviso.conteudo}</p>
               <div className="flex flex-wrap items-center gap-3">
                 {aviso.link && <AvisoLink href={aviso.link} className="text-primary" />}
                 {aviso.expira_em && (
-                  <span className="text-xs text-muted-foreground">Válido até {formatarDataHora(aviso.expira_em)}</span>
+                  <span className="text-caption text-muted-foreground">Válido até {formatarDataHora(aviso.expira_em)}</span>
                 )}
                 {!aviso.lido && (
                   <Button
@@ -106,7 +110,7 @@ function MuralAvisos() {
                     disabled={marcarLido.isPending}
                     onClick={() => marcarLido.mutate([aviso.id])}
                   >
-                    <Check className="mr-1 h-4 w-4" /> Marcar como lido
+                    <Check className="mr-1 h-4 w-4" aria-hidden="true" /> Marcar como lido
                   </Button>
                 )}
               </div>
@@ -138,42 +142,45 @@ function CalendarioMes() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
         <Button variant="outline" size="icon" aria-label="Mês anterior" onClick={() => setMes((m) => subMonths(m, 1))}>
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
         </Button>
-        <CardTitle className="text-center text-base">{tituloMes(mes)}</CardTitle>
+        <h2 className="text-center text-h3 text-foreground" aria-live="polite">
+          {tituloMes(mes)}
+        </h2>
         <Button variant="outline" size="icon" aria-label="Próximo mês" onClick={() => setMes((m) => addMonths(m, 1))}>
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </Button>
       </CardHeader>
       <CardContent>
         {isLoading ? (
           <Skeleton className="h-40 w-full" />
         ) : porDia.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma data neste mês.</p>
+          <EmptyState icone={CalendarDays} titulo="Nenhuma data neste mês" />
         ) : (
           <ul className="divide-y">
             {porDia.map(([dia, lista]) => (
               <li key={dia} className="flex gap-3 py-3">
                 <div
                   className={cn(
-                    "flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-md border text-xs",
+                    "flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-md border text-caption",
                     dia === hoje && "border-primary bg-primary text-primary-foreground",
                   )}
                 >
                   <span className="text-lg font-bold leading-none">{dia.slice(8, 10)}</span>
+                  {dia === hoje && <span className="sr-only">(hoje)</span>}
                   <span className="capitalize">{format(new Date(`${dia}T12:00:00`), "EEE", { locale: ptBR })}</span>
                 </div>
                 <ul className="min-w-0 flex-1 space-y-1.5">
                   {lista.map((e) => (
                     <li key={e.id} className="flex flex-wrap items-center gap-2">
-                      <span className={cn("rounded px-1.5 py-0.5 text-[11px] font-medium", TIPO_DATA_ESTILO[e.tipo])}>
+                      <span className={cn("rounded px-1.5 py-0.5 text-caption font-medium", TIPO_DATA_ESTILO[e.tipo])}>
                         {TIPO_DATA_LABEL[e.tipo]}
                       </span>
-                      <span className="min-w-0 break-words text-sm font-medium">{e.titulo}</span>
+                      <span className="min-w-0 break-words text-body font-medium">{e.titulo}</span>
                       {e.dataFim && e.dataFim !== e.data && (
-                        <span className="text-xs text-muted-foreground">até {diaMes(e.dataFim)}</span>
+                        <span className="text-caption text-muted-foreground">até {diaMes(e.dataFim)}</span>
                       )}
-                      {e.descricao && <p className="w-full text-xs text-muted-foreground">{e.descricao}</p>}
+                      {e.descricao && <p className="w-full text-caption text-muted-foreground">{e.descricao}</p>}
                     </li>
                   ))}
                 </ul>
@@ -190,12 +197,18 @@ function CalendarioMes() {
 // Gestão (avisos.gerenciar)
 // ---------------------------------------------------------------------------
 
-function situacaoAviso(aviso: Aviso): { label: string; variant: "default" | "secondary" | "outline" } {
-  if (!aviso.ativo) return { label: "Inativo", variant: "outline" };
-  if (avisoVigente(aviso)) return { label: "No ar", variant: "default" };
-  if (new Date(aviso.inicio_em) > new Date()) return { label: "Agendado", variant: "secondary" };
-  return { label: "Expirado", variant: "outline" };
+// Situação do aviso → selo (texto + tom; nunca só cor)
+function situacaoAviso(aviso: Aviso): { label: string; tom: TomStatus } {
+  if (!aviso.ativo) return { label: "Inativo", tom: "neutro" };
+  if (avisoVigente(aviso)) return { label: "No ar", tom: "sucesso" };
+  if (new Date(aviso.inicio_em) > new Date()) return { label: "Agendado", tom: "pendente" };
+  return { label: "Expirado", tom: "neutro" };
 }
+
+const dataDaLista = (d: DataImportante) =>
+  d.recorrente_anual ? `${diaMes(d.data)} (anual)` : d.data.split("-").reverse().join("/");
+
+type AvisoGestao = Aviso & { leituras: number };
 
 type Exclusao = { tipo: "aviso" | "data"; id: string; titulo: string } | null;
 
@@ -215,13 +228,85 @@ function Gestao() {
     setExclusao(null);
   };
 
+  const colunasAvisos: ColunaTabela<AvisoGestao>[] = [
+    {
+      id: "titulo",
+      cabecalho: "Título",
+      mobile: "titulo",
+      ordenarPor: (aviso) => aviso.titulo,
+      buscarPor: (aviso) => aviso.titulo,
+      celula: (aviso) => (
+        <>
+          <p className="font-medium">{aviso.titulo}</p>
+          <p className="text-caption text-muted-foreground">
+            {PRIORIDADE_AVISO_LABEL[aviso.prioridade]}
+            {aviso.destaque && " · em destaque"} · {formatarDataHora(aviso.inicio_em)}
+          </p>
+        </>
+      ),
+    },
+    {
+      id: "situacao",
+      cabecalho: "Situação",
+      ordenarPor: (aviso) => situacaoAviso(aviso).label,
+      celula: (aviso) => {
+        const situacao = situacaoAviso(aviso);
+        return <StatusBadge tom={situacao.tom}>{situacao.label}</StatusBadge>;
+      },
+    },
+    {
+      id: "para",
+      cabecalho: "Para",
+      buscarPor: (aviso) => (aviso.publico === "todos" ? "Todos" : aviso.modulos_alvo.map(nomeModulo).join(", ")),
+      celula: (aviso) => (aviso.publico === "todos" ? "Todos" : aviso.modulos_alvo.map(nomeModulo).join(", ")),
+    },
+    {
+      id: "leituras",
+      cabecalho: "Leituras",
+      alinhamento: "direita",
+      ordenarPor: (aviso) => aviso.leituras,
+      celula: (aviso) => aviso.leituras,
+    },
+  ];
+
+  const colunasDatas: ColunaTabela<DataImportante>[] = [
+    {
+      id: "data",
+      cabecalho: "Data",
+      ordenarPor: (d) => d.data,
+      celula: (d) => <span className="whitespace-nowrap font-mono text-caption">{dataDaLista(d)}</span>,
+    },
+    {
+      id: "titulo",
+      cabecalho: "Título",
+      mobile: "titulo",
+      ordenarPor: (d) => d.titulo,
+      buscarPor: (d) => d.titulo,
+      celula: (d) => (
+        <>
+          <p className="font-medium">{d.titulo}</p>
+          <p className="text-caption text-muted-foreground">
+            {TIPO_DATA_LABEL[d.tipo]}
+            {!d.ativo && " · inativa"}
+          </p>
+        </>
+      ),
+    },
+    {
+      id: "para",
+      cabecalho: "Para",
+      buscarPor: (d) => (d.modulos_alvo.length === 0 ? "Todos" : d.modulos_alvo.map(nomeModulo).join(", ")),
+      celula: (d) => (d.modulos_alvo.length === 0 ? "Todos" : d.modulos_alvo.map(nomeModulo).join(", ")),
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-8">
+      <section aria-labelledby="gestao-avisos" className="space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="text-base">Avisos</CardTitle>
-            <CardDescription>Publicados, agendados e expirados.</CardDescription>
+            <h2 id="gestao-avisos" className="text-h2 text-foreground">Avisos</h2>
+            <p className="text-body text-muted-foreground">Publicados, agendados e expirados.</p>
           </div>
           <Button
             onClick={() => {
@@ -229,148 +314,98 @@ function Gestao() {
               setAvisoAberto(true);
             }}
           >
-            <Plus className="mr-1 h-4 w-4" /> Novo aviso
+            <Plus className="mr-1 h-4 w-4" aria-hidden="true" /> Novo aviso
           </Button>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          {avisosGestao.isLoading ? (
-            <Skeleton className="h-24 w-full" />
-          ) : avisosGestao.avisos.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">Nenhum aviso cadastrado.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Título</TableHead>
-                  <TableHead>Situação</TableHead>
-                  <TableHead className="hidden md:table-cell">Para</TableHead>
-                  <TableHead className="hidden md:table-cell">Leituras</TableHead>
-                  <TableHead className="w-24 text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {avisosGestao.avisos.map((aviso) => {
-                  const situacao = situacaoAviso(aviso);
-                  return (
-                    <TableRow key={aviso.id}>
-                      <TableCell>
-                        <p className="font-medium">{aviso.titulo}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {PRIORIDADE_AVISO_LABEL[aviso.prioridade]}
-                          {aviso.destaque && " · em destaque"} · {formatarDataHora(aviso.inicio_em)}
-                        </p>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={situacao.variant}>{situacao.label}</Badge>
-                      </TableCell>
-                      <TableCell className="hidden text-sm md:table-cell">
-                        {aviso.publico === "todos" ? "Todos" : aviso.modulos_alvo.map(nomeModulo).join(", ")}
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">{aviso.leituras}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Editar aviso"
-                          onClick={() => {
-                            setAvisoEditando(aviso);
-                            setAvisoAberto(true);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Excluir aviso"
-                          onClick={() => setExclusao({ tipo: "aviso", id: aviso.id, titulo: aviso.titulo })}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+        </div>
+        <DataTable
+          rotulo="Avisos"
+          dados={avisosGestao.avisos}
+          colunas={colunasAvisos}
+          chaveLinha={(aviso) => aviso.id}
+          carregando={avisosGestao.isLoading}
+          erro={avisosGestao.isError ? "Não foi possível carregar os avisos." : null}
+          aoTentarNovamente={() => avisosGestao.refetch()}
+          busca={{ placeholder: "Buscar aviso…" }}
+          vazio={{ icone: Megaphone, titulo: "Nenhum aviso cadastrado" }}
+          acoesLinha={(aviso) => (
+            <div className="flex justify-end">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Editar aviso ${aviso.titulo}`}
+                onClick={() => {
+                  setAvisoEditando(aviso);
+                  setAvisoAberto(true);
+                }}
+              >
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Excluir aviso ${aviso.titulo}`}
+                onClick={() => setExclusao({ tipo: "aviso", id: aviso.id, titulo: aviso.titulo })}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
+              </Button>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        />
+      </section>
 
-      <Card>
-        <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+      <section aria-labelledby="gestao-datas" className="space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="text-base">Datas importantes</CardTitle>
-            <CardDescription>Prazos, eventos e reuniões. Feriados ficam em Configuração de Frequência.</CardDescription>
+            <h2 id="gestao-datas" className="text-h2 text-foreground">Datas importantes</h2>
+            <p className="text-body text-muted-foreground">
+              Prazos, eventos e reuniões. Feriados ficam em Configuração de Frequência.
+            </p>
           </div>
           <Button
+            variant="outline"
             onClick={() => {
               setDataEditando(null);
               setDataAberta(true);
             }}
           >
-            <Plus className="mr-1 h-4 w-4" /> Nova data
+            <Plus className="mr-1 h-4 w-4" aria-hidden="true" /> Nova data
           </Button>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          {datasGestao.isLoading ? (
-            <Skeleton className="h-24 w-full" />
-          ) : datasGestao.datas.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">Nenhuma data cadastrada.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Título</TableHead>
-                  <TableHead className="hidden md:table-cell">Para</TableHead>
-                  <TableHead className="w-24 text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {datasGestao.datas.map((d) => (
-                  <TableRow key={d.id} className={cn(!d.ativo && "opacity-60")}>
-                    <TableCell className="whitespace-nowrap font-mono text-xs">
-                      {d.recorrente_anual ? `${diaMes(d.data)} (anual)` : d.data.split("-").reverse().join("/")}
-                    </TableCell>
-                    <TableCell>
-                      <p className="font-medium">{d.titulo}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {TIPO_DATA_LABEL[d.tipo]}
-                        {!d.ativo && " · inativa"}
-                      </p>
-                    </TableCell>
-                    <TableCell className="hidden text-sm md:table-cell">
-                      {d.modulos_alvo.length === 0 ? "Todos" : d.modulos_alvo.map(nomeModulo).join(", ")}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Editar data"
-                        onClick={() => {
-                          setDataEditando(d);
-                          setDataAberta(true);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Excluir data"
-                        onClick={() => setExclusao({ tipo: "data", id: d.id, titulo: d.titulo })}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        </div>
+        <DataTable
+          rotulo="Datas importantes"
+          dados={datasGestao.datas}
+          colunas={colunasDatas}
+          chaveLinha={(d) => d.id}
+          carregando={datasGestao.isLoading}
+          erro={datasGestao.isError ? "Não foi possível carregar as datas." : null}
+          aoTentarNovamente={() => datasGestao.refetch()}
+          busca={{ placeholder: "Buscar data…" }}
+          vazio={{ icone: CalendarDays, titulo: "Nenhuma data cadastrada" }}
+          acoesLinha={(d) => (
+            <div className="flex justify-end">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Editar data ${d.titulo}`}
+                onClick={() => {
+                  setDataEditando(d);
+                  setDataAberta(true);
+                }}
+              >
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Excluir data ${d.titulo}`}
+                onClick={() => setExclusao({ tipo: "data", id: d.id, titulo: d.titulo })}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
+              </Button>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        />
+      </section>
 
       <AvisoFormDialog
         open={avisoAberto}
@@ -414,33 +449,36 @@ export default function AvisosPage() {
   const modulo = authorizedModules.includes("comunicacao") ? "comunicacao" : primaryModule ?? "admin";
 
   return (
-    <ModuleLayout module={modulo} title="Avisos e datas importantes" description="Comunicados internos e calendário institucional">
-      <Tabs defaultValue="mural" className="space-y-4">
-        <TabsList className="w-full justify-start overflow-x-auto sm:w-auto">
-          <TabsTrigger value="mural">
-            <Megaphone className="mr-1 h-4 w-4" /> Mural
-          </TabsTrigger>
-          <TabsTrigger value="calendario">
-            <CalendarDays className="mr-1 h-4 w-4" /> Datas
-          </TabsTrigger>
-          {podeGerenciar && (
-            <TabsTrigger value="gerenciar">
-              <Settings2 className="mr-1 h-4 w-4" /> Gerenciar
+    <ModuleLayout module={modulo}>
+      <div className="space-y-6">
+        <PageHeader titulo="Avisos e datas importantes" descricao="Comunicados internos e calendário institucional" />
+        <Tabs defaultValue="mural" className="space-y-4">
+          <TabsList className="w-full justify-start overflow-x-auto sm:w-auto">
+            <TabsTrigger value="mural">
+              <Megaphone className="mr-1 h-4 w-4" aria-hidden="true" /> Mural
             </TabsTrigger>
-          )}
-        </TabsList>
-        <TabsContent value="mural">
-          <MuralAvisos />
-        </TabsContent>
-        <TabsContent value="calendario">
-          <CalendarioMes />
-        </TabsContent>
-        {podeGerenciar && (
-          <TabsContent value="gerenciar">
-            <Gestao />
+            <TabsTrigger value="calendario">
+              <CalendarDays className="mr-1 h-4 w-4" aria-hidden="true" /> Datas
+            </TabsTrigger>
+            {podeGerenciar && (
+              <TabsTrigger value="gerenciar">
+                <Settings2 className="mr-1 h-4 w-4" aria-hidden="true" /> Gerenciar
+              </TabsTrigger>
+            )}
+          </TabsList>
+          <TabsContent value="mural">
+            <MuralAvisos />
           </TabsContent>
-        )}
-      </Tabs>
+          <TabsContent value="calendario">
+            <CalendarioMes />
+          </TabsContent>
+          {podeGerenciar && (
+            <TabsContent value="gerenciar">
+              <Gestao />
+            </TabsContent>
+          )}
+        </Tabs>
+      </div>
     </ModuleLayout>
   );
 }
