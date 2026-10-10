@@ -158,8 +158,8 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
   campos que o autor não pode escolher nos formulários.
 
 Último resultado (2026-10-10, branch da correção de contornos): replay de **258 migrações com 0 falhas**;
-`validar-baseline.sh` **APROVADO** — RLS com 0 falhas e schema idêntico ao replay (40724 linhas). O mesmo
-teste reprova com 41 falhas no baseline da B2 já mesclada (sem os contornos). Antes, na B2: 257 migrações,
+`validar-baseline.sh` **APROVADO** — RLS com 0 falhas e schema idêntico ao replay (40800 linhas). O mesmo
+teste reprova com 54 falhas no baseline da B2 já mesclada (sem os contornos). Antes, na B2: 257 migrações,
 0 falhas em 4436 checagens, schema de 40624 linhas. Rodadas anteriores: aprovado em PostgreSQL **15.18, 16.15 e 17.10** (o self-hosted da Supabase
 costuma rodar 15; o dump é gerado por `pg_dump` 16).
 

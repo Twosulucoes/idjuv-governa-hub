@@ -7304,6 +7304,13 @@ CREATE TRIGGER trg_registrar_transicao_folha BEFORE UPDATE ON public.folhas_paga
 
 
 --
+-- Name: servidores trg_servidores_proteger_cpf; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_servidores_proteger_cpf BEFORE UPDATE OF cpf ON public.servidores FOR EACH ROW EXECUTE FUNCTION public.servidores_proteger_cpf();
+
+
+--
 -- Name: fin_sub_empenhos trg_sub_empenho_saldo; Type: TRIGGER; Schema: public; Owner: -
 --
 

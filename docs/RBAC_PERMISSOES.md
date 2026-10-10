@@ -314,6 +314,12 @@ Nas quatro tabelas:
 - No INSERT a comparação é com a linha vazia: o upsert do front não cria linha já consolidada por quem só
   valida.
 - **Não bloqueado**: o RH (`rh.frequencia.lancar`) aprovar um pendente que exige chefia, pulando a chefia.
+- **Pedido nasce pendente** (contornos): sem `rh.frequencia.lancar`, o INSERT de abono, justificativa ou
+  ajuste com status já decidido dá `42501`, e os campos de decisão nascem vazios. A chefia ainda registra um
+  pedido pendente em nome de outro servidor; o `created_by` fica sendo ela.
+- Status nulo é recusado, e o status legado `aprovado_rh` do abono só o admin grava (contornos).
+- Fora da etapa ativa, os pares de autoria ficam vazios; o par de uma etapa que já aconteceu fica como
+  estava, sem aceitar valor novo (contornos).
 
 `forcar_campos_iniciais` nos pedidos do RH (abono, ajuste, justificativa) isenta só quem tem o módulo
 **e** `rh.aprovar` ou `rh.frequencia.lancar`, e nunca na própria linha (`eh_meu_servidor`; no ajuste, posse
@@ -349,6 +355,10 @@ Front:
   não altera os próprios dados em `ServidorFormPage`, e as mutações de vínculo que atualizam `servidores`
   (ativação, situação, cargo e unidade atuais) falham na própria ficha; outro colega altera;
 - só quem tem `rh.frequencia.configurar` grava `tipos_abono` (contornos);
+- só o admin muda o número do CPF em `servidores` (trigger `trg_servidores_proteger_cpf`, compara só os
+  dígitos; regravar o mesmo CPF com ou sem pontuação continua livre), porque `eh_meu_servidor` casa pelo CPF
+  (contornos). Ainda depende de cadastro: perfil sem vínculo **e** sem CPF não tem proteção contra
+  autoaprovação; o admin deve vincular quem tem `rh.aprovar` ou `rh.frequencia.lancar`;
 - excluir férias e viagens passa a ser só do papel admin; excluir abono, fechamento, justificativa e ajuste
   exige `rh.frequencia.lancar`; excluir servidor exige `rh.servidores.excluir`.
 

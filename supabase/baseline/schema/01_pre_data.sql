@@ -6933,6 +6933,27 @@ $$;
 
 
 --
+-- Name: servidores_proteger_cpf(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.servidores_proteger_cpf() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF coalesce(current_setting('role', true), 'none') IN ('anon', 'authenticated')
+     AND NOT public.is_admin_user(auth.uid())
+     AND lpad(regexp_replace(coalesce(NEW.cpf, ''), '[^0-9]', '', 'g'), 11, '0')
+         IS DISTINCT FROM lpad(regexp_replace(coalesce(OLD.cpf, ''), '[^0-9]', '', 'g'), 11, '0') THEN
+    RAISE EXCEPTION 'Ficha do servidor: o CPF só é alterado pelo papel admin (ele identifica o servidor nas aprovações)'
+      USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: set_reuniao_created_by(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -7336,6 +7357,9 @@ DECLARE
   p_em text[] := '{}';
   p_forca boolean[] := '{}';
   p_ativo boolean[] := '{}';
+  -- fora da etapa ativa: true = o par fica como estava (a etapa aconteceu e o pedido terminou depois, ex.: a chefia
+  -- aprovou e o RH rejeitou), false = o par vai a NULL (não sugere uma aprovação que não houve)
+  p_hist boolean[] := '{}';
   i int;
 BEGIN
   IF coalesce(current_setting('role', true), 'none') NOT IN ('anon', 'authenticated')
@@ -7363,9 +7387,24 @@ BEGIN
   o := CASE WHEN TG_OP = 'INSERT' THEN '{}'::jsonb ELSE to_jsonb(OLD) END;
 
   IF TG_TABLE_NAME = 'solicitacoes_abono' THEN
+    IF n ->> 'status' IS NULL THEN
+      RAISE EXCEPTION 'Abono: o status não pode ser nulo' USING ERRCODE = '42501';
+    END IF;
     st_antes := coalesce(o ->> 'status', 'pendente');
-    st_depois := coalesce(n ->> 'status', 'pendente');
+    st_depois := n ->> 'status';
     mudou_status := st_depois IS DISTINCT FROM st_antes;
+    -- status legado (CHECK do banco): nenhuma tela grava; fica fora da autoria, então ninguém transiciona para ele
+    IF mudou_status AND st_depois = 'aprovado_rh' THEN
+      RAISE EXCEPTION 'Abono: o status legado aprovado_rh não é mais usado (o RH aprova com aprovado)' USING ERRCODE = '42501';
+    END IF;
+    -- sem RH, o pedido nasce na etapa inicial: status pendente (decidido é recusado) e campos de decisão nulos
+    IF TG_OP = 'INSERT' AND NOT v_rh THEN
+      IF st_depois <> 'pendente' THEN
+        RAISE EXCEPTION 'Etapa do RH: só quem tem rh.frequencia.lancar registra o abono já decidido (status %); a chefia decide depois, sobre o pendente', st_depois
+          USING ERRCODE = '42501';
+      END IF;
+      ov := ov || jsonb_build_object('motivo_rejeicao', NULL);
+    END IF;
     mudou_chefia := (n ->> 'aprovado_chefia_por') IS DISTINCT FROM (o ->> 'aprovado_chefia_por')
                  OR (n ->> 'aprovado_chefia_em') IS DISTINCT FROM (o ->> 'aprovado_chefia_em');
     mudou_rh := (n ->> 'aprovado_rh_por') IS DISTINCT FROM (o ->> 'aprovado_rh_por')
@@ -7442,6 +7481,8 @@ BEGIN
     p_forca := ARRAY[mudou_status AND (st_depois = 'aprovado_chefia' OR (st_depois = 'aprovado' AND pela_chefia)),
                      mudou_status AND st_depois = 'aprovado' AND NOT pela_chefia];
     p_ativo := ARRAY[st_depois IN ('aprovado_chefia', 'aprovado'), st_depois = 'aprovado'];
+    -- (aprovado_rh: linhas legadas mantêm o que tinham)
+    p_hist := ARRAY[st_depois IN ('rejeitado', 'cancelado', 'aprovado_rh'), st_depois IN ('rejeitado', 'cancelado', 'aprovado_rh')];
 
   ELSIF TG_TABLE_NAME = 'frequencia_fechamento' THEN
     IF TG_OP = 'UPDATE'
@@ -7488,13 +7529,26 @@ BEGIN
       p_em := p_em || (col || '_em');
       p_forca := p_forca || (coalesce((n ->> col)::boolean, false) AND NOT coalesce((o ->> col)::boolean, false));
       p_ativo := p_ativo || coalesce((n ->> col)::boolean, false);
+      -- a reabertura que já aconteceu continua registrada depois da reconsolidação (reaberto volta a false)
+      p_hist := p_hist || (col = 'reaberto');
     END LOOP;
 
   ELSE
     -- justificativas_ponto e solicitacoes_ajuste_ponto: uma etapa só (chefia ou RH decidem; status_solicitacao)
+    IF n ->> 'status' IS NULL THEN
+      RAISE EXCEPTION 'Pedido de ponto: o status não pode ser nulo' USING ERRCODE = '42501';
+    END IF;
     st_antes := coalesce(o ->> 'status', 'pendente');
-    st_depois := coalesce(n ->> 'status', 'pendente');
+    st_depois := n ->> 'status';
     mudou_status := st_depois IS DISTINCT FROM st_antes;
+    -- sem RH, o pedido nasce na etapa inicial: status pendente (decidido é recusado) e campos de decisão nulos
+    IF TG_OP = 'INSERT' AND NOT v_rh THEN
+      IF st_depois <> 'pendente' THEN
+        RAISE EXCEPTION 'Etapa do RH: só quem tem rh.frequencia.lancar registra o pedido já decidido (status %); a chefia decide depois, sobre o pendente', st_depois
+          USING ERRCODE = '42501';
+      END IF;
+      ov := ov || jsonb_build_object('observacao_aprovador', NULL);
+    END IF;
     dados := CASE TG_TABLE_NAME
       WHEN 'justificativas_ponto' THEN ARRAY['registro_ponto_id', 'tipo', 'descricao', 'arquivo_url']
       ELSE ARRAY['servidor_id', 'registro_ponto_id', 'data_ocorrido', 'tipo_ajuste', 'campo_ajuste', 'horario_atual',
@@ -7524,21 +7578,28 @@ BEGIN
     p_em := ARRAY['data_aprovacao'];
     p_forca := ARRAY[mudou_status AND st_depois IN ('aprovada', 'rejeitada')];
     p_ativo := ARRAY[st_depois IN ('aprovada', 'rejeitada')];
+    p_hist := ARRAY[st_depois = 'cancelada'];
   END IF;
 
-  -- autoria: o par da etapa que acontece neste comando é de quem age, agora; enquanto a etapa vale, o par não é
-  -- apagado (nem em parte); fora disso, o par que muda para um valor não nulo também é de quem age, agora
+  -- autoria: o par da etapa que acontece neste comando é de quem age, agora. Enquanto a etapa vale, o par não é
+  -- apagado (nem em parte) e, se mudar para um valor não nulo, também é de quem age, agora. Fora da etapa ativa, o
+  -- par fica como estava (p_hist: a etapa aconteceu e o pedido terminou depois) ou vai a NULL.
   FOR i IN 1 .. coalesce(array_length(p_por, 1), 0) LOOP
     IF p_forca[i] THEN
       ov := ov || jsonb_build_object(p_por[i], v_uid, p_em[i], now());
-    ELSIF p_ativo[i]
-          AND (((o ->> p_por[i]) IS NOT NULL AND (n ->> p_por[i]) IS NULL)
-               OR ((o ->> p_em[i]) IS NOT NULL AND (n ->> p_em[i]) IS NULL)) THEN
-      RAISE EXCEPTION 'Autoria: o registro da etapa (%, %) não é apagado enquanto ela vale', p_por[i], p_em[i]
-        USING ERRCODE = '42501';
-    ELSIF ((n ->> p_por[i]) IS DISTINCT FROM (o ->> p_por[i]) OR (n ->> p_em[i]) IS DISTINCT FROM (o ->> p_em[i]))
-          AND ((n ->> p_por[i]) IS NOT NULL OR (n ->> p_em[i]) IS NOT NULL) THEN
-      ov := ov || jsonb_build_object(p_por[i], v_uid, p_em[i], now());
+    ELSIF p_ativo[i] THEN
+      IF ((o ->> p_por[i]) IS NOT NULL AND (n ->> p_por[i]) IS NULL)
+         OR ((o ->> p_em[i]) IS NOT NULL AND (n ->> p_em[i]) IS NULL) THEN
+        RAISE EXCEPTION 'Autoria: o registro da etapa (%, %) não é apagado enquanto ela vale', p_por[i], p_em[i]
+          USING ERRCODE = '42501';
+      ELSIF ((n ->> p_por[i]) IS DISTINCT FROM (o ->> p_por[i]) OR (n ->> p_em[i]) IS DISTINCT FROM (o ->> p_em[i]))
+            AND ((n ->> p_por[i]) IS NOT NULL OR (n ->> p_em[i]) IS NOT NULL) THEN
+        ov := ov || jsonb_build_object(p_por[i], v_uid, p_em[i], now());
+      END IF;
+    ELSIF p_hist[i] THEN
+      ov := ov || jsonb_build_object(p_por[i], o -> p_por[i], p_em[i], o -> p_em[i]);
+    ELSE
+      ov := ov || jsonb_build_object(p_por[i], NULL, p_em[i], NULL);
     END IF;
   END LOOP;
   IF ov <> '{}'::jsonb THEN

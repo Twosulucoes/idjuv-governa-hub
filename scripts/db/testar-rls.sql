@@ -1530,7 +1530,9 @@ END $$;
 --   * validar_etapa_frequencia: cada etapa do abono e do fechamento exige a sua permissão (42501 com a etapa); dados do
 --     abono imutáveis fora de pendente; chave, assinatura e linha consolidada do fechamento protegidas; autoria forçada;
 --   * revisão de segurança: posse por usuário (ajuste de ponto, banco de horas), ninguém grava no que é seu,
---     aprovador sem vínculo identificado pelo CPF, exclusão de justificativa só do RH.
+--     aprovador sem vínculo identificado pelo CPF, exclusão de justificativa só do RH;
+--   * 2ª e 3ª rodadas (migração 20261010100000): tipos de abono, ficha própria e CPF, autoria (forçada, não anulável,
+--     nula fora da etapa), pedido nasce pendente sem o RH, status nulo e legado, etapa em justificativa e ajuste.
 DO $$
 DECLARE
   u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
@@ -1558,6 +1560,9 @@ DECLARE
   jp_aprov uuid := 'd2000000-0000-0000-0000-000000000034';     -- justificativa aprovada no ponto A
   u_cfg uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.configurar');  -- configurador da frequência
   u_nenhum uuid := (SELECT uid FROM persona WHERE nome='nenhum');
+  ab_chefia2 uuid := 'd2000000-0000-0000-0000-000000000007';   -- abono aprovado pela chefia, com a autoria registrada
+  ff_reab uuid := 'd2000000-0000-0000-0000-000000000013';      -- fechamento reaberto pelo RH, à espera de reconsolidação
+  tipo_just public.tipo_justificativa := (SELECT enumlabel::text::public.tipo_justificativa FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'tipo_justificativa' ORDER BY enumsortorder LIMIT 1);
   u_a uuid := (SELECT uid FROM persona WHERE nome='srv_a');                         -- servidor A (profiles.servidor_id = A)
   chefia_ok text := 'status = ''aprovado_chefia'', aprovado_chefia_por = auth.uid(), aprovado_chefia_em = now()';
   rh_ok text := 'status = ''aprovado'', aprovado_rh_por = auth.uid(), aprovado_rh_em = now()';
@@ -1600,9 +1605,10 @@ BEGIN
   ELSIF (SELECT status::text || coalesce(aprovador_id::text, '') FROM public.justificativas_ponto WHERE id = 'd2000000-0000-0000-0000-000000000031') <> 'pendente' THEN
     PERFORM pg_temp.falha('justificativas_ponto: chefia grava a justificativa do PRÓPRIO ponto já aprovada');
   END IF;
-  r := pg_temp.insere_como(u_ch, 'authenticated', 'justificativas_ponto', jsonb_build_object('id', 'd2000000-0000-0000-0000-000000000032', 'registro_ponto_id', ponto_a, 'status', 'aprovada', 'aprovador_id', u_ch::text));
-  IF r <> 'ok' OR (SELECT status::text FROM public.justificativas_ponto WHERE id = 'd2000000-0000-0000-0000-000000000032') <> 'aprovada' THEN
-    PERFORM pg_temp.falha('justificativas_ponto: chefia não registra justificativa decidida no ponto de OUTRO servidor (' || r || ')');
+  -- no ponto de outro servidor, quem decide e insere já decidido é o RH (rh.frequencia.lancar); a chefia, não (3ª rodada, A)
+  r := pg_temp.insere_como(u_rhp, 'authenticated', 'justificativas_ponto', jsonb_build_object('id', 'd2000000-0000-0000-0000-000000000032', 'registro_ponto_id', ponto_a, 'status', 'aprovada', 'aprovador_id', u_ch::text));
+  IF r <> 'ok' OR (SELECT status::text || '|' || aprovador_id::text FROM public.justificativas_ponto WHERE id = 'd2000000-0000-0000-0000-000000000032') <> 'aprovada|' || u_rhp::text THEN
+    PERFORM pg_temp.falha('justificativas_ponto: o RH não registra justificativa decidida no ponto de OUTRO servidor (' || r || ')');
   END IF;
   UPDATE public.profiles SET servidor_id = NULL WHERE id = u_ch;
   FOREACH t IN ARRAY ARRAY['solicitacoes_abono', 'justificativas_ponto', 'solicitacoes_ajuste_ponto'] LOOP
@@ -1621,6 +1627,8 @@ BEGIN
     (ab_rej, sa::uuid, tipo_rh, current_date, current_date, 'teste', 'rejeitado');
   INSERT INTO public.solicitacoes_abono (id, servidor_id, tipo_abono_id, data_inicio, data_fim, justificativa, status, aprovado_rh_por, aprovado_rh_em) VALUES
     (ab_aprov2, sa::uuid, tipo_rh, current_date, current_date, 'teste', 'aprovado', u_rhp, now());
+  INSERT INTO public.solicitacoes_abono (id, servidor_id, tipo_abono_id, data_inicio, data_fim, justificativa, status, aprovado_chefia_por, aprovado_chefia_em) VALUES
+    (ab_chefia2, sa::uuid, tipo_rh, current_date, current_date, 'teste', 'aprovado_chefia', u_ch, now());
   INSERT INTO public.solicitacoes_ajuste_ponto (id, servidor_id, data_ocorrido, tipo_ajuste, motivo) VALUES
     (aj_ch, u_ch, current_date, 'teste', 'teste'), (aj_a, u_a, current_date, 'teste', 'teste');
   INSERT INTO public.solicitacoes_ajuste_ponto (id, servidor_id, data_ocorrido, tipo_ajuste, motivo, status, aprovador_id, data_aprovacao) VALUES
@@ -1663,6 +1671,8 @@ BEGIN
 
   -- ===== etapas do fechamento da frequência
   INSERT INTO public.frequencia_fechamento (id, servidor_id, ano, mes) VALUES (ff_novo, sa::uuid, 2031, 1);
+  INSERT INTO public.frequencia_fechamento (id, servidor_id, ano, mes, reaberto, reaberto_por, reaberto_em, justificativa_reabertura)
+    VALUES (ff_reab, sa::uuid, 2031, 7, true, u_rhp, now(), 'teste');
   INSERT INTO public.frequencia_fechamento (id, servidor_id, ano, mes, validado_chefia, validado_chefia_por, validado_chefia_em, consolidado_rh, consolidado_rh_por, consolidado_rh_em)
     VALUES (ff_cons, sa::uuid, 2031, 2, true, u_ch, now(), true, u_rhp, now());
   FOR x IN SELECT * FROM (VALUES
@@ -1844,7 +1854,7 @@ BEGIN
   UPDATE public.profiles SET cpf = '11122233344', servidor_id = NULL WHERE id = u_rh;
   r := pg_temp.sql_como(u_rh, 'authenticated', format('UPDATE public.servidores SET cpf = ''00000000000'' WHERE id = %L', sa));
   IF r <> 'ok:0' AND r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('servidores: o RH sem vínculo troca o CPF da PRÓPRIA ficha (' || r || ')'); END IF;
-  r := pg_temp.sql_como(u_rh, 'authenticated', format('UPDATE public.servidores SET cpf = ''00000000000'' WHERE id = %L', sb));
+  r := pg_temp.sql_como(u_rh, 'authenticated', format('UPDATE public.servidores SET observacoes = ''editada pelo RH'' WHERE id = %L', sb));
   IF r <> 'ok:1' THEN PERFORM pg_temp.falha('servidores: o RH não edita a ficha de outro servidor (' || r || ')'); END IF;
   UPDATE public.profiles SET cpf = NULL, servidor_id = sa::uuid WHERE id = u_rh;
   r := pg_temp.sql_como(u_rh, 'authenticated', format('UPDATE public.servidores SET cpf = ''00000000000'' WHERE id = %L', sa));
@@ -1942,6 +1952,57 @@ BEGIN
   r := pg_temp.sql_como(u_ch, 'authenticated', format('UPDATE public.solicitacoes_abono SET %s WHERE id = %L', chefia_ok, ab_pend2));
   IF r <> 'ok:0' AND r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('solicitacoes_abono: aprovador sem vínculo com o CPF sem o zero inicial aprova o PRÓPRIO abono (' || r || ')'); END IF;
   UPDATE public.profiles SET cpf = NULL WHERE id = u_ch;
+
+  -- ===== reverificação da B2 (3ª rodada, mesma migração 20261010100000): um negativo por item e os positivos do fluxo
+  -- (A) sem rh.frequencia.lancar o pedido nasce pendente: a chefia (isenta pelo forcar) não insere já decidido
+  r := pg_temp.sql_como(u_ch, 'authenticated', format('INSERT INTO public.solicitacoes_abono (servidor_id, tipo_abono_id, data_inicio, data_fim, justificativa, status) VALUES (%L, %L, current_date, current_date, ''texto da chefia'', ''aprovado_chefia'')', sb, tipo_rh));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('solicitacoes_abono: a chefia insere abono já decidido em nome de outro servidor (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ch, 'authenticated', format('INSERT INTO public.justificativas_ponto (registro_ponto_id, tipo, descricao, status) VALUES (%L, %L, ''texto da chefia'', ''aprovada'')', ponto_a, tipo_just));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('justificativas_ponto: a chefia insere justificativa já decidida no ponto de outro servidor (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ch, 'authenticated', format('INSERT INTO public.solicitacoes_ajuste_ponto (servidor_id, data_ocorrido, tipo_ajuste, motivo, status) VALUES (%L, current_date, ''x'', ''texto da chefia'', ''aprovada'')', u_a));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('solicitacoes_ajuste_ponto: a chefia insere ajuste já decidido em nome de outro usuário (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ch, 'authenticated', format('INSERT INTO public.solicitacoes_abono (servidor_id, tipo_abono_id, data_inicio, data_fim, justificativa, aprovado_chefia_por, aprovado_chefia_em, motivo_rejeicao) VALUES (%L, %L, current_date, current_date, ''x'', auth.uid(), now(), ''x'') RETURNING status || ''|'' || coalesce(aprovado_chefia_por::text, ''NULO'') || ''|'' || coalesce(motivo_rejeicao, ''NULO'')', sb, tipo_rh));
+  IF r <> 'pendente|NULO|NULO' THEN PERFORM pg_temp.falha('solicitacoes_abono: o pendente inserido pela chefia nasce com campos de decisão (' || r || ')'); END IF;
+  -- positivos: o servidor pede o próprio abono (nasce pendente); o RH insere já decidido para outro
+  r := pg_temp.insere_como(u_a, 'authenticated', 'solicitacoes_abono', jsonb_build_object('id', 'd2000000-0000-0000-0000-000000000061', 'servidor_id', sa, 'tipo_abono_id', tipo_rh, 'status', 'aprovado'));
+  IF r <> 'ok' OR (SELECT status FROM public.solicitacoes_abono WHERE id = 'd2000000-0000-0000-0000-000000000061') <> 'pendente' THEN
+    PERFORM pg_temp.falha('solicitacoes_abono: o servidor não pede o próprio abono ou ele não nasce pendente (' || r || ')');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_rhp, 'authenticated', format('INSERT INTO public.solicitacoes_ajuste_ponto (servidor_id, data_ocorrido, tipo_ajuste, motivo, status) VALUES (%L, current_date, ''x'', ''x'', ''aprovada'') RETURNING status::text || ''|'' || coalesce(aprovador_id::text, ''NULO'')', u_a));
+  IF r <> 'aprovada|' || u_rhp::text THEN PERFORM pg_temp.falha('solicitacoes_ajuste_ponto: o RH não insere ajuste já decidido para outro usuário (' || r || ')'); END IF;
+
+  -- (D) status legado aprovado_rh: ninguém (fora o admin) transiciona para ele
+  r := pg_temp.sql_como(u_rhp, 'authenticated', format('UPDATE public.solicitacoes_abono SET status = ''aprovado_rh'' WHERE id = %L', ab_chefia));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('solicitacoes_abono: o RH leva o abono ao status legado aprovado_rh (' || r || ')'); END IF;
+
+  -- (E) status NULL é recusado (não vale como pendente)
+  r := pg_temp.sql_como(u_rhp, 'authenticated', format('UPDATE public.solicitacoes_abono SET status = NULL WHERE id = %L', ab_pend));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('solicitacoes_abono: status NULL aceito (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ch, 'authenticated', format('UPDATE public.solicitacoes_ajuste_ponto SET status = NULL WHERE id = %L', aj_a));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('solicitacoes_ajuste_ponto: status NULL aceito (' || r || ')'); END IF;
+
+  -- (F) fora da etapa ativa o par vai a NULL; o de uma etapa que já aconteceu continua
+  r := pg_temp.valor_desfeito_como(u_rhp, 'authenticated', format('UPDATE public.solicitacoes_abono SET aprovado_rh_por = auth.uid(), aprovado_rh_em = now() WHERE id = %L RETURNING coalesce(aprovado_rh_por::text, ''NULO'')', ab_pend));
+  IF r <> 'NULO' THEN PERFORM pg_temp.falha('solicitacoes_abono: aprovação do RH registrada num abono pendente (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_rhp, 'authenticated', format('UPDATE public.frequencia_fechamento SET validado_chefia_por = auth.uid(), validado_chefia_em = now() WHERE id = %L RETURNING coalesce(validado_chefia_por::text, ''NULO'')', ff_novo));
+  IF r <> 'NULO' THEN PERFORM pg_temp.falha('frequencia_fechamento: validação registrada sem a frequência validada (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ch, 'authenticated', format('UPDATE public.solicitacoes_abono SET status = ''aprovado_chefia'' WHERE id = %L RETURNING aprovado_chefia_por::text || ''|'' || coalesce(aprovado_rh_por::text, ''NULO'')', ab_pend));
+  IF r <> u_ch::text || '|NULO' THEN PERFORM pg_temp.falha('solicitacoes_abono: a chefia aprova o pendente e os pares não ficam como deviam (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_rhp, 'authenticated', format('UPDATE public.solicitacoes_abono SET status = ''aprovado'', aprovado_rh_por = auth.uid(), aprovado_rh_em = now() WHERE id = %L RETURNING coalesce(aprovado_chefia_por::text, ''NULO'') || ''|'' || coalesce(aprovado_rh_por::text, ''NULO'')', ab_chefia2));
+  IF r <> u_ch::text || '|' || u_rhp::text THEN PERFORM pg_temp.falha('solicitacoes_abono: o RH aprova depois da chefia e o par da chefia não permanece (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_rhp, 'authenticated', format('UPDATE public.solicitacoes_abono SET status = ''rejeitado'', motivo_rejeicao = ''x'' WHERE id = %L RETURNING coalesce(aprovado_chefia_por::text, ''NULO'')', ab_chefia2));
+  IF r <> u_ch::text THEN PERFORM pg_temp.falha('solicitacoes_abono: o RH rejeita depois da chefia e a aprovação da chefia some (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_rhp, 'authenticated', format('UPDATE public.frequencia_fechamento SET consolidado_rh = true, reaberto = false WHERE id = %L RETURNING coalesce(reaberto_por::text, ''NULO'')', ff_reab));
+  IF r <> u_rhp::text THEN PERFORM pg_temp.falha('frequencia_fechamento: a reconsolidação apaga o registro da reabertura (' || r || ')'); END IF;
+
+  -- (C) servidores.cpf só pelo papel admin; reformatar (mesmos dígitos) segue livre
+  UPDATE public.servidores SET cpf = '123.456.789-09' WHERE id = sb::uuid;
+  r := pg_temp.sql_como(u_rh, 'authenticated', format('UPDATE public.servidores SET cpf = ''99999999999'' WHERE id = %L', sb));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('servidores: o RH (módulo) troca o CPF de uma ficha (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', format('UPDATE public.servidores SET cpf = ''12345678909'' WHERE id = %L', sb));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('servidores: o RH não regrava o mesmo CPF sem pontuação (formulário da ficha) (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_admin, 'authenticated', format('UPDATE public.servidores SET cpf = ''99999999999'' WHERE id = %L', sb));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('servidores: o admin não corrige o CPF da ficha (' || r || ')'); END IF;
 
   FOREACH t IN ARRAY ARRAY['solicitacoes_abono', 'frequencia_fechamento', 'justificativas_ponto', 'solicitacoes_ajuste_ponto'] LOOP
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = ('public.' || t)::regclass AND tgname = 'trg_validar_etapa_frequencia' AND NOT tgisinternal AND tgenabled <> 'D') THEN
