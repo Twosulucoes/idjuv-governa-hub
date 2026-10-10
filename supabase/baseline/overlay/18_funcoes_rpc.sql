@@ -12,7 +12,8 @@
 -- 3) Funções somente-leitura que devolvem dado pessoal rodavam como dono (BYPASSRLS) e eram
 --    executáveis por qualquer logado, ativo ou não, com módulo ou não (reproduzido com
 --    fn_gerar_esocial_s2200: CPF e nome). Passam a SECURITY INVOKER: valem as policies de quem chama.
---    As que ESCREVEM (processar_folha_pagamento, fn_atualizar_situacao_servidor) perdem o EXECUTE de
+--    As que ESCREVEM (fn_atualizar_situacao_servidor; processar_folha_pagamento até a migração 20261010070000,
+--    que lhe deu guarda de permissão) perdem o EXECUTE de
 --    authenticated em overlay/40_privilegios.sql.
 
 CREATE OR REPLACE FUNCTION public.fn_gerar_numero_financeiro(

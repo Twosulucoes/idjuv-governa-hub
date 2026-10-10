@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { 
-  Package, ArrowLeft, ArrowRight, CheckCircle2, Circle, 
+  ArrowLeft, ArrowRight, CheckCircle2, Circle, 
   FileText, AlertTriangle, Download, Users, Clock, ClipboardList
 } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
+import { PageHeader, StatusBadge } from "@/components/design-system";
+import { useIdentidade } from "@/core/tenant";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -28,6 +29,7 @@ const checklistItems = [
 ];
 
 export default function AlmoxarifadoProcessoPage() {
+  const { sigla } = useIdentidade();
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
 
   const toggleItem = (id: string) => {
@@ -42,212 +44,187 @@ export default function AlmoxarifadoProcessoPage() {
 
   return (
     <ModuleLayout module="patrimonio">
-      {/* Cabeçalho */}
-      <section className="bg-secondary text-secondary-foreground py-12">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center gap-3 text-sm mb-4 opacity-80">
-            <Link to="/" className="hover:underline">Início</Link>
-            <span>/</span>
-            <Link to="/processos" className="hover:underline">Processos</Link>
-            <span>/</span>
-            <span>Almoxarifado</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-accent rounded-xl flex items-center justify-center">
-              <Package className="w-8 h-8 text-accent-foreground" />
-            </div>
-            <div>
-              <h1 className="font-serif text-3xl lg:text-4xl font-bold">Almoxarifado</h1>
-              <p className="opacity-90 mt-1">
-                Gestão de materiais de consumo e distribuição
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: "Processos", href: "/processos" }, { rotulo: "Almoxarifado" }]}
+          titulo="Almoxarifado"
+          descricao="Gestão de materiais de consumo e distribuição"
+        />
+
+        <div className="max-w-5xl space-y-6">
+          {/* Descrição */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Descrição do processo</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground leading-relaxed">
+                O processo de Almoxarifado disciplina os procedimentos de controle, guarda, 
+                distribuição e responsabilidade dos materiais de consumo e bens de uso comum 
+                do {sigla}, conforme Instrução Normativa específica.
               </p>
-            </div>
+              <div className="flex flex-wrap gap-4">
+                <Badge variant="outline" className="text-info border-info">
+                  <Clock className="w-3 h-3 mr-1" aria-hidden="true" />
+                  Inventário: anual
+                </Badge>
+                <Badge variant="outline" className="text-primary border-primary">
+                  <Users className="w-3 h-3 mr-1" aria-hidden="true" />
+                  Responsável: DIRAF/Almoxarifado
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Base Legal */}
+          <Card className="border-l-4 border-l-info">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-info" aria-hidden="true" />
+                Base legal
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2 text-muted-foreground">
+                <li>• IN de Almoxarifado do {sigla} - Art. 1º ao 13</li>
+                <li>• Regimento Interno do {sigla}</li>
+                <li>• Instruções Normativas do TCE-RR</li>
+              </ul>
+            </CardContent>
+          </Card>
+
+          {/* Formulários Disponíveis */}
+          <Card className="border-2 border-primary/20 bg-primary/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="w-5 h-5 text-primary" aria-hidden="true" />
+                Formulários digitais
+              </CardTitle>
+              <CardDescription>
+                Utilize os formulários abaixo para gerar documentos oficiais com numeração automática
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button asChild variant="outline" className="h-auto py-4 justify-start">
+                  <Link to="/formularios/requisicao-material" className="flex flex-col items-start gap-1">
+                    <span className="font-semibold">Requisição de Material</span>
+                    <span className="text-caption text-muted-foreground">Solicitação formal de materiais - Art. 7 IN</span>
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Fluxograma */}
+          <h2 className="text-h2 text-foreground pt-2">Fluxograma do processo</h2>
+          <div className="bg-muted/30 rounded-xl p-6">
+            <ol className="flex flex-wrap justify-center gap-4">
+              {fluxoEtapas.map((etapa, index) => (
+                <li key={etapa.id} className="flex items-center">
+                  <div className="fluxo-etapa min-w-[130px]">
+                    <div className="text-caption text-muted-foreground mb-1">Etapa {etapa.id}</div>
+                    <div className="font-medium text-sm">{etapa.nome}</div>
+                    <div className="text-caption text-primary mt-1">{etapa.responsavel}</div>
+                  </div>
+                  {index < fluxoEtapas.length - 1 && (
+                    <ArrowRight className="w-6 h-6 text-muted-foreground mx-2 hidden lg:block" aria-hidden="true" />
+                  )}
+                </li>
+              ))}
+            </ol>
           </div>
-        </div>
-      </section>
 
-      {/* Conteúdo */}
-      <section className="py-12">
-        <div className="container mx-auto px-4">
-          <div className="max-w-5xl mx-auto">
-            {/* Descrição */}
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle>Descrição do Processo</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-muted-foreground leading-relaxed">
-                  O processo de Almoxarifado disciplina os procedimentos de controle, guarda, 
-                  distribuição e responsabilidade dos materiais de consumo e bens de uso comum 
-                  do IDJUV, conforme Instrução Normativa específica.
-                </p>
-                <div className="flex flex-wrap gap-4">
-                  <Badge variant="outline" className="text-info border-info">
-                    <Clock className="w-3 h-3 mr-1" />
-                    Inventário: Anual
-                  </Badge>
-                  <Badge variant="outline" className="text-primary border-primary">
-                    <Users className="w-3 h-3 mr-1" />
-                    Responsável: DIRAF/Almoxarifado
-                  </Badge>
+          {/* Checklist */}
+          <h2 className="text-h2 text-foreground pt-2">Checklist obrigatório</h2>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <CardTitle>Documentação necessária</CardTitle>
+                  <CardDescription>
+                    Marque os itens conforme forem providenciados
+                  </CardDescription>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Base Legal */}
-            <Card className="mb-8 border-l-4 border-l-info">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-info" />
-                  Base Legal
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li>• IN de Almoxarifado do IDJUV - Art. 1º ao 13</li>
-                  <li>• Regimento Interno do IDJUV</li>
-                  <li>• Instruções Normativas do TCE-RR</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Formulários Disponíveis */}
-            <Card className="mb-8 border-2 border-primary/20 bg-primary/5">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5 text-primary" />
-                  Formulários Digitais
-                </CardTitle>
-                <CardDescription>
-                  Utilize os formulários abaixo para gerar documentos oficiais com numeração automática
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Button asChild variant="outline" className="h-auto py-4 justify-start">
-                    <Link to="/formularios/requisicao-material" className="flex flex-col items-start gap-1">
-                      <span className="font-semibold">Requisição de Material</span>
-                      <span className="text-xs text-muted-foreground">Solicitação formal de materiais - Art. 7 IN</span>
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Separator className="my-8" />
-
-            {/* Fluxograma */}
-            <h2 className="font-serif text-2xl font-bold mb-6">Fluxograma do Processo</h2>
-            <div className="bg-muted/30 rounded-xl p-6 mb-8">
-              <div className="flex flex-wrap justify-center gap-4">
-                {fluxoEtapas.map((etapa, index) => (
-                  <div key={etapa.id} className="flex items-center">
-                    <div className="fluxo-etapa min-w-[130px]">
-                      <div className="text-xs text-muted-foreground mb-1">Etapa {etapa.id}</div>
-                      <div className="font-medium text-sm">{etapa.nome}</div>
-                      <div className="text-xs text-primary mt-1">{etapa.responsavel}</div>
-                    </div>
-                    {index < fluxoEtapas.length - 1 && (
-                      <ArrowRight className="w-6 h-6 text-muted-foreground mx-2 hidden lg:block" />
+                <StatusBadge tom={canProceed ? "sucesso" : "pendente"}>
+                  {obrigatoriosChecked}/{obrigatoriosCount} obrigatórios
+                </StatusBadge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {checklistItems.map((item) => (
+                  <div 
+                    key={item.id}
+                    className={`checklist-item ${checkedItems.includes(item.id) ? 'checked' : ''}`}
+                  >
+                    <Checkbox
+                      id={item.id}
+                      checked={checkedItems.includes(item.id)}
+                      onCheckedChange={() => toggleItem(item.id)}
+                    />
+                    <label 
+                      htmlFor={item.id} 
+                      className="flex-1 text-sm cursor-pointer"
+                    >
+                      {item.label}
+                      {item.obrigatorio && (
+                        <>
+                          <span className="text-destructive ml-1" aria-hidden="true">*</span>
+                          <span className="sr-only"> (obrigatório)</span>
+                        </>
+                      )}
+                    </label>
+                    {checkedItems.includes(item.id) ? (
+                      <CheckCircle2 className="w-5 h-5 text-success" aria-hidden="true" />
+                    ) : (
+                      <Circle className="w-5 h-5 text-muted-foreground/30" aria-hidden="true" />
                     )}
                   </div>
                 ))}
               </div>
-            </div>
+            </CardContent>
+          </Card>
 
-            <Separator className="my-8" />
-
-            {/* Checklist */}
-            <h2 className="font-serif text-2xl font-bold mb-6">Checklist Obrigatório</h2>
-            <Card className="mb-8">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Documentação Necessária</CardTitle>
-                    <CardDescription>
-                      Marque os itens conforme forem providenciados
-                    </CardDescription>
-                  </div>
-                  <Badge variant={canProceed ? "default" : "secondary"} className={canProceed ? "bg-success" : ""}>
-                    {obrigatoriosChecked}/{obrigatoriosCount} obrigatórios
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {checklistItems.map((item) => (
-                    <div 
-                      key={item.id}
-                      className={`checklist-item ${checkedItems.includes(item.id) ? 'checked' : ''}`}
-                    >
-                      <Checkbox
-                        id={item.id}
-                        checked={checkedItems.includes(item.id)}
-                        onCheckedChange={() => toggleItem(item.id)}
-                      />
-                      <label 
-                        htmlFor={item.id} 
-                        className="flex-1 text-sm cursor-pointer"
-                      >
-                        {item.label}
-                        {item.obrigatorio && (
-                          <span className="text-destructive ml-1">*</span>
-                        )}
-                      </label>
-                      {checkedItems.includes(item.id) ? (
-                        <CheckCircle2 className="w-5 h-5 text-success" />
-                      ) : (
-                        <Circle className="w-5 h-5 text-muted-foreground/30" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Alerta */}
-            {!canProceed && (
-              <div className="alerta-conformidade mb-8">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-semibold">Atenção</h4>
-                    <p className="text-sm text-muted-foreground">
-                      A saída de material depende de requisição formal autorizada pela chefia (Art. 7º IN Almoxarifado).
-                      É vedada a retirada sem devido registro (Art. 8º).
-                    </p>
-                  </div>
+          {/* Alerta */}
+          {!canProceed && (
+            <div className="alerta-conformidade" role="note">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" aria-hidden="true" />
+                <div>
+                  <h3 className="font-semibold">Atenção</h3>
+                  <p className="text-sm text-muted-foreground">
+                    A saída de material depende de requisição formal autorizada pela chefia (Art. 7º IN Almoxarifado).
+                    É vedada a retirada sem devido registro (Art. 8º).
+                  </p>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Ações */}
-            <div className="flex flex-wrap gap-4 justify-between items-center">
+          {/* Ações */}
+          <div className="flex flex-wrap gap-4 justify-between items-center">
+            <Button asChild variant="outline">
+              <Link to="/processos">
+                <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
+                Voltar
+              </Link>
+            </Button>
+            <div className="flex gap-4">
               <Button asChild variant="outline">
-                <Link to="/processos">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Voltar
+                <Link to="/formularios/requisicao-material">
+                  <Download className="w-4 h-4 mr-2" aria-hidden="true" />
+                  Requisição de material
                 </Link>
               </Button>
-              <div className="flex gap-4">
-                <Button asChild variant="outline">
-                  <Link to="/formularios/requisicao-material">
-                    <Download className="w-4 h-4 mr-2" />
-                    Requisição de Material
-                  </Link>
-                </Button>
-                <Button 
-                  disabled={!canProceed}
-                  className="btn-gov"
-                >
-                  Iniciar Processo
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </div>
+              <Button disabled={!canProceed}>
+                Iniciar processo
+                <ArrowRight className="w-4 h-4 ml-2" aria-hidden="true" />
+              </Button>
             </div>
           </div>
         </div>
-      </section>
+      </div>
     </ModuleLayout>
   );
 }

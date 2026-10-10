@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ModuleLayout } from "@/components/layout";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,10 @@ export default function GestaoFrequenciaPage() {
   const [showImprimirFrequencia, setShowImprimirFrequencia] = useState(false);
   const [showImprimirLote, setShowImprimirLote] = useState(false);
   const [servidorSelecionado, setServidorSelecionado] = useState<FrequenciaServidorResumo | null>(null);
+
+  const { isSuperAdmin, hasAnyPermission } = useAuth();
+  const podeLancar =
+    isSuperAdmin || hasAnyPermission(["rh.frequencia.lancar", "rh.frequencia.criar", "rh.frequencia.editar"]);
 
   const { data: servidores, isLoading } = useFrequenciaResumo(ano, mes);
 
@@ -280,11 +285,15 @@ export default function GestaoFrequenciaPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleLancarFalta(s)}>
-                                <Plus className="mr-2 h-4 w-4" />
-                                Lançar Ocorrência
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
+                              {podeLancar && (
+                                <>
+                                  <DropdownMenuItem onClick={() => handleLancarFalta(s)}>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Lançar Ocorrência
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                </>
+                              )}
                               <DropdownMenuItem onClick={() => handleImprimirFrequencia(s)}>
                                 <Printer className="mr-2 h-4 w-4" />
                                 Imprimir Frequência
@@ -303,13 +312,15 @@ export default function GestaoFrequenciaPage() {
       </div>
 
       {/* Dialog de Lançamento */}
-      <LancarFaltaDialog
-        open={showLancarFalta}
-        onOpenChange={setShowLancarFalta}
-        servidor={servidorSelecionado}
-        ano={ano}
-        mes={mes}
-      />
+      {podeLancar && (
+        <LancarFaltaDialog
+          open={showLancarFalta}
+          onOpenChange={setShowLancarFalta}
+          servidor={servidorSelecionado}
+          ano={ano}
+          mes={mes}
+        />
+      )}
 
       {/* Dialog de Impressão Individual */}
       <ImprimirFrequenciaDialog

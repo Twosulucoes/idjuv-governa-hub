@@ -1,24 +1,19 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { EmptyState, KpiCard, PageHeader, StatusBadge, type TomStatus } from '@/components/design-system';
+import { cn } from '@/lib/utils';
 import { 
   Car, 
-  FileText, 
   Search, 
   Plus, 
-  Calendar, 
   Fuel,
   Wrench,
   CheckCircle2,
   Clock,
-  AlertTriangle,
-  ArrowLeft,
-  Download,
   MapPin,
   User
 } from 'lucide-react';
@@ -81,6 +76,14 @@ const abastecimentos = [
   { data: '2024-12-12', veiculo: 'QXA-1234', litros: 60, valor: 360.00, km: 24800 },
 ];
 
+// Situação do veículo → rótulo e tom do selo (status nunca só por cor)
+const SITUACAO_VEICULO: Record<string, { label: string; tom: TomStatus }> = {
+  disponivel: { label: 'Disponível', tom: 'sucesso' },
+  em_uso: { label: 'Em uso', tom: 'andamento' },
+  manutencao: { label: 'Manutenção', tom: 'pendente' },
+  reservado: { label: 'Reservado', tom: 'neutro' }
+};
+
 const VeiculosProcessoPage: React.FC = () => {
   const [busca, setBusca] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('todos');
@@ -93,19 +96,8 @@ const VeiculosProcessoPage: React.FC = () => {
   });
 
   const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ReactNode }> = {
-      disponivel: { label: 'Disponível', variant: 'default', icon: <CheckCircle2 className="h-3 w-3" /> },
-      em_uso: { label: 'Em Uso', variant: 'secondary', icon: <Clock className="h-3 w-3" /> },
-      manutencao: { label: 'Manutenção', variant: 'destructive', icon: <Wrench className="h-3 w-3" /> },
-      reservado: { label: 'Reservado', variant: 'outline', icon: <Calendar className="h-3 w-3" /> }
-    };
-    const config = statusConfig[status] || { label: status, variant: 'outline', icon: null };
-    return (
-      <Badge variant={config.variant} className="flex items-center gap-1">
-        {config.icon}
-        {config.label}
-      </Badge>
-    );
+    const config = SITUACAO_VEICULO[status] || { label: status, tom: 'neutro' as TomStatus };
+    return <StatusBadge tom={config.tom}>{config.label}</StatusBadge>;
   };
 
   const formatCurrency = (value: number) => {
@@ -118,39 +110,24 @@ const VeiculosProcessoPage: React.FC = () => {
 
   return (
     <ModuleLayout module="patrimonio">
-      <div className="container mx-auto py-8 px-4">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-          <Link to="/processos" className="hover:text-primary flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" />
-            Processos
-          </Link>
-          <span>/</span>
-          <span className="text-foreground">Veículos</span>
-        </div>
-
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-              <Car className="h-8 w-8 text-primary" />
-              Gestão de Veículos
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Controle de frota, abastecimentos e manutenções
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline">
-              <Fuel className="mr-2 h-4 w-4" />
-              Novo Abastecimento
-            </Button>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Solicitar Veículo
-            </Button>
-          </div>
-        </div>
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: 'Processos', href: '/processos' }, { rotulo: 'Veículos' }]}
+          titulo="Gestão de veículos"
+          descricao="Controle de frota, abastecimentos e manutenções"
+          acoes={
+            <>
+              <Button variant="outline">
+                <Fuel className="h-4 w-4" aria-hidden="true" />
+                Novo abastecimento
+              </Button>
+              <Button>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Solicitar veículo
+              </Button>
+            </>
+          }
+        />
 
         <Tabs defaultValue="frota" className="space-y-6">
           <TabsList>
@@ -167,25 +144,27 @@ const VeiculosProcessoPage: React.FC = () => {
               <CardContent className="pt-6">
                 <div className="flex flex-col md:flex-row gap-4">
                   <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     <Input
                       placeholder="Buscar por placa ou modelo..."
+                      aria-label="Buscar veículos por placa ou modelo"
                       className="pl-10"
                       value={busca}
                       onChange={(e) => setBusca(e.target.value)}
                     />
                   </div>
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="flex gap-2 flex-wrap" role="group" aria-label="Filtrar por situação">
                     {['todos', 'disponivel', 'em_uso', 'manutencao'].map((status) => (
                       <Button 
                         key={status}
                         variant={filtroStatus === status ? 'default' : 'outline'} 
                         size="sm"
+                        aria-pressed={filtroStatus === status}
                         onClick={() => setFiltroStatus(status)}
                       >
                         {status === 'todos' ? 'Todos' : 
                          status === 'disponivel' ? 'Disponíveis' :
-                         status === 'em_uso' ? 'Em Uso' : 'Manutenção'}
+                         status === 'em_uso' ? 'Em uso' : 'Manutenção'}
                       </Button>
                     ))}
                   </div>
@@ -195,81 +174,64 @@ const VeiculosProcessoPage: React.FC = () => {
 
             {/* Estatísticas */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card>
-                <CardContent className="pt-6 text-center">
-                  <div className="text-3xl font-bold text-primary">{veiculos.length}</div>
-                  <div className="text-sm text-muted-foreground">Total de Veículos</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6 text-center">
-                  <div className="text-3xl font-bold text-green-600">
-                    {veiculos.filter(v => v.status === 'disponivel').length}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Disponíveis</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6 text-center">
-                  <div className="text-3xl font-bold text-blue-600">
-                    {veiculos.filter(v => v.status === 'em_uso').length}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Em Uso</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6 text-center">
-                  <div className="text-3xl font-bold text-yellow-600">
-                    {veiculos.filter(v => v.status === 'manutencao').length}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Em Manutenção</div>
-                </CardContent>
-              </Card>
+              <KpiCard rotulo="Total de veículos" valor={veiculos.length} icone={Car} />
+              <KpiCard rotulo="Disponíveis" valor={veiculos.filter(v => v.status === 'disponivel').length} icone={CheckCircle2} />
+              <KpiCard rotulo="Em uso" valor={veiculos.filter(v => v.status === 'em_uso').length} icone={Clock} />
+              <KpiCard rotulo="Em manutenção" valor={veiculos.filter(v => v.status === 'manutencao').length} icone={Wrench} />
             </div>
 
             {/* Lista de Veículos */}
+            {veiculosFiltrados.length === 0 && (
+              <Card>
+                <EmptyState
+                  icone={Car}
+                  titulo="Nenhum veículo encontrado"
+                  descricao="Ajuste a busca ou o filtro de situação."
+                />
+              </Card>
+            )}
             <div className="grid md:grid-cols-2 gap-4">
               {veiculosFiltrados.map((veiculo) => (
                 <Card key={veiculo.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="pt-6">
                     <div className="flex justify-between items-start mb-4">
                       <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-2xl font-bold text-foreground">{veiculo.placa}</span>
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <h2 className="text-2xl font-bold text-foreground">{veiculo.placa}</h2>
                           {getStatusBadge(veiculo.status)}
                         </div>
                         <p className="text-muted-foreground">{veiculo.modelo} - {veiculo.ano}</p>
                       </div>
                       <div className="p-3 bg-primary/10 rounded-lg">
-                        <Car className="h-6 w-6 text-primary" />
+                        <Car className="h-6 w-6 text-primary" aria-hidden="true" />
                       </div>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="flex items-center gap-2 text-muted-foreground">
-                        <Fuel className="h-4 w-4" />
+                        <Fuel className="h-4 w-4" aria-hidden="true" />
                         <span>{veiculo.combustivel}</span>
                       </div>
                       <div className="flex items-center gap-2 text-muted-foreground">
-                        <MapPin className="h-4 w-4" />
+                        <MapPin className="h-4 w-4" aria-hidden="true" />
                         <span>{veiculo.km.toLocaleString()} km</span>
                       </div>
                       <div className="flex items-center gap-2 text-muted-foreground">
-                        <Wrench className="h-4 w-4" />
+                        <Wrench className="h-4 w-4" aria-hidden="true" />
                         <span>Revisão: {formatDate(veiculo.proximaRevisao)}</span>
                       </div>
                       <div className="flex items-center gap-2 text-muted-foreground">
-                        <User className="h-4 w-4" />
+                        <User className="h-4 w-4" aria-hidden="true" />
                         <span className="truncate">{veiculo.responsavel}</span>
                       </div>
                     </div>
 
-                    <div className="flex gap-2 mt-4 pt-4 border-t">
-                      <Button variant="outline" size="sm" className="flex-1">
+                    <div className="flex gap-2 mt-4 pt-4 border-t border-border">
+                      <Button variant="outline" size="sm" className="flex-1" aria-label={`Ver detalhes do veículo ${veiculo.placa}`}>
                         Detalhes
                       </Button>
                       {veiculo.status === 'disponivel' && (
-                        <Button size="sm" className="flex-1">
+                        <Button size="sm" className="flex-1" aria-label={`Reservar o veículo ${veiculo.placa}`}>
                           Reservar
                         </Button>
                       )}
@@ -284,7 +246,7 @@ const VeiculosProcessoPage: React.FC = () => {
           <TabsContent value="abastecimentos" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Histórico de Abastecimentos</CardTitle>
+                <CardTitle>Histórico de abastecimentos</CardTitle>
                 <CardDescription>
                   Registro de todos os abastecimentos da frota
                 </CardDescription>
@@ -292,10 +254,10 @@ const VeiculosProcessoPage: React.FC = () => {
               <CardContent>
                 <div className="space-y-4">
                   {abastecimentos.map((abast, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={index} className="flex items-center justify-between p-4 border border-border rounded-lg">
                       <div className="flex items-center gap-4">
                         <div className="p-2 bg-primary/10 rounded-lg">
-                          <Fuel className="h-5 w-5 text-primary" />
+                          <Fuel className="h-5 w-5 text-primary" aria-hidden="true" />
                         </div>
                         <div>
                           <div className="font-medium">{abast.veiculo}</div>
@@ -318,14 +280,14 @@ const VeiculosProcessoPage: React.FC = () => {
           <TabsContent value="manutencao" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Manutenções Programadas</CardTitle>
+                <CardTitle>Manutenções programadas</CardTitle>
                 <CardDescription>
                   Próximas revisões e manutenções preventivas
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {veiculos
+                  {[...veiculos]
                     .sort((a, b) => new Date(a.proximaRevisao).getTime() - new Date(b.proximaRevisao).getTime())
                     .map((veiculo) => {
                       const diasParaRevisao = Math.ceil(
@@ -336,13 +298,14 @@ const VeiculosProcessoPage: React.FC = () => {
                       return (
                         <div 
                           key={veiculo.id} 
-                          className={`flex items-center justify-between p-4 border rounded-lg ${
-                            urgente ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/10' : ''
-                          }`}
+                          className={cn(
+                            'flex items-center justify-between p-4 border rounded-lg',
+                            urgente ? 'border-warning bg-warning/10' : 'border-border'
+                          )}
                         >
                           <div className="flex items-center gap-4">
-                            <div className={`p-2 rounded-lg ${urgente ? 'bg-yellow-100 dark:bg-yellow-900/30' : 'bg-muted'}`}>
-                              <Wrench className={`h-5 w-5 ${urgente ? 'text-yellow-600' : 'text-muted-foreground'}`} />
+                            <div className={cn('p-2 rounded-lg', urgente ? 'bg-warning/15' : 'bg-muted')}>
+                              <Wrench className={cn('h-5 w-5', urgente ? 'text-warning' : 'text-muted-foreground')} aria-hidden="true" />
                             </div>
                             <div>
                               <div className="font-medium">{veiculo.placa} - {veiculo.modelo}</div>
@@ -353,12 +316,13 @@ const VeiculosProcessoPage: React.FC = () => {
                           </div>
                           <div className="flex items-center gap-2">
                             {urgente && (
-                              <Badge variant="outline" className="border-yellow-500 text-yellow-600">
-                                <AlertTriangle className="h-3 w-3 mr-1" />
-                                Em {diasParaRevisao} dias
-                              </Badge>
+                              <StatusBadge tom={diasParaRevisao < 0 ? 'erro' : 'pendente'}>
+                                {diasParaRevisao < 0
+                                  ? `Atrasada há ${-diasParaRevisao} ${diasParaRevisao === -1 ? 'dia' : 'dias'}`
+                                  : `Em ${diasParaRevisao} ${diasParaRevisao === 1 ? 'dia' : 'dias'}`}
+                              </StatusBadge>
                             )}
-                            <Button variant="outline" size="sm">
+                            <Button variant="outline" size="sm" aria-label={`Agendar revisão do veículo ${veiculo.placa}`}>
                               Agendar
                             </Button>
                           </div>
@@ -374,21 +338,23 @@ const VeiculosProcessoPage: React.FC = () => {
           <TabsContent value="solicitacoes" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Solicitações de Veículos</CardTitle>
+                <CardTitle>Solicitações de veículos</CardTitle>
                 <CardDescription>
                   Gerencie as solicitações de uso de veículos
                 </CardDescription>
               </CardHeader>
-              <CardContent className="text-center py-12">
-                <Car className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">Nenhuma solicitação pendente</h3>
-                <p className="text-muted-foreground mb-4">
-                  As solicitações de veículos aparecerão aqui
-                </p>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nova Solicitação
-                </Button>
+              <CardContent>
+                <EmptyState
+                  icone={Car}
+                  titulo="Nenhuma solicitação pendente"
+                  descricao="As solicitações de veículos aparecerão aqui"
+                  acao={
+                    <Button variant="outline">
+                      <Plus className="h-4 w-4" aria-hidden="true" />
+                      Nova solicitação
+                    </Button>
+                  }
+                />
               </CardContent>
             </Card>
           </TabsContent>

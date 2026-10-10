@@ -95,6 +95,23 @@ Contratos → Financeiro → Folha → RH (depois do PR #35) → Admin → demai
   organograma e gestão de denúncias (`DataTable`, sem mostrar nada novo do denunciante). Telas
   públicas (lei de criação, decreto, canal de denúncias) mantêm o `MainLayout` público e ganharam
   só tokens e aria. Links quebrados do painel de Integridade apontam para as rotas registradas.
+- **Compras e Contratos**: painéis (links trocados para rotas registradas; "A vencer" e
+  "Aditivos" sem link até existir tela) e telas de processo (compras, diárias, convênios,
+  veículos, pagamentos, patrimônio, almoxarifado) com `PageHeader`, `KpiCard`, `StatusBadge`,
+  `DataTable` em pagamentos e checklist no mesmo padrão (`ol` no fluxograma, obrigatório
+  anunciado ao leitor de tela). Pendência: não há tela de lista de contratos (o menu aponta para
+  `/processos/compras?tab=…`, que a página não lê).
+
+- **Comunicação/ASCOM, Programas, Workflow, Gabinete e cadastros**: painéis de Comunicação,
+  Programas, Gestores escolares, Workflow e Transparência; CMS (conteúdos, editor, banners,
+  galerias), calendário e aniversariantes; demandas da ASCOM (gestão, detalhe, nova); páginas dos
+  programas; federações e instituições; processos (lista e detalhe), Gabinete, avisos, cargos e
+  hub de módulos. Links quebrados trocados por rotas registradas (`/workflow/processos/:id`) ou
+  removidos; prévia do CMS usa o site do tenant. Pendências: mapas de situação duplicados entre
+  telas (centralizar em `src/types/`), `?acao=novo`/`?meus=true`/`?minhas=true` não lidos pelas
+  listas, CTAs das páginas de programas apontam para `/sistema`, textos "Roraima" nas páginas de
+  programas. Telas públicas (solicitação e protocolo da ASCOM, cadastro de federação, eventos)
+  ficam para a Fase 5.
 
 - **Admin**: painel, ajuda, auditoria, backup, disaster recovery, esquema do banco, relatórios,
   importações, usuários (gestão, detalhe, técnicos), perfis, permissões, controle de acesso,
