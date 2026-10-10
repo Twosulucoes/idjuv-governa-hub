@@ -1,47 +1,43 @@
 /**
  * DASHBOARD - PATRIMÔNIO
- * Usa ModuleLayout para navegação modular
+ * Usa ModuleLayout para navegação modular e os padrões do design system
+ * (PageHeader, KpiCard). Ver docs/GUIA_FRONTEND.md (Design System).
  */
 
-import { Package, Building2, Warehouse, QrCode, ClipboardCheck, ArrowRightLeft, AlertTriangle } from "lucide-react";
+import { Package, Building2, Warehouse, QrCode, ClipboardCheck, ArrowRightLeft, AlertTriangle, AlertCircle } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { usePatrimonioDashboardStats } from "@/hooks/dashboard";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { KpiCard, PageHeader } from "@/components/design-system";
 import { Link } from "react-router-dom";
 
-export default function PatrimonioDashboardPage() {
-  const { data: stats, isLoading } = usePatrimonioDashboardStats();
+const numero = new Intl.NumberFormat("pt-BR");
 
-  const statCards = [
-    { 
-      label: "Bens Ativos", 
-      value: isLoading ? "..." : String(stats?.bensAtivos || 0), 
-      icon: Package, 
-      href: "/inventario/bens" 
-    },
-    { 
-      label: "Unidades Locais", 
-      value: isLoading ? "..." : String(stats?.unidadesLocais || 0), 
-      icon: Building2, 
-      href: "/unidades" 
-    },
-    { 
-      label: "Itens Estoque", 
-      value: isLoading ? "..." : String(stats?.itensEstoque || 0), 
-      icon: Warehouse, 
-      href: "/inventario/almoxarifado" 
-    },
-    { 
-      label: "Pendências", 
-      value: isLoading ? "..." : String(stats?.pendencias || 0), 
-      icon: AlertTriangle, 
-      href: "/inventario/pendencias" 
-    },
+interface Indicador {
+  rotulo: string;
+  valor: string;
+  icone: LucideIcon;
+  href: string;
+}
+
+export default function PatrimonioDashboardPage() {
+  const { data: stats, isLoading, isError, refetch } = usePatrimonioDashboardStats();
+
+  // Sem dado (erro) mostra "—" em vez de um zero que parece real
+  const valor = (n: number | undefined) => (stats ? numero.format(n || 0) : "—");
+
+  const indicadores: Indicador[] = [
+    { rotulo: "Bens ativos", valor: valor(stats?.bensAtivos), icone: Package, href: "/inventario/bens" },
+    { rotulo: "Unidades locais", valor: valor(stats?.unidadesLocais), icone: Building2, href: "/unidades" },
+    { rotulo: "Itens em estoque", valor: valor(stats?.itensEstoque), icone: Warehouse, href: "/inventario/almoxarifado" },
+    { rotulo: "Pendências", valor: valor(stats?.pendencias), icone: AlertTriangle, href: "/inventario/pendencias" },
   ];
 
   const quickActions = [
-    { label: "Novo Bem", description: "Cadastrar patrimônio", href: "/inventario/bens/novo", icon: Package },
+    { label: "Novo bem", description: "Cadastrar patrimônio", href: "/inventario/bens?acao=novo", icon: Package },
     { label: "Movimentação", description: "Transferir bem", href: "/inventario/movimentacoes", icon: ArrowRightLeft },
     { label: "Inventário", description: "Realizar conferência", href: "/inventario/campanhas", icon: ClipboardCheck },
     { label: "Gerar QR Code", description: "Etiquetas", href: "/inventario/etiquetas", icon: QrCode },
@@ -50,58 +46,75 @@ export default function PatrimonioDashboardPage() {
   return (
     <ModuleLayout module="patrimonio">
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Package className="h-8 w-8 text-primary" />
-            Patrimônio
-          </h1>
-          <p className="text-muted-foreground">Bens patrimoniais, inventário e almoxarifado</p>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {statCards.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <Link key={stat.label} to={stat.href}>
-                <Card className="hover:shadow-md transition-shadow">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      {stat.label}
-                    </CardTitle>
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stat.value}</div>
-                  </CardContent>
-                </Card>
+        <PageHeader
+          titulo="Patrimônio"
+          descricao="Bens patrimoniais, inventário e almoxarifado"
+          acoes={
+            <Button asChild>
+              <Link to="/inventario/bens?acao=novo">
+                <Package className="h-4 w-4" aria-hidden="true" />
+                Novo bem
               </Link>
-            );
-          })}
-        </div>
+            </Button>
+          }
+        />
+
+        {isError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" aria-hidden="true" />
+            <AlertDescription className="flex flex-wrap items-center gap-2">
+              Não foi possível carregar os indicadores.
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Tentar novamente
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Indicadores: cada cartão leva à tela do assunto */}
+        <section aria-labelledby="patrimonio-indicadores">
+          <h2 id="patrimonio-indicadores" className="sr-only">Indicadores</h2>
+          <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {indicadores.map((ind) => (
+              <li key={ind.rotulo}>
+                <Link
+                  to={ind.href}
+                  className="block h-full rounded-lg transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <KpiCard
+                    rotulo={ind.rotulo}
+                    valor={ind.valor}
+                    icone={ind.icone}
+                    carregando={isLoading}
+                    className="h-full"
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         {/* Quick Actions */}
         <Card>
           <CardHeader>
-            <CardTitle>Ações Rápidas</CardTitle>
+            <h2 className="text-h2 text-foreground">Ações rápidas</h2>
             <CardDescription>Acesse as principais funcionalidades</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {quickActions.map((action) => {
                 const Icon = action.icon;
                 return (
                   <Button
                     key={action.label}
                     variant="outline"
-                    className="h-auto py-4 flex flex-col items-center gap-2"
+                    className="h-auto sm:h-auto py-4 flex flex-col items-center gap-2 whitespace-normal"
                     asChild
                   >
                     <Link to={action.href}>
-                      <Icon className="h-6 w-6" />
+                      <Icon className="h-6 w-6" aria-hidden="true" />
                       <span className="font-medium">{action.label}</span>
-                      <span className="text-xs text-muted-foreground">{action.description}</span>
+                      <span className="text-caption text-muted-foreground">{action.description}</span>
                     </Link>
                   </Button>
                 );

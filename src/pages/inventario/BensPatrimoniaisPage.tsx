@@ -5,18 +5,15 @@
 
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { 
-  Package, Plus, Search, Filter, Eye, Edit, QrCode,
-  ArrowLeft, Building2, User, Calendar, Tag, MoreHorizontal,
+import {
+  Package, Plus, Eye, Edit, QrCode, MoreHorizontal,
   PackagePlus, ArrowRightLeft
 } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
@@ -31,19 +28,19 @@ import { MovimentacaoLoteDialog } from "@/components/inventario/MovimentacaoLote
 const CATEGORIAS_BEM = [
   { value: 'mobiliario', label: 'Mobiliário' },
   { value: 'informatica', label: 'Informática' },
-  { value: 'equipamento_esportivo', label: 'Equipamento Esportivo' },
+  { value: 'equipamento_esportivo', label: 'Equipamento esportivo' },
   { value: 'veiculo', label: 'Veículo' },
   { value: 'eletrodomestico', label: 'Eletrodoméstico' },
   { value: 'outros', label: 'Outros' },
 ];
 
-const SITUACOES_BEM = [
-  { value: 'cadastrado', label: 'Cadastrado', color: 'bg-muted' },
-  { value: 'tombado', label: 'Tombado', color: 'bg-primary' },
-  { value: 'alocado', label: 'Alocado', color: 'bg-success' },
-  { value: 'em_manutencao', label: 'Em Manutenção', color: 'bg-warning' },
-  { value: 'baixado', label: 'Baixado', color: 'bg-destructive' },
-  { value: 'extraviado', label: 'Extraviado', color: 'bg-destructive' },
+const SITUACOES_BEM: { value: string; label: string; tom: TomStatus }[] = [
+  { value: 'cadastrado', label: 'Cadastrado', tom: 'neutro' },
+  { value: 'tombado', label: 'Tombado', tom: 'andamento' },
+  { value: 'alocado', label: 'Alocado', tom: 'sucesso' },
+  { value: 'em_manutencao', label: 'Em manutenção', tom: 'pendente' },
+  { value: 'baixado', label: 'Baixado', tom: 'erro' },
+  { value: 'extraviado', label: 'Extraviado', tom: 'erro' },
 ];
 
 const ESTADOS_CONSERVACAO = [
@@ -54,16 +51,87 @@ const ESTADOS_CONSERVACAO = [
   { value: 'irrecuperavel', label: 'Irrecuperável' },
 ];
 
+type Bem = NonNullable<ReturnType<typeof useBensPatrimoniais>["data"]>[number];
+
+const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+function SituacaoBemBadge({ situacao }: { situacao: string | null }) {
+  const sit = SITUACOES_BEM.find(s => s.value === situacao);
+  return sit ? <StatusBadge tom={sit.tom}>{sit.label}</StatusBadge> : <StatusBadge tom="neutro">Sem situação</StatusBadge>;
+}
+
+const colunas: ColunaTabela<Bem>[] = [
+  {
+    id: "patrimonio",
+    cabecalho: "Patrimônio",
+    celula: (bem) => bem.numero_patrimonio
+      ? <span className="font-mono">{bem.numero_patrimonio}</span>
+      : <span className="text-muted-foreground">Pendente</span>,
+    ordenarPor: (bem) => bem.numero_patrimonio,
+    buscarPor: (bem) => bem.numero_patrimonio,
+  },
+  {
+    id: "descricao",
+    cabecalho: "Descrição",
+    celula: (bem) => (
+      <div>
+        <span className="font-medium">{bem.descricao}</span>
+        {bem.marca && (
+          <span className="block text-caption text-muted-foreground">{bem.marca} {bem.modelo}</span>
+        )}
+      </div>
+    ),
+    ordenarPor: (bem) => bem.descricao,
+    buscarPor: (bem) => `${bem.descricao ?? ''} ${bem.marca ?? ''} ${bem.modelo ?? ''}`,
+    mobile: "titulo",
+  },
+  {
+    id: "categoria",
+    cabecalho: "Categoria",
+    celula: (bem) => CATEGORIAS_BEM.find(c => c.value === bem.categoria_bem)?.label ?? bem.categoria_bem ?? '-',
+    ordenarPor: (bem) => bem.categoria_bem,
+  },
+  {
+    id: "localizacao",
+    cabecalho: "Localização",
+    celula: (bem) => {
+      const local = bem.unidade_local?.nome_unidade || bem.unidade?.sigla;
+      return local
+        ? <span className="block max-w-[180px] truncate" title={local}>{local}</span>
+        : <span className="text-destructive">Sem local</span>;
+    },
+    ordenarPor: (bem) => bem.unidade_local?.nome_unidade || bem.unidade?.sigla,
+  },
+  {
+    id: "responsavel",
+    cabecalho: "Responsável",
+    celula: (bem) => bem.responsavel?.nome_completo?.split(' ').slice(0, 2).join(' ') || '-',
+    ordenarPor: (bem) => bem.responsavel?.nome_completo,
+  },
+  {
+    id: "valor",
+    cabecalho: "Valor",
+    celula: (bem) => bem.valor_aquisicao ? moeda.format(bem.valor_aquisicao) : '-',
+    ordenarPor: (bem) => bem.valor_aquisicao,
+    alinhamento: "direita",
+  },
+  {
+    id: "situacao",
+    cabecalho: "Situação",
+    celula: (bem) => <SituacaoBemBadge situacao={bem.situacao} />,
+    ordenarPor: (bem) => bem.situacao,
+  },
+];
+
 export default function BensPatrimoniaisPage() {
   const [searchParams] = useSearchParams();
-  const [busca, setBusca] = useState("");
   const [filtroSituacao, setFiltroSituacao] = useState<string>("");
   const [filtroCategoria, setFiltroCategoria] = useState<string>("");
   const [modalAberto, setModalAberto] = useState(searchParams.get('acao') === 'novo');
   const [cadastroLoteOpen, setCadastroLoteOpen] = useState(false);
   const [movimentacaoLoteOpen, setMovimentacaoLoteOpen] = useState(false);
 
-  const { data: bens, isLoading } = useBensPatrimoniais({
+  const { data: bens, isLoading, isError, refetch } = useBensPatrimoniais({
     situacao: filtroSituacao || undefined,
     categoria_bem: filtroCategoria || undefined,
   });
@@ -114,16 +182,6 @@ export default function BensPatrimoniaisPage() {
     },
   });
 
-  const bensFiltrados = bens?.filter(bem => {
-    if (!busca) return true;
-    const termo = busca.toLowerCase();
-    return (
-      bem.descricao?.toLowerCase().includes(termo) ||
-      bem.numero_patrimonio?.toLowerCase().includes(termo) ||
-      bem.marca?.toLowerCase().includes(termo)
-    );
-  });
-
   const handleCriarBem = async () => {
     const desc = novoBem.descricao.trim();
     if (!desc || !novoBem.categoria_bem || !novoBem.valor_aquisicao || !novoBem.unidade_local_id) {
@@ -170,52 +228,28 @@ export default function BensPatrimoniaisPage() {
     }
   };
 
-  const getSituacaoBadge = (situacao: string | null) => {
-    const sit = SITUACOES_BEM.find(s => s.value === situacao);
-    return sit ? (
-      <Badge variant="outline" className={`${sit.color} text-white border-0`}>
-        {sit.label}
-      </Badge>
-    ) : (
-      <Badge variant="secondary">-</Badge>
-    );
-  };
-
-  const formatCurrency = (value: number | null) => 
-    value ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value) : '-';
-
   return (
     <ModuleLayout module="patrimonio">
-      {/* Header */}
-      <section className="bg-secondary text-secondary-foreground py-6">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center gap-2 text-sm mb-3 opacity-80">
-            <Link to="/inventario" className="hover:underline">Inventário</Link>
-            <span>/</span>
-            <span>Bens Patrimoniais</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Package className="w-8 h-8" />
-              <div>
-                <h1 className="font-serif text-2xl font-bold">Bens Patrimoniais</h1>
-                <p className="opacity-90 text-sm">Cadastro e gestão de bens permanentes</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: "Inventário", href: "/inventario" }, { rotulo: "Bens patrimoniais" }]}
+          titulo="Bens patrimoniais"
+          descricao="Cadastro e gestão de bens permanentes"
+          acoes={
+            <>
               <Button variant="outline" onClick={() => setCadastroLoteOpen(true)}>
-                <PackagePlus className="w-4 h-4 mr-2" />
-                Lote
+                <PackagePlus className="h-4 w-4" aria-hidden="true" />
+                Cadastro em lote
               </Button>
               <Button variant="outline" onClick={() => setMovimentacaoLoteOpen(true)}>
-                <ArrowRightLeft className="w-4 h-4 mr-2" />
-                Mov. Lote
+                <ArrowRightLeft className="h-4 w-4" aria-hidden="true" />
+                Movimentar em lote
               </Button>
               <Dialog open={modalAberto} onOpenChange={setModalAberto}>
                 <DialogTrigger asChild>
                   <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Novo Bem
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Novo bem
                   </Button>
                 </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -386,162 +420,79 @@ export default function BensPatrimoniaisPage() {
                 </div>
               </DialogContent>
             </Dialog>
-            </div>
-          </div>
-        </div>
-      </section>
+            </>
+          }
+        />
 
-      {/* Dialogs de Lote */}
-      <CadastroLoteDialog open={cadastroLoteOpen} onOpenChange={setCadastroLoteOpen} />
-      <MovimentacaoLoteDialog open={movimentacaoLoteOpen} onOpenChange={setMovimentacaoLoteOpen} />
+        {/* Dialogs de Lote */}
+        <CadastroLoteDialog open={cadastroLoteOpen} onOpenChange={setCadastroLoteOpen} />
+        <MovimentacaoLoteDialog open={movimentacaoLoteOpen} onOpenChange={setMovimentacaoLoteOpen} />
 
-      {/* Filtros */}
-      <section className="py-4 border-b">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-wrap gap-3">
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Buscar por descrição, patrimônio, marca..."
-                  className="pl-10"
-                  value={busca}
-                  onChange={e => setBusca(e.target.value)}
-                />
-              </div>
-            </div>
-            <Select value={filtroSituacao || "all"} onValueChange={v => setFiltroSituacao(v === "all" ? "" : v)}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Situação" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                {SITUACOES_BEM.map(sit => (
-                  <SelectItem key={sit.value} value={sit.value}>{sit.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filtroCategoria || "all"} onValueChange={v => setFiltroCategoria(v === "all" ? "" : v)}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                {CATEGORIAS_BEM.map(cat => (
-                  <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </section>
-
-      {/* Lista */}
-      <section className="py-6">
-        <div className="container mx-auto px-4">
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Patrimônio</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Categoria</TableHead>
-                    <TableHead>Localização</TableHead>
-                    <TableHead>Responsável</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Situação</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        Carregando...
-                      </TableCell>
-                    </TableRow>
-                  ) : bensFiltrados?.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        Nenhum bem encontrado
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    bensFiltrados?.map(bem => (
-                      <TableRow key={bem.id}>
-                        <TableCell className="font-mono text-sm">
-                          {bem.numero_patrimonio || <span className="text-muted-foreground">Pendente</span>}
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <span className="font-medium">{bem.descricao}</span>
-                            {bem.marca && (
-                              <span className="text-xs text-muted-foreground ml-2">
-                                {bem.marca} {bem.modelo}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="capitalize">
-                            {bem.categoria_bem?.replace('_', ' ') || '-'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1 text-sm">
-                            <Building2 className="w-3 h-3 text-primary" />
-                            <span className="truncate max-w-[150px]" title={(bem as any).unidade_local?.nome_unidade}>
-                              {(bem as any).unidade_local?.nome_unidade || 
-                               (bem as any).unidade?.sigla || 
-                               <span className="text-destructive text-xs">Sem local</span>}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1 text-sm">
-                            <User className="w-3 h-3" />
-                            {(bem as any).responsavel?.nome_completo?.split(' ').slice(0, 2).join(' ') || '-'}
-                          </div>
-                        </TableCell>
-                        <TableCell>{formatCurrency(bem.valor_aquisicao)}</TableCell>
-                        <TableCell>{getSituacaoBadge(bem.situacao)}</TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild>
-                                <Link to={`/inventario/bens/${bem.id}`}>
-                                  <Eye className="w-4 h-4 mr-2" />
-                                  Visualizar
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem asChild>
-                                <Link to={`/inventario/bens/${bem.id}/editar`}>
-                                  <Edit className="w-4 h-4 mr-2" />
-                                  Editar
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <QrCode className="w-4 h-4 mr-2" />
-                                Gerar QR Code
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+        <DataTable
+          rotulo="Bens patrimoniais"
+          dados={bens ?? []}
+          colunas={colunas}
+          chaveLinha={(bem) => bem.id}
+          carregando={isLoading}
+          erro={isError ? "Não foi possível carregar os bens." : null}
+          aoTentarNovamente={() => refetch()}
+          busca={{ placeholder: "Buscar por descrição, nº ou marca" }}
+          filtros={
+            <>
+              <Select value={filtroSituacao || "all"} onValueChange={v => setFiltroSituacao(v === "all" ? "" : v)}>
+                <SelectTrigger className="w-full sm:w-44" aria-label="Situação">
+                  <SelectValue placeholder="Situação" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as situações</SelectItem>
+                  {SITUACOES_BEM.map(sit => (
+                    <SelectItem key={sit.value} value={sit.value}>{sit.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filtroCategoria || "all"} onValueChange={v => setFiltroCategoria(v === "all" ? "" : v)}>
+                <SelectTrigger className="w-full sm:w-48" aria-label="Categoria">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as categorias</SelectItem>
+                  {CATEGORIAS_BEM.map(cat => (
+                    <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          }
+          vazio={{ icone: Package, titulo: "Nenhum bem encontrado", descricao: "Ajuste os filtros ou cadastre um bem." }}
+          acoesLinha={(bem) => (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label={`Ações do bem ${bem.numero_patrimonio || bem.descricao}`}>
+                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link to={`/inventario/bens/${bem.id}`}>
+                    <Eye className="w-4 h-4 mr-2" aria-hidden="true" />
+                    Visualizar
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to={`/inventario/bens/${bem.id}/editar`}>
+                    <Edit className="w-4 h-4 mr-2" aria-hidden="true" />
+                    Editar
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <QrCode className="w-4 h-4 mr-2" aria-hidden="true" />
+                  Gerar QR Code
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        />
+      </div>
     </ModuleLayout>
   );
 }

@@ -5,27 +5,22 @@
 
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { 
-  Wrench, Plus, Search, Eye, Package, Calendar, 
-  User, CheckCircle2, Clock, AlertTriangle
-} from "lucide-react";
+import { Wrench, Plus, Eye, Package } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
 import { useManutencoesPatrimonio } from "@/hooks/usePatrimonio";
 import { NovaManutencaoDialog } from "@/components/inventario/NovaManutencaoDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-const STATUS_MANUTENCAO = [
-  { value: 'aberta', label: 'Aberta', color: 'bg-warning', icon: Clock },
-  { value: 'em_andamento', label: 'Em Andamento', color: 'bg-info', icon: Wrench },
-  { value: 'concluida', label: 'Concluída', color: 'bg-success', icon: CheckCircle2 },
-  { value: 'cancelada', label: 'Cancelada', color: 'bg-muted', icon: AlertTriangle },
+const STATUS_MANUTENCAO: { value: string; label: string; tom: TomStatus }[] = [
+  { value: 'aberta', label: 'Aberta', tom: 'pendente' },
+  { value: 'em_andamento', label: 'Em andamento', tom: 'andamento' },
+  { value: 'concluida', label: 'Concluída', tom: 'sucesso' },
+  { value: 'cancelada', label: 'Cancelada', tom: 'neutro' },
 ];
 
 const TIPOS_MANUTENCAO = [
@@ -33,9 +28,85 @@ const TIPOS_MANUTENCAO = [
   { value: 'corretiva', label: 'Corretiva' },
 ];
 
+type Manutencao = NonNullable<ReturnType<typeof useManutencoesPatrimonio>["data"]>[number];
+
+const formatCurrency = (value: number | null) =>
+  value ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value) : '-';
+
+function StatusManutencaoBadge({ status }: { status: string | null }) {
+  const st = STATUS_MANUTENCAO.find(s => s.value === status);
+  return st ? <StatusBadge tom={st.tom}>{st.label}</StatusBadge> : <StatusBadge tom="neutro">Sem status</StatusBadge>;
+}
+
+const colunas: ColunaTabela<Manutencao>[] = [
+  {
+    id: "data",
+    cabecalho: "Data abertura",
+    celula: (man) => (
+      <span className="whitespace-nowrap">
+        {man.data_abertura
+          ? format(new Date(man.data_abertura), 'dd/MM/yyyy', { locale: ptBR })
+          : '-'}
+      </span>
+    ),
+    ordenarPor: (man) => man.data_abertura,
+  },
+  {
+    id: "tipo",
+    cabecalho: "Tipo",
+    celula: (man) => (
+      <Badge variant="outline" className="capitalize">
+        {man.tipo}
+      </Badge>
+    ),
+    ordenarPor: (man) => man.tipo,
+  },
+  {
+    id: "bem",
+    cabecalho: "Bem",
+    celula: (man) => (
+      <div className="flex items-center gap-2">
+        <Package className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+        <div>
+          <span className="font-mono text-caption">{man.bem?.numero_patrimonio}</span>
+          <p className="text-caption text-muted-foreground truncate max-w-[200px]">
+            {man.bem?.descricao}
+          </p>
+        </div>
+      </div>
+    ),
+    ordenarPor: (man) => man.bem?.numero_patrimonio,
+    buscarPor: (man) => `${man.bem?.descricao ?? ''} ${man.bem?.numero_patrimonio ?? ''}`,
+    mobile: "titulo",
+  },
+  {
+    id: "descricao",
+    cabecalho: "Descrição",
+    celula: (man) => <p className="truncate max-w-[200px]">{man.descricao_problema}</p>,
+  },
+  {
+    id: "fornecedor",
+    cabecalho: "Fornecedor",
+    celula: (man) => man.fornecedor_externo || '-',
+    ordenarPor: (man) => man.fornecedor_externo,
+  },
+  {
+    id: "custo",
+    cabecalho: "Custo",
+    celula: (man) => formatCurrency(man.custo_final || man.custo_estimado),
+    ordenarPor: (man) => man.custo_final || man.custo_estimado,
+    alinhamento: "direita",
+  },
+  {
+    id: "status",
+    cabecalho: "Status",
+    celula: (man) => <StatusManutencaoBadge status={man.status} />,
+    ordenarPor: (man) => man.status,
+  },
+];
+
 export default function ManutencoesBensPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<string>("");
   const [filtroTipo, setFiltroTipo] = useState<string>("");
   const [dialogNovaManutencaoOpen, setDialogNovaManutencaoOpen] = useState(false);
@@ -48,181 +119,81 @@ export default function ManutencoesBensPage() {
     }
   }, [searchParams, setSearchParams]);
 
-  const { data: manutencoes, isLoading } = useManutencoesPatrimonio();
+  const { data: manutencoes, isLoading, isError, refetch } = useManutencoesPatrimonio();
 
-  const manutencoesFiltradas = manutencoes?.filter(man => {
+  const manutencoesFiltradas = (manutencoes ?? []).filter(man => {
     if (filtroStatus && man.status !== filtroStatus) return false;
     if (filtroTipo && man.tipo !== filtroTipo) return false;
-    if (!busca) return true;
-    const termo = busca.toLowerCase();
-    return (
-      (man as any).bem?.descricao?.toLowerCase().includes(termo) ||
-      (man as any).bem?.numero_patrimonio?.toLowerCase().includes(termo)
-    );
+    return true;
   });
-
-  const getStatusBadge = (status: string | null) => {
-    const st = STATUS_MANUTENCAO.find(s => s.value === status);
-    if (!st) return <Badge variant="secondary">-</Badge>;
-    const Icon = st.icon;
-    return (
-      <Badge variant="outline" className={`${st.color} text-white border-0`}>
-        <Icon className="w-3 h-3 mr-1" />
-        {st.label}
-      </Badge>
-    );
-  };
-
-  const formatCurrency = (value: number | null) => 
-    value ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value) : '-';
 
   return (
     <ModuleLayout module="patrimonio">
-      {/* Header */}
-      <section className="bg-secondary text-secondary-foreground py-6">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center gap-2 text-sm mb-3 opacity-80">
-            <Link to="/inventario" className="hover:underline">Inventário</Link>
-            <span>/</span>
-            <span>Manutenções</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Wrench className="w-8 h-8" />
-              <div>
-                <h1 className="font-serif text-2xl font-bold">Manutenções</h1>
-                <p className="opacity-90 text-sm">Registro de manutenções preventivas e corretivas</p>
-              </div>
-            </div>
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: "Inventário", href: "/inventario" }, { rotulo: "Manutenções" }]}
+          titulo="Manutenções"
+          descricao="Registro de manutenções preventivas e corretivas"
+          acoes={
             <Button onClick={() => setDialogNovaManutencaoOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Manutenção
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Nova manutenção
             </Button>
-          </div>
-        </div>
-      </section>
+          }
+        />
 
-      {/* Filtros */}
-      <section className="py-4 border-b">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-wrap gap-3">
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Buscar por bem..."
-                  className="pl-10"
-                  value={busca}
-                  onChange={e => setBusca(e.target.value)}
-                />
-              </div>
-            </div>
-            <Select value={filtroTipo || "all"} onValueChange={v => setFiltroTipo(v === "all" ? "" : v)}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {TIPOS_MANUTENCAO.map(t => (
-                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filtroStatus || "all"} onValueChange={v => setFiltroStatus(v === "all" ? "" : v)}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {STATUS_MANUTENCAO.map(s => (
-                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </section>
-
-      {/* Lista */}
-      <section className="py-6">
-        <div className="container mx-auto px-4">
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data Abertura</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Bem</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Fornecedor</TableHead>
-                    <TableHead className="text-right">Custo</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-[60px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        Carregando...
-                      </TableCell>
-                    </TableRow>
-                  ) : manutencoesFiltradas?.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        Nenhuma manutenção encontrada
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    manutencoesFiltradas?.map(man => (
-                      <TableRow key={man.id}>
-                        <TableCell className="whitespace-nowrap">
-                          {man.data_abertura 
-                            ? format(new Date(man.data_abertura), 'dd/MM/yyyy', { locale: ptBR })
-                            : '-'
-                          }
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="capitalize">
-                            {man.tipo}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Package className="w-4 h-4 text-muted-foreground" />
-                            <div>
-                              <span className="font-mono text-xs">{(man as any).bem?.numero_patrimonio}</span>
-                              <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                                {(man as any).bem?.descricao}
-                              </p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <p className="truncate max-w-[200px]">{man.descricao_problema}</p>
-                        </TableCell>
-                        <TableCell>{man.fornecedor_externo || '-'}</TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(man.custo_final || man.custo_estimado)}
-                        </TableCell>
-                        <TableCell>{getStatusBadge(man.status)}</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" asChild>
-                            <Link to={`/inventario/manutencoes/${man.id}`}>
-                              <Eye className="w-4 h-4" />
-                            </Link>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+        <DataTable
+          rotulo="Manutenções"
+          dados={manutencoesFiltradas}
+          colunas={colunas}
+          chaveLinha={(man) => man.id}
+          carregando={isLoading}
+          erro={isError ? "Não foi possível carregar as manutenções." : null}
+          aoTentarNovamente={() => refetch()}
+          busca={{ placeholder: "Buscar por bem" }}
+          filtros={
+            <>
+              <Select value={filtroTipo || "all"} onValueChange={v => setFiltroTipo(v === "all" ? "" : v)}>
+                <SelectTrigger className="w-full sm:w-40" aria-label="Tipo">
+                  <SelectValue placeholder="Tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os tipos</SelectItem>
+                  {TIPOS_MANUTENCAO.map(t => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filtroStatus || "all"} onValueChange={v => setFiltroStatus(v === "all" ? "" : v)}>
+                <SelectTrigger className="w-full sm:w-44" aria-label="Status">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  {STATUS_MANUTENCAO.map(s => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          }
+          vazio={{
+            icone: Wrench,
+            titulo: "Nenhuma manutenção encontrada",
+            descricao: "Ajuste os filtros ou registre uma manutenção.",
+          }}
+          acoesLinha={(man) => (
+            <Button variant="ghost" size="icon" asChild>
+              <Link
+                to={`/inventario/manutencoes/${man.id}`}
+                aria-label={`Ver manutenção do bem ${man.bem?.numero_patrimonio || man.bem?.descricao || ''}`.trim()}
+              >
+                <Eye className="w-4 h-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          )}
+        />
+      </div>
 
       <NovaManutencaoDialog
         open={dialogNovaManutencaoOpen}
