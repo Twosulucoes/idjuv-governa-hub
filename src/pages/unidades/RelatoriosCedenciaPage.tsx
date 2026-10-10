@@ -21,10 +21,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { KpiCard, PageHeader, StatusBadge } from "@/components/design-system";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
-  BarChart3, 
   Calendar,
   Building2,
   Users,
@@ -33,7 +33,6 @@ import {
   Loader2,
   Download,
   TrendingUp,
-  Clock,
   CheckCircle,
   XCircle,
 } from "lucide-react";
@@ -248,29 +247,23 @@ function RelatoriosCedenciaContent() {
   return (
     <ModuleLayout module="patrimonio">
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <BarChart3 className="h-6 w-6" />
-              Relatórios Gerenciais
-            </h1>
-            <p className="text-muted-foreground">
-              Análise de uso das unidades esportivas e cedências
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          migalhas={[{ rotulo: "Unidades locais", href: "/unidades" }, { rotulo: "Relatórios gerenciais" }]}
+          titulo="Relatórios gerenciais"
+          descricao="Análise de uso das unidades esportivas e cedências"
+        />
 
         {/* Filtros */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Filtros do Período</CardTitle>
+            <CardTitle className="text-h3">Filtros do período</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-4">
               <div className="space-y-2">
-                <Label>Período</Label>
+                <Label htmlFor="filtro-periodo">Período</Label>
                 <Select value={filterPeriodo} onValueChange={handlePeriodoChange}>
-                  <SelectTrigger>
+                  <SelectTrigger id="filtro-periodo">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -285,16 +278,18 @@ function RelatoriosCedenciaContent() {
               {filterPeriodo === "personalizado" && (
                 <>
                   <div className="space-y-2">
-                    <Label>Data Início</Label>
+                    <Label htmlFor="filtro-data-inicio">Data Início</Label>
                     <Input
+                      id="filtro-data-inicio"
                       type="date"
                       value={dataInicio}
                       onChange={(e) => setDataInicio(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Data Fim</Label>
+                    <Label htmlFor="filtro-data-fim">Data Fim</Label>
                     <Input
+                      id="filtro-data-fim"
                       type="date"
                       value={dataFim}
                       onChange={(e) => setDataFim(e.target.value)}
@@ -303,9 +298,9 @@ function RelatoriosCedenciaContent() {
                 </>
               )}
               <div className="space-y-2">
-                <Label>Município</Label>
+                <Label htmlFor="filtro-municipio">Município</Label>
                 <Select value={filterMunicipio} onValueChange={setFilterMunicipio}>
-                  <SelectTrigger>
+                  <SelectTrigger id="filtro-municipio">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -323,79 +318,30 @@ function RelatoriosCedenciaContent() {
         </Card>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="flex items-center justify-center py-12" role="status" aria-label="Carregando relatórios">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
           </div>
         ) : (
           <>
             {/* Cards de Estatísticas */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-primary/10 rounded-full">
-                      <Building2 className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{estatisticas?.totalUnidades || 0}</p>
-                      <p className="text-sm text-muted-foreground">Total de Unidades</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-info/10 rounded-full">
-                      <Calendar className="h-6 w-6 text-info" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{estatisticas?.totalCedencias || 0}</p>
-                      <p className="text-sm text-muted-foreground">Total de Cedências</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-success/10 rounded-full">
-                      <CheckCircle className="h-6 w-6 text-success" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{estatisticas?.cedenciasAprovadas || 0}</p>
-                      <p className="text-sm text-muted-foreground">Aprovadas/Concluídas</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-warning/10 rounded-full">
-                      <Users className="h-6 w-6 text-warning" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">
-                        {estatisticas?.publicoTotalAtendido?.toLocaleString("pt-BR") || 0}
-                      </p>
-                      <p className="text-sm text-muted-foreground">Público Atendido</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <KpiCard rotulo="Total de unidades" valor={estatisticas?.totalUnidades || 0} icone={Building2} />
+              <KpiCard rotulo="Total de cedências" valor={estatisticas?.totalCedencias || 0} icone={Calendar} />
+              <KpiCard rotulo="Aprovadas/concluídas" valor={estatisticas?.cedenciasAprovadas || 0} icone={CheckCircle} />
+              <KpiCard
+                rotulo="Público atendido"
+                valor={estatisticas?.publicoTotalAtendido?.toLocaleString("pt-BR") || 0}
+                icone={Users}
+              />
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
               {/* Unidades Mais Utilizadas */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Unidades Mais Utilizadas
+                  <CardTitle className="flex items-center gap-2 text-h3">
+                    <TrendingUp className="h-5 w-5" aria-hidden="true" />
+                    Unidades mais utilizadas
                   </CardTitle>
                   <CardDescription>Top 5 unidades com mais cedências no período</CardDescription>
                 </CardHeader>
@@ -409,7 +355,7 @@ function RelatoriosCedenciaContent() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium truncate">{unidade.nome}</p>
-                            <div className="w-full bg-muted rounded-full h-2 mt-1">
+                            <div className="w-full bg-muted rounded-full h-2 mt-1" aria-hidden="true">
                               <div 
                                 className="bg-primary rounded-full h-2 transition-all"
                                 style={{ 
@@ -435,9 +381,9 @@ function RelatoriosCedenciaContent() {
               {/* Cedências a Vencer */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-warning" />
-                    Cedências a Vencer
+                  <CardTitle className="flex items-center gap-2 text-h3">
+                    <AlertTriangle className="h-5 w-5 text-warning" aria-hidden="true" />
+                    Cedências a vencer
                   </CardTitle>
                   <CardDescription>Próximos 30 dias</CardDescription>
                 </CardHeader>
@@ -458,18 +404,17 @@ function RelatoriosCedenciaContent() {
                               Término: {format(parseISO(cedencia.data_fim), "dd/MM/yyyy")}
                             </p>
                           </div>
-                          <Badge 
-                            className={
-                              cedencia.dias_para_vencer <= 7 
-                                ? "bg-destructive text-destructive-foreground"
+                          <StatusBadge
+                            tom={
+                              cedencia.dias_para_vencer <= 7
+                                ? "erro"
                                 : cedencia.dias_para_vencer <= 15
-                                ? "bg-warning text-warning-foreground"
-                                : "bg-muted text-muted-foreground"
+                                ? "pendente"
+                                : "neutro"
                             }
                           >
-                            <Clock className="h-3 w-3 mr-1" />
                             {cedencia.dias_para_vencer} dias
-                          </Badge>
+                          </StatusBadge>
                         </div>
                       ))}
                     </div>
@@ -485,9 +430,9 @@ function RelatoriosCedenciaContent() {
             {/* Tabela de Relatório por Unidade */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Relatório de Uso por Unidade
+                <CardTitle className="flex items-center gap-2 text-h3">
+                  <FileText className="h-5 w-5" aria-hidden="true" />
+                  Relatório de uso por unidade
                 </CardTitle>
                 <CardDescription>
                   Detalhamento das cedências por unidade esportiva

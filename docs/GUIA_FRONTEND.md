@@ -139,7 +139,8 @@ Erro de leitura bloqueia a importação; aviso só informa.
   - **Tipografia:** IBM Plex Sans (`font-sans`) em tudo, inclusive `h1`–`h3`; Merriweather
     (`font-serif`) só quando pedido explicitamente. Escala: `text-display`, `text-h1`, `text-h2`,
     `text-h3`, `text-body` (14px, corpo do sistema), `text-body-lg`, `text-caption` (12px, mínimo).
-    Tabelas usam números tabulares por padrão. As tags `h1`–`h3` ainda têm o tamanho antigo
+    Tabelas usam números tabulares por padrão. O `cn` (`@/lib/utils`) conhece essa escala, então
+    `cn("text-h3", "text-lg")` fica só com `text-lg`; `CardTitle` usa `text-h3` por padrão. As tags `h1`–`h3` ainda têm o tamanho antigo
     (base de `src/index.css`); telas novas ou migradas usam as classes da escala (`text-h1`…), e
     o tamanho base é alinhado quando o `PageHeader` da Fase 2 existir.
   - **Gráficos:** série `--chart-1` a `--chart-8` via `ChartContainer`/`chartConfig` de
@@ -162,7 +163,8 @@ Erro de leitura bloqueia a importação; aviso só informa.
   - **Shell (`ModuleLayout`)** já entrega "Pular para o conteúdo", marcos (`header`, `nav`
     rotulados, `main` focável), `aria-current` no menu e menu do celular como diálogo. A página não
     repete isso: começa no `PageHeader` (um único `h1`). Referência migrada: RH (painel, lista e
-    ficha do servidor); selo de situação funcional em `@/components/rh/SituacaoServidorBadge`.
+    ficha do servidor) e Patrimônio (painéis, listas e fichas); selos de domínio em
+    `@/components/rh/SituacaoServidorBadge` e `@/components/unidades/StatusUnidadeBadge`.
   - Consulte o skill `ui-ux-pro-max` (`.claude/skills/UI-UX-PRO-MAX-VENDOR.md`) para decisões
     de UI/UX e acessibilidade.
 - **Ícones**: `lucide-react`.
