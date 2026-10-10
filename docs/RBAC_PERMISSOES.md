@@ -136,6 +136,29 @@ não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos 
   Mesma dívida de `/rh/meus-dados`: policy de leitura da própria linha em `servidores` e
   alinhamento `profiles.servidor_id` ↔ `servidores.user_id` (migração de RLS).
 
+### Viagens: edição, cancelamento e exclusão
+
+- `/rh/viagens` (`GestaoViagensPage`) exige `rh.viagens.visualizar` na rota e no item de menu.
+  Dentro da página, criar exige `rh.viagens.criar` ou `rh.viagens.gerenciar`; editar, mudar
+  status e cancelar exigem `rh.viagens.editar` ou `rh.viagens.gerenciar`; o workflow DIRAF,
+  `rh.viagens.gerenciar` ou `financeiro.diarias.gerenciar`; excluir fisicamente só super admin,
+  e só viagem `solicitada` sem nº de SEI e sem portaria (`podeExcluir`,
+  `src/lib/diariasRegras.ts`). As quatro permissões `rh.viagens.*` existem no catálogo
+  (`admin` e `manager` têm todas; `user` só `visualizar`).
+- **Essa barreira existe só no front.** A RLS de `viagens_diarias` libera SELECT, INSERT, UPDATE
+  e DELETE a qualquer usuário com o módulo `rh` **ou** `financeiro` (`can_access_module`), sem
+  checar `rh.viagens.editar`, status, campos nem autoria. Quem tem o módulo consegue, pela API,
+  alterar valor/quantidade de viagem concluída, voltar `concluida` para `solicitada` e excluir
+  registro com SEI e portaria; só o trigger `audit_viagens_diarias` registra o fato. Não há
+  trigger de bloqueio por status nem CHECK em `tipo_onus`, `data_retorno >= data_saida`,
+  `valor_total` ou valores negativos. Pendência para a migração (Onda B): policies por permissão
+  (`usuario_tem_permissao('rh.viagens.editar')`), DELETE restrito (a migração histórica
+  20260131041251 negava DELETE por ser registro contábil), CHECKs acima e coluna
+  `motivo_cancelamento` — ver `superpowers/specs/2026-10-10-viagens-diarias-design.md`.
+- A tabela de valores de diária fica no perfil do tenant (`rh.diarias`, ver `WHITE_LABEL.md`),
+  portanto vai no bundle do front; são valores públicos (ato normativo de diárias), sem dado
+  pessoal.
+
 ### Importação de dados
 
 Cada importador declara a sua permissão (`src/lib/importacao/registro.ts`) e a RPC dele confere a

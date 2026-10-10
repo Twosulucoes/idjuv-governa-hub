@@ -196,6 +196,23 @@ export interface TenantConfig {
     portalTransparenciaUrl?: string;
     redesSociais?: Partial<Record<'instagram'|'facebook'|'youtube'|'twitter', string>>;
   };
+
+  rh?: {
+    // Tabela de valores de diária do ato normativo da instituição. Lida por
+    // `useTenant().rh?.diarias` no formulário de viagens (`ViagemFormDialog`);
+    // a faixa de destino usa `endereco.uf` como sede. Vazia (`linhas: []`),
+    // a tela aceita quantidade e valor manuais.
+    diarias?: {
+      vigencia?: string;                               // ex.: "IN nº 1/2026"
+      regras?: { meiaDiariaNoRetorno?: boolean };      // padrão true
+      linhas: {
+        descricao?: string;
+        categorias: CategoriaCargo[];                  // enum `categoria_cargo` do banco
+        nivelMinimo?: number; nivelMaximo?: number;    // `cargos.nivel_hierarquico`
+        valores: Record<'intermunicipal'|'interestadual'|'internacional', number>;
+      }[];
+    };
+  };
 }
 ```
 
