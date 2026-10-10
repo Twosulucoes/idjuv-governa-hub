@@ -63,9 +63,9 @@ REVOKE EXECUTE ON FUNCTION public.fn_fotos_vistoria_inventario_imutavel() FROM a
 REVOKE EXECUTE ON FUNCTION public.fn_campanhas_inventario_unidades_autoria() FROM authenticated;
 
 -- ---- funções que ESCREVEM e não são chamadas por usuário logado ----
--- processar_folha_pagamento (folha bloqueada — débito técnico DT-2026-001) apagava e recriava
--- fichas_financeiras para qualquer logado; fn_atualizar_situacao_servidor só é chamada por triggers
--- SECURITY DEFINER. Ao ativar a folha, reabra o EXECUTE com uma guarda can_access_module no corpo.
+-- fn_atualizar_situacao_servidor só é chamada por triggers SECURITY DEFINER. processar_folha_pagamento
+-- saiu desta lista na migração 20261010070000: ganhou guarda has_permission_code('financeiro.folha.processar')
+-- no corpo e EXECUTE para authenticated (o front chama a RPC no botão Processar).
 DO $$
 DECLARE f record;
 BEGIN
@@ -73,7 +73,7 @@ BEGIN
     SELECT p.oid::regprocedure AS assinatura
     FROM pg_proc p
     WHERE p.pronamespace = 'public'::regnamespace
-      AND p.proname IN ('processar_folha_pagamento', 'fn_atualizar_situacao_servidor')
+      AND p.proname IN ('fn_atualizar_situacao_servidor')
   LOOP
     EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM authenticated', f.assinatura);
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', f.assinatura);
