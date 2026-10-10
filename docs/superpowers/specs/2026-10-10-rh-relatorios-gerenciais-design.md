@@ -84,3 +84,33 @@ licenças, frequência, viagens e folha`.
 linhas de planilha, rejeição de data fora do ISO no filtro) e PDF gerado com dados de exemplo (script Node com
 jsPDF, sem DOM) e conferido — os dois scripts ficam no rascunho da sessão, fora do repositório (o repo não tem
 suíte de testes); revisão `revisor-codigo-idjuv` + `revisor-seguranca-idjuv` (LGPD).
+
+## Entrega 15b — folha (PR empilhada sobre a 15a)
+
+Premissas adicionais:
+
+1. **Só agregados, sem nome de servidor.** Relatório nominal de folha (por servidor, com líquido) fica fora
+   até decisão do usuário (exigiria gate próprio e `log_audit` como no contracheque). Contracheque individual
+   e em lote já existem (`pdfContracheque.ts`).
+2. **Três relatórios**, no mesmo card "Folha de pagamento" (`RelatorioFolhaCard.tsx`), com filtro de ano e
+   seleção da folha (competência + tipo) vinda de `useFolhasPagamento(ano)` (`src/hooks/useFolhaPagamento.ts`):
+   - **Resumo do ano**: uma linha por folha (`folhas_pagamento`: competência, tipo, status, quantidade de
+     servidores, bruto, descontos, líquido, INSS servidor/patronal, IRRF, encargos) com total do ano.
+   - **Por unidade** (de uma folha): `fichas_financeiras` agregadas por `unidade_nome` (servidores, proventos,
+     descontos, líquido, INSS, IRRF) com total.
+   - **Por rubrica** (de uma folha): `itens_ficha_financeira` agregados por `tipo` e `descricao` (quantidade de
+     fichas, valor) — proventos e descontos em blocos, com subtotal e total; itens lidos com
+     `ficha:fichas_financeiras!inner(folha_id)` e `.eq("ficha.folha_id", id)`, paginados.
+   Cada relatório sai em PDF e XLSX.
+3. **Gate no front**: o card só aparece com `hasAnyPermission(["financeiro.folha.visualizar"])` ou super admin
+   (o catálogo dá `rh.relatorios.visualizar` ao papel `user`; a RLS de `folhas_pagamento` exige o módulo
+   `rh`, e a de `fichas`/`itens` o módulo `rh` ou a própria ficha). Sem permissão nova no catálogo.
+4. **LGPD**: selects com colunas explícitas; nada de `cpf`, `banco_*`, `pis_pasep`, `servidor_nome` nos
+   agregados. Folhas em `rascunho` entram no resumo do ano com o status visível (o gestor precisa vê-las);
+   por unidade/rubrica só de folhas `processada`, `fechada` ou `paga` (lista do `Select` filtra).
+5. Hooks compartilhados de folha não mudam; o card reaproveita `FiltroSelect`, `BotoesExportar` e
+   `PreviaRegistros` da 15a; regras puras novas vão para `relatoriosRHRegras.ts` (ou `relatoriosFolhaRegras.ts`
+   se passar de ~150 linhas); PDFs em `src/lib/pdfRelatoriosFolha.ts` com os mesmos helpers.
+
+Fora de escopo da 15b: relatório nominal; 1/3 de férias; comparação entre competências; RBAC das rotas
+`/folha*`.
