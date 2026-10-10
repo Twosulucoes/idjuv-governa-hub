@@ -179,7 +179,8 @@ export function useContrachequeDetalhe(fichaId?: string) {
         .select('*')
         .eq('ficha_id', fichaId)
         .order('tipo', { ascending: true })
-        .order('rubrica_codigo', { ascending: true });
+        .order('ordem', { ascending: true, nullsFirst: false })
+        .order('descricao', { ascending: true });
       
       if (itensError) throw itensError;
       

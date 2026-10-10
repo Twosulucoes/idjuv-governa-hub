@@ -6,6 +6,7 @@ import { Loader2, Play, AlertTriangle, CheckCircle2, XCircle, Info } from "lucid
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { useContagemItensFolha } from "@/hooks/useFolhaPagamento";
 
 interface ProcessarFolhaDialogProps {
   open: boolean;
@@ -33,6 +34,8 @@ export function ProcessarFolhaDialog({
   const [processando, setProcessando] = useState(false);
   const [resultado, setResultado] = useState<ResultadoProcessamento | null>(null);
   const queryClient = useQueryClient();
+  // A RPC apaga as fichas (cascata nos itens) — inclusive itens lançados manualmente na ficha.
+  const { data: qtdItens } = useContagemItensFolha(open ? folhaId : undefined);
 
   const handleProcessar = async () => {
     setProcessando(true);
@@ -64,6 +67,7 @@ export function ProcessarFolhaDialog({
         queryClient.invalidateQueries({ queryKey: ["folha-detalhe", folhaId] });
         queryClient.invalidateQueries({ queryKey: ["fichas-financeiras", folhaId] });
         queryClient.invalidateQueries({ queryKey: ["folhas-pagamento"] });
+        queryClient.invalidateQueries({ queryKey: ["itens-folha-contagem", folhaId] });
       }
     } catch (error: any) {
       console.error("Erro ao processar folha:", error);
@@ -108,6 +112,12 @@ export function ProcessarFolhaDialog({
                 <p className="mt-2 font-medium">
                   Fichas existentes serão substituídas.
                 </p>
+                {(qtdItens ?? 0) > 0 && (
+                  <p className="mt-1 font-medium text-destructive">
+                    As fichas atuais têm {qtdItens} item(ns) de rubrica, incluindo lançamentos manuais e consignações
+                    lançadas na ficha — todos serão apagados e precisarão ser relançados.
+                  </p>
+                )}
               </AlertDescription>
             </Alert>
           )}
