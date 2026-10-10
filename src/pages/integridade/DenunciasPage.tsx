@@ -111,16 +111,16 @@ export default function DenunciasPage() {
       {/* Cabeçalho */}
       <section className="bg-warning text-warning-foreground py-12">
         <div className="container mx-auto px-4">
-          <div className="flex items-center gap-3 text-sm mb-4 opacity-80">
+          <nav aria-label="Trilha de navegação" className="flex items-center gap-3 text-sm mb-4 opacity-80">
             <Link to="/" className="hover:underline">Início</Link>
-            <span>/</span>
+            <span aria-hidden="true">/</span>
             <Link to="/integridade" className="hover:underline">Integridade</Link>
-            <span>/</span>
-            <span>Canal de Denúncias</span>
-          </div>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Canal de Denúncias</span>
+          </nav>
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center">
-              <AlertTriangle className="w-8 h-8 text-primary-foreground" />
+              <AlertTriangle className="w-8 h-8 text-primary-foreground" aria-hidden="true" />
             </div>
             <div>
               <h1 className="font-serif text-3xl lg:text-4xl font-bold">Canal de Denúncias</h1>
@@ -140,7 +140,7 @@ export default function DenunciasPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
               <Card className="text-center">
                 <CardContent className="pt-6">
-                  <Shield className="w-10 h-10 text-success mx-auto mb-3" />
+                  <Shield className="w-10 h-10 text-success mx-auto mb-3" aria-hidden="true" />
                   <h3 className="font-semibold mb-1">Sigilo Garantido</h3>
                   <p className="text-sm text-muted-foreground">
                     Proteção total da identidade do denunciante
@@ -149,7 +149,7 @@ export default function DenunciasPage() {
               </Card>
               <Card className="text-center">
                 <CardContent className="pt-6">
-                  <Lock className="w-10 h-10 text-info mx-auto mb-3" />
+                  <Lock className="w-10 h-10 text-info mx-auto mb-3" aria-hidden="true" />
                   <h3 className="font-semibold mb-1">Denúncia Anônima</h3>
                   <p className="text-sm text-muted-foreground">
                     Opção de não identificação disponível
@@ -158,7 +158,7 @@ export default function DenunciasPage() {
               </Card>
               <Card className="text-center">
                 <CardContent className="pt-6">
-                  <FileText className="w-10 h-10 text-primary mx-auto mb-3" />
+                  <FileText className="w-10 h-10 text-primary mx-auto mb-3" aria-hidden="true" />
                   <h3 className="font-semibold mb-1">Conformidade LGPD</h3>
                   <p className="text-sm text-muted-foreground">
                     Tratamento conforme Lei de Proteção de Dados
@@ -189,14 +189,14 @@ export default function DenunciasPage() {
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="anonimo" id="anonimo" />
                         <Label htmlFor="anonimo" className="flex items-center gap-2 cursor-pointer">
-                          <EyeOff className="w-4 h-4" />
+                          <EyeOff className="w-4 h-4" aria-hidden="true" />
                           Denúncia anônima
                         </Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="identificado" id="identificado" />
                         <Label htmlFor="identificado" className="flex items-center gap-2 cursor-pointer">
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-4 h-4" aria-hidden="true" />
                           Desejo me identificar
                         </Label>
                       </div>
@@ -303,7 +303,7 @@ export default function DenunciasPage() {
                   {/* LGPD */}
                   <div className="bg-info/10 border border-info/30 rounded-lg p-4">
                     <div className="flex items-start gap-3">
-                      <Info className="w-5 h-5 text-info flex-shrink-0 mt-0.5" />
+                      <Info className="w-5 h-5 text-info flex-shrink-0 mt-0.5" aria-hidden="true" />
                       <div className="space-y-3">
                         <p className="text-sm text-muted-foreground">
                           Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), 
@@ -329,7 +329,7 @@ export default function DenunciasPage() {
                   <div className="flex gap-4 justify-end">
                     <Button asChild variant="outline">
                       <Link to="/integridade">
-                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
                         Cancelar
                       </Link>
                     </Button>
@@ -342,7 +342,7 @@ export default function DenunciasPage() {
                         "Enviando..."
                       ) : (
                         <>
-                          <Send className="w-4 h-4 mr-2" />
+                          <Send className="w-4 h-4 mr-2" aria-hidden="true" />
                           Enviar Denúncia
                         </>
                       )}

@@ -1,11 +1,10 @@
-import { Link } from "react-router-dom";
 import leiPdf from "@tenants/idjuv/assets/documentos/LEI_2301_29-12-2025.pdf?url";
-import { FileText, Download, BookOpen } from "lucide-react";
+import { Download, BookOpen } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/design-system";
 import { useDadosOficiais } from "@/hooks/useDadosOficiais";
 
 export default function LeiCriacaoPage() {
@@ -19,32 +18,24 @@ export default function LeiCriacaoPage() {
     <MainLayout>
       <section className="container mx-auto px-4 py-10">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <Link to="/base-legal" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-4">
-            ← Base Legal
-          </Link>
-          <Badge variant="outline" className="mb-4">
-            <FileText className="w-3 h-3 mr-1" />
-            Governança
-          </Badge>
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Lei de Criação
-          </h1>
-          <p className="text-muted-foreground">
-            {obterValor('lei_criacao')} - Criação do IDJuv
-          </p>
-        </div>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5" />
-              Texto Integral
-            </CardTitle>
-            <Button variant="outline" size="sm" onClick={handleDownload}>
-              <Download className="w-4 h-4 mr-2" />
+        <PageHeader
+          migalhas={[{ rotulo: "Base legal", href: "/base-legal" }, { rotulo: "Lei de criação" }]}
+          titulo="Lei de criação"
+          descricao={`${obterValor('lei_criacao')} - Criação do IDJuv`}
+          acoes={
+            <Button onClick={handleDownload}>
+              <Download className="h-4 w-4" aria-hidden="true" />
               Baixar PDF
             </Button>
+          }
+        />
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5" aria-hidden="true" />
+              Texto integral
+            </CardTitle>
           </CardHeader>
           <CardContent className="prose prose-sm max-w-none">
             <div className="bg-muted/50 rounded-lg p-6 mb-6 text-center">

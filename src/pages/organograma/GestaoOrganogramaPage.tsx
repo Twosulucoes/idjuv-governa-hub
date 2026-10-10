@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ModuleLayout } from "@/components/layout";
+import { KpiCard, PageHeader } from "@/components/design-system";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +25,6 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganograma } from '@/hooks/useOrganograma';
 import { 
-  ArrowLeft, 
   Plus, 
   Edit, 
   Trash2, 
@@ -255,12 +255,12 @@ export default function GestaoOrganogramaPage() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button variant="ghost" size="sm" onClick={() => handleOpenEdit(unidade)}>
-                  <Edit className="h-4 w-4" />
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                <Button variant="ghost" size="sm" onClick={() => handleOpenEdit(unidade)} aria-label={`Editar ${unidade.nome}`}>
+                  <Edit className="h-4 w-4" aria-hidden="true" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(unidade)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
+                <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(unidade)} aria-label={`Desativar ${unidade.nome}`}>
+                  <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
                 </Button>
               </div>
             </div>
@@ -272,57 +272,25 @@ export default function GestaoOrganogramaPage() {
 
   return (
     <ModuleLayout module="governanca">
-      <div className="container mx-auto py-8 px-4">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-          <Link to="/organograma" className="hover:text-primary flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" />
-            Organograma
-          </Link>
-          <span>/</span>
-          <span className="text-foreground">Gestão</span>
-        </div>
-
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Gestão do Organograma</h1>
-            <p className="text-muted-foreground mt-1">
-              Gerencie as unidades organizacionais do IDJUV
-            </p>
-          </div>
-          <Button onClick={handleOpenCreate}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Unidade
-          </Button>
-        </div>
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: "Organograma", href: "/organograma" }, { rotulo: "Gestão" }]}
+          titulo="Gestão do organograma"
+          descricao="Gerencie as unidades organizacionais da instituição"
+          acoes={
+            <Button onClick={handleOpenCreate}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Nova unidade
+            </Button>
+          }
+        />
 
         {/* Estatísticas rápidas */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardContent className="pt-4 pb-4">
-              <p className="text-2xl font-bold">{unidades.length}</p>
-              <p className="text-xs text-muted-foreground">Total de Unidades</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-4">
-              <p className="text-2xl font-bold">{unidades.filter(u => u.tipo === 'diretoria').length}</p>
-              <p className="text-xs text-muted-foreground">Diretorias</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-4">
-              <p className="text-2xl font-bold">{unidades.filter(u => u.tipo === 'coordenacao').length}</p>
-              <p className="text-xs text-muted-foreground">Coordenações</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-4">
-              <p className="text-2xl font-bold">{lotacoes.length}</p>
-              <p className="text-xs text-muted-foreground">Servidores Lotados</p>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KpiCard rotulo="Total de unidades" valor={unidades.length} />
+          <KpiCard rotulo="Diretorias" valor={unidades.filter(u => u.tipo === 'diretoria').length} />
+          <KpiCard rotulo="Coordenações" valor={unidades.filter(u => u.tipo === 'coordenacao').length} />
+          <KpiCard rotulo="Servidores lotados" valor={lotacoes.length} />
         </div>
 
         <Tabs defaultValue="unidades" className="space-y-6">
@@ -342,8 +310,9 @@ export default function GestaoOrganogramaPage() {
                     </CardDescription>
                   </div>
                   <div className="relative w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     <Input
+                      aria-label="Buscar unidade"
                       placeholder="Buscar unidade..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -377,14 +346,14 @@ export default function GestaoOrganogramaPage() {
               <CardHeader>
                 <CardTitle>Gestão de Cargos</CardTitle>
                 <CardDescription>
-                  Acesse a página de gestão de cargos para gerenciar os cargos do IDJUV.
+                  Acesse a página de gestão de cargos para gerenciar os cargos da instituição.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <Button asChild>
                   <Link to="/cargos">
-                    <Building2 className="h-4 w-4 mr-2" />
-                    Gerenciar Cargos
+                    <Building2 className="h-4 w-4 mr-2" aria-hidden="true" />
+                    Gerenciar cargos
                   </Link>
                 </Button>
               </CardContent>
