@@ -11,21 +11,25 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  DataTable,
+  KpiCard,
+  PageHeader,
+  StatusBadge,
+  type ColunaTabela,
+  type TomStatus,
+} from '@/components/design-system';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   HardDrive, 
   Cloud, 
   Play, 
   RefreshCw, 
-  CheckCircle2, 
-  XCircle, 
   Clock, 
   Download,
   Trash2,
   Shield,
   Settings,
-  AlertTriangle,
   Loader2,
   Database,
   FileArchive
@@ -45,13 +49,20 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ReactNode }> = {
-  pending: { label: 'Pendente', variant: 'secondary', icon: <Clock className="h-3 w-3" /> },
-  running: { label: 'Executando', variant: 'default', icon: <Loader2 className="h-3 w-3 animate-spin" /> },
-  success: { label: 'Sucesso', variant: 'default', icon: <CheckCircle2 className="h-3 w-3" /> },
-  failed: { label: 'Falhou', variant: 'destructive', icon: <XCircle className="h-3 w-3" /> },
-  partial: { label: 'Parcial', variant: 'outline', icon: <AlertTriangle className="h-3 w-3" /> },
+const statusConfig: Record<string, { label: string; tom: TomStatus }> = {
+  pending: { label: 'Pendente', tom: 'pendente' },
+  running: { label: 'Executando', tom: 'andamento' },
+  success: { label: 'Sucesso', tom: 'sucesso' },
+  failed: { label: 'Falhou', tom: 'erro' },
+  partial: { label: 'Parcial', tom: 'pendente' },
 };
+
+function StatusBackupBadge({ status }: { status: string }) {
+  const cfg = statusConfig[status];
+  return <StatusBadge tom={cfg?.tom ?? 'neutro'}>{cfg?.label ?? status}</StatusBadge>;
+}
+
+type RegistroBackup = NonNullable<ReturnType<typeof useBackupOffsite>['history']>[number];
 
 const typeLabels: Record<string, string> = {
   daily: 'Diário',
@@ -88,88 +99,109 @@ export default function BackupOffsitePage() {
 
   const lastSuccessful = history?.find(b => b.status === 'success');
 
+  const colunas: ColunaTabela<RegistroBackup>[] = [
+    {
+      id: 'started_at',
+      cabecalho: 'Data/hora',
+      celula: (backup) => format(new Date(backup.started_at), "dd/MM/yyyy HH:mm", { locale: ptBR }),
+      ordenarPor: (backup) => new Date(backup.started_at),
+      mobile: 'titulo',
+    },
+    {
+      id: 'tipo',
+      cabecalho: 'Tipo',
+      celula: (backup) => (
+        <Badge variant="outline">{typeLabels[backup.backup_type] || backup.backup_type}</Badge>
+      ),
+      ordenarPor: (backup) => backup.backup_type,
+    },
+    {
+      id: 'status',
+      cabecalho: 'Situação',
+      celula: (backup) => <StatusBackupBadge status={backup.status} />,
+      ordenarPor: (backup) => backup.status,
+    },
+    {
+      id: 'tamanho',
+      cabecalho: 'Tamanho',
+      celula: (backup) => formatBytes(backup.total_size),
+      ordenarPor: (backup) => backup.total_size,
+      alinhamento: 'direita',
+    },
+    {
+      id: 'duracao',
+      cabecalho: 'Duração',
+      celula: (backup) => formatDuration(backup.duration_seconds),
+      ordenarPor: (backup) => backup.duration_seconds,
+      alinhamento: 'direita',
+    },
+  ];
+
+  const ultimoStatus = config?.last_backup_status;
+
   return (
     <ModuleLayout module="admin">
       <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Backup offsite" }]}
+          titulo="Backup offsite"
+          descricao="Execução, histórico e configuração das cópias de segurança externas"
+        />
+
         {/* Status Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Status</CardTitle>
-              <HardDrive className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                {config?.enabled ? (
-                  <>
-                    <CheckCircle2 className="h-5 w-5 text-green-500" />
-                    <span className="text-lg font-bold">Ativo</span>
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="h-5 w-5 text-red-500" />
-                    <span className="text-lg font-bold">Desativado</span>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Último Backup</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg font-bold">
-                {config?.last_backup_at 
-                  ? format(new Date(config.last_backup_at), "dd/MM HH:mm", { locale: ptBR })
-                  : 'Nunca'}
-              </div>
-              {config?.last_backup_status && (
-                <Badge variant={statusConfig[config.last_backup_status]?.variant}>
-                  {statusConfig[config.last_backup_status]?.label}
-                </Badge>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tamanho Total</CardTitle>
-              <Database className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg font-bold">
-                {formatBytes(lastSuccessful?.total_size)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Duração: {formatDuration(lastSuccessful?.duration_seconds)}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Backups</CardTitle>
-              <FileArchive className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg font-bold">
-                {history?.filter(b => b.status === 'success').length || 0}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Total armazenado
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        <section aria-labelledby="backup-indicadores">
+          <h2 id="backup-indicadores" className="sr-only">Indicadores</h2>
+          <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <li>
+              <KpiCard
+                rotulo="Backup automático"
+                valor={config?.enabled ? 'Ativo' : 'Desativado'}
+                icone={HardDrive}
+                carregando={configLoading}
+                className="h-full"
+              />
+            </li>
+            <li>
+              <KpiCard
+                rotulo="Último backup"
+                valor={
+                  config?.last_backup_at
+                    ? format(new Date(config.last_backup_at), "dd/MM HH:mm", { locale: ptBR })
+                    : 'Nunca'
+                }
+                detalhe={ultimoStatus ? <StatusBackupBadge status={ultimoStatus} /> : undefined}
+                icone={Clock}
+                carregando={configLoading}
+                className="h-full"
+              />
+            </li>
+            <li>
+              <KpiCard
+                rotulo="Tamanho total"
+                valor={formatBytes(lastSuccessful?.total_size)}
+                detalhe={`Duração: ${formatDuration(lastSuccessful?.duration_seconds)}`}
+                icone={Database}
+                carregando={historyLoading}
+                className="h-full"
+              />
+            </li>
+            <li>
+              <KpiCard
+                rotulo="Backups armazenados"
+                valor={history?.filter(b => b.status === 'success').length || 0}
+                icone={FileArchive}
+                carregando={historyLoading}
+                className="h-full"
+              />
+            </li>
+          </ul>
+        </section>
 
         {/* Actions */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Cloud className="h-5 w-5" />
+              <Cloud className="h-5 w-5" aria-hidden="true" />
               Ações
             </CardTitle>
           </CardHeader>
@@ -179,24 +211,24 @@ export default function BackupOffsitePage() {
                 <AlertDialogTrigger asChild>
                   <Button disabled={isExecuting}>
                     {isExecuting ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
                     ) : (
-                      <Play className="h-4 w-4 mr-2" />
+                      <Play className="h-4 w-4 mr-2" aria-hidden="true" />
                     )}
-                    Executar Backup Agora
+                    Executar backup agora
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Confirmar Backup</AlertDialogTitle>
+                    <AlertDialogTitle>Confirmar backup</AlertDialogTitle>
                     <AlertDialogDescription>
                       Escolha o formato e confirme a execução do backup.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <div className="py-4 space-y-3">
-                    <Label>Formato de Exportação</Label>
+                    <Label htmlFor="backup-formato">Formato de exportação</Label>
                     <Select value={backupFormat} onValueChange={setBackupFormat}>
-                      <SelectTrigger>
+                      <SelectTrigger id="backup-formato">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -217,44 +249,44 @@ export default function BackupOffsitePage() {
                       executeBackup({ backupType: 'manual', format: backupFormat });
                       setConfirmBackup(false);
                     }}>
-                      Executar Backup ({backupFormat.toUpperCase()})
+                      Executar backup ({backupFormat.toUpperCase()})
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
 
               <Button variant="outline" onClick={() => testConnection()}>
-                <Shield className="h-4 w-4 mr-2" />
-                Testar Conexão
+                <Shield className="h-4 w-4 mr-2" aria-hidden="true" />
+                Testar conexão
               </Button>
 
               <Button variant="outline" onClick={() => refetchHistory()}>
-                <RefreshCw className="h-4 w-4 mr-2" />
+                <RefreshCw className="h-4 w-4 mr-2" aria-hidden="true" />
                 Atualizar
               </Button>
 
               <Button variant="outline" onClick={() => cleanupOldBackups()}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                Limpar Antigos
+                <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
+                Limpar antigos
               </Button>
 
               <Button variant="outline" onClick={() => generateDestSchema()}>
-                <Database className="h-4 w-4 mr-2" />
-                Gerar Schema BD Destino
+                <Database className="h-4 w-4 mr-2" aria-hidden="true" />
+                Gerar schema do BD destino
               </Button>
 
               <Button variant="secondary" onClick={() => exportLocalBackup('json')}>
-                <Download className="h-4 w-4 mr-2" />
+                <Download className="h-4 w-4 mr-2" aria-hidden="true" />
                 Exportar JSON
               </Button>
 
               <Button variant="secondary" onClick={() => exportLocalBackup('csv')}>
-                <Download className="h-4 w-4 mr-2" />
+                <Download className="h-4 w-4 mr-2" aria-hidden="true" />
                 Exportar CSV
               </Button>
 
               <Button variant="secondary" onClick={() => exportLocalBackup('sql')}>
-                <Download className="h-4 w-4 mr-2" />
+                <Download className="h-4 w-4 mr-2" aria-hidden="true" />
                 Exportar SQL
               </Button>
             </div>
@@ -269,114 +301,70 @@ export default function BackupOffsitePage() {
           </TabsList>
 
           <TabsContent value="history">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Histórico de Backups</CardTitle>
-                  <Select value={filterType} onValueChange={setFilterType}>
-                    <SelectTrigger className="w-[150px]">
-                      <SelectValue placeholder="Filtrar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
-                      <SelectItem value="daily">Diário</SelectItem>
-                      <SelectItem value="weekly">Semanal</SelectItem>
-                      <SelectItem value="monthly">Mensal</SelectItem>
-                      <SelectItem value="manual">Manual</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {historyLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <DataTable
+              rotulo="Histórico de backups"
+              dados={filteredHistory ?? []}
+              colunas={colunas}
+              chaveLinha={(backup) => backup.id}
+              carregando={historyLoading}
+              filtros={
+                <Select value={filterType} onValueChange={setFilterType}>
+                  <SelectTrigger className="w-full sm:w-[150px]" aria-label="Tipo de backup">
+                    <SelectValue placeholder="Filtrar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="daily">Diário</SelectItem>
+                    <SelectItem value="weekly">Semanal</SelectItem>
+                    <SelectItem value="monthly">Mensal</SelectItem>
+                    <SelectItem value="manual">Manual</SelectItem>
+                  </SelectContent>
+                </Select>
+              }
+              vazio={{ icone: FileArchive, titulo: "Nenhum backup encontrado", descricao: "Execute um backup ou ajuste o filtro." }}
+              acoesLinha={(backup) => {
+                const quando = format(new Date(backup.started_at), "dd/MM/yyyy HH:mm", { locale: ptBR });
+                return (
+                  <div className="flex items-center justify-end gap-2">
+                    {backup.status === 'success' && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => verifyIntegrity(backup.id)}
+                          title="Verificar integridade"
+                          aria-label={`Verificar integridade do backup de ${quando}`}
+                        >
+                          <Shield className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => downloadManifest(backup.id)}
+                          title="Baixar manifesto"
+                          aria-label={`Baixar manifesto do backup de ${quando}`}
+                        >
+                          <Download className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                      </>
+                    )}
+                    {backup.error_message && (
+                      <span className="text-caption text-destructive" title={backup.error_message}>
+                        Erro
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data/Hora</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Tamanho</TableHead>
-                        <TableHead>Duração</TableHead>
-                        <TableHead>Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredHistory?.map((backup) => (
-                        <TableRow key={backup.id}>
-                          <TableCell>
-                            {format(new Date(backup.started_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {typeLabels[backup.backup_type] || backup.backup_type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant={statusConfig[backup.status]?.variant}
-                              className="flex items-center gap-1 w-fit"
-                            >
-                              {statusConfig[backup.status]?.icon}
-                              {statusConfig[backup.status]?.label}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{formatBytes(backup.total_size)}</TableCell>
-                          <TableCell>{formatDuration(backup.duration_seconds)}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              {backup.status === 'success' && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => verifyIntegrity(backup.id)}
-                                    title="Verificar Integridade"
-                                  >
-                                    <Shield className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => downloadManifest(backup.id)}
-                                    title="Download Manifest"
-                                  >
-                                    <Download className="h-4 w-4" />
-                                  </Button>
-                                </>
-                              )}
-                              {backup.error_message && (
-                                <span className="text-xs text-destructive" title={backup.error_message}>
-                                  Erro
-                                </span>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {!filteredHistory?.length && (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                            Nenhum backup encontrado
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+                );
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="config">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  Configurações de Backup
+                  <Settings className="h-5 w-5" aria-hidden="true" />
+                  Configurações de backup
                 </CardTitle>
                 <CardDescription>
                   Configure o agendamento, retenção e buckets incluídos
@@ -385,7 +373,7 @@ export default function BackupOffsitePage() {
               <CardContent className="space-y-6">
                 {configLoading ? (
                   <div className="flex justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-label="Carregando configurações" />
                   </div>
                 ) : config && (
                   <>

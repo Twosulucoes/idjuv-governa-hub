@@ -27,6 +27,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { EmptyState, PageHeader } from "@/components/design-system";
 
 interface TaskStep {
   title: string;
@@ -355,38 +356,31 @@ export default function AdminHelpPage() {
   return (
     <ModuleLayout module="admin">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-primary/10 rounded-xl">
-              <HelpCircle className="h-8 w-8 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold">Ajuda e Tutoriais</h1>
-              <p className="text-muted-foreground">
-                Guias passo a passo para tarefas comuns do sistema
-              </p>
-            </div>
-          </div>
-        </div>
+        <PageHeader
+          migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Ajuda e tutoriais" }]}
+          titulo="Ajuda e tutoriais"
+          descricao="Guias passo a passo para tarefas comuns do sistema"
+        />
 
         {/* Search and Filter */}
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <Input
+              aria-label="Buscar guias"
               placeholder="Buscar por tarefa, ação ou palavra-chave..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap" role="group" aria-label="Filtrar por categoria">
             {categories.map((cat) => (
               <Button
                 key={cat}
                 variant={selectedCategory === cat ? "default" : "outline"}
                 size="sm"
+                aria-pressed={selectedCategory === cat}
                 onClick={() => setSelectedCategory(cat)}
               >
                 {cat}
@@ -398,24 +392,27 @@ export default function AdminHelpPage() {
         {/* Quick Access Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {taskGuides.slice(0, 4).map((guide) => (
-            <Card
-              key={guide.id}
-              className="hover:bg-accent/50 transition-colors cursor-pointer"
-              onClick={() => {
-                const element = document.getElementById(guide.id);
-                element?.scrollIntoView({ behavior: "smooth" });
-              }}
-            >
+            // O título é o botão; o ::after dele cobre o cartão inteiro (sem <div> dentro de <button>).
+            <Card key={guide.id} className="relative h-full hover:bg-accent/50 transition-colors">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <guide.icon className="h-5 w-5 text-primary" />
+                    <guide.icon className="h-5 w-5 text-primary" aria-hidden="true" />
                   </div>
                   <div>
-                    <h3 className="font-medium text-sm">{guide.title}</h3>
-                    <p className="text-xs text-muted-foreground">
+                    <button
+                      type="button"
+                      className="block text-left font-medium text-body after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-offset-2"
+                      onClick={() => {
+                        const element = document.getElementById(guide.id);
+                        element?.scrollIntoView({ behavior: "smooth" });
+                      }}
+                    >
+                      {guide.title}
+                    </button>
+                    <span className="block text-caption text-muted-foreground">
                       {guide.estimatedTime}
-                    </p>
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -425,16 +422,18 @@ export default function AdminHelpPage() {
 
         {/* Task Guides */}
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <BookOpen className="h-5 w-5" />
-            Guias de Tarefas
+          <h2 className="text-h2 text-foreground flex items-center gap-2">
+            <BookOpen className="h-5 w-5" aria-hidden="true" />
+            Guias de tarefas
           </h2>
 
           {filteredGuides.length === 0 ? (
             <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                Nenhum guia encontrado para "{searchTerm}"
-              </CardContent>
+              <EmptyState
+                icone={Search}
+                titulo="Nenhum guia encontrado"
+                descricao={searchTerm ? `Nenhum guia encontrado para "${searchTerm}".` : "Nenhum guia nesta categoria."}
+              />
             </Card>
           ) : (
             <Accordion type="multiple" className="space-y-2">
@@ -448,16 +447,16 @@ export default function AdminHelpPage() {
                   <AccordionTrigger className="hover:no-underline py-4">
                     <div className="flex items-center gap-4 text-left">
                       <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <guide.icon className="h-5 w-5 text-primary" />
+                        <guide.icon className="h-5 w-5 text-primary" aria-hidden="true" />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-medium">{guide.title}</h3>
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-caption">
                             {guide.category}
                           </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            <Clock className="h-3 w-3 mr-1" />
+                          <Badge variant="outline" className="text-caption">
+                            <Clock className="h-3 w-3 mr-1" aria-hidden="true" />
                             {guide.estimatedTime}
                           </Badge>
                         </div>
@@ -483,12 +482,12 @@ export default function AdminHelpPage() {
                                 {step.title}
                               </h4>
                               {step.path && (
-                                <Link to={step.path}>
-                                  <Button variant="ghost" size="sm" className="h-7 text-xs">
+                                <Button variant="ghost" size="sm" className="h-7 text-caption" asChild>
+                                  <Link to={step.path}>
                                     Ir para página
-                                    <ArrowRight className="h-3 w-3 ml-1" />
-                                  </Button>
-                                </Link>
+                                    <ArrowRight className="h-3 w-3 ml-1" aria-hidden="true" />
+                                  </Link>
+                                </Button>
                               )}
                             </div>
                             <p className="text-sm text-muted-foreground">
@@ -501,13 +500,13 @@ export default function AdminHelpPage() {
                       {/* Link direto para a primeira página do fluxo */}
                       {guide.steps[0]?.path && (
                         <div className="pt-2">
-                          <Link to={guide.steps[0].path}>
-                            <Button className="w-full">
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                          <Button className="w-full" asChild>
+                            <Link to={guide.steps[0].path}>
+                              <CheckCircle2 className="h-4 w-4 mr-2" aria-hidden="true" />
                               Iniciar: {guide.title}
-                              <ChevronRight className="h-4 w-4 ml-2" />
-                            </Button>
-                          </Link>
+                              <ChevronRight className="h-4 w-4 ml-2" aria-hidden="true" />
+                            </Link>
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -522,8 +521,8 @@ export default function AdminHelpPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              Fluxos Comuns de Navegação
+              <Building2 className="h-5 w-5" aria-hidden="true" />
+              Fluxos comuns de navegação
             </CardTitle>
             <CardDescription>
               Caminhos rápidos para as tarefas mais executadas
@@ -533,38 +532,38 @@ export default function AdminHelpPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="p-4 border rounded-lg">
                 <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <Users className="h-4 w-4 text-primary" />
+                  <Users className="h-4 w-4 text-primary" aria-hidden="true" />
                   Servidor + Viagem
                 </h4>
                 <div className="flex items-center flex-wrap gap-2 text-sm">
                   <Link to="/rh/servidores/novo" className="text-primary hover:underline">
-                    Novo Servidor
+                    Novo servidor
                   </Link>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <Link to="/rh/viagens" className="text-primary hover:underline">
                     Viagens
                   </Link>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Nova Viagem</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <span className="text-muted-foreground">Nova viagem</span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <span className="text-muted-foreground">Portaria</span>
                 </div>
               </div>
 
               <div className="p-4 border rounded-lg">
                 <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-primary" />
+                  <Building2 className="h-4 w-4 text-primary" aria-hidden="true" />
                   Estrutura + Lotação
                 </h4>
                 <div className="flex items-center flex-wrap gap-2 text-sm">
                   <Link to="/organograma/gestao" className="text-primary hover:underline">
                     Organograma
                   </Link>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <Link to="/cargos" className="text-primary hover:underline">
                     Cargos
                   </Link>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <Link to="/lotacoes" className="text-primary hover:underline">
                     Lotações
                   </Link>
@@ -573,16 +572,16 @@ export default function AdminHelpPage() {
 
               <div className="p-4 border rounded-lg">
                 <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-primary" />
+                  <Calendar className="h-4 w-4 text-primary" aria-hidden="true" />
                   Servidor + Férias
                 </h4>
                 <div className="flex items-center flex-wrap gap-2 text-sm">
                   <Link to="/rh/servidores" className="text-primary hover:underline">
-                    Lista de Servidores
+                    Lista de servidores
                   </Link>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Ficha do Servidor</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <span className="text-muted-foreground">Ficha do servidor</span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <Link to="/rh/ferias" className="text-primary hover:underline">
                     Férias
                   </Link>
@@ -591,16 +590,16 @@ export default function AdminHelpPage() {
 
               <div className="p-4 border rounded-lg">
                 <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-primary" />
+                  <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
                   Relatórios
                 </h4>
                 <div className="flex items-center flex-wrap gap-2 text-sm">
                   <Link to="/rh/relatorios" className="text-primary hover:underline">
                     Relatórios de RH
                   </Link>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <span className="text-muted-foreground">Selecionar tipo</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <span className="text-muted-foreground">Exportar PDF/Excel</span>
                 </div>
               </div>

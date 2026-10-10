@@ -200,7 +200,7 @@ export function ComponentesDemo() {
           <KpiCard rotulo="Servidores ativos" valor="342" variacao={2.4} periodo="vs. mês anterior" icone={Users} />
           <KpiCard rotulo="Folha do mês" valor="R$ 1,28 mi" variacao={3.1} periodo="vs. mês anterior" subirEhBom={false} icone={Wallet} />
           <KpiCard rotulo="Faltas não justificadas" valor="17" variacao={-12.5} periodo="vs. mês anterior" subirEhBom={false} icone={CalendarX} />
-          <KpiCard rotulo="Processos parados" valor="0" variacao={0} periodo="vs. mês anterior" carregando={false} />
+          <KpiCard rotulo="Processos parados" valor="0" detalhe="Nenhum há mais de 30 dias" variacao={0} periodo="vs. mês anterior" carregando={false} />
         </div>
       </section>
 

@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState, KpiCard, PageHeader, StatusBadge } from "@/components/design-system";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -148,27 +148,12 @@ export default function GerenciadorPaginasPage() {
 
   const getStatusBadge = (pagina: ConfigPaginaPublica) => {
     if (!pagina.ativo) {
-      return (
-        <Badge variant="destructive" className="gap-1">
-          <PowerOff className="h-3 w-3" />
-          Desativada
-        </Badge>
-      );
+      return <StatusBadge tom="erro">Desativada</StatusBadge>;
     }
     if (pagina.em_manutencao) {
-      return (
-        <Badge variant="outline" className="gap-1 border-warning text-warning">
-          <Construction className="h-3 w-3" />
-          Manutenção
-        </Badge>
-      );
+      return <StatusBadge tom="pendente">Manutenção</StatusBadge>;
     }
-    return (
-      <Badge variant="secondary" className="gap-1 bg-success/20 text-success">
-        <CheckCircle className="h-3 w-3" />
-        Online
-      </Badge>
-    );
+    return <StatusBadge tom="sucesso">Online</StatusBadge>;
   };
 
   const getAcaoLabel = (acao: string) => {
@@ -183,91 +168,60 @@ export default function GerenciadorPaginasPage() {
   };
 
   return (
-    <ModuleLayout module="admin" title="Gerenciador de Páginas">
-      <div className="container py-6 space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Globe className="h-6 w-6 text-primary" />
-              Gerenciador de Páginas Públicas
-            </h1>
-            <p className="text-muted-foreground">
-              Controle o status das páginas públicas do portal
-            </p>
-          </div>
-
-          {/* Busca */}
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar página..."
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-        </div>
+    <ModuleLayout module="admin">
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Páginas públicas" }]}
+          titulo="Gerenciador de páginas públicas"
+          descricao="Controle o status das páginas públicas do portal"
+        />
 
         {/* Stats rápidas */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 rounded-full bg-primary/10">
-                <Globe className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{paginas.length}</p>
-                <p className="text-xs text-muted-foreground">Total</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 rounded-full bg-success/10">
-                <CheckCircle className="h-5 w-5 text-success" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">
-                  {paginas.filter((p) => p.ativo && !p.em_manutencao).length}
-                </p>
-                <p className="text-xs text-muted-foreground">Online</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 rounded-full bg-warning/10">
-                <Construction className="h-5 w-5 text-warning" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">
-                  {paginas.filter((p) => p.em_manutencao).length}
-                </p>
-                <p className="text-xs text-muted-foreground">Manutenção</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 rounded-full bg-destructive/10">
-                <XCircle className="h-5 w-5 text-destructive" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">
-                  {paginas.filter((p) => !p.ativo).length}
-                </p>
-                <p className="text-xs text-muted-foreground">Desativadas</p>
-              </div>
-            </CardContent>
-          </Card>
+          <KpiCard rotulo="Total" valor={paginas.length} icone={Globe} carregando={isLoading} />
+          <KpiCard
+            rotulo="Online"
+            valor={paginas.filter((p) => p.ativo && !p.em_manutencao).length}
+            icone={CheckCircle}
+            carregando={isLoading}
+          />
+          <KpiCard
+            rotulo="Manutenção"
+            valor={paginas.filter((p) => p.em_manutencao).length}
+            icone={Construction}
+            carregando={isLoading}
+          />
+          <KpiCard
+            rotulo="Desativadas"
+            valor={paginas.filter((p) => !p.ativo).length}
+            icone={XCircle}
+            carregando={isLoading}
+          />
+        </div>
+
+        {/* Busca */}
+        <div className="relative w-full md:w-80">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          <Input
+            placeholder="Buscar página..."
+            aria-label="Buscar página por nome ou rota"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="pl-9"
+          />
         </div>
 
         {/* Lista de páginas por grupo */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="flex items-center justify-center py-12" role="status" aria-label="Carregando páginas">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
           </div>
+        ) : paginasFiltradas.length === 0 ? (
+          <EmptyState
+            icone={Globe}
+            titulo={busca ? "Nenhuma página encontrada" : "Nenhuma página pública configurada"}
+            descricao={busca ? "Tente outro termo de busca." : undefined}
+          />
         ) : (
           <div className="space-y-6">
             {Object.entries(grupos).map(([grupo, paginasGrupo]) => (
@@ -284,7 +238,7 @@ export default function GerenciadorPaginasPage() {
                       <TableRow>
                         <TableHead>Página</TableHead>
                         <TableHead>Rota</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Situação</TableHead>
                         <TableHead>Atualizado</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
@@ -325,8 +279,10 @@ export default function GerenciadorPaginasPage() {
                                 onClick={() => handleToggleManutencao(pagina)}
                                 disabled={!pagina.ativo || toggleManutencao.isPending}
                                 title={pagina.em_manutencao ? "Retirar de manutenção" : "Colocar em manutenção"}
+                                aria-label={`${pagina.em_manutencao ? "Retirar de manutenção" : "Colocar em manutenção"}: ${pagina.nome}`}
+                                aria-pressed={pagina.em_manutencao}
                               >
-                                <Construction className="h-4 w-4" />
+                                <Construction className="h-4 w-4" aria-hidden="true" />
                               </Button>
 
                               {/* Toggle Ativo */}
@@ -336,11 +292,12 @@ export default function GerenciadorPaginasPage() {
                                 onClick={() => handleToggleAtivo(pagina)}
                                 disabled={toggleAtivo.isPending}
                                 title={pagina.ativo ? "Desativar página" : "Ativar página"}
+                                aria-label={`${pagina.ativo ? "Desativar página" : "Ativar página"}: ${pagina.nome}`}
                               >
                                 {pagina.ativo ? (
-                                  <Power className="h-4 w-4" />
+                                  <Power className="h-4 w-4" aria-hidden="true" />
                                 ) : (
-                                  <PowerOff className="h-4 w-4" />
+                                  <PowerOff className="h-4 w-4" aria-hidden="true" />
                                 )}
                               </Button>
 
@@ -350,8 +307,9 @@ export default function GerenciadorPaginasPage() {
                                 size="sm"
                                 onClick={() => handleVerHistorico(pagina)}
                                 title="Ver histórico"
+                                aria-label={`Ver histórico: ${pagina.nome}`}
                               >
-                                <History className="h-4 w-4" />
+                                <History className="h-4 w-4" aria-hidden="true" />
                               </Button>
 
                               {/* Link externo */}
@@ -361,8 +319,13 @@ export default function GerenciadorPaginasPage() {
                                 asChild
                                 title="Abrir página"
                               >
-                                <a href={pagina.rota} target="_blank" rel="noopener noreferrer">
-                                  <ExternalLink className="h-4 w-4" />
+                                <a
+                                  href={pagina.rota}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  aria-label={`Abrir página ${pagina.nome} em nova aba`}
+                                >
+                                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
                                 </a>
                               </Button>
                             </div>
@@ -382,8 +345,8 @@ export default function GerenciadorPaginasPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Construction className="h-5 w-5 text-warning" />
-                Colocar em Manutenção
+                <Construction className="h-5 w-5 text-warning" aria-hidden="true" />
+                Colocar em manutenção
               </DialogTitle>
               <DialogDescription>
                 Configure a mensagem que será exibida aos visitantes
@@ -458,8 +421,8 @@ export default function GerenciadorPaginasPage() {
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <History className="h-5 w-5 text-primary" />
-                Histórico de Alterações
+                <History className="h-5 w-5 text-primary" aria-hidden="true" />
+                Histórico de alterações
               </DialogTitle>
               <DialogDescription>
                 {paginaSelecionada?.nome}
@@ -468,8 +431,8 @@ export default function GerenciadorPaginasPage() {
 
             <ScrollArea className="max-h-96">
               {loadingHistorico ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <div className="flex items-center justify-center py-8" role="status" aria-label="Carregando histórico">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" aria-hidden="true" />
                 </div>
               ) : historico.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
@@ -485,7 +448,7 @@ export default function GerenciadorPaginasPage() {
                         className="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
                       >
                         <div className="p-2 rounded-full bg-background">
-                          <AlertTriangle className={`h-4 w-4 ${acaoInfo.color}`} />
+                          <AlertTriangle className={`h-4 w-4 ${acaoInfo.color}`} aria-hidden="true" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className={`font-medium ${acaoInfo.color}`}>

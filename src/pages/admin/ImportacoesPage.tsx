@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { HistoricoImportacoes, ImportacaoWizard } from "@/components/importacao";
+import { EmptyState, PageHeader } from "@/components/design-system";
 import { useAuth } from "@/contexts/AuthContext";
 import { IMPORTADORES } from "@/lib/importacao/registro";
 import type { Importador } from "@/lib/importacao/types";
@@ -26,36 +27,40 @@ export default function ImportacoesPage() {
   return (
     <ModuleLayout module="admin">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Importação de dados</h1>
-          <p className="text-muted-foreground">
-            Atualize o sistema a partir de arquivos de outros sistemas. Tudo é conferido antes de gravar.
-          </p>
-        </div>
+        <PageHeader
+          migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Importação de dados" }]}
+          titulo="Importação de dados"
+          descricao="Atualize o sistema a partir de arquivos de outros sistemas. Tudo é conferido antes de gravar."
+        />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {disponiveis.map((imp) => (
             <Card key={imp.id}>
               <CardHeader>
-                <CardTitle className="text-base">{imp.titulo}</CardTitle>
+                <CardTitle className="text-h3">{imp.titulo}</CardTitle>
                 <CardDescription>{imp.descricao}</CardDescription>
               </CardHeader>
               <CardContent>
                 <Button onClick={() => setAberto(imp)}>
-                  <FileUp className="mr-2 h-4 w-4" aria-hidden />
+                  <FileUp className="mr-2 h-4 w-4" aria-hidden="true" />
                   Importar
                 </Button>
               </CardContent>
             </Card>
           ))}
           {disponiveis.length === 0 && (
-            <p className="text-sm text-muted-foreground">Você não tem permissão para nenhum importador.</p>
+            <EmptyState
+              icone={FileUp}
+              titulo="Nenhum importador disponível"
+              descricao="Você não tem permissão para nenhum importador."
+              className="md:col-span-2 xl:col-span-3"
+            />
           )}
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Histórico</CardTitle>
+            <CardTitle className="text-h3">Histórico</CardTitle>
             <CardDescription>Últimas importações aplicadas nos módulos a que você tem acesso.</CardDescription>
           </CardHeader>
           <CardContent className="p-0 sm:p-6 sm:pt-0">

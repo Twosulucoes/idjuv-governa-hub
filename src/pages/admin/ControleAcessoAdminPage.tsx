@@ -11,6 +11,7 @@ import { PermissionGate, AdminOnly, ManagerOnly, DisabledWithPermission } from '
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader, StatusBadge } from '@/components/design-system';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { 
@@ -84,13 +85,11 @@ const ControleAcessoAdminPage: React.FC = () => {
   return (
     <ModuleLayout module="admin">
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Controle de Acesso</h1>
-          <p className="text-muted-foreground">
-            Visualize suas permissões e nível de acesso no sistema
-          </p>
-        </div>
+        <PageHeader
+          migalhas={[{ rotulo: 'Administração', href: '/admin' }, { rotulo: 'Controle de acesso' }]}
+          titulo="Controle de acesso"
+          descricao="Visualize suas permissões e nível de acesso no sistema"
+        />
 
         {/* Card do usuário */}
         <Card>
@@ -98,7 +97,7 @@ const ControleAcessoAdminPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-primary" />
+                  <Shield className="h-5 w-5 text-primary" aria-hidden="true" />
                   {user?.fullName || 'Usuário'}
                 </CardTitle>
                 <CardDescription>{user?.email}</CardDescription>
@@ -125,18 +124,18 @@ const ControleAcessoAdminPage: React.FC = () => {
               <div className="text-center p-4 bg-muted/50 rounded-lg">
                 <div className="flex justify-center">
                   {isAdmin ? (
-                    <Unlock className="h-6 w-6 text-green-500" />
+                    <Unlock className="h-6 w-6 text-success" aria-hidden="true" />
                   ) : (
-                    <Lock className="h-6 w-6 text-yellow-500" />
+                    <Lock className="h-6 w-6 text-warning" aria-hidden="true" />
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {isAdmin ? 'Acesso Total' : 'Acesso Limitado'}
+                  {isAdmin ? 'Acesso total' : 'Acesso limitado'}
                 </div>
               </div>
               <div className="text-center p-4 bg-muted/50 rounded-lg">
                 <div className="flex justify-center">
-                  <CheckCircle className="h-6 w-6 text-green-500" />
+                  <CheckCircle className="h-6 w-6 text-success" aria-hidden="true" />
                 </div>
                 <div className="text-xs text-muted-foreground">Ativo</div>
               </div>
@@ -146,37 +145,37 @@ const ControleAcessoAdminPage: React.FC = () => {
 
             {/* Grupos de permissões */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-foreground">Suas Permissões por Categoria</h3>
+              <h2 className="text-h3 text-foreground">Suas permissões por categoria</h2>
               
               <div className="grid gap-4">
                 {permissionGroups.map((group) => (
                   <div key={group.title} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <group.icon className="h-5 w-5 text-primary" />
+                        <group.icon className="h-5 w-5 text-primary" aria-hidden="true" />
                         <span className="font-medium">{group.title}</span>
                       </div>
                       <Badge variant={group.canManage ? 'default' : 'outline'}>
-                        {group.canManage ? 'Gerenciamento Completo' : 'Acesso Parcial'}
+                        {group.canManage ? 'Gerenciamento completo' : 'Acesso parcial'}
                       </Badge>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {group.permissions.map((permission) => (
-                        <div
+                        <StatusBadge
                           key={permission}
-                          className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
-                            hasPermission(permission)
-                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                              : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                          }`}
+                          tom={hasPermission(permission) ? 'sucesso' : 'erro'}
+                          icone={false}
                         >
                           {hasPermission(permission) ? (
-                            <CheckCircle className="h-3 w-3" />
+                            <CheckCircle className="h-3 w-3" aria-hidden="true" />
                           ) : (
-                            <XCircle className="h-3 w-3" />
+                            <XCircle className="h-3 w-3" aria-hidden="true" />
                           )}
                           {PERMISSION_LABELS[permission]}
-                        </div>
+                          <span className="sr-only">
+                            {hasPermission(permission) ? ' (concedida)' : ' (não concedida)'}
+                          </span>
+                        </StatusBadge>
                       ))}
                     </div>
                   </div>
@@ -190,8 +189,8 @@ const ControleAcessoAdminPage: React.FC = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Info className="h-5 w-5 text-primary" />
-              Demonstração de Componentes
+              <Info className="h-5 w-5 text-primary" aria-hidden="true" />
+              Demonstração de componentes
             </CardTitle>
             <CardDescription>
               Exemplos práticos do sistema de controle de acesso
@@ -203,17 +202,17 @@ const ControleAcessoAdminPage: React.FC = () => {
               <h4 className="font-medium text-sm text-muted-foreground">AdminOnly - Visível apenas para Admins:</h4>
               <AdminOnly fallback={
                 <Alert>
-                  <Lock className="h-4 w-4" />
+                  <Lock className="h-4 w-4" aria-hidden="true" />
                   <AlertTitle>Conteúdo exclusivo para Administradores</AlertTitle>
                   <AlertDescription>
                     Esta área contém opções avançadas de configuração do sistema.
                   </AlertDescription>
                 </Alert>
               }>
-                <Alert className="border-green-500 bg-green-50 dark:bg-green-900/20">
-                  <Unlock className="h-4 w-4 text-green-500" />
-                  <AlertTitle className="text-green-700 dark:text-green-400">Área Administrativa</AlertTitle>
-                  <AlertDescription className="text-green-600 dark:text-green-300">
+                <Alert className="border-success bg-success/10">
+                  <Unlock className="h-4 w-4 text-success" aria-hidden="true" />
+                  <AlertTitle className="text-success">Área administrativa</AlertTitle>
+                  <AlertDescription className="text-foreground">
                     Você tem acesso total ao sistema. Aqui você pode gerenciar usuários, configurações e mais.
                   </AlertDescription>
                 </Alert>
@@ -227,17 +226,17 @@ const ControleAcessoAdminPage: React.FC = () => {
               <h4 className="font-medium text-sm text-muted-foreground">ManagerOnly - Visível para Gerentes e Admins:</h4>
               <ManagerOnly fallback={
                 <Alert>
-                  <Lock className="h-4 w-4" />
+                  <Lock className="h-4 w-4" aria-hidden="true" />
                   <AlertTitle>Conteúdo para Gerentes</AlertTitle>
                   <AlertDescription>
                     Esta área é destinada a gerentes e administradores.
                   </AlertDescription>
                 </Alert>
               }>
-                <Alert className="border-blue-500 bg-blue-50 dark:bg-blue-900/20">
-                  <Unlock className="h-4 w-4 text-blue-500" />
-                  <AlertTitle className="text-blue-700 dark:text-blue-400">Área de Gerenciamento</AlertTitle>
-                  <AlertDescription className="text-blue-600 dark:text-blue-300">
+                <Alert className="border-info bg-info/10">
+                  <Unlock className="h-4 w-4 text-info" aria-hidden="true" />
+                  <AlertTitle className="text-info">Área de gerenciamento</AlertTitle>
+                  <AlertDescription className="text-foreground">
                     Você pode aprovar processos e gerenciar equipes nesta área.
                   </AlertDescription>
                 </Alert>
@@ -255,7 +254,7 @@ const ControleAcessoAdminPage: React.FC = () => {
                   disabledMessage="Você não tem permissão para excluir usuários"
                 >
                   <Button variant="destructive" size="sm">
-                    Excluir Usuário
+                    Excluir usuário
                   </Button>
                 </DisabledWithPermission>
 
@@ -264,7 +263,7 @@ const ControleAcessoAdminPage: React.FC = () => {
                   disabledMessage="Você não tem permissão para editar configurações"
                 >
                   <Button variant="outline" size="sm">
-                    Editar Configurações
+                    Editar configurações
                   </Button>
                 </DisabledWithPermission>
 
@@ -273,7 +272,7 @@ const ControleAcessoAdminPage: React.FC = () => {
                   disabledMessage="Você não tem permissão para aprovar processos"
                 >
                   <Button variant="default" size="sm">
-                    Aprovar Processo
+                    Aprovar processo
                   </Button>
                 </DisabledWithPermission>
               </div>
@@ -288,14 +287,14 @@ const ControleAcessoAdminPage: React.FC = () => {
                 requiredPermissions="reports.export"
                 fallback={
                   <Button variant="outline" disabled className="opacity-50">
-                    <BarChart className="mr-2 h-4 w-4" />
-                    Exportar Relatório (sem permissão)
+                    <BarChart className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Exportar relatório (sem permissão)
                   </Button>
                 }
               >
                 <Button variant="outline">
-                  <BarChart className="mr-2 h-4 w-4" />
-                  Exportar Relatório
+                  <BarChart className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Exportar relatório
                 </Button>
               </PermissionGate>
             </div>
@@ -306,8 +305,8 @@ const ControleAcessoAdminPage: React.FC = () => {
         <div className="flex flex-wrap gap-4">
           <AdminOnly>
             <Button onClick={() => navigate('/admin/usuarios')}>
-              <Users className="mr-2 h-4 w-4" />
-              Gerenciar Usuários
+              <Users className="mr-2 h-4 w-4" aria-hidden="true" />
+              Gerenciar usuários
             </Button>
           </AdminOnly>
           <Button variant="destructive" onClick={() => signOut()}>

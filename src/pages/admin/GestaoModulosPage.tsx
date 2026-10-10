@@ -17,6 +17,7 @@ import { MODULE_MENUS } from "@/config/module-menus.config";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { KpiCard, PageHeader, StatusBadge } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,6 +56,8 @@ interface ModuleUserCount {
   module: string;
   count: number;
 }
+
+const MIGALHAS = [{ rotulo: "Administração", href: "/admin" }, { rotulo: "Gestão de módulos" }];
 
 export default function GestaoModulosPage() {
   const { toast } = useToast();
@@ -226,7 +229,11 @@ export default function GestaoModulosPage() {
     return (
       <ModuleLayout module="admin">
         <div className="space-y-6">
-          <Skeleton className="h-10 w-64" />
+          <PageHeader
+            migalhas={MIGALHAS}
+            titulo="Gestão de módulos"
+            descricao="Gerencie os módulos disponíveis no sistema, suas funcionalidades e status"
+          />
           <div className="grid gap-4 md:grid-cols-3">
             {[1, 2, 3].map(i => <Skeleton key={i} className="h-24" />)}
           </div>
@@ -241,61 +248,30 @@ export default function GestaoModulosPage() {
   return (
     <ModuleLayout module="admin">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Gestão de Módulos</h1>
-            <p className="text-muted-foreground">
-              Gerencie os módulos disponíveis no sistema, suas funcionalidades e status
-            </p>
-          </div>
-          <Button variant="outline" size="sm" onClick={fetchData}>
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Atualizar
-          </Button>
-        </div>
+        <PageHeader
+          migalhas={MIGALHAS}
+          titulo="Gestão de módulos"
+          descricao="Gerencie os módulos disponíveis no sistema, suas funcionalidades e status"
+          acoes={
+            <Button variant="outline" onClick={fetchData}>
+              <RotateCcw className="h-4 w-4 mr-2" aria-hidden="true" />
+              Atualizar
+            </Button>
+          }
+        />
 
-        {/* Stats */}
+        {/* Indicadores */}
         <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <LayoutGrid className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{MODULES_CONFIG.length}</p>
-                <p className="text-sm text-muted-foreground">Módulos Totais</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Power className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{enabledCount}</p>
-                <p className="text-sm text-muted-foreground">Módulos Ativos</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="h-12 w-12 rounded-lg bg-accent flex items-center justify-center">
-                <Users className="h-6 w-6 text-accent-foreground" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{totalUsers}</p>
-                <p className="text-sm text-muted-foreground">Atribuições de Módulos</p>
-              </div>
-            </CardContent>
-          </Card>
+          <KpiCard rotulo="Módulos totais" valor={MODULES_CONFIG.length} icone={LayoutGrid} />
+          <KpiCard rotulo="Módulos ativos" valor={enabledCount} icone={Power} />
+          <KpiCard rotulo="Atribuições de módulos" valor={totalUsers} icone={Users} />
         </div>
 
         {/* Search */}
         <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <Input
+            aria-label="Buscar módulo"
             placeholder="Buscar módulo..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -327,12 +303,13 @@ export default function GestaoModulosPage() {
                       "h-12 w-12 rounded-xl flex items-center justify-center",
                       MODULO_COR_CLASSES[moduleConfig.cor]
                     )}>
-                      <Icon className="h-6 w-6" />
+                      <Icon className="h-6 w-6" aria-hidden="true" />
                     </div>
                     <Switch
                       checked={isEnabled}
                       onCheckedChange={(checked) => toggleModule(moduleConfig.codigo, checked)}
                       disabled={isSaving || moduleConfig.codigo === 'admin'}
+                      aria-label={`Ativar módulo ${moduleConfig.nome}`}
                     />
                   </div>
                   <CardTitle className="text-base mt-2">{moduleConfig.nome}</CardTitle>
@@ -343,15 +320,15 @@ export default function GestaoModulosPage() {
                 <CardContent className="pt-0 space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <Users className="h-3.5 w-3.5" />
+                      <Users className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>{count} {count === 1 ? 'usuário' : 'usuários'}</span>
                     </div>
-                    <Badge variant={isEnabled ? "default" : "secondary"} className="text-xs">
+                    <StatusBadge tom={isEnabled ? "sucesso" : "neutro"}>
                       {isEnabled ? "Ativo" : "Inativo"}
-                    </Badge>
+                    </StatusBadge>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Package className="h-3.5 w-3.5" />
+                    <Package className="h-3.5 w-3.5" aria-hidden="true" />
                     <span>{menu?.items.length || 0} funcionalidades</span>
                   </div>
                   <Button
@@ -364,7 +341,8 @@ export default function GestaoModulosPage() {
                     }}
                   >
                     Ver detalhes
-                    <ChevronRight className="h-4 w-4" />
+                    <span className="sr-only"> de {moduleConfig.nome}</span>
+                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </CardContent>
               </Card>
@@ -383,7 +361,7 @@ export default function GestaoModulosPage() {
                       "h-10 w-10 rounded-lg flex items-center justify-center",
                       MODULO_COR_CLASSES[selectedConfig.cor]
                     )}>
-                      <selectedConfig.icone className="h-5 w-5" />
+                      <selectedConfig.icone className="h-5 w-5" aria-hidden="true" />
                     </div>
                     <div>
                       <DialogTitle>{selectedConfig.nome}</DialogTitle>
@@ -397,11 +375,11 @@ export default function GestaoModulosPage() {
                 <Tabs defaultValue="config" className="mt-2">
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="config">
-                      <Settings className="h-4 w-4 mr-2" />
+                      <Settings className="h-4 w-4 mr-2" aria-hidden="true" />
                       Configuração
                     </TabsTrigger>
                     <TabsTrigger value="permissions">
-                      <Users className="h-4 w-4 mr-2" />
+                      <Users className="h-4 w-4 mr-2" aria-hidden="true" />
                       Permissões
                     </TabsTrigger>
                   </TabsList>
@@ -413,25 +391,27 @@ export default function GestaoModulosPage() {
                         <div className="flex items-center justify-between p-3 rounded-lg border">
                           <div className="flex items-center gap-2">
                             {selectedSettings.enabled ? (
-                              <Power className="h-4 w-4 text-primary" />
+                              <Power className="h-4 w-4 text-primary" aria-hidden="true" />
                             ) : (
-                              <PowerOff className="h-4 w-4 text-muted-foreground" />
+                              <PowerOff className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                             )}
                             <span className="font-medium text-sm">
-                              {selectedSettings.enabled ? "Módulo Ativo" : "Módulo Inativo"}
+                              {selectedSettings.enabled ? "Módulo ativo" : "Módulo inativo"}
                             </span>
                           </div>
                           <Switch
                             checked={selectedSettings.enabled}
                             onCheckedChange={(checked) => toggleModule(selectedConfig.codigo, checked)}
                             disabled={selectedConfig.codigo === 'admin'}
+                            aria-label={`Ativar módulo ${selectedConfig.nome}`}
                           />
                         </div>
 
                         {/* Description Edit */}
                         <div className="space-y-2">
-                          <label className="text-sm font-medium">Descrição</label>
+                          <label htmlFor="descricao-modulo" className="text-sm font-medium">Descrição</label>
                           <Textarea
+                            id="descricao-modulo"
                             value={editDescription}
                             onChange={(e) => setEditDescription(e.target.value)}
                             placeholder="Descrição do módulo..."
@@ -442,8 +422,8 @@ export default function GestaoModulosPage() {
                             onClick={() => saveDescription(selectedConfig.codigo)}
                             disabled={saving === selectedConfig.codigo}
                           >
-                            <Save className="h-4 w-4 mr-2" />
-                            Salvar Descrição
+                            <Save className="h-4 w-4 mr-2" aria-hidden="true" />
+                            Salvar descrição
                           </Button>
                         </div>
 
@@ -452,8 +432,8 @@ export default function GestaoModulosPage() {
                         {/* Routes */}
                         <div className="space-y-2">
                           <h4 className="text-sm font-medium flex items-center gap-2">
-                            <Eye className="h-4 w-4" />
-                            Rotas do Módulo
+                            <Eye className="h-4 w-4" aria-hidden="true" />
+                            Rotas do módulo
                           </h4>
                           <div className="flex flex-wrap gap-1.5">
                             {selectedConfig.rotas.map(rota => (
@@ -469,7 +449,7 @@ export default function GestaoModulosPage() {
                         {/* Features / Menu Items */}
                         <div className="space-y-2">
                           <h4 className="text-sm font-medium flex items-center gap-2">
-                            <Settings className="h-4 w-4" />
+                            <Settings className="h-4 w-4" aria-hidden="true" />
                             Funcionalidades ({selectedMenu?.items.length || 0})
                           </h4>
                           <p className="text-xs text-muted-foreground">
@@ -490,8 +470,9 @@ export default function GestaoModulosPage() {
                                       checked={!isDisabled}
                                       onCheckedChange={(checked) => toggleFeature(selectedConfig.codigo, item.id, !checked)}
                                       className="shrink-0"
+                                      aria-label={`Ativar funcionalidade ${item.label}`}
                                     />
-                                    <ItemIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <ItemIcon className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
                                     <div className="flex-1 min-w-0">
                                       <p className="font-medium">{item.label}</p>
                                       <p className="text-xs text-muted-foreground font-mono truncate">{item.route}</p>
@@ -516,8 +497,9 @@ export default function GestaoModulosPage() {
                                               checked={!isChildDisabled}
                                               onCheckedChange={(checked) => toggleFeature(selectedConfig.codigo, child.id, !checked)}
                                               className="shrink-0 scale-90"
+                                              aria-label={`Ativar funcionalidade ${child.label}`}
                                             />
-                                            <ChildIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                            <ChildIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
                                             <span className={cn("text-xs", isChildDisabled && "line-through")}>{child.label}</span>
                                           </div>
                                         );
@@ -533,7 +515,7 @@ export default function GestaoModulosPage() {
                         {/* Users */}
                         <Separator />
                         <div className="flex items-center gap-2 text-sm">
-                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <Users className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                           <span className="text-muted-foreground">
                             {getUserCount(selectedConfig.codigo)} usuário(s) com acesso a este módulo
                           </span>

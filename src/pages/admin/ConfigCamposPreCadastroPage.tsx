@@ -7,6 +7,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/design-system";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFormFieldConfig, type FormFieldConfig } from "@/hooks/useFormFieldConfig";
@@ -15,19 +16,19 @@ import { Settings2, FileText, User, LayoutGrid, Lock } from "lucide-react";
 
 const SECTION_META: Record<string, { title: string; description: string; icon: React.ReactNode }> = {
   secoes: {
-    title: "Seções do Formulário",
+    title: "Seções do formulário",
     description: "Ative ou desative seções inteiras do pré-cadastro",
-    icon: <LayoutGrid className="h-5 w-5" />,
+    icon: <LayoutGrid className="h-5 w-5" aria-hidden="true" />,
   },
   documentos: {
-    title: "Documentos Pessoais",
+    title: "Documentos pessoais",
     description: "Controle quais blocos de documentos aparecem no formulário",
-    icon: <FileText className="h-5 w-5" />,
+    icon: <FileText className="h-5 w-5" aria-hidden="true" />,
   },
   dados_pessoais: {
-    title: "Dados Pessoais Opcionais",
+    title: "Dados pessoais opcionais",
     description: "Campos adicionais de informação pessoal",
-    icon: <User className="h-5 w-5" />,
+    icon: <User className="h-5 w-5" aria-hidden="true" />,
   },
 };
 
@@ -49,7 +50,7 @@ function FieldToggleRow({
           <span className="font-medium text-sm">{field.label}</span>
           {field.required && (
             <Badge variant="secondary" className="text-xs gap-1">
-              <Lock className="h-3 w-3" />
+              <Lock className="h-3 w-3" aria-hidden="true" />
               Obrigatório
             </Badge>
           )}
@@ -65,6 +66,7 @@ function FieldToggleRow({
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Obrigatório</span>
             <Switch
+              aria-label={`Tornar "${field.label}" obrigatório`}
               checked={field.required}
               onCheckedChange={(checked) => onToggleRequired(field.id, checked)}
             />
@@ -77,6 +79,7 @@ function FieldToggleRow({
             {field.enabled ? "Ativo" : "Inativo"}
           </span>
           <Switch
+            aria-label={`Ativar o campo "${field.label}"`}
             checked={field.enabled}
             onCheckedChange={(checked) => onToggleEnabled(field.id, checked)}
           />
@@ -105,15 +108,21 @@ export default function ConfigCamposPreCadastroPage() {
   };
 
   return (
-    <AdminLayout title="Campos do Pré-Cadastro" description="Configure quais campos e seções aparecem no formulário de pré-cadastro de servidores">
+    <AdminLayout>
       <div className="space-y-6 max-w-4xl">
+        <PageHeader
+          migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Campos do pré-cadastro" }]}
+          titulo="Campos do pré-cadastro"
+          descricao="Configure quais campos e seções aparecem no formulário de pré-cadastro de servidores"
+        />
+
         {/* Info */}
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-start gap-3">
-              <Settings2 className="h-5 w-5 text-primary mt-0.5" />
+              <Settings2 className="h-5 w-5 text-primary mt-0.5" aria-hidden="true" />
               <div>
-                <p className="text-sm font-medium">Configuração de Campos</p>
+                <p className="text-sm font-medium">Configuração de campos</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Desative campos que não são necessários para sua instituição. 
                   Campos desativados não aparecerão no formulário público de pré-cadastro.
@@ -125,7 +134,7 @@ export default function ConfigCamposPreCadastroPage() {
         </Card>
 
         {loading ? (
-          <div className="space-y-4">
+          <div className="space-y-4" role="status" aria-label="Carregando campos">
             {[1, 2, 3].map((i) => (
               <Card key={i}>
                 <CardHeader>
@@ -183,11 +192,11 @@ export default function ConfigCamposPreCadastroPage() {
                 </span>
                 <div className="flex gap-4">
                   <span className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="w-2 h-2 rounded-full bg-success" aria-hidden="true" />
                     {Object.values(bySection).flat().filter(f => f.enabled).length} ativos
                   </span>
                   <span className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                    <span className="w-2 h-2 rounded-full bg-muted-foreground" aria-hidden="true" />
                     {Object.values(bySection).flat().filter(f => !f.enabled).length} inativos
                   </span>
                 </div>
