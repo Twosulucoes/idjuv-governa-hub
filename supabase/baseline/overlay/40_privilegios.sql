@@ -62,6 +62,43 @@ GRANT EXECUTE ON FUNCTION public.generate_schema_ddl() TO service_role;
 REVOKE EXECUTE ON FUNCTION public.fn_fotos_vistoria_inventario_imutavel() FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.fn_campanhas_inventario_unidades_autoria() FROM authenticated;
 
+-- ---- privilégios das migrações de 2026-10-09/10 (o dump do schema não leva GRANT/REVOKE) ----
+-- Copiados das migrações 20261009120000 (avisos), 20261009150000 (envios), 20261009153000 (importações)
+-- e 20261010070000 (folha): funções de trigger sem EXECUTE para authenticated; RPC só da service role;
+-- tabelas com escrita restrita e config_envio com privilégios por coluna (segredo_id nunca legível pela API).
+REVOKE EXECUTE ON FUNCTION public.fixar_autoria_aviso() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.fixar_autoria_config_envio() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.bloquear_insercao_ficha_fechada() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.bloquear_insercao_item_ficha_fechada() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.folhas_proteger_fechamento() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.config_envio_servidor(text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.config_envio_servidor(text) TO service_role;
+REVOKE ALL ON public.avisos_leituras FROM anon, authenticated;
+GRANT SELECT, INSERT, DELETE ON public.avisos_leituras TO authenticated;
+REVOKE ALL ON public.envios_log FROM anon, authenticated;
+GRANT SELECT ON public.envios_log TO authenticated;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.importacoes FROM authenticated;
+REVOKE ALL ON public.config_envio FROM anon, authenticated;
+GRANT SELECT (
+  canal, ativo, provedor, remetente_nome, remetente_email, responder_para,
+  smtp_host, smtp_porta, smtp_seguranca, smtp_usuario,
+  marca_nome, marca_logo_url, marca_cor, rodape,
+  wa_phone_number_id, wa_business_account_id, wa_templates,
+  segredo_atualizado_em, updated_by, created_at, updated_at
+) ON public.config_envio TO authenticated;
+GRANT INSERT (
+  canal, ativo, provedor, remetente_nome, remetente_email, responder_para,
+  smtp_host, smtp_porta, smtp_seguranca, smtp_usuario,
+  marca_nome, marca_logo_url, marca_cor, rodape,
+  wa_phone_number_id, wa_business_account_id, wa_templates
+) ON public.config_envio TO authenticated;
+GRANT UPDATE (
+  ativo, provedor, remetente_nome, remetente_email, responder_para,
+  smtp_host, smtp_porta, smtp_seguranca, smtp_usuario,
+  marca_nome, marca_logo_url, marca_cor, rodape,
+  wa_phone_number_id, wa_business_account_id, wa_templates
+) ON public.config_envio TO authenticated;
+
 -- ---- funções que ESCREVEM e não são chamadas por usuário logado ----
 -- fn_atualizar_situacao_servidor só é chamada por triggers SECURITY DEFINER. processar_folha_pagamento
 -- saiu desta lista na migração 20261010070000: ganhou guarda has_permission_code('financeiro.folha.processar')
