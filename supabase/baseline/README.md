@@ -28,6 +28,9 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 > (`module_permissions_catalog`, `module_settings`, `module_access_scopes`, `user_org_units`), a injeção em
 > `fn_gerar_numero_financeiro`, os stubs de acesso do overlay 10, `gestores_escolares`/`escolas_jer`,
 > `cadastro_arbitros(+_modalidades)` e o EXECUTE de `anon` (lista de RPCs públicas do overlay 40).
+> A `20261010200000_onda1_remover_acesso_total.sql` copia para 166 tabelas o bloco do
+> `rls/35_policies_geradas.sql` (removendo as `acesso_total_*`); ao mudar a classe ou os módulos de uma
+> dessas tabelas no `mapa.csv`, o histórico precisa de nova migração com o bloco regenerado.
 
 ## Conteúdo e ordem de aplicação (`aplicar.sh`, uma única transação)
 
