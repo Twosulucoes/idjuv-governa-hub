@@ -1065,7 +1065,7 @@ BEGIN
     -- RPCs públicas (formulários e portal): anon executa
     'arbitro_cpf_cadastrado','obter_protocolo_arbitro','obter_dado_oficial','registrar_denuncia_publica',
     'consultar_gestor_por_cpf','registrar_gestor_publico',
-    -- portal da transparência: só totais/campos públicos, LGPD filtrada no servidor (migração 20261010200000)
+    -- portal da transparência: só totais/campos públicos, LGPD filtrada no servidor (migração 20261010200100)
     'transparencia_execucao_orcamentaria','transparencia_licitacoes','transparencia_patrimonio',
     -- só authenticated executa (anon não); incrementa o contador de bloqueio por token errado
     'consultar_protocolo_sic'];
