@@ -13,11 +13,14 @@ import { PortalNews } from "./portal/components/PortalNews";
 import { PortalContact } from "./portal/components/PortalContact";
 import { PortalFooter } from "./portal/components/PortalFooter";
 import { InstagramFeed } from "@/components/social/InstagramFeed";
+import { useTenant } from "@/core/tenant";
 
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
 export default function PortalPreviewPage() {
+  const instagram = useTenant().contato?.redesSociais?.instagram;
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -45,7 +48,7 @@ export default function PortalPreviewPage() {
       <PortalNews />
 
       {/* Instagram Feed */}
-      <InstagramFeed username="idjuv_rr" />
+      {instagram && <InstagramFeed username={instagram} />}
 
       {/* Contact Section */}
       <PortalContact />

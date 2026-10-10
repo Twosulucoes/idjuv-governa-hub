@@ -158,7 +158,7 @@ export const idjuvConfig: TenantConfig = {
     telefone: '(95) 9133-0044',
     emailSuporte: 'ti@idjuv.rr.gov.br',
     redesSociais: {
-      instagram: 'idjuv_rr',
+      instagram: 'idjuvroraima',
       facebook: 'idjuvrr',
       youtube: '@idjuv_rr',
       twitter: 'idjuv_rr',
