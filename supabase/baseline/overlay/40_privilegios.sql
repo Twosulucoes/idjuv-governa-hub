@@ -99,6 +99,18 @@ GRANT EXECUTE ON FUNCTION public.eh_meu_arquivo_frequencia(text) TO authenticate
 GRANT EXECUTE ON FUNCTION public.eh_minha_pasta_servidor(text) TO authenticated;
 REVOKE EXECUTE ON FUNCTION public.config_envio_servidor(text) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.config_envio_servidor(text) TO service_role;
+-- trilha e autoria do RH (migração 20261011000000, E1; o dump não leva GRANT/REVOKE): funções de apoio e de trigger
+-- sem EXECUTE para a API; registrar_evento só para authenticated (a guarda no corpo exige usuário ativo)
+REVOKE EXECUTE ON FUNCTION public.responsavel_atual() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.rh_exige_servidor_vinculado() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.mascarar_parcial(text) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.trilha_mascarar(text, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.trilha_contexto_requisicao() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.trilha_completar_contexto() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.trilha_imutavel() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fixar_autoria() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.registrar_evento(text, text, uuid, text, jsonb) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.registrar_evento(text, text, uuid, text, jsonb) TO authenticated;
 REVOKE ALL ON public.avisos_leituras FROM anon, authenticated;
 GRANT SELECT, INSERT, DELETE ON public.avisos_leituras TO authenticated;
 REVOKE ALL ON public.envios_log FROM anon, authenticated;

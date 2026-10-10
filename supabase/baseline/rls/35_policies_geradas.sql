@@ -176,6 +176,21 @@ DROP POLICY IF EXISTS "rls_delete" ON public.atas_registro_preco;
 CREATE POLICY "rls_delete" ON public.atas_registro_preco FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')));
 
+-- audit_colunas_sensiveis  [catalogo_admin]
+DROP POLICY IF EXISTS "rls_select" ON public.audit_colunas_sensiveis;
+CREATE POLICY "rls_select" ON public.audit_colunas_sensiveis FOR SELECT TO authenticated
+  USING (public.is_active_user());
+DROP POLICY IF EXISTS "rls_insert" ON public.audit_colunas_sensiveis;
+CREATE POLICY "rls_insert" ON public.audit_colunas_sensiveis FOR INSERT TO authenticated
+  WITH CHECK (public.is_admin_user(auth.uid()));
+DROP POLICY IF EXISTS "rls_update" ON public.audit_colunas_sensiveis;
+CREATE POLICY "rls_update" ON public.audit_colunas_sensiveis FOR UPDATE TO authenticated
+  USING (public.is_admin_user(auth.uid()))
+  WITH CHECK (public.is_admin_user(auth.uid()));
+DROP POLICY IF EXISTS "rls_delete" ON public.audit_colunas_sensiveis;
+CREATE POLICY "rls_delete" ON public.audit_colunas_sensiveis FOR DELETE TO authenticated
+  USING (public.is_admin_user(auth.uid()));
+
 -- audit_log_licitacoes  [trilha: compras | contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.audit_log_licitacoes;
 CREATE POLICY "rls_select" ON public.audit_log_licitacoes FOR SELECT TO authenticated

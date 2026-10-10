@@ -77,9 +77,10 @@ for t in servidores vinculos_servidor profiles user_roles user_modules audit_log
 done
 n=$(psql_s -d "$DB" -At -c "select count(*) from storage.objects")
 [[ "$n" == "0" ]] && ok "storage.objects vazio" || erro "storage.objects tem $n linha(s)"
-# só as tabelas semeadas (schema/02_dados_catalogo.sql) podem ter linhas
+# só as tabelas semeadas (schema/02_dados_catalogo.sql) podem ter linhas (o `;` no fim de cada SELECT é necessário:
+# sem ele o arquivo virava um comando só, o psql dava erro de sintaxe e a checagem passava sem contar nada)
 mapfile -t semeadas < <(grep -oE '^INSERT INTO public\.[a-z_0-9]+' supabase/baseline/schema/02_dados_catalogo.sql | sed 's/INSERT INTO public\.//' | sort -u)
-psql_s -d "$DB" -At -c "select format('select %L, count(*) from public.%I', relname, relname) from pg_class where relnamespace = 'public'::regnamespace and relkind in ('r','p') order by relname" > "$TMP/contagens.sql" || erro "não consegui listar as tabelas"
+psql_s -d "$DB" -At -c "select format('select %L, count(*) from public.%I;', relname, relname) from pg_class where relnamespace = 'public'::regnamespace and relkind in ('r','p') order by relname" > "$TMP/contagens.sql" || erro "não consegui listar as tabelas"
 fora=0
 while IFS='|' read -r tabela linhas; do
   [[ "$linhas" == "0" ]] && continue

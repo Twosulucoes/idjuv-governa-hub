@@ -150,6 +150,22 @@ ALTER TABLE ONLY public.atas_registro_preco
 
 
 --
+-- Name: audit_colunas_sensiveis audit_colunas_sensiveis_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_colunas_sensiveis
+    ADD CONSTRAINT audit_colunas_sensiveis_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: audit_colunas_sensiveis audit_colunas_sensiveis_tabela_coluna_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_colunas_sensiveis
+    ADD CONSTRAINT audit_colunas_sensiveis_tabela_coluna_key UNIQUE (tabela, coluna);
+
+
+--
 -- Name: audit_log_licitacoes audit_log_licitacoes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6158,6 +6174,27 @@ CREATE TRIGGER audit_acoes AFTER INSERT OR DELETE OR UPDATE ON public.acoes FOR 
 
 
 --
+-- Name: adicionais_tempo_servico audit_adicionais_tempo_servico; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_adicionais_tempo_servico AFTER INSERT OR DELETE OR UPDATE ON public.adicionais_tempo_servico FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: agrupamento_unidade_vinculo audit_agrupamento_unidade_vinculo; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_agrupamento_unidade_vinculo AFTER INSERT OR DELETE OR UPDATE ON public.agrupamento_unidade_vinculo FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: audit_colunas_sensiveis audit_audit_colunas_sensiveis; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_audit_colunas_sensiveis AFTER INSERT OR DELETE OR UPDATE ON public.audit_colunas_sensiveis FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('admin');
+
+
+--
 -- Name: avaliacoes_controle audit_avaliacoes_controle; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6179,10 +6216,38 @@ CREATE TRIGGER audit_banco_horas AFTER INSERT OR DELETE OR UPDATE ON public.banc
 
 
 --
+-- Name: bancos_cnab audit_bancos_cnab; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_bancos_cnab AFTER INSERT OR DELETE OR UPDATE ON public.bancos_cnab FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
 -- Name: bens_patrimoniais audit_bens; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER audit_bens AFTER INSERT OR DELETE OR UPDATE ON public.bens_patrimoniais FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
+
+
+--
+-- Name: cargo_unidade_compatibilidade audit_cargo_unidade_compatibilidade; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_cargo_unidade_compatibilidade AFTER INSERT OR DELETE OR UPDATE ON public.cargo_unidade_compatibilidade FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: cargos audit_cargos; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_cargos AFTER INSERT OR DELETE OR UPDATE ON public.cargos FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: cessoes audit_cessoes; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_cessoes AFTER INSERT OR DELETE OR UPDATE ON public.cessoes FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
 
 
 --
@@ -6193,10 +6258,150 @@ CREATE TRIGGER audit_checklists_conformidade AFTER INSERT OR DELETE OR UPDATE ON
 
 
 --
+-- Name: composicao_cargos audit_composicao_cargos; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_composicao_cargos AFTER INSERT OR DELETE OR UPDATE ON public.composicao_cargos FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: config_agrupamento_unidades audit_config_agrupamento_unidades; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_config_agrupamento_unidades AFTER INSERT OR DELETE OR UPDATE ON public.config_agrupamento_unidades FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: config_assinatura_frequencia audit_config_assinatura_frequencia; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_config_assinatura_frequencia AFTER INSERT OR DELETE OR UPDATE ON public.config_assinatura_frequencia FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: config_autarquia audit_config_autarquia; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_config_autarquia AFTER INSERT OR DELETE OR UPDATE ON public.config_autarquia FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: config_compensacao audit_config_compensacao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_config_compensacao AFTER INSERT OR DELETE OR UPDATE ON public.config_compensacao FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: config_fechamento_folha audit_config_fechamento_folha; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_config_fechamento_folha AFTER INSERT OR DELETE OR UPDATE ON public.config_fechamento_folha FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: config_fechamento_frequencia audit_config_fechamento_frequencia; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_config_fechamento_frequencia AFTER INSERT OR DELETE OR UPDATE ON public.config_fechamento_frequencia FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: config_incidencias audit_config_incidencias; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_config_incidencias AFTER INSERT OR DELETE OR UPDATE ON public.config_incidencias FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: config_institucional audit_config_institucional; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_config_institucional AFTER INSERT OR DELETE OR UPDATE ON public.config_institucional FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: config_jornada_padrao audit_config_jornada_padrao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_config_jornada_padrao AFTER INSERT OR DELETE OR UPDATE ON public.config_jornada_padrao FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: config_motivos_desligamento audit_config_motivos_desligamento; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_config_motivos_desligamento AFTER INSERT OR DELETE OR UPDATE ON public.config_motivos_desligamento FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: config_regras_calculo audit_config_regras_calculo; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_config_regras_calculo AFTER INSERT OR DELETE OR UPDATE ON public.config_regras_calculo FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: config_rubricas audit_config_rubricas; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_config_rubricas AFTER INSERT OR DELETE OR UPDATE ON public.config_rubricas FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: config_situacoes_funcionais audit_config_situacoes_funcionais; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_config_situacoes_funcionais AFTER INSERT OR DELETE OR UPDATE ON public.config_situacoes_funcionais FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: config_tipos_ato audit_config_tipos_ato; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_config_tipos_ato AFTER INSERT OR DELETE OR UPDATE ON public.config_tipos_ato FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: config_tipos_onus audit_config_tipos_onus; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_config_tipos_onus AFTER INSERT OR DELETE OR UPDATE ON public.config_tipos_onus FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: config_tipos_rubrica audit_config_tipos_rubrica; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_config_tipos_rubrica AFTER INSERT OR DELETE OR UPDATE ON public.config_tipos_rubrica FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: config_tipos_servidor audit_config_tipos_servidor; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_config_tipos_servidor AFTER INSERT OR DELETE OR UPDATE ON public.config_tipos_servidor FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: configuracao_jornada audit_configuracao_jornada; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_configuracao_jornada AFTER INSERT OR DELETE OR UPDATE ON public.configuracao_jornada FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
 -- Name: consignacoes audit_consignacoes; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER audit_consignacoes AFTER INSERT OR DELETE OR UPDATE ON public.consignacoes FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: contas_autarquia audit_contas_autarquia; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_contas_autarquia AFTER INSERT OR DELETE OR UPDATE ON public.contas_autarquia FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
 
 
 --
@@ -6214,6 +6419,13 @@ CREATE TRIGGER audit_decisoes_administrativas AFTER INSERT OR DELETE OR UPDATE O
 
 
 --
+-- Name: dependentes_irrf audit_dependentes_irrf; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_dependentes_irrf AFTER INSERT OR DELETE OR UPDATE ON public.dependentes_irrf FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
 -- Name: designacoes audit_designacoes; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6228,10 +6440,31 @@ CREATE TRIGGER audit_despachos AFTER INSERT OR DELETE OR UPDATE ON public.despac
 
 
 --
+-- Name: dias_nao_uteis audit_dias_nao_uteis; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_dias_nao_uteis AFTER INSERT OR DELETE OR UPDATE ON public.dias_nao_uteis FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: documentos audit_documentos; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_documentos AFTER INSERT OR DELETE OR UPDATE ON public.documentos FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
 -- Name: documentos_processo audit_documentos_processo; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER audit_documentos_processo AFTER INSERT OR DELETE OR UPDATE ON public.documentos_processo FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
+
+
+--
+-- Name: documentos_requerimento_servidor audit_documentos_requerimento_servidor; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_documentos_requerimento_servidor AFTER INSERT OR DELETE OR UPDATE ON public.documentos_requerimento_servidor FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
 
 
 --
@@ -6256,10 +6489,31 @@ CREATE TRIGGER audit_encaminhamentos AFTER INSERT OR DELETE OR UPDATE ON public.
 
 
 --
+-- Name: eventos_esocial audit_eventos_esocial; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_eventos_esocial AFTER INSERT OR DELETE OR UPDATE ON public.eventos_esocial FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
 -- Name: evidencias_controle audit_evidencias_controle; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER audit_evidencias_controle AFTER INSERT OR DELETE OR UPDATE ON public.evidencias_controle FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
+
+
+--
+-- Name: exportacoes_folha audit_exportacoes_folha; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_exportacoes_folha AFTER INSERT OR DELETE OR UPDATE ON public.exportacoes_folha FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: feriados audit_feriados; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_feriados AFTER INSERT OR DELETE OR UPDATE ON public.feriados FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
 
 
 --
@@ -6270,10 +6524,31 @@ CREATE TRIGGER audit_ferias_servidor AFTER INSERT OR DELETE OR UPDATE ON public.
 
 
 --
+-- Name: fichas_financeiras audit_fichas_financeiras; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_fichas_financeiras AFTER INSERT OR DELETE OR UPDATE ON public.fichas_financeiras FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
 -- Name: folhas_pagamento audit_folhas_pagamento; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER audit_folhas_pagamento AFTER INSERT OR DELETE OR UPDATE ON public.folhas_pagamento FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: frequencia_arquivos audit_frequencia_arquivos; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_frequencia_arquivos AFTER INSERT OR DELETE OR UPDATE ON public.frequencia_arquivos FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: frequencia_fechamento audit_frequencia_fechamento; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_frequencia_fechamento AFTER INSERT OR DELETE OR UPDATE ON public.frequencia_fechamento FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
 
 
 --
@@ -6284,10 +6559,24 @@ CREATE TRIGGER audit_frequencia_mensal AFTER INSERT OR DELETE OR UPDATE ON publi
 
 
 --
+-- Name: frequencia_pacotes audit_frequencia_pacotes; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_frequencia_pacotes AFTER INSERT OR DELETE OR UPDATE ON public.frequencia_pacotes FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
 -- Name: historico_funcional audit_historico_funcional; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER audit_historico_funcional AFTER INSERT OR DELETE OR UPDATE ON public.historico_funcional FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: horarios_jornada audit_horarios_jornada; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_horarios_jornada AFTER INSERT OR DELETE OR UPDATE ON public.horarios_jornada FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
 
 
 --
@@ -6302,6 +6591,34 @@ CREATE TRIGGER audit_itens_checklist AFTER INSERT OR DELETE OR UPDATE ON public.
 --
 
 CREATE TRIGGER audit_itens_ficha_financeira AFTER INSERT OR DELETE OR UPDATE ON public.itens_ficha_financeira FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: itens_retorno_bancario audit_itens_retorno_bancario; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_itens_retorno_bancario AFTER INSERT OR DELETE OR UPDATE ON public.itens_retorno_bancario FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: justificativas_ponto audit_justificativas_ponto; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_justificativas_ponto AFTER INSERT OR DELETE OR UPDATE ON public.justificativas_ponto FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: lancamentos_banco_horas audit_lancamentos_banco_horas; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_lancamentos_banco_horas AFTER INSERT OR DELETE OR UPDATE ON public.lancamentos_banco_horas FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: lancamentos_folha audit_lancamentos_folha; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_lancamentos_folha AFTER INSERT OR DELETE OR UPDATE ON public.lancamentos_folha FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
 
 
 --
@@ -6347,6 +6664,13 @@ CREATE TRIGGER audit_matriz_raci_processos AFTER INSERT OR DELETE OR UPDATE ON p
 
 
 --
+-- Name: memorandos_lotacao audit_memorandos_lotacao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_memorandos_lotacao AFTER INSERT OR DELETE OR UPDATE ON public.memorandos_lotacao FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
 -- Name: movimentacoes_bem audit_movimentacoes_bem; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6375,10 +6699,24 @@ CREATE TRIGGER audit_nomeacoes_chefe_unidade AFTER INSERT OR DELETE OR UPDATE ON
 
 
 --
+-- Name: ocorrencias_servidor audit_ocorrencias_servidor; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_ocorrencias_servidor AFTER INSERT OR DELETE OR UPDATE ON public.ocorrencias_servidor FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
 -- Name: pagamentos audit_pagamentos; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER audit_pagamentos AFTER INSERT OR DELETE OR UPDATE ON public.pagamentos FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
+
+
+--
+-- Name: parametros_folha audit_parametros_folha; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_parametros_folha AFTER INSERT OR DELETE OR UPDATE ON public.parametros_folha FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
 
 
 --
@@ -6389,10 +6727,24 @@ CREATE TRIGGER audit_pareceres_tecnicos AFTER INSERT OR DELETE OR UPDATE ON publ
 
 
 --
+-- Name: pensoes_alimenticias audit_pensoes_alimenticias; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_pensoes_alimenticias AFTER INSERT OR DELETE OR UPDATE ON public.pensoes_alimenticias FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
 -- Name: planos_tratamento_risco audit_planos_tratamento_risco; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER audit_planos_tratamento_risco AFTER INSERT OR DELETE OR UPDATE ON public.planos_tratamento_risco FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
+
+
+--
+-- Name: portarias_servidor audit_portarias_servidor; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_portarias_servidor AFTER INSERT OR DELETE OR UPDATE ON public.portarias_servidor FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
 
 
 --
@@ -6403,10 +6755,24 @@ CREATE TRIGGER audit_prazos_processo AFTER INSERT OR DELETE OR UPDATE ON public.
 
 
 --
+-- Name: pre_cadastros audit_pre_cadastros; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_pre_cadastros AFTER INSERT OR DELETE OR UPDATE ON public.pre_cadastros FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
 -- Name: processos_administrativos audit_processos_administrativos; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER audit_processos_administrativos AFTER INSERT OR DELETE OR UPDATE ON public.processos_administrativos FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
+
+
+--
+-- Name: profiles audit_profiles; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_profiles AFTER INSERT OR DELETE OR UPDATE OF servidor_id, is_active, blocked_at, blocked_reason, tipo_usuario, cpf, email, restringir_modulos ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('admin');
 
 
 --
@@ -6424,10 +6790,24 @@ CREATE TRIGGER audit_provimentos AFTER INSERT OR DELETE OR UPDATE ON public.prov
 
 
 --
+-- Name: regimes_trabalho audit_regimes_trabalho; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_regimes_trabalho AFTER INSERT OR DELETE OR UPDATE ON public.regimes_trabalho FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
 -- Name: registros_ponto audit_registros_ponto; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER audit_registros_ponto AFTER INSERT OR DELETE OR UPDATE ON public.registros_ponto FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: remessas_bancarias audit_remessas_bancarias; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_remessas_bancarias AFTER INSERT OR DELETE OR UPDATE ON public.remessas_bancarias FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
 
 
 --
@@ -6438,10 +6818,45 @@ CREATE TRIGGER audit_respostas_checklist AFTER INSERT OR DELETE OR UPDATE ON pub
 
 
 --
+-- Name: retornos_bancarios audit_retornos_bancarios; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_retornos_bancarios AFTER INSERT OR DELETE OR UPDATE ON public.retornos_bancarios FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
 -- Name: riscos_institucionais audit_riscos_institucionais; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER audit_riscos_institucionais AFTER INSERT OR DELETE OR UPDATE ON public.riscos_institucionais FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
+
+
+--
+-- Name: rubricas audit_rubricas; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_rubricas AFTER INSERT OR DELETE OR UPDATE ON public.rubricas FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: servidor_regime audit_servidor_regime; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_servidor_regime AFTER INSERT OR DELETE OR UPDATE ON public.servidor_regime FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: servidor_tag_vinculos audit_servidor_tag_vinculos; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_servidor_tag_vinculos AFTER INSERT OR DELETE OR UPDATE ON public.servidor_tag_vinculos FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: servidor_tags audit_servidor_tags; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_servidor_tags AFTER INSERT OR DELETE OR UPDATE ON public.servidor_tags FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
 
 
 --
@@ -6452,10 +6867,59 @@ CREATE TRIGGER audit_servidores AFTER INSERT OR DELETE OR UPDATE ON public.servi
 
 
 --
+-- Name: solicitacoes_abono audit_solicitacoes_abono; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_solicitacoes_abono AFTER INSERT OR DELETE OR UPDATE ON public.solicitacoes_abono FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: solicitacoes_ajuste_ponto audit_solicitacoes_ajuste_ponto; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_solicitacoes_ajuste_ponto AFTER INSERT OR DELETE OR UPDATE ON public.solicitacoes_ajuste_ponto FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: tabela_inss audit_tabela_inss; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_tabela_inss AFTER INSERT OR DELETE OR UPDATE ON public.tabela_inss FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: tabela_irrf audit_tabela_irrf; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_tabela_irrf AFTER INSERT OR DELETE OR UPDATE ON public.tabela_irrf FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: tipos_abono audit_tipos_abono; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_tipos_abono AFTER INSERT OR DELETE OR UPDATE ON public.tipos_abono FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
 -- Name: user_modules audit_user_modules; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER audit_user_modules AFTER INSERT OR DELETE OR UPDATE ON public.user_modules FOR EACH ROW EXECUTE FUNCTION public.audit_permission_changes();
+
+
+--
+-- Name: user_org_units audit_user_org_units; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_user_org_units AFTER INSERT OR DELETE OR UPDATE ON public.user_org_units FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('admin');
+
+
+--
+-- Name: user_permissions audit_user_permissions; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_user_permissions AFTER INSERT OR DELETE OR UPDATE ON public.user_permissions FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('admin');
 
 
 --
@@ -6470,6 +6934,20 @@ CREATE TRIGGER audit_user_roles AFTER INSERT OR DELETE OR UPDATE ON public.user_
 --
 
 CREATE TRIGGER audit_viagens_diarias AFTER INSERT OR DELETE OR UPDATE ON public.viagens_diarias FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: vinculos_funcionais audit_vinculos_funcionais; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_vinculos_funcionais AFTER INSERT OR DELETE OR UPDATE ON public.vinculos_funcionais FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: vinculos_servidor audit_vinculos_servidor; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_vinculos_servidor AFTER INSERT OR DELETE OR UPDATE ON public.vinculos_servidor FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
 
 
 --
@@ -7544,6 +8022,67 @@ CREATE TRIGGER trigger_validate_processo_sei BEFORE UPDATE ON public.agenda_unid
 
 
 --
+-- Name: audit_logs trilha_completar_contexto; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trilha_completar_contexto BEFORE INSERT ON public.audit_logs FOR EACH ROW EXECUTE FUNCTION public.trilha_completar_contexto();
+
+
+--
+-- Name: audit_logs trilha_imutavel; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trilha_imutavel BEFORE DELETE OR UPDATE ON public.audit_logs FOR EACH ROW EXECUTE FUNCTION public.trilha_imutavel();
+
+ALTER TABLE public.audit_logs ENABLE ALWAYS TRIGGER trilha_imutavel;
+
+
+--
+-- Name: folha_historico_status trilha_imutavel; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trilha_imutavel BEFORE DELETE OR UPDATE ON public.folha_historico_status FOR EACH ROW EXECUTE FUNCTION public.trilha_imutavel('folha_id', 'folhas_pagamento');
+
+ALTER TABLE public.folha_historico_status ENABLE ALWAYS TRIGGER trilha_imutavel;
+
+
+--
+-- Name: rubricas_historico trilha_imutavel; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trilha_imutavel BEFORE DELETE OR UPDATE ON public.rubricas_historico FOR EACH ROW EXECUTE FUNCTION public.trilha_imutavel('rubrica_id', 'rubricas');
+
+ALTER TABLE public.rubricas_historico ENABLE ALWAYS TRIGGER trilha_imutavel;
+
+
+--
+-- Name: audit_logs trilha_imutavel_truncate; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trilha_imutavel_truncate BEFORE TRUNCATE ON public.audit_logs FOR EACH STATEMENT EXECUTE FUNCTION public.trilha_imutavel();
+
+ALTER TABLE public.audit_logs ENABLE ALWAYS TRIGGER trilha_imutavel_truncate;
+
+
+--
+-- Name: folha_historico_status trilha_imutavel_truncate; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trilha_imutavel_truncate BEFORE TRUNCATE ON public.folha_historico_status FOR EACH STATEMENT EXECUTE FUNCTION public.trilha_imutavel();
+
+ALTER TABLE public.folha_historico_status ENABLE ALWAYS TRIGGER trilha_imutavel_truncate;
+
+
+--
+-- Name: rubricas_historico trilha_imutavel_truncate; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trilha_imutavel_truncate BEFORE TRUNCATE ON public.rubricas_historico FOR EACH STATEMENT EXECUTE FUNCTION public.trilha_imutavel();
+
+ALTER TABLE public.rubricas_historico ENABLE ALWAYS TRIGGER trilha_imutavel_truncate;
+
+
+--
 -- Name: agenda_unidade update_agenda_unidade_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -8227,6 +8766,545 @@ CREATE TRIGGER update_unidades_locais_updated_at BEFORE UPDATE ON public.unidade
 --
 
 CREATE TRIGGER update_viagens_updated_at BEFORE UPDATE ON public.viagens_diarias FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
+-- Name: adicionais_tempo_servico zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.adicionais_tempo_servico FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: agrupamento_unidade_vinculo zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.agrupamento_unidade_vinculo FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: banco_horas zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.banco_horas FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: bancos_cnab zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.bancos_cnab FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: cargo_unidade_compatibilidade zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.cargo_unidade_compatibilidade FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: cargos zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.cargos FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: cessoes zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.cessoes FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: composicao_cargos zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.composicao_cargos FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: config_agrupamento_unidades zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.config_agrupamento_unidades FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: config_assinatura_frequencia zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.config_assinatura_frequencia FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: config_autarquia zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.config_autarquia FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: config_compensacao zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.config_compensacao FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: config_fechamento_folha zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.config_fechamento_folha FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: config_fechamento_frequencia zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.config_fechamento_frequencia FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria('fechado_por:fechado_em', 'consolidado_por:consolidado_em');
+
+
+--
+-- Name: config_incidencias zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.config_incidencias FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: config_institucional zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.config_institucional FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: config_jornada_padrao zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.config_jornada_padrao FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: config_motivos_desligamento zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.config_motivos_desligamento FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: config_regras_calculo zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.config_regras_calculo FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: config_rubricas zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.config_rubricas FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: config_situacoes_funcionais zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.config_situacoes_funcionais FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: config_tipos_ato zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.config_tipos_ato FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: config_tipos_onus zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.config_tipos_onus FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: config_tipos_rubrica zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.config_tipos_rubrica FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: config_tipos_servidor zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.config_tipos_servidor FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: configuracao_jornada zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.configuracao_jornada FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: consignacoes zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.consignacoes FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: contas_autarquia zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.contas_autarquia FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: dependentes_irrf zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.dependentes_irrf FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: designacoes zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.designacoes FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria('aprovado_por:data_aprovacao');
+
+
+--
+-- Name: dias_nao_uteis zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.dias_nao_uteis FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: documentos zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.documentos FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: documentos_requerimento_servidor zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.documentos_requerimento_servidor FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: eventos_esocial zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.eventos_esocial FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria('+gerado_por:data_geracao');
+
+
+--
+-- Name: exportacoes_folha zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.exportacoes_folha FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria('+gerado_por:gerado_em', 'enviado_por:enviado_em');
+
+
+--
+-- Name: feriados zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.feriados FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: ferias_servidor zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.ferias_servidor FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: fichas_financeiras zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.fichas_financeiras FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: folhas_pagamento zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.folhas_pagamento FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria('processado_por');
+
+
+--
+-- Name: frequencia_arquivos zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.frequencia_arquivos FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: frequencia_fechamento zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.frequencia_fechamento FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: frequencia_mensal zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.frequencia_mensal FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: frequencia_pacotes zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.frequencia_pacotes FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: historico_funcional zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.historico_funcional FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: horarios_jornada zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.horarios_jornada FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: itens_ficha_financeira zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.itens_ficha_financeira FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: itens_retorno_bancario zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.itens_retorno_bancario FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: justificativas_ponto zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.justificativas_ponto FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: lancamentos_banco_horas zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.lancamentos_banco_horas FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: lancamentos_folha zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.lancamentos_folha FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: licencas_afastamentos zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.licencas_afastamentos FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: lotacoes zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.lotacoes FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: memorandos_lotacao zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.memorandos_lotacao FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria('+emitido_por');
+
+
+--
+-- Name: nomeacoes_chefe_unidade zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.nomeacoes_chefe_unidade FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: ocorrencias_servidor zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.ocorrencias_servidor FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: parametros_folha zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.parametros_folha FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: pensoes_alimenticias zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.pensoes_alimenticias FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: portarias_servidor zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.portarias_servidor FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: pre_cadastros zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.pre_cadastros FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria('convertido_por:convertido_em');
+
+
+--
+-- Name: provimentos zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.provimentos FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: regimes_trabalho zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.regimes_trabalho FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: registros_ponto zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.registros_ponto FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria('aprovador_id:data_aprovacao');
+
+
+--
+-- Name: remessas_bancarias zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.remessas_bancarias FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria('+gerado_por:data_geracao', 'enviado_por:enviado_em');
+
+
+--
+-- Name: retornos_bancarios zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.retornos_bancarios FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria('+processado_por');
+
+
+--
+-- Name: rubricas zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.rubricas FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: servidor_regime zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.servidor_regime FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: servidor_tag_vinculos zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.servidor_tag_vinculos FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: servidor_tags zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.servidor_tags FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: servidores zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.servidores FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: solicitacoes_abono zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.solicitacoes_abono FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: solicitacoes_ajuste_ponto zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.solicitacoes_ajuste_ponto FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: tabela_inss zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.tabela_inss FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: tabela_irrf zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.tabela_irrf FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: tipos_abono zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.tipos_abono FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: viagens_diarias zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.viagens_diarias FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: vinculos_funcionais zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.vinculos_funcionais FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: vinculos_servidor zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.vinculos_servidor FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
 
 
 --
@@ -13393,6 +14471,12 @@ ALTER TABLE public.approval_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.atas_registro_preco ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: audit_colunas_sensiveis; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.audit_colunas_sensiveis ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: audit_log_licitacoes; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -13409,6 +14493,13 @@ ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY audit_logs_insert_owner ON public.audit_logs FOR INSERT TO postgres WITH CHECK (true);
+
+
+--
+-- Name: audit_logs audit_logs_rh_auditoria_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY audit_logs_rh_auditoria_select ON public.audit_logs FOR SELECT TO authenticated USING ((((module_name)::text = 'rh'::text) AND public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.auditoria.visualizar'::text)));
 
 
 --
@@ -15396,6 +16487,13 @@ CREATE POLICY rls_delete ON public.approval_requests FOR DELETE TO authenticated
 
 
 --
+-- Name: audit_colunas_sensiveis rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.audit_colunas_sensiveis FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
 -- Name: avaliacoes_controle rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -16790,6 +17888,13 @@ CREATE POLICY rls_insert ON public.approval_delegations FOR INSERT TO authentica
 --
 
 CREATE POLICY rls_insert ON public.approval_requests FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: audit_colunas_sensiveis rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.audit_colunas_sensiveis FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
 
 
 --
@@ -18189,6 +19294,13 @@ CREATE POLICY rls_select ON public.approval_delegations FOR SELECT TO authentica
 --
 
 CREATE POLICY rls_select ON public.approval_requests FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: audit_colunas_sensiveis rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.audit_colunas_sensiveis FOR SELECT TO authenticated USING (public.is_active_user());
 
 
 --
@@ -19653,6 +20765,13 @@ CREATE POLICY rls_update ON public.approval_delegations FOR UPDATE TO authentica
 --
 
 CREATE POLICY rls_update ON public.approval_requests FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: audit_colunas_sensiveis rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.audit_colunas_sensiveis FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
 
 
 --
