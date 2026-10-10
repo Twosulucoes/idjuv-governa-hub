@@ -121,6 +121,16 @@ Contratos → Financeiro → Folha → RH (depois do PR #35) → Admin → demai
   programas. Telas públicas (solicitação e protocolo da ASCOM, cadastro de federação, eventos)
   ficam para a Fase 5.
 
+- **Admin**: painel, ajuda, auditoria, backup, disaster recovery, esquema do banco, relatórios,
+  importações, usuários (gestão, detalhe, técnicos), perfis, permissões, controle de acesso,
+  módulos, central de aprovações, reuniões e check-in, documentos, links úteis, menu do site,
+  páginas públicas, campos do pré-cadastro, envios e calibrador SEGAD. Só apresentação nas telas
+  de acesso: nenhuma checagem de permissão ou chamada mudou (revisão de segurança sem achados).
+  `KpiCard` ganhou `detalhe` (texto secundário fora do número). Pendências: h1 do `TopBarMobile`
+  duplica o do `PageHeader` em telas com `AdminLayout`; o `DataTable` não volta à página 1 quando
+  filtros externos mudam; nome do bucket de backup fixo no código e na Edge Function; o dump de
+  schema importado com `?url` vai para o build público.
+
 ## Fase 5 — Portal público e PWA
 
 - Portal: corpo 16px, alvos 44px, skip-link, linguagem simples, contraste AA; serif opcional por

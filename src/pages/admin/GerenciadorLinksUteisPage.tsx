@@ -6,20 +6,12 @@
 
 import { useState } from "react";
 import { ModuleLayout } from "@/components/layout/ModuleLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DataTable, PageHeader, type ColunaTabela } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -93,97 +85,108 @@ export default function GerenciadorLinksUteisPage() {
   const salvando = createLink.isPending || updateLink.isPending;
   const formValido = form.titulo.trim().length > 0 && form.url.trim().length > 0;
 
-  return (
-    <ModuleLayout module="admin" title="Links Úteis">
-      <div className="container py-6 space-y-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Link2 className="h-6 w-6 text-primary" />
-              Links Úteis
-            </h1>
-            <p className="text-muted-foreground">
-              Cadastre e administre os links exibidos na página pública de Links Úteis
-            </p>
-          </div>
-          <Button onClick={abrirNovo}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo link
-          </Button>
-        </div>
+  const colunas: ColunaTabela<LinkUtil>[] = [
+    {
+      id: "ordem",
+      cabecalho: "Ordem",
+      celula: (link) => <span className="text-muted-foreground">{link.ordem}</span>,
+      ordenarPor: (link) => link.ordem,
+      className: "w-16",
+    },
+    {
+      id: "titulo",
+      cabecalho: "Título",
+      celula: (link) => <span className="font-medium">{link.titulo}</span>,
+      ordenarPor: (link) => link.titulo,
+      buscarPor: (link) => link.titulo,
+      mobile: "titulo",
+    },
+    {
+      id: "url",
+      cabecalho: "URL",
+      celula: (link) => (
+        <a
+          href={link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary hover:underline inline-flex max-w-[280px] items-center gap-1"
+        >
+          <span className="truncate">{link.url}</span>
+          <ExternalLink className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+          <span className="sr-only">(abre em nova aba)</span>
+        </a>
+      ),
+      buscarPor: (link) => link.url,
+    },
+    {
+      id: "visivel",
+      cabecalho: "Visível",
+      celula: (link) => (
+        <Switch
+          checked={link.ativo}
+          disabled={toggleAtivo.isPending}
+          aria-label={`Exibir "${link.titulo}" no site`}
+          onCheckedChange={(checked) =>
+            toggleAtivo.mutate({ id: link.id, ativo: checked })
+          }
+        />
+      ),
+      ordenarPor: (link) => (link.ativo ? 1 : 0),
+      alinhamento: "centro",
+    },
+  ];
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Links cadastrados</CardTitle>
-            <CardDescription>
-              Links desligados não aparecem no site, mas continuam salvos aqui
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : links.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                Nenhum link cadastrado ainda. Clique em "Novo link" para começar.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-16">Ordem</TableHead>
-                    <TableHead>Título</TableHead>
-                    <TableHead className="hidden md:table-cell">URL</TableHead>
-                    <TableHead className="w-24 text-center">Visível</TableHead>
-                    <TableHead className="w-28 text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {links.map((link) => (
-                    <TableRow key={link.id}>
-                      <TableCell className="text-muted-foreground">{link.ordem}</TableCell>
-                      <TableCell className="font-medium">{link.titulo}</TableCell>
-                      <TableCell className="hidden md:table-cell max-w-[280px] truncate">
-                        <a
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline inline-flex items-center gap-1"
-                        >
-                          <span className="truncate">{link.url}</span>
-                          <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                        </a>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Switch
-                          checked={link.ativo}
-                          disabled={toggleAtivo.isPending}
-                          onCheckedChange={(checked) =>
-                            toggleAtivo.mutate({ id: link.id, ativo: checked })
-                          }
-                        />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => abrirEdicao(link)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive"
-                          onClick={() => setAExcluir(link)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+  return (
+    <ModuleLayout module="admin">
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Links úteis" }]}
+          titulo="Links úteis"
+          descricao="Cadastre e administre os links exibidos na página pública de links úteis. Links desligados não aparecem no site, mas continuam salvos aqui."
+          acoes={
+            <Button onClick={abrirNovo}>
+              <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+              Novo link
+            </Button>
+          }
+        />
+
+        <DataTable
+          rotulo="Links cadastrados"
+          dados={links}
+          colunas={colunas}
+          chaveLinha={(link) => link.id}
+          carregando={isLoading}
+          busca={{ placeholder: "Buscar por título ou URL..." }}
+          vazio={{
+            icone: Link2,
+            titulo: "Nenhum link cadastrado ainda",
+            descricao: 'Clique em "Novo link" para começar.',
+          }}
+          acoesLinha={(link) => (
+            <div className="flex justify-end gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => abrirEdicao(link)}
+                aria-label={`Editar link ${link.titulo}`}
+                title="Editar"
+              >
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-destructive"
+                onClick={() => setAExcluir(link)}
+                aria-label={`Excluir link ${link.titulo}`}
+                title="Excluir"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+          )}
+        />
       </div>
 
       {/* Dialog criar/editar */}
@@ -239,7 +242,7 @@ export default function GerenciadorLinksUteisPage() {
               Cancelar
             </Button>
             <Button onClick={salvar} disabled={!formValido || salvando}>
-              {salvando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {salvando && <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />}
               Salvar
             </Button>
           </DialogFooter>

@@ -9,7 +9,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   FileText,
   Search,
@@ -31,7 +31,6 @@ import {
   ChevronRight,
   Filter,
   MapPin,
-  BarChart3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -48,6 +47,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { EmptyState, PageHeader } from '@/components/design-system';
 
 // ================================
 // TIPOS
@@ -77,16 +77,16 @@ type ModuloRelatorio =
   | 'ascom';
 
 const MODULO_CONFIG: Record<ModuloRelatorio, { label: string; icon: React.ElementType; cor: string }> = {
-  rh: { label: 'Recursos Humanos', icon: Users, cor: 'bg-blue-500/10 text-blue-600 border-blue-200' },
-  governanca: { label: 'Governança', icon: Scale, cor: 'bg-purple-500/10 text-purple-600 border-purple-200' },
-  transparencia: { label: 'Transparência', icon: Eye, cor: 'bg-emerald-500/10 text-emerald-600 border-emerald-200' },
-  compras: { label: 'Compras e Contratos', icon: ShoppingCart, cor: 'bg-orange-500/10 text-orange-600 border-orange-200' },
-  patrimonio: { label: 'Patrimônio', icon: Package, cor: 'bg-amber-500/10 text-amber-600 border-amber-200' },
-  orcamento: { label: 'Orçamento', icon: Wallet, cor: 'bg-teal-500/10 text-teal-600 border-teal-200' },
-  federacoes: { label: 'Federações', icon: Trophy, cor: 'bg-red-500/10 text-red-600 border-red-200' },
-  unidades: { label: 'Unidades Locais', icon: MapPin, cor: 'bg-indigo-500/10 text-indigo-600 border-indigo-200' },
-  admin: { label: 'Administração', icon: Settings, cor: 'bg-slate-500/10 text-slate-600 border-slate-200' },
-  ascom: { label: 'Comunicação', icon: Megaphone, cor: 'bg-pink-500/10 text-pink-600 border-pink-200' },
+  rh: { label: 'Recursos Humanos', icon: Users, cor: 'bg-primary/10 text-primary border-primary/20' },
+  governanca: { label: 'Governança', icon: Scale, cor: 'bg-accent/15 text-accent border-accent/30' },
+  transparencia: { label: 'Transparência', icon: Eye, cor: 'bg-success/15 text-success border-success/30' },
+  compras: { label: 'Compras e Contratos', icon: ShoppingCart, cor: 'bg-warning/15 text-warning border-warning/30' },
+  patrimonio: { label: 'Patrimônio', icon: Package, cor: 'bg-warning/15 text-warning border-warning/30' },
+  orcamento: { label: 'Orçamento', icon: Wallet, cor: 'bg-info/15 text-info border-info/30' },
+  federacoes: { label: 'Federações', icon: Trophy, cor: 'bg-destructive/10 text-destructive border-destructive/30' },
+  unidades: { label: 'Unidades Locais', icon: MapPin, cor: 'bg-info/15 text-info border-info/30' },
+  admin: { label: 'Administração', icon: Settings, cor: 'bg-muted text-muted-foreground border-border' },
+  ascom: { label: 'Comunicação', icon: Megaphone, cor: 'bg-secondary/15 text-secondary border-secondary/30' },
 };
 
 // ================================
@@ -456,7 +456,6 @@ const CATALOGO_RELATORIOS: RelatorioItem[] = [
 // ================================
 
 export default function CentralRelatoriosPage() {
-  const navigate = useNavigate();
   const { hasPermission, isSuperAdmin } = useAuth();
   const [busca, setBusca] = useState('');
   const [moduloFiltro, setModuloFiltro] = useState<ModuloRelatorio | 'todos'>('todos');
@@ -509,49 +508,43 @@ export default function CentralRelatoriosPage() {
   // Módulos com relatórios
   const modulosAtivos = Object.keys(relatoriosPorModulo) as ModuloRelatorio[];
 
-  const handleNavegar = (rota: string) => {
-    navigate(rota);
-  };
-
   return (
     <ModuleLayout module="admin">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <BarChart3 className="h-6 w-6 text-primary" />
-              Central de Relatórios
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Acesso rápido a todos os relatórios do sistema
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-sm">
-              {relatoriosFiltrados.length} relatório(s)
-            </Badge>
-            <div className="flex border rounded-md">
-              <Button
-                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="px-2"
-                onClick={() => setViewMode('grid')}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="px-2"
-                onClick={() => setViewMode('list')}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+        <PageHeader
+          migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Central de relatórios" }]}
+          titulo="Central de relatórios"
+          descricao="Acesso rápido a todos os relatórios do sistema"
+          acoes={
+            <>
+              <Badge variant="outline" className="text-sm" aria-live="polite">
+                {relatoriosFiltrados.length} relatório(s)
+              </Badge>
+              <div className="flex border rounded-md" role="group" aria-label="Modo de exibição">
+                <Button
+                  variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="px-2"
+                  aria-label="Exibir em grade"
+                  aria-pressed={viewMode === 'grid'}
+                  onClick={() => setViewMode('grid')}
+                >
+                  <LayoutGrid className="h-4 w-4" aria-hidden="true" />
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="px-2"
+                  aria-label="Exibir em lista"
+                  aria-pressed={viewMode === 'list'}
+                  onClick={() => setViewMode('list')}
+                >
+                  <List className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </div>
+            </>
+          }
+        />
 
         {/* Filtros */}
         <Card>
@@ -559,8 +552,9 @@ export default function CentralRelatoriosPage() {
             <div className="flex flex-col sm:flex-row gap-4">
               {/* Busca */}
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 <Input
+                  aria-label="Buscar relatórios"
                   placeholder="Buscar relatórios..."
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
@@ -574,7 +568,7 @@ export default function CentralRelatoriosPage() {
                 onValueChange={(v) => setModuloFiltro(v as ModuloRelatorio | 'todos')}
                 className="w-full sm:w-auto"
               >
-                <TabsList className="flex-wrap h-auto gap-1">
+                <TabsList className="flex-wrap h-auto gap-1" aria-label="Filtrar por módulo">
                   <TabsTrigger value="todos" className="text-xs">
                     Todos
                   </TabsTrigger>
@@ -603,13 +597,11 @@ export default function CentralRelatoriosPage() {
         <ScrollArea className="h-[calc(100vh-320px)]">
           {relatoriosFiltrados.length === 0 ? (
             <Card>
-              <CardContent className="p-12 text-center">
-                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="font-medium text-lg">Nenhum relatório encontrado</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Tente ajustar os filtros ou a busca
-                </p>
-              </CardContent>
+              <EmptyState
+                icone={FileText}
+                titulo="Nenhum relatório encontrado"
+                descricao="Tente ajustar os filtros ou a busca"
+              />
             </Card>
           ) : viewMode === 'grid' ? (
             // View Grid (por módulo)
@@ -623,33 +615,35 @@ export default function CentralRelatoriosPage() {
                   <div key={modulo}>
                     <div className="flex items-center gap-2 mb-3">
                       <div className={cn('p-1.5 rounded-md border', config.cor)}>
-                        <ModuloIcon className="h-4 w-4" />
+                        <ModuloIcon className="h-4 w-4" aria-hidden="true" />
                       </div>
-                      <h2 className="font-semibold">{config.label}</h2>
-                      <Badge variant="secondary" className="text-xs">
+                      <h2 className="text-h3 text-foreground">{config.label}</h2>
+                      <Badge variant="secondary" className="text-caption">
                         {relatorios.length}
                       </Badge>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       {relatorios.map((rel) => (
-                        <Card
+                        <Link
                           key={rel.id}
-                          className="cursor-pointer hover:shadow-md hover:border-primary/50 transition-all group"
-                          onClick={() => handleNavegar(rel.rota)}
+                          to={rel.rota}
+                          className="group block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                         >
-                          <CardHeader className="p-4 pb-2">
-                            <CardTitle className="text-sm flex items-center justify-between">
-                              <span className="truncate">{rel.nome}</span>
-                              <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="p-4 pt-0">
-                            <CardDescription className="text-xs line-clamp-2">
-                              {rel.descricao}
-                            </CardDescription>
-                          </CardContent>
-                        </Card>
+                          <Card className="h-full hover:shadow-md hover:border-primary/50 transition-all">
+                            <CardHeader className="p-4 pb-2">
+                              <CardTitle className="text-sm flex items-center justify-between">
+                                <span className="truncate">{rel.nome}</span>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" aria-hidden="true" />
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-4 pt-0">
+                              <CardDescription className="text-caption line-clamp-2">
+                                {rel.descricao}
+                              </CardDescription>
+                            </CardContent>
+                          </Card>
+                        </Link>
                       ))}
                     </div>
                   </div>
@@ -669,10 +663,10 @@ export default function CentralRelatoriosPage() {
                     <AccordionTrigger className="hover:no-underline py-3">
                       <div className="flex items-center gap-3">
                         <div className={cn('p-1.5 rounded-md border', config.cor)}>
-                          <ModuloIcon className="h-4 w-4" />
+                          <ModuloIcon className="h-4 w-4" aria-hidden="true" />
                         </div>
                         <span className="font-medium">{config.label}</span>
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-caption">
                           {relatorios.length}
                         </Badge>
                       </div>
@@ -680,17 +674,17 @@ export default function CentralRelatoriosPage() {
                     <AccordionContent>
                       <div className="space-y-1 pb-2">
                         {relatorios.map((rel) => (
-                          <button
+                          <Link
                             key={rel.id}
-                            className="w-full flex items-center justify-between p-3 rounded-md hover:bg-muted transition-colors text-left group"
-                            onClick={() => handleNavegar(rel.rota)}
+                            to={rel.rota}
+                            className="w-full flex items-center justify-between p-3 rounded-md hover:bg-muted transition-colors text-left group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           >
                             <div className="min-w-0">
                               <p className="font-medium text-sm truncate">{rel.nome}</p>
                               <p className="text-xs text-muted-foreground truncate">{rel.descricao}</p>
                             </div>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0 ml-2" />
-                          </button>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0 ml-2" aria-hidden="true" />
+                          </Link>
                         ))}
                       </div>
                     </AccordionContent>

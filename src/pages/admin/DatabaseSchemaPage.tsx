@@ -3,7 +3,9 @@ import { ModuleLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { badgeVariants } from '@/components/ui/badge';
+import { EmptyState, KpiCard, PageHeader } from '@/components/design-system';
+import { cn } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -17,7 +19,6 @@ import {
   AlertTriangle, 
   BarChart3,
   RefreshCw,
-  Loader2,
   Zap,
   Clock,
 } from 'lucide-react';
@@ -48,11 +49,34 @@ export default function DatabaseSchemaPage() {
 
   const selectedTableData = data?.tables.find(t => t.name === selectedTable) || null;
 
+  const cabecalho = (
+    <PageHeader
+      migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Banco de dados" }]}
+      titulo="Banco de dados"
+      descricao="Estrutura, relacionamentos e diagnóstico das tabelas do sistema"
+      acoes={
+        data ? (
+          <Button variant="outline" onClick={() => refetch()}>
+            <RefreshCw className="h-4 w-4 mr-2" aria-hidden="true" />
+            Atualizar
+          </Button>
+        ) : undefined
+      }
+    />
+  );
+
   if (isLoading) {
     return (
       <ModuleLayout module="admin">
-        <div className="flex items-center justify-center h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="space-y-6">
+          {cabecalho}
+          <ul className="grid grid-cols-2 md:grid-cols-4 gap-4" aria-busy="true" aria-label="Carregando indicadores">
+            {['Total de tabelas', 'Tabelas vazias', 'Relacionamentos', 'Alertas'].map((rotulo) => (
+              <li key={rotulo}>
+                <KpiCard rotulo={rotulo} valor="" carregando />
+              </li>
+            ))}
+          </ul>
         </div>
       </ModuleLayout>
     );
@@ -61,16 +85,21 @@ export default function DatabaseSchemaPage() {
   if (isError || !data) {
     return (
       <ModuleLayout module="admin">
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center h-[400px] gap-4">
-            <AlertTriangle className="h-12 w-12 text-destructive" />
-            <p className="text-muted-foreground">Não foi possível carregar as informações do banco.</p>
-            <Button onClick={() => refetch()}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Tentar novamente
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          {cabecalho}
+          <Card>
+            <EmptyState
+              icone={AlertTriangle}
+              titulo="Não foi possível carregar as informações do banco."
+              acao={
+                <Button onClick={() => refetch()}>
+                  <RefreshCw className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Tentar novamente
+                </Button>
+              }
+            />
+          </Card>
+        </div>
       </ModuleLayout>
     );
   }
@@ -81,104 +110,86 @@ export default function DatabaseSchemaPage() {
   return (
     <ModuleLayout module="admin">
       <div className="space-y-6">
+        {cabecalho}
+
         {/* Indicador de Descoberta Automática */}
         {discoveryInfo?.mode === 'automatic' && (
-          <div className="flex items-center gap-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-            <Zap className="h-5 w-5 text-emerald-500" />
+          <div className="flex items-center gap-3 p-3 bg-success/10 border border-success/20 rounded-lg">
+            <Zap className="h-5 w-5 text-success" aria-hidden="true" />
             <div className="flex-1">
               <p className="text-sm font-medium text-foreground">
-                Descoberta Automática Ativa
+                Descoberta automática ativa
               </p>
               <p className="text-xs text-muted-foreground">
                 Novas tabelas são detectadas automaticamente via catálogo PostgreSQL
               </p>
             </div>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock className="h-3 w-3" />
+              <Clock className="h-3 w-3" aria-hidden="true" />
               {discoveryInfo.discoveredAt && format(new Date(discoveryInfo.discoveredAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
             </div>
           </div>
         )}
 
         {/* Cards de Resumo */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center gap-1">
-                <Database className="h-4 w-4" />
-                Total de Tabelas
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{data.stats.totalTables}</div>
-              <p className="text-xs text-muted-foreground">
-                {data.stats.tablesWithData} com dados
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center gap-1">
-                <Database className="h-4 w-4 text-amber-500" />
-                Tabelas Vazias
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-amber-500">
-                {data.stats.emptyTables}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {Math.round((data.stats.emptyTables / data.stats.totalTables) * 100)}% do total
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center gap-1">
-                <Link2 className="h-4 w-4" />
-                Relacionamentos
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{data.stats.totalRelationships}</div>
-              <p className="text-xs text-muted-foreground">
-                {data.stats.implicitRelationships} implícitos
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center gap-1">
-                <AlertTriangle className="h-4 w-4 text-destructive" />
-                Alertas
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-destructive">
-                {data.diagnostics.filter(d => d.type === 'error' || d.type === 'warning').length}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {data.diagnostics.filter(d => d.type === 'error').length} críticos
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        <section aria-labelledby="banco-indicadores">
+          <h2 id="banco-indicadores" className="sr-only">Indicadores</h2>
+          <ul className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <li>
+              <KpiCard
+                rotulo="Total de tabelas"
+                icone={Database}
+                className="h-full"
+                valor={data.stats.totalTables}
+                detalhe={`${data.stats.tablesWithData} com dados`}
+              />
+            </li>
+            <li>
+              <KpiCard
+                rotulo="Tabelas vazias"
+                icone={Database}
+                className="h-full"
+                valor={data.stats.emptyTables}
+                detalhe={`${Math.round((data.stats.emptyTables / data.stats.totalTables) * 100)}% do total`}
+              />
+            </li>
+            <li>
+              <KpiCard
+                rotulo="Relacionamentos"
+                icone={Link2}
+                className="h-full"
+                valor={data.stats.totalRelationships}
+                detalhe={`${data.stats.implicitRelationships} implícitos`}
+              />
+            </li>
+            <li>
+              <KpiCard
+                rotulo="Alertas"
+                icone={AlertTriangle}
+                className="h-full"
+                valor={data.diagnostics.filter(d => d.type === 'error' || d.type === 'warning').length}
+                detalhe={`${data.diagnostics.filter(d => d.type === 'error').length} críticos`}
+              />
+            </li>
+          </ul>
+        </section>
 
         {/* Categorias por cor */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Distribuição por Categoria</CardTitle>
+            <CardTitle className="text-h3">Distribuição por categoria</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por categoria">
               {categories.map(cat => (
-                <Badge
+                <button
                   key={cat}
-                  variant="outline"
-                  className="cursor-pointer transition-all hover:scale-105"
+                  type="button"
+                  aria-pressed={selectedCategory === cat}
+                  className={cn(
+                    badgeVariants({ variant: 'outline' }),
+                    'cursor-pointer transition-all hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                  )}
                   style={{
                     borderColor: CATEGORY_COLORS[cat],
                     backgroundColor: selectedCategory === cat 
@@ -192,9 +203,10 @@ export default function DatabaseSchemaPage() {
                   <span 
                     className="w-2 h-2 rounded-full mr-2" 
                     style={{ backgroundColor: CATEGORY_COLORS[cat] }}
+                    aria-hidden="true"
                   />
                   {cat} ({data.stats.categoryCounts[cat]})
-                </Badge>
+                </button>
               ))}
               {selectedCategory && (
                 <Button
@@ -215,27 +227,22 @@ export default function DatabaseSchemaPage() {
           <div className="flex items-center justify-between">
             <TabsList>
               <TabsTrigger value="diagram" className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" />
+                <BarChart3 className="h-4 w-4" aria-hidden="true" />
                 Diagrama
               </TabsTrigger>
               <TabsTrigger value="tables" className="flex items-center gap-2">
-                <Database className="h-4 w-4" />
+                <Database className="h-4 w-4" aria-hidden="true" />
                 Tabelas
               </TabsTrigger>
               <TabsTrigger value="relationships" className="flex items-center gap-2">
-                <Link2 className="h-4 w-4" />
+                <Link2 className="h-4 w-4" aria-hidden="true" />
                 Relacionamentos
               </TabsTrigger>
               <TabsTrigger value="diagnostics" className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                 Diagnóstico
               </TabsTrigger>
             </TabsList>
-
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Atualizar
-            </Button>
           </div>
 
           <TabsContent value="diagram" className="mt-4">
@@ -243,7 +250,7 @@ export default function DatabaseSchemaPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Diagrama de Relacionamentos</CardTitle>
+                    <CardTitle>Diagrama de relacionamentos</CardTitle>
                     <CardDescription>
                       Visualização interativa das tabelas e suas conexões
                     </CardDescription>
@@ -252,7 +259,7 @@ export default function DatabaseSchemaPage() {
                     value={selectedCategory || 'all'}
                     onValueChange={(v) => setSelectedCategory(v === 'all' ? null : v)}
                   >
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[180px]" aria-label="Filtrar categoria">
                       <SelectValue placeholder="Filtrar categoria" />
                     </SelectTrigger>
                     <SelectContent>
@@ -278,7 +285,7 @@ export default function DatabaseSchemaPage() {
           <TabsContent value="tables" className="mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>Lista de Tabelas</CardTitle>
+                <CardTitle>Lista de tabelas</CardTitle>
                 <CardDescription>
                   Todas as tabelas do banco com informações detalhadas
                 </CardDescription>
@@ -295,7 +302,7 @@ export default function DatabaseSchemaPage() {
           <TabsContent value="relationships" className="mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>Relacionamentos Detectados</CardTitle>
+                <CardTitle>Relacionamentos detectados</CardTitle>
                 <CardDescription>
                   Conexões entre tabelas (implícitas e explícitas)
                 </CardDescription>
