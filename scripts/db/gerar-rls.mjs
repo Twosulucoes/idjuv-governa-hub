@@ -17,6 +17,12 @@
  *   proprio          idem, e o próprio servidor também pode INSERIR (pedidos/requerimentos).
  *   proprio_filho    como proprio_leitura, mas a posse vem da tabela pai: extra=pai=<tabela>.<fk>;
  *                    com `;insere` o servidor também pode INSERIR registros ligados a pai seu.
+ *   permissao        leitura por módulo (como modulo); ESCRITA só com permissão granular:
+ *                    extra=escrita=<código>[;proprio|;pai=<tabela>.<fk>]. INSERT/UPDATE/DELETE exigem
+ *                    has_permission_code(auth.uid(), '<código>') (já dá passagem ao papel admin e exige
+ *                    perfil ativo). O sufixo muda só o SELECT: `;proprio` = o próprio servidor também lê
+ *                    (servidor_id = meu_servidor_id(), como proprio_leitura); `;pai=` = posse pela tabela
+ *                    pai (como proprio_filho). Ex.: folha (financeiro.folha.processar|configurar).
  *   catalogo_admin   SELECT para qualquer usuário ativo; escrita só do papel admin (catálogos de permissão,
  *                    configuração de módulos, dados oficiais: o app os lê no login/rodapé, mas só admin altera).
  *   proprio_user     dado de configuração por usuário: extra=coluna=<col_do_usuario>; o próprio usuário (ativo)
@@ -42,7 +48,7 @@ const ENTRADA = resolve(raiz, "supabase/baseline/rls/mapa.csv");
 const SAIDA = resolve(raiz, "supabase/baseline/rls/35_policies_geradas.sql");
 const CLASSES = new Set([
   "modulo", "catalogo", "catalogo_admin", "proprio_leitura", "proprio", "proprio_filho", "proprio_user",
-  "trilha", "admin", "admin_leitura", "publico_admin", "preservar", "fechada",
+  "permissao", "trilha", "admin", "admin_leitura", "publico_admin", "preservar", "fechada",
 ]);
 const MODULOS = new Set([
   "rh", "financeiro", "compras", "patrimonio", "contratos", "workflow", "governanca", "transparencia",
@@ -102,7 +108,7 @@ for (const r of dados) {
   vistas.add(t);
   if (!CLASSES.has(classe)) { erros.push(`${t}: classe desconhecida "${classe}"`); continue; }
   for (const m of mods) if (!MODULOS.has(m)) erros.push(`${t}: módulo "${m}" não existe em app_module`);
-  if (["modulo", "catalogo", "proprio_leitura", "proprio", "proprio_filho", "trilha"].includes(classe) && mods.length === 0)
+  if (["modulo", "catalogo", "proprio_leitura", "proprio", "proprio_filho", "permissao", "trilha"].includes(classe) && mods.length === 0)
     erros.push(`${t}: classe ${classe} exige ao menos um módulo`);
 
   const L = [`-- ${t}  [${classe}${mods.length ? ": " + mods.join(" | ") : ""}]`];
@@ -155,6 +161,21 @@ for (const r of dados) {
       else politica("rls_insert", "INSERT", null, M);
       politica("rls_update", "UPDATE", M, M);
       politica("rls_delete", "DELETE", M, null);
+      break;
+    }
+    case "permissao": {
+      // Código de permissão: segmentos minúsculos separados por ponto (ex.: financeiro.folha.processar).
+      const m = /^escrita=([a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+)(?:;(proprio)|;pai=([a-z_][a-z0-9_]*)\.([a-z_][a-z0-9_]*))?$/.exec(extra);
+      if (!m) { erros.push(`${t}: extra deve ser escrita=<código>[;proprio|;pai=<tabela_pai>.<coluna_fk>]`); break; }
+      const [, codigo, proprio, pai, fk] = m;
+      const P = `public.has_permission_code(auth.uid(), ${q(codigo)})`;
+      let leitura = M;
+      if (proprio) leitura = `${M} OR servidor_id = public.meu_servidor_id()`;
+      else if (pai) leitura = `${M} OR EXISTS (SELECT 1 FROM public.${pai} p WHERE p.id = ${t}.${fk} AND p.servidor_id = public.meu_servidor_id())`;
+      politica("rls_select", "SELECT", leitura, null);
+      politica("rls_insert", "INSERT", null, P);
+      politica("rls_update", "UPDATE", P, P);
+      politica("rls_delete", "DELETE", P, null);
       break;
     }
     case "catalogo_admin": {
