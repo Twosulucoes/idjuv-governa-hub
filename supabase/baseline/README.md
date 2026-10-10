@@ -36,7 +36,7 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 | 5 | `overlay/12_protecao_profiles.sql` | trigger: quem não é admin não muda `is_active`, `servidor_id`, bloqueio, tipo, CPF, e-mail; policies de `profiles` sem duplicatas | à mão |
 | 6 | `overlay/15_novo_usuario.sql` | `handle_new_user` (antes quebrava o cadastro) + trigger em `auth.users` | à mão |
 | 7 | `overlay/18_funcoes_rpc.sql` | `fn_gerar_numero_financeiro` com lista fechada (injeção de SQL); RPCs de leitura com dado pessoal viram `SECURITY INVOKER`; `obter_parametro_*` não vazam valor individual; `sync_usuario_servidor_status` não reativa administrador; trigger de fechamento de folha; correção da auditoria de folha/parâmetros (`entity_id` uuid); `log_audit` recusa usuário inativo | à mão |
-| 8 | `overlay/20_campos_iniciais.sql` | triggers: formulários públicos e pedidos do servidor não escolhem `status`, aprovação, autoria; links do formulário de árbitros só do próprio bucket | à mão |
+| 8 | `overlay/20_campos_iniciais.sql` | triggers: formulários públicos e pedidos do servidor não escolhem `status`, aprovação, autoria (nos pedidos do RH a isenção é por permissão, formato `perm:`, e nunca no próprio pedido); links do formulário de árbitros só do próprio bucket | à mão |
 | 9 | `overlay/30_remover_acesso_total.sql` | apaga as policies `acesso_total_*` e a tabela morta `_backup_usuario_modulos_old` | à mão |
 | 10 | `rls/35_policies_geradas.sql` | policies por módulo, **falha fechada** | **gerado** de `rls/mapa.csv` |
 | 11 | `overlay/40_privilegios.sql` | `anon` só com as exceções públicas; sem EXECUTE para PUBLIC em função nova; sem TRUNCATE/TRIGGER; `audit_logs` só-acréscimo; RPCs que escrevem fechadas | à mão |
@@ -57,11 +57,11 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas
 
 | Classe | Tabelas | Regra |
 |---|---|---|
-| `modulo` | 172 | módulo(s) do mapa leem e escrevem; admin (papel) também |
-| `permissao` | 10 | módulo lê (com `;proprio`/`;pai=` o servidor lê o seu, como `proprio_leitura`/`proprio_filho`; com `;filho=<tabela>.<fk>` lê a linha que tem uma filha sua — a folha em que tem ficha); **escreve só quem tem o módulo E a permissão granular** do `extra` (`escrita=<código>`, via `can_access_module` + `has_permission_code`; admin passa). Hoje: as 10 tabelas da folha — `financeiro.folha.processar` (folhas, fichas, itens, consignações, dependentes IRRF, lançamentos) e `financeiro.folha.configurar` (rubricas, parâmetros, tabelas INSS/IRRF); migração `supabase/migrations/20261010070000_onda_b_folha_rls_permissao.sql` carrega o mesmo SQL |
+| `modulo` | 166 | módulo(s) do mapa leem e escrevem; admin (papel) também |
+| `permissao` | 22 | módulo lê (com `;proprio`/`;pai=` o servidor lê o seu, como `proprio_leitura`/`proprio_filho`; com `;filho=<tabela>.<fk>` lê a linha que tem uma filha sua — a folha em que tem ficha); **escreve só quem tem o módulo E a permissão granular** do `extra` (via `can_access_module` + `has_permission_code`; admin passa). Hoje: as 10 tabelas da folha (B1, `financeiro.folha.processar\|configurar`; migração `20261010070000_onda_b_folha_rls_permissao.sql`) e 12 do RH (B2: férias, licenças, viagens, ponto, frequência, abono, ajuste, justificativa, fechamento, configuração do fechamento, banco de horas e lançamentos; migração `20261010090000_onda_b_rh_permissoes.sql`). As migrações carregam o mesmo SQL gerado |
 | `trilha` | 9 | módulo lê; **ninguém escreve por API** (auditoria e históricos gravados por trigger) |
-| `proprio_leitura` / `proprio` / `proprio_filho` | 11 / 3 / 2 | módulo + o próprio servidor lê; em `proprio*` o servidor também cria o próprio pedido (status/aprovação forçados pelo overlay 20) |
-| `catalogo` | 6 | qualquer usuário ativo lê; escrita por módulo |
+| `proprio_leitura` / `proprio` / `proprio_filho` | 8 / 1 / 0 | módulo + o próprio servidor lê; em `proprio*` o servidor também cria o próprio pedido (status/aprovação forçados pelo overlay 20). Desde a B2, `servidores` (posse pela coluna `id`, DELETE com `rh.servidores.excluir`), `vinculos_servidor` e `lotacoes` estão aqui; as tabelas do RH que estavam em `proprio`/`proprio_filho` passaram a `permissao` |
+| `catalogo` | 7 | qualquer usuário ativo lê; escrita por módulo (`cargos` entrou na B2) |
 | `catalogo_admin` | 5 | qualquer usuário ativo lê (o app lê no login); só o papel admin escreve |
 | `proprio_user` | 4 | cada usuário lê as suas linhas (`user_roles`, `user_modules`, `user_permissions`, `user_org_units`); só admin escreve |
 | `admin` / `admin_leitura` | 8 / 1 | só o papel admin (a segunda: lê, ninguém escreve — `audit_logs`) |
@@ -71,11 +71,35 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas
 - Toda tabela de `public` precisa de uma linha no mapa e de RLS ligado: o teste de RLS reprova
   tabela fora do mapa (o gerador não enxerga o banco; o teste sim). Tabela nova só passa depois
   que alguém decide o módulo dono.
-- Coluna `confianca` (apurado em 2026-10-09): `alta` (221), `media` (14), `baixa` (2). **Revise as 16 linhas não-altas**
-  (`confianca != alta`), principalmente `viagens_diarias`, `documentos`, `acesso_processo_sigiloso` e
+- Coluna `confianca` (apurado em 2026-10-10): `alta` (228), `media` (14), `baixa` (1). **Revise as 15 linhas não-altas**
+  (`confianca != alta`), principalmente `documentos`, `acesso_processo_sigiloso` e
   `config_institucional` (tem CPF e contato do responsável legal: só RH e financeiro leem).
 - Para mudar uma regra: edite `mapa.csv`, rode `node scripts/db/gerar-rls.mjs` e confirme com
   `scripts/db/validar-baseline.sh`. O gate (`npm run gate`) falha se o SQL gerado estiver defasado.
+
+### Formato da coluna `extra`
+
+Sufixos separados por `;`, em qualquer ordem, cada um no máximo uma vez (a saída não depende da ordem).
+O gerador recusa sufixo desconhecido, repetido ou com valor fora do formato. Referência completa no
+cabeçalho de `scripts/db/gerar-rls.mjs`.
+
+Classe `permissao`: `escrita=<c1>[|<c2>...][;<sufixo>]...`, com `escrita=` sempre primeiro.
+
+| Parte | Efeito |
+|---|---|
+| `escrita=a\|b\|c` | INSERT/UPDATE/DELETE exigem o módulo **e** qualquer um dos códigos (OR de `has_permission_code`); com um código só, a saída é a de antes |
+| `;proprio` | o próprio servidor também lê (`servidor_id = meu_servidor_id()`) |
+| `;pai=<tabela>.<fk>` | posse pela tabela pai (leitura do que é do servidor) |
+| `;filho=<tabela>.<fk>` | posse por uma tabela filha com `servidor_id` (ex.: a folha em que o servidor tem ficha) |
+| `;coluna=<col>` | coluna de posse de `;proprio` quando não é `servidor_id` |
+| `;excluir=<código>` | DELETE com o módulo **e** esse código, em vez da escrita |
+| `;excluir=admin` | DELETE só do papel admin |
+| `;insere_proprio` | o servidor também insere a linha que é dele (pedido); exige `;proprio` ou `;pai=` |
+| `;sem_autoaprovacao` | INSERT/UPDATE/DELETE pelo caminho da permissão exigem que a linha **não** seja do servidor logado (admin passa; usuário sem servidor vinculado também); exige `;proprio` ou `;pai=` |
+
+`;proprio`, `;pai=` e `;filho=` são excludentes (no máximo uma posse). Classe `proprio_leitura`: aceita
+`coluna=<col>` e `excluir=<código>|admin` (ex.: `servidores` usa `coluna=id;excluir=rh.servidores.excluir`).
+Exemplo (`solicitacoes_abono`): `escrita=rh.aprovar|rh.frequencia.lancar;proprio;insere_proprio;sem_autoaprovacao`.
 
 ## Verificação
 
@@ -97,6 +121,12 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
 - folha: `processar_folha_pagamento` deve ser executável por `authenticated` **e** ter guarda
   `has_permission_code` no corpo (não por `anon`); UPDATE direto de `status` em `folhas_pagamento` barrado
   mesmo para quem processa; INSERT de ficha/item em folha fechada recusado (`42501`), exceto para admin;
+- sufixos da B2: persona por código da lista; `;insere_proprio` (o servidor sem módulo insere o próprio
+  pedido e não o de outro); `;sem_autoaprovacao` (com a permissão e dono da linha A, só alcança a linha B);
+  DELETE por outro código ou só admin;
+- RH (B2, triggers ligados): campos iniciais isentos por permissão e nunca no próprio pedido; etapas de
+  `validar_etapa_frequencia` no abono e no fechamento (`42501` com a etapa); a função de trigger não é
+  executável por `authenticated`;
 - a cobertura é exigida: tabela sem linha semente, fora do mapa ou sem RLS é **falha**;
 - storage: 10 buckets × 25 personas, upload anônimo só nas pastas do formulário, limite do bucket;
   `inventario-evidencias` (privado, 10 MB) só deixa sobrescrever ou apagar quem tem `patrimonio.tramitar`;
@@ -107,8 +137,10 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
 - RPCs: injeção de SQL, `SECURITY DEFINER` sem checagem fora de lista revisada, privilégios padrão,
   campos que o autor não pode escolher nos formulários.
 
-Último resultado: **aprovado**, 0 falhas, em PostgreSQL **15.18, 16.15 e 17.10** (o self-hosted da
-Supabase costuma rodar 15; o dump é gerado por `pg_dump` 16).
+Último resultado (2026-10-10, branch da B2): replay de **257 migrações com 0 falhas**;
+`validar-baseline.sh` **APROVADO** — RLS com 0 falhas em 4412 checagens sobre 234 tabelas e schema idêntico
+ao replay. Sem a migração `20261010090000_onda_b_rh_permissoes.sql`, o teste reprova com 102 falhas. Rodadas anteriores: aprovado em PostgreSQL **15.18, 16.15 e 17.10** (o
+self-hosted da Supabase costuma rodar 15; o dump é gerado por `pg_dump` 16).
 
 **Limite da validação:** roda em Postgres puro com um *shim* de `auth`/`storage`/papéis. Não exercita
 GoTrue, PostgREST, Storage API nem Realtime, e o `postgres` do shim não é o da imagem da Supabase
@@ -150,11 +182,11 @@ Decisões de negócio (o baseline escolheu o mais restritivo que mantém o app f
   `acesso_processo_sigiloso`; a migração de 20/02 apagou essas policies. No baseline, qualquer usuário do
   módulo `workflow` lê todos os processos, inclusive os sigilosos, e o bucket `documentos` não respeita
   sigilo. Falta uma classe `sigilo_processo` no gerador.
-- **Módulo `rh` amplo demais para saúde e folha.** A escrita na folha (`consignacoes`, `fichas_financeiras` e
-  as outras 8 tabelas da classe `permissao`) já exige `financeiro.folha.processar|configurar`; a **leitura**
-  continua para qualquer usuário com o módulo `rh`, e `licencas_afastamentos` (CID), `pensoes_alimenticias` e
-  `remessas_bancarias` seguem abertas, para ler e escrever, a quem tem o módulo. Separar por
-  `has_permission_code` (Onda B2 do RH) exige confirmar com o RH.
+- **Módulo `rh` amplo demais para saúde e folha.** A escrita na folha (B1) e em férias, licenças, viagens e
+  frequência (B2) já exige o código do catálogo; a **leitura** continua para qualquer usuário com o módulo
+  `rh`, inclusive o CID de `licencas_afastamentos`. `pensoes_alimenticias` e `remessas_bancarias` seguem
+  abertas, para ler e escrever, a quem tem o módulo. O padrão da B2 ("só com permissão": quem tem o módulo
+  sem o código deixa de gravar) ainda precisa da confirmação do RH.
 - **`role_permissions` dá permissões `admin.*` ao papel `user`.** Quem tem o módulo `admin` passa a ter
   `admin.usuarios`. As Edge Functions `admin-create-user`, `admin-reset-password` e `delete-user` agora exigem o
   **papel** admin (`is_admin_user`), porque `admin-create-user` devolvia o UUID de qualquer e-mail e reativava o
@@ -187,6 +219,10 @@ Limites conhecidos:
   `schema/03_post_data.sql` já trazem a guarda da RPC, os triggers `trg_bloquear_insercao_*`, o índice
   `itens_ficha_financeira_ficha_referencia_desconto_uidx`, os triggers de auditoria da folha e o catálogo com
   `financeiro.folha.*` em `module_code = 'rh'`.
+- **Migração `20261010090000` (B2) × overlays.** Ela carrega o SQL gerado das 16 tabelas do RH, o trigger
+  `validar_etapa_frequencia` e `forcar_campos_iniciais` com o formato `perm:` (mesmo texto do overlay `20`, que
+  recebeu a mudança; o overlay `40` tira o EXECUTE de `authenticated` da função de trigger). No banco do
+  baseline só aperta a escrita; no replay cria a função e os triggers que faltavam.
 - Tabelas com fluxo de aprovação por RPC e UPDATE livre para o módulo: `folhas_pagamento` foi protegida (só quem
   pode fechar/reabrir muda o status), mas `conteudo_rascunho` (comunicação) ainda deixa o módulo marcar
   `status = 'publicado'` sem passar por `promover_rascunho`. Revise outras tabelas com `status` de aprovação.

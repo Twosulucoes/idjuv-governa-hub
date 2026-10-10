@@ -7188,7 +7188,7 @@ CREATE TRIGGER trg_forcar_campos_iniciais BEFORE INSERT ON public.solicitacoes_a
 -- Name: solicitacoes_ajuste_ponto trg_forcar_campos_iniciais; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_forcar_campos_iniciais BEFORE INSERT ON public.solicitacoes_ajuste_ponto FOR EACH ROW EXECUTE FUNCTION public.forcar_campos_iniciais('perm:rh:rh.aprovar|rh.frequencia.lancar', 'status=pendente', 'aprovador_id=NULL', 'data_aprovacao=NULL', 'observacao_aprovador=NULL', 'motivo_rejeicao=NULL', 'created_by=@uid');
+CREATE TRIGGER trg_forcar_campos_iniciais BEFORE INSERT ON public.solicitacoes_ajuste_ponto FOR EACH ROW EXECUTE FUNCTION public.forcar_campos_iniciais('perm:rh:rh.aprovar|rh.frequencia.lancar:usuario', 'status=pendente', 'aprovador_id=NULL', 'data_aprovacao=NULL', 'observacao_aprovador=NULL', 'motivo_rejeicao=NULL', 'created_by=@uid');
 
 
 --
@@ -20343,7 +20343,7 @@ ALTER TABLE public.riscos_institucionais ENABLE ROW LEVEL SECURITY;
 -- Name: banco_horas rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.banco_horas FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)));
+CREATE POLICY rls_delete ON public.banco_horas FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) AND (public.is_admin_user(auth.uid()) OR (servidor_id IS DISTINCT FROM auth.uid()))));
 
 
 --
@@ -20413,14 +20413,14 @@ CREATE POLICY rls_delete ON public.fotos_vistoria_inventario FOR DELETE TO authe
 -- Name: frequencia_fechamento rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.frequencia_fechamento FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (public.meu_servidor_id() IS NULL) OR (servidor_id IS DISTINCT FROM public.meu_servidor_id()))));
+CREATE POLICY rls_delete ON public.frequencia_fechamento FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --
 -- Name: frequencia_mensal rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.frequencia_mensal FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
+CREATE POLICY rls_delete ON public.frequencia_mensal FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --
@@ -20434,16 +20434,18 @@ CREATE POLICY rls_delete ON public.itens_ficha_financeira FOR DELETE TO authenti
 -- Name: justificativas_ponto rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.justificativas_ponto FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (public.meu_servidor_id() IS NULL) OR (( SELECT p.servidor_id
+CREATE POLICY rls_delete ON public.justificativas_ponto FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(( SELECT p.servidor_id
    FROM public.registros_ponto p
-  WHERE (p.id = justificativas_ponto.registro_ponto_id)) IS DISTINCT FROM public.meu_servidor_id()))));
+  WHERE (p.id = justificativas_ponto.registro_ponto_id)))))));
 
 
 --
 -- Name: lancamentos_banco_horas rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.lancamentos_banco_horas FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)));
+CREATE POLICY rls_delete ON public.lancamentos_banco_horas FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) AND (public.is_admin_user(auth.uid()) OR (( SELECT p.servidor_id
+   FROM public.banco_horas p
+  WHERE (p.id = lancamentos_banco_horas.banco_horas_id)) IS DISTINCT FROM auth.uid()))));
 
 
 --
@@ -20457,7 +20459,7 @@ CREATE POLICY rls_delete ON public.lancamentos_folha FOR DELETE TO authenticated
 -- Name: licencas_afastamentos rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.licencas_afastamentos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.licencas.gerenciar'::text)));
+CREATE POLICY rls_delete ON public.licencas_afastamentos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.licencas.gerenciar'::text) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --
@@ -20478,7 +20480,7 @@ CREATE POLICY rls_delete ON public.parametros_folha FOR DELETE TO authenticated 
 -- Name: registros_ponto rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.registros_ponto FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
+CREATE POLICY rls_delete ON public.registros_ponto FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --
@@ -20499,14 +20501,14 @@ CREATE POLICY rls_delete ON public.servidores FOR DELETE TO authenticated USING 
 -- Name: solicitacoes_abono rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.solicitacoes_abono FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (public.meu_servidor_id() IS NULL) OR (servidor_id IS DISTINCT FROM public.meu_servidor_id()))));
+CREATE POLICY rls_delete ON public.solicitacoes_abono FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --
 -- Name: solicitacoes_ajuste_ponto rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.solicitacoes_ajuste_ponto FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (public.meu_servidor_id() IS NULL) OR (servidor_id IS DISTINCT FROM public.meu_servidor_id()))));
+CREATE POLICY rls_delete ON public.solicitacoes_ajuste_ponto FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (servidor_id IS DISTINCT FROM auth.uid()))));
 
 
 --
@@ -20555,7 +20557,7 @@ CREATE POLICY rls_delete ON public.vinculos_servidor FOR DELETE TO authenticated
 -- Name: banco_horas rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.banco_horas FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)));
+CREATE POLICY rls_insert ON public.banco_horas FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) AND (public.is_admin_user(auth.uid()) OR (servidor_id IS DISTINCT FROM auth.uid()))));
 
 
 --
@@ -20597,7 +20599,7 @@ CREATE POLICY rls_insert ON public.dependentes_irrf FOR INSERT TO authenticated 
 -- Name: ferias_servidor rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.ferias_servidor FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.ferias.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.ferias.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.ferias.gerenciar'::text))));
+CREATE POLICY rls_insert ON public.ferias_servidor FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.ferias.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.ferias.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.ferias.gerenciar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --
@@ -20625,14 +20627,14 @@ CREATE POLICY rls_insert ON public.fotos_vistoria_inventario FOR INSERT TO authe
 -- Name: frequencia_fechamento rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.frequencia_fechamento FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (public.meu_servidor_id() IS NULL) OR (servidor_id IS DISTINCT FROM public.meu_servidor_id()))));
+CREATE POLICY rls_insert ON public.frequencia_fechamento FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --
 -- Name: frequencia_mensal rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.frequencia_mensal FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
+CREATE POLICY rls_insert ON public.frequencia_mensal FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --
@@ -20646,9 +20648,9 @@ CREATE POLICY rls_insert ON public.itens_ficha_financeira FOR INSERT TO authenti
 -- Name: justificativas_ponto rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.justificativas_ponto FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (public.meu_servidor_id() IS NULL) OR (( SELECT p.servidor_id
+CREATE POLICY rls_insert ON public.justificativas_ponto FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(( SELECT p.servidor_id
    FROM public.registros_ponto p
-  WHERE (p.id = justificativas_ponto.registro_ponto_id)) IS DISTINCT FROM public.meu_servidor_id()))) OR (EXISTS ( SELECT 1
+  WHERE (p.id = justificativas_ponto.registro_ponto_id)))))) OR (EXISTS ( SELECT 1
    FROM public.registros_ponto p
   WHERE ((p.id = justificativas_ponto.registro_ponto_id) AND (p.servidor_id = public.meu_servidor_id()))))));
 
@@ -20657,7 +20659,9 @@ CREATE POLICY rls_insert ON public.justificativas_ponto FOR INSERT TO authentica
 -- Name: lancamentos_banco_horas rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.lancamentos_banco_horas FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)));
+CREATE POLICY rls_insert ON public.lancamentos_banco_horas FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) AND (public.is_admin_user(auth.uid()) OR (( SELECT p.servidor_id
+   FROM public.banco_horas p
+  WHERE (p.id = lancamentos_banco_horas.banco_horas_id)) IS DISTINCT FROM auth.uid()))));
 
 
 --
@@ -20671,7 +20675,7 @@ CREATE POLICY rls_insert ON public.lancamentos_folha FOR INSERT TO authenticated
 -- Name: licencas_afastamentos rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.licencas_afastamentos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.licencas.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.licencas.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.licencas.gerenciar'::text))));
+CREATE POLICY rls_insert ON public.licencas_afastamentos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.licencas.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.licencas.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.licencas.gerenciar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --
@@ -20692,7 +20696,7 @@ CREATE POLICY rls_insert ON public.parametros_folha FOR INSERT TO authenticated 
 -- Name: registros_ponto rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.registros_ponto FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
+CREATE POLICY rls_insert ON public.registros_ponto FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --
@@ -20713,14 +20717,14 @@ CREATE POLICY rls_insert ON public.servidores FOR INSERT TO authenticated WITH C
 -- Name: solicitacoes_abono rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.solicitacoes_abono FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (public.meu_servidor_id() IS NULL) OR (servidor_id IS DISTINCT FROM public.meu_servidor_id()))) OR (servidor_id = public.meu_servidor_id())));
+CREATE POLICY rls_insert ON public.solicitacoes_abono FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))) OR (servidor_id = public.meu_servidor_id())));
 
 
 --
 -- Name: solicitacoes_ajuste_ponto rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.solicitacoes_ajuste_ponto FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (public.meu_servidor_id() IS NULL) OR (servidor_id IS DISTINCT FROM public.meu_servidor_id()))) OR (servidor_id = public.meu_servidor_id())));
+CREATE POLICY rls_insert ON public.solicitacoes_ajuste_ponto FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (servidor_id IS DISTINCT FROM auth.uid()))) OR ((servidor_id = auth.uid()) AND public.is_active_user())));
 
 
 --
@@ -20755,7 +20759,7 @@ CREATE POLICY rls_insert ON public.user_roles FOR INSERT TO authenticated WITH C
 -- Name: viagens_diarias rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.viagens_diarias FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)) AND (public.has_permission_code(auth.uid(), 'rh.viagens.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.viagens.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.viagens.gerenciar'::text) OR public.has_permission_code(auth.uid(), 'financeiro.diarias.gerenciar'::text))));
+CREATE POLICY rls_insert ON public.viagens_diarias FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)) AND (public.has_permission_code(auth.uid(), 'rh.viagens.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.viagens.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.viagens.gerenciar'::text) OR public.has_permission_code(auth.uid(), 'financeiro.diarias.gerenciar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --
@@ -20769,7 +20773,7 @@ CREATE POLICY rls_insert ON public.vinculos_servidor FOR INSERT TO authenticated
 -- Name: banco_horas rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.banco_horas FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+CREATE POLICY rls_select ON public.banco_horas FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR ((servidor_id = auth.uid()) AND public.is_active_user())));
 
 
 --
@@ -20875,7 +20879,7 @@ CREATE POLICY rls_select ON public.justificativas_ponto FOR SELECT TO authentica
 
 CREATE POLICY rls_select ON public.lancamentos_banco_horas FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (EXISTS ( SELECT 1
    FROM public.banco_horas p
-  WHERE ((p.id = lancamentos_banco_horas.banco_horas_id) AND (p.servidor_id = public.meu_servidor_id()))))));
+  WHERE ((p.id = lancamentos_banco_horas.banco_horas_id) AND ((p.servidor_id = auth.uid()) AND public.is_active_user()))))));
 
 
 --
@@ -20938,7 +20942,7 @@ CREATE POLICY rls_select ON public.solicitacoes_abono FOR SELECT TO authenticate
 -- Name: solicitacoes_ajuste_ponto rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.solicitacoes_ajuste_ponto FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+CREATE POLICY rls_select ON public.solicitacoes_ajuste_ponto FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR ((servidor_id = auth.uid()) AND public.is_active_user())));
 
 
 --
@@ -20987,7 +20991,7 @@ CREATE POLICY rls_select ON public.vinculos_servidor FOR SELECT TO authenticated
 -- Name: banco_horas rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.banco_horas FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)));
+CREATE POLICY rls_update ON public.banco_horas FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) AND (public.is_admin_user(auth.uid()) OR (servidor_id IS DISTINCT FROM auth.uid())))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) AND (public.is_admin_user(auth.uid()) OR (servidor_id IS DISTINCT FROM auth.uid()))));
 
 
 --
@@ -21029,7 +21033,7 @@ CREATE POLICY rls_update ON public.dependentes_irrf FOR UPDATE TO authenticated 
 -- Name: ferias_servidor rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.ferias_servidor FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.ferias.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.ferias.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.ferias.gerenciar'::text)))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.ferias.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.ferias.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.ferias.gerenciar'::text))));
+CREATE POLICY rls_update ON public.ferias_servidor FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.ferias.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.ferias.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.ferias.gerenciar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id))))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.ferias.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.ferias.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.ferias.gerenciar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --
@@ -21057,14 +21061,14 @@ CREATE POLICY rls_update ON public.fotos_vistoria_inventario FOR UPDATE TO authe
 -- Name: frequencia_fechamento rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.frequencia_fechamento FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (public.meu_servidor_id() IS NULL) OR (servidor_id IS DISTINCT FROM public.meu_servidor_id())))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (public.meu_servidor_id() IS NULL) OR (servidor_id IS DISTINCT FROM public.meu_servidor_id()))));
+CREATE POLICY rls_update ON public.frequencia_fechamento FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id))))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --
 -- Name: frequencia_mensal rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.frequencia_mensal FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
+CREATE POLICY rls_update ON public.frequencia_mensal FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id))))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --
@@ -21078,18 +21082,22 @@ CREATE POLICY rls_update ON public.itens_ficha_financeira FOR UPDATE TO authenti
 -- Name: justificativas_ponto rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.justificativas_ponto FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (public.meu_servidor_id() IS NULL) OR (( SELECT p.servidor_id
+CREATE POLICY rls_update ON public.justificativas_ponto FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(( SELECT p.servidor_id
    FROM public.registros_ponto p
-  WHERE (p.id = justificativas_ponto.registro_ponto_id)) IS DISTINCT FROM public.meu_servidor_id())))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (public.meu_servidor_id() IS NULL) OR (( SELECT p.servidor_id
+  WHERE (p.id = justificativas_ponto.registro_ponto_id))))))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(( SELECT p.servidor_id
    FROM public.registros_ponto p
-  WHERE (p.id = justificativas_ponto.registro_ponto_id)) IS DISTINCT FROM public.meu_servidor_id()))));
+  WHERE (p.id = justificativas_ponto.registro_ponto_id)))))));
 
 
 --
 -- Name: lancamentos_banco_horas rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.lancamentos_banco_horas FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)));
+CREATE POLICY rls_update ON public.lancamentos_banco_horas FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) AND (public.is_admin_user(auth.uid()) OR (( SELECT p.servidor_id
+   FROM public.banco_horas p
+  WHERE (p.id = lancamentos_banco_horas.banco_horas_id)) IS DISTINCT FROM auth.uid())))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) AND (public.is_admin_user(auth.uid()) OR (( SELECT p.servidor_id
+   FROM public.banco_horas p
+  WHERE (p.id = lancamentos_banco_horas.banco_horas_id)) IS DISTINCT FROM auth.uid()))));
 
 
 --
@@ -21103,7 +21111,7 @@ CREATE POLICY rls_update ON public.lancamentos_folha FOR UPDATE TO authenticated
 -- Name: licencas_afastamentos rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.licencas_afastamentos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.licencas.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.licencas.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.licencas.gerenciar'::text)))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.licencas.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.licencas.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.licencas.gerenciar'::text))));
+CREATE POLICY rls_update ON public.licencas_afastamentos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.licencas.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.licencas.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.licencas.gerenciar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id))))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.licencas.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.licencas.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.licencas.gerenciar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --
@@ -21124,7 +21132,7 @@ CREATE POLICY rls_update ON public.parametros_folha FOR UPDATE TO authenticated 
 -- Name: registros_ponto rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.registros_ponto FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
+CREATE POLICY rls_update ON public.registros_ponto FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id))))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --
@@ -21145,14 +21153,14 @@ CREATE POLICY rls_update ON public.servidores FOR UPDATE TO authenticated USING 
 -- Name: solicitacoes_abono rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.solicitacoes_abono FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (public.meu_servidor_id() IS NULL) OR (servidor_id IS DISTINCT FROM public.meu_servidor_id())))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (public.meu_servidor_id() IS NULL) OR (servidor_id IS DISTINCT FROM public.meu_servidor_id()))));
+CREATE POLICY rls_update ON public.solicitacoes_abono FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id))))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --
 -- Name: solicitacoes_ajuste_ponto rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.solicitacoes_ajuste_ponto FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (public.meu_servidor_id() IS NULL) OR (servidor_id IS DISTINCT FROM public.meu_servidor_id())))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (public.meu_servidor_id() IS NULL) OR (servidor_id IS DISTINCT FROM public.meu_servidor_id()))));
+CREATE POLICY rls_update ON public.solicitacoes_ajuste_ponto FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (servidor_id IS DISTINCT FROM auth.uid())))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (servidor_id IS DISTINCT FROM auth.uid()))));
 
 
 --
@@ -21187,7 +21195,7 @@ CREATE POLICY rls_update ON public.user_roles FOR UPDATE TO authenticated USING 
 -- Name: viagens_diarias rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.viagens_diarias FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)) AND (public.has_permission_code(auth.uid(), 'rh.viagens.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.viagens.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.viagens.gerenciar'::text) OR public.has_permission_code(auth.uid(), 'financeiro.diarias.gerenciar'::text)))) WITH CHECK (((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)) AND (public.has_permission_code(auth.uid(), 'rh.viagens.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.viagens.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.viagens.gerenciar'::text) OR public.has_permission_code(auth.uid(), 'financeiro.diarias.gerenciar'::text))));
+CREATE POLICY rls_update ON public.viagens_diarias FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)) AND (public.has_permission_code(auth.uid(), 'rh.viagens.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.viagens.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.viagens.gerenciar'::text) OR public.has_permission_code(auth.uid(), 'financeiro.diarias.gerenciar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id))))) WITH CHECK (((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)) AND (public.has_permission_code(auth.uid(), 'rh.viagens.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.viagens.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.viagens.gerenciar'::text) OR public.has_permission_code(auth.uid(), 'financeiro.diarias.gerenciar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
 
 
 --

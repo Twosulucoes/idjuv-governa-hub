@@ -22,12 +22,16 @@
 --
 -- Primeiro argumento (quem fica isento, ou seja, pode gravar status/aprovação já no INSERT):
 --   <módulo>                                   quem tem o módulo (formato original; tabelas de outros domínios)
---   perm:<módulo>:<código>[|<código>...][:<tabela_pai>.<coluna_fk>]
+--   perm:<módulo>:<código>[|<código>...][:<tabela_pai>.<coluna_fk> | :usuario]
 --                                              quem tem o módulo E qualquer dos códigos (Onda B / B2: no RH,
 --                                              ter o módulo sem a permissão não basta), e mesmo assim NÃO na
 --                                              linha do próprio servidor (ninguém decide sobre o próprio pedido):
 --                                              a posse é NEW.servidor_id ou, com <tabela_pai>.<coluna_fk>, o
---                                              servidor_id da linha pai. O papel admin é sempre isento.
+--                                              servidor_id da linha pai, conferida por eh_meu_servidor() (vínculo
+--                                              do perfil ou, sem vínculo, o CPF). Com `:usuario` a posse é o
+--                                              USUÁRIO: NEW.servidor_id guarda o id de profiles (FK para
+--                                              profiles(id), ex.: solicitacoes_ajuste_ponto) e é comparado com
+--                                              auth.uid(). O papel admin é sempre isento.
 CREATE OR REPLACE FUNCTION public.forcar_campos_iniciais()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -48,15 +52,22 @@ BEGIN
       AND EXISTS (SELECT 1 FROM unnest(string_to_array(partes[3], '|')) AS c(codigo)
                   WHERE public.has_permission_code(auth.uid(), c.codigo));
     IF isento AND NOT public.is_admin_user(auth.uid()) THEN
-      IF partes[4] IS NOT NULL THEN
-        ref := string_to_array(partes[4], '.');
-        EXECUTE format('SELECT servidor_id FROM public.%I WHERE id = $1', ref[1])
-          INTO posse USING (to_jsonb(NEW) ->> ref[2])::uuid;
+      IF partes[4] = 'usuario' THEN
+        -- posse por usuário: a coluna servidor_id guarda o id de profiles
+        IF (to_jsonb(NEW) ->> 'servidor_id')::uuid = auth.uid() THEN
+          isento := false;
+        END IF;
       ELSE
-        posse := (to_jsonb(NEW) ->> 'servidor_id')::uuid;
-      END IF;
-      IF posse IS NOT NULL AND posse = public.meu_servidor_id() THEN
-        isento := false;
+        IF partes[4] IS NOT NULL THEN
+          ref := string_to_array(partes[4], '.');
+          EXECUTE format('SELECT servidor_id FROM public.%I WHERE id = $1', ref[1])
+            INTO posse USING (to_jsonb(NEW) ->> ref[2])::uuid;
+        ELSE
+          posse := (to_jsonb(NEW) ->> 'servidor_id')::uuid;
+        END IF;
+        IF public.eh_meu_servidor(posse) THEN
+          isento := false;
+        END IF;
       END IF;
     END IF;
   ELSE
@@ -88,9 +99,10 @@ BEGIN
     ('federacoes_esportivas',            'federacoes',         'status=em_analise,observacoes_internas=NULL,analisado_por=NULL,data_analise=NULL,created_by=@uid'),
     ('gestores_escolares',               'gestores_escolares', 'status=aguardando,responsavel_id=NULL,responsavel_nome=NULL,observacoes=NULL,contato_realizado=false,acesso_testado=false,data_cadastro_cbde=NULL,data_contato=NULL,data_confirmacao=NULL,created_by=@uid'),
     -- RH (Onda B / B2): isento quem tem o módulo E rh.aprovar ou rh.frequencia.lancar, fora da própria linha
+    -- (solicitacoes_ajuste_ponto.servidor_id tem FK para profiles(id): posse por usuário, `:usuario`)
     ('solicitacoes_abono',               'perm:rh:rh.aprovar|rh.frequencia.lancar', 'status=pendente,aprovado_chefia_por=NULL,aprovado_chefia_em=NULL,aprovado_rh_por=NULL,aprovado_rh_em=NULL,observacao_aprovador=NULL,motivo_rejeicao=NULL,created_by=@uid'),
     ('justificativas_ponto',             'perm:rh:rh.aprovar|rh.frequencia.lancar:registros_ponto.registro_ponto_id', 'status=pendente,aprovador_id=NULL,data_aprovacao=NULL,observacao_aprovador=NULL,motivo_rejeicao=NULL,created_by=@uid'),
-    ('solicitacoes_ajuste_ponto',        'perm:rh:rh.aprovar|rh.frequencia.lancar', 'status=pendente,aprovador_id=NULL,data_aprovacao=NULL,observacao_aprovador=NULL,motivo_rejeicao=NULL,created_by=@uid'),
+    ('solicitacoes_ajuste_ponto',        'perm:rh:rh.aprovar|rh.frequencia.lancar:usuario', 'status=pendente,aprovador_id=NULL,data_aprovacao=NULL,observacao_aprovador=NULL,motivo_rejeicao=NULL,created_by=@uid'),
     ('documentos_requerimento_servidor', 'rh',                 'status=pendente,created_by=@uid')
   ) AS v(tabela, isencao, campos)
   LOOP

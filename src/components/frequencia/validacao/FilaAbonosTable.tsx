@@ -3,7 +3,8 @@
  *
  * Encadeamento (regras em @/lib/frequenciaFluxo): chefia aprova o pendente;
  * RH aprova depois da chefia (ou direto, se o tipo de abono dispensa a chefia);
- * rejeitar exige motivo. A RLS hoje só permite UPDATE a quem tem o módulo RH.
+ * rejeitar exige motivo. No banco, UPDATE exige o módulo RH e `rh.aprovar` ou
+ * `rh.frequencia.lancar`, nunca na própria linha; o trigger `validar_etapa_frequencia` confere a etapa.
  *
  * Quem age: etapa da chefia só com `podeChefia` (rh.aprovar), etapa do RH só com
  * `podeRH` (rh.frequencia.lancar). Rejeitar depois do aval da chefia é etapa do RH (o banco
