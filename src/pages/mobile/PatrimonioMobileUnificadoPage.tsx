@@ -58,6 +58,7 @@ import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
 import { CameraCapture } from "@/components/mobile/CameraCapture";
 import { QRCodeScanner } from "@/components/mobile/QRCodeScanner";
+import { VistoriaUnidade } from "@/components/mobile/VistoriaUnidade";
 import { supabase } from "@/integrations/supabase/client";
 import {
   useCadastroBemSimplificado,
@@ -75,7 +76,7 @@ import {
 import { useColetaOffline } from "@/hooks/useColetaOffline";
 
 // Tipos de operação
-type TipoOperacao = "cadastro_novo" | "cadastro_existente" | "coleta" | "movimentacao" | "baixa";
+type TipoOperacao = "cadastro_novo" | "cadastro_existente" | "coleta" | "movimentacao" | "baixa" | "vistoria";
 type Etapa = "menu" | "unidade" | "formulario" | "scan";
 
 const OPERACOES = [
@@ -113,6 +114,13 @@ const OPERACOES = [
     descricao: "Solicitar baixa de bem",
     icon: Trash2,
     cor: "bg-destructive"
+  },
+  { 
+    id: "vistoria" as TipoOperacao, 
+    titulo: "Vistoria de Unidade", 
+    descricao: "Fotos georreferenciadas e situação da unidade",
+    icon: MapPin,
+    cor: "bg-secondary"
   },
 ];
 
@@ -610,6 +618,11 @@ export default function PatrimonioMobileUnificadoPage() {
     }
   };
 
+  // === RENDER VISTORIA DE UNIDADE (fluxo próprio) ===
+  if (operacao === "vistoria") {
+    return <VistoriaUnidade onVoltar={voltarMenu} />;
+  }
+
   // === RENDER MENU PRINCIPAL ===
   if (etapa === "menu") {
     return (
@@ -646,7 +659,9 @@ export default function PatrimonioMobileUnificadoPage() {
                 className="cursor-pointer hover:border-primary transition-colors"
                 onClick={() => {
                   setOperacao(op.id);
-                  if (op.id === "coleta") {
+                  if (op.id === "vistoria") {
+                    // Fluxo próprio: renderizado por <VistoriaUnidade />
+                  } else if (op.id === "coleta") {
                     if (campanhaId) {
                       setEtapa("scan");
                     } else {

@@ -53,8 +53,9 @@ pendências como itens de acompanhamento — não bloqueie.
   `supabase/functions/admin-create-user` ou painel do Supabase).
 - Configurar Storage buckets equivalentes aos usados no projeto original
   (ver `supabase/config.toml` e usos de `supabase.storage` no código).
-- Deploy separado (Vercel — novo projeto Vercel apontando para o mesmo repo
-  ou um fork, com env vars próprias).
+- Deploy separado: servidor do cliente com nginx servindo o build, publicado
+  pelo workflow `deploy-front.yml` (fork ou ambiente próprio, com as variáveis
+  `VITE_*` e `VPS_*` do cliente).
 
 ### 2. Variáveis de ambiente do cliente (`.env` do novo deploy)
 ```env

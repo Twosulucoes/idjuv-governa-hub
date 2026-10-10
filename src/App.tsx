@@ -116,6 +116,8 @@ import GestaoLotacaoPage from "./pages/rh/GestaoLotacaoPage";
 import ControlePacotesFrequenciaPage from "./pages/rh/ControlePacotesFrequenciaPage";
 import MeuContrachequePage from "./pages/rh/MeuContrachequePage";
 import MeusDadosPage from "./pages/rh/MeusDadosPage";
+import MinhaFrequenciaPage from "./pages/rh/MinhaFrequenciaPage";
+import ValidacaoFrequenciaPage from "./pages/rh/ValidacaoFrequenciaPage";
 import ConsultaContrachequesPage from "./pages/rh/ConsultaContrachequesPage";
 
 // Folha de Pagamento
@@ -151,6 +153,7 @@ import AuditoriaPage from "./pages/admin/AuditoriaPage";
 import GestaoPerfilPage from "./pages/admin/GestaoPerfilPage";
 // Página PerfilPermissoesPage removida - sistema simplificado
 import BackupOffsitePage from "./pages/admin/BackupOffsitePage";
+import ConfigEnviosPage from "./pages/admin/ConfigEnviosPage";
 import DisasterRecoveryPage from "./pages/admin/DisasterRecoveryPage";
 import ImportacoesPage from "./pages/admin/ImportacoesPage";
 import { PERMISSOES_IMPORTACAO } from "@/lib/importacao/registro";
@@ -242,6 +245,7 @@ import {
   CampanhasInventarioPage,
   CampanhaDetalhePage,
   ColetaInventarioPage,
+  PainelCampoInventarioPage,
   AlmoxarifadoEstoquePage,
   RequisicoesMaterialPage,
   ManutencoesBensPage,
@@ -548,6 +552,11 @@ const App = () => (
               <Route path="/admin/backup" element={
                 <ProtectedRoute requiredPermissions="admin.backup">
                   <BackupOffsitePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/envios" element={
+                <ProtectedRoute requiredPermissions={["admin.envios", "admin.envios.configurar"]}>
+                  <ConfigEnviosPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/disaster-recovery" element={
@@ -870,6 +879,11 @@ const App = () => (
                   <AniversariantesPage />
                 </ProtectedRoute>
               } />
+              <Route path="/rh/frequencia/validacao" element={
+                <ProtectedRoute requiredPermissions={["rh.aprovar", "rh.frequencia.lancar"]}>
+                  <ValidacaoFrequenciaPage />
+                </ProtectedRoute>
+              } />
               <Route path="/rh/frequencia/pacotes" element={
                 <ProtectedRoute requiredPermissions="rh.frequencia.visualizar">
                   <ControlePacotesFrequenciaPage />
@@ -888,6 +902,11 @@ const App = () => (
               <Route path="/rh/meus-dados" element={
                 <ProtectedRoute>
                   <MeusDadosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/rh/minha-frequencia" element={
+                <ProtectedRoute>
+                  <MinhaFrequenciaPage />
                 </ProtectedRoute>
               } />
               <Route path="/rh/contracheques" element={
@@ -1033,6 +1052,11 @@ const App = () => (
               <Route path="/inventario/campanhas/:id/coleta" element={
                 <ProtectedRoute requiredPermissions="patrimonio.tramitar">
                   <ColetaInventarioPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/campanhas/:id/painel" element={
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
+                  <PainelCampoInventarioPage />
                 </ProtectedRoute>
               } />
               <Route path="/inventario/movimentacoes/:id" element={

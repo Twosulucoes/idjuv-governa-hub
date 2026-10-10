@@ -446,7 +446,7 @@ RPC, view ou política de RLS referencia os nomes antigos antes de aplicar.
 | Item | Correção |
 |---|---|
 | `backup-offsite/index.ts` — bucket `idjuv-backups` (23 ocorrências, inclusive `createBucket`) | `Deno.env.get('BACKUP_BUCKET') ?? 'governa-backups'` |
-| `enviar-convite-reuniao/index.ts` — `RESEND_FROM` default e corpo do e-mail | Default neutro + template lendo `config_institucional` |
+| `enviar-convite-reuniao/index.ts` — `RESEND_FROM` default e corpo do e-mail | ✅ **Feito (2026-10-09).** Remetente, marca e credencial vêm de `config_envio` (tela `/admin/envios`), com reserva em `config_institucional`; sem default com nome de cliente |
 | E-mails do Supabase Auth (confirmação, convite, senha…) | ✅ Gerados por tenant a partir do perfil e dos tokens: `scripts/emails/gerar-templates-email.ts` → `tenants/<slug>/emails/`. Ver [`EMAILS_AUTH.md`](./EMAILS_AUTH.md) |
 | `database-schema/index.ts:124` — mapa `'unidade_idjuv'` | Atualizar após a migração de colunas (§9) |
 | `protected-users.config.ts` — UUID + `handfabiano@gmail.com` | `SUPER_ADMIN_ID`/`SUPER_ADMIN_EMAIL` por ambiente. **Manter o fallback por e-mail** — a justificativa documentada no arquivo (UUID muda ao trocar de projeto Supabase) vale ainda mais no cenário multi-instância |

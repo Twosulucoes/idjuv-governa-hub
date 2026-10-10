@@ -6,8 +6,8 @@ comunicação, programas e processos administrativos, com portal público e PWA
 de inventário em campo.
 
 **Stack:** React 18 + Vite 5 + TypeScript + Tailwind/shadcn-ui no front;
-Supabase (Postgres, Auth, Storage, Edge Functions) no back; deploy do front na
-Vercel.
+Supabase self-hosted (Postgres, Auth, Storage, Edge Functions) no back; front e
+banco na VPS, com deploy automático a cada merge na `main`.
 
 ## Rodando localmente
 

@@ -187,7 +187,8 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { ...item, children: filteredChildren };
       }
       
-      // Item simples - verifica permissão
+      // Item simples - verifica permissão (`permissions` = qualquer uma delas)
+      if (item.permissions && !item.permissions.some(hasPermission)) return null;
       if (!hasPermission(item.permission)) return null;
       
       return { ...item };

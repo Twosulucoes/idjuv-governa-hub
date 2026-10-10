@@ -58,6 +58,10 @@ REVOKE EXECUTE ON FUNCTION public.generate_schema_ddl() FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.list_public_tables() TO service_role;
 GRANT EXECUTE ON FUNCTION public.generate_schema_ddl() TO service_role;
 
+-- ---- funções de trigger sem uso direto (migração 20261009160000; o dump não leva o REVOKE) ----
+REVOKE EXECUTE ON FUNCTION public.fn_fotos_vistoria_inventario_imutavel() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.fn_campanhas_inventario_unidades_autoria() FROM authenticated;
+
 -- ---- funções que ESCREVEM e não são chamadas por usuário logado ----
 -- processar_folha_pagamento (folha bloqueada — débito técnico DT-2026-001) apagava e recriava
 -- fichas_financeiras para qualquer logado; fn_atualizar_situacao_servidor só é chamada por triggers

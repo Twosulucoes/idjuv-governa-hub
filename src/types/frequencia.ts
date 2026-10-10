@@ -241,7 +241,7 @@ export interface SolicitacaoAbono {
   created_by?: string;
   
   // Relacionamentos expandidos
-  servidor?: { nome_completo: string; matricula?: string };
+  servidor?: ServidorResumoFrequencia;
   tipo_abono?: TipoAbono;
 }
 
@@ -268,7 +268,15 @@ export interface FrequenciaFechamento {
   updated_at?: string;
   
   // Relacionamentos expandidos
-  servidor?: { nome_completo: string; matricula?: string };
+  servidor?: ServidorResumoFrequencia;
+}
+
+// Servidor embutido nas consultas do fluxo (abono/fechamento)
+export interface ServidorResumoFrequencia {
+  nome_completo: string;
+  matricula?: string;
+  unidade_atual_id?: string;
+  unidade?: { nome: string; sigla?: string };
 }
 
 // 10. Regime por Servidor

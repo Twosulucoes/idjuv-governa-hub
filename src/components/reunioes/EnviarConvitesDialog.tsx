@@ -259,7 +259,9 @@ export function EnviarConvitesDialog({
         setWhatsAppLinks(links);
 
         // Abrir automaticamente o WhatsApp se houver link
-        if (links.length > 0) {
+        if (result.enviados_whatsapp_api > 0) {
+          toast.success(`${result.enviados_whatsapp_api} convite(s) enviado(s) pelo WhatsApp oficial`);
+        } else if (links.length > 0) {
           window.open(links[0].url, "_blank");
           toast.success("WhatsApp aberto!");
         } else if (result.sucessos > 0) {

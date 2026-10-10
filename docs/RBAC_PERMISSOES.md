@@ -110,6 +110,32 @@ Definido em `src/types/auth.ts` (`module_access_scopes` no banco):
 é exigida pela RLS de `avisos` e `datas_importantes` e mostra a aba Gerenciar em `/avisos`. Ler avisos
 não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos módulos do aviso).
 
+### Frequência: validação e autoatendimento
+
+- `/rh/frequencia/validacao` (`ValidacaoFrequenciaPage`) abre para quem tem `rh.aprovar` **ou**
+  `rh.frequencia.lancar` (rota, `ROUTE_PERMISSIONS` e item de menu com `permissions`). Dentro da
+  página, a etapa da chefia (aprovar abono, validar fechamento) aparece só com `rh.aprovar`; as
+  etapas do RH (aprovar como RH, consolidar, reabrir) só com `rh.frequencia.lancar`; fechar a
+  competência só com `rh.frequencia.configurar` (mesma permissão de `/rh/frequencia/configuracao`).
+  Ninguém decide sobre a própria solicitação nem sobre o próprio fechamento (comparação com o
+  servidor vinculado ao usuário, `useMeuServidor`). Não há permissão fina
+  `rh.frequencia.validar/consolidar` no catálogo.
+- **Essa separação por papel e a trava de auto-aprovação existem só no front.** A RLS de
+  `solicitacoes_abono`, `frequencia_fechamento` e `config_fechamento_frequencia` libera UPDATE/INSERT
+  para qualquer usuário com o módulo `rh` (`can_access_module`), sem checar etapa, chefia, própria
+  linha nem `permite_reabertura`. Quem tem o módulo consegue, pela API, aprovar o próprio abono,
+  pular a chefia ou fechar a competência. A chefia **sem** o módulo vê a tela, mas o banco recusa
+  a ação. Pendência registrada para a migração de RLS: `is_chefia_de(servidor_id)`,
+  `servidor_id <> meu_servidor_id()` e `usuario_tem_permissao('rh.frequencia.configurar')` em
+  `config_fechamento_frequencia` (ver spec `docs/superpowers/specs/2026-10-09-fluxo-frequencia-design.md`).
+- `/rh/minha-frequencia` (`MinhaFrequenciaPage`) só exige login, como `/rh/meus-dados`. As
+  queries são filtradas pelo `servidores.user_id = auth.uid()` e a RLS de `solicitacoes_abono`,
+  `frequencia_fechamento` e `frequencia_mensal` tem a cláusula própria (`meu_servidor_id()`).
+  Porém a leitura de `servidores` hoje só é liberada a quem tem o módulo `rh`, então na prática
+  o autoatendimento funciona só para esse perfil — e para ele a cláusula própria não é barreira.
+  Mesma dívida de `/rh/meus-dados`: policy de leitura da própria linha em `servidores` e
+  alinhamento `profiles.servidor_id` ↔ `servidores.user_id` (migração de RLS).
+
 ### Importação de dados
 
 Cada importador declara a sua permissão (`src/lib/importacao/registro.ts`) e a RPC dele confere a
@@ -121,6 +147,14 @@ catálogos orçamentários libera escrita a quem acessa o módulo financeiro, en
 controla a tela e a RPC (e garante o registro em `importacoes`), não a escrita direta nessas tabelas.
 Restringir isso é mudança de RLS existente (pendente, exige decisão). O histórico (`importacoes`) é lido por quem acessa o
 módulo da importação.
+
+### Envio de e-mail e WhatsApp
+
+`admin.envios` (ver a tela `/admin/envios` e o histórico) e `admin.envios.configurar` (editar a
+configuração, gravar credenciais e enviar teste), no catálogo do módulo `admin`; admin passa por cima.
+Nenhuma das duas vem por padrão de papel: conceda em `user_permissions` a quem administra o envio (as duas juntas: o item de menu filtra por `admin.envios`). A
+rota aceita qualquer das duas; a RLS de `config_envio`/`envios_log`, a RPC `salvar_segredo_envio` e a
+Edge Function `enviar-notificacao` exigem a mesma permissão.
 
 ## Enforcement de rota (`ProtectedRoute`)
 
@@ -145,6 +179,18 @@ Camadas complementares:
 - O **RLS no Postgres** é a fronteira de segurança real dos dados (independe do
   front). Ver item C2 da auditoria sobre o reforço pendente das tabelas de usuário.
 - O **menu** (`menu.config.ts`) é filtrado por permissão — controla o que aparece.
+
+### Exemplo: inventário de campo (fase 1)
+
+- Rota `/inventario/campanhas/:id/painel`: `patrimonio.visualizar` no
+  `ProtectedRoute`. O modo "Vistoria de Unidade" fica dentro de
+  `/patrimonio-mobile`.
+- No banco (migração `20261009160000`): ler e gravar a situação das unidades e
+  enviar fotos exige o módulo `patrimonio` ou `patrimonio_mobile`. A permissão
+  granular `patrimonio.tramitar` (`has_permission_code`) é exigida para apagar
+  foto de evidência, para alterar foto de outro autor e para sobrescrever ou
+  apagar arquivo no bucket `inventario-evidencias`. Detalhes em
+  [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
 
 ## Rotas públicas
 

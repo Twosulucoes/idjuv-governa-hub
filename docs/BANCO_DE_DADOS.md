@@ -94,9 +94,37 @@ Legado/compartilhado: `dotacoes_orcamentarias`, `empenhos`, `liquidacoes`,
 `bens_patrimoniais`, `movimentacoes_bem`, `movimentacoes_patrimonio`,
 `historico_patrimonio`, `baixas_patrimonio`, `manutencoes_patrimonio`,
 `ocorrencias_patrimonio`, `campanhas_inventario`, `coletas_inventario`,
-`conciliacoes_inventario`, `patrimonio_unidade`. Almoxarifado: `almoxarifados`,
+`conciliacoes_inventario`, `patrimonio_unidade`, `campanhas_inventario_unidades`,
+`fotos_vistoria_inventario`. Almoxarifado: `almoxarifados`,
 `estoque`, `movimentacoes_estoque`, `categorias_material`, `itens_material`,
 `requisicoes_material`, `requisicao_itens`.
+
+**Inventário de campo (fase 1).** Migração
+`supabase/migrations/20261009160000_inventario_campo_fase1.sql` (criada em 2026-10-09 e **aplicada
+em produção no mesmo dia**, sob a versão `20261009160000`; `types.ts` ainda não regenerado, por isso o front acessa as tabelas novas com
+`supabase as any`):
+
+- `unidades_locais` ganha geometria: `latitude`, `longitude` (CHECK de faixa), `poligono_geojson`
+  (GeoJSON `Polygon`/`MultiPolygon`), `area_terreno_m2`, `area_construida_m2`, `fonte_geometria`
+  (`manual`, `gps` ou `kml`), `geometria_atualizada_em`, `geometria_atualizada_por`. As policies
+  existentes da tabela cobrem as colunas novas.
+- `campanhas_inventario_unidades`: situação de cada unidade numa campanha (`a_visitar`, `em_vistoria`,
+  `concluida`, `com_pendencia`, `excluida`), equipe, data prevista, início/conclusão, observação;
+  `UNIQUE (campanha_id, unidade_local_id)`. Complementa `campanhas_inventario.unidades_abrangidas`
+  (não a substitui nem a migra). RLS por módulo `patrimonio` ou `patrimonio_mobile`.
+- `fotos_vistoria_inventario`: evidência fotográfica (caminho no storage, hash SHA-256, coordenadas,
+  precisão, data de captura, autor). O `id` é gerado no celular e serve de chave de idempotência da
+  fila offline. RLS: quem tem o módulo `patrimonio` ou `patrimonio_mobile` lê; INSERT só em nome
+  próprio (`usuario_id = auth.uid()`); UPDATE só do autor ou de quem tem `patrimonio.tramitar`; DELETE
+  só com `patrimonio.tramitar`. Um trigger torna a foto imutável depois de gravada, exceto `legenda`,
+  `tem_pessoa` e `codigo_objeto`.
+- Bucket **privado** `inventario-evidencias` (10 MB, JPEG/WebP): o módulo lê e envia; sobrescrever ou
+  apagar exige `patrimonio.tramitar`. O front lê as fotos por URL assinada de curta duração.
+
+No baseline, `campanhas_inventario_unidades` é classe `modulo` e `fotos_vistoria_inventario` é classe
+`preservar` (ver [`supabase/baseline/README.md`](../supabase/baseline/README.md)). O banco ao vivo
+ainda pode ter policies `acesso_total_*` em `campanhas_inventario` e `coletas_inventario` (vêm do
+histórico de migrações; o baseline já as remove); a correção no banco ao vivo aguarda decisão.
 
 ### Compras, licitações e contratos
 `processos_licitatorios`, `itens_processo_licitatorio`, `itens_licitacao`,
@@ -136,6 +164,14 @@ continuam em `dias_nao_uteis`). RLS na própria migração: só o usuário ativo
 vigente; escrita exige `avisos.gerenciar` (`pode_gerenciar_avisos()`); cada usuário só registra e vê as
 próprias leituras. No baseline as três tabelas estão no `rls/mapa.csv` como `preservar` e entram no
 schema na próxima regeneração.
+
+Envio de e-mail e WhatsApp (**migração `20261009150000_config_envio_email_whatsapp.sql`, ainda não
+aplicada em remoto**): `config_envio` (uma linha por canal: provedor, remetente, SMTP, identidade visual,
+número e templates do WhatsApp) e `envios_log` (trilha dos disparos, sem corpo). A credencial fica no
+Supabase Vault: `config_envio.segredo_id` não é legível pela API, `salvar_segredo_envio` só grava e
+`config_envio_servidor` (config + segredo decifrado) só a service role executa. RLS: leitura com
+`admin.envios` ou `admin.envios.configurar`, escrita com `admin.envios.configurar`; `envios_log` só é
+gravada pelas Edge Functions. No baseline as duas tabelas estão no `rls/mapa.csv` como `preservar`.
 
 ### Unidades locais e cessões
 `unidades_locais`, `agenda_unidade`, `agrupamento_unidade_vinculo`,
@@ -238,6 +274,8 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
 - **Avisos**: `pode_gerenciar_avisos`, `alcanca_modulos_alvo` (usadas pelas policies) e
   `aniversariantes_do_mes(p_mes)`, que devolve só nome e dia do aniversário de servidores ativos a
   qualquer usuário ativo (sem ano, CPF, contato ou lotação).
+- **Envios**: `pode_ver_envios`, `pode_configurar_envios` (policies), `salvar_segredo_envio(canal, segredo)`
+  (grava a credencial no Vault) e `config_envio_servidor(canal)` (só service role).
 - **Bancário**: `get_proximo_numero_remessa`.
 
 ## Convenções

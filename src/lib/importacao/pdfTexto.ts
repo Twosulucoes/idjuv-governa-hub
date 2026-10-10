@@ -35,7 +35,10 @@ const TOLERANCIA_LINHA = 4;
 async function carregarPdfJs() {
   const pdfjs = await import("pdfjs-dist");
   if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-    const { default: workerUrl } = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
+    // "?worker&url" faz o Vite empacotar o worker e emiti-lo como .js. Com "?url" ele sairia como
+    // .mjs, que servidores sem esse tipo MIME (nginx padrão) entregam como octet-stream: o
+    // navegador recusa o módulo e a leitura falha com "Setting up fake worker failed".
+    const { default: workerUrl } = await import("pdfjs-dist/build/pdf.worker.min.mjs?worker&url");
     pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
   }
   return pdfjs;

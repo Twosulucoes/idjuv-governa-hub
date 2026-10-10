@@ -21,6 +21,10 @@ Gestão do próprio sistema. Páginas em `src/pages/admin/` (~25):
   `DatabaseSchemaPage`, `CalibradorSegadPage`, `SobreSistemaPage`, `AdminHelpPage`.
 - **Importação de dados**: `ImportacoesPage` (`/admin/importacoes`) lista os importadores que o usuário
   pode usar e o histórico (`importacoes`). Primeiro importador: QDD do FIPLAN (financeiro).
+- **Envio de e-mail e WhatsApp**: `ConfigEnviosPage` (`/admin/envios`, menu "E-mail e WhatsApp"). O
+  cliente configura o remetente (SMTP próprio ou Resend), a identidade visual do e-mail e o WhatsApp
+  oficial (Meta Cloud API, templates por uso), grava as credenciais (só escrita, no Vault), envia teste
+  e consulta o histórico. Desenho: `docs/superpowers/specs/2026-10-09-envio-email-whatsapp-design.md`.
 
 ## Recursos Humanos (`rh`)
 
@@ -30,13 +34,20 @@ O maior módulo. Páginas em `src/pages/rh/` (~20), além de `folha/` e `curricu
   `DiagnosticoPendenciasServidoresPage`, `AniversariantesPage`.
 - **Lotação/designação**: `GestaoLotacaoPage`, `GestaoDesignacoesPage`.
 - **Frequência/ponto**: `GestaoFrequenciaPage`, `ConfiguracaoFrequenciaPage`,
-  `ControlePacotesFrequenciaPage`.
+  `ControlePacotesFrequenciaPage`, `ValidacaoFrequenciaPage` (`/rh/frequencia/validacao`:
+  fila de abonos com aprovação chefia → RH e rejeição com motivo; grade de fechamento
+  servidor × validado/consolidado/reaberto, consolidação em lote, reabertura com
+  justificativa e fechamento da competência — só sem abono em aberto e com todos
+  consolidados). Regras puras em `src/lib/frequenciaFluxo.ts`; `LancarFaltaDialog`
+  bloqueia lançamento em competência `consolidado` ou fechamento consolidado sem reabertura.
 - **Afastamentos**: `GestaoFeriasPage`, `GestaoLicencasPage`, `GestaoViagensPage`.
 - **Portarias**: `CentralPortariasPage`, `PendenciasPortariasPage`,
   `AtribuicaoPortariasPage`.
 - **Contracheques**: `MeuContrachequePage`, `ConsultaContrachequesPage`.
 - **Autoatendimento**: `MeusDadosPage` (`/rh/meus-dados`, só leitura: dados pessoais,
-  contato, endereço, funcionais, bancários, vínculos e lotações do servidor logado).
+  contato, endereço, funcionais, bancários, vínculos e lotações do servidor logado);
+  `MinhaFrequenciaPage` (`/rh/minha-frequencia`: resumo mensal, situação do fechamento
+  e solicitações de abono do servidor logado, com formulário para abrir uma nova).
 - **Apoio**: `RelatoriosRHPage`, `ModelosDocumentosPage`, `ExportacaoPlanilhaPage`.
 - **Folha** (`src/pages/folha/`): `GestaoFolhaPagamentoPage`, `ConfiguracaoFolhaPage`,
   `FolhaDetalhePage`, `FolhaBloqueadaPage`. Inclui cálculo (INSS/IRRF), rubricas,
@@ -77,13 +88,27 @@ Bens, inventário, almoxarifado e unidades.
   `BensPatrimoniaisPage`, `BemDetalhePage`, `MovimentacoesPatrimonioPage`,
   `CampanhasInventarioPage`, `CampanhaDetalhePage`, `ColetaInventarioPage`,
   `AlmoxarifadoEstoquePage`, `RequisicoesMaterialPage`, `ManutencoesBensPage`,
-  `BaixasPatrimonioPage`, `RelatoriosPatrimonioPage`, `CadastroBemSimplificadoPage`.
+  `BaixasPatrimonioPage`, `RelatoriosPatrimonioPage`, `CadastroBemSimplificadoPage`,
+  `PainelCampoInventarioPage`.
+- **Inventário de campo — fase 1** (migração `20261009160000`, aplicada em
+  produção em 2026-10-09): `PainelCampoInventarioPage` em `/inventario/campanhas/:id/painel`
+  (`patrimonio.visualizar`; link "Painel de campo" no detalhe da campanha) mostra
+  mapa satélite/ruas com as unidades por situação, contadores, lista filtrável e
+  o detalhe da unidade com as fotos de evidência. Ações: incluir unidades na
+  campanha e importar KML (casa placemarks com unidades pelo nome, com
+  confirmação). Componentes em `src/components/inventario/`
+  (`MapaUnidadesCampanha`, `DetalheUnidadeCampanha`, `ImportarKmlDialog`,
+  `IncluirUnidadesCampanhaDialog`); dados em `useVistoriaInventario`.
 - **Unidades locais** (`src/pages/unidades/`): `GestaoUnidadesLocaisPage`,
   `UnidadeDetalhePage`, `RelatoriosCentralPage`, `RelatoriosUnidadesLocaisPage`,
   `RelatoriosCedenciaPage` (cessões de espaços).
 - **Mobile/PWA** (`src/pages/mobile/`): `PatrimonioMobileUnificadoPage`
   (cadastro + coleta em campo, com leitura de QR via `html5-qrcode` e modo
-  offline via `useColetaOffline`), `InstalarAppPage`.
+  offline via `useColetaOffline`), `InstalarAppPage`. O cartão "Vistoria de
+  Unidade" abre `src/components/mobile/VistoriaUnidade.tsx`: escolher campanha e
+  unidade, ver GPS e precisão, fotografar (as fotos ficam numa fila offline no
+  aparelho até haver conexão), marcar situação e observação (salvas só online) e
+  ver as fotos pendentes de envio.
 
 ## Governança (`governanca`)
 

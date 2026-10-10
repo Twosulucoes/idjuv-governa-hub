@@ -27,6 +27,8 @@
 | [WHITE_LABEL.md](./WHITE_LABEL.md) | Arquitetura-alvo, roadmap e critérios de aceite para o modelo White Label |
 | [GOVERNANCA_DOCUMENTACAO.md](./GOVERNANCA_DOCUMENTACAO.md) | Processo documental: matriz mudança→doc, definição de trabalho completo, escape hatch, estado real do enforcement (gate e CI) |
 | [planejamento/ROADMAP.md](./planejamento/ROADMAP.md) | Backlog e andamento (vivo) |
+| [planejamento/FINALIZACAO.md](./planejamento/FINALIZACAO.md) | Estado de cada módulo rumo à finalização (vivo, alimentado por `/finalizar`) |
+| [../prompts/README.md](../prompts/README.md) | Gerador de prompts: `/prompt`, `/pendencias`, `/finalizar`, tipos de tarefa e como estender |
 | [../AGENTS.md](../AGENTS.md) | Instruções persistentes para agentes de IA: invariantes de arquitetura/segurança, fluxo de trabalho (skill `superpowers`), documentação obrigatória |
 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | Gate local de qualidade (`npm run gate`, pre-push) e checklist de PR |
 | [../.claude/skills/superpowers/SKILL.md](../.claude/skills/superpowers/SKILL.md) | Orquestrador `/superpowers`: prompt curto → brainstorming → aprovação → (plano) → execução por subagentes → verificação → docs → PR em rascunho |

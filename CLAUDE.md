@@ -226,7 +226,9 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 
 ## 8. Deploy
 
-- **Vercel** (`vercel.json` faz rewrite SPA de tudo para `/index.html`).
+- **Front:** nginx da VPS (`idjuv.online`), publicado automaticamente a cada merge na `main` pelo
+  CI (`.github/workflows/deploy-front.yml`), depois das migrações do mesmo commit. A VPS é a única
+  produção: a Vercel foi desligada (não há prévia por PR; teste local com `bun run dev`).
 - Backend: Supabase self-hosted na VPS do órgão. Edge Functions são deployadas no Supabase.
 - **Migrações:** aplicadas automaticamente pelo CI (`.github/workflows/migracoes-banco.yml`):
   simulação no PR, aplicação no merge na `main`. Detalhes em `docs/DESENVOLVIMENTO.md`.
@@ -304,6 +306,10 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
   conhecimento de UI/UX para qualquer mudança visual; origem, revisão e uso em
   `.claude/skills/UI-UX-PRO-MAX-VENDOR.md`. Direção do design system:
   `docs/superpowers/specs/2026-10-09-design-system-design.md`.
+- **Gerador de prompts** ([`prompts/README.md`](./prompts/README.md)): `/prompt <tipo> --modulo <codigo> <descrição>`,
+  `/pendencias` e `/finalizar <codigo>` (`.claude/commands/`, motor em `scripts/prompt.mjs`). Se o usuário
+  escrever um desses comandos como texto (ex.: no chat do projeto, onde slash command não expande), siga o
+  arquivo `.claude/commands/<nome>.md` correspondente com o resto da mensagem como `$ARGUMENTS`.
 
 ---
 

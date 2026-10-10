@@ -14,8 +14,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Calendar as CalendarIcon, X } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, Calendar as CalendarIcon, X, Lock } from "lucide-react";
 import { useLancarFaltaEmLote, useRecalcularFrequencia, type FrequenciaServidorResumo } from "@/hooks/useFrequencia";
+import { useConfigFechamento, useFechamentoServidor } from "@/hooks/useParametrizacoesFrequencia";
+import { lancamentoBloqueado } from "@/lib/frequenciaFluxo";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -46,6 +49,11 @@ export function LancarFaltaDialog({ open, onOpenChange, servidor, ano, mes }: La
 
   const lancarFalta = useLancarFaltaEmLote();
   const recalcular = useRecalcularFrequencia();
+
+  // Guard-rail: competência consolidada ou fechamento do servidor travado (consolidado sem reabertura)
+  const { data: configFechamento } = useConfigFechamento(ano, mes);
+  const { data: fechamentoServidor } = useFechamentoServidor(open ? servidor?.servidor_id : undefined, ano, mes);
+  const bloqueio = lancamentoBloqueado(configFechamento?.status, fechamentoServidor);
 
   const handleClose = () => {
     setTipo("falta");
@@ -105,6 +113,15 @@ export function LancarFaltaDialog({ open, onOpenChange, servidor, ano, mes }: La
                 {servidor.servidor_matricula} • {servidor.servidor_cargo}
               </p>
             </div>
+
+            {bloqueio.bloqueado && (
+              <Alert variant="destructive">
+                <Lock className="h-4 w-4" />
+                <AlertDescription>
+                  {bloqueio.motivo} Reabra a frequência em Validação e Fechamento para lançar ocorrências.
+                </AlertDescription>
+              </Alert>
+            )}
 
             {/* Tipo de ocorrência */}
             <div className="space-y-2">
@@ -197,7 +214,7 @@ export function LancarFaltaDialog({ open, onOpenChange, servidor, ano, mes }: La
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!servidor || datasSelecionadas.length === 0 || lancarFalta.isPending}
+            disabled={!servidor || datasSelecionadas.length === 0 || lancarFalta.isPending || bloqueio.bloqueado}
           >
             {lancarFalta.isPending ? (
               <>

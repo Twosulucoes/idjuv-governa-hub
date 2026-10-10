@@ -63,6 +63,7 @@ import {
   Gavel,
   type LucideIcon,
   Bell,
+  Mail,
 } from "lucide-react";
 
 // ================================
@@ -96,6 +97,7 @@ export type PermissaoInstitucional =
   | 'rh.criar'
   | 'rh.tramitar'
   | 'rh.aprovar'
+  | 'rh.frequencia.lancar'
   | 'rh.self'
   // Orçamento
   | 'orcamento.visualizar'
@@ -124,7 +126,8 @@ export type PermissaoInstitucional =
   | 'admin.perfis'
   | 'admin.auditoria'
   | 'admin.config'
-  | 'admin.backup';
+  | 'admin.backup'
+  | 'admin.envios';
 
 export interface MenuItem {
   id: string;
@@ -133,6 +136,8 @@ export interface MenuItem {
   icon: LucideIcon;
   route?: string;
   permission?: PermissaoInstitucional;
+  /** Alternativa a `permission`: o item aparece para quem tem qualquer uma destas. */
+  permissions?: PermissaoInstitucional[];
   children?: MenuItem[];
   badge?: string | number;
   priority?: number;
@@ -312,6 +317,14 @@ export const menuConfig: MenuSection[] = [
             permission: "rh.visualizar",
           },
           {
+            id: "frequencia-validacao",
+            label: "Validação e Fechamento",
+            labelShort: "Validação",
+            route: "/rh/frequencia/validacao",
+            icon: ClipboardCheck,
+            permissions: ["rh.aprovar", "rh.frequencia.lancar"],
+          },
+          {
             id: "frequencia-config",
             label: "Parametrização",
             labelShort: "Parâmetros",
@@ -449,6 +462,14 @@ export const menuConfig: MenuSection[] = [
         icon: User,
         permission: "rh.self",
         priority: 10,
+      },
+      {
+        id: "minha-frequencia",
+        label: "Minha Frequência",
+        route: "/rh/minha-frequencia",
+        icon: CalendarDays,
+        permission: "rh.self",
+        priority: 11,
       },
     ],
   },
@@ -1210,6 +1231,13 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/importacoes",
         icon: Upload,
         permission: "orcamento.importar",
+      },
+      {
+        id: "envios",
+        label: "E-mail e WhatsApp",
+        route: "/admin/envios",
+        icon: Mail,
+        permission: "admin.envios",
       },
       {
         id: "ajuda",

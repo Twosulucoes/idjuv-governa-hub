@@ -17,7 +17,7 @@
 │  Edge Functions (Deno) — operações privilegiadas/admin         │
 └──────────────────────────────────────────────────────────────┘
 
-Hospedagem do front: Vercel (SPA, rewrite p/ index.html).
+Hospedagem do front: nginx da VPS (SPA, fallback p/ index.html).
 ```
 
 O front é uma **SPA** que fala diretamente com o Supabase via `supabase-js`
@@ -56,7 +56,9 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
     Rotas de **autoatendimento** (`/rh/meu-contracheque`, `/rh/meus-dados`) usam
     `<ProtectedRoute>` sem permissão: a página filtra pelo servidor vinculado ao
     usuário logado (`servidores.user_id`) e só mostra os dados dele.
-  - **Mobile/PWA** — `/patrimonio-mobile`, `/instalar`.
+  - **Mobile/PWA** — `/patrimonio-mobile`, `/instalar`. O `/patrimonio-mobile`
+    inclui o modo "Vistoria de Unidade" do inventário de campo (fotos com fila
+    offline; ver [MODULOS.md](./MODULOS.md)).
 - Telas de módulo usam `ModuleLayout` (`src/components/layout/`), que inclui o sino de avisos
   (`AvisosSino`, no cabeçalho) e a faixa de avisos em destaque (`AvisosDestaque`, no topo do
   conteúdo); o mural completo fica em `/avisos` (protegida, qualquer usuário logado).
@@ -64,6 +66,9 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   algum importador (`PERMISSOES_IMPORTACAO`, de `src/lib/importacao/registro.ts`); o mesmo assistente
   também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver
   `docs/GUIA_FRONTEND.md` (Importação de dados).
+- Inventário de campo: `/inventario/campanhas/:id/painel` (painel com mapa,
+  `ProtectedRoute requiredPermissions="patrimonio.visualizar"`), com link na
+  página de detalhe da campanha.
 
 ## Autenticação
 
@@ -105,7 +110,13 @@ caches relevantes. Estatísticas de dashboard ficam em `use<Modulo>DashboardStat
   `usuario_tem_acesso_modulo` apoiam essas políticas.
 - **Migrações**: `supabase/migrations/*.sql` (~240), nomeadas
   `YYYYMMDDHHMMSS_<uuid>.sql` (ou `_<slug>.sql`).
-- **Storage**: anexos (documentos, demandas ASCOM, galerias, frequência).
+- **Storage**: anexos (documentos, demandas ASCOM, galerias, frequência) e
+  evidências do inventário de campo (bucket privado `inventario-evidencias`,
+  lido por URL assinada).
+- **Serviços externos no navegador**: o mapa do painel de campo carrega tiles
+  de Esri World Imagery e OpenStreetMap direto do navegador (Leaflet), com
+  atribuição visível. Os termos de uso da Esri para uso institucional ainda
+  precisam ser confirmados.
 - **Edge Functions**: ver [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md).
 
 ## Geração de documentos (offline, no client)
@@ -125,8 +136,10 @@ relatórios), em `src/lib`:
 - **Vite 5** + `@vitejs/plugin-react-swc`. Alias `@` → `src/`.
 - **PWA** via `vite-plugin-pwa` (registrado em `src/main.tsx`); ícones/manifest
   em `public/` — habilita o app mobile de patrimônio.
-- **Deploy**: Vercel (`vercel.json` reescreve todas as rotas para `/index.html`,
-  padrão SPA). Backend e Edge Functions no Supabase.
+- **Deploy**: nginx da VPS, publicado pelo CI a cada merge na `main`
+  (`.github/workflows/deploy-front.yml`; o nginx faz `try_files ... /index.html`, padrão SPA).
+  Backend e Edge Functions no Supabase self-hosted da mesma VPS. Ver
+  [DESENVOLVIMENTO.md](./DESENVOLVIMENTO.md#deploy).
 
 ## Variáveis de ambiente
 

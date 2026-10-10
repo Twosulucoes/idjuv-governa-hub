@@ -90,9 +90,10 @@ Os demais usuários entram pelo app (Admin → Usuários). Guarde as credenciais
   `VITE_SUPABASE_PROJECT_ID` e `VITE_TENANT_SLUG`. Nada de `SERVICE_ROLE_KEY` no front.
 - Edge Functions (detalhes em [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md)): `admin-create-user`,
   `admin-reset-password`, `delete-user`, `download-frequencia`, `backup-offsite`,
-  `enviar-convite-reuniao`, `cpsi-ai-assistant`, `database-schema`. Segredos lidos pelo código:
+  `enviar-convite-reuniao`, `enviar-notificacao`, `cpsi-ai-assistant`, `database-schema`. Segredos lidos pelo código:
   `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ALLOWED_ORIGINS` (use a URL do
-  front), `RESEND_API_KEY`/`RESEND_FROM` (e-mail), `GEMINI_API_KEY`/`GEMINI_MODEL` (assistente),
+  front), `RESEND_API_KEY`/`RESEND_FROM` (e-mail, só como reserva: o cliente configura o envio em
+  `/admin/envios`, com credencial no Vault), `GEMINI_API_KEY`/`GEMINI_MODEL` (assistente),
   `BACKUP_ENCRYPTION_KEY`, `BACKUP_EXTERNAL_API_KEY`, `BACKUP_DEST_SUPABASE_URL`,
   `BACKUP_DEST_SERVICE_ROLE_KEY` (backup externo). Defina só os das funções que for ligar.
 - **Defina `FUNCTIONS_VERIFY_JWT=true`** no `.env` das Edge Functions (no self-hosted o exemplo costuma vir
@@ -136,7 +137,10 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
 - Decisões em aberto (sigilo de processos, granularidade do módulo `rh`, permissões `admin.*` do papel
   `user`, oráculos de permissão, limite de taxa): [`supabase/baseline/README.md`](../supabase/baseline/README.md),
   seção “Pendências e decisões em aberto”.
-- Buckets públicos ainda entregam o arquivo a quem tem a URL; fechar exige bucket privado + URL
-  assinada no front.
+- O baseline cria **10 buckets** (`overlay/50_storage.sql`, apurado em 2026-10-09). Buckets públicos
+  ainda entregam o arquivo a quem tem a URL; fechar exige bucket privado + URL assinada no front. O
+  `inventario-evidencias` (fotos da vistoria de inventário) já nasce privado e o front lê por URL assinada.
+- `fotos_vistoria_inventario` é da classe `preservar` do mapa de RLS: as policies vêm da migração
+  `20261009160000` pelo replay, não do gerador ([detalhe](../supabase/baseline/README.md)).
 - A migração `20260110184920` e o histórico git contêm 74 nomes de servidores (CPF placeholder); o baseline não
   os leva, mas o repositório os mantém até uma decisão sobre limpeza de histórico.

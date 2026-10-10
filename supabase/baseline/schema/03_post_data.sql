@@ -310,6 +310,22 @@ ALTER TABLE ONLY public.campanhas_inventario
 
 
 --
+-- Name: campanhas_inventario_unidades campanhas_inventario_unidades_campanha_unidade_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.campanhas_inventario_unidades
+    ADD CONSTRAINT campanhas_inventario_unidades_campanha_unidade_key UNIQUE (campanha_id, unidade_local_id);
+
+
+--
+-- Name: campanhas_inventario_unidades campanhas_inventario_unidades_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.campanhas_inventario_unidades
+    ADD CONSTRAINT campanhas_inventario_unidades_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: cargo_unidade_compatibilidade cargo_unidade_compatibilidade_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1603,6 +1619,22 @@ ALTER TABLE ONLY public.fornecedores
 
 ALTER TABLE ONLY public.fornecedores
     ADD CONSTRAINT fornecedores_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: fotos_vistoria_inventario fotos_vistoria_inventario_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fotos_vistoria_inventario
+    ADD CONSTRAINT fotos_vistoria_inventario_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: fotos_vistoria_inventario fotos_vistoria_inventario_storage_path_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fotos_vistoria_inventario
+    ADD CONSTRAINT fotos_vistoria_inventario_storage_path_key UNIQUE (storage_path);
 
 
 --
@@ -3213,6 +3245,20 @@ CREATE INDEX idx_campanhas_ano ON public.campanhas_inventario USING btree (ano);
 
 
 --
+-- Name: idx_campanhas_inventario_unidades_campanha; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_campanhas_inventario_unidades_campanha ON public.campanhas_inventario_unidades USING btree (campanha_id);
+
+
+--
+-- Name: idx_campanhas_inventario_unidades_unidade; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_campanhas_inventario_unidades_unidade ON public.campanhas_inventario_unidades USING btree (unidade_local_id);
+
+
+--
 -- Name: idx_campanhas_status; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4624,6 +4670,27 @@ CREATE INDEX idx_folhas_pagamento_status ON public.folhas_pagamento USING btree 
 --
 
 CREATE INDEX idx_fornecedores_cpf_cnpj ON public.fornecedores USING btree (cpf_cnpj);
+
+
+--
+-- Name: idx_fotos_vistoria_inventario_bem; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fotos_vistoria_inventario_bem ON public.fotos_vistoria_inventario USING btree (bem_id) WHERE (bem_id IS NOT NULL);
+
+
+--
+-- Name: idx_fotos_vistoria_inventario_campanha_unidade; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fotos_vistoria_inventario_campanha_unidade ON public.fotos_vistoria_inventario USING btree (campanha_id, unidade_local_id);
+
+
+--
+-- Name: idx_fotos_vistoria_inventario_capturada_em; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fotos_vistoria_inventario_capturada_em ON public.fotos_vistoria_inventario USING btree (capturada_em);
 
 
 --
@@ -6818,6 +6885,20 @@ CREATE TRIGGER trg_bloquear_exclusao_ficha_fechada BEFORE DELETE ON public.ficha
 
 
 --
+-- Name: campanhas_inventario_unidades trg_campanhas_inventario_unidades_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_campanhas_inventario_unidades_autoria BEFORE INSERT ON public.campanhas_inventario_unidades FOR EACH ROW EXECUTE FUNCTION public.fn_campanhas_inventario_unidades_autoria();
+
+
+--
+-- Name: campanhas_inventario_unidades trg_campanhas_inventario_unidades_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_campanhas_inventario_unidades_updated_at BEFORE UPDATE ON public.campanhas_inventario_unidades FOR EACH ROW EXECUTE FUNCTION public.fn_update_timestamp_parametros();
+
+
+--
 -- Name: cessoes trg_cessao_atualiza_situacao; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6885,6 +6966,13 @@ CREATE TRIGGER trg_encerrar_vinculo_anterior AFTER INSERT OR UPDATE ON public.vi
 --
 
 CREATE TRIGGER trg_ferias_atualiza_situacao AFTER INSERT OR UPDATE ON public.ferias_servidor FOR EACH ROW EXECUTE FUNCTION public.trigger_ferias_atualiza_situacao();
+
+
+--
+-- Name: fotos_vistoria_inventario trg_fotos_vistoria_inventario_imutavel; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_fotos_vistoria_inventario_imutavel BEFORE UPDATE ON public.fotos_vistoria_inventario FOR EACH ROW EXECUTE FUNCTION public.fn_fotos_vistoria_inventario_imutavel();
 
 
 --
@@ -8266,6 +8354,22 @@ ALTER TABLE ONLY public.campanhas_inventario
 
 ALTER TABLE ONLY public.campanhas_inventario
     ADD CONSTRAINT campanhas_inventario_responsavel_geral_id_fkey FOREIGN KEY (responsavel_geral_id) REFERENCES public.servidores(id);
+
+
+--
+-- Name: campanhas_inventario_unidades campanhas_inventario_unidades_campanha_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.campanhas_inventario_unidades
+    ADD CONSTRAINT campanhas_inventario_unidades_campanha_id_fkey FOREIGN KEY (campanha_id) REFERENCES public.campanhas_inventario(id) ON DELETE CASCADE;
+
+
+--
+-- Name: campanhas_inventario_unidades campanhas_inventario_unidades_unidade_local_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.campanhas_inventario_unidades
+    ADD CONSTRAINT campanhas_inventario_unidades_unidade_local_id_fkey FOREIGN KEY (unidade_local_id) REFERENCES public.unidades_locais(id) ON DELETE RESTRICT;
 
 
 --
@@ -10618,6 +10722,30 @@ ALTER TABLE ONLY public.folhas_pagamento
 
 ALTER TABLE ONLY public.form_field_config
     ADD CONSTRAINT form_field_config_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id);
+
+
+--
+-- Name: fotos_vistoria_inventario fotos_vistoria_inventario_bem_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fotos_vistoria_inventario
+    ADD CONSTRAINT fotos_vistoria_inventario_bem_id_fkey FOREIGN KEY (bem_id) REFERENCES public.bens_patrimoniais(id) ON DELETE SET NULL;
+
+
+--
+-- Name: fotos_vistoria_inventario fotos_vistoria_inventario_campanha_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fotos_vistoria_inventario
+    ADD CONSTRAINT fotos_vistoria_inventario_campanha_id_fkey FOREIGN KEY (campanha_id) REFERENCES public.campanhas_inventario(id) ON DELETE CASCADE;
+
+
+--
+-- Name: fotos_vistoria_inventario fotos_vistoria_inventario_unidade_local_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fotos_vistoria_inventario
+    ADD CONSTRAINT fotos_vistoria_inventario_unidade_local_id_fkey FOREIGN KEY (unidade_local_id) REFERENCES public.unidades_locais(id) ON DELETE RESTRICT;
 
 
 --
@@ -18713,6 +18841,12 @@ ALTER TABLE public.calendario_federacao ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.campanhas_inventario ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: campanhas_inventario_unidades; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.campanhas_inventario_unidades ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: cargo_unidade_compatibilidade; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -19694,6 +19828,12 @@ ALTER TABLE public.form_field_config ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fornecedores ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: fotos_vistoria_inventario; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fotos_vistoria_inventario ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: frequencia_arquivos; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -20574,6 +20714,62 @@ CREATE POLICY rh_module_write ON public.servidores FOR INSERT TO authenticated W
 --
 
 ALTER TABLE public.riscos_institucionais ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: campanhas_inventario_unidades rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.campanhas_inventario_unidades FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: fotos_vistoria_inventario rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fotos_vistoria_inventario FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'patrimonio.tramitar'::text));
+
+
+--
+-- Name: campanhas_inventario_unidades rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.campanhas_inventario_unidades FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: fotos_vistoria_inventario rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fotos_vistoria_inventario FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)) AND (usuario_id = auth.uid())));
+
+
+--
+-- Name: campanhas_inventario_unidades rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.campanhas_inventario_unidades FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: fotos_vistoria_inventario rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fotos_vistoria_inventario FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: campanhas_inventario_unidades rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.campanhas_inventario_unidades FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: fotos_vistoria_inventario rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fotos_vistoria_inventario FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)) AND ((usuario_id = auth.uid()) OR public.has_permission_code(auth.uid(), 'patrimonio.tramitar'::text)))) WITH CHECK (((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)) AND ((usuario_id = auth.uid()) OR public.has_permission_code(auth.uid(), 'patrimonio.tramitar'::text))));
+
 
 --
 -- Name: role_permissions; Type: ROW SECURITY; Schema: public; Owner: -

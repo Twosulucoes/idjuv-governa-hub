@@ -59,4 +59,4 @@ Veja o detalhamento de cada um em [MODULOS.md](./MODULOS.md).
 
 - Código-fonte no GitHub, sem sincronização automática com ferramentas externas.
 - Backend **Supabase** (Postgres + Auth + Storage + Edge Functions).
-- Deploy do front na **Vercel**.
+- Front e backend na **VPS** (nginx + Supabase self-hosted), com deploy automático a cada merge na `main`.
