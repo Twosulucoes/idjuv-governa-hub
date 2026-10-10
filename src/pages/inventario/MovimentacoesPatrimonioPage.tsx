@@ -14,8 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
-import { useMovimentacoesPatrimonio } from "@/hooks/usePatrimonio";
+import { useMovimentacoesPatrimonio, useDecidirMovimentacao } from "@/hooks/usePatrimonio";
 import { NovaMovimentacaoDialog } from "@/components/inventario/NovaMovimentacaoDialog";
+import { DecisaoPatrimonioDialog, type ModoDecisao } from "@/components/inventario/DecisaoPatrimonioDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -28,15 +29,15 @@ const TIPOS_MOVIMENTACAO = [
 
 const STATUS_MOVIMENTACAO: { value: string; label: string; tom: TomStatus }[] = [
   { value: 'pendente', label: 'Pendente', tom: 'pendente' },
-  { value: 'aprovada', label: 'Aprovada', tom: 'sucesso' },
-  { value: 'rejeitada', label: 'Rejeitada', tom: 'erro' },
-  { value: 'concluida', label: 'Concluída', tom: 'sucesso' },
+  { value: 'aprovado', label: 'Aprovada', tom: 'sucesso' },
+  { value: 'rejeitado', label: 'Rejeitada', tom: 'erro' },
+  { value: 'concluido', label: 'Concluída', tom: 'sucesso' },
 ];
 
 type MovimentacaoBase = NonNullable<ReturnType<typeof useMovimentacoesPatrimonio>["data"]>[number];
-// Os tipos gerados tratam o solicitante (FK nomeada) como lista; em tempo de execução vem um objeto.
-type Movimentacao = Omit<MovimentacaoBase, "solicitante"> & {
-  solicitante: { id: string; nome_completo: string } | null;
+// Os tipos gerados tratam o responsável (FK nomeada) como lista; em tempo de execução vem um objeto.
+type Movimentacao = Omit<MovimentacaoBase, "responsavel_destino"> & {
+  responsavel_destino: { id: string; nome_completo: string } | null;
 };
 
 const getTipoLabel = (tipo: string | null) => {
@@ -110,15 +111,15 @@ const colunas: ColunaTabela<Movimentacao>[] = [
     ordenarPor: (mov) => mov.destino_unidade_local?.nome_unidade,
   },
   {
-    id: "solicitante",
-    cabecalho: "Solicitante",
+    id: "responsavel_destino",
+    cabecalho: "Responsável destino",
     celula: (mov) => (
       <div className="flex items-center gap-1">
         <User className="w-3 h-3" aria-hidden="true" />
-        {mov.solicitante?.nome_completo?.split(' ').slice(0, 2).join(' ') || '-'}
+        {mov.responsavel_destino?.nome_completo?.split(' ').slice(0, 2).join(' ') || '-'}
       </div>
     ),
-    ordenarPor: (mov) => mov.solicitante?.nome_completo,
+    ordenarPor: (mov) => mov.responsavel_destino?.nome_completo,
   },
   {
     id: "status",
@@ -133,6 +134,8 @@ export default function MovimentacoesPatrimonioPage() {
   const [filtroTipo, setFiltroTipo] = useState<string>("");
   const [filtroStatus, setFiltroStatus] = useState<string>("");
   const [dialogNovaMovimentacaoOpen, setDialogNovaMovimentacaoOpen] = useState(false);
+  const [decisao, setDecisao] = useState<{ mov: Movimentacao; modo: ModoDecisao } | null>(null);
+  const decidirMovimentacao = useDecidirMovimentacao();
 
   // Verifica se tem ação no URL
   useEffect(() => {
@@ -221,6 +224,7 @@ export default function MovimentacoesPatrimonioPage() {
                     variant="ghost"
                     size="icon"
                     className="text-success"
+                    onClick={() => setDecisao({ mov, modo: "aprovar" })}
                     aria-label={`Aprovar movimentação do bem ${identificacaoBem(mov)}`}
                   >
                     <Check className="w-4 h-4" aria-hidden="true" />
@@ -229,6 +233,7 @@ export default function MovimentacoesPatrimonioPage() {
                     variant="ghost"
                     size="icon"
                     className="text-destructive"
+                    onClick={() => setDecisao({ mov, modo: "rejeitar" })}
                     aria-label={`Rejeitar movimentação do bem ${identificacaoBem(mov)}`}
                   >
                     <X className="w-4 h-4" aria-hidden="true" />
@@ -243,6 +248,27 @@ export default function MovimentacoesPatrimonioPage() {
       <NovaMovimentacaoDialog
         open={dialogNovaMovimentacaoOpen}
         onOpenChange={setDialogNovaMovimentacaoOpen}
+      />
+
+      <DecisaoPatrimonioDialog
+        open={!!decisao}
+        onOpenChange={(aberto) => !aberto && setDecisao(null)}
+        modo={decisao?.modo ?? "aprovar"}
+        titulo={decisao?.modo === "rejeitar" ? "Rejeitar movimentação" : "Aprovar movimentação"}
+        descricao={decisao ? `${getTipoLabel(decisao.mov.tipo)} do bem ${identificacaoBem(decisao.mov)}.` : ""}
+        aviso={
+          decisao?.modo === "aprovar"
+            ? `Ao aprovar, o bem passa para ${decisao.mov.destino_unidade_local?.nome_unidade || "a unidade de destino"}${decisao.mov.responsavel_destino ? ` sob responsabilidade de ${decisao.mov.responsavel_destino.nome_completo}` : ""}.`
+            : undefined
+        }
+        processando={decidirMovimentacao.isPending}
+        onConfirmar={(motivoRejeicao) => {
+          if (!decisao) return;
+          decidirMovimentacao.mutate(
+            { id: decisao.mov.id, aprovar: decisao.modo === "aprovar", motivoRejeicao },
+            { onSuccess: () => setDecisao(null) },
+          );
+        }}
       />
     </ModuleLayout>
   );

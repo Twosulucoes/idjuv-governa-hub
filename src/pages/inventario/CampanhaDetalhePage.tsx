@@ -29,12 +29,15 @@ const STATUS_CAMPANHA: Record<string, { label: string; tom: TomStatus }> = {
   em_andamento: { label: "Em andamento", tom: "andamento" },
   pausada: { label: "Pausada", tom: "pendente" },
   concluida: { label: "Concluída", tom: "sucesso" },
+  cancelada: { label: "Cancelada", tom: "erro" },
 };
 
 const STATUS_COLETA: Record<string, { label: string; tom: TomStatus }> = {
   conferido: { label: "Conferido", tom: "sucesso" },
   divergente: { label: "Divergente", tom: "pendente" },
   nao_localizado: { label: "Não localizado", tom: "erro" },
+  avariado: { label: "Avariado", tom: "pendente" },
+  em_manutencao: { label: "Em manutenção", tom: "andamento" },
   sem_etiqueta: { label: "Sem etiqueta", tom: "neutro" },
 };
 

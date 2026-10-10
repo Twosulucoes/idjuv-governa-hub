@@ -1,6 +1,6 @@
 /**
  * DIALOG: CADASTRO EM LOTE DE BENS
- * Formulário para cadastrar múltiplos bens com sequência automática
+ * Formulário para cadastrar múltiplos bens; os números de tombamento são gerados pelo banco
  */
 
 import { useForm } from "react-hook-form";
@@ -35,7 +35,9 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Package, CheckCircle2 } from "lucide-react";
+import { Loader2, Package, CheckCircle2, AlertCircle, Printer } from "lucide-react";
+import { toast } from "sonner";
+import { imprimirEtiquetas } from "@/lib/etiquetasPatrimonio";
 import { useCadastroLote, type CadastroLoteResult } from "@/hooks/patrimonio/useCadastroLote";
 import {
   CATEGORIAS_LABEL,
@@ -132,6 +134,15 @@ export function CadastroLoteDialog({ open, onOpenChange, unidadePreSelecionada }
     }
   };
 
+  const handleImprimirEtiquetas = async () => {
+    if (!resultado?.bens.length) return;
+    try {
+      await imprimirEtiquetas(resultado.bens);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível imprimir as etiquetas.");
+    }
+  };
+
   const progressoPercent = progresso.total > 0 ? (progresso.atual / progresso.total) * 100 : 0;
 
   return (
@@ -143,22 +154,33 @@ export function CadastroLoteDialog({ open, onOpenChange, unidadePreSelecionada }
             Cadastro em Lote
           </DialogTitle>
           <DialogDescription>
-            Cadastre múltiplos bens idênticos com sequência automática de tombamento
+            Cadastre múltiplos bens idênticos; o sistema gera um número de tombamento para cada um
           </DialogDescription>
         </DialogHeader>
 
         {resultado ? (
           <div className="space-y-4 py-4">
-            <div className="flex items-center gap-3 text-primary">
-              <CheckCircle2 className="h-8 w-8" />
-              <div>
-                <p className="font-semibold text-lg">{resultado.sucesso} bens cadastrados!</p>
-                {resultado.falhas > 0 && (
-                  <p className="text-sm text-destructive">{resultado.falhas} falhas</p>
-                )}
+            {resultado.sucesso > 0 ? (
+              <div className="flex items-center gap-3 text-primary">
+                <CheckCircle2 className="h-8 w-8" />
+                <div>
+                  <p className="font-semibold text-lg">{resultado.sucesso} bens cadastrados!</p>
+                  {resultado.falhas > 0 && (
+                    <p className="text-sm text-destructive">{resultado.falhas} falhas</p>
+                  )}
+                </div>
               </div>
-            </div>
-            
+            ) : (
+              <div className="flex items-center gap-3 text-destructive">
+                <AlertCircle className="h-8 w-8" />
+                <div>
+                  <p className="font-semibold text-lg">Nenhum bem foi cadastrado</p>
+                  {resultado.erro && <p className="text-sm">{resultado.erro}</p>}
+                </div>
+              </div>
+            )}
+
+            {resultado.tombamentos.length > 0 && (
             <div className="bg-muted rounded-lg p-4 max-h-40 overflow-y-auto">
               <p className="text-sm font-medium mb-2">Tombamentos gerados:</p>
               <div className="flex flex-wrap gap-2">
@@ -169,11 +191,18 @@ export function CadastroLoteDialog({ open, onOpenChange, unidadePreSelecionada }
                 ))}
               </div>
             </div>
+            )}
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={handleClose}>
                 Fechar
               </Button>
+              {resultado.bens.length > 0 && (
+                <Button variant="outline" onClick={handleImprimirEtiquetas}>
+                  <Printer className="h-4 w-4 mr-2" />
+                  Imprimir etiquetas
+                </Button>
+              )}
               <Button onClick={() => setResultado(null)}>
                 Novo Cadastro
               </Button>

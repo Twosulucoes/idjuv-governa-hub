@@ -20,6 +20,8 @@ export interface MovimentacaoLotePayload {
 export interface MovimentacaoLoteResult {
   sucesso: number;
   falhas: number;
+  /** Mensagem do primeiro erro devolvido pelo banco, para o usuário saber o motivo das falhas. */
+  primeiroErro?: string;
 }
 
 export function useMovimentacaoLote() {
@@ -31,6 +33,7 @@ export function useMovimentacaoLote() {
       const { bem_ids, ...dadosMovimentacao } = payload;
       let sucesso = 0;
       let falhas = 0;
+      let primeiroErro: string | undefined;
 
       setProgresso({ atual: 0, total: bem_ids.length });
 
@@ -69,13 +72,14 @@ export function useMovimentacaoLote() {
           sucesso++;
         } catch (error) {
           console.error(`Erro ao movimentar bem ${bemId}:`, error);
+          primeiroErro ??= (error as { message?: string })?.message;
           falhas++;
         }
 
         setProgresso({ atual: i + 1, total: bem_ids.length });
       }
 
-      return { sucesso, falhas };
+      return { sucesso, falhas, primeiroErro };
     },
     onSuccess: (result) => {
       if (result.sucesso > 0) {
@@ -84,7 +88,9 @@ export function useMovimentacaoLote() {
           (result.falhas > 0 ? ` (${result.falhas} falhas)` : "")
         );
       } else {
-        toast.error("Nenhuma movimentação foi registrada.");
+        toast.error(
+          "Nenhuma movimentação foi registrada." + (result.primeiroErro ? ` ${result.primeiroErro}` : "")
+        );
       }
       queryClient.invalidateQueries({ queryKey: ["movimentacoes-patrimonio"] });
       queryClient.invalidateQueries({ queryKey: ["bens-patrimoniais"] });

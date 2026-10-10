@@ -4,13 +4,15 @@
  * Padrões do design system: PageHeader, KpiCard, StatusBadge, EmptyState.
  */
 
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { 
   Package, ArrowLeft, Edit, MapPin, User, Calendar, 
   Hash, Tag, Wrench, FileText, Clock, Building2, 
   DollarSign, QrCode, Shield, Truck,
-  Info, History, Image as ImageIcon
+  Info, History, Image as ImageIcon, Printer
 } from "lucide-react";
+import { toast } from "sonner";
 import type { LucideIcon } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState, KpiCard, PageHeader, StatusBadge, type TomStatus } from "@/components/design-system";
 import { useBemPatrimonial, useHistoricoPatrimonio } from "@/hooks/usePatrimonio";
 import { motion } from "framer-motion";
+import { gerarQrDataUrl, imprimirEtiquetas } from "@/lib/etiquetasPatrimonio";
 
 const fadeIn = {
   initial: { opacity: 0, y: 8 },
@@ -142,6 +145,60 @@ function DetailSkeleton() {
   );
 }
 
+interface BemParaEtiqueta {
+  numero_patrimonio: string;
+  descricao: string;
+  codigo_qr?: string | null;
+}
+
+async function imprimirEtiquetaBem(bem: BemParaEtiqueta) {
+  try {
+    await imprimirEtiquetas([bem]);
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Não foi possível imprimir a etiqueta.");
+  }
+}
+
+/** QR Code do bem (conteúdo = codigo_qr ou número de tombamento) com botão de etiqueta. */
+function EtiquetaQr({ bem }: { bem: BemParaEtiqueta }) {
+  const conteudo = (bem.codigo_qr || bem.numero_patrimonio || "").trim();
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let ativo = true;
+    setQrUrl(null);
+    if (!conteudo) return;
+    gerarQrDataUrl(conteudo)
+      .then((url) => {
+        if (ativo) setQrUrl(url);
+      })
+      .catch((err: unknown) => console.error("Erro ao gerar QR Code:", err));
+    return () => {
+      ativo = false;
+    };
+  }, [conteudo]);
+
+  if (!conteudo) return null;
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-3">
+      {qrUrl ? (
+        <img
+          src={qrUrl}
+          alt={`QR Code do bem ${bem.numero_patrimonio}`}
+          className="h-36 w-36 rounded-md border bg-background p-1"
+        />
+      ) : (
+        <Skeleton className="h-36 w-36" />
+      )}
+      <Button variant="outline" size="sm" onClick={() => imprimirEtiquetaBem(bem)}>
+        <Printer className="w-4 h-4" aria-hidden="true" />
+        Imprimir etiqueta
+      </Button>
+    </div>
+  );
+}
+
 function TimelineEvent({ evento, isLast }: { evento: any; isLast: boolean }) {
   const iconMap: Record<string, LucideIcon> = {
     cadastro: Package,
@@ -235,7 +292,10 @@ export default function BemDetalhePage() {
           status={<SituacaoBadge situacao={bem.situacao} />}
           descricao={
             bem.numero_patrimonio ? (
-              <span className="font-mono">Patrimônio {bem.numero_patrimonio}</span>
+              <span className="font-mono">
+                Patrimônio {bem.numero_patrimonio}
+                {bem.patrimonio_anterior && <> · Tombamento anterior {bem.patrimonio_anterior}</>}
+              </span>
             ) : undefined
           }
           acoes={
@@ -246,6 +306,12 @@ export default function BemDetalhePage() {
                   Voltar
                 </Link>
               </Button>
+              {bem.numero_patrimonio && (
+                <Button variant="outline" onClick={() => imprimirEtiquetaBem(bem)}>
+                  <Printer className="w-4 h-4" aria-hidden="true" />
+                  Imprimir etiqueta
+                </Button>
+              )}
               <Button asChild>
                 <Link to={`/inventario/bens/${bem.id}/editar`}>
                   <Edit className="w-4 h-4" aria-hidden="true" />
@@ -375,7 +441,9 @@ export default function BemDetalhePage() {
                     <InfoItem icon={Calendar} label="Data Atribuição">{formatDate(bem.data_atribuicao_responsabilidade)}</InfoItem>
                     <InfoItem icon={FileText} label="Processo SEI">{bem.processo_sei || "—"}</InfoItem>
                     {bem.patrimonio_anterior && (
-                      <InfoItem icon={Hash} label="Patrimônio Anterior">{bem.patrimonio_anterior}</InfoItem>
+                      <InfoItem icon={Hash} label="Tombamento anterior">
+                        <span className="font-mono">{bem.patrimonio_anterior}</span>
+                      </InfoItem>
                     )}
                   </CardContent>
                 </Card>
@@ -441,8 +509,14 @@ export default function BemDetalhePage() {
                         <InfoItem icon={Hash} label="Nº Patrimônio">
                           <span className="font-mono">{bem.numero_patrimonio}</span>
                         </InfoItem>
+                        {bem.patrimonio_anterior && (
+                          <InfoItem icon={Hash} label="Tombamento anterior">
+                            <span className="font-mono">{bem.patrimonio_anterior}</span>
+                          </InfoItem>
+                        )}
                       </div>
                     </div>
+                    <EtiquetaQr bem={bem} />
                   </CardContent>
                 </Card>
               </motion.div>

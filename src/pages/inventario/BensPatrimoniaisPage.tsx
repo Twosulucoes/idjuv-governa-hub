@@ -19,6 +19,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useBensPatrimoniais, useCreateBem } from "@/hooks/usePatrimonio";
+import { imprimirEtiquetas } from "@/lib/etiquetasPatrimonio";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -34,11 +35,12 @@ const CATEGORIAS_BEM = [
   { value: 'outros', label: 'Outros' },
 ];
 
+// Valores do CHECK da coluna bens_patrimoniais.situacao
 const SITUACOES_BEM: { value: string; label: string; tom: TomStatus }[] = [
-  { value: 'cadastrado', label: 'Cadastrado', tom: 'neutro' },
-  { value: 'tombado', label: 'Tombado', tom: 'andamento' },
-  { value: 'alocado', label: 'Alocado', tom: 'sucesso' },
+  { value: 'ativo', label: 'Ativo', tom: 'sucesso' },
   { value: 'em_manutencao', label: 'Em manutenção', tom: 'pendente' },
+  { value: 'cedido', label: 'Cedido', tom: 'andamento' },
+  { value: 'em_transferencia', label: 'Em transferência', tom: 'andamento' },
   { value: 'baixado', label: 'Baixado', tom: 'erro' },
   { value: 'extraviado', label: 'Extraviado', tom: 'erro' },
 ];
@@ -48,7 +50,7 @@ const ESTADOS_CONSERVACAO = [
   { value: 'bom', label: 'Bom' },
   { value: 'regular', label: 'Regular' },
   { value: 'ruim', label: 'Ruim' },
-  { value: 'irrecuperavel', label: 'Irrecuperável' },
+  { value: 'inservivel', label: 'Inservível' },
 ];
 
 type Bem = NonNullable<ReturnType<typeof useBensPatrimoniais>["data"]>[number];
@@ -138,6 +140,20 @@ export default function BensPatrimoniaisPage() {
 
   const createBem = useCreateBem();
 
+  const handleGerarQrCode = async (bem: Bem) => {
+    if (!bem.numero_patrimonio) {
+      toast.error('Este bem ainda não tem número de tombamento.');
+      return;
+    }
+    try {
+      await imprimirEtiquetas([
+        { numero_patrimonio: bem.numero_patrimonio, descricao: bem.descricao, codigo_qr: bem.codigo_qr },
+      ]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível gerar a etiqueta.');
+    }
+  };
+
   // Form state para novo bem
   const [novoBem, setNovoBem] = useState({
     descricao: '',
@@ -204,8 +220,8 @@ export default function BensPatrimoniaisPage() {
         valor_aquisicao: novoBem.valor_aquisicao,
         data_aquisicao: novoBem.data_aquisicao,
         observacao: novoBem.observacao.trim() || null,
-        situacao: 'cadastrado',
-        numero_patrimonio: '',
+        situacao: 'ativo',
+        // numero_patrimonio omitido: o banco gera o tombamento e o codigo_qr.
         unidade_local_id: novoBem.unidade_local_id,
         responsavel_id: novoBem.responsavel_id || null,
       });
@@ -484,7 +500,7 @@ export default function BensPatrimoniaisPage() {
                     Editar
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => { void handleGerarQrCode(bem); }}>
                   <QrCode className="w-4 h-4 mr-2" aria-hidden="true" />
                   Gerar QR Code
                 </DropdownMenuItem>

@@ -42,14 +42,16 @@ import {
   useCampanhaInventario, 
   useColetasInventario, 
   useCreateColeta,
-  useBensPatrimoniais,
   useUnidadesLocaisPatrimonio 
 } from "@/hooks/usePatrimonio";
+import { useBuscarBemPorCodigo, type BemEncontrado } from "@/hooks/patrimonio/useBuscarBemPorCodigo";
 
 const STATUS_COLETA_OPTIONS: { value: string; label: string; description: string; tom: TomStatus }[] = [
   { value: "conferido", label: "Conferido", description: "Bem localizado sem divergências", tom: "sucesso" },
   { value: "divergente", label: "Divergente", description: "Localização ou estado diferente do esperado", tom: "pendente" },
   { value: "nao_localizado", label: "Não localizado", description: "Bem não encontrado no local", tom: "erro" },
+  { value: "avariado", label: "Avariado", description: "Bem localizado, mas danificado", tom: "pendente" },
+  { value: "em_manutencao", label: "Em manutenção", description: "Bem fora do local por estar em manutenção", tom: "andamento" },
   { value: "sem_etiqueta", label: "Sem etiqueta", description: "Bem encontrado sem plaqueta", tom: "neutro" },
 ];
 
@@ -58,7 +60,7 @@ export default function ColetaInventarioPage() {
   const navigate = useNavigate();
   
   const [busca, setBusca] = useState("");
-  const [bemSelecionado, setBemSelecionado] = useState<any>(null);
+  const [bemSelecionado, setBemSelecionado] = useState<BemEncontrado | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   
   // Form state
@@ -72,7 +74,7 @@ export default function ColetaInventarioPage() {
   
   const { data: campanha, isLoading } = useCampanhaInventario(id);
   const { data: coletas, refetch: refetchColetas } = useColetasInventario(id || "");
-  const { data: bens } = useBensPatrimoniais();
+  const { buscar: buscarBem, buscando } = useBuscarBemPorCodigo();
   const { data: unidades } = useUnidadesLocaisPatrimonio();
   const createColeta = useCreateColeta();
 
@@ -81,13 +83,20 @@ export default function ColetaInventarioPage() {
     inputRef.current?.focus();
   }, []);
 
-  const handleBuscar = () => {
-    if (!busca.trim()) return;
-    
-    const bemEncontrado = bens?.find(b => 
-      b.numero_patrimonio?.toLowerCase() === busca.toLowerCase() ||
-      b.codigo_qr?.toLowerCase() === busca.toLowerCase()
-    );
+  const handleBuscar = async () => {
+    const codigo = busca.trim();
+    if (!codigo || buscando) return;
+
+    // Busca no servidor (número, QR ou plaqueta antiga), sem carregar a lista inteira de bens.
+    let bemEncontrado: BemEncontrado | null = null;
+    try {
+      bemEncontrado = await buscarBem(codigo);
+    } catch (error) {
+      toast.error("Erro ao buscar o bem", {
+        description: error instanceof Error ? error.message : "Tente novamente.",
+      });
+      return;
+    }
     
     if (bemEncontrado) {
       // Verificar se já foi coletado
@@ -252,7 +261,7 @@ export default function ColetaInventarioPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={(e) => { e.preventDefault(); handleBuscar(); }} className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); void handleBuscar(); }} className="space-y-4">
               <div className="flex gap-2">
                 <Input
                   ref={inputRef}
@@ -264,7 +273,7 @@ export default function ColetaInventarioPage() {
                   className="text-lg h-12"
                   autoComplete="off"
                 />
-                <Button type="submit" size="lg" className="px-6" aria-label="Buscar bem">
+                <Button type="submit" size="lg" className="px-6" aria-label="Buscar bem" disabled={buscando}>
                   <Search className="w-5 h-5" aria-hidden="true" />
                 </Button>
               </div>
@@ -345,10 +354,12 @@ export default function ColetaInventarioPage() {
                   <span className="text-muted-foreground">Descrição:</span>
                   <span className="text-right max-w-[200px] truncate">{bemSelecionado.descricao}</span>
                 </div>
-                {bemSelecionado.unidade_local && (
+                {bemSelecionado.unidade_local_id && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Loc. Esperada:</span>
-                    <span>{(bemSelecionado as any).unidade_local?.nome_unidade}</span>
+                    <span>
+                      {unidades?.find(u => u.id === bemSelecionado.unidade_local_id)?.nome_unidade ?? "Unidade não listada"}
+                    </span>
                   </div>
                 )}
               </div>

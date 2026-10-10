@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Wrench, Plus, Eye, Package } from "lucide-react";
+import { Wrench, Plus, Eye, Package, CheckCircle2 } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
 import { useManutencoesPatrimonio } from "@/hooks/usePatrimonio";
 import { NovaManutencaoDialog } from "@/components/inventario/NovaManutencaoDialog";
+import { ConcluirManutencaoDialog } from "@/components/inventario/ConcluirManutencaoDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -28,7 +29,14 @@ const TIPOS_MANUTENCAO = [
   { value: 'corretiva', label: 'Corretiva' },
 ];
 
-type Manutencao = NonNullable<ReturnType<typeof useManutencoesPatrimonio>["data"]>[number];
+type ManutencaoBase = NonNullable<ReturnType<typeof useManutencoesPatrimonio>["data"]>[number];
+// Os tipos gerados podem tratar o fornecedor (FK nomeada) como lista; em tempo de execução vem um objeto.
+type Manutencao = Omit<ManutencaoBase, "fornecedor"> & {
+  fornecedor: { id: string; razao_social: string | null } | null;
+};
+
+const nomeFornecedor = (man: Manutencao) => man.fornecedor?.razao_social || man.fornecedor_externo || null;
+const podeConcluir = (man: Manutencao) => man.status === 'aberta' || man.status === 'em_andamento';
 
 const formatCurrency = (value: number | null) =>
   value ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value) : '-';
@@ -87,8 +95,8 @@ const colunas: ColunaTabela<Manutencao>[] = [
   {
     id: "fornecedor",
     cabecalho: "Fornecedor",
-    celula: (man) => man.fornecedor_externo || '-',
-    ordenarPor: (man) => man.fornecedor_externo,
+    celula: (man) => nomeFornecedor(man) || '-',
+    ordenarPor: (man) => nomeFornecedor(man),
   },
   {
     id: "custo",
@@ -110,6 +118,7 @@ export default function ManutencoesBensPage() {
   const [filtroStatus, setFiltroStatus] = useState<string>("");
   const [filtroTipo, setFiltroTipo] = useState<string>("");
   const [dialogNovaManutencaoOpen, setDialogNovaManutencaoOpen] = useState(false);
+  const [manutencaoConcluir, setManutencaoConcluir] = useState<Manutencao | null>(null);
 
   // Verifica se tem ação no URL
   useEffect(() => {
@@ -121,7 +130,7 @@ export default function ManutencoesBensPage() {
 
   const { data: manutencoes, isLoading, isError, refetch } = useManutencoesPatrimonio();
 
-  const manutencoesFiltradas = (manutencoes ?? []).filter(man => {
+  const manutencoesFiltradas = ((manutencoes ?? []) as unknown as Manutencao[]).filter(man => {
     if (filtroStatus && man.status !== filtroStatus) return false;
     if (filtroTipo && man.tipo !== filtroTipo) return false;
     return true;
@@ -183,14 +192,27 @@ export default function ManutencoesBensPage() {
             descricao: "Ajuste os filtros ou registre uma manutenção.",
           }}
           acoesLinha={(man) => (
-            <Button variant="ghost" size="icon" asChild>
-              <Link
-                to={`/inventario/manutencoes/${man.id}`}
-                aria-label={`Ver manutenção do bem ${man.bem?.numero_patrimonio || man.bem?.descricao || ''}`.trim()}
-              >
-                <Eye className="w-4 h-4" aria-hidden="true" />
-              </Link>
-            </Button>
+            <div className="flex gap-1">
+              <Button variant="ghost" size="icon" asChild>
+                <Link
+                  to={`/inventario/manutencoes/${man.id}`}
+                  aria-label={`Ver manutenção do bem ${man.bem?.numero_patrimonio || man.bem?.descricao || ''}`.trim()}
+                >
+                  <Eye className="w-4 h-4" aria-hidden="true" />
+                </Link>
+              </Button>
+              {podeConcluir(man) && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-success"
+                  onClick={() => setManutencaoConcluir(man)}
+                  aria-label={`Concluir manutenção do bem ${man.bem?.numero_patrimonio || man.bem?.descricao || ''}`.trim()}
+                >
+                  <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+                </Button>
+              )}
+            </div>
           )}
         />
       </div>
@@ -198,6 +220,12 @@ export default function ManutencoesBensPage() {
       <NovaManutencaoDialog
         open={dialogNovaManutencaoOpen}
         onOpenChange={setDialogNovaManutencaoOpen}
+      />
+
+      <ConcluirManutencaoDialog
+        open={!!manutencaoConcluir}
+        onOpenChange={(aberto) => !aberto && setManutencaoConcluir(null)}
+        manutencao={manutencaoConcluir}
       />
     </ModuleLayout>
   );
