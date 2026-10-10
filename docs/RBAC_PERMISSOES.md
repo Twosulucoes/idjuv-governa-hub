@@ -396,6 +396,24 @@ SELECT tgrelid::regclass, tgname FROM pg_trigger WHERE tgname = 'trg_validar_eta
 -- esperado: solicitacoes_abono e frequencia_fechamento
 ```
 
+### Folha: edição da ficha
+
+- No detalhe da folha (`/folha/:id` → `FichaFinanceiraDialog`), incluir/editar/excluir itens da
+  ficha, cadastrar/suspender/quitar/lançar consignações e manter dependentes IRRF exige
+  `financeiro.folha.processar` (desde a B1, catalogada no módulo `rh`; super admin passa por cima) **e** folha em
+  `previa`, `aberta` ou `reaberta` (`podeEditarFicha`, `src/lib/folhaFichaRegras.ts`). Sem isso os
+  botões não aparecem e o diálogo marca "Somente leitura". A rota `/folha/:id` exige o módulo `rh` e
+  `financeiro.folha.visualizar` (B1).
+- No banco, a mesma regra vale desde a B1 (seção acima): escrita exige o módulo `rh` e
+  `financeiro.folha.processar`, e a folha fechada barra também o INSERT de fichas e itens. Continuam
+  pendentes o recálculo atômico de totais (hoje feito pelo cliente em quatro comandos) e a
+  preservação dos itens manuais no reprocessamento — ver
+  `superpowers/specs/2026-10-09-folha-detalhe-edicao-design.md`.
+- Erros do banco (RLS 42501, trigger P0001, CHECK 23514, duplicidade 23505, obrigatório 23502,
+  "0 linhas" PGRST116) chegam ao usuário em toast legível via `descreverErroBanco`. Só o texto do
+  `RAISE` dos triggers (P0001) é repassado; os demais viram mensagem fixa com o código, sem nome de
+  tabela/constraint nem o `DETAIL` do Postgres (que em CHECK traz a linha inteira, com dados pessoais).
+
 ### Importação de dados
 
 Cada importador declara a sua permissão (`src/lib/importacao/registro.ts`) e a RPC dele confere a

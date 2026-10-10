@@ -4,8 +4,9 @@ import { ModuleLayout } from '@/components/layout/ModuleLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/design-system';
 import { 
-  Building2, 
   Crown, 
   Users, 
   ArrowRight, 
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { RelatorioEstruturaDialog } from '@/components/relatorios/RelatorioEstruturaDialog';
+import { useIdentidade } from "@/core/tenant";
 
 interface Nucleo {
   sigla: string;
@@ -117,6 +119,7 @@ const NUCLEOS_COMPLETOS: Record<string, string> = {
 };
 
 export default function EstruturaOrganizacionalPage() {
+  const { sigla } = useIdentidade();
   const [resumo, setResumo] = useState<ResumoData | null>(null);
   const [loading, setLoading] = useState(true);
   const [relatorioOpen, setRelatorioOpen] = useState(false);
@@ -138,40 +141,36 @@ export default function EstruturaOrganizacionalPage() {
 
   return (
     <ModuleLayout module="governanca">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3 mb-2">
-            <Building2 className="h-8 w-8 text-primary" />
-            Estrutura Organizacional do IDJUV
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Instituto de Desporto, Juventude e Lazer do Estado de Roraima
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Badge variant="outline" className="gap-1">
-              <Scale className="h-3 w-3" />
-              {resumo?.fonte || 'Lei nº 2.301/2025'}
-            </Badge>
-            <Badge variant="secondary" className="gap-1">
-              <Users className="h-3 w-3" />
-              {resumo?.total_cargos || 98} Cargos
-            </Badge>
-            <Link to="/organograma">
-              <Badge variant="default" className="gap-1 cursor-pointer hover:bg-primary/80">
-                <Network className="h-3 w-3" />
-                Ver Organograma Interativo
-              </Badge>
-            </Link>
-            <Badge 
-              variant="outline" 
-              className="gap-1 cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-              onClick={() => setRelatorioOpen(true)}
-            >
-              <FileDown className="h-3 w-3" />
-              Gerar Relatório PDF
-            </Badge>
-          </div>
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: "Governança", href: "/governanca" }, { rotulo: "Estrutura organizacional" }]}
+          titulo={`Estrutura organizacional do ${sigla}`}
+          descricao="Instituto de Desporto, Juventude e Lazer do Estado de Roraima"
+          acoes={
+            <>
+              <Button variant="outline" asChild>
+                <Link to="/organograma">
+                  <Network className="h-4 w-4" aria-hidden="true" />
+                  Ver organograma interativo
+                </Link>
+              </Button>
+              <Button onClick={() => setRelatorioOpen(true)}>
+                <FileDown className="h-4 w-4" aria-hidden="true" />
+                Gerar relatório PDF
+              </Button>
+            </>
+          }
+        />
+
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline" className="gap-1">
+            <Scale className="h-3 w-3" aria-hidden="true" />
+            {resumo?.fonte || 'Lei nº 2.301/2025'}
+          </Badge>
+          <Badge variant="secondary" className="gap-1">
+            <Users className="h-3 w-3" aria-hidden="true" />
+            {resumo?.total_cargos || 98} cargos
+          </Badge>
         </div>
 
         <RelatorioEstruturaDialog 
@@ -180,7 +179,7 @@ export default function EstruturaOrganizacionalPage() {
         />
 
         {/* Introdução */}
-        <Card className="mb-8 border-primary/20 bg-primary/5">
+        <Card className="border-primary/20 bg-primary/5">
           <CardContent className="pt-6">
             <p className="text-foreground leading-relaxed">
               O <strong>Instituto de Desporto, Juventude e Lazer do Estado de Roraima (IDJUV)</strong> foi 
@@ -198,7 +197,7 @@ export default function EstruturaOrganizacionalPage() {
           <section>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-                <Crown className="h-5 w-5 text-primary-foreground" />
+                <Crown className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-foreground">Nível de Administração Superior</h2>
@@ -211,7 +210,7 @@ export default function EstruturaOrganizacionalPage() {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
-                      <Briefcase className="h-4 w-4 text-primary" />
+                      <Briefcase className="h-4 w-4 text-primary" aria-hidden="true" />
                       Presidência
                     </h3>
                     <p className="text-muted-foreground text-sm leading-relaxed">
@@ -222,11 +221,11 @@ export default function EstruturaOrganizacionalPage() {
                     <p className="text-sm font-medium text-foreground mb-2">Cargos vinculados:</p>
                     <ul className="text-sm text-muted-foreground space-y-1">
                       <li className="flex items-center gap-2">
-                        <ArrowRight className="h-3 w-3 text-primary" />
+                        <ArrowRight className="h-3 w-3 text-primary" aria-hidden="true" />
                         Presidente (Subsídio)
                       </li>
                       <li className="flex items-center gap-2">
-                        <ArrowRight className="h-3 w-3 text-primary" />
+                        <ArrowRight className="h-3 w-3 text-primary" aria-hidden="true" />
                         Secretária da Presidência
                       </li>
                     </ul>
@@ -245,7 +244,7 @@ export default function EstruturaOrganizacionalPage() {
           <section>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                <Target className="h-5 w-5 text-secondary-foreground" />
+                <Target className="h-5 w-5 text-secondary-foreground" aria-hidden="true" />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-foreground">Nível de Assessoramento</h2>
@@ -265,7 +264,7 @@ export default function EstruturaOrganizacionalPage() {
                       key={idx}
                       className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg"
                     >
-                      <ChevronDown className="h-4 w-4 text-secondary rotate-[-90deg]" />
+                      <ChevronDown className="h-4 w-4 text-secondary rotate-[-90deg]" aria-hidden="true" />
                       <span className="text-sm font-medium">{unidade}</span>
                     </div>
                   ))}
@@ -273,7 +272,7 @@ export default function EstruturaOrganizacionalPage() {
 
                 <div className="mt-4 p-3 bg-secondary/10 rounded-lg border border-secondary/20">
                   <p className="text-xs text-muted-foreground flex items-center gap-2">
-                    <ArrowRight className="h-3 w-3" />
+                    <ArrowRight className="h-3 w-3" aria-hidden="true" />
                     <strong>Vínculo:</strong> Todas as unidades de assessoramento respondem diretamente à Presidência
                   </p>
                 </div>
@@ -287,7 +286,7 @@ export default function EstruturaOrganizacionalPage() {
           <section>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
-                <Layers className="h-5 w-5 text-accent-foreground" />
+                <Layers className="h-5 w-5 text-accent-foreground" aria-hidden="true" />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-foreground">Nível de Execução Instrumental</h2>
@@ -308,7 +307,7 @@ export default function EstruturaOrganizacionalPage() {
               <CardContent>
                 <div className="mb-4 p-3 bg-accent/10 rounded-lg border border-accent/20">
                   <p className="text-xs text-muted-foreground flex items-center gap-2">
-                    <ArrowRight className="h-3 w-3" />
+                    <ArrowRight className="h-3 w-3" aria-hidden="true" />
                     <strong>Vínculo:</strong> Subordinada diretamente à Presidência do IDJUV
                   </p>
                 </div>
@@ -351,7 +350,7 @@ export default function EstruturaOrganizacionalPage() {
           <section>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-10 h-10 rounded-full bg-highlight flex items-center justify-center">
-                <Target className="h-5 w-5 text-primary-foreground" />
+                <Target className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-foreground">Nível de Execução Programática</h2>
@@ -374,7 +373,7 @@ export default function EstruturaOrganizacionalPage() {
                 <CardContent>
                   <div className="mb-4 p-3 bg-info/10 rounded-lg border border-info/20">
                     <p className="text-xs text-muted-foreground flex items-center gap-2">
-                      <ArrowRight className="h-3 w-3" />
+                      <ArrowRight className="h-3 w-3" aria-hidden="true" />
                       <strong>Vínculo:</strong> Subordinada à Presidência
                     </p>
                   </div>
@@ -419,7 +418,7 @@ export default function EstruturaOrganizacionalPage() {
                 <CardContent>
                   <div className="mb-4 p-3 bg-success/10 rounded-lg border border-success/20">
                     <p className="text-xs text-muted-foreground flex items-center gap-2">
-                      <ArrowRight className="h-3 w-3" />
+                      <ArrowRight className="h-3 w-3" aria-hidden="true" />
                       <strong>Vínculo:</strong> Subordinada à Presidência
                     </p>
                   </div>
@@ -454,11 +453,11 @@ export default function EstruturaOrganizacionalPage() {
         </div>
 
         {/* Diagrama de vínculos — leitura rápida da hierarquia */}
-        <Card className="mt-8 bg-muted/30">
+        <Card className="bg-muted/30">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Network className="h-5 w-5 text-primary" />
-              Diagrama de Vínculos
+              <Network className="h-5 w-5 text-primary" aria-hidden="true" />
+              Diagrama de vínculos
             </CardTitle>
             <CardDescription>Representação visual da hierarquia e subordinação</CardDescription>
           </CardHeader>
@@ -505,31 +504,31 @@ export default function EstruturaOrganizacionalPage() {
         </Card>
 
         {/* Rodapé legal */}
-        <Card className="mt-8 border-dashed">
+        <Card className="border-dashed">
           <CardContent className="py-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="flex items-start gap-3">
-                <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <FileText className="h-5 w-5 text-muted-foreground mt-0.5" aria-hidden="true" />
                 <div>
-                  <p className="font-medium text-foreground">Base Legal</p>
+                  <p className="font-medium text-foreground">Base legal</p>
                   <p className="text-sm text-muted-foreground">
                     Lei nº 2.301, de 29 de dezembro de 2025 — dispõe sobre a criação do IDJUV
                   </p>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Link to="/governanca/lei-criacao">
-                  <Badge variant="outline" className="cursor-pointer hover:bg-muted">
-                    <FileText className="h-3 w-3 mr-1" />
-                    Ver Lei Completa
-                  </Badge>
-                </Link>
-                <Link to="/transparencia/cargos">
-                  <Badge variant="outline" className="cursor-pointer hover:bg-muted">
-                    <Users className="h-3 w-3 mr-1" />
-                    Ver Cargos
-                  </Badge>
-                </Link>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/governanca/lei-criacao">
+                    <FileText className="h-3 w-3" aria-hidden="true" />
+                    Ver lei completa
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/transparencia/cargos">
+                    <Users className="h-3 w-3" aria-hidden="true" />
+                    Ver cargos
+                  </Link>
+                </Button>
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-3">
