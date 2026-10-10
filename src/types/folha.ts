@@ -158,18 +158,22 @@ export interface FichaFinanceira {
   updated_at?: string;
 }
 
+/** Tipo aceito pelo CHECK de `itens_ficha_financeira.tipo` (só provento/desconto). */
+export type TipoItemFicha = 'provento' | 'desconto';
+
+/** Alinhado à tabela `itens_ficha_financeira` (não há rubrica_codigo, origem nem created_by). */
 export interface ItemFichaFinanceira {
   id: string;
   ficha_id: string;
-  rubrica_id?: string;
-  rubrica_codigo: string;
-  rubrica_descricao: string;
-  tipo: TipoRubrica;
-  referencia?: number;
+  rubrica_id?: string | null;
+  descricao: string;
+  tipo: TipoItemFicha | string;
+  referencia?: string | null;
   valor: number;
-  origem?: string;
-  observacao?: string;
-  created_at?: string;
+  base_calculo?: number | null;
+  percentual?: number | null;
+  ordem?: number | null;
+  created_at?: string | null;
 }
 
 export interface Consignacao {
@@ -285,6 +289,35 @@ export const TIPO_RUBRICA_LABELS: Record<TipoRubrica, string> = {
   desconto: 'Desconto',
   encargo: 'Encargo',
   informativo: 'Informativo',
+};
+
+export const TIPO_ITEM_FICHA_LABELS: Record<TipoItemFicha, string> = {
+  provento: 'Provento',
+  desconto: 'Desconto',
+};
+
+// `consignacoes.tipo_consignacao` é varchar livre no banco; estes são os valores usados pela UI.
+export const TIPO_CONSIGNACAO_LABELS: Record<string, string> = {
+  emprestimo: 'Empréstimo',
+  cartao_credito: 'Cartão de crédito',
+  plano_saude: 'Plano de saúde',
+  seguro: 'Seguro',
+  mensalidade_associativa: 'Mensalidade associativa/sindical',
+  pensao_alimenticia: 'Pensão alimentícia',
+  outros: 'Outros',
+};
+
+// `dependentes_irrf.tipo_dependente` é varchar livre no banco; valores alinhados à tabela 03 do eSocial.
+export const TIPO_DEPENDENTE_LABELS: Record<string, string> = {
+  conjuge: 'Cônjuge',
+  companheiro: 'Companheiro(a)',
+  filho: 'Filho(a) ou enteado(a)',
+  filho_universitario: 'Filho(a) universitário(a) até 24 anos',
+  irmao_neto_bisneto: 'Irmão(ã), neto(a) ou bisneto(a) sob guarda',
+  pai_mae_avos: 'Pai, mãe ou avós',
+  menor_guarda: 'Menor pobre sob guarda',
+  incapaz: 'Pessoa incapaz (tutela/curatela)',
+  outro: 'Outro',
 };
 
 export const STATUS_FOLHA_LABELS: Record<StatusFolha, string> = {

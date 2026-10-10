@@ -6548,6 +6548,13 @@ CREATE TRIGGER log_alteracao_pagina_trigger AFTER UPDATE ON public.config_pagina
 
 
 --
+-- Name: profiles profiles_proteger_colunas; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER profiles_proteger_colunas BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.profiles_proteger_colunas();
+
+
+--
 -- Name: config_assinatura_frequencia set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -14300,13 +14307,6 @@ CREATE POLICY acesso_total_delete ON public.processos_administrativos FOR DELETE
 
 
 --
--- Name: profiles acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.profiles FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: programas acesso_total_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -14475,24 +14475,10 @@ CREATE POLICY acesso_total_delete ON public.tipos_abono FOR DELETE TO authentica
 
 
 --
--- Name: user_modules acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.user_modules FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: user_org_units acesso_total_delete; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY acesso_total_delete ON public.user_org_units FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: user_roles acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.user_roles FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -15630,13 +15616,6 @@ CREATE POLICY acesso_total_insert ON public.processos_administrativos FOR INSERT
 
 
 --
--- Name: profiles acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.profiles FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: programas acesso_total_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -15805,24 +15784,10 @@ CREATE POLICY acesso_total_insert ON public.tipos_abono FOR INSERT TO authentica
 
 
 --
--- Name: user_modules acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.user_modules FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: user_org_units acesso_total_insert; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY acesso_total_insert ON public.user_org_units FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: user_roles acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.user_roles FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -16946,13 +16911,6 @@ CREATE POLICY acesso_total_select ON public.processos_administrativos FOR SELECT
 
 
 --
--- Name: profiles acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.profiles FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: programas acesso_total_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -17121,24 +17079,10 @@ CREATE POLICY acesso_total_select ON public.tipos_abono FOR SELECT TO authentica
 
 
 --
--- Name: user_modules acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.user_modules FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: user_org_units acesso_total_select; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY acesso_total_select ON public.user_org_units FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: user_roles acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.user_roles FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -18283,13 +18227,6 @@ CREATE POLICY acesso_total_update ON public.processos_administrativos FOR UPDATE
 
 
 --
--- Name: profiles acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.profiles FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: programas acesso_total_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -18458,24 +18395,10 @@ CREATE POLICY acesso_total_update ON public.tipos_abono FOR UPDATE TO authentica
 
 
 --
--- Name: user_modules acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.user_modules FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: user_org_units acesso_total_update; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY acesso_total_update ON public.user_org_units FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: user_roles acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.user_roles FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -19431,13 +19354,6 @@ ALTER TABLE public.debitos_tecnicos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.decisoes_administrativas ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: profiles del_profiles_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY del_profiles_admin ON public.profiles FOR DELETE TO authenticated USING (public.is_admin_atual());
-
-
---
 -- Name: role_permissions del_role_permissions_admin; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -19445,24 +19361,10 @@ CREATE POLICY del_role_permissions_admin ON public.role_permissions FOR DELETE T
 
 
 --
--- Name: user_modules del_user_modules_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY del_user_modules_admin ON public.user_modules FOR DELETE TO authenticated USING (public.is_admin_atual());
-
-
---
 -- Name: user_permissions del_user_permissions_admin; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY del_user_permissions_admin ON public.user_permissions FOR DELETE TO authenticated USING (public.is_admin_atual());
-
-
---
--- Name: user_roles del_user_roles_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY del_user_roles_admin ON public.user_roles FOR DELETE TO authenticated USING (public.is_admin_atual());
 
 
 --
@@ -20026,13 +19928,6 @@ CREATE POLICY importacoes_select ON public.importacoes FOR SELECT TO authenticat
 
 
 --
--- Name: profiles ins_profiles_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY ins_profiles_admin ON public.profiles FOR INSERT TO authenticated WITH CHECK (public.is_admin_atual());
-
-
---
 -- Name: role_permissions ins_role_permissions_admin; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20040,24 +19935,10 @@ CREATE POLICY ins_role_permissions_admin ON public.role_permissions FOR INSERT T
 
 
 --
--- Name: user_modules ins_user_modules_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY ins_user_modules_admin ON public.user_modules FOR INSERT TO authenticated WITH CHECK (public.is_admin_atual());
-
-
---
 -- Name: user_permissions ins_user_permissions_admin; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY ins_user_permissions_admin ON public.user_permissions FOR INSERT TO authenticated WITH CHECK (public.is_admin_atual());
-
-
---
--- Name: user_roles ins_user_roles_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY ins_user_roles_admin ON public.user_roles FOR INSERT TO authenticated WITH CHECK (public.is_admin_atual());
 
 
 --
@@ -20579,24 +20460,31 @@ ALTER TABLE public.processos_licitatorios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: profiles profiles_insert_system; Type: POLICY; Schema: public; Owner: -
+-- Name: profiles profiles_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY profiles_insert_system ON public.profiles FOR INSERT TO authenticated WITH CHECK (((id = auth.uid()) OR public.is_admin_user(auth.uid())));
-
-
---
--- Name: profiles profiles_select_own; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY profiles_select_own ON public.profiles FOR SELECT TO authenticated USING (((id = auth.uid()) OR public.is_admin_user(auth.uid())));
+CREATE POLICY profiles_delete ON public.profiles FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
 
 
 --
--- Name: profiles profiles_update_own; Type: POLICY; Schema: public; Owner: -
+-- Name: profiles profiles_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY profiles_update_own ON public.profiles FOR UPDATE TO authenticated USING (((id = auth.uid()) OR public.is_admin_user(auth.uid()))) WITH CHECK (((id = auth.uid()) OR public.is_admin_user(auth.uid())));
+CREATE POLICY profiles_insert ON public.profiles FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: profiles profiles_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY profiles_select ON public.profiles FOR SELECT TO authenticated USING (((id = auth.uid()) OR public.is_admin_user(auth.uid())));
+
+
+--
+-- Name: profiles profiles_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY profiles_update ON public.profiles FOR UPDATE TO authenticated USING (((id = auth.uid()) OR public.is_admin_user(auth.uid()))) WITH CHECK (((id = auth.uid()) OR public.is_admin_user(auth.uid())));
 
 
 --
@@ -20914,6 +20802,20 @@ CREATE POLICY rls_delete ON public.tabela_irrf FOR DELETE TO authenticated USING
 
 
 --
+-- Name: user_modules rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.user_modules FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: user_roles rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.user_roles FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
 -- Name: campanhas_inventario_unidades rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20995,6 +20897,20 @@ CREATE POLICY rls_insert ON public.tabela_inss FOR INSERT TO authenticated WITH 
 --
 
 CREATE POLICY rls_insert ON public.tabela_irrf FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: user_modules rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.user_modules FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: user_roles rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.user_roles FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
 
 
 --
@@ -21086,6 +21002,20 @@ CREATE POLICY rls_select ON public.tabela_irrf FOR SELECT TO authenticated USING
 
 
 --
+-- Name: user_modules rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.user_modules FOR SELECT TO authenticated USING ((public.is_admin_user(auth.uid()) OR ((user_id = auth.uid()) AND public.is_active_user())));
+
+
+--
+-- Name: user_roles rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.user_roles FOR SELECT TO authenticated USING ((public.is_admin_user(auth.uid()) OR ((user_id = auth.uid()) AND public.is_active_user())));
+
+
+--
 -- Name: campanhas_inventario_unidades rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21170,6 +21100,20 @@ CREATE POLICY rls_update ON public.tabela_irrf FOR UPDATE TO authenticated USING
 
 
 --
+-- Name: user_modules rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.user_modules FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: user_roles rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.user_roles FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
 -- Name: role_permissions; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -21195,13 +21139,6 @@ CREATE POLICY sel_denuncias_gerenciar ON public.denuncias FOR SELECT TO authenti
 
 
 --
--- Name: profiles sel_profiles_own_or_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY sel_profiles_own_or_admin ON public.profiles FOR SELECT TO authenticated USING (((id = auth.uid()) OR public.is_admin_atual()));
-
-
---
 -- Name: role_permissions sel_role_permissions_authenticated; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21209,24 +21146,10 @@ CREATE POLICY sel_role_permissions_authenticated ON public.role_permissions FOR 
 
 
 --
--- Name: user_modules sel_user_modules_own_or_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY sel_user_modules_own_or_admin ON public.user_modules FOR SELECT TO authenticated USING (((user_id = auth.uid()) OR public.is_admin_atual()));
-
-
---
 -- Name: user_permissions sel_user_permissions_own_or_admin; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY sel_user_permissions_own_or_admin ON public.user_permissions FOR SELECT TO authenticated USING (((user_id = auth.uid()) OR public.is_admin_atual()));
-
-
---
--- Name: user_roles sel_user_roles_own_or_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY sel_user_roles_own_or_admin ON public.user_roles FOR SELECT TO authenticated USING (((user_id = auth.uid()) OR public.is_admin_atual()));
 
 
 --
@@ -21309,24 +21232,10 @@ CREATE POLICY upd_denuncias_gerenciar ON public.denuncias FOR UPDATE TO authenti
 
 
 --
--- Name: profiles upd_profiles_own_or_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY upd_profiles_own_or_admin ON public.profiles FOR UPDATE TO authenticated USING (((id = auth.uid()) OR public.is_admin_atual())) WITH CHECK (((id = auth.uid()) OR public.is_admin_atual()));
-
-
---
 -- Name: role_permissions upd_role_permissions_admin; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY upd_role_permissions_admin ON public.role_permissions FOR UPDATE TO authenticated USING (public.is_admin_atual()) WITH CHECK (public.is_admin_atual());
-
-
---
--- Name: user_modules upd_user_modules_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY upd_user_modules_admin ON public.user_modules FOR UPDATE TO authenticated USING (public.is_admin_atual()) WITH CHECK (public.is_admin_atual());
 
 
 --
@@ -21337,45 +21246,10 @@ CREATE POLICY upd_user_permissions_admin ON public.user_permissions FOR UPDATE T
 
 
 --
--- Name: user_roles upd_user_roles_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY upd_user_roles_admin ON public.user_roles FOR UPDATE TO authenticated USING (public.is_admin_atual()) WITH CHECK (public.is_admin_atual());
-
-
---
 -- Name: user_modules; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
 ALTER TABLE public.user_modules ENABLE ROW LEVEL SECURITY;
-
---
--- Name: user_modules user_modules_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY user_modules_delete ON public.user_modules FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
--- Name: user_modules user_modules_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY user_modules_insert ON public.user_modules FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
-
-
---
--- Name: user_modules user_modules_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY user_modules_select ON public.user_modules FOR SELECT TO authenticated USING (((user_id = auth.uid()) OR public.is_admin_user(auth.uid())));
-
-
---
--- Name: user_modules user_modules_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY user_modules_update ON public.user_modules FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid()));
-
 
 --
 -- Name: user_org_units; Type: ROW SECURITY; Schema: public; Owner: -
@@ -21394,34 +21268,6 @@ ALTER TABLE public.user_permissions ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
-
---
--- Name: user_roles user_roles_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY user_roles_delete ON public.user_roles FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
--- Name: user_roles user_roles_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY user_roles_insert ON public.user_roles FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
-
-
---
--- Name: user_roles user_roles_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY user_roles_select ON public.user_roles FOR SELECT TO authenticated USING (((user_id = auth.uid()) OR public.is_admin_user(auth.uid())));
-
-
---
--- Name: user_roles user_roles_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY user_roles_update ON public.user_roles FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid()));
-
 
 --
 -- Name: viagens_diarias; Type: ROW SECURITY; Schema: public; Owner: -

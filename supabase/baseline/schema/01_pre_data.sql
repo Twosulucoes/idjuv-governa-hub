@@ -6265,6 +6265,35 @@ $$;
 
 
 --
+-- Name: profiles_proteger_colunas(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.profiles_proteger_colunas() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF current_user IN ('authenticated', 'anon') AND NOT public.is_admin_user(auth.uid()) THEN
+    IF NEW.id IS DISTINCT FROM OLD.id
+       OR NEW.email IS DISTINCT FROM OLD.email
+       OR NEW.is_active IS DISTINCT FROM OLD.is_active
+       OR NEW.blocked_at IS DISTINCT FROM OLD.blocked_at
+       OR NEW.blocked_reason IS DISTINCT FROM OLD.blocked_reason
+       OR NEW.servidor_id IS DISTINCT FROM OLD.servidor_id
+       OR NEW.tipo_usuario IS DISTINCT FROM OLD.tipo_usuario
+       OR NEW.restringir_modulos IS DISTINCT FROM OLD.restringir_modulos
+       OR NEW.cpf IS DISTINCT FROM OLD.cpf
+    THEN
+      RAISE EXCEPTION 'Somente administradores alteram identidade, vínculo e bloqueio do perfil'
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: promover_rascunho(uuid, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
