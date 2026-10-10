@@ -7278,6 +7278,20 @@ CREATE TRIGGER trg_gerar_protocolo_sic BEFORE INSERT ON public.solicitacoes_sic 
 
 
 --
+-- Name: baixas_patrimonio trg_guardar_decisao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_guardar_decisao BEFORE INSERT OR UPDATE ON public.baixas_patrimonio FOR EACH ROW EXECUTE FUNCTION public.fn_guardar_decisao_patrimonio();
+
+
+--
+-- Name: movimentacoes_patrimonio trg_guardar_decisao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_guardar_decisao BEFORE INSERT OR UPDATE ON public.movimentacoes_patrimonio FOR EACH ROW EXECUTE FUNCTION public.fn_guardar_decisao_patrimonio();
+
+
+--
 -- Name: solicitacoes_sic trg_hash_solicitante_sic; Type: TRIGGER; Schema: public; Owner: -
 --
 

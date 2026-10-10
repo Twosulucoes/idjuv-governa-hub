@@ -12,6 +12,9 @@
 --   3. Baixa: histórico "baixa_solicitada" ao abrir; decisão por RPC (patrimonio_decidir_baixa),
 --      que exige patrimonio.tramitar e muda o bem para "baixado" quando aprovada.
 --   4. Movimentação: decisão por RPC (patrimonio_decidir_movimentacao), mesma permissão.
+--      Guarda (trigger) em movimentacoes_patrimonio e baixas_patrimonio: sem patrimonio.tramitar,
+--      o pedido só nasce pendente e não muda status/aprovador (a RLS é por módulo e deixaria
+--      o coletor do celular aprovar direto pela API). Manutenção não abre para bem baixado.
 --   5. campanhas_inventario aceita 'pausada' (a tela já oferece "Pausar").
 --   6. coletas_inventario: status 'sem_etiqueta' (bem achado sem plaqueta) e a FK da unidade
 --      encontrada passa a apontar para unidades_locais, que é o que as telas gravam. NOT VALID:
@@ -20,9 +23,10 @@
 -- Onda 2 — número de tombamento
 --   7. Um único gerador: sequence seq_tombamento_patrimonio, formato PAT-AAAA-NNNNNN, sem
 --      reaproveitamento e sem corrida. A RPC gerar_numero_tombamento (antes MAX()+1, formato
---      IDJ-XX-NNNN) passa a usar o mesmo gerador; o parâmetro fica só por compatibilidade.
+--      IDJ-XX-NNNN) passa a usar o mesmo gerador e perde o EXECUTE do app (o número nasce no INSERT).
 --   8. Número normalizado (sem espaços nas pontas, maiúsculas) e imutável depois de criado
---      (só admin corrige; o número antigo vai para patrimonio_anterior). codigo_qr = número.
+--      (só admin corrige; o número antigo vai para patrimonio_anterior). codigo_qr = número, e
+--      também só admin o altera.
 --   9. Índice único sobre o número normalizado, criado só se os dados atuais permitirem
 --      (senão avisa por NOTICE e segue: a UNIQUE exata continua valendo).
 --  10. RPC patrimonio_buscar_bem_por_codigo: busca no servidor por número, QR ou número anterior
@@ -157,6 +161,10 @@ SET search_path TO 'public'
 AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
+    IF EXISTS (SELECT 1 FROM bens_patrimoniais
+                WHERE id = NEW.bem_id AND situacao IN ('baixado', 'extraviado')) THEN
+      RAISE EXCEPTION 'Bem baixado ou extraviado não entra em manutenção' USING ERRCODE = '22023';
+    END IF;
     INSERT INTO historico_patrimonio (bem_id, tipo_evento, manutencao_id, justificativa, usuario_id)
     VALUES (NEW.bem_id, 'manutencao_inicio', NEW.id, NEW.descricao_problema, auth.uid());
 
@@ -298,6 +306,56 @@ REVOKE EXECUTE ON FUNCTION public.patrimonio_decidir_movimentacao(uuid, boolean,
 GRANT EXECUTE ON FUNCTION public.patrimonio_decidir_movimentacao(uuid, boolean, text) TO authenticated;
 
 -- ---------------------------------------------------------------------------
+-- 4b. Decisão só por quem pode decidir
+-- ---------------------------------------------------------------------------
+-- A RLS dessas tabelas é por módulo (patrimonio OU patrimonio_mobile). Sem esta guarda, quem só
+-- coleta no celular gravaria status 'aprovado' direto pela API e o trigger do item 1 moveria o bem,
+-- com aprovado_por forjado. Quem tem patrimonio.tramitar (as RPCs acima) ou é admin passa.
+CREATE OR REPLACE FUNCTION public.fn_guardar_decisao_patrimonio()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path TO 'public'
+AS $$
+DECLARE
+  v_iniciais text[] := CASE TG_TABLE_NAME
+                         WHEN 'baixas_patrimonio' THEN ARRAY['solicitada', 'em_analise']
+                         ELSE ARRAY['pendente'] END;
+BEGIN
+  IF auth.uid() IS NULL
+     OR public.has_permission_code(auth.uid(), 'patrimonio.tramitar')
+     OR public.is_admin_user(auth.uid()) THEN
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    IF COALESCE(NEW.status::text, v_iniciais[1]) <> ALL (v_iniciais)
+       OR NEW.aprovado_por IS NOT NULL OR NEW.data_aprovacao IS NOT NULL THEN
+      RAISE EXCEPTION 'Pedido de patrimônio nasce pendente; a decisão exige patrimonio.tramitar'
+        USING ERRCODE = '42501';
+    END IF;
+  ELSIF NEW.status::text IS DISTINCT FROM OLD.status::text
+          AND NOT (OLD.status::text = ANY (v_iniciais) AND NEW.status::text = ANY (v_iniciais))
+        OR NEW.aprovado_por IS DISTINCT FROM OLD.aprovado_por
+        OR NEW.data_aprovacao IS DISTINCT FROM OLD.data_aprovacao
+        OR NEW.motivo_rejeicao IS DISTINCT FROM OLD.motivo_rejeicao THEN
+    RAISE EXCEPTION 'Aprovar ou rejeitar exige a permissão patrimonio.tramitar'
+      USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- Quem pede fica registrado mesmo que a tela não mande (o desktop não mandava).
+ALTER TABLE public.movimentacoes_patrimonio ALTER COLUMN solicitado_por SET DEFAULT auth.uid();
+
+DROP TRIGGER IF EXISTS trg_guardar_decisao ON public.movimentacoes_patrimonio;
+CREATE TRIGGER trg_guardar_decisao BEFORE INSERT OR UPDATE ON public.movimentacoes_patrimonio
+  FOR EACH ROW EXECUTE FUNCTION public.fn_guardar_decisao_patrimonio();
+DROP TRIGGER IF EXISTS trg_guardar_decisao ON public.baixas_patrimonio;
+CREATE TRIGGER trg_guardar_decisao BEFORE INSERT OR UPDATE ON public.baixas_patrimonio
+  FOR EACH ROW EXECUTE FUNCTION public.fn_guardar_decisao_patrimonio();
+
+-- ---------------------------------------------------------------------------
 -- 5. Campanha pode ser pausada
 -- ---------------------------------------------------------------------------
 ALTER TABLE public.campanhas_inventario DROP CONSTRAINT IF EXISTS campanhas_inventario_status_check;
@@ -329,6 +387,12 @@ AS $$
 DECLARE
   v_numero text;
 BEGIN
+  -- Só quem tem o módulo consome a sequence (evita lacunas abertas por outros usuários).
+  IF auth.uid() IS NOT NULL
+     AND NOT (public.can_access_module(auth.uid(), 'patrimonio')
+              OR public.can_access_module(auth.uid(), 'patrimonio_mobile')) THEN
+    RAISE EXCEPTION 'Sem acesso ao módulo de patrimônio' USING ERRCODE = '42501';
+  END IF;
   -- Sequence: sem corrida e sem reaproveitamento. O laço só pula um número que alguém
   -- já tenha digitado à mão no mesmo formato.
   LOOP
@@ -342,14 +406,14 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.fn_proximo_numero_tombamento() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fn_proximo_numero_tombamento() TO authenticated;
 
--- Mantida por compatibilidade (o parâmetro não é mais usado): devolve um número já reservado.
+-- Mantida por compatibilidade (o parâmetro não é mais usado), mas sem EXECUTE para o app:
+-- o número nasce no INSERT do bem.
 CREATE OR REPLACE FUNCTION public.gerar_numero_tombamento(p_unidade_local_id uuid)
 RETURNS text
 LANGUAGE sql
 SET search_path TO 'public'
 AS $$ SELECT public.fn_proximo_numero_tombamento() $$;
-REVOKE EXECUTE ON FUNCTION public.gerar_numero_tombamento(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.gerar_numero_tombamento(uuid) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.gerar_numero_tombamento(uuid) FROM PUBLIC, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 8. Normalização e imutabilidade
@@ -387,6 +451,11 @@ BEGIN
     IF NEW.codigo_qr IS NOT DISTINCT FROM upper(btrim(OLD.codigo_qr)) THEN
       NEW.codigo_qr := NEW.numero_patrimonio;
     END IF;
+  ELSIF NEW.codigo_qr IS NULL OR NEW.codigo_qr = upper(btrim(OLD.codigo_qr)) THEN
+    NEW.codigo_qr := OLD.codigo_qr;
+  ELSIF auth.uid() IS NOT NULL AND NOT public.is_admin_user(auth.uid()) THEN
+    -- O QR é o que a plaqueta carrega: trocá-lo desvia a leitura para outro bem.
+    RAISE EXCEPTION 'O código QR do bem não pode ser alterado' USING ERRCODE = '42501';
   END IF;
   NEW.codigo_qr := COALESCE(NEW.codigo_qr, NEW.numero_patrimonio);
   RETURN NEW;

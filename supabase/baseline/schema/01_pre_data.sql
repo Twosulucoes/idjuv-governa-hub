@@ -3898,8 +3898,51 @@ BEGIN
     IF NEW.codigo_qr IS NOT DISTINCT FROM upper(btrim(OLD.codigo_qr)) THEN
       NEW.codigo_qr := NEW.numero_patrimonio;
     END IF;
+  ELSIF NEW.codigo_qr IS NULL OR NEW.codigo_qr = upper(btrim(OLD.codigo_qr)) THEN
+    NEW.codigo_qr := OLD.codigo_qr;
+  ELSIF auth.uid() IS NOT NULL AND NOT public.is_admin_user(auth.uid()) THEN
+    -- O QR é o que a plaqueta carrega: trocá-lo desvia a leitura para outro bem.
+    RAISE EXCEPTION 'O código QR do bem não pode ser alterado' USING ERRCODE = '42501';
   END IF;
   NEW.codigo_qr := COALESCE(NEW.codigo_qr, NEW.numero_patrimonio);
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fn_guardar_decisao_patrimonio(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_guardar_decisao_patrimonio() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_iniciais text[] := CASE TG_TABLE_NAME
+                         WHEN 'baixas_patrimonio' THEN ARRAY['solicitada', 'em_analise']
+                         ELSE ARRAY['pendente'] END;
+BEGIN
+  IF auth.uid() IS NULL
+     OR public.has_permission_code(auth.uid(), 'patrimonio.tramitar')
+     OR public.is_admin_user(auth.uid()) THEN
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    IF COALESCE(NEW.status::text, v_iniciais[1]) <> ALL (v_iniciais)
+       OR NEW.aprovado_por IS NOT NULL OR NEW.data_aprovacao IS NOT NULL THEN
+      RAISE EXCEPTION 'Pedido de patrimônio nasce pendente; a decisão exige patrimonio.tramitar'
+        USING ERRCODE = '42501';
+    END IF;
+  ELSIF NEW.status::text IS DISTINCT FROM OLD.status::text
+          AND NOT (OLD.status::text = ANY (v_iniciais) AND NEW.status::text = ANY (v_iniciais))
+        OR NEW.aprovado_por IS DISTINCT FROM OLD.aprovado_por
+        OR NEW.data_aprovacao IS DISTINCT FROM OLD.data_aprovacao
+        OR NEW.motivo_rejeicao IS DISTINCT FROM OLD.motivo_rejeicao THEN
+    RAISE EXCEPTION 'Aprovar ou rejeitar exige a permissão patrimonio.tramitar'
+      USING ERRCODE = '42501';
+  END IF;
   RETURN NEW;
 END;
 $$;
@@ -4024,6 +4067,12 @@ CREATE FUNCTION public.fn_proximo_numero_tombamento() RETURNS text
 DECLARE
   v_numero text;
 BEGIN
+  -- Só quem tem o módulo consome a sequence (evita lacunas abertas por outros usuários).
+  IF auth.uid() IS NOT NULL
+     AND NOT (public.can_access_module(auth.uid(), 'patrimonio')
+              OR public.can_access_module(auth.uid(), 'patrimonio_mobile')) THEN
+    RAISE EXCEPTION 'Sem acesso ao módulo de patrimônio' USING ERRCODE = '42501';
+  END IF;
   -- Sequence: sem corrida e sem reaproveitamento. O laço só pula um número que alguém
   -- já tenha digitado à mão no mesmo formato.
   LOOP
@@ -6957,6 +7006,10 @@ CREATE FUNCTION public.registrar_historico_manutencao() RETURNS trigger
     AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
+    IF EXISTS (SELECT 1 FROM bens_patrimoniais
+                WHERE id = NEW.bem_id AND situacao IN ('baixado', 'extraviado')) THEN
+      RAISE EXCEPTION 'Bem baixado ou extraviado não entra em manutenção' USING ERRCODE = '22023';
+    END IF;
     INSERT INTO historico_patrimonio (bem_id, tipo_evento, manutencao_id, justificativa, usuario_id)
     VALUES (NEW.bem_id, 'manutencao_inicio', NEW.id, NEW.descricao_problema, auth.uid());
 
@@ -13640,7 +13693,7 @@ CREATE TABLE public.movimentacoes_patrimonio (
     responsavel_destino_id uuid,
     motivo text NOT NULL,
     observacoes text,
-    solicitado_por uuid,
+    solicitado_por uuid DEFAULT auth.uid(),
     data_solicitacao timestamp with time zone DEFAULT now(),
     aprovado_por uuid,
     data_aprovacao timestamp with time zone,

@@ -272,14 +272,17 @@ Legado/compartilhado: `dotacoes_orcamentarias`, `empenhos`, `liquidacoes`,
   a troca do número depois de criado (só admin corrige; o número antigo vai para `patrimonio_anterior`).
   Índice único sobre o número normalizado (`uq_bens_patrimoniais_numero_norm`), criado só se os dados
   permitirem. Tombamento de plaqueta antiga (regularização) fica em `patrimonio_anterior`; o bem recebe
-  número novo. `gerar_numero_tombamento(uuid)` continua existindo, mas usa o mesmo gerador.
+  número novo. `gerar_numero_tombamento(uuid)` continua existindo, usa o mesmo gerador e não é executável pelo app;
+  `codigo_qr` também só é alterado por admin.
 - `patrimonio_buscar_bem_por_codigo(text)` (SECURITY INVOKER, respeita a RLS): busca por número, QR ou
   número anterior, no servidor.
 - `patrimonio_decidir_movimentacao(uuid, boolean, text)` e `patrimonio_decidir_baixa(uuid, boolean, text)`
   (SECURITY DEFINER, exigem `patrimonio.tramitar` ou admin): aprovar move o bem (unidade local,
   organizacional e responsável) ou o deixa `baixado`; rejeitar exige motivo. Histórico em
   `historico_patrimonio` para movimentação aprovada, baixa solicitada/aprovada/rejeitada e
-  manutenção iniciada/concluída (concluir devolve o bem para `ativo`).
+  manutenção iniciada/concluída (concluir devolve o bem para `ativo`; bem baixado ou extraviado não abre
+  manutenção). O trigger `trg_guardar_decisao` impede quem não tem `patrimonio.tramitar` de gravar uma
+  movimentação ou baixa já decidida, ou de mudar status/aprovador direto pela API.
 - `campanhas_inventario.status` aceita `pausada`; `status_coleta_inventario` ganhou `sem_etiqueta`;
   `coletas_inventario.localizacao_encontrada_unidade_id` passou a referenciar `unidades_locais` (FK `NOT VALID`).
 
