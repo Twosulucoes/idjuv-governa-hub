@@ -3,6 +3,8 @@
  * 
  * Dashboard para usuários com múltiplos módulos.
  * Mostra cards clicáveis para cada módulo autorizado.
+ * Padrões do design system: PageHeader; cartão inteiro clicável via link com
+ * `after:absolute after:inset-0` (sem Card dentro de link).
  * 
  * @version 1.0.0
  */
@@ -11,7 +13,8 @@ import { Link } from "react-router-dom";
 import { useModuleRouter, getModuleHomeRoute, MODULE_PRIORITY } from "@/hooks/useModuleRouter";
 import { MODULES_CONFIG, MODULO_COR_CLASSES, type Modulo } from "@/shared/config/modules.config";
 import { ModuleLayout } from "@/components/layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
+import { PageHeader } from "@/components/design-system";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowRight, Star, Clock } from "lucide-react";
@@ -58,13 +61,18 @@ export default function ModuleHubPage() {
     }
   };
 
+  const cabecalho = <PageHeader titulo="Bem-vindo ao sistema" descricao="Selecione um módulo para começar" />;
+
   if (isLoading) {
     return (
       <ModuleLayout module="admin">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="h-40 rounded-xl" />
-          ))}
+        <div className="space-y-6" aria-busy="true">
+          {cabecalho}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Skeleton key={i} className="h-40 rounded-xl" />
+            ))}
+          </div>
         </div>
       </ModuleLayout>
     );
@@ -73,121 +81,125 @@ export default function ModuleHubPage() {
   return (
     <ModuleLayout module="admin">
       <div className="space-y-8">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Bem-vindo ao Sistema
-          </h1>
-          <p className="text-muted-foreground">
-            Selecione um módulo para começar
-          </p>
-        </div>
+        {cabecalho}
 
-        {/* Módulos Recentes */}
+        {/* Módulos recentes */}
         {recentModules.length > 0 && (
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <Clock className="h-5 w-5 text-muted-foreground" />
-              <h2 className="text-lg font-semibold">Acessos Recentes</h2>
+          <section aria-labelledby="hub-recentes">
+            <div className="mb-4 flex items-center gap-2">
+              <Clock className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+              <h2 id="hub-recentes" className="text-h2 text-foreground">Acessos recentes</h2>
             </div>
-            <div className="grid gap-4 md:grid-cols-3">
+            <ul className="grid gap-4 md:grid-cols-3">
               {recentModules.map((modulo) => {
                 const config = MODULES_CONFIG.find(m => m.codigo === modulo);
                 if (!config) return null;
                 const Icon = config.icone;
-                
+
                 return (
-                  <Link 
-                    key={`recent-${modulo}`} 
-                    to={getModuleHomeRoute(modulo)}
-                    onClick={() => registerModuleAccess(modulo)}
-                  >
-                    <Card className="hover:shadow-md transition-all hover:-translate-y-0.5 border-l-4 border-l-primary/50">
+                  <li key={`recent-${modulo}`}>
+                    <Card className="relative h-full border-l-4 border-l-primary/50 transition-all hover:-translate-y-0.5 hover:shadow-md focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
                       <CardContent className="flex items-center gap-4 p-4">
-                        <div className={cn(
-                          "h-12 w-12 rounded-lg flex items-center justify-center",
-                          MODULO_COR_CLASSES[config.cor]
-                        )}>
+                        <div
+                          className={cn(
+                            "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg",
+                            MODULO_COR_CLASSES[config.cor]
+                          )}
+                          aria-hidden="true"
+                        >
                           <Icon className="h-6 w-6" />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{config.nome}</p>
-                          <p className="text-xs text-muted-foreground truncate">{config.descricao}</p>
+                        <div className="min-w-0 flex-1">
+                          <Link
+                            to={getModuleHomeRoute(modulo)}
+                            onClick={() => registerModuleAccess(modulo)}
+                            className="block truncate font-medium text-foreground after:absolute after:inset-0 focus-visible:outline-none"
+                          >
+                            {config.nome}
+                          </Link>
+                          <p className="truncate text-caption text-muted-foreground">{config.descricao}</p>
                         </div>
-                        <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                        <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
                       </CardContent>
                     </Card>
-                  </Link>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           </section>
         )}
 
-        {/* Grid de Módulos */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
+        {/* Grade de módulos */}
+        <section aria-labelledby="hub-modulos">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">Seus Módulos</h2>
+              <Star className="h-5 w-5 text-primary" aria-hidden="true" />
+              <h2 id="hub-modulos" className="text-h2 text-foreground">Seus módulos</h2>
             </div>
             {isAdmin && (
-              <Badge variant="outline" className="text-xs">
-                Acesso Administrativo
+              <Badge variant="outline" className="text-caption">
+                Acesso administrativo
               </Badge>
             )}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {sortedModules.map((modulo, index) => {
               const config = MODULES_CONFIG.find(m => m.codigo === modulo);
               if (!config) return null;
-              
+
               const Icon = config.icone;
-              
+
               return (
-                <Link 
-                  key={modulo} 
-                  to={getModuleHomeRoute(modulo)}
-                  onClick={() => registerModuleAccess(modulo)}
-                  className="group"
-                >
-                  <Card 
-                    className="h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 animate-fade-in group-hover:border-primary/50"
+                <li key={modulo}>
+                  <Card
+                    className="group relative h-full animate-fade-in transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 motion-reduce:animate-none motion-reduce:transition-none motion-reduce:hover:translate-y-0"
                     style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
                   >
                     <CardHeader className="pb-2">
-                      <div className={cn(
-                        "h-14 w-14 rounded-xl flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110",
-                        MODULO_COR_CLASSES[config.cor]
-                      )}>
+                      <div
+                        className={cn(
+                          "mb-3 flex h-14 w-14 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110 motion-reduce:transition-none motion-reduce:group-hover:scale-100",
+                          MODULO_COR_CLASSES[config.cor]
+                        )}
+                        aria-hidden="true"
+                      >
                         <Icon className="h-7 w-7" />
                       </div>
-                      <CardTitle className="text-lg group-hover:text-primary transition-colors">
-                        {config.nome}
-                      </CardTitle>
+                      <h3 className="text-h3 text-foreground transition-colors group-hover:text-primary">
+                        <Link
+                          to={getModuleHomeRoute(modulo)}
+                          onClick={() => registerModuleAccess(modulo)}
+                          className="after:absolute after:inset-0 focus-visible:outline-none"
+                        >
+                          {config.nome}
+                        </Link>
+                      </h3>
                     </CardHeader>
                     <CardContent className="pt-0">
                       <CardDescription className="line-clamp-2">
                         {config.descricao}
                       </CardDescription>
-                      <div className="mt-4 flex items-center text-sm text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div
+                        className="mt-4 flex items-center text-body text-primary opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                        aria-hidden="true"
+                      >
                         <span>Acessar</span>
-                        <ArrowRight className="h-4 w-4 ml-1 transition-transform group-hover:translate-x-1" />
+                        <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
                       </div>
                     </CardContent>
                   </Card>
-                </Link>
+                </li>
               );
             })}
-          </div>
+          </ul>
         </section>
 
-        {/* Estatísticas rápidas (opcional) */}
+        {/* Visão administrativa */}
         {isAdmin && (
-          <section className="mt-8 p-6 rounded-xl bg-muted/50 border">
-            <h3 className="font-semibold mb-2">Visão Administrativa</h3>
-            <p className="text-sm text-muted-foreground">
+          <section aria-labelledby="hub-admin" className="rounded-xl border bg-muted/50 p-6">
+            <h2 id="hub-admin" className="mb-2 text-h3 text-foreground">Visão administrativa</h2>
+            <p className="text-body text-muted-foreground">
               Você tem acesso total a todos os {sortedModules.length} módulos do sistema como administrador.
             </p>
           </section>

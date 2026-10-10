@@ -4,7 +4,6 @@
 
 import { useState, useEffect } from 'react';
 import { ModuleLayout } from '@/components/layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -16,13 +15,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  DataTable,
+  KpiCard,
+  PageHeader,
+  StatusBadge,
+  type ColunaTabela,
+  type TomStatus,
+} from '@/components/design-system';
 import {
   Dialog,
   DialogContent,
@@ -41,33 +40,42 @@ import {
   Search, 
   Download, 
   Eye,
-  Filter,
   Calendar,
   User,
   Activity
 } from 'lucide-react';
 
-const ACTION_COLORS: Record<AuditAction, string> = {
-  login: 'bg-green-100 text-green-800',
-  logout: 'bg-gray-100 text-gray-800',
-  login_failed: 'bg-red-100 text-red-800',
-  password_change: 'bg-blue-100 text-blue-800',
-  password_reset: 'bg-yellow-100 text-yellow-800',
-  create: 'bg-emerald-100 text-emerald-800',
-  update: 'bg-sky-100 text-sky-800',
-  delete: 'bg-red-100 text-red-800',
-  view: 'bg-slate-100 text-slate-800',
-  export: 'bg-purple-100 text-purple-800',
-  upload: 'bg-indigo-100 text-indigo-800',
-  download: 'bg-violet-100 text-violet-800',
-  approve: 'bg-green-100 text-green-800',
-  reject: 'bg-orange-100 text-orange-800',
-  submit: 'bg-blue-100 text-blue-800'
+// Tom do selo de cada ação (o texto do rótulo sempre aparece; cor nunca sozinha)
+const ACTION_TONS: Record<AuditAction, TomStatus> = {
+  login: 'sucesso',
+  logout: 'neutro',
+  login_failed: 'erro',
+  password_change: 'andamento',
+  password_reset: 'pendente',
+  create: 'sucesso',
+  update: 'andamento',
+  delete: 'erro',
+  view: 'neutro',
+  export: 'neutro',
+  upload: 'neutro',
+  download: 'neutro',
+  approve: 'sucesso',
+  reject: 'erro',
+  submit: 'andamento'
 };
+
+function AcaoBadge({ action }: { action: AuditAction }) {
+  return (
+    <StatusBadge tom={ACTION_TONS[action] ?? 'neutro'} icone={false}>
+      {AUDIT_ACTION_LABELS[action] ?? action}
+    </StatusBadge>
+  );
+}
 
 export default function AuditoriaPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [moduleFilter, setModuleFilter] = useState<string>('all');
@@ -80,6 +88,7 @@ export default function AuditoriaPage() {
 
   const fetchLogs = async () => {
     setLoading(true);
+    setErro(null);
     try {
       // Buscar logs sem JOIN problemático
       const { data, error } = await supabase
@@ -135,6 +144,7 @@ export default function AuditoriaPage() {
       setModules(uniqueModules);
     } catch (error) {
       console.error('Erro ao buscar logs:', error);
+      setErro('Não foi possível carregar os registros de auditoria.');
     } finally {
       setLoading(false);
     }
@@ -174,180 +184,172 @@ export default function AuditoriaPage() {
     link.click();
   };
 
+  const hoje = new Date().toDateString();
+
+  const indicadores = [
+    { rotulo: 'Total de registros', valor: logs.length, icone: Activity },
+    {
+      rotulo: 'Logins hoje',
+      valor: logs.filter(l => l.action === 'login' && new Date(l.timestamp).toDateString() === hoje).length,
+      icone: User,
+    },
+    { rotulo: 'Falhas de login', valor: logs.filter(l => l.action === 'login_failed').length, icone: User },
+    {
+      rotulo: 'Alterações hoje',
+      valor: logs.filter(l =>
+        ['create', 'update', 'delete'].includes(l.action) &&
+        new Date(l.timestamp).toDateString() === hoje
+      ).length,
+      icone: Calendar,
+    },
+  ];
+
+  const colunas: ColunaTabela<AuditLog>[] = [
+    {
+      id: 'timestamp',
+      cabecalho: 'Data/hora',
+      celula: (log) => format(new Date(log.timestamp), "dd/MM/yyyy HH:mm:ss", { locale: ptBR }),
+      ordenarPor: (log) => new Date(log.timestamp),
+      className: 'whitespace-nowrap',
+    },
+    {
+      id: 'usuario',
+      cabecalho: 'Usuário',
+      celula: (log) => log.userName || 'Sistema',
+      ordenarPor: (log) => log.userName,
+      mobile: 'titulo',
+    },
+    {
+      id: 'acao',
+      cabecalho: 'Ação',
+      celula: (log) => <AcaoBadge action={log.action} />,
+      ordenarPor: (log) => AUDIT_ACTION_LABELS[log.action],
+    },
+    {
+      id: 'modulo',
+      cabecalho: 'Módulo',
+      celula: (log) => <span className="capitalize">{log.moduleName || '-'}</span>,
+      ordenarPor: (log) => log.moduleName,
+    },
+    {
+      id: 'entidade',
+      cabecalho: 'Entidade',
+      celula: (log) => log.entityType || '-',
+      ordenarPor: (log) => log.entityType,
+    },
+    {
+      id: 'perfil',
+      cabecalho: 'Perfil',
+      celula: (log) => log.roleAtTime ? <Badge variant="outline">{log.roleAtTime}</Badge> : null,
+      ordenarPor: (log) => log.roleAtTime,
+    },
+  ];
+
   return (
     <ModuleLayout module="admin">
-      {/* Cards de resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total de Registros</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{logs.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Logins Hoje</CardTitle>
-            <User className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {logs.filter(l => 
-                l.action === 'login' && 
-                new Date(l.timestamp).toDateString() === new Date().toDateString()
-              ).length}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Falhas de Login</CardTitle>
-            <User className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {logs.filter(l => l.action === 'login_failed').length}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Alterações Hoje</CardTitle>
-            <Calendar className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {logs.filter(l => 
-                ['create', 'update', 'delete'].includes(l.action) && 
-                new Date(l.timestamp).toDateString() === new Date().toDateString()
-              ).length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filtros */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Buscar por usuário, módulo, descrição..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            <Select value={actionFilter} onValueChange={setActionFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tipo de ação" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as ações</SelectItem>
-                {Object.entries(AUDIT_ACTION_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={moduleFilter} onValueChange={setModuleFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Módulo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os módulos</SelectItem>
-                {modules.map(module => (
-                  <SelectItem key={module} value={module} className="capitalize">
-                    {module}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Auditoria" }]}
+          titulo="Auditoria"
+          descricao="Registro das ações realizadas no sistema"
+          acoes={
             <Button variant="outline" className="gap-2" onClick={exportToCSV}>
-              <Download className="h-4 w-4" />
+              <Download className="h-4 w-4" aria-hidden="true" />
               Exportar CSV
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+          }
+        />
 
-      {/* Tabela de logs */}
-      <Card>
-        <CardContent className="pt-6">
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data/Hora</TableHead>
-                  <TableHead>Usuário</TableHead>
-                  <TableHead>Ação</TableHead>
-                  <TableHead>Módulo</TableHead>
-                  <TableHead>Entidade</TableHead>
-                  <TableHead>Perfil</TableHead>
-                  <TableHead className="text-right">Detalhes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredLogs.slice(0, 100).map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell className="text-sm">
-                      {format(new Date(log.timestamp), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
-                    </TableCell>
-                    <TableCell>{log.userName || 'Sistema'}</TableCell>
-                    <TableCell>
-                      <Badge className={ACTION_COLORS[log.action]}>
-                        {AUDIT_ACTION_LABELS[log.action]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="capitalize">{log.moduleName || '-'}</TableCell>
-                    <TableCell>{log.entityType || '-'}</TableCell>
-                    <TableCell>
-                      {log.roleAtTime && (
-                        <Badge variant="outline">
-                          {log.roleAtTime}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setSelectedLog(log)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+        {/* Cards de resumo */}
+        <section aria-labelledby="auditoria-indicadores">
+          <h2 id="auditoria-indicadores" className="sr-only">Indicadores</h2>
+          <ul className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {indicadores.map((ind) => (
+              <li key={ind.rotulo}>
+                <KpiCard
+                  rotulo={ind.rotulo}
+                  valor={erro ? '—' : ind.valor}
+                  icone={ind.icone}
+                  carregando={loading}
+                  className="h-full"
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
 
-          {filteredLogs.length > 100 && (
-            <p className="text-center text-sm text-muted-foreground mt-4">
-              Exibindo 100 de {filteredLogs.length} registros. Use os filtros para refinar a busca.
-            </p>
+        {/* Tabela de logs */}
+        <DataTable
+          rotulo="Registros de auditoria"
+          dados={filteredLogs}
+          colunas={colunas}
+          chaveLinha={(log) => log.id}
+          carregando={loading}
+          erro={erro}
+          aoTentarNovamente={fetchLogs}
+          filtros={
+            <>
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" aria-hidden="true" />
+                <Input
+                  aria-label="Buscar registros"
+                  placeholder="Buscar por usuário, módulo, descrição..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              <Select value={actionFilter} onValueChange={setActionFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]" aria-label="Tipo de ação">
+                  <SelectValue placeholder="Tipo de ação" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as ações</SelectItem>
+                  {Object.entries(AUDIT_ACTION_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={moduleFilter} onValueChange={setModuleFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]" aria-label="Módulo">
+                  <SelectValue placeholder="Módulo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os módulos</SelectItem>
+                  {modules.map(module => (
+                    <SelectItem key={module} value={module} className="capitalize">
+                      {module}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          }
+          vazio={{
+            icone: Activity,
+            titulo: "Nenhum registro encontrado",
+            descricao: "Ajuste a busca ou os filtros.",
+          }}
+          acoesLinha={(log) => (
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label={`Ver detalhes do registro de ${log.userName || 'Sistema'} em ${format(new Date(log.timestamp), "dd/MM/yyyy HH:mm", { locale: ptBR })}`}
+              onClick={() => setSelectedLog(log)}
+            >
+              <Eye className="h-4 w-4" aria-hidden="true" />
+            </Button>
           )}
-        </CardContent>
-      </Card>
+        />
+      </div>
 
       {/* Dialog de detalhes */}
       <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Detalhes do Registro de Auditoria</DialogTitle>
+            <DialogTitle>Detalhes do registro de auditoria</DialogTitle>
           </DialogHeader>
 
           {selectedLog && (
@@ -364,9 +366,7 @@ export default function AuditoriaPage() {
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Ação</label>
                   <p>
-                    <Badge className={ACTION_COLORS[selectedLog.action]}>
-                      {AUDIT_ACTION_LABELS[selectedLog.action]}
-                    </Badge>
+                    <AcaoBadge action={selectedLog.action} />
                   </p>
                 </div>
                 <div>

@@ -5,19 +5,9 @@
 
 import { useState } from "react";
 import { ModuleLayout } from "@/components/layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -35,19 +25,32 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Filter, ArrowUpDown, TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
+import { Plus, ArrowUpDown, TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
+import {
+  DataTable,
+  KpiCard,
+  PageHeader,
+  StatusBadge,
+  type ColunaTabela,
+  type TomStatus,
+} from "@/components/design-system";
 import { useAlteracoesOrcamentarias, useCriarAlteracaoOrcamentaria } from "@/hooks/useAlteracoesOrcamentarias";
 import { useDotacoes } from "@/hooks/useFinanceiro";
 import { formatCurrency } from "@/lib/formatters";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  STATUS_WORKFLOW_LABELS,
-  STATUS_WORKFLOW_COLORS,
   TIPO_ALTERACAO_LABELS,
+  type AlteracaoOrcamentaria,
   type TipoAlteracaoOrcamentaria,
   type StatusWorkflowFinanceiro,
 } from "@/types/financeiro";
+
+// O hook traz as dotações relacionadas junto com a alteração
+type AlteracaoComDotacoes = AlteracaoOrcamentaria & {
+  dotacao_origem?: { codigo_dotacao: string } | null;
+  dotacao_destino?: { codigo_dotacao: string } | null;
+};
 
 const tipoIcons: Record<string, typeof TrendingUp> = {
   suplementacao: TrendingUp,
@@ -59,14 +62,87 @@ const tipoIcons: Record<string, typeof TrendingUp> = {
   credito_extraordinario: TrendingUp,
 };
 
+const SITUACAO: Record<StatusWorkflowFinanceiro, { label: string; tom: TomStatus }> = {
+  rascunho: { label: "Rascunho", tom: "neutro" },
+  pendente_analise: { label: "Pendente de análise", tom: "pendente" },
+  em_analise: { label: "Em análise", tom: "andamento" },
+  aprovado: { label: "Aprovado", tom: "sucesso" },
+  executado: { label: "Executado", tom: "sucesso" },
+  rejeitado: { label: "Rejeitado", tom: "erro" },
+  cancelado: { label: "Cancelado", tom: "erro" },
+  estornado: { label: "Estornado", tom: "neutro" },
+};
+
+const colunas: ColunaTabela<AlteracaoComDotacoes>[] = [
+  {
+    id: "numero",
+    cabecalho: "Número",
+    celula: (alt) => <span className="font-mono font-medium">{alt.numero}</span>,
+    ordenarPor: (alt) => alt.numero,
+    // A busca também considera a justificativa, que não tem coluna própria
+    buscarPor: (alt) => `${alt.numero ?? ""} ${alt.justificativa ?? ""}`,
+    mobile: "titulo",
+  },
+  {
+    id: "data",
+    cabecalho: "Data",
+    celula: (alt) => format(new Date(alt.data_alteracao), "dd/MM/yyyy", { locale: ptBR }),
+    ordenarPor: (alt) => new Date(alt.data_alteracao),
+  },
+  {
+    id: "tipo",
+    cabecalho: "Tipo",
+    celula: (alt) => {
+      const TipoIcon = tipoIcons[alt.tipo] || ArrowUpDown;
+      return (
+        <Badge variant="outline" className="gap-1">
+          <TipoIcon className="h-3 w-3" aria-hidden="true" />
+          {TIPO_ALTERACAO_LABELS[alt.tipo as TipoAlteracaoOrcamentaria] || alt.tipo}
+        </Badge>
+      );
+    },
+    ordenarPor: (alt) => TIPO_ALTERACAO_LABELS[alt.tipo] || alt.tipo,
+  },
+  {
+    id: "origem",
+    cabecalho: "Dotação origem",
+    celula: (alt) => <span className="font-mono text-caption">{alt.dotacao_origem?.codigo_dotacao || "—"}</span>,
+    ordenarPor: (alt) => alt.dotacao_origem?.codigo_dotacao,
+    buscarPor: (alt) => alt.dotacao_origem?.codigo_dotacao,
+  },
+  {
+    id: "destino",
+    cabecalho: "Dotação destino",
+    celula: (alt) => <span className="font-mono text-caption">{alt.dotacao_destino?.codigo_dotacao || "—"}</span>,
+    ordenarPor: (alt) => alt.dotacao_destino?.codigo_dotacao,
+    buscarPor: (alt) => alt.dotacao_destino?.codigo_dotacao,
+  },
+  {
+    id: "valor",
+    cabecalho: "Valor",
+    celula: (alt) => <span className="font-medium tabular-nums">{formatCurrency(alt.valor)}</span>,
+    ordenarPor: (alt) => Number(alt.valor),
+    alinhamento: "direita",
+  },
+  {
+    id: "status",
+    cabecalho: "Situação",
+    celula: (alt) => {
+      const situacao = SITUACAO[alt.status];
+      return <StatusBadge tom={situacao?.tom ?? "neutro"}>{situacao?.label ?? alt.status}</StatusBadge>;
+    },
+    ordenarPor: (alt) => SITUACAO[alt.status]?.label ?? alt.status,
+  },
+];
+
 export default function AlteracoesOrcamentariasPage() {
   const [exercicio] = useState(new Date().getFullYear());
-  const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const { data: alteracoes, isLoading } = useAlteracoesOrcamentarias({ exercicio });
+  const { data, isLoading, isError, refetch } = useAlteracoesOrcamentarias({ exercicio });
+  const alteracoes = data as AlteracaoComDotacoes[] | undefined;
   const { data: dotacoes } = useDotacoes(exercicio);
   const criarAlteracao = useCriarAlteracaoOrcamentaria();
 
@@ -81,16 +157,10 @@ export default function AlteracoesOrcamentariasPage() {
   const needsOrigem = ["remanejamento", "transposicao", "transferencia", "reducao"].includes(formTipo);
   const needsDestino = ["suplementacao", "remanejamento", "transposicao", "transferencia", "credito_especial", "credito_extraordinario"].includes(formTipo);
 
-  const filteredAlteracoes = alteracoes?.filter((a) => {
+  // A busca por texto fica com o DataTable; aqui só os filtros de tipo e situação
+  const filteredAlteracoes = (alteracoes ?? []).filter((a) => {
     if (filtroStatus !== "todos" && a.status !== filtroStatus) return false;
     if (filtroTipo !== "todos" && a.tipo !== filtroTipo) return false;
-    if (busca) {
-      const termo = busca.toLowerCase();
-      return (
-        a.numero?.toLowerCase().includes(termo) ||
-        a.justificativa?.toLowerCase().includes(termo)
-      );
-    }
     return true;
   });
 
@@ -130,75 +200,46 @@ export default function AlteracoesOrcamentariasPage() {
     setFormFundamentacao("");
   };
 
+  const temFiltro = filtroStatus !== "todos" || filtroTipo !== "todos";
+
   return (
     <ModuleLayout module="financeiro">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Alterações Orçamentárias</h1>
-            <p className="text-muted-foreground">
-              Suplementações, reduções, remanejamentos e créditos
-            </p>
-          </div>
-          <Button onClick={() => setDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Nova Alteração
-          </Button>
-        </div>
+        <PageHeader
+          migalhas={[{ rotulo: "Financeiro", href: "/financeiro" }, { rotulo: "Alterações orçamentárias" }]}
+          titulo="Alterações orçamentárias"
+          descricao="Suplementações, reduções, remanejamentos e créditos"
+          acoes={
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Nova alteração
+            </Button>
+          }
+        />
 
         {/* Cards resumo */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="h-4 w-4 text-green-500" />
-                <p className="text-sm text-muted-foreground">Suplementações Executadas</p>
-              </div>
-              <p className="text-2xl font-bold text-green-600">{formatCurrency(totalSupl)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingDown className="h-4 w-4 text-red-500" />
-                <p className="text-sm text-muted-foreground">Reduções Executadas</p>
-              </div>
-              <p className="text-2xl font-bold text-red-600">{formatCurrency(totalRed)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-2">
-                <ArrowRightLeft className="h-4 w-4 text-blue-500" />
-                <p className="text-sm text-muted-foreground">Remanejamentos Executados</p>
-              </div>
-              <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalRemn)}</p>
-            </CardContent>
-          </Card>
-        </div>
+        <section aria-labelledby="alt-indicadores">
+          <h2 id="alt-indicadores" className="sr-only">Totais executados em {exercicio}</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <KpiCard rotulo="Suplementações executadas" valor={formatCurrency(totalSupl)} icone={TrendingUp} carregando={isLoading} />
+            <KpiCard rotulo="Reduções executadas" valor={formatCurrency(totalRed)} icone={TrendingDown} carregando={isLoading} />
+            <KpiCard rotulo="Remanejamentos executados" valor={formatCurrency(totalRemn)} icone={ArrowRightLeft} carregando={isLoading} />
+          </div>
+        </section>
 
-        {/* Filtros */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Filter className="h-4 w-4" />
-              Filtros
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por número ou justificativa..."
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+        <DataTable
+          rotulo="Alterações orçamentárias"
+          dados={filteredAlteracoes}
+          colunas={colunas}
+          chaveLinha={(alt) => alt.id}
+          carregando={isLoading}
+          erro={isError ? "Não foi possível carregar as alterações orçamentárias." : null}
+          aoTentarNovamente={() => refetch()}
+          busca={{ placeholder: "Buscar por número, justificativa ou dotação…" }}
+          filtros={
+            <>
               <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-                <SelectTrigger className="w-[200px]">
+                <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filtrar por tipo">
                   <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
                 <SelectContent>
@@ -208,104 +249,48 @@ export default function AlteracoesOrcamentariasPage() {
                   <SelectItem value="remanejamento">Remanejamento</SelectItem>
                   <SelectItem value="transposicao">Transposição</SelectItem>
                   <SelectItem value="transferencia">Transferência</SelectItem>
-                  <SelectItem value="credito_especial">Crédito Especial</SelectItem>
-                  <SelectItem value="credito_extraordinario">Crédito Extraordinário</SelectItem>
+                  <SelectItem value="credito_especial">Crédito especial</SelectItem>
+                  <SelectItem value="credito_extraordinario">Crédito extraordinário</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Status" />
+                <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filtrar por situação">
+                  <SelectValue placeholder="Situação" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todos">Todos os status</SelectItem>
+                  <SelectItem value="todos">Todas as situações</SelectItem>
                   <SelectItem value="rascunho">Rascunho</SelectItem>
                   <SelectItem value="pendente_analise">Pendente</SelectItem>
-                  <SelectItem value="em_analise">Em Análise</SelectItem>
+                  <SelectItem value="em_analise">Em análise</SelectItem>
                   <SelectItem value="aprovado">Aprovado</SelectItem>
                   <SelectItem value="executado">Executado</SelectItem>
                   <SelectItem value="rejeitado">Rejeitado</SelectItem>
                   <SelectItem value="cancelado">Cancelado</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tabela */}
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Número</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Dotação Origem</TableHead>
-                  <TableHead>Dotação Destino</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      {Array.from({ length: 7 }).map((_, j) => (
-                        <TableCell key={j}><Skeleton className="h-4 w-20" /></TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : filteredAlteracoes?.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      <ArrowUpDown className="h-12 w-12 mx-auto mb-2 opacity-30" />
-                      Nenhuma alteração orçamentária encontrada
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredAlteracoes?.map((alt) => {
-                    const TipoIcon = tipoIcons[alt.tipo] || ArrowUpDown;
-                    return (
-                      <TableRow key={alt.id}>
-                        <TableCell className="font-mono font-medium">{alt.numero}</TableCell>
-                        <TableCell>
-                          {format(new Date(alt.data_alteracao), "dd/MM/yyyy", { locale: ptBR })}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="gap-1">
-                            <TipoIcon className="h-3 w-3" />
-                            {TIPO_ALTERACAO_LABELS[alt.tipo as TipoAlteracaoOrcamentaria] || alt.tipo}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {(alt as any).dotacao_origem?.codigo_dotacao || "—"}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {(alt as any).dotacao_destino?.codigo_dotacao || "—"}
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-medium">
-                          {formatCurrency(alt.valor)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={STATUS_WORKFLOW_COLORS[alt.status] || "bg-gray-100"}>
-                            {STATUS_WORKFLOW_LABELS[alt.status as StatusWorkflowFinanceiro] || alt.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+            </>
+          }
+          vazio={{
+            icone: ArrowUpDown,
+            titulo: temFiltro ? "Nenhuma alteração com esses filtros" : "Nenhuma alteração orçamentária encontrada",
+            descricao: temFiltro
+              ? "Ajuste o tipo ou a situação para ver outras alterações."
+              : `Não há alterações orçamentárias registradas em ${exercicio}.`,
+            acao: temFiltro ? undefined : (
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Nova alteração
+              </Button>
+            ),
+          }}
+        />
       </div>
 
       {/* Dialog Nova Alteração */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Nova Alteração Orçamentária</DialogTitle>
+            <DialogTitle>Nova alteração orçamentária</DialogTitle>
             <DialogDescription>
               Registrar suplementação, redução ou remanejamento de dotação
             </DialogDescription>
@@ -313,9 +298,9 @@ export default function AlteracoesOrcamentariasPage() {
 
           <div className="space-y-4">
             <div>
-              <Label>Tipo de Alteração</Label>
+              <Label htmlFor="alt-tipo">Tipo de alteração</Label>
               <Select value={formTipo} onValueChange={(v) => setFormTipo(v as TipoAlteracaoOrcamentaria)}>
-                <SelectTrigger>
+                <SelectTrigger id="alt-tipo">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -332,9 +317,9 @@ export default function AlteracoesOrcamentariasPage() {
 
             {needsOrigem && (
               <div>
-                <Label>Dotação de Origem (anulação de)</Label>
+                <Label htmlFor="alt-origem">Dotação de origem (anulação de)</Label>
                 <Select value={formDotOrigem} onValueChange={setFormDotOrigem}>
-                  <SelectTrigger>
+                  <SelectTrigger id="alt-origem">
                     <SelectValue placeholder="Selecione a dotação..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -350,9 +335,9 @@ export default function AlteracoesOrcamentariasPage() {
 
             {needsDestino && (
               <div>
-                <Label>Dotação de Destino (suplementar)</Label>
+                <Label htmlFor="alt-destino">Dotação de destino (suplementar)</Label>
                 <Select value={formDotDestino} onValueChange={setFormDotDestino}>
-                  <SelectTrigger>
+                  <SelectTrigger id="alt-destino">
                     <SelectValue placeholder="Selecione a dotação..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -367,8 +352,9 @@ export default function AlteracoesOrcamentariasPage() {
             )}
 
             <div>
-              <Label>Valor (R$)</Label>
+              <Label htmlFor="alt-valor">Valor (R$)</Label>
               <Input
+                id="alt-valor"
                 type="number"
                 step="0.01"
                 min="0.01"
@@ -379,8 +365,9 @@ export default function AlteracoesOrcamentariasPage() {
             </div>
 
             <div>
-              <Label>Justificativa *</Label>
+              <Label htmlFor="alt-justificativa">Justificativa *</Label>
               <Textarea
+                id="alt-justificativa"
                 placeholder="Justificativa da alteração orçamentária..."
                 value={formJustificativa}
                 onChange={(e) => setFormJustificativa(e.target.value)}
@@ -390,8 +377,9 @@ export default function AlteracoesOrcamentariasPage() {
             </div>
 
             <div>
-              <Label>Fundamentação Legal</Label>
+              <Label htmlFor="alt-fundamentacao">Fundamentação legal</Label>
               <Input
+                id="alt-fundamentacao"
                 placeholder="Ex: Art. 43, §1º, inciso III, Lei 4.320/64"
                 value={formFundamentacao}
                 onChange={(e) => setFormFundamentacao(e.target.value)}
@@ -408,7 +396,7 @@ export default function AlteracoesOrcamentariasPage() {
               onClick={handleSubmit}
               disabled={criarAlteracao.isPending || !formJustificativa || !formValor}
             >
-              {criarAlteracao.isPending ? "Salvando..." : "Registrar Alteração"}
+              {criarAlteracao.isPending ? "Salvando..." : "Registrar alteração"}
             </Button>
           </DialogFooter>
         </DialogContent>

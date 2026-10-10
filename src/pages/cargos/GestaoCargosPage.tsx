@@ -4,16 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { ModuleLayout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DataTable,
+  KpiCard,
+  PageHeader,
+  StatusBadge,
+  type ColunaTabela,
+  type TomStatus,
+} from "@/components/design-system";
 import {
   Dialog,
   DialogContent,
@@ -30,7 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Pencil, Trash2, Briefcase, Eye, EyeOff, Building2, FileDown } from "lucide-react";
+import { Plus, Pencil, Trash2, Briefcase, Eye, EyeOff, Building2, FileDown, Power } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { CargoForm, type CargoFormData, type ComposicaoItem } from "@/components/cargos/CargoForm";
@@ -82,16 +81,17 @@ const CATEGORIA_LABELS: Record<string, string> = {
   estagiario: "Estagiário",
 };
 
-const CATEGORIA_COLORS: Record<string, string> = {
-  efetivo: "bg-success/20 text-success border-success/30",
-  comissionado: "bg-primary/20 text-primary border-primary/30",
-  funcao_gratificada: "bg-warning/20 text-warning border-warning/30",
-  temporario: "bg-info/20 text-info border-info/30",
-  estagiario: "bg-secondary/20 text-secondary-foreground border-secondary/30",
-};
+// Vacância (vagas − ocupadas) → selo: negativa é excesso, zero é quadro cheio
+function seloVacancia(vacancia: number): { label: string; tom: TomStatus } {
+  if (vacancia < 0) return { label: `${vacancia} (excedente)`, tom: "erro" };
+  if (vacancia === 0) return { label: "0 (sem vagas)", tom: "pendente" };
+  return { label: String(vacancia), tom: "sucesso" };
+}
+
+const vacanciaDo = (cargo: { quantidade_vagas: number | null; ocupadas: number }) =>
+  (cargo.quantidade_vagas || 0) - cargo.ocupadas;
 
 export default function GestaoCargosPage() {
-  const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -100,7 +100,7 @@ export default function GestaoCargosPage() {
   const [showInactive, setShowInactive] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: cargos = [], isLoading } = useQuery({
+  const { data: cargos = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["cargos", showInactive],
     queryFn: async () => {
       let query = supabase
@@ -357,13 +357,6 @@ export default function GestaoCargosPage() {
     },
   });
 
-  const filteredCargos = cargos.filter(
-    (cargo) =>
-      cargo.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cargo.sigla?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cargo.cbo?.includes(searchTerm)
-  );
-
   const handleEdit = async (cargo: CargoComOcupacao) => {
     setSelectedCargo(cargo);
     // Buscar composição existente
@@ -478,215 +471,212 @@ export default function GestaoCargosPage() {
     toast.success('Relatório PDF gerado com sucesso!');
   };
 
+  const colunas: ColunaTabela<CargoComOcupacao>[] = [
+    {
+      id: "cargo",
+      cabecalho: "Cargo",
+      mobile: "titulo",
+      ordenarPor: (cargo) => cargo.nome,
+      // Busca por nome, sigla ou CBO (mesmos campos da busca anterior)
+      buscarPor: (cargo) => [cargo.nome, cargo.sigla, cargo.cbo].filter(Boolean).join(" "),
+      celula: (cargo) => (
+        <div>
+          <p className="font-medium">{cargo.nome}</p>
+          {cargo.sigla && <p className="text-body text-muted-foreground">{cargo.sigla}</p>}
+        </div>
+      ),
+    },
+    {
+      id: "categoria",
+      cabecalho: "Categoria",
+      ordenarPor: (cargo) => CATEGORIA_LABELS[cargo.categoria] ?? cargo.categoria,
+      celula: (cargo) => (
+        <Badge variant="outline">{CATEGORIA_LABELS[cargo.categoria] ?? cargo.categoria}</Badge>
+      ),
+    },
+    {
+      id: "nivel",
+      cabecalho: "Nível",
+      alinhamento: "centro",
+      ordenarPor: (cargo) => cargo.nivel_hierarquico,
+      celula: (cargo) => cargo.nivel_hierarquico || "-",
+    },
+    {
+      id: "unidades",
+      cabecalho: "Unidades",
+      celula: (cargo) =>
+        cargo.composicao.length > 0 ? (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="flex cursor-help items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={`Distribuição de ${cargo.nome} por unidade: ${cargo.composicao.length} ${cargo.composicao.length === 1 ? "unidade" : "unidades"}`}
+                >
+                  <Building2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
+                    {cargo.composicao.length} {cargo.composicao.length === 1 ? "unidade" : "unidades"}
+                  </Badge>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <div className="space-y-1 text-caption">
+                  <p className="mb-2 font-medium">Distribuição por unidade:</p>
+                  {cargo.composicao.map((c, idx) => (
+                    <div key={idx} className="flex justify-between gap-4">
+                      <span className="truncate">{c.unidade_sigla || c.unidade_nome}</span>
+                      <span className="font-medium">{c.quantidade_vagas} vagas</span>
+                    </div>
+                  ))}
+                  <div className="mt-1 flex justify-between border-t pt-1 font-medium">
+                    <span>Total distribuído:</span>
+                    <span>{cargo.composicao.reduce((sum, c) => sum + c.quantidade_vagas, 0)} vagas</span>
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <span className="text-body text-muted-foreground">Não distribuído</span>
+        ),
+    },
+    {
+      id: "vagas",
+      cabecalho: "Vagas",
+      alinhamento: "centro",
+      ordenarPor: (cargo) => cargo.quantidade_vagas || 0,
+      celula: (cargo) => cargo.quantidade_vagas || 0,
+    },
+    {
+      id: "ocupadas",
+      cabecalho: "Ocupadas",
+      alinhamento: "centro",
+      ordenarPor: (cargo) => cargo.ocupadas,
+      celula: (cargo) => cargo.ocupadas,
+    },
+    {
+      id: "vacancia",
+      cabecalho: "Vacância",
+      alinhamento: "centro",
+      ordenarPor: (cargo) => vacanciaDo(cargo),
+      celula: (cargo) => {
+        const selo = seloVacancia(vacanciaDo(cargo));
+        return <StatusBadge tom={selo.tom}>{selo.label}</StatusBadge>;
+      },
+    },
+    {
+      id: "situacao",
+      cabecalho: "Situação",
+      alinhamento: "centro",
+      ordenarPor: (cargo) => (cargo.ativo ? "Ativo" : "Inativo"),
+      celula: (cargo) => (
+        <StatusBadge tom={cargo.ativo ? "sucesso" : "neutro"}>{cargo.ativo ? "Ativo" : "Inativo"}</StatusBadge>
+      ),
+    },
+  ];
+
   return (
     <ProtectedRoute requiredModule="governanca">
       <ModuleLayout module="governanca">
-        <div className="container mx-auto py-8 px-4">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary/10 rounded-xl">
-                <Briefcase className="h-8 w-8 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-foreground">Gestão de Cargos</h1>
-                <p className="text-muted-foreground">
-                  Gerencie os cargos da estrutura organizacional
-                </p>
-              </div>
-            </div>
+        <div className="space-y-6">
+          <PageHeader
+            migalhas={[{ rotulo: "Governança", href: "/governanca" }, { rotulo: "Gestão de cargos" }]}
+            titulo="Gestão de cargos"
+            descricao="Gerencie os cargos da estrutura organizacional"
+            acoes={
+              <>
+                <Button variant="outline" onClick={handleExportPDF}>
+                  <FileDown className="h-4 w-4" aria-hidden="true" />
+                  Exportar PDF
+                </Button>
+                <Button onClick={handleOpenCreate}>
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Novo cargo
+                </Button>
+              </>
+            }
+          />
 
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleExportPDF}>
-                <FileDown className="h-4 w-4 mr-2" />
-                Exportar PDF
-              </Button>
-              <Button onClick={handleOpenCreate}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Cargo
-              </Button>
-            </div>
-          </div>
+          {/* Resumo por categoria (só cargos ativos) */}
+          <section aria-labelledby="cargos-resumo">
+            <h2 id="cargos-resumo" className="sr-only">Cargos ativos por categoria</h2>
+            <ul className="grid grid-cols-2 gap-4 md:grid-cols-5">
+              {Object.entries(CATEGORIA_LABELS).map(([key, label]) => (
+                <li key={key}>
+                  <KpiCard
+                    rotulo={label}
+                    valor={cargos.filter((c) => c.categoria === key && c.ativo).length}
+                    icone={Briefcase}
+                    carregando={isLoading}
+                    className="h-full"
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            {Object.entries(CATEGORIA_LABELS).map(([key, label]) => {
-              const count = cargos.filter((c) => c.categoria === key && c.ativo).length;
-              return (
-                <div key={key} className="bg-card rounded-lg p-4 border">
-                  <p className="text-sm text-muted-foreground">{label}</p>
-                  <p className="text-2xl font-bold">{count}</p>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nome, sigla ou CBO..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Button
-              variant={showInactive ? "secondary" : "outline"}
-              onClick={() => setShowInactive(!showInactive)}
-            >
-              {showInactive ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
-              {showInactive ? "Mostrando inativos" : "Mostrar inativos"}
-            </Button>
-          </div>
-
-          {/* Table */}
-          <div className="bg-card rounded-lg border overflow-hidden">
-            <Table>
-              <TableHeader>
-              <TableRow>
-                  <TableHead>Cargo</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead className="text-center">Nível</TableHead>
-                  <TableHead>Unidades</TableHead>
-                  <TableHead className="text-center">Vagas</TableHead>
-                  <TableHead className="text-center">Ocupadas</TableHead>
-                  <TableHead className="text-center">Vacância</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
-                      Carregando...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredCargos.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                      Nenhum cargo encontrado
-                    </TableCell>
-                  </TableRow>
+          <DataTable
+            rotulo="Cargos"
+            dados={cargos}
+            colunas={colunas}
+            chaveLinha={(cargo) => cargo.id}
+            carregando={isLoading}
+            erro={isError ? "Não foi possível carregar os cargos." : null}
+            aoTentarNovamente={() => refetch()}
+            busca={{ placeholder: "Buscar por nome, sigla ou CBO..." }}
+            filtros={
+              <Button
+                variant={showInactive ? "secondary" : "outline"}
+                aria-pressed={showInactive}
+                onClick={() => setShowInactive(!showInactive)}
+              >
+                {showInactive ? (
+                  <Eye className="h-4 w-4" aria-hidden="true" />
                 ) : (
-                  filteredCargos.map((cargo) => (
-                    <TableRow key={cargo.id} className={!cargo.ativo ? "opacity-60" : ""}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{cargo.nome}</p>
-                          {cargo.sigla && (
-                            <p className="text-sm text-muted-foreground">{cargo.sigla}</p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={CATEGORIA_COLORS[cargo.categoria]}>
-                          {CATEGORIA_LABELS[cargo.categoria]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">{cargo.nivel_hierarquico || "-"}</TableCell>
-                      <TableCell>
-                        {cargo.composicao.length > 0 ? (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex items-center gap-2 cursor-help">
-                                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                                    {cargo.composicao.length} {cargo.composicao.length === 1 ? 'unidade' : 'unidades'}
-                                  </Badge>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <div className="space-y-1 text-xs">
-                                  <p className="font-medium mb-2">Distribuição por unidade:</p>
-                                  {cargo.composicao.map((c, idx) => (
-                                    <div key={idx} className="flex justify-between gap-4">
-                                      <span className="truncate">
-                                        {c.unidade_sigla || c.unidade_nome}
-                                      </span>
-                                      <span className="font-medium">{c.quantidade_vagas} vagas</span>
-                                    </div>
-                                  ))}
-                                  <div className="border-t pt-1 mt-1 flex justify-between font-medium">
-                                    <span>Total distribuído:</span>
-                                    <span>{cargo.composicao.reduce((sum, c) => sum + c.quantidade_vagas, 0)} vagas</span>
-                                  </div>
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">Não distribuído</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center">{cargo.quantidade_vagas || 0}</TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="outline" className="bg-info/20 text-info border-info/30">
-                          {cargo.ocupadas}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {(() => {
-                          const vagas = cargo.quantidade_vagas || 0;
-                          const vacancia = vagas - cargo.ocupadas;
-                          const isNegativo = vacancia < 0;
-                          return (
-                            <Badge 
-                              variant="outline" 
-                              className={isNegativo 
-                                ? "bg-destructive/20 text-destructive border-destructive/30" 
-                                : vacancia === 0 
-                                  ? "bg-warning/20 text-warning border-warning/30"
-                                  : "bg-success/20 text-success border-success/30"
-                              }
-                            >
-                              {vacancia}
-                            </Badge>
-                          );
-                        })()}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant={cargo.ativo ? "default" : "secondary"}>
-                          {cargo.ativo ? "Ativo" : "Inativo"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleView(cargo)}
-                            title="Ver detalhes"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(cargo)}
-                            title="Editar"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(cargo)}
-                            title={cargo.ativo ? "Desativar" : "Ativar"}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  <EyeOff className="h-4 w-4" aria-hidden="true" />
                 )}
-              </TableBody>
-            </Table>
-          </div>
+                {showInactive ? "Mostrando inativos" : "Mostrar inativos"}
+              </Button>
+            }
+            vazio={{
+              icone: Briefcase,
+              titulo: "Nenhum cargo encontrado",
+              descricao: showInactive ? undefined : "Cargos inativos estão ocultos. Use “Mostrar inativos” para vê-los.",
+            }}
+            acoesLinha={(cargo) => (
+              <div className="flex justify-end gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleView(cargo)}
+                  aria-label={`Ver detalhes de ${cargo.nome}`}
+                >
+                  <Eye className="h-4 w-4" aria-hidden="true" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleEdit(cargo)}
+                  aria-label={`Editar ${cargo.nome}`}
+                >
+                  <Pencil className="h-4 w-4" aria-hidden="true" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDelete(cargo)}
+                  aria-label={`${cargo.ativo ? "Desativar" : "Ativar"} ${cargo.nome}`}
+                >
+                  {cargo.ativo ? (
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <Power className="h-4 w-4" aria-hidden="true" />
+                  )}
+                </Button>
+              </div>
+            )}
+          />
 
           {/* Form Dialog */}
           <Dialog open={isFormOpen} onOpenChange={(open) => {
@@ -699,7 +689,7 @@ export default function GestaoCargosPage() {
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
-                  {selectedCargo ? "Editar Cargo" : "Novo Cargo"}
+                  {selectedCargo ? "Editar cargo" : "Novo cargo"}
                 </DialogTitle>
               </DialogHeader>
               <CargoForm

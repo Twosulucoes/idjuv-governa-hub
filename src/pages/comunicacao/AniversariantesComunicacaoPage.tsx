@@ -20,7 +20,8 @@ import {
   Building2,
   Copy,
   Check,
-  Download
+  Download,
+  AlertCircle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ModuleLayout } from "@/components/layout";
@@ -31,6 +32,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { EmptyState, KpiCard, PageHeader } from "@/components/design-system";
 import { toast } from "sonner";
 
 const MESES = [
@@ -55,7 +58,7 @@ export default function AniversariantesComunicacaoPage() {
   const [mesAtual, setMesAtual] = useState(new Date().getMonth());
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const { data: servidores, isLoading } = useQuery({
+  const { data: servidores, isLoading, isError, refetch } = useQuery({
     queryKey: ["aniversariantes-comunicacao"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -212,126 +215,108 @@ export default function AniversariantesComunicacaoPage() {
     <ProtectedRoute>
       <ModuleLayout module="comunicacao">
         <div className="space-y-6">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                <Cake className="h-7 w-7 text-primary" />
-                Aniversariantes
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Acompanhe os aniversários dos servidores para ações de comunicação interna
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={() => navegarMes(-1)}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              
-              <Select value={mesAtual.toString()} onValueChange={(v) => setMesAtual(parseInt(v))}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MESES.map((mes, idx) => (
-                    <SelectItem key={idx} value={idx.toString()}>
-                      {mes}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <PageHeader
+            migalhas={[{ rotulo: "Comunicação", href: "/comunicacao" }, { rotulo: "Aniversariantes" }]}
+            titulo="Aniversariantes"
+            descricao="Acompanhe os aniversários dos servidores para ações de comunicação interna"
+            acoes={
+              <>
+                <div className="flex items-center gap-2" role="group" aria-label="Mês exibido">
+                  <Button variant="outline" size="icon" aria-label="Mês anterior" onClick={() => navegarMes(-1)}>
+                    <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                  </Button>
 
-              <Button variant="outline" size="icon" onClick={() => navegarMes(1)}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+                  <Select value={mesAtual.toString()} onValueChange={(v) => setMesAtual(parseInt(v))}>
+                    <SelectTrigger className="w-[160px]" aria-label="Selecionar mês">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MESES.map((mes, idx) => (
+                        <SelectItem key={idx} value={idx.toString()}>
+                          {mes}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-              <Button variant="outline" onClick={exportarLista} disabled={aniversariantesDoMes.length === 0}>
-                <Download className="h-4 w-4 mr-2" />
-                Exportar
-              </Button>
-            </div>
-          </div>
+                  <Button variant="outline" size="icon" aria-label="Próximo mês" onClick={() => navegarMes(1)}>
+                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </div>
 
-          {/* Cards de resumo */}
+                <Button variant="outline" onClick={exportarLista} disabled={aniversariantesDoMes.length === 0}>
+                  <Download className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Exportar
+                </Button>
+              </>
+            }
+          />
+
+          {isError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" aria-hidden="true" />
+              <AlertDescription className="flex flex-wrap items-center gap-2">
+                Não foi possível carregar os aniversariantes.
+                <Button variant="outline" size="sm" onClick={() => refetch()}>
+                  Tentar novamente
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Indicadores do mês */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Aniversariantes em {MESES[mesAtual]}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <Users className="h-8 w-8 text-primary" />
-                  <span className="text-3xl font-bold">{aniversariantesDoMes.length}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className={aniversariantesHoje.length > 0 ? "border-primary bg-primary/5" : ""}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Aniversariantes Hoje
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <Gift className="h-8 w-8 text-primary" />
-                  <span className="text-3xl font-bold">{aniversariantesHoje.length}</span>
-                </div>
-                {aniversariantesHoje.length > 0 && (
-                  <p className="text-sm text-primary mt-2 font-medium">
-                    🎉 {aniversariantesHoje.map((a) => a.nome_social || a.nome_completo.split(" ")[0]).join(", ")}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Próximo Aniversário
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-8 w-8 text-muted-foreground" />
-                  {(() => {
-                    const hoje = getDate(new Date());
-                    const mesHoje = getMonth(new Date());
-                    const proximo = aniversariantesDoMes.find(
-                      (a) => mesAtual > mesHoje || (mesAtual === mesHoje && a.dia >= hoje)
-                    );
-                    if (proximo) {
-                      return (
-                        <div>
-                          <span className="text-lg font-bold">Dia {proximo.dia}</span>
-                          <p className="text-sm text-muted-foreground">
-                            {proximo.nome_social || proximo.nome_completo.split(" ")[0]}
-                          </p>
-                        </div>
-                      );
-                    }
-                    return <span className="text-muted-foreground">-</span>;
-                  })()}
-                </div>
-              </CardContent>
-            </Card>
+            <KpiCard
+              rotulo={`Aniversariantes em ${MESES[mesAtual]}`}
+              valor={aniversariantesDoMes.length}
+              icone={Users}
+              carregando={isLoading}
+            />
+            <KpiCard
+              rotulo="Aniversariantes hoje"
+              valor={aniversariantesHoje.length}
+              icone={Gift}
+              carregando={isLoading}
+              className={aniversariantesHoje.length > 0 ? "border-primary bg-primary/5" : undefined}
+              detalhe={
+                aniversariantesHoje.length > 0
+                  ? aniversariantesHoje.map((a) => a.nome_social || a.nome_completo.split(" ")[0]).join(", ")
+                  : undefined
+              }
+            />
+            {(() => {
+              const hoje = getDate(new Date());
+              const mesHoje = getMonth(new Date());
+              const proximo = aniversariantesDoMes.find(
+                (a) => mesAtual > mesHoje || (mesAtual === mesHoje && a.dia >= hoje)
+              );
+              return (
+                <KpiCard
+                  rotulo="Próximo aniversário"
+                  valor={proximo ? `Dia ${proximo.dia}` : "—"}
+                  icone={Calendar}
+                  carregando={isLoading}
+                  detalhe={proximo ? proximo.nome_social || proximo.nome_completo.split(" ")[0] : undefined}
+                />
+              );
+            })()}
           </div>
 
           {/* Lista por semana */}
           {isLoading ? (
             <Card>
-              <CardContent className="py-10 text-center text-muted-foreground">
+              <CardContent className="py-10 text-center text-muted-foreground" role="status">
                 Carregando aniversariantes...
               </CardContent>
             </Card>
           ) : aniversariantesDoMes.length === 0 ? (
             <Card>
-              <CardContent className="py-10 text-center text-muted-foreground">
-                <Cake className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p>Nenhum aniversariante em {MESES[mesAtual]}</p>
+              <CardContent className="p-0">
+                <EmptyState
+                  icone={Cake}
+                  titulo={`Nenhum aniversariante em ${MESES[mesAtual]}`}
+                  descricao="Escolha outro mês para ver os aniversários."
+                />
               </CardContent>
             </Card>
           ) : (
@@ -339,8 +324,8 @@ export default function AniversariantesComunicacaoPage() {
               {Object.entries(aniversariantesPorSemana).map(([semana, lista]) => (
                 <Card key={semana}>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
+                    <CardTitle className="text-h3 flex items-center gap-2">
+                      <Calendar className="h-4 w-4" aria-hidden="true" />
                       Dias {semana}
                     </CardTitle>
                     <CardDescription>
@@ -349,7 +334,7 @@ export default function AniversariantesComunicacaoPage() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {lista.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">
+                      <p className="text-body text-muted-foreground text-center py-4">
                         Nenhum aniversariante neste período
                       </p>
                     ) : (
@@ -374,11 +359,12 @@ export default function AniversariantesComunicacaoPage() {
                                 </AvatarFallback>
                               </Avatar>
                               {isHoje && (
-                                <span className="absolute -top-1 -right-1 text-lg">🎂</span>
+                                <span className="absolute -top-1 -right-1 text-lg" aria-hidden="true">🎂</span>
                               )}
                             </div>
 
                             <div className="flex-1 min-w-0">
+                              {isHoje && <span className="sr-only">Aniversário hoje: </span>}
                               <div className="flex items-center gap-2">
                                 <p className="font-medium truncate">
                                   {aniversariante.nome_social || aniversariante.nome_completo}
@@ -396,7 +382,7 @@ export default function AniversariantesComunicacaoPage() {
                               
                               {aniversariante.unidade_nome && (
                                 <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
-                                  <Building2 className="h-3 w-3" />
+                                  <Building2 className="h-3 w-3" aria-hidden="true" />
                                   {aniversariante.unidade_nome}
                                 </p>
                               )}
@@ -410,12 +396,13 @@ export default function AniversariantesComunicacaoPage() {
                                       variant="ghost"
                                       size="icon"
                                       className="h-8 w-8"
+                                      aria-label={`Copiar e-mail de ${aniversariante.nome_social || aniversariante.nome_completo}`}
                                       onClick={() => copiarEmail(aniversariante.email!, aniversariante.id)}
                                     >
                                       {copiedId === aniversariante.id ? (
-                                        <Check className="h-4 w-4 text-primary" />
+                                        <Check className="h-4 w-4 text-primary" aria-hidden="true" />
                                       ) : (
-                                        <Mail className="h-4 w-4" />
+                                        <Mail className="h-4 w-4" aria-hidden="true" />
                                       )}
                                     </Button>
                                   </TooltipTrigger>
@@ -432,8 +419,11 @@ export default function AniversariantesComunicacaoPage() {
                                       className="h-8 w-8"
                                       asChild
                                     >
-                                      <a href={`tel:${aniversariante.telefone}`}>
-                                        <Phone className="h-4 w-4" />
+                                      <a
+                                        href={`tel:${aniversariante.telefone}`}
+                                        aria-label={`Ligar para ${aniversariante.nome_social || aniversariante.nome_completo}: ${aniversariante.telefone}`}
+                                      >
+                                        <Phone className="h-4 w-4" aria-hidden="true" />
                                       </a>
                                     </Button>
                                   </TooltipTrigger>

@@ -17,6 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
+import { PageHeader } from "@/components/design-system";
+import { useTenant } from "@/core/tenant";
 import { 
   Select,
   SelectContent,
@@ -53,6 +55,9 @@ export default function CMSEditorPage() {
   const [mediaLibraryOpen, setMediaLibraryOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"conteudo" | "seo" | "preview">("conteudo");
   const [saving, setSaving] = useState(false);
+  // Domínio do portal no preview de busca: site do tenant ou, sem ele, o endereço atual
+  const siteTenant = useTenant().contato?.site;
+  const siteBase = (siteTenant || window.location.origin).replace(/\/+$/, "");
 
   // Form state
   const [form, setForm] = useState({
@@ -214,41 +219,40 @@ export default function CMSEditorPage() {
   return (
     <ModuleLayout module="comunicacao">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/comunicacao/cms/conteudos")}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">
-                {isNew ? "Novo Conteúdo" : "Editar Conteúdo"}
-              </h1>
-              <p className="text-muted-foreground">
-                {TIPO_LABELS[form.tipo]} • {DESTINO_LABELS[form.destino]}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => handleSave(false)}
-              disabled={saving}
-            >
-              {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              <Save className="h-4 w-4 mr-2" />
-              Salvar Rascunho
-            </Button>
-            <Button 
-              onClick={() => handleSave(true)}
-              disabled={saving}
-            >
-              {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              <Send className="h-4 w-4 mr-2" />
-              Publicar
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          migalhas={[
+            { rotulo: "Comunicação", href: "/comunicacao" },
+            { rotulo: "Conteúdos", href: "/comunicacao/cms/conteudos" },
+            { rotulo: isNew ? "Novo" : "Editar" },
+          ]}
+          titulo={isNew ? "Novo conteúdo" : "Editar conteúdo"}
+          descricao={`${TIPO_LABELS[form.tipo]} • ${DESTINO_LABELS[form.destino]}`}
+          acoes={
+            <>
+              <Button variant="outline" onClick={() => navigate("/comunicacao/cms/conteudos")}>
+                <ArrowLeft className="h-4 w-4 mr-2" aria-hidden="true" />
+                Voltar
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => handleSave(false)}
+                disabled={saving}
+              >
+                {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" aria-hidden="true" />}
+                <Save className="h-4 w-4 mr-2" aria-hidden="true" />
+                Salvar rascunho
+              </Button>
+              <Button 
+                onClick={() => handleSave(true)}
+                disabled={saving}
+              >
+                {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" aria-hidden="true" />}
+                <Send className="h-4 w-4 mr-2" aria-hidden="true" />
+                Publicar
+              </Button>
+            </>
+          }
+        />
 
         <div className="grid gap-6 lg:grid-cols-[1fr,320px]">
           {/* Área principal */}
@@ -282,15 +286,15 @@ export default function CMSEditorPage() {
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
               <TabsList>
                 <TabsTrigger value="conteudo" className="gap-2">
-                  <FileText className="h-4 w-4" />
+                  <FileText className="h-4 w-4" aria-hidden="true" />
                   Conteúdo
                 </TabsTrigger>
                 <TabsTrigger value="seo" className="gap-2">
-                  <Globe className="h-4 w-4" />
+                  <Globe className="h-4 w-4" aria-hidden="true" />
                   SEO
                 </TabsTrigger>
                 <TabsTrigger value="preview" className="gap-2">
-                  <Eye className="h-4 w-4" />
+                  <Eye className="h-4 w-4" aria-hidden="true" />
                   Preview
                 </TabsTrigger>
               </TabsList>
@@ -340,8 +344,9 @@ export default function CMSEditorPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Meta Título</Label>
+                      <Label htmlFor="meta_title">Meta título</Label>
                       <Input
+                        id="meta_title"
                         value={form.meta_title}
                         onChange={(e) => setForm({ ...form, meta_title: e.target.value })}
                         placeholder={form.titulo || "Título para SEO"}
@@ -351,8 +356,9 @@ export default function CMSEditorPage() {
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <Label>Meta Descrição</Label>
+                      <Label htmlFor="meta_description">Meta descrição</Label>
                       <Textarea
+                        id="meta_description"
                         value={form.meta_description}
                         onChange={(e) => setForm({ ...form, meta_description: e.target.value })}
                         placeholder={form.resumo || "Descrição para SEO"}
@@ -372,11 +378,11 @@ export default function CMSEditorPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="p-4 bg-muted rounded-lg space-y-1">
-                      <p className="text-primary text-lg hover:underline cursor-pointer">
+                      <p className="text-primary text-lg">
                         {form.meta_title || form.titulo || "Título da página"}
                       </p>
-                      <p className="text-xs text-green-600">
-                        https://selelj.rr.gov.br/noticias/{gerarSlug(form.titulo || "exemplo")}
+                      <p className="text-caption text-success">
+                        {siteBase}/noticias-portal/{gerarSlug(form.titulo || "exemplo")}
                       </p>
                       <p className="text-sm text-muted-foreground line-clamp-2">
                         {form.meta_description || form.resumo || "Descrição da página que aparecerá nos resultados de busca..."}
@@ -397,7 +403,8 @@ export default function CMSEditorPage() {
                           className="w-full rounded-lg mb-6 aspect-video object-cover"
                         />
                       )}
-                      <h1 className="text-3xl font-bold mb-2">{form.titulo || "Título"}</h1>
+                      {/* h2: o h1 da tela é o do PageHeader */}
+                      <h2 className="text-3xl font-bold mb-2">{form.titulo || "Título"}</h2>
                       {form.subtitulo && (
                         <p className="text-xl text-muted-foreground mb-4">{form.subtitulo}</p>
                       )}
@@ -422,7 +429,7 @@ export default function CMSEditorPage() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
+                  <Settings className="h-4 w-4" aria-hidden="true" />
                   Configurações
                 </CardTitle>
               </CardHeader>
@@ -430,7 +437,7 @@ export default function CMSEditorPage() {
                 <div className="space-y-2">
                   <Label>Tipo</Label>
                   <Select value={form.tipo} onValueChange={(v: CMSTipoConteudo) => setForm({ ...form, tipo: v })}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Tipo">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -444,7 +451,7 @@ export default function CMSEditorPage() {
                 <div className="space-y-2">
                   <Label>Destino</Label>
                   <Select value={form.destino} onValueChange={(v: CMSDestino) => setForm({ ...form, destino: v })}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Destino">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -457,7 +464,7 @@ export default function CMSEditorPage() {
 
                 <div className="flex items-center justify-between">
                   <Label htmlFor="destaque" className="flex items-center gap-2">
-                    <Star className="h-4 w-4" />
+                    <Star className="h-4 w-4" aria-hidden="true" />
                     Destaque
                   </Label>
                   <Switch
@@ -483,7 +490,7 @@ export default function CMSEditorPage() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <ImageIcon className="h-4 w-4" />
+                  <ImageIcon className="h-4 w-4" aria-hidden="true" />
                   Imagem de Destaque
                 </CardTitle>
               </CardHeader>
@@ -509,7 +516,7 @@ export default function CMSEditorPage() {
                 ) : (
                   <div className="aspect-video rounded-lg border-2 border-dashed flex items-center justify-center">
                     <Button variant="ghost" onClick={() => setMediaLibraryOpen(true)}>
-                      <ImageIcon className="h-4 w-4 mr-2" />
+                      <ImageIcon className="h-4 w-4 mr-2" aria-hidden="true" />
                       Selecionar
                     </Button>
                   </div>
@@ -533,7 +540,7 @@ export default function CMSEditorPage() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Tag className="h-4 w-4" />
+                  <Tag className="h-4 w-4" aria-hidden="true" />
                   Tags
                 </CardTitle>
               </CardHeader>
@@ -543,23 +550,26 @@ export default function CMSEditorPage() {
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
                     placeholder="Nova tag"
+                    aria-label="Nova tag"
                     className="flex-1"
                     onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddTag())}
                   />
-                  <Button variant="outline" size="icon" onClick={handleAddTag}>
-                    +
+                  <Button variant="outline" size="icon" onClick={handleAddTag} aria-label="Adicionar tag">
+                    <span aria-hidden="true">+</span>
                   </Button>
                 </div>
                 {form.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {form.tags.map(tag => (
-                      <Badge
-                        key={tag}
-                        variant="secondary"
-                        className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground"
-                        onClick={() => handleRemoveTag(tag)}
-                      >
-                        {tag} ×
+                      <Badge key={tag} variant="secondary" className="p-0">
+                        <button
+                          type="button"
+                          className="rounded-full px-2.5 py-0.5 hover:bg-destructive hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          aria-label={`Remover tag ${tag}`}
+                          onClick={() => handleRemoveTag(tag)}
+                        >
+                          {tag} <span aria-hidden="true">×</span>
+                        </button>
                       </Badge>
                     ))}
                   </div>

@@ -18,7 +18,7 @@ import { History, KeyRound, Loader2, Mail, MessageCircle, Save, Send } from "luc
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { DataTable, PageHeader, StatusBadge, type ColunaTabela } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +27,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIdentidade, useMarca, useLogoOrgao } from "@/core/tenant";
 import {
@@ -44,6 +43,7 @@ import {
   USOS_TEMPLATE_WHATSAPP,
   type CanalEnvio,
   type ConfigEnvio,
+  type EnvioLog,
 } from "@/types/envios";
 
 const formatarDataHora = (iso: string) => format(new Date(iso), "dd/MM/yyyy HH:mm");
@@ -80,7 +80,7 @@ function CredencialCard({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <KeyRound className="h-4 w-4" /> {rotulo}
+          <KeyRound className="h-4 w-4" aria-hidden="true" /> {rotulo}
         </CardTitle>
         <CardDescription>
           {config?.segredo_atualizado_em
@@ -107,7 +107,7 @@ function CredencialCard({
             disabled={!liberado || !valor.trim() || salvar.isPending}
             onClick={() => salvar.mutate({ canal, segredo: valor }, { onSuccess: () => setValor("") })}
           >
-            {salvar.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <KeyRound className="mr-1 h-4 w-4" />}
+            {salvar.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden="true" /> : <KeyRound className="mr-1 h-4 w-4" aria-hidden="true" />}
             Gravar
           </Button>
         </div>
@@ -125,7 +125,7 @@ function TesteCard({ canal, podeEditar }: { canal: CanalEnvio; podeEditar: boole
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <Send className="h-4 w-4" /> Enviar teste
+          <Send className="h-4 w-4" aria-hidden="true" /> Enviar teste
         </CardTitle>
         <CardDescription>
           {email
@@ -149,7 +149,7 @@ function TesteCard({ canal, podeEditar }: { canal: CanalEnvio; podeEditar: boole
             disabled={!podeEditar || !destino.trim() || testar.isPending}
             onClick={() => testar.mutate({ canal, destino })}
           >
-            {testar.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
+            {testar.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="mr-1 h-4 w-4" aria-hidden="true" />}
             Testar
           </Button>
         </div>
@@ -390,7 +390,7 @@ function EmailTab({ config, podeEditar }: { config?: ConfigEnvio; podeEditar: bo
             {podeEditar && (
               <div className="flex justify-end">
                 <Button type="submit" disabled={salvar.isPending || !isDirty}>
-                  {salvar.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}
+                  {salvar.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="mr-1 h-4 w-4" aria-hidden="true" />}
                   Salvar
                 </Button>
               </div>
@@ -488,7 +488,7 @@ function WhatsAppTab({ config, podeEditar }: { config?: ConfigEnvio; podeEditar:
   return (
     <div className="space-y-4">
       <Alert>
-        <MessageCircle className="h-4 w-4" />
+        <MessageCircle className="h-4 w-4" aria-hidden="true" />
         <AlertDescription>
           Usa a API oficial do WhatsApp (Meta Cloud API). Pela regra da Meta, mensagem iniciada pela instituição só
           sai com template aprovado no WhatsApp Manager. Sem template configurado, o convite continua abrindo o
@@ -552,7 +552,7 @@ function WhatsAppTab({ config, podeEditar }: { config?: ConfigEnvio; podeEditar:
             {podeEditar && (
               <div className="flex justify-end">
                 <Button type="submit" disabled={salvar.isPending || !isDirty}>
-                  {salvar.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}
+                  {salvar.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="mr-1 h-4 w-4" aria-hidden="true" />}
                   Salvar
                 </Button>
               </div>
@@ -577,57 +577,73 @@ function WhatsAppTab({ config, podeEditar }: { config?: ConfigEnvio; podeEditar:
 // Histórico
 // ---------------------------------------------------------------------------
 
+const COLUNAS_HISTORICO: ColunaTabela<EnvioLog>[] = [
+  {
+    id: "quando",
+    cabecalho: "Quando",
+    celula: (e) => <span className="whitespace-nowrap">{formatarDataHora(e.criado_em)}</span>,
+    ordenarPor: (e) => e.criado_em,
+  },
+  {
+    id: "canal",
+    cabecalho: "Canal",
+    celula: (e) => (e.canal === "email" ? "E-mail" : "WhatsApp"),
+    ordenarPor: (e) => e.canal,
+  },
+  {
+    id: "origem",
+    cabecalho: "Origem",
+    celula: (e) => ORIGEM_ENVIO_LABEL[e.origem_modulo] ?? e.origem_modulo,
+    ordenarPor: (e) => ORIGEM_ENVIO_LABEL[e.origem_modulo] ?? e.origem_modulo,
+  },
+  {
+    id: "destinatario",
+    cabecalho: "Destinatário",
+    celula: (e) => <span className="whitespace-nowrap">{mascararDestinatario(e.destinatario)}</span>,
+    mobile: "titulo",
+  },
+  {
+    id: "assunto",
+    cabecalho: "Assunto/template",
+    celula: (e) => (
+      <span className="block max-w-xs truncate" title={e.assunto ?? undefined}>{e.assunto ?? "—"}</span>
+    ),
+    buscarPor: (e) => e.assunto,
+  },
+  {
+    id: "situacao",
+    cabecalho: "Situação",
+    celula: (e) => (
+      <>
+        {e.status === "enviado" ? (
+          <StatusBadge tom="sucesso">Enviado</StatusBadge>
+        ) : (
+          <StatusBadge tom="erro">Falhou</StatusBadge>
+        )}
+        {e.status === "falhou" && e.erro && (
+          <p className="mt-1 max-w-xs break-words text-xs text-muted-foreground">{e.erro}</p>
+        )}
+      </>
+    ),
+    ordenarPor: (e) => e.status,
+  },
+];
+
 function HistoricoTab() {
-  const { data: envios = [], isLoading } = useEnviosLog();
-
-  if (isLoading) return <Skeleton className="h-40 w-full" />;
-
-  if (envios.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-10 text-center text-muted-foreground">Nenhum envio registrado ainda.</CardContent>
-      </Card>
-    );
-  }
+  const { data: envios = [], isLoading, isError, refetch } = useEnviosLog();
 
   return (
-    <Card>
-      <CardContent className="overflow-x-auto p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Quando</TableHead>
-              <TableHead>Canal</TableHead>
-              <TableHead>Origem</TableHead>
-              <TableHead>Destinatário</TableHead>
-              <TableHead>Assunto/template</TableHead>
-              <TableHead>Situação</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {envios.map((e) => (
-              <TableRow key={e.id}>
-                <TableCell className="whitespace-nowrap">{formatarDataHora(e.criado_em)}</TableCell>
-                <TableCell>{e.canal === "email" ? "E-mail" : "WhatsApp"}</TableCell>
-                <TableCell>{ORIGEM_ENVIO_LABEL[e.origem_modulo] ?? e.origem_modulo}</TableCell>
-                <TableCell className="whitespace-nowrap">{mascararDestinatario(e.destinatario)}</TableCell>
-                <TableCell className="max-w-xs truncate" title={e.assunto ?? undefined}>{e.assunto ?? "—"}</TableCell>
-                <TableCell>
-                  {e.status === "enviado" ? (
-                    <Badge variant="secondary">Enviado</Badge>
-                  ) : (
-                    <Badge variant="destructive" title={e.erro ?? undefined}>Falhou</Badge>
-                  )}
-                  {e.status === "falhou" && e.erro && (
-                    <p className="mt-1 max-w-xs break-words text-xs text-muted-foreground">{e.erro}</p>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <DataTable
+      rotulo="Histórico de envios"
+      dados={envios}
+      colunas={COLUNAS_HISTORICO}
+      chaveLinha={(e) => e.id}
+      carregando={isLoading}
+      erro={isError ? "Não foi possível carregar o histórico de envios." : null}
+      aoTentarNovamente={() => refetch()}
+      busca={{ placeholder: "Buscar por assunto" }}
+      vazio={{ icone: History, titulo: "Nenhum envio registrado ainda" }}
+    />
   );
 }
 
@@ -639,11 +655,12 @@ export default function ConfigEnviosPage() {
   const { data: configs, isLoading } = useConfigEnvio();
 
   return (
-    <ModuleLayout
-      module="admin"
-      title="Envio de e-mail e WhatsApp"
-      description="Por onde o sistema dispara e-mails e mensagens, com o remetente e a marca da instituição"
-    >
+    <ModuleLayout module="admin">
+      <PageHeader
+        migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Envio de e-mail e WhatsApp" }]}
+        titulo="Envio de e-mail e WhatsApp"
+        descricao="Por onde o sistema dispara e-mails e mensagens, com o remetente e a marca da instituição"
+      />
       {!podeEditar && (
         <Alert className="mb-4">
           <AlertDescription>Você pode consultar, mas só quem tem permissão de configurar envios altera estes dados.</AlertDescription>
@@ -652,13 +669,13 @@ export default function ConfigEnviosPage() {
       <Tabs defaultValue="email" className="space-y-4">
         <TabsList className="w-full justify-start overflow-x-auto sm:w-auto">
           <TabsTrigger value="email">
-            <Mail className="mr-1 h-4 w-4" /> E-mail
+            <Mail className="mr-1 h-4 w-4" aria-hidden="true" /> E-mail
           </TabsTrigger>
           <TabsTrigger value="whatsapp">
-            <MessageCircle className="mr-1 h-4 w-4" /> WhatsApp
+            <MessageCircle className="mr-1 h-4 w-4" aria-hidden="true" /> WhatsApp
           </TabsTrigger>
           <TabsTrigger value="historico">
-            <History className="mr-1 h-4 w-4" /> Histórico
+            <History className="mr-1 h-4 w-4" aria-hidden="true" /> Histórico
           </TabsTrigger>
         </TabsList>
         <TabsContent value="email">

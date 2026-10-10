@@ -9,16 +9,77 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, TrendingUp, TrendingDown, Search } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, Search, Wallet, FileX } from 'lucide-react';
+import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from '@/components/design-system';
 import { ModuleLayout } from '@/components/layout';
 import { useEmpenhos } from '@/hooks/useFinanceiro';
 import { useSubEmpenhos, useCriarSubEmpenho } from '@/hooks/useSubEmpenhos';
-import { TIPO_SUB_EMPENHO_LABELS } from '@/types/financeiro';
+import { TIPO_SUB_EMPENHO_LABELS, type SubEmpenho } from '@/types/financeiro';
 
 const formatCurrency = (val: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+/** Situação do sub-empenho → rótulo e tom do selo. */
+const SITUACAO_SUB_EMPENHO: Record<SubEmpenho['status'], { label: string; tom: TomStatus }> = {
+  ativo: { label: 'Ativo', tom: 'sucesso' },
+  cancelado: { label: 'Cancelado', tom: 'neutro' },
+};
+
+const colunas: ColunaTabela<SubEmpenho>[] = [
+  {
+    id: 'numero',
+    cabecalho: 'Número',
+    celula: (se) => <span className="font-mono">{se.numero}</span>,
+    ordenarPor: (se) => se.numero,
+    mobile: 'titulo',
+  },
+  {
+    id: 'tipo',
+    cabecalho: 'Tipo',
+    celula: (se) => {
+      const TipoIcon = se.tipo === 'anulacao' ? TrendingDown : TrendingUp;
+      return (
+        <Badge variant="outline" className="gap-1">
+          <TipoIcon className="h-3 w-3" aria-hidden="true" />
+          {TIPO_SUB_EMPENHO_LABELS[se.tipo] ?? se.tipo}
+        </Badge>
+      );
+    },
+    ordenarPor: (se) => se.tipo,
+  },
+  {
+    id: 'data',
+    cabecalho: 'Data',
+    celula: (se) => new Date(se.data_registro).toLocaleDateString('pt-BR'),
+    ordenarPor: (se) => new Date(se.data_registro),
+  },
+  {
+    id: 'valor',
+    cabecalho: 'Valor',
+    celula: (se) => <span className="font-mono tabular-nums">{formatCurrency(se.valor)}</span>,
+    ordenarPor: (se) => Number(se.valor),
+    alinhamento: 'direita',
+  },
+  {
+    id: 'justificativa',
+    cabecalho: 'Justificativa',
+    celula: (se) => (
+      <span className="block max-w-xs truncate" title={se.justificativa}>
+        {se.justificativa}
+      </span>
+    ),
+  },
+  {
+    id: 'situacao',
+    cabecalho: 'Situação',
+    celula: (se) => {
+      const s = SITUACAO_SUB_EMPENHO[se.status];
+      return s ? <StatusBadge tom={s.tom}>{s.label}</StatusBadge> : <StatusBadge tom="neutro">{se.status}</StatusBadge>;
+    },
+    ordenarPor: (se) => SITUACAO_SUB_EMPENHO[se.status]?.label ?? se.status,
+  },
+];
 
 export default function SubEmpenhosPage() {
   const [empenhoSelecionado, setEmpenhoSelecionado] = useState<string>('');
@@ -30,7 +91,7 @@ export default function SubEmpenhosPage() {
   const [docReferencia, setDocReferencia] = useState('');
 
   const { data: empenhos } = useEmpenhos();
-  const { data: subEmpenhos, isLoading } = useSubEmpenhos(empenhoSelecionado || undefined);
+  const { data: subEmpenhos, isLoading, isError, refetch } = useSubEmpenhos(empenhoSelecionado || undefined);
   const criarSubEmpenho = useCriarSubEmpenho();
 
   const empenhosFiltrados = empenhos?.filter((e) =>
@@ -63,39 +124,51 @@ export default function SubEmpenhosPage() {
   return (
     <ModuleLayout module="financeiro">
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Sub-Empenhos</h1>
-        <p className="text-muted-foreground">Reforço e anulação de empenhos</p>
-      </div>
+      <PageHeader
+        migalhas={[{ rotulo: 'Financeiro', href: '/financeiro' }, { rotulo: 'Sub-empenhos' }]}
+        titulo="Sub-empenhos"
+        descricao="Reforço e anulação de empenhos"
+        acoes={
+          empenhoAtual && (
+            <Button onClick={() => setNovoDialog(true)}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Novo sub-empenho
+            </Button>
+          )
+        }
+      />
 
       {/* Seleção do Empenho */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Selecionar Empenho</CardTitle>
+          <CardTitle className="text-base">Selecionar empenho</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <Input
               placeholder="Buscar por número ou objeto..."
+              aria-label="Buscar empenho por número ou objeto"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               className="pl-10"
             />
           </div>
-          <div className="max-h-48 overflow-y-auto border rounded-md">
+          <div className="max-h-48 overflow-y-auto border border-border rounded-md">
             {empenhosFiltrados?.slice(0, 20).map((e) => (
               <button
                 key={e.id}
+                type="button"
+                aria-pressed={e.id === empenhoSelecionado}
                 onClick={() => setEmpenhoSelecionado(e.id)}
-                className={`w-full text-left px-4 py-2 hover:bg-muted/50 border-b last:border-b-0 text-sm ${
+                className={`w-full text-left px-4 py-2 hover:bg-muted/50 border-b border-border last:border-b-0 text-sm ${
                   e.id === empenhoSelecionado ? 'bg-primary/10 font-medium' : ''
                 }`}
               >
                 <span className="font-mono">{e.numero}</span>
-                <span className="mx-2 text-muted-foreground">•</span>
+                <span className="mx-2 text-muted-foreground" aria-hidden="true">•</span>
                 <span className="text-muted-foreground truncate">{e.objeto}</span>
-                <span className="float-right">{formatCurrency(e.valor_empenhado)}</span>
+                <span className="float-right tabular-nums">{formatCurrency(e.valor_empenhado)}</span>
               </button>
             ))}
           </div>
@@ -106,90 +179,25 @@ export default function SubEmpenhosPage() {
         <>
           {/* Info do Empenho + Resumo */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Valor Original</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl font-bold">{formatCurrency(empenhoAtual.valor_empenhado)}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground flex items-center gap-1">
-                  <TrendingUp className="h-4 w-4 text-green-500" /> Reforços
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl font-bold text-green-600">{formatCurrency(totalReforcos)}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground flex items-center gap-1">
-                  <TrendingDown className="h-4 w-4 text-red-500" /> Anulações
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl font-bold text-red-600">{formatCurrency(totalAnulacoes)}</div>
-              </CardContent>
-            </Card>
+            <KpiCard rotulo="Valor original" valor={formatCurrency(empenhoAtual.valor_empenhado)} icone={Wallet} />
+            <KpiCard rotulo="Reforços" valor={formatCurrency(totalReforcos)} icone={TrendingUp} />
+            <KpiCard rotulo="Anulações" valor={formatCurrency(totalAnulacoes)} icone={TrendingDown} />
           </div>
 
-          {/* Botão + Tabela */}
-          <div className="flex justify-end">
-            <Button onClick={() => setNovoDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Sub-Empenho
-            </Button>
-          </div>
-
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Número</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead>Justificativa</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Carregando...</TableCell>
-                    </TableRow>
-                  ) : !subEmpenhos?.length ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                        Nenhum sub-empenho registrado
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    subEmpenhos.map((se) => (
-                      <TableRow key={se.id}>
-                        <TableCell className="font-mono text-sm">{se.numero}</TableCell>
-                        <TableCell>
-                          <Badge className={se.tipo === 'reforco' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                            {TIPO_SUB_EMPENHO_LABELS[se.tipo]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{new Date(se.data_registro).toLocaleDateString('pt-BR')}</TableCell>
-                        <TableCell className="text-right font-mono">{formatCurrency(se.valor)}</TableCell>
-                        <TableCell className="max-w-xs truncate">{se.justificativa}</TableCell>
-                        <TableCell>
-                          <Badge variant={se.status === 'ativo' ? 'default' : 'secondary'}>{se.status}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <DataTable
+            rotulo="Sub-empenhos"
+            dados={subEmpenhos ?? []}
+            colunas={colunas}
+            chaveLinha={(se) => se.id}
+            carregando={isLoading}
+            erro={isError ? 'Verifique sua conexão e tente novamente.' : null}
+            aoTentarNovamente={() => refetch()}
+            vazio={{
+              icone: FileX,
+              titulo: 'Nenhum sub-empenho registrado',
+              descricao: 'Use "Novo sub-empenho" para registrar um reforço ou uma anulação.',
+            }}
+          />
         </>
       )}
 
@@ -197,12 +205,12 @@ export default function SubEmpenhosPage() {
       <Dialog open={novoDialog} onOpenChange={setNovoDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Novo Sub-Empenho</DialogTitle>
+            <DialogTitle>Novo sub-empenho</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Tipo *</Label>
-              <Select value={tipo} onValueChange={(v) => setTipo(v as any)}>
+              <Select value={tipo} onValueChange={(v) => setTipo(v as 'reforco' | 'anulacao')}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

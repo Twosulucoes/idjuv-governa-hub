@@ -98,8 +98,13 @@ export type PermissaoInstitucional =
   | 'rh.tramitar'
   | 'rh.aprovar'
   | 'rh.frequencia.lancar'
+  | 'rh.frequencia.configurar'
   | 'rh.viagens.visualizar'
   | 'rh.self'
+  // Folha (módulo rh; códigos do catálogo, ver docs/RBAC_PERMISSOES.md)
+  | 'financeiro.folha.visualizar'
+  | 'financeiro.folha.processar'
+  | 'financeiro.folha.configurar'
   // Orçamento
   | 'orcamento.visualizar'
   | 'orcamento.criar'
@@ -331,7 +336,7 @@ export const menuConfig: MenuSection[] = [
             labelShort: "Parâmetros",
             route: "/rh/frequencia/configuracao",
             icon: Settings,
-            permission: "rh.aprovar",
+            permission: "rh.frequencia.configurar",
           },
         ],
       },
@@ -373,21 +378,21 @@ export const menuConfig: MenuSection[] = [
             label: "Painel da Folha",
             route: "/folha",
             icon: BarChart3,
-            permission: "rh.aprovar",
+            permission: "financeiro.folha.visualizar",
           },
           {
             id: "folha-fichas",
             label: "Fichas Financeiras",
             route: "/folha/fichas",
             icon: FileText,
-            permission: "rh.aprovar",
+            permission: "financeiro.folha.visualizar",
           },
           {
             id: "folha-rubricas",
             label: "Rubricas",
             route: "/folha/rubricas",
             icon: Settings,
-            permission: "rh.aprovar",
+            permission: "financeiro.folha.configurar",
           },
         ],
       },

@@ -7,11 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { 
-  Shield, Database, Code, FileDown, CheckCircle2, 
+  Database, Code, FileDown, CheckCircle2, 
   AlertTriangle, Copy, ExternalLink, Server, GitBranch,
   Download, Upload, RefreshCw, Clock, Zap
 } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader, StatusBadge } from "@/components/design-system";
 
 import { useTenant } from '@/core/tenant';
 const DisasterRecoveryPage = () => {
@@ -115,26 +116,16 @@ const DisasterRecoveryPage = () => {
   return (
     <ModuleLayout module="admin">
       <div className="space-y-6 pb-10">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Shield className="h-6 w-6 text-primary" />
-              Disaster Recovery
-            </h1>
-            <p className="text-muted-foreground">
-              Documentação completa para recuperação do sistema em caso de desastre
-            </p>
-          </div>
-          <Badge variant="outline" className="text-green-600 border-green-600">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            Backup Ativo
-          </Badge>
-        </div>
+        <PageHeader
+          migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Disaster recovery" }]}
+          titulo="Disaster recovery"
+          descricao="Documentação completa para recuperação do sistema em caso de desastre"
+          status={<StatusBadge tom="sucesso">Backup ativo</StatusBadge>}
+        />
 
         {/* Alertas */}
         <Alert>
-          <AlertTriangle className="h-4 w-4" />
+          <AlertTriangle className="h-4 w-4" aria-hidden="true" />
           <AlertTitle>Importante</AlertTitle>
           <AlertDescription>
             Este documento contém procedimentos críticos. Mantenha uma cópia offline 
@@ -145,7 +136,7 @@ const DisasterRecoveryPage = () => {
         {/* Tabs */}
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <TabsTrigger value="overview">Visão geral</TabsTrigger>
             <TabsTrigger value="backup">Backup</TabsTrigger>
             <TabsTrigger value="restore">Restauração</TabsTrigger>
             <TabsTrigger value="resources">Recursos</TabsTrigger>
@@ -157,14 +148,14 @@ const DisasterRecoveryPage = () => {
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Code className="h-5 w-5 text-blue-500" />
+                    <Code className="h-5 w-5 text-info" aria-hidden="true" />
                     Código
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <GitBranch className="h-4 w-4 text-muted-foreground" />
+                      <GitBranch className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                       <span className="text-sm">GitHub sincronizado</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -177,14 +168,14 @@ const DisasterRecoveryPage = () => {
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Database className="h-5 w-5 text-green-500" />
-                    Banco de Dados
+                    <Database className="h-5 w-5 text-success" aria-hidden="true" />
+                    Banco de dados
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <Clock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                       <span className="text-sm">Backup diário às 02:00</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -197,14 +188,14 @@ const DisasterRecoveryPage = () => {
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Server className="h-5 w-5 text-purple-500" />
+                    <Server className="h-5 w-5 text-accent" aria-hidden="true" />
                     Storage
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <FileDown className="h-4 w-4 text-muted-foreground" />
+                      <FileDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                       <span className="text-sm">Arquivos incluídos</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -218,7 +209,7 @@ const DisasterRecoveryPage = () => {
             {/* Resumo de Redundância */}
             <Card>
               <CardHeader>
-                <CardTitle>Estratégia de Redundância</CardTitle>
+                <CardTitle>Estratégia de redundância</CardTitle>
                 <CardDescription>
                   Três camadas de proteção para garantir continuidade do serviço
                 </CardDescription>
@@ -226,8 +217,8 @@ const DisasterRecoveryPage = () => {
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex items-start gap-4 p-4 bg-muted/50 rounded-lg">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded">
-                      <Code className="h-5 w-5 text-blue-600" />
+                    <div className="p-2 bg-info/15 rounded">
+                      <Code className="h-5 w-5 text-info" aria-hidden="true" />
                     </div>
                     <div>
                       <h4 className="font-medium">1. Código-fonte (GitHub)</h4>
@@ -239,11 +230,11 @@ const DisasterRecoveryPage = () => {
                   </div>
 
                   <div className="flex items-start gap-4 p-4 bg-muted/50 rounded-lg">
-                    <div className="p-2 bg-green-100 dark:bg-green-900 rounded">
-                      <Database className="h-5 w-5 text-green-600" />
+                    <div className="p-2 bg-success/15 rounded">
+                      <Database className="h-5 w-5 text-success" aria-hidden="true" />
                     </div>
                     <div>
-                      <h4 className="font-medium">2. Banco de Dados (Supabase Externo)</h4>
+                      <h4 className="font-medium">2. Banco de dados (Supabase externo)</h4>
                       <p className="text-sm text-muted-foreground">
                         Backup completo de 40 tabelas exportado diariamente para projeto 
                         Supabase separado. Criptografado com AES-256-GCM.
@@ -252,11 +243,11 @@ const DisasterRecoveryPage = () => {
                   </div>
 
                   <div className="flex items-start gap-4 p-4 bg-muted/50 rounded-lg">
-                    <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded">
-                      <Server className="h-5 w-5 text-purple-600" />
+                    <div className="p-2 bg-accent/15 rounded">
+                      <Server className="h-5 w-5 text-accent" aria-hidden="true" />
                     </div>
                     <div>
-                      <h4 className="font-medium">3. Arquivos/Storage (Supabase Externo)</h4>
+                      <h4 className="font-medium">3. Arquivos/Storage (Supabase externo)</h4>
                       <p className="text-sm text-muted-foreground">
                         Todos os documentos e arquivos do bucket 'documentos' são 
                         incluídos no backup diário.
@@ -272,7 +263,7 @@ const DisasterRecoveryPage = () => {
           <TabsContent value="backup" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Configuração Atual de Backup</CardTitle>
+                <CardTitle>Configuração atual de backup</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -293,7 +284,7 @@ const DisasterRecoveryPage = () => {
                 </div>
 
                 <div className="p-4 border rounded-lg">
-                  <h4 className="font-medium mb-2">Dados Incluídos (40 tabelas)</h4>
+                  <h4 className="font-medium mb-2">Dados incluídos (40 tabelas)</h4>
                   <div className="grid grid-cols-4 gap-2 text-xs">
                     {[
                       "profiles", "user_roles", "user_permissions", "servidores",
@@ -311,8 +302,8 @@ const DisasterRecoveryPage = () => {
 
                 <Button asChild variant="outline">
                   <a href="/admin/backup">
-                    <Zap className="h-4 w-4 mr-2" />
-                    Ir para Gestão de Backup
+                    <Zap className="h-4 w-4 mr-2" aria-hidden="true" />
+                    Ir para gestão de backup
                   </a>
                 </Button>
               </CardContent>
@@ -322,8 +313,8 @@ const DisasterRecoveryPage = () => {
           {/* Restauração */}
           <TabsContent value="restore" className="space-y-4">
             <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Procedimento de Emergência</AlertTitle>
+              <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+              <AlertTitle>Procedimento de emergência</AlertTitle>
               <AlertDescription>
                 Siga estes passos na ordem exata. Tempo estimado: 30-60 minutos.
               </AlertDescription>
@@ -345,7 +336,7 @@ const DisasterRecoveryPage = () => {
                     <ul className="space-y-2">
                       {step.details.map((detail, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm">
-                          <CheckCircle2 className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                          <CheckCircle2 className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" aria-hidden="true" />
                           <span>{detail}</span>
                         </li>
                       ))}
@@ -358,7 +349,7 @@ const DisasterRecoveryPage = () => {
             {/* Script de Restauração de Dados */}
             <Card>
               <CardHeader>
-                <CardTitle>Script de Restauração de Dados</CardTitle>
+                <CardTitle>Script de restauração de dados</CardTitle>
                 <CardDescription>
                   Após criar as tabelas, use este template para inserir dados do backup
                 </CardDescription>
@@ -388,9 +379,10 @@ FROM json_array_elements('[DADOS_JSON_AQUI]'::json) as value;
                     size="sm"
                     variant="ghost"
                     className="absolute top-2 right-2"
+                    aria-label="Copiar script de restauração"
                     onClick={() => copyToClipboard(`-- Script de restauração...`, 'restore-script')}
                   >
-                    <Copy className="h-4 w-4" />
+                    <Copy className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </div>
               </CardContent>
@@ -403,15 +395,15 @@ FROM json_array_elements('[DADOS_JSON_AQUI]'::json) as value;
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Download className="h-5 w-5" />
+                    <Download className="h-5 w-5" aria-hidden="true" />
                     Downloads
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Button asChild className="w-full justify-start" variant="outline">
                     <a href={schemaUrl} download>
-                      <FileDown className="h-4 w-4 mr-2" />
-                      Schema Completo (SQL)
+                      <FileDown className="h-4 w-4 mr-2" aria-hidden="true" />
+                      Schema completo (SQL)
                     </a>
                   </Button>
                   <p className="text-xs text-muted-foreground">
@@ -423,20 +415,20 @@ FROM json_array_elements('[DADOS_JSON_AQUI]'::json) as value;
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <ExternalLink className="h-5 w-5" />
-                    Links Úteis
+                    <ExternalLink className="h-5 w-5" aria-hidden="true" />
+                    Links úteis
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Button asChild className="w-full justify-start" variant="outline">
                     <a href="https://supabase.com/dashboard" target="_blank" rel="noopener">
-                      <ExternalLink className="h-4 w-4 mr-2" />
+                      <ExternalLink className="h-4 w-4 mr-2" aria-hidden="true" />
                       Supabase Dashboard
                     </a>
                   </Button>
                   <Button asChild className="w-full justify-start" variant="outline">
                     <a href="https://github.com" target="_blank" rel="noopener">
-                      <GitBranch className="h-4 w-4 mr-2" />
+                      <GitBranch className="h-4 w-4 mr-2" aria-hidden="true" />
                       GitHub (Repositório)
                     </a>
                   </Button>
@@ -447,7 +439,7 @@ FROM json_array_elements('[DADOS_JSON_AQUI]'::json) as value;
             {/* Variáveis de Ambiente */}
             <Card>
               <CardHeader>
-                <CardTitle>Variáveis de Ambiente Necessárias</CardTitle>
+                <CardTitle>Variáveis de ambiente necessárias</CardTitle>
                 <CardDescription>
                   Configure estas variáveis no novo ambiente de deploy
                 </CardDescription>
@@ -470,9 +462,10 @@ BACKUP_ENCRYPTION_KEY=sua_chave_hex_64_caracteres`}
                     size="sm"
                     variant="ghost"
                     className="absolute top-2 right-2"
+                    aria-label="Copiar variáveis de ambiente"
                     onClick={() => copyToClipboard(`VITE_SUPABASE_URL=...`, 'env')}
                   >
-                    <Copy className="h-4 w-4" />
+                    <Copy className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </div>
               </CardContent>
@@ -481,7 +474,7 @@ BACKUP_ENCRYPTION_KEY=sua_chave_hex_64_caracteres`}
             {/* Contatos de Emergência */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-red-600">Contatos de Emergência</CardTitle>
+                <CardTitle className="text-destructive">Contatos de emergência</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4 text-sm">

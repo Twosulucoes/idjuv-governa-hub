@@ -5,18 +5,8 @@
 import { useState } from "react";
 import EmpenhoFormDialog from "@/components/financeiro/EmpenhoFormDialog";
 import { ModuleLayout } from "@/components/layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -24,179 +14,161 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Search, Eye, Receipt, Filter } from "lucide-react";
+import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
+import { Plus, Eye, Receipt } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useEmpenhos } from "@/hooks/useFinanceiro";
 import { formatCurrency } from "@/lib/formatters";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { STATUS_EMPENHO_LABELS, TIPO_EMPENHO_LABELS, STATUS_EMPENHO_COLORS } from "@/types/financeiro";
+import { TIPO_EMPENHO_LABELS, type Empenho, type StatusEmpenho } from "@/types/financeiro";
+
+/** Situação do empenho → rótulo e tom do selo. */
+const SITUACAO_EMPENHO: Record<StatusEmpenho, { label: string; tom: TomStatus }> = {
+  emitido: { label: "Emitido", tom: "andamento" },
+  parcialmente_liquidado: { label: "Parcialmente liquidado", tom: "pendente" },
+  liquidado: { label: "Liquidado", tom: "andamento" },
+  parcialmente_pago: { label: "Parcialmente pago", tom: "pendente" },
+  pago: { label: "Pago", tom: "sucesso" },
+  anulado: { label: "Anulado", tom: "erro" },
+};
+
+const colunas: ColunaTabela<Empenho>[] = [
+  {
+    id: "numero",
+    cabecalho: "Número",
+    celula: (emp) => <span className="font-mono font-medium">{emp.numero}</span>,
+    ordenarPor: (emp) => emp.numero,
+    buscarPor: (emp) => emp.numero,
+  },
+  {
+    id: "data",
+    cabecalho: "Data",
+    celula: (emp) => format(new Date(emp.data_empenho), "dd/MM/yyyy", { locale: ptBR }),
+    ordenarPor: (emp) => new Date(emp.data_empenho),
+  },
+  {
+    id: "fornecedor",
+    cabecalho: "Fornecedor",
+    celula: (emp) => emp.fornecedor?.razao_social || "-",
+    ordenarPor: (emp) => emp.fornecedor?.razao_social,
+    buscarPor: (emp) => emp.fornecedor?.razao_social,
+  },
+  {
+    id: "objeto",
+    cabecalho: "Objeto",
+    celula: (emp) => (
+      <span className="block max-w-[200px] truncate" title={emp.objeto}>
+        {emp.objeto}
+      </span>
+    ),
+    ordenarPor: (emp) => emp.objeto,
+    buscarPor: (emp) => emp.objeto,
+    mobile: "titulo",
+  },
+  {
+    id: "tipo",
+    cabecalho: "Tipo",
+    celula: (emp) => (
+      <Badge variant="outline">
+        {TIPO_EMPENHO_LABELS[emp.tipo as keyof typeof TIPO_EMPENHO_LABELS] || emp.tipo}
+      </Badge>
+    ),
+    ordenarPor: (emp) => emp.tipo,
+  },
+  {
+    id: "empenhado",
+    cabecalho: "Empenhado",
+    celula: (emp) => <span className="font-medium tabular-nums">{formatCurrency(emp.valor_empenhado)}</span>,
+    ordenarPor: (emp) => Number(emp.valor_empenhado),
+    alinhamento: "direita",
+  },
+  {
+    id: "saldo",
+    cabecalho: "Saldo",
+    celula: (emp) => (
+      <span className={`tabular-nums ${Number(emp.saldo_liquidar) > 0 ? "text-warning" : "text-success"}`}>
+        {formatCurrency(Number(emp.saldo_liquidar))}
+      </span>
+    ),
+    ordenarPor: (emp) => Number(emp.saldo_liquidar),
+    alinhamento: "direita",
+  },
+  {
+    id: "situacao",
+    cabecalho: "Situação",
+    celula: (emp) => {
+      const s = SITUACAO_EMPENHO[emp.status];
+      return s ? <StatusBadge tom={s.tom}>{s.label}</StatusBadge> : <StatusBadge tom="neutro">{emp.status}</StatusBadge>;
+    },
+    ordenarPor: (emp) => SITUACAO_EMPENHO[emp.status]?.label ?? emp.status,
+  },
+];
 
 export default function EmpenhosPage() {
   const [searchParams] = useSearchParams();
   const statusParam = searchParams.get("status") || "";
-  
+
   const [filtroStatus, setFiltroStatus] = useState(statusParam);
-  const [busca, setBusca] = useState("");
   const [formOpen, setFormOpen] = useState(false);
-  
-  const { data: empenhos, isLoading } = useEmpenhos({ 
-    status: filtroStatus && filtroStatus !== "todos" ? filtroStatus : undefined 
-  });
-  
-  const empenhosFiltrados = empenhos?.filter((e) => {
-    if (!busca) return true;
-    const termo = busca.toLowerCase();
-    return (
-      e.numero?.toLowerCase().includes(termo) ||
-      e.objeto?.toLowerCase().includes(termo) ||
-      (e.fornecedor as any)?.razao_social?.toLowerCase().includes(termo)
-    );
+
+  const { data: empenhos, isLoading, isError, refetch } = useEmpenhos({
+    status: filtroStatus && filtroStatus !== "todos" ? filtroStatus : undefined
   });
 
   return (
     <ModuleLayout module="financeiro">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Empenhos</h1>
-            <p className="text-muted-foreground">
-              Gestão de notas de empenho
-            </p>
-          </div>
-          <Button onClick={() => setFormOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Empenho
-          </Button>
-        </div>
+        <PageHeader
+          migalhas={[{ rotulo: "Financeiro", href: "/financeiro" }, { rotulo: "Empenhos" }]}
+          titulo="Empenhos"
+          descricao="Gestão de notas de empenho"
+          acoes={
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Novo empenho
+            </Button>
+          }
+        />
 
-        {/* Filtros */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Filter className="h-4 w-4" />
-              Filtros
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por número, objeto, fornecedor..."
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Todos os status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos os status</SelectItem>
-                  <SelectItem value="emitido">Emitido</SelectItem>
-                  <SelectItem value="parcialmente_liquidado">Parc. Liquidado</SelectItem>
-                  <SelectItem value="liquidado">Liquidado</SelectItem>
-                  <SelectItem value="parcialmente_pago">Parc. Pago</SelectItem>
-                  <SelectItem value="pago">Pago</SelectItem>
-                  <SelectItem value="anulado">Anulado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tabela */}
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Número</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Fornecedor</TableHead>
-                  <TableHead>Objeto</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead className="text-right">Empenhado</TableHead>
-                  <TableHead className="text-right">Saldo</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[100px]">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-8 w-16" /></TableCell>
-                    </TableRow>
-                  ))
-                ) : empenhosFiltrados?.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                      <Receipt className="h-12 w-12 mx-auto mb-2 opacity-30" />
-                      Nenhum empenho encontrado
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  empenhosFiltrados?.map((emp) => (
-                    <TableRow key={emp.id}>
-                      <TableCell className="font-mono font-medium">
-                        {emp.numero}
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(emp.data_empenho), "dd/MM/yyyy", { locale: ptBR })}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">
-                          {(emp.fornecedor as any)?.razao_social || "-"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate">
-                        {emp.objeto}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {TIPO_EMPENHO_LABELS[emp.tipo as keyof typeof TIPO_EMPENHO_LABELS] || emp.tipo}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(emp.valor_empenhado)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className={Number(emp.saldo_liquidar) > 0 ? 'text-amber-600' : 'text-green-600'}>
-                          {formatCurrency(Number(emp.saldo_liquidar))}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={STATUS_EMPENHO_COLORS[emp.status] || "bg-gray-100"}>
-                          {STATUS_EMPENHO_LABELS[emp.status as keyof typeof STATUS_EMPENHO_LABELS] || emp.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link to={`/financeiro/empenhos/${emp.id}`}>
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <DataTable
+          rotulo="Empenhos"
+          dados={empenhos ?? []}
+          colunas={colunas}
+          chaveLinha={(emp) => emp.id}
+          carregando={isLoading}
+          erro={isError ? "Verifique sua conexão e tente novamente." : null}
+          aoTentarNovamente={() => refetch()}
+          busca={{ placeholder: "Buscar por número, objeto, fornecedor..." }}
+          filtros={
+            <Select value={filtroStatus || "todos"} onValueChange={(v) => setFiltroStatus(v === "todos" ? "" : v)}>
+              <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filtrar por situação">
+                <SelectValue placeholder="Todas as situações" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas as situações</SelectItem>
+                <SelectItem value="emitido">Emitido</SelectItem>
+                <SelectItem value="parcialmente_liquidado">Parc. liquidado</SelectItem>
+                <SelectItem value="liquidado">Liquidado</SelectItem>
+                <SelectItem value="parcialmente_pago">Parc. pago</SelectItem>
+                <SelectItem value="pago">Pago</SelectItem>
+                <SelectItem value="anulado">Anulado</SelectItem>
+              </SelectContent>
+            </Select>
+          }
+          vazio={{
+            icone: Receipt,
+            titulo: "Nenhum empenho encontrado",
+            descricao: "Não há empenhos para os filtros selecionados.",
+          }}
+          acoesLinha={(emp) => (
+            <Button variant="ghost" size="icon" asChild>
+              <Link to={`/financeiro/empenhos/${emp.id}`} aria-label={`Ver empenho ${emp.numero}`}>
+                <Eye className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          )}
+        />
         <EmpenhoFormDialog open={formOpen} onOpenChange={setFormOpen} />
       </div>
     </ModuleLayout>

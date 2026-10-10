@@ -5,18 +5,8 @@
 import { useState } from "react";
 import PagamentoFormDialog from "@/components/financeiro/PagamentoFormDialog";
 import { ModuleLayout } from "@/components/layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -24,210 +14,170 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Search, Eye, CreditCard, Filter } from "lucide-react";
+import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
+import { Plus, Eye, CreditCard, CalendarClock, CheckCircle2, ListOrdered } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { usePagamentos } from "@/hooks/useFinanceiro";
 import { formatCurrency } from "@/lib/formatters";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { STATUS_PAGAMENTO_LABELS, STATUS_PAGAMENTO_COLORS } from "@/types/financeiro";
+import { STATUS_PAGAMENTO_LABELS, type Pagamento, type StatusPagamento } from "@/types/financeiro";
+
+const TOM_STATUS_PAGAMENTO: Record<StatusPagamento, TomStatus> = {
+  programado: "pendente",
+  autorizado: "andamento",
+  pago: "sucesso",
+  devolvido: "erro",
+  estornado: "erro",
+  cancelado: "neutro",
+};
+
+function StatusPagamentoBadge({ status }: { status: string }) {
+  const label = STATUS_PAGAMENTO_LABELS[status as StatusPagamento];
+  if (!label) return <StatusBadge tom="neutro">{status || "Sem status"}</StatusBadge>;
+  return <StatusBadge tom={TOM_STATUS_PAGAMENTO[status as StatusPagamento]}>{label}</StatusBadge>;
+}
+
+const colunas: ColunaTabela<Pagamento>[] = [
+  {
+    id: "numero",
+    cabecalho: "Número",
+    celula: (pag) => <span className="font-mono font-medium">{pag.numero}</span>,
+    ordenarPor: (pag) => pag.numero,
+    buscarPor: (pag) => pag.numero,
+    mobile: "titulo",
+  },
+  {
+    id: "data",
+    cabecalho: "Data",
+    celula: (pag) => (
+      <span className="whitespace-nowrap">
+        {format(new Date(pag.data_pagamento), "dd/MM/yyyy", { locale: ptBR })}
+      </span>
+    ),
+    ordenarPor: (pag) => pag.data_pagamento,
+  },
+  {
+    id: "empenho",
+    cabecalho: "Empenho",
+    celula: (pag) => <span className="font-mono">{pag.empenho?.numero || "-"}</span>,
+    ordenarPor: (pag) => pag.empenho?.numero,
+    buscarPor: (pag) => pag.empenho?.numero,
+  },
+  {
+    id: "favorecido",
+    cabecalho: "Favorecido",
+    celula: (pag) => pag.fornecedor?.razao_social || "-",
+    ordenarPor: (pag) => pag.fornecedor?.razao_social,
+    buscarPor: (pag) => pag.fornecedor?.razao_social,
+  },
+  {
+    id: "forma",
+    cabecalho: "Forma",
+    celula: (pag) => (
+      <Badge variant="outline" className="uppercase text-caption">
+        {pag.forma_pagamento}
+      </Badge>
+    ),
+    ordenarPor: (pag) => pag.forma_pagamento,
+  },
+  {
+    id: "valor_bruto",
+    cabecalho: "Valor bruto",
+    celula: (pag) => <span className="font-medium tabular-nums">{formatCurrency(Number(pag.valor_bruto))}</span>,
+    ordenarPor: (pag) => Number(pag.valor_bruto),
+    alinhamento: "direita",
+  },
+  {
+    id: "valor_liquido",
+    cabecalho: "Valor líquido",
+    celula: (pag) => <span className="font-medium tabular-nums">{formatCurrency(Number(pag.valor_liquido))}</span>,
+    ordenarPor: (pag) => Number(pag.valor_liquido),
+    alinhamento: "direita",
+  },
+  {
+    id: "status",
+    cabecalho: "Situação",
+    celula: (pag) => <StatusPagamentoBadge status={pag.status} />,
+    ordenarPor: (pag) => STATUS_PAGAMENTO_LABELS[pag.status] ?? pag.status,
+  },
+];
 
 export default function PagamentosPage() {
   const [searchParams] = useSearchParams();
   const statusParam = searchParams.get("status") || "";
   
   const [filtroStatus, setFiltroStatus] = useState(statusParam);
-  const [busca, setBusca] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   
-  const { data: pagamentos, isLoading } = usePagamentos({ 
+  const { data: pagamentos, isLoading, isError, refetch } = usePagamentos({ 
     status: filtroStatus && filtroStatus !== "todos" ? filtroStatus : undefined 
-  });
-  
-  const pagamentosFiltrados = pagamentos?.filter((p) => {
-    if (!busca) return true;
-    const termo = busca.toLowerCase();
-    return (
-      p.numero?.toLowerCase().includes(termo) ||
-      (p.fornecedor as any)?.razao_social?.toLowerCase().includes(termo) ||
-      (p.empenho as any)?.numero?.toLowerCase().includes(termo)
-    );
   });
 
   // Calcular totais
-  const totalProgramado = pagamentosFiltrados?.filter(p => p.status === 'programado')
+  const totalProgramado = pagamentos?.filter(p => p.status === 'programado')
     .reduce((acc, p) => acc + Number(p.valor_bruto), 0) || 0;
-  const totalPago = pagamentosFiltrados?.filter(p => p.status === 'pago')
+  const totalPago = pagamentos?.filter(p => p.status === 'pago')
     .reduce((acc, p) => acc + Number(p.valor_bruto), 0) || 0;
 
   return (
     <ModuleLayout module="financeiro">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Pagamentos</h1>
-            <p className="text-muted-foreground">
-              Gestão de ordens de pagamento
-            </p>
-          </div>
-          <Button onClick={() => setFormOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Pagamento
-          </Button>
-        </div>
+        <PageHeader
+          migalhas={[{ rotulo: "Financeiro", href: "/financeiro" }, { rotulo: "Pagamentos" }]}
+          titulo="Pagamentos"
+          descricao="Gestão de ordens de pagamento"
+          acoes={
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Novo pagamento
+            </Button>
+          }
+        />
 
-        {/* Cards de Resumo */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm text-muted-foreground">Programados</div>
-              <div className="text-2xl font-bold text-blue-600">
-                {formatCurrency(totalProgramado)}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm text-muted-foreground">Pagos no Período</div>
-              <div className="text-2xl font-bold text-green-600">
-                {formatCurrency(totalPago)}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm text-muted-foreground">Total de Registros</div>
-              <div className="text-2xl font-bold">
-                {pagamentosFiltrados?.length || 0}
-              </div>
-            </CardContent>
-          </Card>
+          <KpiCard rotulo="Programados" valor={formatCurrency(totalProgramado)} icone={CalendarClock} carregando={isLoading} />
+          <KpiCard rotulo="Pagos no período" valor={formatCurrency(totalPago)} icone={CheckCircle2} carregando={isLoading} />
+          <KpiCard rotulo="Total de registros" valor={pagamentos?.length || 0} icone={ListOrdered} carregando={isLoading} />
         </div>
 
-        {/* Filtros */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Filter className="h-4 w-4" />
-              Filtros
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por número, fornecedor, empenho..."
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Todos os status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos os status</SelectItem>
-                  <SelectItem value="programado">Programado</SelectItem>
-                  <SelectItem value="autorizado">Autorizado</SelectItem>
-                  <SelectItem value="pago">Pago</SelectItem>
-                  <SelectItem value="devolvido">Devolvido</SelectItem>
-                  <SelectItem value="estornado">Estornado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tabela */}
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Número</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Empenho</TableHead>
-                  <TableHead>Favorecido</TableHead>
-                  <TableHead>Forma</TableHead>
-                  <TableHead className="text-right">Valor Bruto</TableHead>
-                  <TableHead className="text-right">Valor Líquido</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[100px]">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-8 w-16" /></TableCell>
-                    </TableRow>
-                  ))
-                ) : pagamentosFiltrados?.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                      <CreditCard className="h-12 w-12 mx-auto mb-2 opacity-30" />
-                      Nenhum pagamento encontrado
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  pagamentosFiltrados?.map((pag) => (
-                    <TableRow key={pag.id}>
-                      <TableCell className="font-mono font-medium">
-                        {pag.numero}
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(pag.data_pagamento), "dd/MM/yyyy", { locale: ptBR })}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {(pag.empenho as any)?.numero || "-"}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">
-                          {(pag.fornecedor as any)?.razao_social || "-"}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="uppercase text-xs">
-                          {pag.forma_pagamento}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(Number(pag.valor_bruto))}
-                      </TableCell>
-                      <TableCell className="text-right text-green-600 font-medium">
-                        {formatCurrency(Number(pag.valor_liquido))}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={STATUS_PAGAMENTO_COLORS[pag.status] || "bg-gray-100"}>
-                          {STATUS_PAGAMENTO_LABELS[pag.status as keyof typeof STATUS_PAGAMENTO_LABELS] || pag.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link to={`/financeiro/pagamentos/${pag.id}`}>
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <DataTable
+          rotulo="Pagamentos"
+          dados={pagamentos ?? []}
+          colunas={colunas}
+          chaveLinha={(pag) => pag.id}
+          carregando={isLoading}
+          erro={isError ? "Não foi possível carregar os pagamentos." : null}
+          aoTentarNovamente={() => refetch()}
+          busca={{ placeholder: "Buscar por número, fornecedor, empenho…" }}
+          filtros={
+            <Select value={filtroStatus || "todos"} onValueChange={setFiltroStatus}>
+              <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filtrar por situação">
+                <SelectValue placeholder="Todas as situações" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas as situações</SelectItem>
+                <SelectItem value="programado">Programado</SelectItem>
+                <SelectItem value="autorizado">Autorizado</SelectItem>
+                <SelectItem value="pago">Pago</SelectItem>
+                <SelectItem value="devolvido">Devolvido</SelectItem>
+                <SelectItem value="estornado">Estornado</SelectItem>
+              </SelectContent>
+            </Select>
+          }
+          vazio={{
+            icone: CreditCard,
+            titulo: "Nenhum pagamento encontrado",
+            descricao: "Ajuste o filtro ou registre um pagamento.",
+          }}
+          acoesLinha={(pag) => (
+            <Button variant="ghost" size="icon" asChild>
+              <Link to={`/financeiro/pagamentos/${pag.id}`} aria-label={`Ver pagamento ${pag.numero}`}>
+                <Eye className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          )}
+        />
         <PagamentoFormDialog open={formOpen} onOpenChange={setFormOpen} />
       </div>
     </ModuleLayout>

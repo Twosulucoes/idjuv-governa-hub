@@ -16,7 +16,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Form,
@@ -56,6 +55,7 @@ import {
   TIPOS_REQUER_AUTORIZACAO
 } from '@/types/ascom';
 import { cn } from '@/lib/utils';
+import { PageHeader, StatusBadge } from '@/components/design-system';
 
 // Schema de validação
 const demandaSchema = z.object({
@@ -117,7 +117,8 @@ export default function NovaDemandaAscomPage() {
   // Carregar dados do servidor logado
   useEffect(() => {
     const fetchServidorLogado = async () => {
-      if (!user?.id) return;
+      // Vínculo pelo profiles.servidor_id, a mesma chave da RLS (meu_servidor_id()).
+      if (!user?.servidorId) return;
       
       const { data: servidor } = await supabase
         .from('servidores')
@@ -130,7 +131,7 @@ export default function NovaDemandaAscomPage() {
           cargo_atual_id,
           cargos:cargo_atual_id (nome)
         `)
-        .eq('user_id', user.id)
+        .eq('id', user.servidorId)
         .single();
       
       if (servidor) {
@@ -155,7 +156,7 @@ export default function NovaDemandaAscomPage() {
       }
     };
     fetchServidorLogado();
-  }, [user?.id, form]);
+  }, [user?.servidorId, form]);
 
   // Carregar unidades
   useEffect(() => {
@@ -258,12 +259,15 @@ export default function NovaDemandaAscomPage() {
   return (
     <ModuleLayout module="comunicacao">
       <div className="max-w-4xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Nova Demanda ASCOM</h1>
-          <p className="text-muted-foreground">
-            Preencha os dados da solicitação de comunicação institucional
-          </p>
-        </div>
+        <PageHeader
+          migalhas={[
+            { rotulo: 'Comunicação', href: '/comunicacao' },
+            { rotulo: 'Demandas', href: '/ascom/demandas' },
+            { rotulo: 'Nova demanda' },
+          ]}
+          titulo="Nova demanda ASCOM"
+          descricao="Preencha os dados da solicitação de comunicação institucional"
+        />
 
         <Form {...form}>
           <form className="space-y-6">
@@ -331,11 +335,9 @@ export default function NovaDemandaAscomPage() {
                 </div>
 
                 {requerAutorizacao && (
-                  <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                    <p className="text-sm text-orange-800 flex items-center gap-2">
-                      <Badge variant="outline" className="bg-orange-100">
-                        Atenção
-                      </Badge>
+                  <div className="p-3 bg-warning/10 border border-warning/30 rounded-lg" role="note">
+                    <p className="text-body text-foreground flex items-center gap-2">
+                      <StatusBadge tom="pendente">Atenção</StatusBadge>
                       Este tipo de demanda requer autorização da Presidência antes da execução.
                     </p>
                   </div>
@@ -571,7 +573,7 @@ export default function NovaDemandaAscomPage() {
                                 ) : (
                                   <span>Selecione</span>
                                 )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" aria-hidden="true" />
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
@@ -625,7 +627,7 @@ export default function NovaDemandaAscomPage() {
                                 ) : (
                                   <span>Selecione</span>
                                 )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" aria-hidden="true" />
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
@@ -674,15 +676,15 @@ export default function NovaDemandaAscomPage() {
                     type="file"
                     multiple
                     onChange={handleFileSelect}
-                    className="hidden"
+                    className="peer sr-only"
                     id="file-upload"
                     accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.mp4,.mov"
                   />
                   <label
                     htmlFor="file-upload"
-                    className="cursor-pointer flex flex-col items-center gap-2"
+                    className="cursor-pointer flex flex-col items-center gap-2 rounded-md peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2"
                   >
-                    <Upload className="h-8 w-8 text-muted-foreground" />
+                    <Upload className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
                     <span className="text-sm text-muted-foreground">
                       Clique para selecionar arquivos ou arraste-os aqui
                     </span>
@@ -704,9 +706,10 @@ export default function NovaDemandaAscomPage() {
                           type="button"
                           variant="ghost"
                           size="sm"
+                          aria-label={`Remover arquivo ${arquivo.name}`}
                           onClick={() => removeFile(index)}
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-4 w-4" aria-hidden="true" />
                         </Button>
                       </div>
                     ))}
@@ -731,16 +734,16 @@ export default function NovaDemandaAscomPage() {
                 onClick={form.handleSubmit((data) => onSubmit(data, false))}
                 disabled={isSubmitting}
               >
-                <Save className="h-4 w-4 mr-2" />
-                Salvar Rascunho
+                <Save className="h-4 w-4 mr-2" aria-hidden="true" />
+                Salvar rascunho
               </Button>
               <Button
                 type="button"
                 onClick={form.handleSubmit((data) => onSubmit(data, true))}
                 disabled={isSubmitting}
               >
-                <Send className="h-4 w-4 mr-2" />
-                Enviar Demanda
+                <Send className="h-4 w-4 mr-2" aria-hidden="true" />
+                Enviar demanda
               </Button>
             </div>
           </form>

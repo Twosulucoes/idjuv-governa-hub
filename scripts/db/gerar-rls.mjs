@@ -12,11 +12,51 @@
  *   modulo           SELECT/INSERT/UPDATE/DELETE exigem can_access_module(auth.uid(), <módulo>)
  *                    (vários módulos separados por | = OU). can_access_module já exige perfil
  *                    ativo e dá passagem ao papel admin.
- *   catalogo         SELECT para qualquer usuário ativo (is_active_user()); escrita por módulo.
+ *   catalogo         SELECT para qualquer usuário ativo (is_active_user()); escrita por módulo. Extra opcional
+ *                    `escrita=<código>[|<código>...]`: a escrita exige o módulo E um dos códigos (como a classe
+ *                    permissao; o papel admin passa pelos dois). Ex.: tipos_abono (rh.frequencia.configurar).
  *   proprio_leitura  módulo OU o próprio servidor (servidor_id = meu_servidor_id()) lê; escrita por módulo.
+ *                    extra opcional (sufixos separados por ;, em qualquer ordem, cada um no máximo uma vez):
+ *                    `coluna=<col>` = coluna de posse quando não é servidor_id (em servidores é `id`);
+ *                    `excluir=<código>|admin` = DELETE só com o módulo E o código (ou só o papel admin);
+ *                    `sem_autoaprovacao` = INSERT/UPDATE/DELETE pelo módulo exigem ainda que a linha NÃO seja do usuário
+ *                    logado: (is_admin_user(auth.uid()) OR NOT eh_meu_servidor(<col>)) — ex.: em servidores, quem tem o
+ *                    módulo edita qualquer ficha menos a própria (e não troca o próprio CPF para escapar da checagem).
  *   proprio          idem, e o próprio servidor também pode INSERIR (pedidos/requerimentos).
  *   proprio_filho    como proprio_leitura, mas a posse vem da tabela pai: extra=pai=<tabela>.<fk>;
  *                    com `;insere` o servidor também pode INSERIR registros ligados a pai seu.
+ *   permissao        leitura por módulo (como modulo); ESCRITA exige o módulo E a permissão granular:
+ *                    extra=escrita=<código>[;proprio|;pai=<tabela>.<fk>|;filho=<tabela>.<fk>]. INSERT/UPDATE/
+ *                    DELETE exigem can_access_module(<módulos>) AND has_permission_code(auth.uid(), '<código>')
+ *                    (a permissão avulsa em user_permissions não basta sem o módulo; o papel admin passa pelos
+ *                    dois). O sufixo muda só o SELECT: `;proprio` = o próprio servidor também lê (servidor_id =
+ *                    meu_servidor_id(), como proprio_leitura); `;pai=` = posse pela tabela pai (como
+ *                    proprio_filho); `;filho=` = posse derivada de uma tabela filha com servidor_id
+ *                    (ex.: o servidor lê a folha em que tem ficha). Ex.: folha (financeiro.folha.processar|configurar).
+ *                    Formato completo: extra=escrita=<c1>[|<c2>...][;<sufixo>]... — `escrita=` vem SEMPRE primeiro; os
+ *                    sufixos vêm em qualquer ordem, cada um no máximo uma vez (a saída não depende da ordem):
+ *                      escrita=a|b|c       lista de códigos, qualquer um basta: (<módulos>) AND (has_permission_code(a)
+ *                                          OR ...); com um só código a saída é a de sempre (... AND has_permission_code(a))
+ *                      ;proprio | ;pai=<tabela>.<fk> | ;filho=<tabela>.<fk>   posse (no máximo uma; ver acima)
+ *                      ;coluna=<col>       coluna de posse de ;proprio quando não é servidor_id
+ *                      ;excluir=<código>   DELETE com (<módulos>) AND has_permission_code(<código>) em vez da escrita
+ *                      ;excluir=admin      DELETE só do papel admin (is_admin_user(auth.uid()))
+ *                      ;insere_proprio     INSERT também quando a linha é do servidor logado (<col> = meu_servidor_id(),
+ *                                          ou o pai é dele com ;pai=), como a classe proprio — exige ;proprio ou ;pai=
+ *                      ;sem_autoaprovacao  INSERT/UPDATE/DELETE pelo caminho da permissão (e o DELETE de ;excluir=<código>)
+ *                                          exigem ainda que a linha NÃO seja do usuário logado:
+ *                                          (is_admin_user(auth.uid()) OR NOT eh_meu_servidor(<posse>)); eh_meu_servidor é
+ *                                          verdadeira quando <posse> = meu_servidor_id() ou, se o perfil não tem vínculo,
+ *                                          quando o CPF do perfil é o do servidor (aprovador sem vínculo não aprova o
+ *                                          próprio pedido). A posse vem do pai com ;pai=; o papel admin passa. O pedido
+ *                                          próprio (;insere_proprio) continua entrando pelo caminho da posse (os campos de
+ *                                          decisão são zerados pelo trigger forcar_campos_iniciais). Exige ;proprio ou ;pai=.
+ *                      ;posse=usuario      a coluna de posse (ou o servidor_id do pai, com ;pai=) guarda o id do USUÁRIO
+ *                                          (FK para profiles(id), ex.: banco_horas, solicitacoes_ajuste_ponto), não o do
+ *                                          servidor: a leitura e a inserção próprias usam (<col> = auth.uid() AND
+ *                                          is_active_user()) e ;sem_autoaprovacao usa (is_admin_user(auth.uid()) OR <posse>
+ *                                          IS DISTINCT FROM auth.uid()). Exige ;proprio ou ;pai=. Declare-o sempre que a FK
+ *                                          da coluna de posse apontar para profiles: scripts/db/testar-rls.sql confere.
  *   catalogo_admin   SELECT para qualquer usuário ativo; escrita só do papel admin (catálogos de permissão,
  *                    configuração de módulos, dados oficiais: o app os lê no login/rodapé, mas só admin altera).
  *   proprio_user     dado de configuração por usuário: extra=coluna=<col_do_usuario>; o próprio usuário (ativo)
@@ -42,7 +82,7 @@ const ENTRADA = resolve(raiz, "supabase/baseline/rls/mapa.csv");
 const SAIDA = resolve(raiz, "supabase/baseline/rls/35_policies_geradas.sql");
 const CLASSES = new Set([
   "modulo", "catalogo", "catalogo_admin", "proprio_leitura", "proprio", "proprio_filho", "proprio_user",
-  "trilha", "admin", "admin_leitura", "publico_admin", "preservar", "fechada",
+  "permissao", "trilha", "admin", "admin_leitura", "publico_admin", "preservar", "fechada",
 ]);
 const MODULOS = new Set([
   "rh", "financeiro", "compras", "patrimonio", "contratos", "workflow", "governanca", "transparencia",
@@ -85,6 +125,33 @@ for (const col of ["tabela", "modulos", "classe", "confianca", "nota", "extra", 
 const q = (s) => `'${s.replace(/'/g, "''")}'`;
 const id = (s) => `"${s.replace(/"/g, '""')}"`;
 const erros = [];
+
+// Código de permissão: segmentos minúsculos separados por ponto (ex.: financeiro.folha.processar).
+const RE_CODIGO = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/;
+const RE_REF = /^([a-z_][a-z0-9_]*)\.([a-z_][a-z0-9_]*)$/;   // <tabela>.<coluna>
+const RE_COL = /^[a-z_][a-z0-9_]*$/;
+
+// Lê os sufixos `;chave[=valor]` (ordem livre, sem repetição). `aceitos` = chaves permitidas na classe.
+// Devolve o objeto de opções ou null (com o erro registrado). As mensagens citam o sufixo sem o ";": em
+// proprio_leitura o primeiro item do extra não tem ";" na frente.
+function lerSufixos(t, partes, aceitos) {
+  const op = {};
+  for (const p of partes) {
+    const [chave, ...resto] = p.split("=");
+    const valor = resto.join("=");
+    if (!aceitos.includes(chave)) { erros.push(`${t}: sufixo desconhecido "${p}" (aceitos: ${aceitos.join(", ")})`); return null; }
+    if (chave in op) { erros.push(`${t}: sufixo "${chave}" repetido`); return null; }
+    const semValor = ["proprio", "insere_proprio", "sem_autoaprovacao"].includes(chave);
+    if (semValor && resto.length) { erros.push(`${t}: "${chave}" não leva valor`); return null; }
+    if (semValor) { op[chave] = true; continue; }
+    if ((chave === "pai" || chave === "filho") && !RE_REF.test(valor)) { erros.push(`${t}: "${chave}=" deve ser <tabela>.<coluna_fk>`); return null; }
+    if (chave === "coluna" && !RE_COL.test(valor)) { erros.push(`${t}: "coluna=" deve ser o nome de uma coluna`); return null; }
+    if (chave === "excluir" && valor !== "admin" && !RE_CODIGO.test(valor)) { erros.push(`${t}: "excluir=" deve ser um código de permissão ou admin`); return null; }
+    if (chave === "posse" && valor !== "usuario") { erros.push(`${t}: "posse=" só aceita usuario`); return null; }
+    op[chave] = valor;
+  }
+  return op;
+}
 const blocos = [];
 const vistas = new Set();
 
@@ -102,7 +169,7 @@ for (const r of dados) {
   vistas.add(t);
   if (!CLASSES.has(classe)) { erros.push(`${t}: classe desconhecida "${classe}"`); continue; }
   for (const m of mods) if (!MODULOS.has(m)) erros.push(`${t}: módulo "${m}" não existe em app_module`);
-  if (["modulo", "catalogo", "proprio_leitura", "proprio", "proprio_filho", "trilha"].includes(classe) && mods.length === 0)
+  if (["modulo", "catalogo", "proprio_leitura", "proprio", "proprio_filho", "permissao", "trilha"].includes(classe) && mods.length === 0)
     erros.push(`${t}: classe ${classe} exige ao menos um módulo`);
 
   const L = [`-- ${t}  [${classe}${mods.length ? ": " + mods.join(" | ") : ""}]`];
@@ -111,6 +178,13 @@ for (const r of dados) {
   const M = mods.length
     ? "(" + mods.map((m) => `public.can_access_module(auth.uid(), ${q(m)})`).join(" OR ") + ")"
     : "";
+  // Posse pelo servidor logado via outra tabela (que precisa ter servidor_id):
+  //   doServidor(pai, ref)   -> a linha referencia (ref = <tabela>.<fk>) um pai do próprio servidor
+  //   filhoDoServidor(filha, fk) -> existe uma filha do próprio servidor apontando (filha.fk) para <tabela>.id
+  const doServidor = (pai, ref) =>
+    `EXISTS (SELECT 1 FROM public.${pai} p WHERE p.id = ${ref} AND p.servidor_id = public.meu_servidor_id())`;
+  const filhoDoServidor = (filha, fk) =>
+    `EXISTS (SELECT 1 FROM public.${filha} f WHERE f.${fk} = ${t}.id AND f.servidor_id = public.meu_servidor_id())`;
   const politica = (nome, cmd, using, check) => {
     L.push(`DROP POLICY IF EXISTS ${id(nome)} ON public.${t};`);
     const partes = [`CREATE POLICY ${id(nome)} ON public.${t} FOR ${cmd} TO authenticated`];
@@ -129,14 +203,39 @@ for (const r of dados) {
       politica("rls_select", "SELECT", M, null);
       escritaPorModulo();
       break;
-    case "catalogo":
+    case "catalogo": {
       politica("rls_select", "SELECT", "public.is_active_user()", null);
-      escritaPorModulo();
+      if (extra === "") { escritaPorModulo(); break; }
+      // escrita=<c1>[|<c2>...]: a escrita exige o módulo E um dos códigos (como a classe permissao)
+      const me = /^escrita=([^;]+)$/.exec(extra);
+      const cods = me ? me[1].split("|") : [];
+      if (!me || cods.some((c) => !RE_CODIGO.test(c)) || new Set(cods).size !== cods.length) {
+        erros.push(`${t}: extra de catalogo deve ser vazio ou escrita=<código>[|<código>...]`);
+        break;
+      }
+      const hpc = (c) => `public.has_permission_code(auth.uid(), ${q(c)})`;
+      const PC = cods.length === 1 ? `${M} AND ${hpc(cods[0])}` : `${M} AND (${cods.map(hpc).join(" OR ")})`;
+      politica("rls_insert", "INSERT", null, PC);
+      politica("rls_update", "UPDATE", PC, PC);
+      politica("rls_delete", "DELETE", PC, null);
       break;
-    case "proprio_leitura":
-      politica("rls_select", "SELECT", `${M} OR servidor_id = public.meu_servidor_id()`, null);
-      escritaPorModulo();
+    }
+    case "proprio_leitura": {
+      // extra vazio = forma de sempre (servidor_id; DELETE por módulo)
+      const op = extra === "" ? {} : lerSufixos(t, extra.split(";"), ["coluna", "excluir", "sem_autoaprovacao"]);
+      if (!op) break;
+      const col = op.coluna || "servidor_id";
+      // sem_autoaprovacao: quem escreve pelo módulo não escreve a linha que é sua (o admin passa)
+      const NM = op.sem_autoaprovacao ? ` AND (public.is_admin_user(auth.uid()) OR NOT public.eh_meu_servidor(${col}))` : "";
+      const ME = op.sem_autoaprovacao ? `${M}${NM}` : M;
+      politica("rls_select", "SELECT", `${M} OR ${col} = public.meu_servidor_id()`, null);
+      politica("rls_insert", "INSERT", null, ME);
+      politica("rls_update", "UPDATE", ME, ME);
+      if (op.excluir === "admin") politica("rls_delete", "DELETE", "public.is_admin_user(auth.uid())", null);
+      else if (op.excluir) politica("rls_delete", "DELETE", `${M} AND public.has_permission_code(auth.uid(), ${q(op.excluir)})${NM}`, null);
+      else politica("rls_delete", "DELETE", ME, null);
       break;
+    }
     case "proprio":
       politica("rls_select", "SELECT", `${M} OR servidor_id = public.meu_servidor_id()`, null);
       politica("rls_insert", "INSERT", null, `${M} OR servidor_id = public.meu_servidor_id()`);
@@ -147,14 +246,60 @@ for (const r of dados) {
       const m = /^pai=([a-z_][a-z0-9_]*)\.([a-z_][a-z0-9_]*)(;insere)?$/.exec(extra);
       if (!m) { erros.push(`${t}: extra deve ser pai=<tabela_pai>.<coluna_fk>[;insere]`); break; }
       const [, pai, fk, insere] = m;
-      // A tabela pai precisa ter servidor_id; p.id é a chave referenciada por <coluna_fk>.
-      const doServidor = (ref) =>
-        `EXISTS (SELECT 1 FROM public.${pai} p WHERE p.id = ${ref} AND p.servidor_id = public.meu_servidor_id())`;
-      politica("rls_select", "SELECT", `${M} OR ${doServidor(`${t}.${fk}`)}`, null);
-      if (insere) politica("rls_insert", "INSERT", null, `${M} OR ${doServidor(`${t}.${fk}`)}`);
+      politica("rls_select", "SELECT", `${M} OR ${doServidor(pai, `${t}.${fk}`)}`, null);
+      if (insere) politica("rls_insert", "INSERT", null, `${M} OR ${doServidor(pai, `${t}.${fk}`)}`);
       else politica("rls_insert", "INSERT", null, M);
       politica("rls_update", "UPDATE", M, M);
       politica("rls_delete", "DELETE", M, null);
+      break;
+    }
+    case "permissao": {
+      const [primeiro, ...sufixos] = extra.split(";");
+      const me = /^escrita=(.+)$/.exec(primeiro);
+      const codigos = me ? me[1].split("|") : [];
+      if (!me || codigos.some((c) => !RE_CODIGO.test(c))) {
+        erros.push(`${t}: extra deve começar por escrita=<código>[|<código>...] (ex.: escrita=rh.aprovar|rh.frequencia.lancar;proprio)`);
+        break;
+      }
+      if (new Set(codigos).size !== codigos.length) { erros.push(`${t}: código repetido em escrita=`); break; }
+      const op = lerSufixos(t, sufixos, ["proprio", "pai", "filho", "coluna", "excluir", "insere_proprio", "sem_autoaprovacao", "posse"]);
+      if (!op) break;
+      if (["proprio", "pai", "filho"].filter((k) => k in op).length > 1) { erros.push(`${t}: use só uma posse (;proprio, ;pai= ou ;filho=)`); break; }
+      if (op.coluna && !op.proprio) { erros.push(`${t}: ;coluna= só vale com ;proprio`); break; }
+      if ((op.insere_proprio || op.sem_autoaprovacao || op.posse) && !op.proprio && !op.pai) {
+        erros.push(`${t}: ;insere_proprio, ;sem_autoaprovacao e ;posse= exigem a posse ;proprio ou ;pai=`);
+        break;
+      }
+      const [, pai, fk] = op.pai ? RE_REF.exec(op.pai) : [];
+      const [, filha, fkFilha] = op.filho ? RE_REF.exec(op.filho) : [];
+      const col = op.coluna || "servidor_id";
+      const hp = (c) => `public.has_permission_code(auth.uid(), ${q(c)})`;
+      // Escrita: módulo E permissão (a permissão sozinha, avulsa em user_permissions, não escreve sem o módulo).
+      const P = codigos.length === 1 ? `${M} AND ${hp(codigos[0])}` : `${M} AND (${codigos.map(hp).join(" OR ")})`;
+      // Posse da linha: a coluna (;proprio) ou o servidor do pai (;pai=). Com ;posse=usuario a coluna guarda o
+      // id do USUÁRIO (FK para profiles(id)), não o do servidor: compara com auth.uid() (perfil ativo exigido, como
+      // meu_servidor_id() faz).
+      const porUsuario = op.posse === "usuario";
+      const ehMeu = (expr) => porUsuario ? `(${expr} = auth.uid() AND public.is_active_user())` : `${expr} = public.meu_servidor_id()`;
+      const deMim = op.proprio ? ehMeu(col)
+        : pai ? `EXISTS (SELECT 1 FROM public.${pai} p WHERE p.id = ${t}.${fk} AND ${ehMeu("p.servidor_id")})` : null;
+      const posse = op.proprio ? col : pai ? `(SELECT p.servidor_id FROM public.${pai} p WHERE p.id = ${t}.${fk})` : null;
+      // ;sem_autoaprovacao: quem decide pela permissão não decide sobre a própria linha (o admin passa). Posse por
+      // servidor: eh_meu_servidor() (o vínculo do perfil ou, sem vínculo, o CPF do perfil igual ao do servidor).
+      const naoEMinha = porUsuario
+        ? `(public.is_admin_user(auth.uid()) OR ${posse} IS DISTINCT FROM auth.uid())`
+        : `(public.is_admin_user(auth.uid()) OR NOT public.eh_meu_servidor(${posse}))`;
+      const PE = op.sem_autoaprovacao ? `${P} AND ${naoEMinha}` : P;
+      let leitura = M;
+      if (deMim) leitura = `${M} OR ${deMim}`;
+      else if (filha) leitura = `${M} OR ${filhoDoServidor(filha, fkFilha)}`;
+      let exclusao = PE;
+      if (op.excluir === "admin") exclusao = "public.is_admin_user(auth.uid())";
+      else if (op.excluir) exclusao = `${M} AND ${hp(op.excluir)}` + (op.sem_autoaprovacao ? ` AND ${naoEMinha}` : "");
+      politica("rls_select", "SELECT", leitura, null);
+      politica("rls_insert", "INSERT", null, op.insere_proprio ? `(${PE}) OR ${deMim}` : PE);
+      politica("rls_update", "UPDATE", PE, PE);
+      politica("rls_delete", "DELETE", exclusao, null);
       break;
     }
     case "catalogo_admin": {

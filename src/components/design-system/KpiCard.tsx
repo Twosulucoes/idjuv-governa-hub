@@ -10,6 +10,8 @@ export interface KpiCardProps {
   rotulo: string;
   /** Valor já formatado (ex.: "R$ 1,2 mi", "342"). */
   valor: React.ReactNode;
+  /** Texto secundário abaixo do valor (ex.: "Concluído", "há 2 dias"). */
+  detalhe?: React.ReactNode;
   /** Variação em % contra o período anterior (ex.: 4.2 ou -1.5). */
   variacao?: number | null;
   /** Período de comparação (ex.: "vs. mês anterior"). */
@@ -27,6 +29,7 @@ const pct = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1, signDispl
 export function KpiCard({
   rotulo,
   valor,
+  detalhe,
   variacao,
   periodo,
   subirEhBom = true,
@@ -54,6 +57,7 @@ export function KpiCard({
         ) : (
           <p className="text-h1 tabular-nums text-foreground">{valor}</p>
         )}
+        {detalhe != null && !carregando && <p className="text-caption text-muted-foreground">{detalhe}</p>}
         {temVariacao && !carregando && (
           <p className={cn("flex items-center gap-1 text-caption font-medium tabular-nums", cor)}>
             <IconeVariacao className="h-3.5 w-3.5" aria-hidden="true" />

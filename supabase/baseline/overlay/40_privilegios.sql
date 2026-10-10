@@ -62,10 +62,63 @@ GRANT EXECUTE ON FUNCTION public.generate_schema_ddl() TO service_role;
 REVOKE EXECUTE ON FUNCTION public.fn_fotos_vistoria_inventario_imutavel() FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.fn_campanhas_inventario_unidades_autoria() FROM authenticated;
 
+-- ---- privilégios das migrações de 2026-10-09/10 (o dump do schema não leva GRANT/REVOKE) ----
+-- Copiados das migrações 20261009120000 (avisos), 20261009150000 (envios), 20261009153000 (importações)
+-- e 20261010070000 (folha): funções de trigger sem EXECUTE para authenticated; RPC só da service role;
+-- tabelas com escrita restrita e config_envio com privilégios por coluna (segredo_id nunca legível pela API).
+REVOKE EXECUTE ON FUNCTION public.fixar_autoria_aviso() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.fixar_autoria_config_envio() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.bloquear_insercao_ficha_fechada() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.bloquear_insercao_item_ficha_fechada() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.folhas_proteger_fechamento() FROM authenticated;
+-- triggers de folha fechada que já existiam (o dump não leva o REVOKE; a migração 20261010070000 também o faz)
+REVOKE EXECUTE ON FUNCTION public.bloquear_alteracao_ficha_fechada() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.bloquear_alteracao_item_ficha_fechada() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.bloquear_exclusao_ficha_fechada() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.folhas_proteger_exclusao() FROM authenticated;
+-- trigger de etapas do abono/fechamento (migração 20261010090000, B2). Guardado por existência: a função só
+-- entra em schema/ quando o baseline é regenerado a partir do replay.
+DO $$ BEGIN
+  IF to_regprocedure('public.validar_etapa_frequencia()') IS NOT NULL THEN
+    REVOKE EXECUTE ON FUNCTION public.validar_etapa_frequencia() FROM authenticated;
+  END IF;
+  -- trigger que protege servidores.cpf (migração 20261010100000), mesma guarda por existência
+  IF to_regprocedure('public.servidores_proteger_cpf()') IS NOT NULL THEN
+    REVOKE EXECUTE ON FUNCTION public.servidores_proteger_cpf() FROM authenticated;
+  END IF;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.config_envio_servidor(text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.config_envio_servidor(text) TO service_role;
+REVOKE ALL ON public.avisos_leituras FROM anon, authenticated;
+GRANT SELECT, INSERT, DELETE ON public.avisos_leituras TO authenticated;
+REVOKE ALL ON public.envios_log FROM anon, authenticated;
+GRANT SELECT ON public.envios_log TO authenticated;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.importacoes FROM authenticated;
+REVOKE ALL ON public.config_envio FROM anon, authenticated;
+GRANT SELECT (
+  canal, ativo, provedor, remetente_nome, remetente_email, responder_para,
+  smtp_host, smtp_porta, smtp_seguranca, smtp_usuario,
+  marca_nome, marca_logo_url, marca_cor, rodape,
+  wa_phone_number_id, wa_business_account_id, wa_templates,
+  segredo_atualizado_em, updated_by, created_at, updated_at
+) ON public.config_envio TO authenticated;
+GRANT INSERT (
+  canal, ativo, provedor, remetente_nome, remetente_email, responder_para,
+  smtp_host, smtp_porta, smtp_seguranca, smtp_usuario,
+  marca_nome, marca_logo_url, marca_cor, rodape,
+  wa_phone_number_id, wa_business_account_id, wa_templates
+) ON public.config_envio TO authenticated;
+GRANT UPDATE (
+  ativo, provedor, remetente_nome, remetente_email, responder_para,
+  smtp_host, smtp_porta, smtp_seguranca, smtp_usuario,
+  marca_nome, marca_logo_url, marca_cor, rodape,
+  wa_phone_number_id, wa_business_account_id, wa_templates
+) ON public.config_envio TO authenticated;
+
 -- ---- funções que ESCREVEM e não são chamadas por usuário logado ----
--- processar_folha_pagamento (folha bloqueada — débito técnico DT-2026-001) apagava e recriava
--- fichas_financeiras para qualquer logado; fn_atualizar_situacao_servidor só é chamada por triggers
--- SECURITY DEFINER. Ao ativar a folha, reabra o EXECUTE com uma guarda can_access_module no corpo.
+-- fn_atualizar_situacao_servidor só é chamada por triggers SECURITY DEFINER. processar_folha_pagamento
+-- saiu desta lista na migração 20261010070000: ganhou guarda has_permission_code('financeiro.folha.processar')
+-- no corpo e EXECUTE para authenticated (o front chama a RPC no botão Processar).
 DO $$
 DECLARE f record;
 BEGIN
@@ -73,7 +126,7 @@ BEGIN
     SELECT p.oid::regprocedure AS assinatura
     FROM pg_proc p
     WHERE p.pronamespace = 'public'::regnamespace
-      AND p.proname IN ('processar_folha_pagamento', 'fn_atualizar_situacao_servidor')
+      AND p.proname IN ('fn_atualizar_situacao_servidor')
   LOOP
     EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM authenticated', f.assinatura);
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', f.assinatura);

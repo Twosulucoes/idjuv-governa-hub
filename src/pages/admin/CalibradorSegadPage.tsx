@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { ModuleLayout } from "@/components/layout";
+import { PageHeader } from "@/components/design-system";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Download, Upload, RotateCcw, Eye, EyeOff, Save, MousePointer2, FileText } from "lucide-react";
+import { Download, Upload, RotateCcw, Eye, EyeOff, Save, MousePointer2 } from "lucide-react";
 import {
   CampoSegad,
   carregarConfiguracao,
@@ -124,53 +125,49 @@ export default function CalibradorSegadPage() {
   return (
     <ModuleLayout module="admin">
       <div className="space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <FileText className="h-6 w-6" />
-              Calibrador SEGAD
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              Ajuste as coordenadas dos campos da Ficha Cadastral SEGAD
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="h-4 w-4 mr-2" />
-              Importar
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json"
-              className="hidden"
-              onChange={handleImportar}
-            />
-            <Button variant="outline" size="sm" onClick={handleExportar}>
-              <Download className="h-4 w-4 mr-2" />
-              Exportar
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleResetar}>
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Resetar
-            </Button>
-            <Button size="sm" onClick={handleSalvar}>
-              <Save className="h-4 w-4 mr-2" />
-              Salvar
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Calibrador SEGAD" }]}
+          titulo="Calibrador SEGAD"
+          descricao="Ajuste as coordenadas dos campos da ficha cadastral SEGAD"
+          acoes={
+            <>
+              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="h-4 w-4 mr-2" aria-hidden="true" />
+                Importar
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                className="hidden"
+                aria-label="Arquivo de configuração (.json)"
+                onChange={handleImportar}
+              />
+              <Button variant="outline" size="sm" onClick={handleExportar}>
+                <Download className="h-4 w-4 mr-2" aria-hidden="true" />
+                Exportar
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleResetar}>
+                <RotateCcw className="h-4 w-4 mr-2" aria-hidden="true" />
+                Resetar
+              </Button>
+              <Button size="sm" onClick={handleSalvar}>
+                <Save className="h-4 w-4 mr-2" aria-hidden="true" />
+                Salvar
+              </Button>
+            </>
+          }
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Preview do Formulário */}
           <Card className="lg:col-span-2">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Preview - Página {paginaAtual}</CardTitle>
+                <CardTitle className="text-base">Prévia - página {paginaAtual}</CardTitle>
                 <div className="flex items-center gap-2">
                   <Select value={paginaAtual.toString()} onValueChange={(v) => setPaginaAtual(parseInt(v))}>
-                    <SelectTrigger className="w-[240px]">
+                    <SelectTrigger className="w-[240px]" aria-label="Página da ficha">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -185,22 +182,24 @@ export default function CalibradorSegadPage() {
                     variant={mostrarMarcadores ? "default" : "outline"}
                     size="sm"
                     onClick={() => setMostrarMarcadores(!mostrarMarcadores)}
+                    aria-pressed={mostrarMarcadores}
                   >
-                    {mostrarMarcadores ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
+                    {mostrarMarcadores ? <Eye className="h-4 w-4 mr-2" aria-hidden="true" /> : <EyeOff className="h-4 w-4 mr-2" aria-hidden="true" />}
                     {mostrarMarcadores ? "Marcadores ON" : "Marcadores OFF"}
                   </Button>
                   <Button
                     variant={modoClique ? "default" : "outline"}
                     size="sm"
                     onClick={() => setModoClique(!modoClique)}
+                    aria-pressed={modoClique}
                   >
-                    <MousePointer2 className="h-4 w-4 mr-2" />
-                    {modoClique ? "Modo Clique ON" : "Modo Clique OFF"}
+                    <MousePointer2 className="h-4 w-4 mr-2" aria-hidden="true" />
+                    {modoClique ? "Modo clique ON" : "Modo clique OFF"}
                   </Button>
                 </div>
               </div>
               {modoClique && campoSelecionado && (
-                <div className="text-sm text-primary mt-2">
+                <div className="text-sm text-primary mt-2" role="status">
                   Clique na imagem para posicionar o campo: <strong>{getCampoSelecionadoInfo()?.label}</strong>
                 </div>
               )}
@@ -226,12 +225,17 @@ export default function CalibradorSegadPage() {
                   if (!mostrarMarcadores && campoSelecionado !== campo.id) return null;
 
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={campo.id}
-                      className={`absolute transition-all cursor-pointer ${
+                      // Fora da ordem de tabulação: a lista lateral já seleciona os campos pelo teclado.
+                      tabIndex={-1}
+                      aria-label={`Selecionar campo ${campo.label}`}
+                      aria-pressed={campoSelecionado === campo.id}
+                      className={`absolute p-0 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                         campoSelecionado === campo.id
                           ? "w-3 h-3 bg-primary border-2 border-primary-foreground rounded-full z-10 shadow-lg"
-                          : "w-2 h-2 bg-red-500/80 border border-white rounded-full opacity-60 hover:opacity-100"
+                          : "w-2 h-2 bg-destructive/80 border border-background rounded-full opacity-60 hover:opacity-100 focus-visible:opacity-100"
                       }`}
                       style={{
                         left: campo.x * scaleX - (campoSelecionado === campo.id ? 6 : 4),
@@ -253,7 +257,7 @@ export default function CalibradorSegadPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center justify-between">
-                Campos da Página {paginaAtual}
+                Campos da página {paginaAtual}
                 <Badge variant="secondary">{camposPagina.length} campos</Badge>
               </CardTitle>
             </CardHeader>
@@ -271,7 +275,14 @@ export default function CalibradorSegadPage() {
                       onClick={() => setCampoSelecionado(campo.id)}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium text-sm">{campo.label}</span>
+                        <button
+                          type="button"
+                          className="font-medium text-sm text-left rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          aria-pressed={campoSelecionado === campo.id}
+                          onClick={() => setCampoSelecionado(campo.id)}
+                        >
+                          {campo.label}
+                        </button>
                         <Badge variant={campo.tipo === "checkbox" ? "outline" : "secondary"} className="text-xs">
                           {campo.tipo}
                         </Badge>
@@ -281,6 +292,7 @@ export default function CalibradorSegadPage() {
                           <Label className="text-xs text-muted-foreground">X (mm)</Label>
                           <Input
                             type="number"
+                            aria-label={`${campo.label}: X (mm)`}
                             value={campo.x}
                             onChange={(e) => handleCampoChange(campo.id, "x", parseFloat(e.target.value) || 0)}
                             className="h-7 text-xs"
@@ -291,6 +303,7 @@ export default function CalibradorSegadPage() {
                           <Label className="text-xs text-muted-foreground">Y (mm)</Label>
                           <Input
                             type="number"
+                            aria-label={`${campo.label}: Y (mm)`}
                             value={campo.y}
                             onChange={(e) => handleCampoChange(campo.id, "y", parseFloat(e.target.value) || 0)}
                             className="h-7 text-xs"
@@ -302,6 +315,7 @@ export default function CalibradorSegadPage() {
                             <Label className="text-xs text-muted-foreground">Largura</Label>
                             <Input
                               type="number"
+                              aria-label={`${campo.label}: largura`}
                               value={campo.maxWidth || 50}
                               onChange={(e) => handleCampoChange(campo.id, "maxWidth", parseInt(e.target.value) || 50)}
                               className="h-7 text-xs"
@@ -332,7 +346,7 @@ export default function CalibradorSegadPage() {
               </div>
               <div className="flex items-start gap-2">
                 <Badge variant="outline">2</Badge>
-                <span>Ative o "Modo Clique" e clique na imagem para posicionar</span>
+                <span>Ative o "Modo clique" e clique na imagem para posicionar</span>
               </div>
               <div className="flex items-start gap-2">
                 <Badge variant="outline">3</Badge>

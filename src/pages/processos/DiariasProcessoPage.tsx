@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { 
-  MapPin, ArrowLeft, ArrowRight, CheckCircle2, Circle, 
+  ArrowLeft, ArrowRight, CheckCircle2, Circle, 
   FileText, AlertTriangle, Download, Users, Clock, ClipboardList
 } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { PageHeader, StatusBadge } from "@/components/design-system";
+import { useIdentidade } from "@/core/tenant";
 
 const fluxoEtapas = [
   { id: 1, nome: "Solicitação", responsavel: "Servidor" },
@@ -32,6 +33,7 @@ const checklistItems = [
 ];
 
 export default function DiariasProcessoPage() {
+  const { sigla } = useIdentidade();
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
 
   const toggleItem = (id: string) => {
@@ -46,217 +48,189 @@ export default function DiariasProcessoPage() {
 
   return (
     <ModuleLayout module="compras">
-      {/* Cabeçalho */}
-      <section className="bg-secondary text-secondary-foreground py-12">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center gap-3 text-sm mb-4 opacity-80">
-            <Link to="/" className="hover:underline">Início</Link>
-            <span>/</span>
-            <Link to="/processos" className="hover:underline">Processos</Link>
-            <span>/</span>
-            <span>Diárias e Viagens</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-accent rounded-xl flex items-center justify-center">
-              <MapPin className="w-8 h-8 text-accent-foreground" />
-            </div>
-            <div>
-              <h1 className="font-serif text-3xl lg:text-4xl font-bold">Diárias e Viagens</h1>
-              <p className="opacity-90 mt-1">
-                Processo de concessão de diárias e viagens a serviço
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: "Processos", href: "/processos" }, { rotulo: "Diárias e viagens" }]}
+          titulo="Diárias e viagens"
+          descricao="Processo de concessão de diárias e viagens a serviço"
+        />
+
+        <div className="max-w-5xl space-y-6">
+          {/* Descrição */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Descrição do processo</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground leading-relaxed">
+                O processo de Diárias e Viagens estabelece os procedimentos para solicitação, 
+                autorização e prestação de contas de deslocamentos a serviço. Todo servidor 
+                que realizar viagem a serviço deve apresentar relatório de viagem ao retornar.
               </p>
-            </div>
+              <div className="flex flex-wrap gap-4">
+                <Badge variant="outline" className="text-info border-info">
+                  <Clock className="w-3 h-3 mr-1" aria-hidden="true" />
+                  Antecedência mínima: 5 dias úteis
+                </Badge>
+                <Badge variant="outline" className="text-primary border-primary">
+                  <Users className="w-3 h-3 mr-1" aria-hidden="true" />
+                  Responsável inicial: Servidor
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Base Legal */}
+          <Card className="border-l-4 border-l-info">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-info" aria-hidden="true" />
+                Base legal
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2 text-muted-foreground">
+                <li>• Decreto Estadual de Diárias</li>
+                <li>• Instruções Normativas do TCE-RR</li>
+                <li>• Regimento Interno do {sigla}</li>
+                <li>• Lei de Responsabilidade Fiscal</li>
+              </ul>
+            </CardContent>
+          </Card>
+
+          {/* Formulários Disponíveis */}
+          <Card className="border-2 border-primary/20 bg-primary/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="w-5 h-5 text-primary" aria-hidden="true" />
+                Formulários digitais
+              </CardTitle>
+              <CardDescription>
+                Utilize os formulários abaixo para gerar documentos oficiais com numeração automática
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button asChild variant="outline" className="h-auto py-4 justify-start">
+                  <Link to="/formularios/ordem-missao" className="flex flex-col items-start gap-1">
+                    <span className="font-semibold">Ordem de Missão</span>
+                    <span className="text-caption text-muted-foreground">Autorização de viagem a serviço</span>
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="h-auto py-4 justify-start">
+                  <Link to="/formularios/relatorio-viagem" className="flex flex-col items-start gap-1">
+                    <span className="font-semibold">Relatório de Viagem</span>
+                    <span className="text-caption text-muted-foreground">Prestação de contas - Art. 11 IN Diárias</span>
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Fluxograma */}
+          <h2 className="text-h2 text-foreground pt-2">Fluxograma do processo</h2>
+          <div className="bg-muted/30 rounded-xl p-6">
+            <ol className="flex flex-wrap justify-center gap-4">
+              {fluxoEtapas.map((etapa, index) => (
+                <li key={etapa.id} className="flex items-center">
+                  <div className="fluxo-etapa min-w-[120px]">
+                    <div className="text-caption text-muted-foreground mb-1">Etapa {etapa.id}</div>
+                    <div className="font-medium text-sm">{etapa.nome}</div>
+                    <div className="text-caption text-primary mt-1">{etapa.responsavel}</div>
+                  </div>
+                  {index < fluxoEtapas.length - 1 && (
+                    <ArrowRight className="w-6 h-6 text-muted-foreground mx-2 hidden lg:block" aria-hidden="true" />
+                  )}
+                </li>
+              ))}
+            </ol>
           </div>
-        </div>
-      </section>
 
-      {/* Conteúdo */}
-      <section className="py-12">
-        <div className="container mx-auto px-4">
-          <div className="max-w-5xl mx-auto">
-            {/* Descrição */}
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle>Descrição do Processo</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-muted-foreground leading-relaxed">
-                  O processo de Diárias e Viagens estabelece os procedimentos para solicitação, 
-                  autorização e prestação de contas de deslocamentos a serviço. Todo servidor 
-                  que realizar viagem a serviço deve apresentar relatório de viagem ao retornar.
-                </p>
-                <div className="flex flex-wrap gap-4">
-                  <Badge variant="outline" className="text-info border-info">
-                    <Clock className="w-3 h-3 mr-1" />
-                    Antecedência mínima: 5 dias úteis
-                  </Badge>
-                  <Badge variant="outline" className="text-primary border-primary">
-                    <Users className="w-3 h-3 mr-1" />
-                    Responsável inicial: Servidor
-                  </Badge>
+          {/* Checklist */}
+          <h2 className="text-h2 text-foreground pt-2">Checklist obrigatório</h2>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <CardTitle>Documentação necessária</CardTitle>
+                  <CardDescription>
+                    Marque os itens conforme forem providenciados
+                  </CardDescription>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Base Legal */}
-            <Card className="mb-8 border-l-4 border-l-info">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-info" />
-                  Base Legal
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li>• Decreto Estadual de Diárias</li>
-                  <li>• Instruções Normativas do TCE-RR</li>
-                  <li>• Regimento Interno do IDJUV</li>
-                  <li>• Lei de Responsabilidade Fiscal</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Formulários Disponíveis */}
-            <Card className="mb-8 border-2 border-primary/20 bg-primary/5">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5 text-primary" />
-                  Formulários Digitais
-                </CardTitle>
-                <CardDescription>
-                  Utilize os formulários abaixo para gerar documentos oficiais com numeração automática
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Button asChild variant="outline" className="h-auto py-4 justify-start">
-                    <Link to="/formularios/ordem-missao" className="flex flex-col items-start gap-1">
-                      <span className="font-semibold">Ordem de Missão</span>
-                      <span className="text-xs text-muted-foreground">Autorização de viagem a serviço</span>
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" className="h-auto py-4 justify-start">
-                    <Link to="/formularios/relatorio-viagem" className="flex flex-col items-start gap-1">
-                      <span className="font-semibold">Relatório de Viagem</span>
-                      <span className="text-xs text-muted-foreground">Prestação de contas - Art. 11 IN Diárias</span>
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Separator className="my-8" />
-
-            {/* Fluxograma */}
-            <h2 className="font-serif text-2xl font-bold mb-6">Fluxograma do Processo</h2>
-            <div className="bg-muted/30 rounded-xl p-6 mb-8">
-              <div className="flex flex-wrap justify-center gap-4">
-                {fluxoEtapas.map((etapa, index) => (
-                  <div key={etapa.id} className="flex items-center">
-                    <div className="fluxo-etapa min-w-[120px]">
-                      <div className="text-xs text-muted-foreground mb-1">Etapa {etapa.id}</div>
-                      <div className="font-medium text-sm">{etapa.nome}</div>
-                      <div className="text-xs text-primary mt-1">{etapa.responsavel}</div>
-                    </div>
-                    {index < fluxoEtapas.length - 1 && (
-                      <ArrowRight className="w-6 h-6 text-muted-foreground mx-2 hidden lg:block" />
+                <StatusBadge tom={canProceed ? "sucesso" : "pendente"}>
+                  {obrigatoriosChecked}/{obrigatoriosCount} obrigatórios
+                </StatusBadge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {checklistItems.map((item) => (
+                  <div 
+                    key={item.id}
+                    className={`checklist-item ${checkedItems.includes(item.id) ? 'checked' : ''}`}
+                  >
+                    <Checkbox
+                      id={item.id}
+                      checked={checkedItems.includes(item.id)}
+                      onCheckedChange={() => toggleItem(item.id)}
+                    />
+                    <label 
+                      htmlFor={item.id} 
+                      className="flex-1 text-sm cursor-pointer"
+                    >
+                      {item.label}
+                      {item.obrigatorio && (
+                        <span className="text-destructive ml-1">*</span>
+                      )}
+                    </label>
+                    {checkedItems.includes(item.id) ? (
+                      <CheckCircle2 className="w-5 h-5 text-success" aria-hidden="true" />
+                    ) : (
+                      <Circle className="w-5 h-5 text-muted-foreground/30" aria-hidden="true" />
                     )}
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Alerta */}
+          {!canProceed && (
+            <div className="alerta-conformidade" role="note">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" aria-hidden="true" />
+                <div>
+                  <h3 className="font-semibold">Atenção</h3>
+                  <p className="text-sm text-muted-foreground">
+                    A solicitação deve ser feita com antecedência mínima de 5 dias úteis. 
+                    Pedidos fora do prazo só serão autorizados em casos excepcionais.
+                  </p>
+                </div>
+              </div>
             </div>
+          )}
 
-            <Separator className="my-8" />
-
-            {/* Checklist */}
-            <h2 className="font-serif text-2xl font-bold mb-6">Checklist Obrigatório</h2>
-            <Card className="mb-8">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Documentação Necessária</CardTitle>
-                    <CardDescription>
-                      Marque os itens conforme forem providenciados
-                    </CardDescription>
-                  </div>
-                  <Badge variant={canProceed ? "default" : "secondary"} className={canProceed ? "bg-success" : ""}>
-                    {obrigatoriosChecked}/{obrigatoriosCount} obrigatórios
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {checklistItems.map((item) => (
-                    <div 
-                      key={item.id}
-                      className={`checklist-item ${checkedItems.includes(item.id) ? 'checked' : ''}`}
-                    >
-                      <Checkbox
-                        id={item.id}
-                        checked={checkedItems.includes(item.id)}
-                        onCheckedChange={() => toggleItem(item.id)}
-                      />
-                      <label 
-                        htmlFor={item.id} 
-                        className="flex-1 text-sm cursor-pointer"
-                      >
-                        {item.label}
-                        {item.obrigatorio && (
-                          <span className="text-destructive ml-1">*</span>
-                        )}
-                      </label>
-                      {checkedItems.includes(item.id) ? (
-                        <CheckCircle2 className="w-5 h-5 text-success" />
-                      ) : (
-                        <Circle className="w-5 h-5 text-muted-foreground/30" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Alerta */}
-            {!canProceed && (
-              <div className="alerta-conformidade mb-8">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-semibold">Atenção</h4>
-                    <p className="text-sm text-muted-foreground">
-                      A solicitação deve ser feita com antecedência mínima de 5 dias úteis. 
-                      Pedidos fora do prazo só serão autorizados em casos excepcionais.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Ações */}
-            <div className="flex flex-wrap gap-4 justify-between items-center">
-              <Button asChild variant="outline">
-                <Link to="/processos">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Voltar
-                </Link>
+          {/* Ações */}
+          <div className="flex flex-wrap gap-4 justify-between items-center">
+            <Button asChild variant="outline">
+              <Link to="/processos">
+                <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
+                Voltar
+              </Link>
+            </Button>
+            <div className="flex gap-4">
+              <Button variant="outline">
+                <Download className="w-4 h-4 mr-2" aria-hidden="true" />
+                Baixar modelos
               </Button>
-              <div className="flex gap-4">
-                <Button variant="outline">
-                  <Download className="w-4 h-4 mr-2" />
-                  Baixar Modelos
-                </Button>
-                <Button 
-                  disabled={!canProceed}
-                  className="btn-gov"
-                >
-                  Iniciar Processo
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </div>
+              <Button disabled={!canProceed}>
+                Iniciar processo
+                <ArrowRight className="w-4 h-4 ml-2" aria-hidden="true" />
+              </Button>
             </div>
           </div>
         </div>
-      </section>
+      </div>
     </ModuleLayout>
   );
 }
