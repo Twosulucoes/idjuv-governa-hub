@@ -1,6 +1,6 @@
 /**
  * Regras puras da edição da ficha financeira (sem React, sem Supabase):
- * quem pode editar, recálculo de totais a partir dos itens, margem consignável,
+ * quem pode editar, recálculo de totais (ficha e folha), margem consignável,
  * vigência de dependente na competência e tradução de erro do banco.
  *
  * Espelham o que o banco faz hoje (`processar_folha_pagamento`,
@@ -9,6 +9,7 @@
  */
 
 import type { StatusFolha } from "@/types/folha";
+import { calcularMargemConsignavel } from "@/lib/folhaCalculos";
 
 // ============== STATUS / PERMISSÃO ==============
 
@@ -45,6 +46,15 @@ export function motivoBloqueioEdicao(status: string | null | undefined, temPermi
 export interface ItemParaTotais {
   tipo: string;
   valor: number | string | null;
+  descricao?: string | null;
+  ordem?: number | null;
+}
+
+/** Campos da ficha que a RPC grava sem criar item (vencimento, INSS e IRRF). */
+export interface BaseFichaParaTotais {
+  cargo_vencimento: number | string | null;
+  valor_inss: number | string | null;
+  valor_irrf: number | string | null;
 }
 
 export interface TotaisFicha {
@@ -55,11 +65,28 @@ export interface TotaisFicha {
 
 const arredondar2 = (n: number) => Math.round(n * 100) / 100;
 
-/** Soma proventos e descontos dos itens; líquido = proventos − descontos (2 casas). */
-export function calcularTotaisFicha(itens: ItemParaTotais[]): TotaisFicha {
-  let proventos = 0;
-  let descontos = 0;
+/**
+ * A RPC antiga (migração 20260112175202) gravava vencimento/INSS/IRRF também como itens
+ * (ordem 1/100/101). A RPC atual não cria item nenhum. Para não somar duas vezes numa ficha
+ * herdada, esses itens automáticos são ignorados no recálculo (o valor já está na ficha).
+ */
+export function itemAutomaticoLegado(item: ItemParaTotais): boolean {
+  const desc = (item.descricao ?? "").trim().toLowerCase();
+  if (item.ordem === 1 && item.tipo === "provento" && desc.startsWith("vencimento base")) return true;
+  if (item.ordem === 100 && item.tipo === "desconto" && desc === "inss") return true;
+  if (item.ordem === 101 && item.tipo === "desconto" && desc === "irrf") return true;
+  return false;
+}
+
+/**
+ * Totais da ficha = o que a RPC gravou (vencimento como provento; INSS + IRRF como descontos)
+ * mais os itens lançados; líquido = proventos − descontos (2 casas).
+ */
+export function calcularTotaisFicha(ficha: BaseFichaParaTotais, itens: ItemParaTotais[]): TotaisFicha {
+  let proventos = Number(ficha.cargo_vencimento) || 0;
+  let descontos = (Number(ficha.valor_inss) || 0) + (Number(ficha.valor_irrf) || 0);
   for (const item of itens) {
+    if (itemAutomaticoLegado(item)) continue;
     const valor = Number(item.valor) || 0;
     if (item.tipo === "provento") proventos += valor;
     else if (item.tipo === "desconto") descontos += valor;
@@ -111,6 +138,7 @@ export function calcularTotaisFolha(fichas: FichaParaTotais[]): TotaisFolha {
 export interface ItemParaReferencia {
   tipo: string;
   referencia: string | null;
+  valor?: number | string | null;
 }
 
 const normalizarReferencia = (ref: string | null | undefined) => (ref ?? "").trim().toLowerCase();
@@ -126,6 +154,7 @@ export function itemJaLancado(itens: ItemParaReferencia[], referencia: string | 
 
 export interface ConsignacaoParaMargem {
   id?: string;
+  numero_contrato?: string | null;
   valor_parcela: number | string | null;
   ativo: boolean | null;
   suspenso: boolean | null;
@@ -150,35 +179,67 @@ export function calcularMargemUsada(consignacoes: ConsignacaoParaMargem[], ignor
   );
 }
 
+/**
+ * Base da margem = líquido da ficha **antes** das consignações: o `valor_liquido` já desconta as
+ * parcelas lançadas na ficha ("Lançar na ficha"), então elas são devolvidas à base para não
+ * contarem duas vezes (uma no líquido, outra em "usada").
+ */
+export function baseMargemConsignavel(
+  valorLiquido: number | null | undefined,
+  itens: ItemParaReferencia[],
+  consignacoes: ConsignacaoParaMargem[],
+): number {
+  const contratos = new Set(consignacoes.map((c) => normalizarReferencia(c.numero_contrato)).filter(Boolean));
+  const devolvido = itens
+    .filter((i) => i.tipo === "desconto" && contratos.has(normalizarReferencia(i.referencia)))
+    .reduce((acc, i) => acc + (Number(i.valor) || 0), 0);
+  return arredondar2((Number(valorLiquido) || 0) + devolvido);
+}
+
 export interface AvaliacaoMargem {
-  /** Base (líquido da ficha). */
+  /** Base (líquido da ficha antes das consignações). */
   base: number;
   /** Margem total = base × percentual. */
   margem: number;
   usada: number;
   disponivel: number;
+  /** Não há parâmetro `margem_consignavel` vigente: margem não avaliada, nada excede. */
+  semParametro: boolean;
   /** A parcela nova (se informada) ultrapassa a margem disponível? */
   excede: boolean;
 }
 
 /**
- * Avalia a margem consignável da ficha. `novaParcela` é a parcela que se quer incluir/alterar;
- * `ignorarId` tira da soma a própria consignação em edição.
+ * Avalia a margem consignável. `base` já deve vir de `baseMargemConsignavel`; `novaParcela` é a
+ * parcela que se quer incluir/alterar; `ignorarId` tira da soma a própria consignação em edição.
+ * Sem percentual (parâmetro ausente), `excede` é sempre falso — não dá para avaliar.
  */
 export function avaliarMargem(
-  valorLiquido: number | null | undefined,
+  base: number | null | undefined,
   percentual: number | null | undefined,
   consignacoes: ConsignacaoParaMargem[],
   novaParcela = 0,
   ignorarId?: string,
 ): AvaliacaoMargem {
-  const base = arredondar2(Number(valorLiquido) || 0);
-  const pct = Number(percentual) || 0;
-  const margem = arredondar2(base * (pct / 100));
+  const semParametro = percentual == null || !Number.isFinite(Number(percentual));
+  const baseNum = arredondar2(Number(base) || 0);
+  const margem = semParametro ? 0 : calcularMargemConsignavel(baseNum, Number(percentual)).margem;
   const usada = calcularMargemUsada(consignacoes, ignorarId);
   const disponivel = arredondar2(margem - usada);
   const parcela = Number(novaParcela) || 0;
-  return { base, margem, usada, disponivel, excede: parcela > 0 && parcela > disponivel + 0.000001 };
+  return {
+    base: baseNum,
+    margem,
+    usada,
+    disponivel,
+    semParametro,
+    excede: !semParametro && parcela > 0 && parcela > disponivel + 0.000001,
+  };
+}
+
+/** Percentual para exibição ("7" e não "7.000000000000001"). */
+export function formatarPercentual(p: number | null | undefined): string {
+  return (Number(p) || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 }
 
 // ============== COMPETÊNCIA / DEPENDENTES ==============
@@ -211,11 +272,11 @@ export interface DependenteParaVigencia {
 
 /**
  * Dependente conta no IRRF da competência? Replica `count_dependentes_irrf` com a data de
- * referência da RPC (último dia do mês): ativo, deduz, início ≤ ref e (fim nulo ou fim ≥ ref).
- * Compara strings ISO (sem `new Date` para não deslocar fuso).
+ * referência da RPC (último dia do mês): ativo = true, deduz_irrf = true (NULL não conta, como
+ * no SQL), início ≤ ref e (fim nulo ou fim ≥ ref). Compara strings ISO (sem `new Date`, sem fuso).
  */
 export function dependenteVigenteNaCompetencia(dep: DependenteParaVigencia, ano: number, mes: number): boolean {
-  if (dep.ativo === false || dep.deduz_irrf === false) return false;
+  if (dep.ativo !== true || dep.deduz_irrf !== true) return false;
   const ref = ultimoDiaCompetencia(ano, mes);
   const inicio = (dep.data_inicio_deducao ?? "").slice(0, 10);
   const fim = dep.data_fim_deducao ? dep.data_fim_deducao.slice(0, 10) : null;
@@ -233,30 +294,34 @@ export function contarDependentesVigentes(deps: DependenteParaVigencia[], ano: n
 interface ErroBancoLike {
   code?: string;
   message?: string;
-  details?: string;
-  hint?: string;
 }
 
 /**
- * Converte erro do PostgREST/Postgres em mensagem legível para toast. Não engole nada:
- * RLS (42501), trigger (P0001), CHECK (23514), "0 linhas" (PGRST116) viram texto claro.
+ * Converte erro do PostgREST/Postgres em mensagem legível para toast, sem repassar o texto cru
+ * do banco (nome de tabela/constraint, "Failing row contains (...)" com dados pessoais).
+ * Só `P0001` (RAISE dos triggers, texto escrito pelo time) e `Error` lançado pelo próprio
+ * front chegam com a mensagem original.
  */
 export function descreverErroBanco(erro: unknown): string {
   if (!erro) return "Erro desconhecido ao acessar o banco.";
+  if (erro instanceof Error && !("code" in erro)) return erro.message || "Erro ao acessar o banco.";
   const e = (typeof erro === "object" ? erro : { message: String(erro) }) as ErroBancoLike;
-  const msg = e.message || "";
   switch (e.code) {
     case "42501":
       return "O banco recusou a operação (RLS): seu usuário não tem acesso de escrita a este registro.";
     case "P0001":
-      return msg || "Operação bloqueada por regra do banco.";
+      return e.message || "Operação bloqueada por regra do banco.";
     case "23514":
-      return `Valor rejeitado por regra do banco${e.details ? `: ${e.details}` : "."}`;
+      return "Valor rejeitado por regra do banco (restrição de verificação). Revise os campos informados.";
+    case "23505":
+      return "Registro duplicado: já existe um cadastro com esses dados.";
+    case "23502":
+      return "Campo obrigatório ausente. Preencha todos os campos marcados.";
     case "23503":
       return "Registro vinculado a outro cadastro (chave estrangeira). Verifique a rubrica/servidor informado.";
     case "PGRST116":
       return "Nenhum registro foi alterado: ele não existe ou a política de acesso (RLS) não permite.";
     default:
-      return msg || "Erro ao acessar o banco.";
+      return e.code ? `Erro ao acessar o banco (código ${e.code}).` : "Erro ao acessar o banco.";
   }
 }

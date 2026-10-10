@@ -54,9 +54,10 @@ O maior módulo. Páginas em `src/pages/rh/` (~20), além de `folha/` e `curricu
   consignações, geração de CNAB e eventos eSocial. No detalhe da folha, a ficha de cada
   servidor (`FichaFinanceiraDialog`) permite, com a folha em `previa`/`aberta`/`reaberta` e a
   permissão `financeiro.folha.processar`: incluir/editar/excluir itens (`ItemFichaFormDialog`;
-  totais da ficha e da folha recalculados no front por `recalcularTotaisFicha`, INSS/IRRF só no
-  reprocessamento), cadastrar/suspender/retomar/quitar consignações do servidor com margem sobre
-  o líquido da ficha e "Lançar na ficha" como desconto (`ConsignacoesFichaTab`), e manter
+  totais da ficha = vencimento/INSS/IRRF gravados pela RPC + itens, e da folha = soma das fichas,
+  recalculados no front por `recalcularTotaisFicha`; INSS/IRRF só no reprocessamento),
+  cadastrar/suspender/retomar/quitar consignações do servidor com margem sobre o líquido da ficha
+  antes das consignações e "Lançar na ficha" como desconto (`ConsignacoesFichaTab`), e manter
   dependentes IRRF com badge de vigência na competência (`DependentesIRRFFichaTab`; inativar, sem
   excluir). Regras puras em `src/lib/folhaFichaRegras.ts`. `ProcessarFolhaDialog` avisa quantos
   itens serão apagados pelo reprocessamento (a RPC recria as fichas e não lança consignações).

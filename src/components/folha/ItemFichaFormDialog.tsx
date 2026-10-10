@@ -82,6 +82,14 @@ export function ItemFichaFormDialog({ open, onOpenChange, fichaId, item }: ItemF
     form.setValue("tipo", rubrica.tipo as TipoItemFicha, { shouldDirty: true });
   };
 
+  // Trocar o tipo à mão solta a rubrica de tipo diferente (item "provento" não pode apontar rubrica de desconto).
+  const aoEscolherTipo = (tipo: string) => {
+    form.setValue("tipo", tipo as TipoItemFicha, { shouldDirty: true });
+    const rubricaId = form.getValues("rubrica_id");
+    const rubrica = rubricasElegiveis.find((r) => r.id === rubricaId);
+    if (rubrica && rubrica.tipo !== tipo) form.setValue("rubrica_id", SEM_RUBRICA, { shouldDirty: true });
+  };
+
   const onSubmit = async (d: ItemFormValues) => {
     try {
       await salvar.mutateAsync({
@@ -164,14 +172,14 @@ export function ItemFichaFormDialog({ open, onOpenChange, fichaId, item }: ItemF
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="tipo"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tipo *</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select value={field.value} onValueChange={aoEscolherTipo}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue />
@@ -202,7 +210,7 @@ export function ItemFichaFormDialog({ open, onOpenChange, fichaId, item }: ItemF
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="referencia"

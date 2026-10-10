@@ -169,8 +169,15 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
   // O CHECK da tabela só admite provento|desconto — não há itens informativos/encargo.
   const proventos = itens?.filter(i => i.tipo === 'provento') || [];
   const descontos = itens?.filter(i => i.tipo === 'desconto') || [];
-  const competenciaAno = ficha.competencia_ano || ficha.folha?.competencia_ano || new Date().getFullYear();
-  const competenciaMes = ficha.competencia_mes || ficha.folha?.competencia_mes || 1;
+  // Sem competência (ficha e folha) não dá para avaliar margem nem vigência: as abas avisam em vez de chutar.
+  const competenciaAno = ficha.competencia_ano || ficha.folha?.competencia_ano || 0;
+  const competenciaMes = ficha.competencia_mes || ficha.folha?.competencia_mes || 0;
+  const temCompetencia = competenciaAno > 0 && competenciaMes > 0;
+  const motivoAbaIndisponivel = !ficha.servidor_id
+    ? 'Ficha sem servidor vinculado.'
+    : !temCompetencia
+      ? 'Ficha sem competência definida: margem e vigência não podem ser avaliadas.'
+      : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -192,7 +199,7 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
         </DialogHeader>
 
         <Tabs defaultValue="resumo" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5">
             <TabsTrigger value="resumo">Resumo</TabsTrigger>
             <TabsTrigger value="detalhes">Rubricas</TabsTrigger>
             <TabsTrigger value="tributos">Tributos</TabsTrigger>
@@ -416,7 +423,7 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
                             <TableRow key={item.id}>
                               <TableCell>{item.descricao}</TableCell>
                               <TableCell className="text-center">{item.referencia || '-'}</TableCell>
-                              <TableCell className="text-right font-mono text-red-600">{formatCurrency(Number(item.valor))}</TableCell>
+                              <TableCell className="text-right font-mono text-destructive">{formatCurrency(Number(item.valor))}</TableCell>
                               {podeEditar && (
                                 <TableCell className="text-center">
                                   <div className="flex items-center justify-center gap-1">
@@ -442,7 +449,7 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
 
           {/* Tab Consignações */}
           <TabsContent value="consignacoes">
-            {ficha.servidor_id ? (
+            {!motivoAbaIndisponivel ? (
               <ConsignacoesFichaTab
                 fichaId={ficha.id}
                 servidorId={ficha.servidor_id}
@@ -453,13 +460,13 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
                 podeEditar={podeEditar}
               />
             ) : (
-              <p className="text-sm text-muted-foreground py-6 text-center">Ficha sem servidor vinculado.</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">{motivoAbaIndisponivel}</p>
             )}
           </TabsContent>
 
           {/* Tab Dependentes IRRF */}
           <TabsContent value="dependentes">
-            {ficha.servidor_id ? (
+            {!motivoAbaIndisponivel ? (
               <DependentesIRRFFichaTab
                 servidorId={ficha.servidor_id}
                 competenciaAno={competenciaAno}
@@ -468,7 +475,7 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
                 podeEditar={podeEditar}
               />
             ) : (
-              <p className="text-sm text-muted-foreground py-6 text-center">Ficha sem servidor vinculado.</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">{motivoAbaIndisponivel}</p>
             )}
           </TabsContent>
 

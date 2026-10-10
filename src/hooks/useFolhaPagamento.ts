@@ -2,7 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
-import { calcularTotaisFicha, calcularTotaisFolha, descreverErroBanco, itemJaLancado, ORDEM_ITEM_MANUAL } from '@/lib/folhaFichaRegras';
+import {
+  calcularTotaisFicha,
+  calcularTotaisFolha,
+  descreverErroBanco,
+  folhaEditavel,
+  itemJaLancado,
+  motivoBloqueioEdicao,
+  ORDEM_ITEM_MANUAL,
+} from '@/lib/folhaFichaRegras';
 
 type RubricaInsert = Database['public']['Tables']['rubricas']['Insert'];
 type ParametroInsert = Database['public']['Tables']['parametros_folha']['Insert'];
@@ -379,32 +387,31 @@ function invalidarFichaEFolha(queryClient: ReturnType<typeof useQueryClient>, fi
 }
 
 /**
- * Recalcula os totais da ficha a partir dos itens e, em seguida, os da folha a partir das fichas.
- * Não é atômico e não recalcula INSS/IRRF (só o reprocessamento faz isso) — ver spec, premissa 4.
- * Em folha fechada o trigger `trg_bloquear_alteracao_ficha_fechada` recusa o UPDATE.
+ * Recalcula os totais da ficha (vencimento/INSS/IRRF gravados pela RPC + itens lançados) e, em
+ * seguida, os da folha a partir das fichas. Não é atômico e não recalcula INSS/IRRF (só o
+ * reprocessamento faz isso) — ver spec, premissa 4. Em folha fechada o trigger
+ * `trg_bloquear_alteracao_ficha_fechada` recusa o UPDATE.
  */
 export async function recalcularTotaisFicha(fichaId: string): Promise<void> {
-  const { data: itens, error: erroItens } = await supabase
-    .from('itens_ficha_financeira')
-    .select('tipo, valor')
-    .eq('ficha_id', fichaId);
-  if (erroItens) throw erroItens;
+  const { data: ficha, error: erroFicha } = await supabase
+    .from('fichas_financeiras')
+    .select('folha_id, cargo_vencimento, valor_inss, valor_irrf, itens:itens_ficha_financeira(tipo, valor, descricao, ordem)')
+    .eq('id', fichaId)
+    .single();
+  if (erroFicha) throw erroFicha;
 
-  const totais = calcularTotaisFicha(itens ?? []);
-  const { data: fichaAtualizada, error: erroFicha } = await supabase
+  const totais = calcularTotaisFicha(ficha, ficha.itens ?? []);
+  const { error: erroUpdate } = await supabase
     .from('fichas_financeiras')
     .update({
       total_proventos: totais.total_proventos,
       total_descontos: totais.total_descontos,
       valor_liquido: totais.valor_liquido,
-      base_consignavel: totais.valor_liquido,
     })
-    .eq('id', fichaId)
-    .select('folha_id')
-    .single();
-  if (erroFicha) throw erroFicha;
+    .eq('id', fichaId);
+  if (erroUpdate) throw erroUpdate;
 
-  const folhaId = fichaAtualizada?.folha_id;
+  const folhaId = ficha.folha_id;
   if (!folhaId) return;
 
   const { data: fichas, error: erroFichas } = await supabase
@@ -419,6 +426,42 @@ export async function recalcularTotaisFicha(fichaId: string): Promise<void> {
     .update(totaisFolha)
     .eq('id', folhaId);
   if (erroFolha) throw erroFolha;
+}
+
+/**
+ * Relê o status da folha antes de INSERIR item: o trigger do banco só barra UPDATE/DELETE em folha
+ * fechada, e o status visto na tela pode estar defasado (`staleTime`). Lança `Error` legível.
+ */
+async function garantirFolhaEditavel(fichaId: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('fichas_financeiras')
+    .select('folha:folhas_pagamento(status)')
+    .eq('id', fichaId)
+    .single();
+  if (error) throw error;
+  const status = (data?.folha as { status?: string | null } | null)?.status;
+  if (!folhaEditavel(status)) {
+    throw new Error(motivoBloqueioEdicao(status, true) ?? 'A folha não está em um status que permita edição.');
+  }
+}
+
+/**
+ * Após inserir um item, recalcula; se o recálculo falhar, tenta excluir o item recém-criado para
+ * não deixar ficha e folha divergentes (compensação best-effort, até a RPC atômica de 13b/M2).
+ */
+async function recalcularOuDesfazerInsercao(fichaId: string, itemId: string): Promise<void> {
+  try {
+    await recalcularTotaisFicha(fichaId);
+  } catch (erroRecalculo) {
+    const { error: erroDesfazer } = await supabase.from('itens_ficha_financeira').delete().eq('id', itemId);
+    if (erroDesfazer) {
+      throw new Error(
+        `O item foi gravado, mas os totais não foram recalculados (${descreverErroBanco(erroRecalculo)}). ` +
+          'Exclua o item ou reprocesse a folha para corrigir os totais.',
+      );
+    }
+    throw erroRecalculo;
+  }
 }
 
 export function useItensFichaFinanceira(fichaId?: string) {
@@ -467,8 +510,8 @@ export function useSaveItemFicha() {
   return useMutation({
     mutationFn: async (item: ItemFichaInput) => {
       const { id, ...rest } = item;
-      const payload: ItemFichaInsert = {
-        ficha_id: rest.ficha_id,
+      // Sem `ficha_id`: no UPDATE o item nunca muda de ficha (a de origem ficaria com totais velhos).
+      const campos: Omit<ItemFichaInsert, 'ficha_id'> = {
         rubrica_id: rest.rubrica_id ?? null,
         descricao: rest.descricao,
         tipo: rest.tipo,
@@ -480,14 +523,22 @@ export function useSaveItemFicha() {
       };
       if (id) {
         // `.single()` em 0 linhas vira PGRST116, traduzido em descreverErroBanco (RLS/registro inexistente).
-        const { data, error } = await supabase.from('itens_ficha_financeira').update(payload).eq('id', id).select().single();
+        const { data, error } = await supabase
+          .from('itens_ficha_financeira')
+          .update(campos)
+          .eq('id', id)
+          .eq('ficha_id', rest.ficha_id)
+          .select()
+          .single();
         if (error) throw error;
-        await recalcularTotaisFicha(item.ficha_id);
+        await recalcularTotaisFicha(rest.ficha_id);
         return data;
       }
+      await garantirFolhaEditavel(rest.ficha_id);
+      const payload: ItemFichaInsert = { ...campos, ficha_id: rest.ficha_id };
       const { data, error } = await supabase.from('itens_ficha_financeira').insert(payload).select().single();
       if (error) throw error;
-      await recalcularTotaisFicha(item.ficha_id);
+      await recalcularOuDesfazerInsercao(rest.ficha_id, data.id);
       return data;
     },
     onSuccess: () => { toast.success('Item salvo e totais da ficha recalculados.'); },
@@ -518,6 +569,7 @@ export function useDeleteItemFicha() {
 /**
  * "Lançar na ficha": cria um desconto com `referencia = numero_contrato` e `valor = valor_parcela`
  * da consignação, se ainda não houver item com a mesma referência (a RPC real não lança consignações).
+ * A checagem é ler-depois-inserir (sem índice único no banco até 13b): duas abas podem lançar duas vezes.
  */
 export function useLancarConsignacaoNaFicha() {
   const queryClient = useQueryClient();
@@ -529,13 +581,14 @@ export function useLancarConsignacaoNaFicha() {
       numero_contrato: string | null;
       valor_parcela: number;
     }) => {
+      await garantirFolhaEditavel(input.ficha_id);
       const { data: itens, error: erroItens } = await supabase
         .from('itens_ficha_financeira')
         .select('tipo, referencia')
         .eq('ficha_id', input.ficha_id);
       if (erroItens) throw erroItens;
       if (itemJaLancado(itens ?? [], input.numero_contrato)) {
-        throw new Error(`Já existe um desconto com a referência "${input.numero_contrato}" nesta ficha.`);
+        throw new Error('Já existe um desconto com a referência deste contrato nesta ficha.');
       }
       const payload: ItemFichaInsert = {
         ficha_id: input.ficha_id,
@@ -543,12 +596,12 @@ export function useLancarConsignacaoNaFicha() {
         descricao: input.descricao,
         tipo: 'desconto',
         referencia: input.numero_contrato,
-        valor: input.valor_parcela,
+        valor: Math.round(input.valor_parcela * 100) / 100,
         ordem: ORDEM_ITEM_MANUAL,
       };
       const { data, error } = await supabase.from('itens_ficha_financeira').insert(payload).select().single();
       if (error) throw error;
-      await recalcularTotaisFicha(input.ficha_id);
+      await recalcularOuDesfazerInsercao(input.ficha_id, data.id);
       return data;
     },
     onSuccess: () => { toast.success('Consignação lançada na ficha como desconto.'); },

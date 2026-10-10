@@ -21,13 +21,14 @@ import { isValidCPF } from "@/lib/formatters";
 import { TIPO_DEPENDENTE_LABELS } from "@/types/folha";
 
 const hoje = () => format(new Date(), "yyyy-MM-dd");
+const TIPOS_DEPENDENTE = Object.keys(TIPO_DEPENDENTE_LABELS) as [string, ...string[]];
 
 const schema = z
   .object({
     nome: z.string().trim().min(3, "Nome deve ter pelo menos 3 caracteres").max(200),
     cpf: z.string().trim().optional(),
     data_nascimento: z.string().min(1, "Informe a data de nascimento"),
-    tipo_dependente: z.string().min(1, "Informe o tipo"),
+    tipo_dependente: z.enum(TIPOS_DEPENDENTE, { errorMap: () => ({ message: "Informe o tipo" }) }),
     deduz_irrf: z.boolean(),
     data_inicio_deducao: z.string().min(1, "Informe o início da dedução"),
     data_fim_deducao: z.string().optional(),
@@ -135,7 +136,7 @@ export function DependenteIRRFFormDialog({ open, onOpenChange, servidorId, depen
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="cpf"
@@ -204,7 +205,7 @@ export function DependenteIRRFFormDialog({ open, onOpenChange, servidorId, depen
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="data_inicio_deducao"

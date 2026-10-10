@@ -1,7 +1,8 @@
 /**
  * Cadastro/edição de consignação do servidor (aba Consignações da ficha financeira).
- * Margem consignável calculada no front sobre o líquido da ficha (`avaliarMargem`);
- * exceder a margem não bloqueia, mas exige confirmação explícita.
+ * Margem consignável calculada no front sobre o líquido da ficha antes das consignações
+ * (`baseMargemConsignavel` + `avaliarMargem`); exceder a margem não bloqueia, mas exige
+ * confirmação explícita. Sem parâmetro de margem vigente, nada é exigido.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -19,19 +20,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, Loader2, Save } from "lucide-react";
 import { useRubricas, useSaveConsignacao, type ConsignacaoRow } from "@/hooks/useFolhaPagamento";
-import { avaliarMargem, type ConsignacaoParaMargem } from "@/lib/folhaFichaRegras";
-import { formatCurrency } from "@/lib/formatters";
+import { avaliarMargem, formatarPercentual, type ConsignacaoParaMargem } from "@/lib/folhaFichaRegras";
+import { formatCurrency, isValidCNPJ } from "@/lib/formatters";
 import { TIPO_CONSIGNACAO_LABELS } from "@/types/folha";
 
 const SEM_RUBRICA = "__sem_rubrica__";
 const COMPETENCIA_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+const TIPOS_CONSIGNACAO = Object.keys(TIPO_CONSIGNACAO_LABELS) as [string, ...string[]];
 
 const schema = z
   .object({
     consignataria_nome: z.string().trim().min(3, "Informe a consignatária (mínimo 3 caracteres)").max(200),
     consignataria_cnpj: z.string().trim().optional(),
     numero_contrato: z.string().trim().min(1, "Informe o número do contrato").max(50, "Máximo de 50 caracteres"),
-    tipo_consignacao: z.string().min(1, "Informe o tipo"),
+    tipo_consignacao: z.enum(TIPOS_CONSIGNACAO, { errorMap: () => ({ message: "Informe o tipo" }) }),
     valor_parcela: z.coerce.number({ invalid_type_error: "Informe o valor" }).positive("A parcela deve ser maior que zero"),
     total_parcelas: z.coerce.number({ invalid_type_error: "Informe o total" }).int("Informe um número inteiro").min(1, "Mínimo 1 parcela"),
     parcelas_pagas: z.coerce.number({ invalid_type_error: "Informe as pagas" }).int("Informe um número inteiro").min(0, "Não pode ser negativo"),
@@ -43,8 +45,8 @@ const schema = z
     observacoes: z.string().trim().optional(),
   })
   .superRefine((d, ctx) => {
-    if (d.consignataria_cnpj && d.consignataria_cnpj.replace(/\D/g, "").length !== 14) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["consignataria_cnpj"], message: "CNPJ deve ter 14 dígitos" });
+    if (d.consignataria_cnpj && !isValidCNPJ(d.consignataria_cnpj)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["consignataria_cnpj"], message: "CNPJ inválido" });
     }
     if (d.parcelas_pagas > d.total_parcelas) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["parcelas_pagas"], message: "Parcelas pagas não podem exceder o total" });
@@ -71,8 +73,8 @@ interface ConsignacaoFormDialogProps {
   servidorId: string;
   /** Registro em edição; ausente = criar. */
   consignacao?: ConsignacaoRow | null;
-  /** Líquido da ficha (base da margem) e percentual de margem vigente. */
-  valorLiquido: number | null | undefined;
+  /** Base da margem (líquido da ficha antes das consignações) e percentual de margem vigente. */
+  baseMargem: number | null | undefined;
   percentualMargem: number | null | undefined;
   /** Demais consignações do servidor, para a margem usada. */
   consignacoes: ConsignacaoParaMargem[];
@@ -83,7 +85,7 @@ export function ConsignacaoFormDialog({
   onOpenChange,
   servidorId,
   consignacao,
-  valorLiquido,
+  baseMargem,
   percentualMargem,
   consignacoes,
 }: ConsignacaoFormDialogProps) {
@@ -137,27 +139,31 @@ export function ConsignacaoFormDialog({
   const parcelasPagas = Number(form.watch("parcelas_pagas")) || 0;
 
   const margem = useMemo(
-    () => avaliarMargem(valorLiquido, percentualMargem, consignacoes, valorParcela, consignacao?.id),
-    [valorLiquido, percentualMargem, consignacoes, valorParcela, consignacao?.id],
+    () => avaliarMargem(baseMargem, percentualMargem, consignacoes, valorParcela, consignacao?.id),
+    [baseMargem, percentualMargem, consignacoes, valorParcela, consignacao?.id],
   );
-  const semParametroMargem = !percentualMargem;
+  const semParametroMargem = margem.semParametro;
 
   const onSubmit = async (d: ConsignacaoFormValues) => {
+    // `excede` já é falso sem parâmetro de margem; a confirmação só é exigida quando há o que confirmar.
     if (margem.excede && !confirmaExcesso) {
       form.setError("root", { message: "A parcela excede a margem disponível. Marque a confirmação para prosseguir." });
       return;
     }
-    const valorTotal = Math.round(d.valor_parcela * d.total_parcelas * 100) / 100;
-    const saldo = Math.round(d.valor_parcela * (d.total_parcelas - d.parcelas_pagas) * 100) / 100;
+    const valorParcelaArredondado = Math.round(d.valor_parcela * 100) / 100;
+    const valorTotal = Math.round(valorParcelaArredondado * d.total_parcelas * 100) / 100;
+    const saldo = Math.round(valorParcelaArredondado * (d.total_parcelas - d.parcelas_pagas) * 100) / 100;
+    const quitado = saldo <= 0;
     try {
       await salvar.mutateAsync({
         id: consignacao?.id,
         servidor_id: servidorId,
         consignataria_nome: d.consignataria_nome,
-        consignataria_cnpj: d.consignataria_cnpj ? d.consignataria_cnpj : null,
+        // CNPJ gravado só com dígitos (mesmo padrão do CPF do dependente).
+        consignataria_cnpj: d.consignataria_cnpj ? d.consignataria_cnpj.replace(/\D/g, "") : null,
         numero_contrato: d.numero_contrato,
         tipo_consignacao: d.tipo_consignacao,
-        valor_parcela: d.valor_parcela,
+        valor_parcela: valorParcelaArredondado,
         total_parcelas: d.total_parcelas,
         parcelas_pagas: d.parcelas_pagas,
         valor_total: valorTotal,
@@ -168,9 +174,10 @@ export function ConsignacaoFormDialog({
         competencia_fim: d.competencia_fim ? d.competencia_fim : null,
         rubrica_id: d.rubrica_id === SEM_RUBRICA ? null : d.rubrica_id,
         observacoes: d.observacoes ? d.observacoes : null,
-        // Saldo zerado quita automaticamente; demais flags só no criar (ações da aba cuidam da edição).
+        // Saldo zerado quita automaticamente (com data); demais flags só no criar (ações da aba cuidam da edição).
         ...(editando ? {} : { ativo: true, suspenso: false }),
-        quitado: saldo <= 0,
+        quitado,
+        ...(quitado && !consignacao?.quitado ? { data_quitacao: new Date().toISOString().slice(0, 10) } : {}),
       });
       onOpenChange(false);
     } catch {
@@ -187,7 +194,7 @@ export function ConsignacaoFormDialog({
           <DialogTitle>{editando ? "Editar consignação" : "Nova consignação"}</DialogTitle>
           <DialogDescription>
             Desconto autorizado em folha (empréstimo, plano de saúde, mensalidade etc.). A margem é calculada sobre o
-            líquido desta ficha.
+            líquido desta ficha antes das consignações.
           </DialogDescription>
         </DialogHeader>
 
@@ -198,7 +205,7 @@ export function ConsignacaoFormDialog({
             </span>
           ) : (
             <>
-              <span className="font-medium">Margem:</span> {formatCurrency(margem.margem)} ({percentualMargem}% de{" "}
+              <span className="font-medium">Margem:</span> {formatCurrency(margem.margem)} ({formatarPercentual(percentualMargem)}% de{" "}
               {formatCurrency(margem.base)}) · <span className="font-medium">usada:</span> {formatCurrency(margem.usada)} ·{" "}
               <span className="font-medium">disponível:</span>{" "}
               <span className={margem.disponivel < 0 ? "text-destructive font-semibold" : "font-semibold"}>
@@ -208,7 +215,7 @@ export function ConsignacaoFormDialog({
           )}
         </div>
 
-        {margem.excede && !semParametroMargem && (
+        {margem.excede && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Parcela acima da margem disponível</AlertTitle>
@@ -227,7 +234,7 @@ export function ConsignacaoFormDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="consignataria_nome"
@@ -256,7 +263,7 @@ export function ConsignacaoFormDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="numero_contrato"
@@ -295,7 +302,7 @@ export function ConsignacaoFormDialog({
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <FormField
                 control={form.control}
                 name="valor_parcela"
@@ -342,7 +349,7 @@ export function ConsignacaoFormDialog({
               devedor: <span className="font-medium text-foreground">{formatCurrency(valorParcela * Math.max(totalParcelas - parcelasPagas, 0))}</span>
             </p>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="data_inicio"
@@ -371,7 +378,7 @@ export function ConsignacaoFormDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="competencia_inicio"

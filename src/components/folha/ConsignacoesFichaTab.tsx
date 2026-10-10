@@ -1,6 +1,6 @@
 /**
  * Aba Consignações da ficha financeira: lista por servidor (filtro ativas/suspensas/quitadas),
- * margem consignável sobre o líquido da ficha, ações suspender/retomar/quitar e
+ * margem consignável sobre o líquido da ficha antes das consignações, ações suspender/retomar/quitar e
  * "Lançar na ficha" (cria item de desconto, pois a RPC real não lança consignações).
  */
 
@@ -34,6 +34,8 @@ import {
 import { useParametrosFolha } from "@/hooks/useFolhaCalculos";
 import {
   avaliarMargem,
+  baseMargemConsignavel,
+  formatarPercentual,
   itemJaLancado,
   situacaoConsignacao,
   ultimoDiaCompetencia,
@@ -93,9 +95,11 @@ export function ConsignacoesFichaTab({
   const salvar = useSaveConsignacao();
   const lancar = useLancarConsignacaoNaFicha();
 
-  const lista = consignacoes ?? [];
+  const lista = useMemo(() => consignacoes ?? [], [consignacoes]);
   const percentualMargem = parametros?.margem_consignavel_percentual;
-  const margem = useMemo(() => avaliarMargem(valorLiquido, percentualMargem, lista), [valorLiquido, percentualMargem, lista]);
+  // Base = líquido + parcelas já lançadas nesta ficha (senão contariam duas vezes: no líquido e em "usada").
+  const baseMargem = useMemo(() => baseMargemConsignavel(valorLiquido, itens, lista), [valorLiquido, itens, lista]);
+  const margem = useMemo(() => avaliarMargem(baseMargem, percentualMargem, lista), [baseMargem, percentualMargem, lista]);
 
   const filtradas = lista.filter((c) => filtro === "todas" || situacaoConsignacao(c) === filtro);
 
@@ -165,12 +169,13 @@ export function ConsignacoesFichaTab({
         <Info className="h-4 w-4" />
         <AlertDescription>
           O processamento da folha <strong>não</strong> lança consignações automaticamente. Use "Lançar na ficha" para
-          incluir a parcela como desconto. A margem abaixo usa o líquido desta ficha
-          {percentualMargem ? ` e ${percentualMargem}% de margem` : " (parâmetro de margem não encontrado)"}.
+          incluir a parcela como desconto. A margem abaixo usa o líquido desta ficha antes das consignações (
+          {formatCurrency(margem.base)})
+          {margem.semParametro ? " — parâmetro de margem não encontrado para a competência" : ` e ${formatarPercentual(percentualMargem)}% de margem`}.
         </AlertDescription>
       </Alert>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">Margem consignável</CardTitle>
@@ -309,7 +314,7 @@ export function ConsignacoesFichaTab({
         onOpenChange={setFormAberto}
         servidorId={servidorId}
         consignacao={emEdicao}
-        valorLiquido={valorLiquido}
+        baseMargem={baseMargem}
         percentualMargem={percentualMargem}
         consignacoes={lista}
       />

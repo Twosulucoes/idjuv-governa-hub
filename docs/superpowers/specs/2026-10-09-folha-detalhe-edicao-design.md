@@ -15,18 +15,28 @@
 3. **Edição só com a folha em `previa`, `aberta` ou `reaberta`** (`ficha.folha.status`). `fechada` e
    `processando` são somente leitura. No banco, os triggers `trg_bloquear_*_ficha_fechada` barram UPDATE/DELETE
    em folha fechada, mas **não INSERT** — o front é a única barreira para inserir item em folha fechada (13b/M2).
-4. **Totais recalculados no front** após incluir/editar/excluir item: soma dos itens → `fichas_financeiras`
-   (`total_proventos`, `total_descontos`, `valor_liquido`) → `folhas_pagamento` (somas das fichas). Não é
-   atômico e **não recalcula INSS/IRRF** (só o reprocessamento faz isso); a tela avisa.
+4. **Totais recalculados no front** após incluir/editar/excluir item. A RPC atual **não cria item nenhum**: grava
+   `total_proventos = cargo_vencimento` e `total_descontos = valor_inss + valor_irrf` direto na ficha. Por isso o
+   recálculo (`calcularTotaisFicha`) é `total_proventos = cargo_vencimento + Σ itens provento`,
+   `total_descontos = valor_inss + valor_irrf + Σ itens desconto`, `valor_liquido = proventos − descontos` →
+   `folhas_pagamento` (somas das fichas). Itens herdados da RPC antiga (migração 20260112175202: "Vencimento
+   Base"/"INSS"/"IRRF" com `ordem` 1/100/101) são ignorados para não somar duas vezes (`itemAutomaticoLegado`).
+   `base_consignavel` não é tocado (a RPC também não preenche). Não é atômico (se o recálculo falhar após um
+   INSERT, o front tenta excluir o item recém-criado) e **não recalcula INSS/IRRF** (só o reprocessamento faz
+   isso); a tela avisa. Antes de INSERIR item, o status da folha é relido no banco (o trigger não barra INSERT).
 5. **Reprocessar apaga itens manuais** (`processar_folha_pagamento` faz `DELETE` das fichas, cascata nos itens;
    não há coluna `origem`). `ProcessarFolhaDialog` passa a contar e avisar. Preservar itens exige 13b/M3.
 6. **Consignações e dependentes IRRF ficam na ficha** (abas do `FichaFinanceiraDialog`, por `servidor_id`),
    porque o item fala do detalhe da folha; o cadastro do servidor pode ganhar atalho depois.
-7. **Margem consignável no front**: `calcularMargemConsignavel(ficha.valor_liquido, margem%)`
-   (`src/lib/folhaCalculos.ts`, `useParametrosFolha`). Exceder a margem exige confirmação explícita (não bloqueia:
-   a RPC `fn_validar_margem_consignavel` usa outra base, `servidores.remuneracao_bruta`).
+7. **Margem consignável no front**: `calcularMargemConsignavel(base, margem%)` (`src/lib/folhaCalculos.ts`,
+   `useParametrosFolha`), com `base = ficha.valor_liquido + Σ descontos da ficha cuja referência é o contrato de
+   uma consignação do servidor` (`baseMargemConsignavel`): o líquido já desconta as parcelas lançadas, e elas
+   contam em "usada" — sem devolvê-las à base, "Disponível" cairia duas vezes. Exceder a margem exige confirmação
+   explícita (não bloqueia: a RPC `fn_validar_margem_consignavel` usa outra base, `servidores.remuneracao_bruta`).
+   Sem parâmetro `margem_consignavel` vigente, a margem não é avaliada e nada é exigido.
 8. **A RPC real não lança consignações nem itens** (regressão desde 2026-01-12). Por isso a aba de consignações
-   tem "Lançar na ficha", que cria um item `desconto` na ficha aberta. Dependente editado só reflete no IRRF ao
+   tem "Lançar na ficha", que cria um item `desconto` na ficha aberta. A duplicidade é checada ler-depois-inserir
+   (sem índice único no banco): duas abas/usuários podem lançar o mesmo contrato duas vezes — índice em 13b. Dependente editado só reflete no IRRF ao
    reprocessar; a aba compara `ficha.quantidade_dependentes` com os vigentes e avisa.
 
 ## O que já existe (evidência)

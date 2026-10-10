@@ -140,7 +140,8 @@ não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos 
 
 - No detalhe da folha (`/folha/:id` → `FichaFinanceiraDialog`), incluir/editar/excluir itens da
   ficha, cadastrar/suspender/quitar/lançar consignações e manter dependentes IRRF exige
-  `financeiro.folha.processar` (catálogo do módulo `financeiro`; admin passa por cima) **e** folha em
+  `financeiro.folha.processar` (catálogo do módulo `financeiro`; concedida a `admin` e `manager` em
+  `role_permissions`, e super admin passa por cima) **e** folha em
   `previa`, `aberta` ou `reaberta` (`podeEditarFicha`, `src/lib/folhaFichaRegras.ts`). Sem isso os
   botões não aparecem e o diálogo marca "Somente leitura". A rota `/folha/:id` continua
   `<ProtectedRoute>` sem permissão (mudar guard de rota aguarda confirmação).
@@ -148,13 +149,20 @@ não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos 
   `folhas_pagamento`, `consignacoes` e `dependentes_irrf` libera escrita a qualquer usuário com o
   módulo `rh` (`can_access_module('rh')`), sem checar `financeiro.folha.processar`. No banco, os
   triggers `trg_bloquear_alteracao_item_ficha_fechada`/`trg_bloquear_alteracao_ficha_fechada` barram
-  UPDATE/DELETE com a folha `fechada`, mas **não INSERT** em `itens_ficha_financeira`; a tela é a
-  única barreira contra inserir item em folha fechada. O recálculo de totais (ficha → folha) é feito
-  pelo cliente em três comandos, não atômico. Pendências para a migração 13b (Onda B): trigger
-  BEFORE INSERT e RPC `recalcular_ficha_financeira` (M2), policies por permissão (M4), auditoria (M5)
-  — ver `superpowers/specs/2026-10-09-folha-detalhe-edicao-design.md`.
-- Erros do banco (RLS 42501, trigger P0001, CHECK 23514, "0 linhas" PGRST116) chegam ao usuário em
-  toast legível via `descreverErroBanco`; nada é engolido.
+  UPDATE/DELETE com a folha `fechada` (com exceção para admin), mas **não INSERT** em
+  `itens_ficha_financeira` nem em `fichas_financeiras`; o front relê o status da folha antes de
+  inserir, mas quem tem o módulo `rh` consegue, pela API, inserir item em folha fechada ou mudar o
+  próprio `folhas_pagamento.status` por UPDATE direto (e aí os triggers deixam de valer). O recálculo
+  de totais (ficha → folha) é feito pelo cliente em quatro comandos, não atômico (após um INSERT, se
+  o recálculo falhar o front tenta excluir o item). A duplicidade de "Lançar na ficha" é checada só
+  no cliente (sem índice único). Pendências para a migração 13b (Onda B): trigger BEFORE INSERT e RPC
+  `recalcular_ficha_financeira` (M2), índice único parcial `(ficha_id, lower(referencia))` para
+  descontos com referência, policies por permissão (M4), auditoria (M5) — ver
+  `superpowers/specs/2026-10-09-folha-detalhe-edicao-design.md`.
+- Erros do banco (RLS 42501, trigger P0001, CHECK 23514, duplicidade 23505, obrigatório 23502,
+  "0 linhas" PGRST116) chegam ao usuário em toast legível via `descreverErroBanco`. Só o texto do
+  `RAISE` dos triggers (P0001) é repassado; os demais viram mensagem fixa com o código, sem nome de
+  tabela/constraint nem o `DETAIL` do Postgres (que em CHECK traz a linha inteira, com dados pessoais).
 
 ### Importação de dados
 
