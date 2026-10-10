@@ -14,10 +14,44 @@ import {
   type IdentidadeEmail,
 } from "../_shared/envio/index.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// CORS com allowlist por ambiente (mesmo padrão de admin-create-user/delete-user).
+const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+function buildCors(req: Request) {
+  const origin = req.headers.get("Origin") ?? "";
+  const allowOrigin = ALLOWED_ORIGINS.length === 0
+    ? "*"
+    : ALLOWED_ORIGINS.includes(origin)
+      ? origin
+      : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Vary": "Origin",
+  };
+}
+
+// Limites contra uso do convite como disparador de mensagens em nome do órgão (phishing/spam):
+// participantes por chamada, convites por usuário por hora, tamanho do texto livre e nenhum link
+// além do link da própria reunião.
+const MAX_PARTICIPANTES_POR_ENVIO = 50;
+const MAX_CONVITES_POR_HORA = 200;
+const MAX_MENSAGEM = 2000;
+const MAX_ASSINATURA = 200;
+const PADRAO_LINK = /\b(?:https?:\/\/|www\.)[^\s<>"']+/gi;
+
+/** Links do texto que não são o link da reunião (o texto vem de quem dispara, não do órgão). */
+function linksNaoPermitidos(texto: string | null | undefined, linkReuniao: string | null | undefined): string[] {
+  if (!texto) return [];
+  const permitido = (linkReuniao ?? "").trim().replace(/\/+$/, "").toLowerCase();
+  return (texto.match(PADRAO_LINK) ?? []).filter((url) => {
+    const limpo = url.replace(/[.,;:!?)\]]+$/, "").replace(/\/+$/, "").toLowerCase();
+    return !permitido || limpo !== permitido;
+  });
+}
 
 interface EnviarConviteRequest {
   reuniao_id: string;
@@ -209,6 +243,8 @@ function gerarHtmlEmail(corpo: string, reuniao: Reuniao, identidade: IdentidadeE
 const handler = async (req: Request): Promise<Response> => {
   console.log("Edge function enviar-convite-reuniao chamada");
   
+  const corsHeaders = buildCors(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -274,6 +310,26 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
+    const erroPedido = (mensagem: string, status = 400) =>
+      new Response(JSON.stringify({ error: mensagem }), {
+        status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
+    if (!Array.isArray(participante_ids) || participante_ids.length > MAX_PARTICIPANTES_POR_ENVIO) {
+      return erroPedido(`Envie no máximo ${MAX_PARTICIPANTES_POR_ENVIO} convites por vez.`);
+    }
+    if (canal !== "email" && canal !== "whatsapp") {
+      return erroPedido("Canal inválido");
+    }
+    if (mensagem_personalizada && (typeof mensagem_personalizada !== "string" || mensagem_personalizada.length > MAX_MENSAGEM)) {
+      return erroPedido(`A mensagem pode ter no máximo ${MAX_MENSAGEM} caracteres.`);
+    }
+    const camposAssinatura = assinatura ? [assinatura.nome, assinatura.cargo, assinatura.setor] : [];
+    if (camposAssinatura.some((c) => c !== undefined && c !== null && (typeof c !== "string" || c.length > MAX_ASSINATURA))) {
+      return erroPedido("Assinatura inválida");
+    }
+
     const { data: isAdmin, error: isAdminError } = await admin.rpc("is_admin_user", {
       _user_id: userData.user.id,
     });
@@ -305,6 +361,21 @@ const handler = async (req: Request): Promise<Response> => {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Limite por usuário na última hora (marcado em participantes_reuniao a cada convite enviado).
+    const umaHoraAtras = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: enviadosNaHora, error: contagemError } = await admin
+      .from("participantes_reuniao")
+      .select("id", { count: "exact", head: true })
+      .eq("convite_enviado_por", userData.user.id)
+      .gte("convite_enviado_em", umaHoraAtras);
+    if (contagemError) {
+      console.error("Erro ao contar convites:", contagemError);
+      return erroPedido("Falha ao verificar o limite de envio", 500);
+    }
+    if ((enviadosNaHora ?? 0) + participante_ids.length > MAX_CONVITES_POR_HORA) {
+      return erroPedido(`Limite de ${MAX_CONVITES_POR_HORA} convites por hora atingido. Tente mais tarde.`, 429);
     }
 
     // Buscar participantes (restrito à reunião informada)
@@ -362,6 +433,13 @@ Atenciosamente,`;
 
     const assuntoFinal = modelo?.assunto || assuntoPadrao;
     const corpoFinal = mensagem_personalizada || modelo?.conteudo_html || corpoPadrao;
+
+    // O texto sai com a identidade do órgão: só o link da reunião pode aparecer nele.
+    const linksProibidos = [assuntoFinal, corpoFinal, ...camposAssinatura]
+      .flatMap((t) => linksNaoPermitidos(t, reuniao.link_virtual));
+    if (linksProibidos.length > 0) {
+      return erroPedido("A mensagem não pode conter links além do link da reunião (cadastre-o no campo de link da reunião).");
+    }
 
     // Configuração da instância (e-mail/WhatsApp) e identidade visual, carregadas uma vez.
     const cfgEmail = canal === "email" ? await carregarConfigEnvio(admin, "email") : null;
@@ -487,8 +565,8 @@ Atenciosamente,`;
   } catch (error: any) {
     console.error("Erro geral:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: "Erro ao enviar convites" }),
+      { status: 500, headers: { ...buildCors(req), "Content-Type": "application/json" } }
     );
   }
 };

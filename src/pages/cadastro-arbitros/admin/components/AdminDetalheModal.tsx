@@ -8,6 +8,7 @@ import type { ArbitroCadastro } from "../arbitrosAdminService";
 import { updateModalidadeStatus } from "../arbitrosAdminService";
 import { toast } from "sonner";
 import { useState } from "react";
+import { ImagemArbitro, LinkArquivoArbitro } from "../../ArquivoArbitro";
 
 interface Props {
   arbitro: ArbitroCadastro;
@@ -79,7 +80,7 @@ export function AdminDetalheModal({ arbitro, onClose, onChangeStatus, onEdit, on
           {/* Foto */}
           {arbitro.foto_url && (
             <div className="flex justify-center">
-              <img src={arbitro.foto_url} alt="Foto" className="w-24 h-24 rounded-lg object-cover border" />
+              <ImagemArbitro referencia={arbitro.foto_url} className="w-24 h-24 rounded-lg object-cover border" />
             </div>
           )}
 
@@ -141,9 +142,9 @@ export function AdminDetalheModal({ arbitro, onClose, onChangeStatus, onEdit, on
                       {mod.documentos_urls.length > 0 && (
                         <div className="flex flex-wrap gap-1">
                           {mod.documentos_urls.map((url, i) => (
-                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">
+                            <LinkArquivoArbitro key={i} referencia={url} className="text-xs text-primary underline">
                               Doc {i + 1}
-                            </a>
+                            </LinkArquivoArbitro>
                           ))}
                         </div>
                       )}
@@ -211,9 +212,9 @@ export function AdminDetalheModal({ arbitro, onClose, onChangeStatus, onEdit, on
                 <h4 className="text-sm font-medium mb-2">Documentos Gerais Anexos</h4>
                 <div className="flex flex-wrap gap-2">
                   {(arbitro.documentos_urls as string[]).map((url, i) => (
-                    <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">
+                    <LinkArquivoArbitro key={i} referencia={url} className="text-xs text-primary underline">
                       Documento {i + 1}
-                    </a>
+                    </LinkArquivoArbitro>
                   ))}
                 </div>
               </div>

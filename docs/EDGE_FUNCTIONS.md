@@ -59,9 +59,25 @@ As três exigem o **papel** `admin` (`is_admin_user`, que também exige perfil a
 `admin.usuarios`: o papel `user` recebe essa permissão quando tem o módulo `admin`, e com ela
 `admin-create-user` devolvia o UUID de qualquer e-mail (e reativava o perfil), `admin-reset-password` devolvia uma
 senha temporária e `delete-user` apagava a conta de qualquer não-administrador. A senha temporária sai de
-`crypto.getRandomValues`. `delete-user` continua protegendo o UUID fixo do super admin do cliente antigo
-(`PROTECTED_SUPER_ADMIN_ID`), que não existe num banco novo: o último administrador de um banco novo só é protegido
-por não poder excluir a si mesmo.
+`crypto.getRandomValues`. Desde a Onda 2 da revisão de permissões (10/10/2026), um administrador não redefine a
+senha de **outro** administrador (só a recuperação por e-mail, que chega ao dono) nem exclui um administrador
+(`delete-user` recusa qualquer alvo com o papel `admin`; para excluir, tira-se o papel antes, o que fica na
+trilha de `user_roles`). Todo reset de senha grava `audit_logs` (`password_reset`, quem fez e para quem, nunca a senha).
+`database-schema` também passou a exigir o papel `admin` (antes bastava `admin.usuarios`).
+
+### Assistente de IA (`cpsi-ai-assistant`)
+
+Exige sessão, o módulo `compras` e respeita limites: 4.000 caracteres por campo, 30.000 no pedido inteiro,
+8.192 tokens de resposta e 30 chamadas por usuário por hora. Cada chamada grava uma linha em `audit_logs`
+(`entity_type = 'cpsi_ia'`), que também é o contador do limite. Erros internos não vão para o navegador.
+
+### Convite de reunião (`enviar-convite-reuniao`)
+
+Só o criador da reunião ou um administrador envia. Limites contra uso como disparador de mensagens com a marca
+do órgão: 50 participantes por chamada, 200 convites por usuário por hora, mensagem livre de até 2.000
+caracteres e nenhum link no assunto, na mensagem ou na assinatura além do link da própria reunião. CORS por
+`ALLOWED_ORIGINS`, como as demais. Pendente (modelo novo): o módulo `gabinete` ainda pode trocar o `created_by`
+de uma reunião pela API, e o link da reunião é livre.
 
 `backup-offsite`: só o token **igual** à `SUPABASE_SERVICE_ROLE_KEY` vale como chamada de cron (antes decodificava o
 JWT sem validar a assinatura) e o usuário com papel precisa ter o perfil ativo.

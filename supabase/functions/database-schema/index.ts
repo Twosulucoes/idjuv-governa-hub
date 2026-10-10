@@ -237,8 +237,9 @@ Deno.serve(async (req) => {
     // Esta função expõe o schema completo do banco (tabelas, colunas, FKs,
     // contagem de linhas) usando a service role — é uma ferramenta de admin
     // (src/pages/admin/DatabaseSchemaPage.tsx), não um endpoint de leitura
-    // geral. Exige sessão válida + permissão admin.usuarios, no mesmo padrão
-    // adotado em admin-create-user/delete-user (docs/AUDITORIA_USUARIOS.md, A2).
+    // geral. Exige sessão válida + papel de administrador (is_admin_user), como
+    // admin-create-user/delete-user: a permissão admin.usuarios pode vir de módulo
+    // concedido ao papel `user` e não basta para ver a estrutura inteira do banco.
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
@@ -266,8 +267,8 @@ Deno.serve(async (req) => {
     }
 
     const { data: temPermissao, error: permError } = await supabaseUser.rpc(
-      "usuario_tem_permissao",
-      { _user_id: caller.id, _codigo_funcao: "admin.usuarios" }
+      "is_admin_user",
+      { _user_id: caller.id }
     );
 
     if (permError) {
@@ -278,7 +279,7 @@ Deno.serve(async (req) => {
     }
 
     if (!temPermissao) {
-      return new Response(JSON.stringify({ error: "Acesso negado. Requer permissão admin.usuarios." }), {
+      return new Response(JSON.stringify({ error: "Acesso negado. Requer papel de administrador." }), {
         status: 403,
         headers: { ...cors, "Content-Type": "application/json" },
       });

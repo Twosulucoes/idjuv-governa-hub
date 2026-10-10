@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MODALIDADES_ESPORTIVAS } from '../modalidadesEsportivas';
 import type { ArbitroFormData, ModalidadeEntry } from '../CadastroArbitroPage';
+import { referenciaArquivoArbitro } from '@/hooks/useArquivoArbitro';
 
 interface Props {
   data: ArbitroFormData;
@@ -57,8 +58,7 @@ export function StepModalidades({ data, update }: Props) {
         toast.error('Erro no upload: ' + error.message);
         continue;
       }
-      const { data: urlData } = supabase.storage.from('arbitros-docs').getPublicUrl(path);
-      newUrls.push(urlData.publicUrl);
+      newUrls.push(referenciaArquivoArbitro(path));
     }
     
     updateModalidade(index, 'documentos_urls', newUrls);
