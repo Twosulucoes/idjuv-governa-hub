@@ -1385,20 +1385,24 @@ DROP POLICY IF EXISTS "rls_delete" ON public.documentos_processo;
 CREATE POLICY "rls_delete" ON public.documentos_processo FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'workflow')));
 
--- documentos_requerimento_servidor  [proprio: rh]
+-- documentos_requerimento_servidor  [permissao: rh]
+DROP POLICY IF EXISTS "Authenticated users can view" ON public.documentos_requerimento_servidor;
+DROP POLICY IF EXISTS "Only creator or admin can delete" ON public.documentos_requerimento_servidor;
+DROP POLICY IF EXISTS "RH users can insert" ON public.documentos_requerimento_servidor;
+DROP POLICY IF EXISTS "RH users can update" ON public.documentos_requerimento_servidor;
 DROP POLICY IF EXISTS "rls_select" ON public.documentos_requerimento_servidor;
 CREATE POLICY "rls_select" ON public.documentos_requerimento_servidor FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')) OR servidor_id = public.meu_servidor_id());
 DROP POLICY IF EXISTS "rls_insert" ON public.documentos_requerimento_servidor;
 CREATE POLICY "rls_insert" ON public.documentos_requerimento_servidor FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) OR servidor_id = public.meu_servidor_id());
+  WITH CHECK (((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.servidores.editar')) OR servidor_id = public.meu_servidor_id());
 DROP POLICY IF EXISTS "rls_update" ON public.documentos_requerimento_servidor;
 CREATE POLICY "rls_update" ON public.documentos_requerimento_servidor FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.servidores.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.servidores.editar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.documentos_requerimento_servidor;
 CREATE POLICY "rls_delete" ON public.documentos_requerimento_servidor FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.servidores.editar'));
 
 -- dotacoes_orcamentarias  [modulo: financeiro]
 DROP POLICY IF EXISTS "fin_module_delete" ON public.dotacoes_orcamentarias;
@@ -2104,20 +2108,22 @@ CREATE POLICY "rls_delete" ON public.fornecedores FOR DELETE TO authenticated
 -- fotos_vistoria_inventario  [preservar: patrimonio | patrimonio_mobile]
 -- (nenhuma policy gerada)
 
--- frequencia_arquivos  [modulo: rh]
+-- frequencia_arquivos  [permissao: rh]
+DROP POLICY IF EXISTS "Usuários autenticados podem inserir arquivos" ON public.frequencia_arquivos;
+DROP POLICY IF EXISTS "Usuários autenticados podem visualizar arquivos" ON public.frequencia_arquivos;
 DROP POLICY IF EXISTS "rls_select" ON public.frequencia_arquivos;
 CREATE POLICY "rls_select" ON public.frequencia_arquivos FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')));
+  USING ((public.can_access_module(auth.uid(), 'rh')) OR servidor_id = public.meu_servidor_id());
 DROP POLICY IF EXISTS "rls_insert" ON public.frequencia_arquivos;
 CREATE POLICY "rls_insert" ON public.frequencia_arquivos FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar')));
 DROP POLICY IF EXISTS "rls_update" ON public.frequencia_arquivos;
 CREATE POLICY "rls_update" ON public.frequencia_arquivos FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar')));
 DROP POLICY IF EXISTS "rls_delete" ON public.frequencia_arquivos;
 CREATE POLICY "rls_delete" ON public.frequencia_arquivos FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar')));
 
 -- frequencia_fechamento  [permissao: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.frequencia_fechamento;
@@ -2149,20 +2155,24 @@ DROP POLICY IF EXISTS "rls_delete" ON public.frequencia_mensal;
 CREATE POLICY "rls_delete" ON public.frequencia_mensal FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar')) AND (public.is_admin_user(auth.uid()) OR NOT public.eh_meu_servidor(servidor_id)));
 
--- frequencia_pacotes  [modulo: rh]
+-- frequencia_pacotes  [permissao: rh]
+DROP POLICY IF EXISTS "frequencia_pacotes_update_rh" ON public.frequencia_pacotes;
+DROP POLICY IF EXISTS "Usuários autenticados podem atualizar pacotes" ON public.frequencia_pacotes;
+DROP POLICY IF EXISTS "Usuários autenticados podem inserir pacotes" ON public.frequencia_pacotes;
+DROP POLICY IF EXISTS "Usuários autenticados podem visualizar pacotes" ON public.frequencia_pacotes;
 DROP POLICY IF EXISTS "rls_select" ON public.frequencia_pacotes;
 CREATE POLICY "rls_select" ON public.frequencia_pacotes FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 DROP POLICY IF EXISTS "rls_insert" ON public.frequencia_pacotes;
 CREATE POLICY "rls_insert" ON public.frequencia_pacotes FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar')));
 DROP POLICY IF EXISTS "rls_update" ON public.frequencia_pacotes;
 CREATE POLICY "rls_update" ON public.frequencia_pacotes FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar')));
 DROP POLICY IF EXISTS "rls_delete" ON public.frequencia_pacotes;
 CREATE POLICY "rls_delete" ON public.frequencia_pacotes FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar')));
 
 -- galeria_eventos_esportivos  [modulo: comunicacao]
 DROP POLICY IF EXISTS "rls_select" ON public.galeria_eventos_esportivos;

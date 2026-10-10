@@ -87,6 +87,12 @@ DO $$ BEGIN
     REVOKE EXECUTE ON FUNCTION public.servidores_proteger_cpf() FROM authenticated;
   END IF;
 END $$;
+-- ajudantes das policies de storage do RH (migração 20261010180000, B3; definidos no overlay/10): só authenticated
+-- executa (as policies os chamam como o usuário; a service role não passa por RLS). O dump não leva o REVOKE.
+REVOKE EXECUTE ON FUNCTION public.eh_meu_arquivo_frequencia(text) FROM PUBLIC, anon, service_role;
+REVOKE EXECUTE ON FUNCTION public.eh_minha_pasta_servidor(text) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.eh_meu_arquivo_frequencia(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.eh_minha_pasta_servidor(text) TO authenticated;
 REVOKE EXECUTE ON FUNCTION public.config_envio_servidor(text) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.config_envio_servidor(text) TO service_role;
 REVOKE ALL ON public.avisos_leituras FROM anon, authenticated;

@@ -2274,6 +2274,25 @@ $$;
 
 
 --
+-- Name: consultar_gestor_por_cpf(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.consultar_gestor_por_cpf(p_cpf text) RETURNS jsonb
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT jsonb_build_object(
+           'id', g.id, 'nome', g.nome, 'status', g.status,
+           'escola', jsonb_build_object('id', e.id, 'nome', e.nome))
+  FROM public.gestores_escolares g
+  LEFT JOIN public.escolas_jer e ON e.id = g.escola_id
+  WHERE length(regexp_replace(coalesce(p_cpf, ''), '\D', '', 'g')) = 11
+    AND regexp_replace(coalesce(g.cpf, ''), '\D', '', 'g') = regexp_replace(p_cpf, '\D', '', 'g')
+  LIMIT 1;
+$$;
+
+
+--
 -- Name: consultar_protocolo_sic(character varying, uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2360,6 +2379,25 @@ $$;
 
 
 --
+-- Name: eh_meu_arquivo_frequencia(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.eh_meu_arquivo_frequencia(_path text) RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT auth.uid() IS NOT NULL
+     AND _path IS NOT NULL
+     AND public.is_active_user()
+     AND EXISTS (
+       SELECT 1
+         FROM public.frequencia_arquivos fa
+        WHERE fa.arquivo_path = _path
+          AND fa.servidor_id = public.meu_servidor_id());
+$$;
+
+
+--
 -- Name: eh_meu_servidor(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2390,6 +2428,30 @@ BEGIN
        AND lpad(regexp_replace(s.cpf, '[^0-9]', '', 'g'), 11, '0') = lpad(v_cpf, 11, '0'));
 END;
 $$;
+
+
+--
+-- Name: eh_minha_pasta_servidor(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.eh_minha_pasta_servidor(_name text) RETURNS boolean
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_pasta text;
+BEGIN
+  IF _name IS NULL OR auth.uid() IS NULL OR NOT public.is_active_user() THEN
+    RETURN false;
+  END IF;
+  v_pasta := (storage.foldername(_name))[1];
+  IF v_pasta IS NULL
+     OR v_pasta !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+    RETURN false;
+  END IF;
+  RETURN coalesce(v_pasta::uuid = public.meu_servidor_id(), false);
+END;
+$_$;
 
 
 --
@@ -3749,30 +3811,33 @@ CREATE FUNCTION public.fn_gerar_numero_financeiro(p_tipo character varying, p_ex
     SET search_path TO 'public'
     AS $_$
 DECLARE
-  v_prefixo VARCHAR;
-  v_ultimo INTEGER;
-  v_numero VARCHAR;
+  v_prefixo text;
+  v_tabela  text;
+  v_ultimo  integer;
 BEGIN
-  v_prefixo := CASE p_tipo
-    WHEN 'solicitacao' THEN 'SOL'
-    WHEN 'empenho' THEN 'NE'
-    WHEN 'liquidacao' THEN 'NL'
-    WHEN 'pagamento' THEN 'OP'
-    WHEN 'receita' THEN 'REC'
-    WHEN 'adiantamento' THEN 'ADI'
-    WHEN 'alteracao' THEN 'ALT'
-    ELSE 'DOC'
-  END;
-  
-  -- Buscar último número do tipo/exercício
+  SELECT t.prefixo, t.tabela INTO v_prefixo, v_tabela
+  FROM (VALUES
+    ('solicitacao', 'SOL', 'fin_solicitacoes'),
+    ('empenho',     'NE',  'fin_empenhos'),
+    ('liquidacao',  'NL',  'fin_liquidacoes'),
+    ('pagamento',   'OP',  'fin_pagamentos'),
+    ('receita',     'REC', 'fin_receitas'),
+    ('adiantamento','ADI', 'fin_adiantamentos'),
+    ('alteracao',   'ALT', 'fin_alteracoes_orcamentarias')
+  ) AS t(tipo, prefixo, tabela)
+  WHERE t.tipo = p_tipo;
+
+  IF v_prefixo IS NULL THEN
+    RAISE EXCEPTION 'Tipo de documento financeiro inválido: %', left(coalesce(p_tipo, ''), 40)
+      USING ERRCODE = '22023';
+  END IF;
+
   EXECUTE format(
-    'SELECT COALESCE(MAX(NULLIF(regexp_replace(numero, ''^%s-'', ''''), '''')::INTEGER), 0) + 1 FROM fin_%ss WHERE exercicio = $1',
-    v_prefixo, p_tipo
+    'SELECT COALESCE(MAX(NULLIF(regexp_replace(numero, %L, %L), %L)::integer), 0) + 1 FROM public.%I WHERE exercicio = $1',
+    '^' || v_prefixo || '-', '', '', v_tabela
   ) INTO v_ultimo USING p_exercicio;
-  
-  v_numero := v_prefixo || '-' || LPAD(COALESCE(v_ultimo, 1)::TEXT, 6, '0');
-  
-  RETURN v_numero;
+
+  RETURN v_prefixo || '-' || LPAD(COALESCE(v_ultimo, 1)::text, 6, '0');
 END;
 $_$;
 
@@ -6566,6 +6631,28 @@ BEGIN
   END;
 
   RETURN _protocolo;
+END;
+$$;
+
+
+--
+-- Name: registrar_gestor_publico(uuid, text, text, text, date, text, text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.registrar_gestor_publico(p_escola_id uuid, p_nome text, p_cpf text, p_rg text, p_data_nascimento date, p_email text, p_celular text, p_endereco text) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_id uuid;
+BEGIN
+  INSERT INTO public.gestores_escolares (escola_id, nome, cpf, rg, data_nascimento, email, celular, endereco, status)
+  VALUES (p_escola_id, p_nome, p_cpf, p_rg, p_data_nascimento, p_email, p_celular, p_endereco, 'aguardando')
+  RETURNING id INTO v_id;
+  RETURN (SELECT jsonb_build_object('id', g.id, 'nome', g.nome, 'status', g.status,
+                                    'escola', jsonb_build_object('id', e.id, 'nome', e.nome))
+          FROM public.gestores_escolares g LEFT JOIN public.escolas_jer e ON e.id = g.escola_id
+          WHERE g.id = v_id);
 END;
 $$;
 

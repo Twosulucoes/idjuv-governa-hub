@@ -1678,6 +1678,14 @@ ALTER TABLE ONLY public.fotos_vistoria_inventario
 
 
 --
+-- Name: frequencia_arquivos frequencia_arquivos_arquivo_path_seguro; Type: CHECK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.frequencia_arquivos
+    ADD CONSTRAINT frequencia_arquivos_arquivo_path_seguro CHECK (((arquivo_path IS NULL) OR ((arquivo_path <> ''::text) AND (arquivo_path !~ '^/'::text) AND (arquivo_path !~ '[%\\?#]'::text) AND (arquivo_path !~ '(^|/)\.\.?(/|$)'::text) AND (arquivo_path !~ '[[:cntrl:]]'::text)))) NOT VALID;
+
+
+--
 -- Name: frequencia_arquivos frequencia_arquivos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1723,6 +1731,14 @@ ALTER TABLE ONLY public.frequencia_mensal
 
 ALTER TABLE ONLY public.frequencia_mensal
     ADD CONSTRAINT frequencia_mensal_servidor_id_mes_ano_key UNIQUE (servidor_id, mes, ano);
+
+
+--
+-- Name: frequencia_pacotes frequencia_pacotes_arquivo_path_seguro; Type: CHECK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.frequencia_pacotes
+    ADD CONSTRAINT frequencia_pacotes_arquivo_path_seguro CHECK (((arquivo_path IS NULL) OR ((arquivo_path <> ''::text) AND (arquivo_path !~ '^/'::text) AND (arquivo_path !~ '[%\\?#]'::text) AND (arquivo_path !~ '(^|/)\.\.?(/|$)'::text) AND (arquivo_path !~ '[[:cntrl:]]'::text)))) NOT VALID;
 
 
 --
@@ -4777,6 +4793,13 @@ CREATE INDEX idx_fotos_vistoria_inventario_capturada_em ON public.fotos_vistoria
 
 
 --
+-- Name: idx_frequencia_arquivos_arquivo_path; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_frequencia_arquivos_arquivo_path ON public.frequencia_arquivos USING btree (arquivo_path);
+
+
+--
 -- Name: idx_frequencia_arquivos_periodo; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7167,7 +7190,7 @@ CREATE TRIGGER trg_folhas_proteger_exclusao BEFORE DELETE ON public.folhas_pagam
 -- Name: documentos_requerimento_servidor trg_forcar_campos_iniciais; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_forcar_campos_iniciais BEFORE INSERT ON public.documentos_requerimento_servidor FOR EACH ROW EXECUTE FUNCTION public.forcar_campos_iniciais('rh', 'status=pendente', 'created_by=@uid');
+CREATE TRIGGER trg_forcar_campos_iniciais BEFORE INSERT ON public.documentos_requerimento_servidor FOR EACH ROW EXECUTE FUNCTION public.forcar_campos_iniciais('perm:rh:rh.servidores.editar', 'status=pendente', 'arquivo_assinado_url=NULL', 'data_upload_assinado=NULL', 'modelo_url=NULL', 'created_by=@uid');
 
 
 --
@@ -13135,27 +13158,6 @@ ALTER TABLE ONLY public.vinculos_servidor
 
 
 --
--- Name: cadastro_arbitros_modalidades Admin pode atualizar modalidades; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Admin pode atualizar modalidades" ON public.cadastro_arbitros_modalidades FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
-
-
---
--- Name: cadastro_arbitros_modalidades Admin pode deletar modalidades; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Admin pode deletar modalidades" ON public.cadastro_arbitros_modalidades FOR DELETE TO authenticated USING (true);
-
-
---
--- Name: gestores_escolares_historico Admin pode ver todo histórico; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Admin pode ver todo histórico" ON public.gestores_escolares_historico FOR SELECT TO authenticated USING ((public.usuario_tem_permissao(auth.uid(), 'educacao.gestores.visualizar'::text) OR public.usuario_eh_super_admin(auth.uid())));
-
-
---
 -- Name: config_paginas_publicas Apenas admins podem alterar config paginas; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -13719,24 +13721,10 @@ CREATE POLICY acesso_total_delete ON public.documentos_processo FOR DELETE TO au
 
 
 --
--- Name: documentos_requerimento_servidor acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.documentos_requerimento_servidor FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: encaminhamentos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY acesso_total_delete ON public.encaminhamentos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: escolas_jer acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.escolas_jer FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -14006,38 +13994,10 @@ CREATE POLICY acesso_total_delete ON public.folha_historico_status FOR DELETE TO
 
 
 --
--- Name: frequencia_arquivos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.frequencia_arquivos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: frequencia_pacotes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.frequencia_pacotes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: galeria_eventos_esportivos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY acesso_total_delete ON public.galeria_eventos_esportivos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: gestores_escolares acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.gestores_escolares FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: gestores_escolares_historico acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.gestores_escolares_historico FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -14171,27 +14131,6 @@ CREATE POLICY acesso_total_delete ON public.memorandos_lotacao FOR DELETE TO aut
 --
 
 CREATE POLICY acesso_total_delete ON public.modelos_mensagem_reuniao FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_access_scopes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.module_access_scopes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_permissions_catalog acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.module_permissions_catalog FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_settings acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.module_settings FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -14458,13 +14397,6 @@ CREATE POLICY acesso_total_delete ON public.solicitacoes_sic FOR DELETE TO authe
 --
 
 CREATE POLICY acesso_total_delete ON public.termos_cessao FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: user_org_units acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.user_org_units FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -14951,24 +14883,10 @@ CREATE POLICY acesso_total_insert ON public.documentos_processo FOR INSERT TO au
 
 
 --
--- Name: documentos_requerimento_servidor acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.documentos_requerimento_servidor FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: encaminhamentos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY acesso_total_insert ON public.encaminhamentos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: escolas_jer acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.escolas_jer FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -15238,31 +15156,10 @@ CREATE POLICY acesso_total_insert ON public.folha_historico_status FOR INSERT TO
 
 
 --
--- Name: frequencia_arquivos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.frequencia_arquivos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: frequencia_pacotes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.frequencia_pacotes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: galeria_eventos_esportivos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY acesso_total_insert ON public.galeria_eventos_esportivos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: gestores_escolares_historico acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.gestores_escolares_historico FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -15396,27 +15293,6 @@ CREATE POLICY acesso_total_insert ON public.memorandos_lotacao FOR INSERT TO aut
 --
 
 CREATE POLICY acesso_total_insert ON public.modelos_mensagem_reuniao FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_access_scopes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.module_access_scopes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_permissions_catalog acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.module_permissions_catalog FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_settings acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.module_settings FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -15683,13 +15559,6 @@ CREATE POLICY acesso_total_insert ON public.solicitacoes_sic FOR INSERT TO authe
 --
 
 CREATE POLICY acesso_total_insert ON public.termos_cessao FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: user_org_units acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.user_org_units FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -16169,13 +16038,6 @@ CREATE POLICY acesso_total_select ON public.documentos_processo FOR SELECT TO au
 
 
 --
--- Name: documentos_requerimento_servidor acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.documentos_requerimento_servidor FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: encaminhamentos acesso_total_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -16449,31 +16311,10 @@ CREATE POLICY acesso_total_select ON public.folha_historico_status FOR SELECT TO
 
 
 --
--- Name: frequencia_arquivos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.frequencia_arquivos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: frequencia_pacotes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.frequencia_pacotes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: galeria_eventos_esportivos acesso_total_select; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY acesso_total_select ON public.galeria_eventos_esportivos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: gestores_escolares_historico acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.gestores_escolares_historico FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -16607,27 +16448,6 @@ CREATE POLICY acesso_total_select ON public.memorandos_lotacao FOR SELECT TO aut
 --
 
 CREATE POLICY acesso_total_select ON public.modelos_mensagem_reuniao FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_access_scopes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.module_access_scopes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_permissions_catalog acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.module_permissions_catalog FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_settings acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.module_settings FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -16894,13 +16714,6 @@ CREATE POLICY acesso_total_select ON public.solicitacoes_sic FOR SELECT TO authe
 --
 
 CREATE POLICY acesso_total_select ON public.termos_cessao FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: user_org_units acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.user_org_units FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -17387,24 +17200,10 @@ CREATE POLICY acesso_total_update ON public.documentos_processo FOR UPDATE TO au
 
 
 --
--- Name: documentos_requerimento_servidor acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.documentos_requerimento_servidor FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: encaminhamentos acesso_total_update; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY acesso_total_update ON public.encaminhamentos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: escolas_jer acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.escolas_jer FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -17674,38 +17473,10 @@ CREATE POLICY acesso_total_update ON public.folha_historico_status FOR UPDATE TO
 
 
 --
--- Name: frequencia_arquivos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.frequencia_arquivos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: frequencia_pacotes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.frequencia_pacotes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: galeria_eventos_esportivos acesso_total_update; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY acesso_total_update ON public.galeria_eventos_esportivos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: gestores_escolares acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.gestores_escolares FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: gestores_escolares_historico acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.gestores_escolares_historico FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -17839,27 +17610,6 @@ CREATE POLICY acesso_total_update ON public.memorandos_lotacao FOR UPDATE TO aut
 --
 
 CREATE POLICY acesso_total_update ON public.modelos_mensagem_reuniao FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_access_scopes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.module_access_scopes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_permissions_catalog acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.module_permissions_catalog FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_settings acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.module_settings FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -18129,13 +17879,6 @@ CREATE POLICY acesso_total_update ON public.termos_cessao FOR UPDATE TO authenti
 
 
 --
--- Name: user_org_units acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.user_org_units FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: vinculos_funcionais acesso_total_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -18159,13 +17902,6 @@ ALTER TABLE public.adicionais_tempo_servico ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.aditivos_contrato ENABLE ROW LEVEL SECURITY;
-
---
--- Name: gestores_escolares admin_delete_gestores; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_delete_gestores ON public.gestores_escolares FOR DELETE USING ((auth.uid() IS NOT NULL));
-
 
 --
 -- Name: backup_config admin_only_delete; Type: POLICY; Schema: public; Owner: -
@@ -18266,13 +18002,6 @@ CREATE POLICY admin_read_form_config ON public.form_field_config FOR SELECT TO a
 
 
 --
--- Name: gestores_escolares admin_update_gestores; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_update_gestores ON public.gestores_escolares FOR UPDATE USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: form_field_config admin_write_form_config; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -18317,13 +18046,6 @@ ALTER TABLE public.approval_delegations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.approval_requests ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: cadastro_arbitros_modalidades arbitros_modalidades_select_authenticated; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY arbitros_modalidades_select_authenticated ON public.cadastro_arbitros_modalidades FOR SELECT TO authenticated USING (true);
-
-
---
 -- Name: atas_registro_preco; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -18346,27 +18068,6 @@ ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY audit_logs_insert_owner ON public.audit_logs FOR INSERT TO postgres WITH CHECK (true);
-
-
---
--- Name: cadastro_arbitros authenticated_delete_arbitros; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY authenticated_delete_arbitros ON public.cadastro_arbitros FOR DELETE TO authenticated USING (true);
-
-
---
--- Name: cadastro_arbitros authenticated_read_arbitros; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY authenticated_read_arbitros ON public.cadastro_arbitros FOR SELECT TO authenticated USING (true);
-
-
---
--- Name: cadastro_arbitros authenticated_update_arbitros; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY authenticated_update_arbitros ON public.cadastro_arbitros FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 
 
 --
@@ -19672,7 +19373,7 @@ CREATE POLICY ins_user_permissions_admin ON public.user_permissions FOR INSERT T
 -- Name: gestores_escolares insercao_publica_gestores; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY insercao_publica_gestores ON public.gestores_escolares FOR INSERT WITH CHECK (true);
+CREATE POLICY insercao_publica_gestores ON public.gestores_escolares FOR INSERT TO anon, authenticated WITH CHECK ((status = 'aguardando'::text));
 
 
 --
@@ -19752,13 +19453,6 @@ ALTER TABLE public.lancamentos_folha ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY leitura_publica_escolas ON public.escolas_jer FOR SELECT USING (true);
-
-
---
--- Name: gestores_escolares leitura_publica_gestores; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY leitura_publica_gestores ON public.gestores_escolares FOR SELECT USING (true);
 
 
 --
@@ -20340,6 +20034,20 @@ CREATE POLICY rls_delete ON public.banco_horas FOR DELETE TO authenticated USING
 
 
 --
+-- Name: cadastro_arbitros rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.cadastro_arbitros FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'arbitros'::text));
+
+
+--
+-- Name: cadastro_arbitros_modalidades rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.cadastro_arbitros_modalidades FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'arbitros'::text));
+
+
+--
 -- Name: campanhas_inventario_unidades rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20375,6 +20083,20 @@ CREATE POLICY rls_delete ON public.dependentes_irrf FOR DELETE TO authenticated 
 
 
 --
+-- Name: documentos_requerimento_servidor rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.documentos_requerimento_servidor FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.servidores.editar'::text)));
+
+
+--
+-- Name: escolas_jer rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.escolas_jer FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
+
+
+--
 -- Name: ferias_servidor rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20403,6 +20125,13 @@ CREATE POLICY rls_delete ON public.fotos_vistoria_inventario FOR DELETE TO authe
 
 
 --
+-- Name: frequencia_arquivos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.frequencia_arquivos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
+
+
+--
 -- Name: frequencia_fechamento rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20414,6 +20143,20 @@ CREATE POLICY rls_delete ON public.frequencia_fechamento FOR DELETE TO authentic
 --
 
 CREATE POLICY rls_delete ON public.frequencia_mensal FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
+
+
+--
+-- Name: frequencia_pacotes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.frequencia_pacotes FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
+
+
+--
+-- Name: gestores_escolares rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.gestores_escolares FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
 
 
 --
@@ -20460,6 +20203,27 @@ CREATE POLICY rls_delete ON public.licencas_afastamentos FOR DELETE TO authentic
 --
 
 CREATE POLICY rls_delete ON public.lotacoes FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: module_access_scopes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.module_access_scopes FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: module_permissions_catalog rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.module_permissions_catalog FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: module_settings rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.module_settings FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
 
 
 --
@@ -20533,6 +20297,13 @@ CREATE POLICY rls_delete ON public.user_modules FOR DELETE TO authenticated USIN
 
 
 --
+-- Name: user_org_units rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.user_org_units FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
 -- Name: user_roles rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20558,6 +20329,20 @@ CREATE POLICY rls_delete ON public.vinculos_servidor FOR DELETE TO authenticated
 --
 
 CREATE POLICY rls_insert ON public.banco_horas FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) AND (public.is_admin_user(auth.uid()) OR (servidor_id IS DISTINCT FROM auth.uid()))));
+
+
+--
+-- Name: cadastro_arbitros rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.cadastro_arbitros FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'arbitros'::text));
+
+
+--
+-- Name: cadastro_arbitros_modalidades rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.cadastro_arbitros_modalidades FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'arbitros'::text));
 
 
 --
@@ -20596,6 +20381,20 @@ CREATE POLICY rls_insert ON public.dependentes_irrf FOR INSERT TO authenticated 
 
 
 --
+-- Name: documentos_requerimento_servidor rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.documentos_requerimento_servidor FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.servidores.editar'::text)) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
+-- Name: escolas_jer rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.escolas_jer FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
+
+
+--
 -- Name: ferias_servidor rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20624,6 +20423,13 @@ CREATE POLICY rls_insert ON public.fotos_vistoria_inventario FOR INSERT TO authe
 
 
 --
+-- Name: frequencia_arquivos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.frequencia_arquivos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
+
+
+--
 -- Name: frequencia_fechamento rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20635,6 +20441,20 @@ CREATE POLICY rls_insert ON public.frequencia_fechamento FOR INSERT TO authentic
 --
 
 CREATE POLICY rls_insert ON public.frequencia_mensal FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
+
+
+--
+-- Name: frequencia_pacotes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.frequencia_pacotes FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
+
+
+--
+-- Name: gestores_escolares rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.gestores_escolares FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
 
 
 --
@@ -20683,6 +20503,27 @@ CREATE POLICY rls_insert ON public.licencas_afastamentos FOR INSERT TO authentic
 --
 
 CREATE POLICY rls_insert ON public.lotacoes FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: module_access_scopes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.module_access_scopes FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: module_permissions_catalog rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.module_permissions_catalog FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: module_settings rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.module_settings FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
 
 
 --
@@ -20756,6 +20597,13 @@ CREATE POLICY rls_insert ON public.user_modules FOR INSERT TO authenticated WITH
 
 
 --
+-- Name: user_org_units rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.user_org_units FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
 -- Name: user_roles rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20781,6 +20629,20 @@ CREATE POLICY rls_insert ON public.vinculos_servidor FOR INSERT TO authenticated
 --
 
 CREATE POLICY rls_select ON public.banco_horas FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR ((servidor_id = auth.uid()) AND public.is_active_user())));
+
+
+--
+-- Name: cadastro_arbitros rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.cadastro_arbitros FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'arbitros'::text));
+
+
+--
+-- Name: cadastro_arbitros_modalidades rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.cadastro_arbitros_modalidades FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'arbitros'::text));
 
 
 --
@@ -20819,6 +20681,20 @@ CREATE POLICY rls_select ON public.dependentes_irrf FOR SELECT TO authenticated 
 
 
 --
+-- Name: documentos_requerimento_servidor rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.documentos_requerimento_servidor FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
+-- Name: escolas_jer rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.escolas_jer FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
+
+
+--
 -- Name: ferias_servidor rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20849,6 +20725,13 @@ CREATE POLICY rls_select ON public.fotos_vistoria_inventario FOR SELECT TO authe
 
 
 --
+-- Name: frequencia_arquivos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.frequencia_arquivos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
 -- Name: frequencia_fechamento rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20860,6 +20743,27 @@ CREATE POLICY rls_select ON public.frequencia_fechamento FOR SELECT TO authentic
 --
 
 CREATE POLICY rls_select ON public.frequencia_mensal FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
+-- Name: frequencia_pacotes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.frequencia_pacotes FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: gestores_escolares rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.gestores_escolares FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
+
+
+--
+-- Name: gestores_escolares_historico rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.gestores_escolares_historico FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
 
 
 --
@@ -20908,6 +20812,27 @@ CREATE POLICY rls_select ON public.licencas_afastamentos FOR SELECT TO authentic
 --
 
 CREATE POLICY rls_select ON public.lotacoes FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
+-- Name: module_access_scopes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.module_access_scopes FOR SELECT TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: module_permissions_catalog rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.module_permissions_catalog FOR SELECT TO authenticated USING (public.is_active_user());
+
+
+--
+-- Name: module_settings rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.module_settings FOR SELECT TO authenticated USING (public.is_active_user());
 
 
 --
@@ -20981,6 +20906,13 @@ CREATE POLICY rls_select ON public.user_modules FOR SELECT TO authenticated USIN
 
 
 --
+-- Name: user_org_units rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.user_org_units FOR SELECT TO authenticated USING ((public.is_admin_user(auth.uid()) OR ((user_id = auth.uid()) AND public.is_active_user())));
+
+
+--
 -- Name: user_roles rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21006,6 +20938,20 @@ CREATE POLICY rls_select ON public.vinculos_servidor FOR SELECT TO authenticated
 --
 
 CREATE POLICY rls_update ON public.banco_horas FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) AND (public.is_admin_user(auth.uid()) OR (servidor_id IS DISTINCT FROM auth.uid())))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) AND (public.is_admin_user(auth.uid()) OR (servidor_id IS DISTINCT FROM auth.uid()))));
+
+
+--
+-- Name: cadastro_arbitros rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.cadastro_arbitros FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'arbitros'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'arbitros'::text));
+
+
+--
+-- Name: cadastro_arbitros_modalidades rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.cadastro_arbitros_modalidades FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'arbitros'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'arbitros'::text));
 
 
 --
@@ -21044,6 +20990,20 @@ CREATE POLICY rls_update ON public.dependentes_irrf FOR UPDATE TO authenticated 
 
 
 --
+-- Name: documentos_requerimento_servidor rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.documentos_requerimento_servidor FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.servidores.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.servidores.editar'::text)));
+
+
+--
+-- Name: escolas_jer rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.escolas_jer FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'gestores_escolares'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
+
+
+--
 -- Name: ferias_servidor rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21072,6 +21032,13 @@ CREATE POLICY rls_update ON public.fotos_vistoria_inventario FOR UPDATE TO authe
 
 
 --
+-- Name: frequencia_arquivos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.frequencia_arquivos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
+
+
+--
 -- Name: frequencia_fechamento rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21083,6 +21050,20 @@ CREATE POLICY rls_update ON public.frequencia_fechamento FOR UPDATE TO authentic
 --
 
 CREATE POLICY rls_update ON public.frequencia_mensal FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id))))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
+
+
+--
+-- Name: frequencia_pacotes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.frequencia_pacotes FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
+
+
+--
+-- Name: gestores_escolares rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.gestores_escolares FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'gestores_escolares'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
 
 
 --
@@ -21133,6 +21114,27 @@ CREATE POLICY rls_update ON public.licencas_afastamentos FOR UPDATE TO authentic
 --
 
 CREATE POLICY rls_update ON public.lotacoes FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: module_access_scopes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.module_access_scopes FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: module_permissions_catalog rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.module_permissions_catalog FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: module_settings rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.module_settings FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
 
 
 --
@@ -21203,6 +21205,13 @@ CREATE POLICY rls_update ON public.tipos_abono FOR UPDATE TO authenticated USING
 --
 
 CREATE POLICY rls_update ON public.user_modules FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: user_org_units rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.user_org_units FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
 
 
 --

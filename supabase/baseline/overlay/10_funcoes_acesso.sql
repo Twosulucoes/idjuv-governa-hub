@@ -135,6 +135,46 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.eh_meu_servidor(uuid) FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.eh_meu_servidor(uuid) TO authenticated;
 
+-- B3 (storage do RH): o objeto do bucket `frequencias` é o PDF de frequência do usuário logado? Verdadeira quando há
+-- uma linha em frequencia_arquivos com arquivo_path = _path e servidor_id = meu_servidor_id() (o vínculo do perfil
+-- ativo: o mesmo dono da RLS de frequencia_arquivos, ;proprio; sem vínculo, nada). Perfil ativo é pré-condição.
+-- SECURITY DEFINER porque o servidor não precisa enxergar a linha de frequencia_arquivos pela RLS para ler o seu PDF. Nunca devolve NULL. Mesmo texto na migração 20261010180000_onda_b_rh_storage.sql; EXECUTE só para
+-- authenticated (overlay/40).
+CREATE OR REPLACE FUNCTION public.eh_meu_arquivo_frequencia(_path text)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT auth.uid() IS NOT NULL
+     AND _path IS NOT NULL
+     AND public.is_active_user()
+     AND EXISTS (
+       SELECT 1
+         FROM public.frequencia_arquivos fa
+        WHERE fa.arquivo_path = _path
+          AND fa.servidor_id = public.meu_servidor_id());
+$$;
+
+-- B3: o objeto do bucket `documentos-requerimento` está na pasta do servidor do usuário logado? O caminho é
+-- <servidor_id>/<doc_id>.<ext> (DocumentosServidorTab): a primeira pasta precisa ter formato de uuid (conferido ANTES
+-- do cast, para nome fora do padrão dar false e não erro) e ser meu_servidor_id() (mesmo dono da RLS ;proprio).
+-- Perfil ativo é pré-condição.
+-- Nunca devolve NULL. Mesmo texto na migração 20261010180000_onda_b_rh_storage.sql; EXECUTE só para authenticated
+-- (overlay/40).
+CREATE OR REPLACE FUNCTION public.eh_minha_pasta_servidor(_name text)
+RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_pasta text;
+BEGIN
+  IF _name IS NULL OR auth.uid() IS NULL OR NOT public.is_active_user() THEN
+    RETURN false;
+  END IF;
+  v_pasta := (storage.foldername(_name))[1];
+  IF v_pasta IS NULL
+     OR v_pasta !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+    RETURN false;
+  END IF;
+  RETURN coalesce(v_pasta::uuid = public.meu_servidor_id(), false);
+END;
+$$;
+
 -- ---- perfil ativo como pré-condição ----
 CREATE OR REPLACE FUNCTION public.is_admin_user(_user_id uuid DEFAULT auth.uid())
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
