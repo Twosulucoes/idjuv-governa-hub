@@ -681,9 +681,12 @@ em RLS existente e precisa do "sim" do dono, podendo ser segurada sem segurar a 
 
 - `/rh/auditoria` (`AuditoriaRHPage`): `ProtectedRoute requiredPermissions="rh.auditoria.visualizar"` e a mesma
   entrada em `ROUTE_PERMISSIONS`; item "Trilha de Auditoria" no menu do RH (`menu.config.ts` e
-  `module-menus.config.ts`, que passou a aceitar `permission` por item e esconde o item de quem não a tem). A tela
+  `module-menus.config.ts`, id `auditoria-rh` nos dois; o menu por módulo passou a aceitar `permission` por item e
+  por filho e esconde o que o usuário não tem). A tela
   pede só o módulo `rh`; o que volta é o que a policy libera (com o módulo e a permissão).
-- `/admin/auditoria` continua com `admin.auditoria` e mostra todos os módulos (o que a RLS libera: admin lê tudo).
+- `/admin/auditoria` continua com `admin.auditoria` e mostra todos os módulos (o que a RLS libera: admin lê tudo). O
+  botão de exportar CSV só aparece para o admin e para quem tem o módulo `rh`: o registro da exportação usa
+  `registrar_evento`, que exige o módulo.
 - Abas "Histórico de alterações" na ficha do servidor e no detalhe da folha: aparecem só para quem tem
   `rh.auditoria.visualizar` (o admin passa pelo `hasPermission`). Esconder a aba é UX; a fronteira é a policy.
 - Exportações, impressões e arquivos do RH chamam `registrar_evento` antes de entregar (ver

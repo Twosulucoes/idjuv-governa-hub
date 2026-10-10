@@ -46,6 +46,18 @@ import {
 import { abrirArquivoPrivado, abrirUrlExterna } from "@/lib/storageArquivos";
 import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 
+// Extensões aceitas no upload do documento assinado (lista fechada; o caminho no bucket leva a extensão)
+const EXTENSOES_UPLOAD = ["pdf", "png", "jpg", "jpeg", "doc", "docx", "odt"] as const;
+const MSG_EXTENSAO = "Formato não aceito. Envie PDF, PNG, JPG, DOC, DOCX ou ODT.";
+
+/** Extensão do arquivo normalizada (minúscula) se estiver na lista; senão null. */
+function extensaoPermitida(nome: string): string | null {
+  const partes = nome.split(".");
+  if (partes.length < 2) return null;
+  const ext = partes.pop()!.trim().toLowerCase();
+  return (EXTENSOES_UPLOAD as readonly string[]).includes(ext) ? ext : null;
+}
+
 // Tipos de documento disponíveis para requerimento
 const TIPOS_REQUERIMENTO = [
   { value: "ficha_cadastral", label: "Ficha Cadastral", gerador: generateFichaCadastralModelo },
@@ -145,8 +157,9 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
   // Upload de documento assinado
   const uploadAssinado = useMutation({
     mutationFn: async ({ docId, file }: { docId: string; file: File }) => {
+      const ext = extensaoPermitida(file.name);
+      if (!ext) throw new Error(MSG_EXTENSAO);
       setUploading(true);
-      const ext = file.name.split('.').pop();
       const path = `${servidorId}/${docId}.${ext}`;
       
       // upsert: true de propósito — o caminho é fixo por requerimento, e reenviar substitui o
@@ -490,7 +503,7 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
               <Label>Arquivo (PDF, imagem) *</Label>
               <Input
                 type="file"
-                accept=".pdf,.jpg,.jpeg,.png,.webp"
+                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.odt"
                 onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
               />
             </div>
@@ -502,6 +515,10 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
             <Button
               onClick={() => {
                 if (selectedDoc && uploadFile) {
+                  if (!extensaoPermitida(uploadFile.name)) {
+                    toast.error(MSG_EXTENSAO);
+                    return;
+                  }
                   uploadAssinado.mutate({ docId: selectedDoc.id, file: uploadFile });
                 }
               }}

@@ -162,7 +162,7 @@ export function GerarRemessaDialog({
         acao: "download",
         entidade: "arquivo_cnab",
         entidadeId: folhaId,
-        descricao: `Remessa CNAB 240 ${nomeArquivo} gerada e baixada`,
+        descricao: `Remessa CNAB 240 ${nomeArquivo} gerada`,
         metadados: {
           folha_id: folhaId,
           conta_autarquia_id: contaSelecionada,

@@ -151,20 +151,27 @@ O banco grava quem fez cada lançamento (onda E1); o front consulta a trilha e r
 
 - **Hook** `src/hooks/useTrilhaAuditoria.ts` (as colunas novas de `audit_logs` e a RPC `registrar_evento` ainda não
   estão em `types.ts`: consulta com `supabase as unknown as SupabaseClient`, tipos no próprio hook):
-  - `useTrilhaAuditoria(filtros, pagina)`: lista paginada **no servidor** (`range`, uma página por vez, sem
-    `before_data`/`after_data`), ordem `sequencia` desc; filtros por período, módulo, ação, origem, tabela, ID do
-    registro, usuário, servidor responsável (nome/matrícula ou ID) e recorte de ficha (`escopo` servidor ou folha);
+  - `useTrilhaAuditoria(filtros, cursor)`: lista paginada **no servidor** por cursor na `sequencia`
+    (`sequencia < cursor`, `limit(n + 1)`; a tela guarda a pilha de cursores para "Anterior"), sem
+    `before_data`/`after_data`, ordem só `sequencia` desc (é o que usa os índices); filtros por período, módulo, ação,
+    origem, tabela, ID do registro, usuário, servidor responsável (nome/matrícula ou ID) e recorte de ficha (`escopo`):
+    servidor (linhas com `servidor_id` no antes/depois ou nos metadados e arquivos do Storage com
+    `metadata.servidor_alvo_id`, aceito só quando `metadata.fonte = 'storage'`) ou folha (módulos `rh` e `folha`);
   - `useDetalheTrilha(id)` + `calcularDiff`: a linha completa ao abrir, diff campo a campo (valores já mascarados pelo
-    banco);
+    banco; na atualização, os carimbos `updated_*` fora de `campos_alterados` não aparecem);
   - `useRegistrarEvento()`: `registrarAntes(evento)` para exportação, impressão e arquivo — espera o banco e, se
     falhar, mostra o erro e devolve `false` (quem chama **não entrega** o arquivo); `registrarSemBloquear(evento)` para
     visualização. Ações e entidades seguem as listas fechadas da RPC (tipos `AcaoEvento`/`EntidadeEvento`). Metadados
     sem dado pessoal (filtros, formato, quantidade, IDs); `servidor_id`/`folha_id` nos metadados ligam o evento às
     abas de histórico.
-- **Componentes** em `src/components/auditoria/`: `TrilhaAuditoria` (filtros, tabela, paginação, diálogo de detalhe e
-  CSV registrado antes do download, com célula protegida contra fórmula), `DetalheTrilhaDialog` e
+- **Componentes** em `src/components/auditoria/`: `TrilhaAuditoria` (filtros, tabela com fonte da linha, paginação,
+  diálogo de detalhe e CSV registrado antes do download; o botão só aparece para o admin e para quem tem o módulo
+  `rh`, que a RPC exige), `DetalheTrilhaDialog` e
   `HistoricoAlteracoesTab` (aba na ficha do servidor e no detalhe da folha). Descrição e metadados são texto: nada
   vira HTML.
+- **CSV sem fórmula:** `celulaCsv` (`src/export/csvSeguro.ts`) põe a célula entre aspas e um apóstrofo antes de
+  texto que começa com `=`, `+`, `-`, `@`, tab ou CR (números passam). Usada no CSV da trilha, em
+  `src/export/exportCSV.ts` e no CSV de servidores (`src/lib/exportarPlanilha.ts`).
 - **Páginas:** `/admin/auditoria` (todos os módulos) e `/rh/auditoria` (mesmo componente, travado no módulo `rh`).
 - **Onde `registrar_evento` está ligado:** contracheque (`useLogAcessoContracheque`, que trocou `log_audit` pela
   RPC; impressão individual e em lote em `/rh/contracheques`, `/rh/meu-contracheque`, detalhe da folha e ficha

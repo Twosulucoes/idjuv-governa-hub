@@ -97,7 +97,7 @@ export function ImprimirFrequenciaDialog({
   const { data: frequenciaMensal } = useFrequenciaMensal(servidor?.servidor_id, ano, mes);
   const uploadFrequencia = useUploadFrequencia();
   const { gerarPDF } = useGerarFrequenciaPDF();
-  const { registrarAntes, registrarSemBloquear } = useRegistrarEvento();
+  const { registrarAntes } = useRegistrarEvento();
   // Trilha: folha de frequência do servidor (servidor_id nos metadados liga o evento à ficha dele)
   const eventoFrequencia = (acao: 'view' | 'download') => ({
     acao,
@@ -220,12 +220,16 @@ export function ImprimirFrequenciaDialog({
       // Gerar PDF para preview
       setEstadoGeracao('gerando');
       const { doc } = await generateFrequenciaMensalPDF(pdfData);
+      // Trilha: a prévia já é o arquivo; só abre depois de registrada (sem registro, sem prévia)
+      if (!(await registrarAntes(eventoFrequencia('view')))) {
+        setEstadoGeracao('ocioso');
+        return;
+      }
       const blob = doc.output('blob');
       const url = URL.createObjectURL(blob);
       
       setPreviewUrl(url);
       atualizarProgresso(5, 5);
-      registrarSemBloquear(eventoFrequencia('view'));
       
       toast.success('Pré-visualização gerada!');
       setEstadoGeracao('ocioso');
@@ -395,8 +399,10 @@ export function ImprimirFrequenciaDialog({
     }
   };
 
-  const handleDownloadPreview = () => {
+  const handleDownloadPreview = async () => {
     if (previewUrl && servidor) {
+      // Trilha: baixar a prévia é download; registrado antes (sem registro, sem arquivo)
+      if (!(await registrarAntes(eventoFrequencia('download')))) return;
       const mesesNome = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
         'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'

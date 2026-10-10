@@ -45,19 +45,19 @@ export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse, b
   const { getDisabledFeatures } = useModuleSettings();
   const { hasPermission } = useAuth();
 
-  // Filter out disabled features (e itens com permissão própria que o usuário não tem)
+  // Filter out disabled features (e itens/filhos com permissão própria que o usuário não tem)
   const filteredItems = useMemo(() => {
     const disabled = getDisabledFeatures(module);
-    const permitidos = (menuConfig?.items || []).filter(item => !item.permission || hasPermission(item.permission));
-    if (disabled.length === 0) return permitidos;
-    
-    return permitidos
-      .filter(item => !disabled.includes(item.id))
+    const visivel = (item: ModuleMenuItem) =>
+      !disabled.includes(item.id) && (!item.permission || hasPermission(item.permission));
+
+    return (menuConfig?.items || [])
+      .filter(visivel)
       .map(item => {
         if (item.children) {
           return {
             ...item,
-            children: item.children.filter(child => !disabled.includes(child.id)),
+            children: item.children.filter(visivel),
           };
         }
         return item;

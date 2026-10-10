@@ -57,6 +57,7 @@ import {
   History,
 } from "lucide-react";
 import type { Modulo } from "@/shared/config/modules.config";
+import type { PermissionCode } from "@/types/auth";
 
 export interface ModuleMenuItem {
   id: string;
@@ -64,7 +65,7 @@ export interface ModuleMenuItem {
   icon: LucideIcon;
   route: string;
   /** Permissão exigida para mostrar o item (a mesma da rota; sem ela o item aparece para todos do módulo). */
-  permission?: string;
+  permission?: PermissionCode;
   children?: ModuleMenuItem[];
 }
 
@@ -120,7 +121,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "pendencias", label: "Pendências", icon: AlertTriangle, route: "/rh/pendencias" },
       { id: "relatorios", label: "Relatórios", icon: BarChart3, route: "/rh/relatorios" },
       { id: "exportar", label: "Exportar", icon: Download, route: "/rh/exportar" },
-      { id: "auditoria", label: "Trilha de Auditoria", icon: History, route: "/rh/auditoria", permission: "rh.auditoria.visualizar" },
+      { id: "auditoria-rh", label: "Trilha de Auditoria", icon: History, route: "/rh/auditoria", permission: "rh.auditoria.visualizar" },
     ],
   },
 

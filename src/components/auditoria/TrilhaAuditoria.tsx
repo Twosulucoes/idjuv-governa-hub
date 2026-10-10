@@ -2,9 +2,10 @@
  * Consulta da trilha de auditoria (audit_logs), usada em /admin/auditoria (todos os módulos), em /rh/auditoria
  * (travada no módulo rh) e nas abas "Histórico de alterações" (recorte de uma ficha).
  *
- * Filtros e paginação no servidor (o banco devolve uma página por vez, sem antes/depois), ordem pela `sequencia`
- * (ordem de gravação), servidor responsável e origem na lista e diff ao abrir a linha. A exportação CSV é
- * registrada na trilha (registrar_evento) antes do download; se o registro falhar, o arquivo não é entregue.
+ * Filtros e paginação no servidor (cursor na `sequencia`: o banco devolve uma página por vez, sem antes/depois),
+ * ordem pela `sequencia` (ordem de gravação), servidor responsável, origem e fonte na lista e diff ao abrir a linha.
+ * A exportação CSV é registrada na trilha (registrar_evento) antes do download; se o registro falhar, o arquivo não é
+ * entregue. Como a RPC exige o módulo rh, o botão só aparece para o admin e para quem tem o módulo.
  * Descrição e metadados são texto: nada aqui vira HTML.
  */
 
@@ -22,11 +23,14 @@ import { DetalheTrilhaDialog } from "@/components/auditoria/DetalheTrilhaDialog"
 import { TOM_ACAO_TRILHA, nomeModulo, rotuloEntidade } from "@/components/auditoria/trilhaRotulos";
 import { AUDIT_ACTION_LABELS, type AuditAction } from "@/types/auth";
 import { MODULES_CONFIG } from "@/shared/config/modules.config";
+import { useAuth } from "@/contexts/AuthContext";
+import { celulaCsv } from "@/export/csvSeguro";
 import {
   LIMITE_EXPORTACAO_TRILHA,
   ORIGEM_TRILHA_LABELS,
   buscarTrilhaParaExportar,
   ehUuid,
+  fonteTrilha,
   responsavelTrilha,
   useRegistrarEvento,
   useTrilhaAuditoria,
@@ -99,12 +103,8 @@ function paraFiltros(r: Rascunho, moduloFixo?: string, escopo?: EscopoTrilha): F
 // CSV
 // ---------------------------------------------------------------------------
 
-/** Célula de CSV: entre aspas e sem fórmula (=, +, -, @ no início viram texto). */
-function celulaCsv(valor: unknown): string {
-  let s = valor === null || valor === undefined ? "" : String(valor);
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-  return `"${s.replace(/"/g, '""')}"`;
-}
+/** Nome de tabela/entidade que pode ir para os metadados do registro (fora do formato, o valor não vai). */
+const ENTIDADE_VALIDA = /^[a-z0-9_.-]{1,63}$/;
 
 function montarCsv(linhas: LinhaTrilha[]): string {
   const cabecalho = [
@@ -113,6 +113,7 @@ function montarCsv(linhas: LinhaTrilha[]): string {
     "Responsável",
     "Matrícula",
     "Origem",
+    "Fonte",
     "ID do usuário",
     "Perfil",
     "Ação",
@@ -128,6 +129,7 @@ function montarCsv(linhas: LinhaTrilha[]): string {
     l.servidor_nome ?? l.usuario_nome ?? responsavelTrilha(l),
     l.servidor_matricula ?? "",
     l.origem ? ORIGEM_TRILHA_LABELS[l.origem] ?? l.origem : "",
+    fonteTrilha(l) ?? "",
     l.user_id ?? "",
     l.role_at_time ?? "",
     AUDIT_ACTION_LABELS[l.action] ?? l.action,
@@ -163,13 +165,25 @@ export function TrilhaAuditoria({
 }: TrilhaAuditoriaProps) {
   const [rascunho, setRascunho] = useState<Rascunho>(RASCUNHO_VAZIO);
   const [filtros, setFiltros] = useState<FiltrosTrilha>(() => paraFiltros(RASCUNHO_VAZIO, moduloFixo, escopo));
-  const [pagina, setPagina] = useState(0);
+  // Pilha de cursores (sequencia): o topo é o da página atual; nulo é a primeira página.
+  const [cursores, setCursores] = useState<(number | null)[]>([null]);
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [exportando, setExportando] = useState(false);
   const { registrarAntes } = useRegistrarEvento();
+  const { isSuperAdmin, hasModule } = useAuth();
+  // registrar_evento exige o módulo rh: sem ele (e sem ser admin) a exportação não teria registro
+  const podeExportar = isSuperAdmin || hasModule("rh");
 
-  const { data, isLoading, isFetching, error, refetch } = useTrilhaAuditoria(filtros, pagina, TAMANHO_PAGINA);
+  const cursorAtual = cursores[cursores.length - 1];
+  const pagina = cursores.length - 1;
+  const { data, isLoading, isFetching, isPlaceholderData, error, refetch } = useTrilhaAuditoria(
+    filtros,
+    cursorAtual,
+    TAMANHO_PAGINA,
+  );
   const linhas = data?.linhas ?? [];
+  // Trocou filtro ou página: os dados à vista são os anteriores até a resposta chegar
+  const trocando = isFetching && isPlaceholderData;
 
   const alterar = (campo: keyof Rascunho) => (valor: string) => setRascunho((r) => ({ ...r, [campo]: valor }));
 
@@ -177,16 +191,18 @@ export function TrilhaAuditoria({
     (c) => rascunho[c].trim() !== "" && !ehUuid(rascunho[c]),
   );
 
+  const periodoInvalido = !!rascunho.inicio && !!rascunho.fim && rascunho.inicio > rascunho.fim;
+
   const aplicar = (e: React.FormEvent) => {
     e.preventDefault();
-    if (idsInvalidos.length > 0) return;
-    setPagina(0);
+    if (idsInvalidos.length > 0 || periodoInvalido) return;
+    setCursores([null]);
     setFiltros(paraFiltros(rascunho, moduloFixo, escopo));
   };
 
   const limpar = () => {
     setRascunho(RASCUNHO_VAZIO);
-    setPagina(0);
+    setCursores([null]);
     setFiltros(paraFiltros(RASCUNHO_VAZIO, moduloFixo, escopo));
   };
 
@@ -200,7 +216,9 @@ export function TrilhaAuditoria({
       }
       const cortado = registros.length >= LIMITE_EXPORTACAO_TRILHA;
       // Filtros registrados sem o texto livre (nome/matrícula do responsável): só se foi usado.
-      const { responsavel, escopo: recorte, ...demais } = filtros;
+      // A tabela/entidade só vai se tiver o formato de nome de tabela.
+      const { responsavel, escopo: recorte, entidade, ...demais } = filtros;
+      const entidadeSegura = entidade && ENTIDADE_VALIDA.test(entidade) ? entidade : undefined;
       const ok = await registrarAntes({
         acao: "export",
         entidade: "trilha_auditoria",
@@ -209,7 +227,12 @@ export function TrilhaAuditoria({
           formato: "csv",
           quantidade: registros.length,
           cortado,
-          filtros: { ...demais, responsavel_informado: !!responsavel },
+          filtros: {
+            ...demais,
+            ...(entidadeSegura ? { entidade: entidadeSegura } : {}),
+            ...(entidade && !entidadeSegura ? { entidade_informada: true } : {}),
+            responsavel_informado: !!responsavel,
+          },
           ...(recorte?.tipo === "servidor" ? { servidor_id: recorte.servidorId } : {}),
           ...(recorte?.tipo === "folha" ? { folha_id: recorte.folhaId } : {}),
         },
@@ -259,11 +282,17 @@ export function TrilhaAuditoria({
     {
       id: "acao",
       cabecalho: "Ação",
-      celula: (l) => (
-        <StatusBadge tom={TOM_ACAO_TRILHA[l.action] ?? "neutro"} icone={false}>
-          {AUDIT_ACTION_LABELS[l.action] ?? l.action}
-        </StatusBadge>
-      ),
+      celula: (l) => {
+        const fonte = fonteTrilha(l);
+        return (
+          <span>
+            <StatusBadge tom={TOM_ACAO_TRILHA[l.action] ?? "neutro"} icone={false}>
+              {AUDIT_ACTION_LABELS[l.action] ?? l.action}
+            </StatusBadge>
+            {fonte && <span className="block pt-1 text-caption text-muted-foreground">{fonte}</span>}
+          </span>
+        );
+      },
     },
     ...(moduloFixo || escopo
       ? []
@@ -312,7 +341,13 @@ export function TrilhaAuditoria({
           </div>
           <div className="space-y-1">
             <Label htmlFor="trilha-fim">Até</Label>
-            <Input id="trilha-fim" type="date" value={rascunho.fim} onChange={(e) => alterar("fim")(e.target.value)} />
+            <Input
+              id="trilha-fim"
+              type="date"
+              value={rascunho.fim}
+              aria-invalid={periodoInvalido}
+              onChange={(e) => alterar("fim")(e.target.value)}
+            />
           </div>
           <div className="space-y-1">
             <Label htmlFor="trilha-acao">Ação</Label>
@@ -441,6 +476,12 @@ export function TrilhaAuditoria({
           </Collapsible>
         )}
 
+        {periodoInvalido && (
+          <p role="alert" className="text-sm text-destructive">
+            A data "De" não pode ser depois da data "Até".
+          </p>
+        )}
+
         {idsInvalidos.length > 0 && (
           <p role="alert" className="text-sm text-destructive">
             Os campos de ID aceitam só o identificador completo (formato UUID).
@@ -456,7 +497,12 @@ export function TrilhaAuditoria({
             <X className="h-4 w-4" aria-hidden="true" />
             Limpar
           </Button>
-          {exportavel && (
+          {exportavel && !podeExportar && (
+            <p className="text-caption text-muted-foreground sm:ml-auto">
+              Exportar exige o módulo RH: a exportação é registrada na trilha do RH.
+            </p>
+          )}
+          {exportavel && podeExportar && (
             <Button
               type="button"
               size="sm"
@@ -481,7 +527,7 @@ export function TrilhaAuditoria({
         dados={linhas}
         colunas={colunas}
         chaveLinha={(l) => l.id}
-        carregando={isLoading}
+        carregando={isLoading || trocando}
         erro={error ? "Verifique sua permissão de leitura da trilha ou tente novamente." : null}
         aoTentarNovamente={() => refetch()}
         tamanhoPagina={TAMANHO_PAGINA}
@@ -517,7 +563,7 @@ export function TrilhaAuditoria({
               variant="outline"
               size="sm"
               className="gap-1"
-              onClick={() => setPagina((p) => Math.max(0, p - 1))}
+              onClick={() => setCursores((c) => (c.length > 1 ? c.slice(0, -1) : c))}
               disabled={pagina === 0 || isFetching}
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -527,8 +573,11 @@ export function TrilhaAuditoria({
               variant="outline"
               size="sm"
               className="gap-1"
-              onClick={() => setPagina((p) => p + 1)}
-              disabled={!data?.temProxima || isFetching}
+              onClick={() => {
+                const proximo = data?.proximoCursor;
+                if (proximo != null) setCursores((c) => [...c, proximo]);
+              }}
+              disabled={!data?.temProxima || data?.proximoCursor == null || isFetching}
             >
               Próxima
               <ChevronRight className="h-4 w-4" aria-hidden="true" />

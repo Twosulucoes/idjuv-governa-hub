@@ -80,7 +80,7 @@ export default function ConsultaContrachequesPage() {
     try {
       // Trilha: impressão registrada antes de gerar o PDF (sem registro, sem arquivo)
       try {
-        await logAcesso.mutateAsync({ fichaId: ficha.id, acao: 'imprimir' });
+        await logAcesso.mutateAsync({ fichaId: ficha.id, servidorId: ficha.servidor_id, acao: 'imprimir' });
       } catch {
         toast.error(MSG_FALHA_REGISTRO);
         return;
@@ -135,8 +135,8 @@ export default function ConsultaContrachequesPage() {
       try {
         await registrarLoteContracheques({
           quantidade: contrachequesFiltered.length,
-          competenciaAno: ano,
-          competenciaMes: mes,
+          ano: anoFiltro === 'todos' ? 'todos' : Number(anoFiltro),
+          mes: mesFiltro === 'todos' ? 'todos' : Number(mesFiltro),
           fichaIds: contrachequesFiltered.map(f => f.id),
         });
       } catch (erroRegistro) {
@@ -176,9 +176,9 @@ export default function ConsultaContrachequesPage() {
     }
   };
   
-  const handleVisualizarDetalhe = (fichaId: string) => {
+  const handleVisualizarDetalhe = (fichaId: string, servidorId?: string | null) => {
     setFichaDetalhe(fichaId);
-    logAcesso.mutate({ fichaId, acao: 'visualizar' });
+    logAcesso.mutate({ fichaId, servidorId, acao: 'visualizar' });
   };
   
   // Dados para o dialog de detalhe
@@ -323,7 +323,7 @@ export default function ConsultaContrachequesPage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              onClick={() => handleVisualizarDetalhe(ficha.id)}
+                              onClick={() => handleVisualizarDetalhe(ficha.id, ficha.servidor_id)}
                             >
                               <Eye className="h-4 w-4" />
                             </Button>

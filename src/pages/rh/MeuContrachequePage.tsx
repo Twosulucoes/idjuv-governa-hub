@@ -55,7 +55,7 @@ export default function MeuContrachequePage() {
     try {
       // Trilha: impressão registrada antes de gerar o PDF (sem registro, sem arquivo)
       try {
-        await logAcesso.mutateAsync({ fichaId: ficha.id, acao: 'imprimir' });
+        await logAcesso.mutateAsync({ fichaId: ficha.id, servidorId: ficha.servidor_id, acao: 'imprimir' });
       } catch {
         toast.error(MSG_FALHA_REGISTRO);
         return;

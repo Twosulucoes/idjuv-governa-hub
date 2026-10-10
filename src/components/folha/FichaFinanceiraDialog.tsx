@@ -49,7 +49,12 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
   // Trilha: visualização da ficha financeira (sem bloquear), uma vez por ficha aberta
   const vistaRegistrada = useRef<string | null>(null);
   useEffect(() => {
-    if (!open || !ficha?.id || vistaRegistrada.current === ficha.id) return;
+    // Fechou: a próxima abertura da mesma ficha registra outra visualização
+    if (!open) {
+      vistaRegistrada.current = null;
+      return;
+    }
+    if (!ficha?.id || vistaRegistrada.current === ficha.id) return;
     vistaRegistrada.current = ficha.id;
     registrarSemBloquear({
       acao: "view",

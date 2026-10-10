@@ -433,7 +433,7 @@ export function ImprimirLoteFrequenciaDialog({
             arquivosSalvos++;
             setProgresso(`Salvando frequências... (${arquivosSalvos}/${servidoresParaImprimir.length})`);
           } catch (uploadError) {
-            console.warn(`Erro ao salvar frequência de ${servidor.nome_completo}:`, uploadError);
+            console.warn(`Erro ao salvar frequência do servidor ${servidor.id}:`, uploadError);
           }
         }
       }

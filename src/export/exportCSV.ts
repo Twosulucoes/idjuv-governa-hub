@@ -1,7 +1,9 @@
 /**
  * Função isolada de exportação para CSV
  * Não altera nenhum arquivo existente
+ * Células sempre entre aspas e sem fórmula (celulaCsv).
  */
+import { celulaCsv } from '@/export/csvSeguro';
 
 export function exportarParaCSV(
   dados: Record<string, unknown>[],
@@ -11,18 +13,10 @@ export function exportarParaCSV(
 
   const headers = Object.keys(dados[0]);
   const csvContent = [
-    headers.join(';'),
+    headers.map(celulaCsv).join(';'),
     ...dados.map((row) =>
       headers
-        .map((h) => {
-          const val = row[h];
-          const str = val === null || val === undefined ? '' : String(val);
-          // Escapar aspas duplas e envolver em aspas se contiver separador
-          if (str.includes(';') || str.includes('"') || str.includes('\n')) {
-            return `"${str.replace(/"/g, '""')}"`;
-          }
-          return str;
-        })
+        .map((h) => celulaCsv(row[h]))
         .join(';')
     ),
   ].join('\n');

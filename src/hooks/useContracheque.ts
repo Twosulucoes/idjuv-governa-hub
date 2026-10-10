@@ -191,13 +191,26 @@ export function useContrachequeDetalhe(fichaId?: string) {
 // a promessa rejeita e o arquivo não deve ser entregue. Para visualizar, mutate (sem bloquear a tela).
 export function useLogAcessoContracheque() {
   return useMutation({
-    mutationFn: async ({ fichaId, acao }: { fichaId: string; acao: 'visualizar' | 'imprimir' }) => {
+    mutationFn: async ({
+      fichaId,
+      servidorId,
+      acao,
+    }: {
+      fichaId: string;
+      /** Servidor da ficha: liga o evento à aba de histórico do servidor. */
+      servidorId?: string | null;
+      acao: 'visualizar' | 'imprimir';
+    }) => {
       await registrarEvento({
         acao: acao === 'imprimir' ? 'download' : 'view',
         entidade: 'contracheque',
         entidadeId: fichaId,
         descricao: acao === 'imprimir' ? 'Contracheque impresso/baixado' : 'Contracheque visualizado',
-        metadados: { acao, formato: acao === 'imprimir' ? 'pdf' : 'tela' },
+        metadados: {
+          acao,
+          formato: acao === 'imprimir' ? 'pdf' : 'tela',
+          ...(servidorId ? { servidor_id: servidorId } : {}),
+        },
       });
     },
     onError: (error) => {
@@ -209,8 +222,9 @@ export function useLogAcessoContracheque() {
 /** Lote de contracheques (RH): um registro na trilha antes de gerar o PDF; lança se falhar. */
 export async function registrarLoteContracheques(params: {
   quantidade: number;
-  competenciaAno: number;
-  competenciaMes: number;
+  /** Filtros como vieram da tela ('todos' quando não filtrado). */
+  ano: number | 'todos';
+  mes: number | 'todos';
   fichaIds: string[];
 }) {
   await registrarEvento({
@@ -221,8 +235,8 @@ export async function registrarLoteContracheques(params: {
       lote: true,
       formato: 'pdf',
       quantidade: params.quantidade,
-      competencia_ano: params.competenciaAno,
-      competencia_mes: params.competenciaMes,
+      ano: params.ano,
+      mes: params.mes,
       // até 80 ids cabem no limite de 4000 caracteres dos metadados
       ficha_ids: params.fichaIds.slice(0, 80),
       ficha_ids_cortado: params.fichaIds.length > 80,

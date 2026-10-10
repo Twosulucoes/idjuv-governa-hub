@@ -57,8 +57,21 @@ export interface LinhaTrilha {
   role_at_time: string | null;
   description: string | null;
   campos_alterados: string[] | null;
+  /** metadata.fonte: storage, registrar_evento, log_audit (nulo nas linhas dos triggers de tabela). */
+  fonte?: string | null;
+  /** metadata.trigger: "true" nas linhas gravadas pelos triggers de tabela (fn_audit_trigger). */
+  gatilho?: string | null;
   /** Nome do perfil (profiles.full_name) quando não há servidor vinculado; o que a RLS não liberar fica vazio. */
   usuario_nome?: string | null;
+}
+
+/** De onde veio a linha (metadata.fonte / metadata.trigger), para exibir. */
+export function fonteTrilha(l: Pick<LinhaTrilha, "fonte" | "gatilho">): string | null {
+  if (l.fonte === "storage") return "Arquivo (Storage)";
+  if (l.fonte === "registrar_evento") return "Ação na tela";
+  if (l.fonte === "log_audit") return "Registro avulso (log_audit)";
+  if (l.gatilho === "true") return "Gravação no banco";
+  return l.fonte ?? null;
 }
 
 /** Linha completa (detalhe). */
@@ -77,9 +90,12 @@ export interface DetalheTrilha extends LinhaTrilha {
  * Recorte de uma ficha: as linhas de uma entidade e das tabelas ligadas a ela.
  *  - servidor: a linha em `servidores` e toda linha cujo antes/depois aponte para o servidor (servidor_id) —
  *    vínculos, lotações, férias, licenças, viagens, frequência, documentos, fichas financeiras...; os eventos
- *    registrados com metadados.servidor_id; e os arquivos do Storage do servidor (metadados.servidor_alvo_id).
+ *    registrados com metadados.servidor_id; e os arquivos do Storage do servidor (metadados.servidor_alvo_id, aceito
+ *    só nas linhas com metadados.fonte = 'storage', que só o trigger do Storage grava: um evento mandado pela tela não
+ *    "planta" arquivo na ficha de outro servidor).
  *  - folha: a linha em `folhas_pagamento` e toda linha com folha_id (fichas, remessas, eventos do eSocial,
- *    exportações) e os eventos com metadados.folha_id. Itens de ficha (ficha_id) não entram.
+ *    exportações) e os eventos com metadados.folha_id, nos módulos 'rh' e 'folha' (fechar_folha/reabrir_folha antigas
+ *    gravaram 'folha'). Itens de ficha (ficha_id) não entram.
  */
 export type EscopoTrilha = { tipo: "servidor"; servidorId: string } | { tipo: "folha"; folhaId: string };
 
@@ -106,7 +122,8 @@ export interface FiltrosTrilha {
 
 const COLUNAS_LISTA =
   "id, timestamp, sequencia, action, entity_type, entity_id, module_name, user_id, servidor_id, servidor_nome, " +
-  "servidor_matricula, origem, role_at_time, description, campos_alterados";
+  "servidor_matricula, origem, role_at_time, description, campos_alterados, fonte:metadata->>fonte, " +
+  "gatilho:metadata->>trigger";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -157,11 +174,12 @@ function aplicarFiltros(query: ConsultaTrilha, f: FiltrosTrilha): ConsultaTrilha
     q = q.eq("module_name", "rh");
     grupos.push(
       `and(entity_type.eq.servidores,entity_id.eq.${s}),after_data->>servidor_id.eq.${s},` +
-        `before_data->>servidor_id.eq.${s},metadata->>servidor_id.eq.${s},metadata->>servidor_alvo_id.eq.${s}`,
+        `before_data->>servidor_id.eq.${s},metadata->>servidor_id.eq.${s},` +
+        `and(metadata->>fonte.eq.storage,metadata->>servidor_alvo_id.eq.${s})`,
     );
   } else if (f.escopo?.tipo === "folha" && ehUuid(f.escopo.folhaId)) {
     const id = f.escopo.folhaId;
-    q = q.eq("module_name", "rh");
+    q = q.in("module_name", ["rh", "folha"]);
     grupos.push(
       `and(entity_type.eq.folhas_pagamento,entity_id.eq.${id}),after_data->>folha_id.eq.${id},` +
         `before_data->>folha_id.eq.${id},metadata->>folha_id.eq.${id}`,
@@ -199,25 +217,35 @@ export function responsavelTrilha(l: Pick<LinhaTrilha, "servidor_nome" | "servid
 export interface PaginaTrilha {
   linhas: LinhaTrilha[];
   temProxima: boolean;
+  /** `sequencia` da última linha: cursor da próxima página. */
+  proximoCursor: number | null;
 }
 
-/** Lista paginada no servidor (ordem: sequencia desc). Lê `tamanho + 1` linhas para saber se há próxima página. */
-export function useTrilhaAuditoria(filtros: FiltrosTrilha, pagina: number, tamanho = 50, habilitado = true) {
+/** Uma página a partir do cursor (sequencia < cursor), na ordem sequencia desc; lê `tamanho + 1` para saber se há mais. */
+async function lerPagina(filtros: FiltrosTrilha, cursor: number | null, tamanho: number) {
+  let query = aplicarFiltros(consultaTrilha(), filtros);
+  if (cursor != null) query = query.lt("sequencia", cursor);
+  const { data, error } = await query.order("sequencia", { ascending: false }).limit(tamanho + 1);
+  if (error) throw error;
+  const todas = (data ?? []) as unknown as LinhaTrilha[];
+  const linhas = todas.slice(0, tamanho);
+  const ultima = linhas[linhas.length - 1];
+  return { linhas, temProxima: todas.length > tamanho, proximoCursor: ultima?.sequencia ?? null };
+}
+
+/**
+ * Lista paginada no servidor por cursor na `sequencia` (sem offset: o índice desce direto ao ponto). `cursor` nulo é a
+ * primeira página; a tela guarda a pilha de cursores para voltar.
+ */
+export function useTrilhaAuditoria(filtros: FiltrosTrilha, cursor: number | null, tamanho = 50, habilitado = true) {
   return useQuery({
-    queryKey: ["trilha-auditoria", filtros, pagina, tamanho],
+    queryKey: ["trilha-auditoria", filtros, cursor, tamanho],
     enabled: habilitado,
     placeholderData: (anterior) => anterior,
     queryFn: async (): Promise<PaginaTrilha> => {
-      const de = pagina * tamanho;
-      const query = aplicarFiltros(consultaTrilha(), filtros)
-        .order("sequencia", { ascending: false })
-        .range(de, de + tamanho);
-      const { data, error } = await query;
-      if (error) throw error;
-      const todas = (data ?? []) as unknown as LinhaTrilha[];
-      const linhas = todas.slice(0, tamanho);
-      await completarNomes(linhas);
-      return { linhas, temProxima: todas.length > tamanho };
+      const pagina = await lerPagina(filtros, cursor, tamanho);
+      await completarNomes(pagina.linhas);
+      return pagina;
     },
   });
 }
@@ -248,16 +276,13 @@ export const LIMITE_EXPORTACAO_TRILHA = 5000;
 /** Todas as linhas do filtro (até o limite), sem antes/depois, para o CSV. */
 export async function buscarTrilhaParaExportar(filtros: FiltrosTrilha): Promise<LinhaTrilha[]> {
   const linhas: LinhaTrilha[] = [];
-  const lote = 1000;
-  for (let de = 0; de < LIMITE_EXPORTACAO_TRILHA; de += lote) {
-    const ate = Math.min(de + lote, LIMITE_EXPORTACAO_TRILHA) - 1;
-    const { data, error } = await aplicarFiltros(consultaTrilha(), filtros)
-      .order("sequencia", { ascending: false })
-      .range(de, ate);
-    if (error) throw error;
-    const parte = (data ?? []) as unknown as LinhaTrilha[];
-    linhas.push(...parte);
-    if (parte.length < ate - de + 1) break;
+  let cursor: number | null = null;
+  while (linhas.length < LIMITE_EXPORTACAO_TRILHA) {
+    const lote = Math.min(1000, LIMITE_EXPORTACAO_TRILHA - linhas.length);
+    const pagina = await lerPagina(filtros, cursor, lote);
+    linhas.push(...pagina.linhas);
+    if (!pagina.temProxima || pagina.proximoCursor == null) break;
+    cursor = pagina.proximoCursor;
   }
   await completarNomes(linhas);
   return linhas;
@@ -276,22 +301,27 @@ export interface CampoDiff {
 
 const ehObjeto = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 
+/** Carimbos que todo UPDATE mexe; a trilha não os põe em campos_alterados. */
+const CARIMBOS_ATUALIZACAO = new Set(["updated_at", "updated_by", "updated_by_servidor_id"]);
+
 /**
  * Campo a campo entre antes e depois (valores como vieram do banco, já mascarados). Na atualização, `alterado`
- * segue campos_alterados (inclui as colunas mascaradas, cujo valor guardado é igual dos dois lados).
+ * segue campos_alterados (inclui as colunas mascaradas, cujo valor guardado é igual dos dois lados) e os carimbos
+ * updated_* ficam de fora quando não estão em campos_alterados.
  */
 export function calcularDiff(linha: Pick<DetalheTrilha, "before_data" | "after_data" | "campos_alterados">): CampoDiff[] {
   const antes = ehObjeto(linha.before_data) ? linha.before_data : {};
   const depois = ehObjeto(linha.after_data) ? linha.after_data : {};
   const alterados = new Set(linha.campos_alterados ?? []);
-  const chaves = [...new Set([...Object.keys(antes), ...Object.keys(depois)])].sort((a, b) => a.localeCompare(b));
-  const temAntes = ehObjeto(linha.before_data);
-  const temDepois = ehObjeto(linha.after_data);
+  const ehAtualizacao = ehObjeto(linha.before_data) && ehObjeto(linha.after_data);
+  const chaves = [...new Set([...Object.keys(antes), ...Object.keys(depois)])]
+    .filter((campo) => !(ehAtualizacao && CARIMBOS_ATUALIZACAO.has(campo) && !alterados.has(campo)))
+    .sort((a, b) => a.localeCompare(b));
   return chaves.map((campo) => {
     const a = antes[campo];
     const d = depois[campo];
     const diferente = JSON.stringify(a ?? null) !== JSON.stringify(d ?? null);
-    const alterado = temAntes && temDepois ? alterados.has(campo) || diferente : true;
+    const alterado = ehAtualizacao ? alterados.has(campo) || diferente : true;
     return { campo, antes: a, depois: d, alterado };
   });
 }

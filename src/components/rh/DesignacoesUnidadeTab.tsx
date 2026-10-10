@@ -133,7 +133,7 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
     try {
       const { data: userData } = await supabase.auth.getUser();
 
-      const { error } = await supabase.from("nomeacoes_chefe_unidade").insert({
+      const { data: criada, error } = await supabase.from("nomeacoes_chefe_unidade").insert({
         unidade_local_id: selectedUnidade,
         servidor_id: servidorId,
         cargo: "Chefe de Unidade Local",
@@ -146,13 +146,13 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
         status: "ativo",
         observacoes: formData.observacoes.trim() || null,
         created_by: userData.user?.id,
-      });
+      }).select("id").single();
 
       if (error) throw error;
 
       // Gerar memorando PDF
       const unidadeSelecionada = unidades.find(u => u.id === selectedUnidade);
-      const memorandoLiberado = !!unidadeSelecionada && (await registrarMemorando(null));
+      const memorandoLiberado = !!unidadeSelecionada && (await registrarMemorando(criada?.id ?? null));
       if (unidadeSelecionada && memorandoLiberado) {
         generateMemorandoDesignacao({
           servidorNome,

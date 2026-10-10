@@ -349,8 +349,13 @@ export function GerarESocialDialog({
 
   const handleCopiar = async (conteudo: string, tipo: string, evento: EventoGerado) => {
     if (!(await registrarSaidaESocial("export", [evento], `copiado (${tipo})`))) return;
-    navigator.clipboard.writeText(conteudo);
-    toast.success(`${tipo} copiado!`);
+    try {
+      await navigator.clipboard.writeText(conteudo);
+      toast.success(`${tipo} copiado!`);
+    } catch (erro) {
+      console.error("Erro ao copiar para a área de transferência:", erro);
+      toast.error(`Não foi possível copiar o ${tipo}. Use o botão de baixar.`);
+    }
   };
 
   const handleDownloadXml = async (evento: EventoGerado) => {
