@@ -95,6 +95,12 @@ Contratos → Financeiro → Folha → RH (depois do PR #35) → Admin → demai
   organograma e gestão de denúncias (`DataTable`, sem mostrar nada novo do denunciante). Telas
   públicas (lei de criação, decreto, canal de denúncias) mantêm o `MainLayout` público e ganharam
   só tokens e aria. Links quebrados do painel de Integridade apontam para as rotas registradas.
+- **Compras e Contratos**: painéis (links trocados para rotas registradas; "A vencer" e
+  "Aditivos" sem link até existir tela) e telas de processo (compras, diárias, convênios,
+  veículos, pagamentos, patrimônio, almoxarifado) com `PageHeader`, `KpiCard`, `StatusBadge`,
+  `DataTable` em pagamentos e checklist no mesmo padrão (`ol` no fluxograma, obrigatório
+  anunciado ao leitor de tela). Pendência: não há tela de lista de contratos (o menu aponta para
+  `/processos/compras?tab=…`, que a página não lê).
 - **Financeiro**: painéis (`/financeiro` e o painel de orçamento, com execução em `ChartCard` e
   tabela alternativa), orçamento, alterações orçamentárias, solicitações, empenhos, sub-empenhos,
   liquidações, pagamentos, restos a pagar, adiantamentos, contas bancárias e relatórios com

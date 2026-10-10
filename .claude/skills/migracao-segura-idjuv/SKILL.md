@@ -39,19 +39,23 @@ CREATE POLICY "<tabela>_select" ON public.<tabela>
 -- Escrita: normalmente restrita por permissão/role, nunca "true" solto.
 CREATE POLICY "<tabela>_insert" ON public.<tabela>
   FOR INSERT TO authenticated
-  WITH CHECK ( public.usuario_tem_permissao(auth.uid(), '<dominio>.<recurso>.criar') );
+  WITH CHECK ( public.has_permission_code(auth.uid(), '<dominio>.<recurso>.criar') );
 
 CREATE POLICY "<tabela>_update" ON public.<tabela>
   FOR UPDATE TO authenticated
-  USING ( public.usuario_tem_permissao(auth.uid(), '<dominio>.<recurso>.editar') )
-  WITH CHECK ( public.usuario_tem_permissao(auth.uid(), '<dominio>.<recurso>.editar') );
+  USING ( public.has_permission_code(auth.uid(), '<dominio>.<recurso>.editar') )
+  WITH CHECK ( public.has_permission_code(auth.uid(), '<dominio>.<recurso>.editar') );
 ```
 
-Use as funções de checagem já existentes (`usuario_tem_permissao`,
-`usuario_eh_admin`/`usuario_eh_super_admin`, `usuario_tem_acesso_modulo`,
-`user_has_unit_access`) descritas em `docs/RBAC_PERMISSOES.md` e
-`docs/MIGRACAO_SUPABASE_PROPRIO.md` — não invente uma função de checagem nova
-sem necessidade.
+Use as funções de checagem que o gerador de RLS do baseline já usa
+(`has_permission_code` para permissão granular, `can_access_module` para módulo,
+`is_admin_user`/`usuario_eh_admin` para o papel admin, `meu_servidor_id` para a
+linha do próprio servidor — todas exigem perfil ativo; `usuario_tem_permissao` é só
+um alias de `has_permission_code`), descritas em `docs/RBAC_PERMISSOES.md` e
+`docs/BANCO_DE_DADOS.md` — não invente uma função de checagem nova sem
+necessidade. Se a tabela cabe numa classe do gerador (`modulo`, `permissao`,
+`proprio_*`…), prefira declará-la em `supabase/baseline/rls/mapa.csv` e copiar o
+SQL gerado para a migração, como fez `20261010070000_onda_b_folha_rls_permissao.sql`.
 
 Se genuinamente a tabela precisa ser pública (ex. transparência/portal), a
 política deve ser explícita para `anon`/público e comentada explicando por
@@ -68,9 +72,11 @@ quê — não deixe "sem RLS" como forma de simular "é pública".
 3. Regenere os tipos TypeScript (`generate_typescript_types` via MCP, ou
    `supabase gen types typescript` localmente) — nunca edite
    `src/integrations/supabase/types.ts` na mão.
-4. Se a tabela alimenta uma nova permissão, adicione a linha correspondente em
-   `funcoes_sistema` (ver padrão em `docs/MIGRACAO_SUPABASE_PROPRIO.md`) na
-   mesma migração, não em uma separada solta.
+4. Se a tabela alimenta uma nova permissão, insira o código em
+   `module_permissions_catalog` (`module_code`, `permission_code`, rótulo,
+   categoria, `action_type`) na mesma migração, não em uma separada solta — a
+   tabela `funcoes_sistema` foi removida (migração `20260207182933`) e não existe
+   mais; o catálogo é o que `role_permissions`/`user_permissions` referenciam.
 
 ## Se a mudança é numa Edge Function em vez de SQL
 

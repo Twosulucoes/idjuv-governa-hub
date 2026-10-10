@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { useCreateRequisicao, useAlmoxarifados, useItensMaterial } from "@/hooks/useAlmoxarifado";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -81,16 +82,18 @@ export function NovaRequisicaoDialog({ open, onOpenChange }: NovaRequisicaoDialo
     },
   });
 
+  // Vínculo pelo profiles.servidor_id, a mesma chave da RLS (meu_servidor_id()).
+  const { user } = useAuth();
+  const servidorId = user?.servidorId;
+
   const { data: servidorLogado } = useQuery({
-    queryKey: ["servidor-logado"],
+    queryKey: ["servidor-logado-requisicao", servidorId],
+    enabled: !!servidorId,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-      
       const { data, error } = await supabase
         .from("servidores")
         .select("id, nome_completo, unidade_atual_id")
-        .eq("user_id", user.id)
+        .eq("id", servidorId!)
         .maybeSingle();
       if (error) throw error;
       return data;

@@ -23,9 +23,14 @@ import {
   CheckCircle,
   AlertCircle,
   ArrowLeft,
-  Loader2
+  Loader2,
+  Briefcase,
+  ClipboardList,
+  CalendarCheck,
+  Receipt,
+  ChevronRight
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 
 // Validação da nova senha
@@ -37,6 +42,14 @@ const passwordSchema = z.object({
   message: 'As senhas não coincidem',
   path: ['confirmarSenha']
 });
+
+// Atalhos do autoatendimento: a seção RH do menu some para quem não tem o
+// módulo, mas estas rotas só exigem login e filtram pelo servidor vinculado.
+const ATALHOS_MEU_RH = [
+  { to: '/rh/meus-dados', titulo: 'Meus Dados', descricao: 'Cadastro e vínculos funcionais', icone: ClipboardList },
+  { to: '/rh/minha-frequencia', titulo: 'Minha Frequência', descricao: 'Resumo do mês e abonos', icone: CalendarCheck },
+  { to: '/rh/meu-contracheque', titulo: 'Meu Contracheque', descricao: 'Contracheques das folhas fechadas', icone: Receipt },
+] as const;
 
 export default function MeuPerfilPage() {
   const { user } = useAuth();
@@ -206,6 +219,40 @@ export default function MeuPerfilPage() {
                 </Alert>
               </CardContent>
             </Card>
+
+            {/* Autoatendimento: só para quem tem cadastro de servidor vinculado */}
+            {user.servidorId && (
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Briefcase className="h-5 w-5" />
+                    Meu RH
+                  </CardTitle>
+                  <CardDescription>Acesso rápido aos seus dados funcionais</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {ATALHOS_MEU_RH.map(({ to, titulo, descricao, icone: Icone }) => (
+                      <Button
+                        key={to}
+                        variant="outline"
+                        asChild
+                        className="h-auto sm:h-auto justify-start gap-3 whitespace-normal p-4 text-left"
+                      >
+                        <Link to={to}>
+                          <Icone className="h-5 w-5 shrink-0 text-primary" />
+                          <span className="flex-1">
+                            <span className="block font-medium">{titulo}</span>
+                            <span className="block text-xs font-normal text-muted-foreground">{descricao}</span>
+                          </span>
+                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground sm:hidden" />
+                        </Link>
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Tab Segurança */}
