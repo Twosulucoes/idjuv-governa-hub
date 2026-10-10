@@ -15,7 +15,7 @@ interface PatrimonioStats {
 async function fetchPatrimonioStats(): Promise<PatrimonioStats> {
   const [bensAtivos, unidadesLocais, estoqueData, pendencias] = await Promise.all([
     countQuery("bens_patrimoniais", { situacao: "ativo" }),
-    countQuery("unidades_locais", { ativo: true }),
+    countQuery("unidades_locais", { status: "ativa" }),
     selectQuery<{ quantidade: number }>(
       "estoque",
       "quantidade",

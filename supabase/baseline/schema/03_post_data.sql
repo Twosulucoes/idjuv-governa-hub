@@ -3267,6 +3267,20 @@ CREATE INDEX idx_bens_codigo_qr ON public.bens_patrimoniais USING btree (codigo_
 
 
 --
+-- Name: idx_bens_patrimoniais_codigo_qr_norm; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_bens_patrimoniais_codigo_qr_norm ON public.bens_patrimoniais USING btree (upper(btrim(codigo_qr)));
+
+
+--
+-- Name: idx_bens_patrimoniais_patrimonio_anterior_norm; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_bens_patrimoniais_patrimonio_anterior_norm ON public.bens_patrimoniais USING btree (upper(btrim(patrimonio_anterior)));
+
+
+--
 -- Name: idx_bens_responsavel; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6151,6 +6165,13 @@ CREATE UNIQUE INDEX itens_ficha_financeira_ficha_referencia_desconto_uidx ON pub
 
 
 --
+-- Name: uq_bens_patrimoniais_numero_norm; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_bens_patrimoniais_numero_norm ON public.bens_patrimoniais USING btree (upper(btrim((numero_patrimonio)::text)));
+
+
+--
 -- Name: acoes audit_acoes; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6725,6 +6746,13 @@ CREATE TRIGGER tr_gerar_numero_tombo_patrimonio BEFORE INSERT ON public.patrimon
 
 
 --
+-- Name: baixas_patrimonio tr_historico_baixa; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER tr_historico_baixa AFTER INSERT ON public.baixas_patrimonio FOR EACH ROW EXECUTE FUNCTION public.registrar_historico_baixa();
+
+
+--
 -- Name: demandas_ascom tr_historico_demanda_ascom; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -7232,7 +7260,7 @@ CREATE TRIGGER trg_gerar_numero_requisicao BEFORE INSERT ON public.requisicoes_m
 -- Name: bens_patrimoniais trg_gerar_numero_tombamento; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_gerar_numero_tombamento BEFORE INSERT ON public.bens_patrimoniais FOR EACH ROW EXECUTE FUNCTION public.fn_gerar_numero_tombamento();
+CREATE TRIGGER trg_gerar_numero_tombamento BEFORE INSERT OR UPDATE OF numero_patrimonio, codigo_qr, patrimonio_anterior ON public.bens_patrimoniais FOR EACH ROW EXECUTE FUNCTION public.fn_gerar_numero_tombamento();
 
 
 --
@@ -7247,6 +7275,20 @@ CREATE TRIGGER trg_gerar_protocolo_arbitro BEFORE INSERT ON public.cadastro_arbi
 --
 
 CREATE TRIGGER trg_gerar_protocolo_sic BEFORE INSERT ON public.solicitacoes_sic FOR EACH ROW WHEN ((new.protocolo IS NULL)) EXECUTE FUNCTION public.gerar_protocolo_sic();
+
+
+--
+-- Name: baixas_patrimonio trg_guardar_decisao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_guardar_decisao BEFORE INSERT OR UPDATE ON public.baixas_patrimonio FOR EACH ROW EXECUTE FUNCTION public.fn_guardar_decisao_patrimonio();
+
+
+--
+-- Name: movimentacoes_patrimonio trg_guardar_decisao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_guardar_decisao BEFORE INSERT OR UPDATE ON public.movimentacoes_patrimonio FOR EACH ROW EXECUTE FUNCTION public.fn_guardar_decisao_patrimonio();
 
 
 --
@@ -8810,7 +8852,7 @@ ALTER TABLE ONLY public.coletas_inventario
 --
 
 ALTER TABLE ONLY public.coletas_inventario
-    ADD CONSTRAINT coletas_inventario_localizacao_encontrada_unidade_id_fkey FOREIGN KEY (localizacao_encontrada_unidade_id) REFERENCES public.estrutura_organizacional(id);
+    ADD CONSTRAINT coletas_inventario_localizacao_encontrada_unidade_id_fkey FOREIGN KEY (localizacao_encontrada_unidade_id) REFERENCES public.unidades_locais(id) NOT VALID;
 
 
 --

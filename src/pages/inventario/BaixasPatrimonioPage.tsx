@@ -15,8 +15,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
-import { useBaixasPatrimonio } from "@/hooks/usePatrimonio";
+import { useBaixasPatrimonio, useDecidirBaixa } from "@/hooks/usePatrimonio";
+import { useAuth } from "@/contexts/AuthContext";
 import { NovaBaixaDialog } from "@/components/inventario/NovaBaixaDialog";
+import { DecisaoPatrimonioDialog, type ModoDecisao } from "@/components/inventario/DecisaoPatrimonioDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -25,7 +27,7 @@ const STATUS_BAIXA: { value: string; label: string; tom: TomStatus }[] = [
   { value: 'em_analise', label: 'Em análise', tom: 'andamento' },
   { value: 'aprovada', label: 'Aprovada', tom: 'sucesso' },
   { value: 'rejeitada', label: 'Rejeitada', tom: 'erro' },
-  { value: 'efetivada', label: 'Efetivada', tom: 'neutro' },
+  { value: 'concluida', label: 'Concluída', tom: 'neutro' },
 ];
 
 const MOTIVOS_BAIXA = [
@@ -34,7 +36,6 @@ const MOTIVOS_BAIXA = [
   { value: 'doacao', label: 'Doação' },
   { value: 'alienacao', label: 'Alienação' },
   { value: 'perda', label: 'Perda/Extravio' },
-  { value: 'sinistro', label: 'Sinistro' },
 ];
 
 type Baixa = NonNullable<ReturnType<typeof useBaixasPatrimonio>["data"]>[number];
@@ -114,6 +115,11 @@ export default function BaixasPatrimonioPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filtroStatus, setFiltroStatus] = useState<string>("");
   const [dialogNovaBaixaOpen, setDialogNovaBaixaOpen] = useState(false);
+  const [decisao, setDecisao] = useState<{ baixa: Baixa; modo: ModoDecisao } | null>(null);
+  const decidirBaixa = useDecidirBaixa();
+  // Aprovar/rejeitar exige patrimonio.tramitar (o banco também valida: erro 42501).
+  const { hasPermission } = useAuth();
+  const podeDecidir = hasPermission("patrimonio.tramitar");
 
   // Verifica se tem ação no URL
   useEffect(() => {
@@ -195,12 +201,13 @@ export default function BaixasPatrimonioPage() {
                   <Eye className="w-4 h-4" aria-hidden="true" />
                 </Link>
               </Button>
-              {baixa.status === 'solicitada' && (
+              {podeDecidir && (baixa.status === 'solicitada' || baixa.status === 'em_analise') && (
                 <>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="text-success"
+                    onClick={() => setDecisao({ baixa, modo: "aprovar" })}
                     aria-label={`Aprovar baixa do bem ${identificacaoBem(baixa)}`}
                   >
                     <Check className="w-4 h-4" aria-hidden="true" />
@@ -209,6 +216,7 @@ export default function BaixasPatrimonioPage() {
                     variant="ghost"
                     size="icon"
                     className="text-destructive"
+                    onClick={() => setDecisao({ baixa, modo: "rejeitar" })}
                     aria-label={`Rejeitar baixa do bem ${identificacaoBem(baixa)}`}
                   >
                     <X className="w-4 h-4" aria-hidden="true" />
@@ -223,6 +231,27 @@ export default function BaixasPatrimonioPage() {
       <NovaBaixaDialog
         open={dialogNovaBaixaOpen}
         onOpenChange={setDialogNovaBaixaOpen}
+      />
+
+      <DecisaoPatrimonioDialog
+        open={!!decisao}
+        onOpenChange={(aberto) => !aberto && setDecisao(null)}
+        modo={decisao?.modo ?? "aprovar"}
+        titulo={decisao?.modo === "rejeitar" ? "Rejeitar baixa" : "Aprovar baixa"}
+        descricao={decisao ? `Baixa do bem ${identificacaoBem(decisao.baixa)} por ${getMotivoLabel(decisao.baixa.motivo)}.` : ""}
+        aviso={
+          decisao?.modo === "aprovar"
+            ? `Ao aprovar, o bem ${identificacaoBem(decisao.baixa)} ficará com a situação "baixado" e sairá do patrimônio ativo. Essa decisão não pode ser desfeita pela tela.`
+            : undefined
+        }
+        processando={decidirBaixa.isPending}
+        onConfirmar={(motivoRejeicao) => {
+          if (!decisao) return;
+          decidirBaixa.mutate(
+            { id: decisao.baixa.id, aprovar: decisao.modo === "aprovar", motivoRejeicao },
+            { onSuccess: () => setDecisao(null) },
+          );
+        }}
       />
     </ModuleLayout>
   );
