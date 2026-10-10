@@ -151,7 +151,7 @@ export default function CadastroBemSimplificadoPage() {
   const imprimirEtiqueta = async () => {
     if (!bemCadastrado) return;
     try {
-      await imprimirEtiquetas([bemCadastrado]);
+      await imprimirEtiquetas([{ ...bemCadastrado, unidade: bemCadastrado.unidade_nome }]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível imprimir a etiqueta.");
     }

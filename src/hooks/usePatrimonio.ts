@@ -470,7 +470,7 @@ export function useConcluirManutencao() {
       custoFinal?: number | null;
       observacoes?: string | null;
     }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('manutencoes_patrimonio')
         .update({
           status: 'concluida',
@@ -480,8 +480,13 @@ export function useConcluirManutencao() {
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .in('status', ['aberta', 'em_andamento']);
+        .in('status', ['aberta', 'em_andamento'])
+        .select('id');
       if (error) throw error;
+      // Nenhuma linha mudou: outra pessoa já concluiu/cancelou (ou a RLS não deixou ver).
+      if (!data || data.length === 0) {
+        throw new Error('Esta manutenção já foi concluída ou cancelada');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manutencoes-patrimonio'] });

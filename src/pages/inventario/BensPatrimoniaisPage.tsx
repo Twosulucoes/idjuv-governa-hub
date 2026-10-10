@@ -147,7 +147,12 @@ export default function BensPatrimoniaisPage() {
     }
     try {
       await imprimirEtiquetas([
-        { numero_patrimonio: bem.numero_patrimonio, descricao: bem.descricao, codigo_qr: bem.codigo_qr },
+        {
+          numero_patrimonio: bem.numero_patrimonio,
+          descricao: bem.descricao,
+          codigo_qr: bem.codigo_qr,
+          unidade: bem.unidade_local?.nome_unidade,
+        },
       ]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível gerar a etiqueta.');

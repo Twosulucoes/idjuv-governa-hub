@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
 import { useManutencoesPatrimonio } from "@/hooks/usePatrimonio";
+import { useAuth } from "@/contexts/AuthContext";
 import { NovaManutencaoDialog } from "@/components/inventario/NovaManutencaoDialog";
 import { ConcluirManutencaoDialog } from "@/components/inventario/ConcluirManutencaoDialog";
 import { format } from "date-fns";
@@ -119,6 +120,9 @@ export default function ManutencoesBensPage() {
   const [filtroTipo, setFiltroTipo] = useState<string>("");
   const [dialogNovaManutencaoOpen, setDialogNovaManutencaoOpen] = useState(false);
   const [manutencaoConcluir, setManutencaoConcluir] = useState<Manutencao | null>(null);
+  // Concluir exige patrimonio.tramitar.
+  const { hasPermission } = useAuth();
+  const podeTramitar = hasPermission("patrimonio.tramitar");
 
   // Verifica se tem ação no URL
   useEffect(() => {
@@ -201,7 +205,7 @@ export default function ManutencoesBensPage() {
                   <Eye className="w-4 h-4" aria-hidden="true" />
                 </Link>
               </Button>
-              {podeConcluir(man) && (
+              {podeTramitar && podeConcluir(man) && (
                 <Button
                   variant="ghost"
                   size="icon"

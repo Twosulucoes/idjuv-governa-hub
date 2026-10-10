@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
 import { useBaixasPatrimonio, useDecidirBaixa } from "@/hooks/usePatrimonio";
+import { useAuth } from "@/contexts/AuthContext";
 import { NovaBaixaDialog } from "@/components/inventario/NovaBaixaDialog";
 import { DecisaoPatrimonioDialog, type ModoDecisao } from "@/components/inventario/DecisaoPatrimonioDialog";
 import { format } from "date-fns";
@@ -116,6 +117,9 @@ export default function BaixasPatrimonioPage() {
   const [dialogNovaBaixaOpen, setDialogNovaBaixaOpen] = useState(false);
   const [decisao, setDecisao] = useState<{ baixa: Baixa; modo: ModoDecisao } | null>(null);
   const decidirBaixa = useDecidirBaixa();
+  // Aprovar/rejeitar exige patrimonio.tramitar (o banco também valida: erro 42501).
+  const { hasPermission } = useAuth();
+  const podeDecidir = hasPermission("patrimonio.tramitar");
 
   // Verifica se tem ação no URL
   useEffect(() => {
@@ -197,7 +201,7 @@ export default function BaixasPatrimonioPage() {
                   <Eye className="w-4 h-4" aria-hidden="true" />
                 </Link>
               </Button>
-              {(baixa.status === 'solicitada' || baixa.status === 'em_analise') && (
+              {podeDecidir && (baixa.status === 'solicitada' || baixa.status === 'em_analise') && (
                 <>
                   <Button
                     variant="ghost"

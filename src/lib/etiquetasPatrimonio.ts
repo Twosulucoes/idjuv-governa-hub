@@ -15,6 +15,8 @@ export interface BemEtiqueta {
   numero_patrimonio: string;
   descricao: string;
   codigo_qr?: string | null;
+  /** Nome da unidade local (linha opcional na etiqueta). */
+  unidade?: string | null;
 }
 
 /** Escapa texto para inserção segura em HTML (conteúdo e atributos). */
@@ -43,8 +45,10 @@ function nomeInstituicao(): string {
 }
 
 /**
- * Abre uma janela de impressão com uma etiqueta por bem (QR + número + descrição).
- * Lança erro se o navegador bloquear a janela (pop-up).
+ * Abre uma janela de impressão com uma etiqueta por bem (QR + número + descrição +
+ * unidade, quando informada).
+ * Lança erro se o navegador bloquear a janela (pop-up) ou se o QR não puder ser gerado
+ * (nesse caso a janela já aberta é fechada).
  */
 export async function imprimirEtiquetas(bens: BemEtiqueta[]): Promise<void> {
   if (bens.length === 0) return;
@@ -57,19 +61,28 @@ export async function imprimirEtiquetas(bens: BemEtiqueta[]): Promise<void> {
   }
 
   const instituicao = escaparHtml(nomeInstituicao());
-  const etiquetas = await Promise.all(
-    bens.map(async (bem) => {
-      const conteudo = (bem.codigo_qr || bem.numero_patrimonio || "").trim();
-      const qr = conteudo ? await gerarQrDataUrl(conteudo) : "";
-      return `
+  let etiquetas: string[];
+  try {
+    etiquetas = await Promise.all(
+      bens.map(async (bem) => {
+        const conteudo = (bem.codigo_qr || bem.numero_patrimonio || "").trim();
+        const qr = conteudo ? await gerarQrDataUrl(conteudo) : "";
+        const unidade = (bem.unidade ?? "").trim();
+        return `
         <div class="etiqueta">
           ${instituicao ? `<div class="instituicao">${instituicao} - PATRIMÔNIO</div>` : `<div class="instituicao">PATRIMÔNIO</div>`}
           ${qr ? `<img class="qr" src="${escaparHtml(qr)}" alt="QR Code" />` : ""}
           <div class="numero">${escaparHtml(bem.numero_patrimonio)}</div>
           <div class="descricao">${escaparHtml(bem.descricao)}</div>
+          ${unidade ? `<div class="unidade">${escaparHtml(unidade)}</div>` : ""}
         </div>`;
-    }),
-  );
+      }),
+    );
+  } catch (erro) {
+    // Não deixa uma janela em branco aberta.
+    janela.close();
+    throw erro;
+  }
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -87,6 +100,7 @@ export async function imprimirEtiquetas(bens: BemEtiqueta[]): Promise<void> {
   .qr { width: 30mm; height: 30mm; display: block; margin: 0 auto; }
   .numero { font-size: 13pt; font-weight: bold; font-family: "Courier New", monospace; margin-top: 1mm; }
   .descricao { font-size: 7pt; margin-top: 1mm; overflow: hidden; max-height: 3em; }
+  .unidade { font-size: 7pt; font-weight: bold; margin-top: 1mm; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   @media print {
     body { padding: 0; }
     .etiqueta { margin: 0 auto 2mm; }

@@ -3,20 +3,25 @@
  * Gerencia coletas pendentes para sincronização quando offline
  *
  * Regras:
- * - Só cai na fila local quando o aparelho está offline ou a requisição não chegou ao
- *   servidor (erro de rede). Erro devolvido pelo banco (RLS, CHECK, FK, duplicidade...)
- *   é mostrado ao usuário e NÃO vira "salvo localmente".
+ * - Só cai na fila local quando o aparelho está offline ou a falha é transitória
+ *   (requisição não chegou ao servidor, timeout 408 ou erro 5xx sem código Postgres).
+ *   Erro devolvido pelo banco (RLS, CHECK, FK, duplicidade...) é mostrado ao usuário e
+ *   NÃO vira "salvo localmente".
+ * - A fila vive no localStorage, que é a fonte da verdade: toda gravação parte de
+ *   `lerArmazenadas()` (não do estado React, que pode estar desatualizado).
  * - Na sincronização, o que foi gravado (ou já existia: 23505) sai do localStorage.
+ *   O que o servidor recusou fica com `ultimo_erro` e é exposto em `coletasComErro`
+ *   para o usuário decidir (`descartarColeta`).
  * - Foto: o upload é feito por quem chama, antes de salvar. Se havia foto capturada mas
- *   não há URL (upload impossível sem conexão), a coleta é guardada sem foto e o usuário
- *   é avisado para fotografar de novo quando houver conexão.
+ *   não há URL, a coleta é guardada sem foto e o usuário é avisado (sem conexão x falha
+ *   no envio) para fotografar de novo.
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-interface ColetaPendente {
+export interface ColetaPendente {
   id: string;
   campanha_id: string;
   bem_id: string;
@@ -30,6 +35,8 @@ interface ColetaPendente {
   data_coleta: string;
   created_at: string;
   synced: boolean;
+  /** Identificação do bem para exibir na fila (ex.: número de tombamento). Não vai ao banco. */
+  rotulo?: string | null;
   /** Última mensagem de erro do servidor ao sincronizar (item continua na fila). */
   ultimo_erro?: string | null;
 }
@@ -50,14 +57,17 @@ const STORAGE_KEY = "coletas_pendentes";
 const CODIGO_JA_EXISTE = "23505";
 
 /**
- * Erro de rede = a requisição não chegou ao servidor (fetch falhou, sem resposta).
- * Nesse caso o PostgREST devolve status 0 e erro sem código Postgres.
+ * Falha transitória = vale tentar de novo depois (fila local):
+ * - aparelho offline ou a requisição não chegou ao servidor (status 0, fetch falhou);
+ * - timeout (408) ou erro de infraestrutura (5xx) sem código Postgres.
+ * Erro com código Postgres (RLS, CHECK, FK...) é definitivo.
  */
-function ehErroDeRede(error: ErroSupabase | null | undefined, status?: number): boolean {
+function ehErroTransitorio(error: ErroSupabase | null | undefined, status?: number): boolean {
   if (typeof navigator !== "undefined" && !navigator.onLine) return true;
   if (status === 0) return true;
   if (!error) return false;
   if (error.code) return false;
+  if (status === 408 || (typeof status === "number" && status >= 500)) return true;
   return /failed to fetch|fetch failed|networkerror|network request failed|load failed|timeout|aborted/i.test(
     error.message ?? "",
   );
@@ -72,6 +82,15 @@ function lerArmazenadas(): ColetaPendente[] {
     console.error("Erro ao carregar coletas offline:", e);
     return [];
   }
+}
+
+/** Grava a fila inteira (lança se o armazenamento falhar, ex.: cota cheia). */
+function gravarArmazenadas(lista: ColetaPendente[]): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(lista));
+}
+
+function pendentesDaCampanha(campanhaId: string): ColetaPendente[] {
+  return lerArmazenadas().filter((c) => c.campanha_id === campanhaId && !c.synced);
 }
 
 function payloadColeta(coleta: Omit<ColetaPendente, "id" | "created_at" | "synced" | "ultimo_erro">) {
@@ -90,19 +109,33 @@ function payloadColeta(coleta: Omit<ColetaPendente, "id" | "created_at" | "synce
   };
 }
 
+/** Envia uma coleta; nunca lança (erro de fetch vira status 0). */
+async function enviarColeta(
+  coleta: Omit<ColetaPendente, "id" | "created_at" | "synced" | "ultimo_erro">,
+): Promise<{ error: ErroSupabase | null; status?: number }> {
+  try {
+    const resposta = await supabase.from("coletas_inventario").insert(payloadColeta(coleta));
+    return { error: resposta.error, status: resposta.status };
+  } catch (err) {
+    // fetch lançou: a requisição não chegou ao servidor
+    return { error: { message: err instanceof Error ? err.message : String(err) }, status: 0 };
+  }
+}
+
 export function useColetaOffline(campanhaId: string) {
   const [coletasPendentes, setColetasPendentes] = useState<ColetaPendente[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  // Trava de reentrada: evita dois syncs simultâneos (botão + evento "online").
+  const sincronizandoRef = useRef(false);
 
   // Carregar coletas do localStorage
   useEffect(() => {
-    setColetasPendentes(lerArmazenadas().filter((c) => c.campanha_id === campanhaId && !c.synced));
+    setColetasPendentes(pendentesDaCampanha(campanhaId));
   }, [campanhaId]);
 
-  // Ref sempre apontando para a versão mais recente de syncColetas, para evitar
-  // que o listener de "online" capture um closure obsoleto (com a lista de
-  // coletas pendentes vazia do primeiro render) e nunca sincronize ao reconectar.
+  // Ref sempre apontando para a versão mais recente de syncColetas, para o listener
+  // de "online" não usar um closure obsoleto.
   const syncColetasRef = useRef<() => void>(() => {});
 
   // Monitorar status de conexão
@@ -129,32 +162,24 @@ export function useColetaOffline(campanhaId: string) {
   // Salvar coleta
   const salvarColeta = useCallback(async ({ foto_capturada, ...coleta }: NovaColeta) => {
     const fotoPerdida = !!foto_capturada && !coleta.foto_url;
+    // Sem conexão no momento do envio da foto x foto que falhou com conexão.
+    const fotoSemConexao = !navigator.onLine;
 
     // Se online, tenta salvar diretamente
     if (isOnline && navigator.onLine) {
-      let error: ErroSupabase | null = null;
-      let status: number | undefined;
-      try {
-        const resposta = await supabase.from("coletas_inventario").insert(payloadColeta(coleta));
-        error = resposta.error;
-        status = resposta.status;
-      } catch (err) {
-        // fetch lançou: a requisição não chegou ao servidor
-        error = { message: err instanceof Error ? err.message : String(err) };
-        status = 0;
-      }
+      const { error, status } = await enviarColeta(coleta);
 
       if (!error) {
         toast.success("Coleta registrada!");
         if (fotoPerdida) {
-          toast.warning("A foto não foi enviada", {
-            description: "A coleta foi registrada sem foto. Fotografe o bem de novo quando houver conexão.",
+          toast.warning("Falha no envio da foto", {
+            description: "A coleta foi registrada sem foto. Fotografe o bem de novo e tente enviar outra vez.",
           });
         }
         return true;
       }
 
-      if (!ehErroDeRede(error, status)) {
+      if (!ehErroTransitorio(error, status)) {
         // Erro do servidor: mostra e não guarda localmente (reenviar daria o mesmo erro).
         console.error("Erro ao salvar coleta:", error);
         toast.error("Coleta não registrada", {
@@ -165,7 +190,7 @@ export function useColetaOffline(campanhaId: string) {
         });
         return false;
       }
-      // Erro de rede: segue para a fila local.
+      // Falha transitória: segue para a fila local.
     }
 
     const novaColeta: ColetaPendente = {
@@ -176,10 +201,8 @@ export function useColetaOffline(campanhaId: string) {
     };
 
     try {
-      const outras = lerArmazenadas().filter((c) => c.campanha_id !== campanhaId);
-      const atualizadas = [...coletasPendentes, novaColeta];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([...outras, ...atualizadas]));
-      setColetasPendentes(atualizadas);
+      // Parte sempre do que está gravado (outras abas/syncs podem ter mudado a fila).
+      gravarArmazenadas([...lerArmazenadas(), novaColeta]);
     } catch (e) {
       console.error("Erro ao guardar coleta offline:", e);
       toast.error("Não foi possível guardar a coleta no aparelho", {
@@ -187,65 +210,67 @@ export function useColetaOffline(campanhaId: string) {
       });
       return false;
     }
+    if (novaColeta.campanha_id === campanhaId) {
+      setColetasPendentes((prev) => [...prev, novaColeta]);
+    }
 
     toast.info("Coleta salva localmente", {
       description: fotoPerdida
-        ? "Será sincronizada quando houver conexão, mas sem a foto: fotografe o bem de novo depois."
+        ? fotoSemConexao
+          ? "Será sincronizada quando houver conexão, mas sem a foto (sem conexão): fotografe o bem de novo depois."
+          : "Será sincronizada quando houver conexão, mas sem a foto (falha no envio): fotografe o bem de novo depois."
         : "Será sincronizada quando houver conexão",
     });
     return true;
-  }, [isOnline, campanhaId, coletasPendentes]);
+  }, [isOnline, campanhaId]);
 
   // Sincronizar coletas pendentes
   const syncColetas = useCallback(async () => {
-    const pendentes = coletasPendentes.filter(c => !c.synced);
-    if (pendentes.length === 0 || !isOnline) return;
+    if (sincronizandoRef.current) return;
+    if (!navigator.onLine) return;
 
+    const pendentes = pendentesDaCampanha(campanhaId);
+    if (pendentes.length === 0) return;
+
+    sincronizandoRef.current = true;
     setIsSyncing(true);
     const sincronizadas = new Set<string>();
     const errosServidor = new Map<string, string>();
 
-    for (const coleta of pendentes) {
-      let error: ErroSupabase | null = null;
-      let status: number | undefined;
-      try {
-        const resposta = await supabase.from("coletas_inventario").insert(payloadColeta(coleta));
-        error = resposta.error;
-        status = resposta.status;
-      } catch (err) {
-        error = { message: err instanceof Error ? err.message : String(err) };
-        status = 0;
-      }
-
-      if (!error || error.code === CODIGO_JA_EXISTE) {
-        // Gravada agora ou já existia no servidor: sai da fila.
-        sincronizadas.add(coleta.id);
-      } else if (ehErroDeRede(error, status)) {
-        // Caiu a conexão: para e tenta de novo na próxima vez.
-        break;
-      } else {
-        console.error("Erro ao sincronizar coleta:", error);
-        errosServidor.set(coleta.id, error.message || "Recusada pelo servidor");
-      }
-    }
-
-    // Atualiza estado e localStorage: remove as sincronizadas, anota o erro das recusadas.
-    const atualizar = (c: ColetaPendente): ColetaPendente =>
-      errosServidor.has(c.id) ? { ...c, ultimo_erro: errosServidor.get(c.id) } : c;
-
-    const restantes = coletasPendentes.filter(c => !sincronizadas.has(c.id)).map(atualizar);
-    setColetasPendentes(restantes);
-
     try {
-      const remaining = lerArmazenadas()
-        .filter((c) => !sincronizadas.has(c.id))
-        .map(atualizar);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(remaining));
-    } catch (e) {
-      console.error("Erro ao atualizar coletas offline:", e);
-    }
+      for (const coleta of pendentes) {
+        const { error, status } = await enviarColeta(coleta);
 
-    setIsSyncing(false);
+        if (!error || error.code === CODIGO_JA_EXISTE) {
+          // Gravada agora ou já existia no servidor: sai da fila.
+          sincronizadas.add(coleta.id);
+        } else if (ehErroTransitorio(error, status)) {
+          // Caiu a conexão / servidor indisponível: para e tenta de novo na próxima vez.
+          break;
+        } else {
+          console.error("Erro ao sincronizar coleta:", error);
+          errosServidor.set(coleta.id, error.message || "Recusada pelo servidor");
+        }
+      }
+
+      // Remove as sincronizadas e anota o erro das recusadas (no armazenamento e no estado).
+      const atualizar = (c: ColetaPendente): ColetaPendente =>
+        errosServidor.has(c.id) ? { ...c, ultimo_erro: errosServidor.get(c.id) } : c;
+
+      try {
+        gravarArmazenadas(
+          lerArmazenadas()
+            .filter((c) => !sincronizadas.has(c.id))
+            .map(atualizar),
+        );
+      } catch (e) {
+        console.error("Erro ao atualizar coletas offline:", e);
+      }
+      setColetasPendentes((prev) => prev.filter((c) => !sincronizadas.has(c.id)).map(atualizar));
+    } finally {
+      sincronizandoRef.current = false;
+      setIsSyncing(false);
+    }
 
     if (sincronizadas.size > 0) {
       toast.success(`${sincronizadas.size} coleta(s) sincronizada(s)!`);
@@ -256,19 +281,37 @@ export function useColetaOffline(campanhaId: string) {
         description: `Continuam guardadas no aparelho. Motivo: ${primeiro}`,
       });
     }
-  }, [coletasPendentes, isOnline]);
+  }, [campanhaId]);
+
+  /** Remove da fila uma coleta (ex.: recusada pelo servidor e que não vale reenviar). */
+  const descartarColeta = useCallback((id: string) => {
+    try {
+      gravarArmazenadas(lerArmazenadas().filter((c) => c.id !== id));
+    } catch (e) {
+      console.error("Erro ao descartar coleta offline:", e);
+      toast.error("Não foi possível descartar a coleta");
+      return;
+    }
+    setColetasPendentes((prev) => prev.filter((c) => c.id !== id));
+    toast.success("Coleta descartada");
+  }, []);
 
   // Mantém a ref sincronizada com a última versão de syncColetas.
   useEffect(() => {
     syncColetasRef.current = syncColetas;
   }, [syncColetas]);
 
+  const pendentes = coletasPendentes.filter((c) => !c.synced);
+
   return {
-    coletasPendentes: coletasPendentes.filter(c => !c.synced),
+    coletasPendentes: pendentes,
+    /** Pendentes que o servidor recusou na última sincronização (com o motivo em `ultimo_erro`). */
+    coletasComErro: pendentes.filter((c) => !!c.ultimo_erro),
     salvarColeta,
     syncColetas,
+    descartarColeta,
     isSyncing,
     isOnline,
-    pendingCount: coletasPendentes.filter(c => !c.synced).length,
+    pendingCount: pendentes.length,
   };
 }

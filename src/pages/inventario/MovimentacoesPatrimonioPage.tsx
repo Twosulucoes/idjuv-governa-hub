@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
 import { useMovimentacoesPatrimonio, useDecidirMovimentacao } from "@/hooks/usePatrimonio";
+import { useAuth } from "@/contexts/AuthContext";
 import { NovaMovimentacaoDialog } from "@/components/inventario/NovaMovimentacaoDialog";
 import { DecisaoPatrimonioDialog, type ModoDecisao } from "@/components/inventario/DecisaoPatrimonioDialog";
 import { format } from "date-fns";
@@ -136,6 +137,9 @@ export default function MovimentacoesPatrimonioPage() {
   const [dialogNovaMovimentacaoOpen, setDialogNovaMovimentacaoOpen] = useState(false);
   const [decisao, setDecisao] = useState<{ mov: Movimentacao; modo: ModoDecisao } | null>(null);
   const decidirMovimentacao = useDecidirMovimentacao();
+  // Aprovar/rejeitar exige patrimonio.tramitar (o banco também valida: erro 42501).
+  const { hasPermission } = useAuth();
+  const podeDecidir = hasPermission("patrimonio.tramitar");
 
   // Verifica se tem ação no URL
   useEffect(() => {
@@ -218,7 +222,7 @@ export default function MovimentacoesPatrimonioPage() {
                   <Eye className="w-4 h-4" aria-hidden="true" />
                 </Link>
               </Button>
-              {mov.status === 'pendente' && (
+              {podeDecidir && mov.status === 'pendente' && (
                 <>
                   <Button
                     variant="ghost"

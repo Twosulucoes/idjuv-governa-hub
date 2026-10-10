@@ -149,11 +149,19 @@ interface BemParaEtiqueta {
   numero_patrimonio: string;
   descricao: string;
   codigo_qr?: string | null;
+  unidade_local?: { nome_unidade?: string | null } | null;
 }
 
 async function imprimirEtiquetaBem(bem: BemParaEtiqueta) {
   try {
-    await imprimirEtiquetas([bem]);
+    await imprimirEtiquetas([
+      {
+        numero_patrimonio: bem.numero_patrimonio,
+        descricao: bem.descricao,
+        codigo_qr: bem.codigo_qr,
+        unidade: bem.unidade_local?.nome_unidade,
+      },
+    ]);
   } catch (error) {
     toast.error(error instanceof Error ? error.message : "Não foi possível imprimir a etiqueta.");
   }

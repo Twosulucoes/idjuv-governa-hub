@@ -4,7 +4,7 @@
  * que o banco também valida (RPC patrimonio_decidir_*).
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -60,6 +60,13 @@ export function DecisaoPatrimonioDialog({
     if (open) form.reset({ motivo: "" });
   }, [open, form]);
 
+  // Enquanto o diálogo fecha (animação), o pai costuma limpar a seleção e as props
+  // voltam ao padrão ("aprovar", título vazio). Guarda o último conteúdo aberto para
+  // não piscar o outro modo/título durante a saída.
+  const ultimoConteudo = useRef({ modo, titulo, descricao, aviso });
+  if (open) ultimoConteudo.current = { modo, titulo, descricao, aviso };
+  const exibido = open ? { modo, titulo, descricao, aviso } : ultimoConteudo.current;
+
   const handleOpenChange = (valor: boolean) => {
     if (!processando) onOpenChange(valor);
   };
@@ -68,15 +75,15 @@ export function DecisaoPatrimonioDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{titulo}</DialogTitle>
-          <DialogDescription>{descricao}</DialogDescription>
+          <DialogTitle>{exibido.titulo}</DialogTitle>
+          <DialogDescription>{exibido.descricao}</DialogDescription>
         </DialogHeader>
 
-        {modo === "aprovar" ? (
+        {exibido.modo === "aprovar" ? (
           <>
-            {aviso && (
+            {exibido.aviso && (
               <p role="alert" className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
-                {aviso}
+                {exibido.aviso}
               </p>
             )}
             <DialogFooter>
