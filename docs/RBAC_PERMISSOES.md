@@ -51,6 +51,25 @@ tabelas acima têm FK para ele.
 > migração e `user_permissions` é concedida via SQL — uma tela para ambas é
 > trabalho em aberto.
 
+### Identidade no banco só de migrações
+
+Num banco montado só por `supabase/migrations/` (sem o baseline), `profiles`, `user_roles` e
+`user_modules` tinham as policies `acesso_total_*` (`auth.uid() IS NOT NULL`), que somadas por OR
+anulavam as de administrador: qualquer logado se dava o papel `admin`, ganhava módulos, trocava o
+próprio `servidor_id`/`is_active` e lia todos os perfis. A migração
+`supabase/migrations/20261010080000_s0_identidade_policies.sql` deixa as três tabelas como no baseline
+(`supabase/baseline/overlay/12_protecao_profiles.sql` e classe `proprio_user` do mapa de RLS):
+
+- `profiles`: cada um lê e edita a própria linha (só `full_name`, `avatar_url`,
+  `requires_password_change`); identidade, vínculo e bloqueio só o papel admin muda (trigger
+  `profiles_proteger_colunas`); INSERT e DELETE só admin; admin lê todos.
+- `user_roles` e `user_modules`: usuário ativo lê as próprias linhas; só o papel admin escreve.
+
+Consequência no front para quem não tem o **papel** admin: nomes de outros usuários vindos de
+`profiles` (autor de importação, aprovador, responsável no organograma, nomes na auditoria) chegam
+vazios, e telas de gestão de usuários/permissões abertas por permissão `admin.*` concedida via módulo
+não listam nem gravam papéis e módulos de terceiros.
+
 ## Fluxo em tempo de execução
 
 1. Login via Supabase Auth → `onAuthStateChange` no `AuthContext`.
@@ -135,6 +154,34 @@ não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos 
   o autoatendimento funciona só para esse perfil — e para ele a cláusula própria não é barreira.
   Mesma dívida de `/rh/meus-dados`: policy de leitura da própria linha em `servidores` e
   alinhamento `profiles.servidor_id` ↔ `servidores.user_id` (migração de RLS).
+
+### Folha: edição da ficha
+
+- No detalhe da folha (`/folha/:id` → `FichaFinanceiraDialog`), incluir/editar/excluir itens da
+  ficha, cadastrar/suspender/quitar/lançar consignações e manter dependentes IRRF exige
+  `financeiro.folha.processar` (catálogo do módulo `financeiro`; concedida a `admin` e `manager` em
+  `role_permissions`, e super admin passa por cima) **e** folha em
+  `previa`, `aberta` ou `reaberta` (`podeEditarFicha`, `src/lib/folhaFichaRegras.ts`). Sem isso os
+  botões não aparecem e o diálogo marca "Somente leitura". A rota `/folha/:id` continua
+  `<ProtectedRoute>` sem permissão (mudar guard de rota aguarda confirmação).
+- **Essa barreira existe só no front.** A RLS de `itens_ficha_financeira`, `fichas_financeiras`,
+  `folhas_pagamento`, `consignacoes` e `dependentes_irrf` libera escrita a qualquer usuário com o
+  módulo `rh` (`can_access_module('rh')`), sem checar `financeiro.folha.processar`. No banco, os
+  triggers `trg_bloquear_alteracao_item_ficha_fechada`/`trg_bloquear_alteracao_ficha_fechada` barram
+  UPDATE/DELETE com a folha `fechada` (com exceção para admin), mas **não INSERT** em
+  `itens_ficha_financeira` nem em `fichas_financeiras`; o front relê o status da folha antes de
+  inserir, mas quem tem o módulo `rh` consegue, pela API, inserir item em folha fechada ou mudar o
+  próprio `folhas_pagamento.status` por UPDATE direto (e aí os triggers deixam de valer). O recálculo
+  de totais (ficha → folha) é feito pelo cliente em quatro comandos, não atômico (após um INSERT, se
+  o recálculo falhar o front tenta excluir o item). A duplicidade de "Lançar na ficha" é checada só
+  no cliente (sem índice único). Pendências para a migração 13b (Onda B): trigger BEFORE INSERT e RPC
+  `recalcular_ficha_financeira` (M2), índice único parcial `(ficha_id, lower(referencia))` para
+  descontos com referência, policies por permissão (M4), auditoria (M5) — ver
+  `superpowers/specs/2026-10-09-folha-detalhe-edicao-design.md`.
+- Erros do banco (RLS 42501, trigger P0001, CHECK 23514, duplicidade 23505, obrigatório 23502,
+  "0 linhas" PGRST116) chegam ao usuário em toast legível via `descreverErroBanco`. Só o texto do
+  `RAISE` dos triggers (P0001) é repassado; os demais viram mensagem fixa com o código, sem nome de
+  tabela/constraint nem o `DETAIL` do Postgres (que em CHECK traz a linha inteira, com dados pessoais).
 
 ### Viagens: edição, cancelamento e exclusão
 
