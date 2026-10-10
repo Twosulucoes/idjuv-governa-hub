@@ -113,6 +113,24 @@ Deno.serve(async (req) => {
       if (profileError) throw profileError;
     };
 
+    // Trilha (onda E1): o upsert acima roda pela service role e entra em audit_logs com origem "sistema", sem autor.
+    // Esta linha complementar registra o administrador que pediu. Sem e-mail nem outro dado pessoal; falha aqui não
+    // desfaz a criação (só registra o código do erro no log da função).
+    const registrarTrilha = async (userId: string, recuperado: boolean) => {
+      const { error: auditError } = await supabaseAdmin.from("audit_logs").insert({
+        action: recuperado ? "update" : "create",
+        entity_type: "user",
+        entity_id: userId,
+        user_id: caller.id,
+        module_name: "admin",
+        description: recuperado
+          ? "Perfil garantido para usuário que já existia (admin-create-user)"
+          : "Usuário criado (admin-create-user)",
+        metadata: { fonte: "admin-create-user", tipo_usuario: tipoUsuario, recuperado },
+      });
+      if (auditError) console.error("Falha ao registrar a trilha da criação de usuário:", auditError.code);
+    };
+
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: normalizedEmail,
       password,
@@ -150,6 +168,7 @@ Deno.serve(async (req) => {
         }
 
         await ensureProfile(existing.id, existing.email);
+        await registrarTrilha(existing.id, true);
 
         return new Response(
           JSON.stringify({ user: { id: existing.id, email: existing.email }, recovered: true }),
@@ -168,6 +187,7 @@ Deno.serve(async (req) => {
     }
 
     await ensureProfile(newUser.user.id, newUser.user.email);
+    await registrarTrilha(newUser.user.id, false);
 
     return new Response(
       JSON.stringify({ user: { id: newUser.user.id, email: newUser.user.email } }),
