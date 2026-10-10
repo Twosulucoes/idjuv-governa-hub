@@ -135,5 +135,5 @@ CREATE POLICY "st_documentos-requerimento_delete" ON storage.objects FOR DELETE 
 -- limite de taxa: aplique no proxy (Kong/nginx) e use CAPTCHA no formulário (docs/NOVO_BANCO.md).
 DROP POLICY IF EXISTS "st_arbitros-docs_insert_anon" ON storage.objects;
 CREATE POLICY "st_arbitros-docs_insert_anon" ON storage.objects
-  FOR INSERT TO anon
+  FOR INSERT TO anon, authenticated
   WITH CHECK (bucket_id = 'arbitros-docs' AND (storage.foldername(name))[1] IN ('fotos', 'documentos', 'modalidades'));

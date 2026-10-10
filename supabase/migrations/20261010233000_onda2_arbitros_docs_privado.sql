@@ -36,8 +36,9 @@ DROP POLICY IF EXISTS "st_arbitros-docs_delete" ON storage.objects;
 CREATE POLICY "st_arbitros-docs_delete" ON storage.objects FOR DELETE TO authenticated
   USING (bucket_id = 'arbitros-docs' AND (public.can_access_module(auth.uid(), 'arbitros')));
 
--- Formulário público: só envia, e só nas três pastas que ele usa.
+-- Formulário público: só envia, e só nas três pastas que ele usa (também para quem está logado sem o
+-- módulo e abre o formulário, como antes).
 DROP POLICY IF EXISTS "st_arbitros-docs_insert_anon" ON storage.objects;
 CREATE POLICY "st_arbitros-docs_insert_anon" ON storage.objects
-  FOR INSERT TO anon
+  FOR INSERT TO anon, authenticated
   WITH CHECK (bucket_id = 'arbitros-docs' AND (storage.foldername(name))[1] IN ('fotos', 'documentos', 'modalidades'));

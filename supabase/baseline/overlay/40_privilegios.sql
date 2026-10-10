@@ -61,6 +61,8 @@ REVOKE EXECUTE ON FUNCTION public.list_public_tables() FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.generate_schema_ddl() FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.list_public_tables() TO service_role;
 GRANT EXECUTE ON FUNCTION public.generate_schema_ddl() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.consumir_cota_uso(uuid, text, integer, integer, text, text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.consumir_cota_uso(uuid, text, integer, integer, text, text) TO service_role;
 
 -- ---- funções de trigger sem uso direto (migração 20261009160000; o dump não leva o REVOKE) ----
 REVOKE EXECUTE ON FUNCTION public.fn_fotos_vistoria_inventario_imutavel() FROM authenticated;

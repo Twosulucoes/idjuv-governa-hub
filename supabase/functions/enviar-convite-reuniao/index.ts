@@ -41,16 +41,25 @@ const MAX_PARTICIPANTES_POR_ENVIO = 50;
 const MAX_CONVITES_POR_HORA = 200;
 const MAX_MENSAGEM = 2000;
 const MAX_ASSINATURA = 200;
-const PADRAO_LINK = /\b(?:https?:\/\/|www\.)[^\s<>"']+/gi;
+// Endereço com esquema/www, ou domínio nu com terminação comum (clientes de e-mail e o WhatsApp
+// transformam "site.com/login" em link).
+const PADRAO_LINK =
+  /\b(?:(?:https?:\/\/|www\.)[^\s<>"']+|[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|br|io|info|biz|app|xyz|online|site|top|me|co|ly|gl|link|click|live|shop|store|ru|cn|tk)\b(?:\/[^\s<>"']*)?)/gi;
 
 /** Links do texto que não são o link da reunião (o texto vem de quem dispara, não do órgão). */
 function linksNaoPermitidos(texto: string | null | undefined, linkReuniao: string | null | undefined): string[] {
   if (!texto) return [];
   const permitido = (linkReuniao ?? "").trim().replace(/\/+$/, "").toLowerCase();
-  return (texto.match(PADRAO_LINK) ?? []).filter((url) => {
-    const limpo = url.replace(/[.,;:!?)\]]+$/, "").replace(/\/+$/, "").toLowerCase();
-    return !permitido || limpo !== permitido;
-  });
+  return [...texto.matchAll(PADRAO_LINK)]
+    // domínio de endereço de e-mail (fulano@orgao.gov.br) não vira link
+    .filter((m) => texto[(m.index ?? 0) - 1] !== "@")
+    .map((m) => m[0])
+    .filter((url) => {
+      const limpo = url.replace(/[.,;:!?)\]]+$/, "").replace(/\/+$/, "").toLowerCase();
+      if (!permitido) return true;
+      // o link da reunião, com ou sem esquema
+      return limpo !== permitido && limpo !== permitido.replace(/^https?:\/\//, "");
+    });
 }
 
 interface EnviarConviteRequest {
@@ -363,21 +372,6 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Limite por usuário na última hora (marcado em participantes_reuniao a cada convite enviado).
-    const umaHoraAtras = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { count: enviadosNaHora, error: contagemError } = await admin
-      .from("participantes_reuniao")
-      .select("id", { count: "exact", head: true })
-      .eq("convite_enviado_por", userData.user.id)
-      .gte("convite_enviado_em", umaHoraAtras);
-    if (contagemError) {
-      console.error("Erro ao contar convites:", contagemError);
-      return erroPedido("Falha ao verificar o limite de envio", 500);
-    }
-    if ((enviadosNaHora ?? 0) + participante_ids.length > MAX_CONVITES_POR_HORA) {
-      return erroPedido(`Limite de ${MAX_CONVITES_POR_HORA} convites por hora atingido. Tente mais tarde.`, 429);
-    }
-
     // Buscar participantes (restrito à reunião informada)
     const { data: participantes, error: participantesError } = await admin
       .from("participantes_reuniao")
@@ -434,11 +428,34 @@ Atenciosamente,`;
     const assuntoFinal = modelo?.assunto || assuntoPadrao;
     const corpoFinal = mensagem_personalizada || modelo?.conteudo_html || corpoPadrao;
 
-    // O texto sai com a identidade do órgão: só o link da reunião pode aparecer nele.
-    const linksProibidos = [assuntoFinal, corpoFinal, ...camposAssinatura]
+    // O texto sai com a identidade do órgão: só o link da reunião pode aparecer nele. A checagem é sobre o
+    // texto já com as variáveis trocadas ({local}, {pauta}…), como cada destinatário vai ler.
+    const textosFinais = (participantes || []).flatMap((p) => [
+      substituirVariaveis(corpoFinal, reuniao as Reuniao, p as Participante, assinatura, ""),
+      substituirVariaveis(assuntoFinal, reuniao as Reuniao, p as Participante, undefined, ""),
+    ]);
+    const linksProibidos = [assuntoFinal, corpoFinal, reuniao.local, reuniao.pauta, ...camposAssinatura, ...textosFinais]
       .flatMap((t) => linksNaoPermitidos(t, reuniao.link_virtual));
     if (linksProibidos.length > 0) {
       return erroPedido("A mensagem não pode conter links além do link da reunião (cadastre-o no campo de link da reunião).");
+    }
+
+    // Cota por usuário na última hora: conta e registra numa transação (envios em paralelo não somam por fora).
+    // Cada chamada consome a quantidade de convites pedidos, inclusive reenvios.
+    const { data: dentroDaCota, error: cotaError } = await admin.rpc("consumir_cota_uso", {
+      _usuario: userData.user.id,
+      _tipo: "convite_reuniao",
+      _quantidade: (participantes || []).length || 1,
+      _limite: MAX_CONVITES_POR_HORA,
+      _modulo: "gabinete",
+      _descricao: `Convites da reunião ${reuniao_id} por ${canal}`,
+    });
+    if (cotaError) {
+      console.error("Erro ao consumir cota de convites:", cotaError);
+      return erroPedido("Falha ao verificar o limite de envio", 500);
+    }
+    if (!dentroDaCota) {
+      return erroPedido(`Limite de ${MAX_CONVITES_POR_HORA} convites por hora atingido. Tente mais tarde.`, 429);
     }
 
     // Configuração da instância (e-mail/WhatsApp) e identidade visual, carregadas uma vez.

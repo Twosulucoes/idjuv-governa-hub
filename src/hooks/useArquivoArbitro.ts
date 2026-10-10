@@ -8,11 +8,22 @@ const BUCKET = "arbitros-docs";
 const MARCA = `/object/public/${BUCKET}/`;
 const VALIDADE_SEGUNDOS = 10 * 60;
 
+// Só os caminhos que o formulário gera (pasta conhecida + nome simples). O endereço vem de quem
+// preencheu o formulário público: sem esta checagem, "../" no caminho levaria a assinatura (feita com
+// a sessão da equipe) para outro endpoint do servidor.
+const CAMINHO_VALIDO = /^(fotos|documentos|modalidades)\/[^/\\?#%]+$/;
+
 /** Caminho do arquivo dentro do bucket, a partir do endereço gravado na tabela. */
 export function caminhoArquivoArbitro(url: string): string | null {
   const i = url.indexOf(MARCA);
   if (i < 0) return null;
-  return decodeURIComponent(url.slice(i + MARCA.length).split("?")[0]);
+  let caminho: string;
+  try {
+    caminho = decodeURIComponent(url.slice(i + MARCA.length).split("?")[0]);
+  } catch {
+    return null;
+  }
+  return CAMINHO_VALIDO.test(caminho) && !caminho.includes("..") ? caminho : null;
 }
 
 /** Referência a gravar na tabela depois do upload (mesmo formato dos registros antigos). */

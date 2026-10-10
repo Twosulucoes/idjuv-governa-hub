@@ -67,17 +67,25 @@ trilha de `user_roles`). Todo reset de senha grava `audit_logs` (`password_reset
 
 ### Assistente de IA (`cpsi-ai-assistant`)
 
-Exige sessão, o módulo `compras` e respeita limites: 4.000 caracteres por campo, 30.000 no pedido inteiro,
-8.192 tokens de resposta e 30 chamadas por usuário por hora. Cada chamada grava uma linha em `audit_logs`
-(`entity_type = 'cpsi_ia'`), que também é o contador do limite. Erros internos não vão para o navegador.
+Exige sessão, o módulo `compras` e respeita limites: 10.000 caracteres por campo, 60.000 no pedido inteiro,
+16.384 tokens de resposta (com 2.048 de raciocínio) e 30 chamadas por usuário por hora. Resposta cortada pelo
+teto vira erro claro (422). Erros internos não vão para o navegador.
 
 ### Convite de reunião (`enviar-convite-reuniao`)
 
 Só o criador da reunião ou um administrador envia. Limites contra uso como disparador de mensagens com a marca
-do órgão: 50 participantes por chamada, 200 convites por usuário por hora, mensagem livre de até 2.000
-caracteres e nenhum link no assunto, na mensagem ou na assinatura além do link da própria reunião. CORS por
-`ALLOWED_ORIGINS`, como as demais. Pendente (modelo novo): o módulo `gabinete` ainda pode trocar o `created_by`
-de uma reunião pela API, e o link da reunião é livre.
+do órgão: 50 participantes por chamada, 200 convites por usuário por hora (reenvios contam), mensagem livre de
+até 2.000 caracteres e nenhum link (com esquema, `www.` ou domínio nu) no texto final de cada destinatário,
+no local, na pauta ou na assinatura além do link da própria reunião. CORS por `ALLOWED_ORIGINS`, como as
+demais. Pendente (modelo novo): o módulo `gabinete` ainda pode trocar o `created_by` de uma reunião pela API,
+e o link da reunião é livre (uma lista de domínios por instância fecharia isso).
+
+### Cota de uso (`consumir_cota_uso`)
+
+As duas funções acima usam a RPC `consumir_cota_uso(usuario, tipo, quantidade, limite, modulo, descricao)`
+(migração `supabase/migrations/20261010233100_onda2_cota_uso.sql`): conta o uso da última hora e registra em `audit_logs`
+(`entity_type` = tipo, `metadata.quantidade`) na mesma transação, sob lock por usuário, então pedidos em
+paralelo não furam o limite. Só a service role executa.
 
 `backup-offsite`: só o token **igual** à `SUPABASE_SERVICE_ROLE_KEY` vale como chamada de cron (antes decodificava o
 JWT sem validar a assinatura) e o usuário com papel precisa ter o perfil ativo.

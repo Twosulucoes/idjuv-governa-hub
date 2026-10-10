@@ -82,12 +82,13 @@ function translateGeminiStreamToOpenAI(geminiBody: ReadableStream<Uint8Array>): 
 }
 
 // Limites de uso (a API do Gemini é cobrada por token): tamanho do pedido, tamanho da resposta e
-// chamadas por usuário por hora. As chamadas ficam em audit_logs (entity_type cpsi_ia), que também
-// serve de contador.
+// chamadas por usuário por hora. A cota é consumida pela RPC consumir_cota_uso (conta e registra em
+// audit_logs, entity_type cpsi_ia, na mesma transação: pedidos em paralelo não passam juntos).
 const LIMITE_CHAMADAS_HORA = 30;
-const LIMITE_CAMPO = 4000; // caracteres por campo de texto
-const LIMITE_TOTAL = 30000; // caracteres somando todos os campos do pedido
-const LIMITE_TOKENS_RESPOSTA = 8192;
+const LIMITE_CAMPO = 10000; // caracteres por campo de texto (cabe o que a própria IA preenche)
+const LIMITE_TOTAL = 60000; // caracteres somando todos os campos do pedido
+const LIMITE_TOKENS_RESPOSTA = 16384; // inclui o raciocínio do modelo (thinkingBudget abaixo)
+const ORCAMENTO_RACIOCINIO = 2048;
 const ACOES = ["fill_all", "fill_field", "review"];
 const DOCUMENTOS = ["dfd", "etp", "tr"];
 
@@ -176,33 +177,26 @@ serve(async (req) => {
     const invalido = validarPedido(body as RequestBody);
     if (invalido) return respostaJson(cors, 400, { error: invalido });
 
-    // Contador por usuário na última hora (service role: audit_logs não é gravável por API).
+    // Cota por usuário na última hora (service role: só ela executa consumir_cota_uso).
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { persistSession: false, autoRefreshToken: false } }
     );
-    const umaHoraAtras = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { count, error: contagemError } = await admin
-      .from("audit_logs")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", caller.id)
-      .eq("entity_type", "cpsi_ia")
-      .gte("timestamp", umaHoraAtras);
-    if (contagemError) return respostaJson(cors, 500, { error: "Falha ao verificar o limite de uso" });
-    if ((count ?? 0) >= LIMITE_CHAMADAS_HORA) {
+    const { data: dentroDaCota, error: cotaError } = await admin.rpc("consumir_cota_uso", {
+      _usuario: caller.id,
+      _tipo: "cpsi_ia",
+      _quantidade: 1,
+      _limite: LIMITE_CHAMADAS_HORA,
+      _modulo: "compras",
+      _descricao: `Assistente de IA do CPSI: ${body.action} (${body.documentType})`,
+    });
+    if (cotaError) return respostaJson(cors, 500, { error: "Falha ao verificar o limite de uso" });
+    if (!dentroDaCota) {
       return respostaJson(cors, 429, {
         error: `Limite de ${LIMITE_CHAMADAS_HORA} pedidos por hora ao assistente atingido. Tente mais tarde.`,
       });
     }
-    const { error: registroError } = await admin.from("audit_logs").insert({
-      action: "submit",
-      entity_type: "cpsi_ia",
-      user_id: caller.id,
-      module_name: "compras",
-      description: `Assistente de IA do CPSI: ${body.action} (${body.documentType})`,
-    });
-    if (registroError) return respostaJson(cors, 500, { error: "Falha ao registrar o uso" });
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY não configurada");
@@ -343,7 +337,10 @@ Seja específico e cite artigos de lei quando pertinente.`;
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-        generationConfig: { maxOutputTokens: LIMITE_TOKENS_RESPOSTA },
+        generationConfig: {
+          maxOutputTokens: LIMITE_TOKENS_RESPOSTA,
+          thinkingConfig: { thinkingBudget: ORCAMENTO_RACIOCINIO },
+        },
       }),
     });
 
@@ -372,6 +369,11 @@ Seja específico e cite artigos de lei quando pertinente.`;
     // For fill_all and fill_field, return the full response
     const data = await aiResponse.json();
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    if (data.candidates?.[0]?.finishReason === "MAX_TOKENS") {
+      return respostaJson(cors, 422, {
+        error: "A resposta da IA passou do tamanho máximo. Preencha por campos ou resuma a descrição.",
+      });
+    }
 
     if (action === "fill_all") {
       // Parse JSON from content
