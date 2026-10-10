@@ -93,12 +93,12 @@ permissões de 10/10/2026) fecha o restante do mesmo tipo de furo nesse banco:
   nova criada pelo `postgres` nasce sem EXECUTE para `anon`.
 
 A migração `supabase/migrations/20261010200000_onda1_remover_acesso_total.sql` (Onda 1) fecha as
-demais: em 167 tabelas troca as `acesso_total_*` (`TO authenticated USING (true)`) pelo bloco gerado
+demais: em 166 tabelas troca as `acesso_total_*` (`TO authenticated USING (true)`) pelo bloco gerado
 do baseline (`35_policies_geradas.sql`, a partir do `mapa.csv`). Sem o módulo dono, o usuário não lê
 nem grava; trilhas (`*_audit_log`, históricos) ficam só leitura; catálogos são lidos por qualquer
 usuário ativo e escritos só pelo módulo. Tabelas usadas por telas de mais de um módulo têm vários
 donos no mapa (ex.: `documentos` = workflow|rh|gabinete|governanca|admin). Ficam de fora
-`frequencia_pacotes` e `frequencia_arquivos`, fechadas pela migração de storage do RH
+`frequencia_pacotes`, `frequencia_arquivos` e `documentos_requerimento_servidor`, fechadas pela migração de storage do RH
 (PR da Onda B do RH). Leitura de `anon` não muda. Num banco do baseline é no-op.
 
 Efeitos conhecidos: contadores de painel que somam tabelas de outro módulo mostram zero para quem não

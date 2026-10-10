@@ -7,12 +7,13 @@
 -- médicas (CID), processos sigilosos, trilhas de auditoria etc., independentemente de módulo.
 -- Depois disso só alguns grupos foram refeitos por módulo (20260220211817, 20261010070000,
 -- 20261010080000, 20261010090000, 20261010100000, 20261010170000). No replay das 259 migrações
--- sobravam 169 tabelas com acesso_total_*. Ficam de fora frequencia_pacotes e frequencia_arquivos,
--- que a migração 20261010110000_onda_b_rh_storage.sql (Onda B3, RH) fecha por permissão.
+-- sobravam 169 tabelas com acesso_total_*. Ficam de fora frequencia_pacotes, frequencia_arquivos e
+-- documentos_requerimento_servidor, que a migração 20261010180000_onda_b_rh_storage.sql (Onda B3, RH)
+-- fecha por permissão.
 --
 -- Para cada uma delas esta migração apaga as acesso_total_* e aplica o bloco da mesma tabela de
 -- supabase/baseline/rls/35_policies_geradas.sql (gerado de rls/mapa.csv; cópia literal, incluindo os
--- DROP das policies antigas que o mapa manda remover). Classes envolvidas (tabelas): {'admin': 4, 'catalogo': 5, 'catalogo_admin': 2, 'modulo': 140, 'proprio': 1, 'proprio_leitura': 5, 'publico_admin': 1, 'trilha': 8}.
+-- DROP das policies antigas que o mapa manda remover). Classes envolvidas (tabelas): {'admin': 4, 'catalogo': 5, 'catalogo_admin': 2, 'modulo': 140, 'proprio_leitura': 5, 'publico_admin': 1, 'trilha': 8}.
 --   modulo           quem tem o módulo (ou o papel admin) lê e escreve;
 --   trilha           o módulo lê; ninguém escreve por API (os triggers que gravam são SECURITY DEFINER);
 --   proprio*         o módulo, e o próprio servidor (meu_servidor_id()) lê o que é seu;
@@ -1444,27 +1445,6 @@ CREATE POLICY "rls_update" ON public.documentos_processo FOR UPDATE TO authentic
 DROP POLICY IF EXISTS "rls_delete" ON public.documentos_processo;
 CREATE POLICY "rls_delete" ON public.documentos_processo FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'workflow')));
-
--- ---- documentos_requerimento_servidor
-DROP POLICY IF EXISTS "acesso_total_select" ON public.documentos_requerimento_servidor;
-DROP POLICY IF EXISTS "acesso_total_insert" ON public.documentos_requerimento_servidor;
-DROP POLICY IF EXISTS "acesso_total_update" ON public.documentos_requerimento_servidor;
-DROP POLICY IF EXISTS "acesso_total_delete" ON public.documentos_requerimento_servidor;
-ALTER TABLE public.documentos_requerimento_servidor ENABLE ROW LEVEL SECURITY;
--- documentos_requerimento_servidor  [proprio: rh]
-DROP POLICY IF EXISTS "rls_select" ON public.documentos_requerimento_servidor;
-CREATE POLICY "rls_select" ON public.documentos_requerimento_servidor FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')) OR servidor_id = public.meu_servidor_id());
-DROP POLICY IF EXISTS "rls_insert" ON public.documentos_requerimento_servidor;
-CREATE POLICY "rls_insert" ON public.documentos_requerimento_servidor FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) OR servidor_id = public.meu_servidor_id());
-DROP POLICY IF EXISTS "rls_update" ON public.documentos_requerimento_servidor;
-CREATE POLICY "rls_update" ON public.documentos_requerimento_servidor FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')));
-DROP POLICY IF EXISTS "rls_delete" ON public.documentos_requerimento_servidor;
-CREATE POLICY "rls_delete" ON public.documentos_requerimento_servidor FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')));
 
 -- ---- encaminhamentos
 DROP POLICY IF EXISTS "acesso_total_select" ON public.encaminhamentos;
