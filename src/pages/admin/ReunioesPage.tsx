@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ModuleLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState, PageHeader, StatusBadge, type TomStatus } from "@/components/design-system";
 import { Input } from "@/components/ui/input";
 import { 
   Plus, 
@@ -39,21 +39,21 @@ interface Reuniao {
   participantes_count?: number;
 }
 
-const statusConfig: Record<StatusReuniao, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  agendada: { label: "Agendada", variant: "secondary" },
-  confirmada: { label: "Confirmada", variant: "secondary" },
-  em_andamento: { label: "Em andamento", variant: "default" },
-  realizada: { label: "Realizada", variant: "outline" },
-  cancelada: { label: "Cancelada", variant: "destructive" },
-  adiada: { label: "Adiada", variant: "outline" },
+const statusConfig: Record<StatusReuniao, { label: string; tom: TomStatus }> = {
+  agendada: { label: "Agendada", tom: "pendente" },
+  confirmada: { label: "Confirmada", tom: "sucesso" },
+  em_andamento: { label: "Em andamento", tom: "andamento" },
+  realizada: { label: "Realizada", tom: "neutro" },
+  cancelada: { label: "Cancelada", tom: "erro" },
+  adiada: { label: "Adiada", tom: "pendente" },
 };
 
 const tipoConfig = {
   ordinaria: { label: "Ordinária", icon: Calendar },
   extraordinaria: { label: "Extraordinária", icon: Clock },
   audiencia: { label: "Audiência", icon: Users },
-  sessao_solene: { label: "Sessão Solene", icon: FileText },
-  reuniao_trabalho: { label: "Reunião de Trabalho", icon: FileText },
+  sessao_solene: { label: "Sessão solene", icon: FileText },
+  reuniao_trabalho: { label: "Reunião de trabalho", icon: FileText },
 };
 
 export default function ReunioesPage() {
@@ -64,7 +64,7 @@ export default function ReunioesPage() {
   const [selectedReuniao, setSelectedReuniao] = useState<Reuniao | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const { data: reunioes, isLoading, refetch } = useQuery({
+  const { data: reunioes, isLoading, isError, refetch } = useQuery({
     queryKey: ["reunioes"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -113,64 +113,65 @@ export default function ReunioesPage() {
 
   return (
     <ModuleLayout module="admin">
-      {/* Mobile-first sticky header com busca */}
-      <div className="sticky top-0 z-10 -mx-4 -mt-4 lg:-mx-6 lg:-mt-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b px-4 py-3 lg:px-6 lg:py-4 mb-4 lg:mb-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar reuniões..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              variant={temFiltrosAtivos ? "default" : "outline"} 
-              size="icon" 
-              className="shrink-0"
-              onClick={() => setFiltrosOpen(true)}
-            >
-              <Filter className="h-4 w-4" />
-            </Button>
-            <Button onClick={() => setDialogOpen(true)} className="flex-1 sm:flex-none">
-              <Plus className="h-4 w-4 mr-2" />
-              <span className="sm:inline">Nova Reunião</span>
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Lista de reuniões - Cards mobile-friendly */}
       <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Reuniões" }]}
+          titulo="Reuniões"
+          descricao="Agenda de reuniões, convites e controle de presença"
+          acoes={
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setFiltrosOpen(true)}
+              >
+                <Filter className="h-4 w-4 mr-2" aria-hidden="true" />
+                Filtros
+                {temFiltrosAtivos && <StatusBadge tom="andamento" icone={false} className="ml-2">Ativos</StatusBadge>}
+              </Button>
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+                Nova reunião
+              </Button>
+            </>
+          }
+        />
+
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          <Input
+            placeholder="Buscar reuniões..."
+            aria-label="Buscar reuniões por título"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
         {/* Próximas reuniões */}
         <section>
-          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-primary" />
-            Próximas Reuniões
+          <h2 className="text-h3 mb-3 flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-primary" aria-hidden="true" />
+            Próximas reuniões
           </h2>
           
           {isLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-3" role="status" aria-label="Carregando reuniões">
               {[1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-24 w-full rounded-lg" />
               ))}
             </div>
+          ) : isError ? (
+            <EmptyState
+              titulo="Não foi possível carregar as reuniões"
+              descricao="Verifique sua conexão e tente novamente."
+              acao={<Button variant="outline" onClick={() => refetch()}>Tentar novamente</Button>}
+            />
           ) : proximasReunioes?.length === 0 ? (
-            <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-                <Calendar className="h-12 w-12 text-muted-foreground/50 mb-3" />
-                <p className="text-muted-foreground">Nenhuma reunião agendada</p>
-                <Button 
-                  variant="link" 
-                  className="mt-2"
-                  onClick={() => setDialogOpen(true)}
-                >
-                  Agendar primeira reunião
-                </Button>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icone={Calendar}
+              titulo="Nenhuma reunião agendada"
+              acao={<Button variant="outline" onClick={() => setDialogOpen(true)}>Agendar primeira reunião</Button>}
+            />
           ) : (
             <div className="space-y-3">
               {proximasReunioes?.map((reuniao) => (
@@ -187,8 +188,8 @@ export default function ReunioesPage() {
         {/* Reuniões passadas */}
         {reunioesPassadas && reunioesPassadas.length > 0 && (
           <section>
-            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2 text-muted-foreground">
-              <Clock className="h-5 w-5" />
+            <h2 className="text-h3 mb-3 flex items-center gap-2 text-muted-foreground">
+              <Clock className="h-5 w-5" aria-hidden="true" />
               Histórico
             </h2>
             <div className="space-y-3">
@@ -243,13 +244,22 @@ function ReuniaoCard({ reuniao, onClick, muted }: ReuniaoCardProps) {
   const TipoIcon = tipoConfig[reuniao.tipo]?.icon || Calendar;
   // Adiciona T12:00:00 para evitar problemas de fuso horário
   const dataReuniao = new Date(reuniao.data_reuniao + "T12:00:00");
+  const status = statusConfig[reuniao.status];
   
   return (
     <Card 
-      className={`cursor-pointer transition-all hover:shadow-md active:scale-[0.99] ${
+      role="button"
+      tabIndex={0}
+      className={`cursor-pointer transition-all hover:shadow-md active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         muted ? "opacity-70" : ""
       }`}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
     >
       <CardContent className="p-4">
         <div className="flex items-start gap-4">
@@ -267,23 +277,24 @@ function ReuniaoCard({ reuniao, onClick, muted }: ReuniaoCardProps) {
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
               <h3 className="font-medium truncate">{reuniao.titulo}</h3>
-              <Badge variant={statusConfig[reuniao.status]?.variant || "secondary"} className="shrink-0">
-                {statusConfig[reuniao.status]?.label || reuniao.status}
-              </Badge>
+              <StatusBadge tom={status?.tom ?? "neutro"} className="shrink-0">
+                {status?.label || reuniao.status}
+              </StatusBadge>
             </div>
             
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
+                <Clock className="h-3.5 w-3.5" aria-hidden="true" />
                 {reuniao.hora_inicio}
               </span>
               <span className="flex items-center gap-1">
-                <TipoIcon className="h-3.5 w-3.5" />
+                <TipoIcon className="h-3.5 w-3.5" aria-hidden="true" />
                 {tipoConfig[reuniao.tipo]?.label || reuniao.tipo}
               </span>
               {reuniao.participantes_count && reuniao.participantes_count > 0 && (
-                <span className="flex items-center gap-1">
-                  <Users className="h-3.5 w-3.5" />
+                <span className="flex items-center gap-1" title="Participantes">
+                  <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="sr-only">Participantes:</span>
                   {reuniao.participantes_count}
                 </span>
               )}
@@ -291,13 +302,13 @@ function ReuniaoCard({ reuniao, onClick, muted }: ReuniaoCardProps) {
             
             {reuniao.local && (
               <p className="mt-1 text-sm text-muted-foreground truncate flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 {reuniao.local}
               </p>
             )}
           </div>
           
-          <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0 self-center" />
+          <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0 self-center" aria-hidden="true" />
         </div>
       </CardContent>
     </Card>

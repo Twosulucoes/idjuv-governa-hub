@@ -8,6 +8,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { 
   FileText, 
@@ -74,6 +75,7 @@ type SolicitacaoFormData = z.infer<typeof solicitacaoSchema>;
 
 export default function SolicitacaoPublicaAscomPage() {
   const navigate = useNavigate();
+  const { user, isLoading: carregandoAuth } = useAuth();
   const [arquivosParaUpload, setArquivosParaUpload] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [requerAutorizacao, setRequerAutorizacao] = useState(false);
@@ -108,11 +110,12 @@ export default function SolicitacaoPublicaAscomPage() {
   // Carregar dados do servidor logado (se estiver autenticado)
   useEffect(() => {
     const fetchServidorLogado = async () => {
+      if (carregandoAuth) return;
       setIsLoadingServidor(true);
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user?.id) {
+        // Vínculo pelo profiles.servidor_id, a mesma chave da RLS (meu_servidor_id()).
+        const servidorId = user?.servidorId;
+        if (!servidorId) {
           setIsLoadingServidor(false);
           return;
         }
@@ -129,7 +132,7 @@ export default function SolicitacaoPublicaAscomPage() {
             cargos:cargo_atual_id (nome),
             unidade:unidade_atual_id (nome, sigla)
           `)
-          .eq('user_id', user.id)
+          .eq('id', servidorId)
           .single();
         
         if (servidor) {
@@ -162,7 +165,7 @@ export default function SolicitacaoPublicaAscomPage() {
     };
     
     fetchServidorLogado();
-  }, [form]);
+  }, [carregandoAuth, user?.servidorId, form]);
 
   // Verificar se requer autorização
   useEffect(() => {

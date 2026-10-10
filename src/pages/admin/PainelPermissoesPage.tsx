@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { MODULES_CONFIG, MODULO_COR_CLASSES } from "@/shared/config/modules.config";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState, KpiCard, PageHeader, StatusBadge } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -83,15 +84,18 @@ interface UserWithModules {
 // ACTION TYPE COLORS
 // ================================
 
+// Tokens do design system; o tipo da ação sempre aparece escrito no selo.
 const ACTION_COLORS: Record<string, string> = {
-  visualizar: 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300',
-  criar: 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300',
-  editar: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
-  excluir: 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300',
-  gerenciar: 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300',
-  processar: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300',
-  exportar: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300',
+  visualizar: 'bg-info/15 text-info',
+  criar: 'bg-success/15 text-success',
+  editar: 'bg-warning/15 text-warning',
+  excluir: 'bg-destructive/15 text-destructive',
+  gerenciar: 'bg-primary/10 text-primary',
+  processar: 'bg-accent/15 text-accent',
+  exportar: 'bg-muted text-foreground',
 };
+
+const MIGALHAS = [{ rotulo: "Administração", href: "/admin" }, { rotulo: "Painel de permissões" }];
 
 // ================================
 // MAIN COMPONENT
@@ -353,7 +357,11 @@ export default function PainelPermissoesPage() {
     return (
       <ModuleLayout module="admin">
         <div className="space-y-6">
-          <Skeleton className="h-10 w-80" />
+          <PageHeader
+            migalhas={MIGALHAS}
+            titulo="Painel de permissões"
+            descricao="Visão consolidada de todos os usuários, módulos e permissões do sistema"
+          />
           <div className="grid gap-4 md:grid-cols-4">
             {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20" />)}
           </div>
@@ -366,80 +374,44 @@ export default function PainelPermissoesPage() {
   return (
     <ModuleLayout module="admin">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-              <Shield className="h-8 w-8 text-primary" />
-              Painel de Permissões
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Visão consolidada de todos os usuários, módulos e permissões do sistema
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {pendingCount > 0 && (
-              <Button onClick={saveAllPending} disabled={saving === 'all'} size="sm">
-                {saving === 'all' ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4 mr-2" />
-                )}
-                Salvar Tudo ({pendingCount})
+        <PageHeader
+          migalhas={MIGALHAS}
+          titulo="Painel de permissões"
+          descricao="Visão consolidada de todos os usuários, módulos e permissões do sistema"
+          acoes={
+            <>
+              {pendingCount > 0 && (
+                <Button onClick={saveAllPending} disabled={saving === 'all'}>
+                  {saving === 'all' ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" aria-hidden="true" />
+                  )}
+                  Salvar tudo ({pendingCount})
+                </Button>
+              )}
+              <Button variant="outline" onClick={fetchData}>
+                <RotateCcw className="h-4 w-4 mr-2" aria-hidden="true" />
+                Atualizar
               </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={fetchData}>
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Atualizar
-            </Button>
-          </div>
-        </div>
+            </>
+          }
+        />
 
-        {/* Stats */}
+        {/* Indicadores */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardContent className="flex items-center gap-3 p-4">
-              <Users className="h-8 w-8 text-primary" />
-              <div>
-                <p className="text-2xl font-bold">{stats.totalUsers}</p>
-                <p className="text-xs text-muted-foreground">Usuários</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex items-center gap-3 p-4">
-              <LayoutGrid className="h-8 w-8 text-primary" />
-              <div>
-                <p className="text-2xl font-bold">{stats.totalModules}</p>
-                <p className="text-xs text-muted-foreground">Módulos</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex items-center gap-3 p-4">
-              <Shield className="h-8 w-8 text-primary" />
-              <div>
-                <p className="text-2xl font-bold">{stats.totalPermissions}</p>
-                <p className="text-xs text-muted-foreground">Permissões</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex items-center gap-3 p-4">
-              <CheckCircle2 className="h-8 w-8 text-primary" />
-              <div>
-                <p className="text-2xl font-bold">{stats.totalAssignments}</p>
-                <p className="text-xs text-muted-foreground">Atribuições</p>
-              </div>
-            </CardContent>
-          </Card>
+          <KpiCard rotulo="Usuários" valor={stats.totalUsers} icone={Users} />
+          <KpiCard rotulo="Módulos" valor={stats.totalModules} icone={LayoutGrid} />
+          <KpiCard rotulo="Permissões" valor={stats.totalPermissions} icone={Shield} />
+          <KpiCard rotulo="Atribuições" valor={stats.totalAssignments} icone={CheckCircle2} />
         </div>
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <Input
+              aria-label="Buscar usuário"
               placeholder="Buscar usuário..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -447,7 +419,7 @@ export default function PainelPermissoesPage() {
             />
           </div>
           <Select value={selectedModule} onValueChange={setSelectedModule}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-[200px]" aria-label="Filtrar por módulo">
               <SelectValue placeholder="Filtrar módulo" />
             </SelectTrigger>
             <SelectContent>
@@ -468,9 +440,9 @@ export default function PainelPermissoesPage() {
               {filteredUsers.length} usuário(s) encontrado(s)
             </p>
             {pendingCount > 0 && (
-              <Badge variant="destructive" className="animate-pulse">
+              <StatusBadge tom="pendente">
                 {pendingCount} alteração(ões) pendente(s)
-              </Badge>
+              </StatusBadge>
             )}
           </div>
 
@@ -493,7 +465,7 @@ export default function PainelPermissoesPage() {
                 >
                   <AccordionTrigger className="hover:no-underline px-4 py-3">
                     <div className="flex items-center gap-3 flex-1 text-left">
-                      <UserCheck className="h-5 w-5 text-muted-foreground shrink-0" />
+                      <UserCheck className="h-5 w-5 text-muted-foreground shrink-0" aria-hidden="true" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{user.full_name}</p>
                         <p className="text-xs text-muted-foreground truncate">{user.email}</p>
@@ -508,9 +480,9 @@ export default function PainelPermissoesPage() {
                           {user.modules.length} módulo(s)
                         </Badge>
                         {userPendingCount > 0 && (
-                          <Badge variant="destructive" className="text-xs animate-pulse">
+                          <StatusBadge tom="pendente" icone={false}>
                             {userPendingCount} alterado(s)
-                          </Badge>
+                          </StatusBadge>
                         )}
                       </div>
                     </div>
@@ -549,6 +521,7 @@ export default function PainelPermissoesPage() {
                                   <Checkbox
                                     checked={hasAllModule}
                                     onCheckedChange={() => toggleAllModule(um.id, um.module, um.permissions)}
+                                    aria-label={`Todas as permissões de ${getModuleName(um.module)}`}
                                   />
                                   <span className="text-xs text-muted-foreground">Todas</span>
                                 </div>
@@ -560,9 +533,9 @@ export default function PainelPermissoesPage() {
                                     disabled={saving === um.id}
                                   >
                                     {saving === um.id ? (
-                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                      <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
                                     ) : (
-                                      <Save className="h-3 w-3" />
+                                      <Save className="h-3 w-3" aria-hidden="true" />
                                     )}
                                     <span className="ml-1">Salvar</span>
                                   </Button>
@@ -584,11 +557,12 @@ export default function PainelPermissoesPage() {
                                     <Checkbox
                                       checked={hasAllCat}
                                       onCheckedChange={() => toggleCategory(um.id, catPerms, um.permissions)}
+                                      aria-label={`Todas as permissões da categoria ${catName}`}
                                     />
                                     <span className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
                                       {catName}
                                     </span>
-                                    <span className="text-[10px] text-muted-foreground">
+                                    <span className="text-caption text-muted-foreground">
                                       ({catCodes.filter(c => currentPerms.includes(c)).length}/{catCodes.length})
                                     </span>
                                   </div>
@@ -632,12 +606,7 @@ export default function PainelPermissoesPage() {
           </Accordion>
 
           {filteredUsers.length === 0 && (
-            <div className="flex flex-col items-center gap-2 py-12 text-center">
-              <Users className="h-10 w-10 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                Nenhum usuário encontrado com os filtros aplicados.
-              </p>
-            </div>
+            <EmptyState icone={Users} titulo="Nenhum usuário encontrado com os filtros aplicados." />
           )}
         </div>
       </div>

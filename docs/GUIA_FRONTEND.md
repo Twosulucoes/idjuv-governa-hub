@@ -162,7 +162,8 @@ Erro de leitura bloqueia a importação; aviso só informa.
       `carregando`/`erro`/`vazio` e cartões abaixo de `md` (`mobile: "titulo" | "oculta"` por coluna).
     - `StatusBadge` — cor + ícone + texto; o tom sai do texto (`tomDaSituacao`: ativo, pendente,
       em análise, cancelado…) ou de `tom` explícito.
-    - `EmptyState`, `KpiCard` (variação com sinal e ícone; `subirEhBom={false}` para despesas/faltas),
+    - `EmptyState`, `KpiCard` (variação com sinal e ícone; `subirEhBom={false}` para despesas/faltas;
+      `detalhe` para texto secundário abaixo do valor, que fica só com o número),
       `ChartCard` (gráfico com alternância para tabela de dados).
     - `FormSection` (fieldset com legenda) e `ErrorSummary` (resumo focável dos erros do
       react-hook-form, com link para cada campo; use `shouldFocusError: false` no `useForm`).

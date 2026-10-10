@@ -40,8 +40,20 @@ import {
   Undo2,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState, KpiCard, PageHeader, StatusBadge, type TomStatus } from "@/components/design-system";
 
 type StatusParticipante = "pendente" | "confirmado" | "recusado" | "ausente" | "presente";
+
+const STATUS_PARTICIPANTE: Partial<Record<StatusParticipante, { label: string; tom: TomStatus }>> = {
+  presente: { label: "Presente", tom: "sucesso" },
+  ausente: { label: "Ausente", tom: "pendente" },
+  confirmado: { label: "Confirmado", tom: "andamento" },
+};
+
+const MIGALHAS_REUNIOES = [
+  { rotulo: "Administração", href: "/admin" },
+  { rotulo: "Reuniões", href: "/admin/reunioes" },
+];
 
 interface Participante {
   id: string;
@@ -205,23 +217,15 @@ export default function CheckinReuniaoPage() {
   };
 
   const getStatusBadge = (status: StatusParticipante) => {
-    switch (status) {
-      case "presente":
-        return <Badge className="bg-emerald-100 text-emerald-700 border-0"><CheckCircle className="h-3 w-3 mr-1" />Presente</Badge>;
-      case "ausente":
-        return <Badge className="bg-orange-100 text-orange-700 border-0"><XCircle className="h-3 w-3 mr-1" />Ausente</Badge>;
-      case "confirmado":
-        return <Badge className="bg-blue-100 text-blue-700 border-0"><Clock className="h-3 w-3 mr-1" />Confirmado</Badge>;
-      default:
-        return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Aguardando</Badge>;
-    }
+    const config = STATUS_PARTICIPANTE[status] ?? { label: "Aguardando", tom: "neutro" as TomStatus };
+    return <StatusBadge tom={config.tom}>{config.label}</StatusBadge>;
   };
 
   if (loadingReuniao) {
     return (
       <ModuleLayout module="admin">
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="flex items-center justify-center min-h-[60vh]" role="status" aria-label="Carregando reunião">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden="true" />
         </div>
       </ModuleLayout>
     );
@@ -230,16 +234,24 @@ export default function CheckinReuniaoPage() {
   if (!reuniao) {
     return (
       <ModuleLayout module="admin">
-        <div className="text-center py-12">
-          <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <h2 className="text-xl font-semibold mb-2">Reunião não encontrada</h2>
-          <p className="text-muted-foreground mb-4">A reunião solicitada não existe ou foi removida.</p>
-          <Link to="/admin/reunioes">
-            <Button variant="outline">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar para Reuniões
-            </Button>
-          </Link>
+        <div className="space-y-6">
+          <PageHeader
+            migalhas={[...MIGALHAS_REUNIOES, { rotulo: "Check-in" }]}
+            titulo="Reunião não encontrada"
+          />
+          <EmptyState
+            icone={AlertCircle}
+            titulo="Reunião não encontrada"
+            descricao="A reunião solicitada não existe ou foi removida."
+            acao={
+              <Button variant="outline" asChild>
+                <Link to="/admin/reunioes">
+                  <ArrowLeft className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Voltar para reuniões
+                </Link>
+              </Button>
+            }
+          />
         </div>
       </ModuleLayout>
     );
@@ -250,51 +262,44 @@ export default function CheckinReuniaoPage() {
   return (
     <ModuleLayout module="admin">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="mb-2 -ml-2"
-              onClick={() => navigate("/admin/reunioes")}
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Voltar
-            </Button>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <UserCheck className="h-6 w-6 text-primary" />
-              Check-in de Participantes
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              {reuniao.titulo}
-            </p>
-          </div>
-          <Button 
-            variant="outline" 
-            size="icon"
-            onClick={() => refetch()}
-            title="Atualizar lista"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        </div>
+        <PageHeader
+          migalhas={[...MIGALHAS_REUNIOES, { rotulo: "Check-in" }]}
+          titulo="Check-in de participantes"
+          descricao={reuniao.titulo}
+          acoes={
+            <>
+              <Button variant="outline" onClick={() => navigate("/admin/reunioes")}>
+                <ArrowLeft className="h-4 w-4 mr-1" aria-hidden="true" />
+                Voltar
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => refetch()}
+                title="Atualizar lista"
+                aria-label="Atualizar lista de participantes"
+              >
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </>
+          }
+        />
 
         {/* Info da Reunião */}
         <Card>
           <CardContent className="p-4">
             <div className="flex flex-wrap items-center gap-4 text-sm">
               <span className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <Calendar className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 {format(dataReuniao, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
               </span>
               <span className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
+                <Clock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 {reuniao.hora_inicio}{reuniao.hora_fim ? ` - ${reuniao.hora_fim}` : ""}
               </span>
               {reuniao.local && (
                 <span className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <MapPin className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   {reuniao.local}
                 </span>
               )}
@@ -304,54 +309,37 @@ export default function CheckinReuniaoPage() {
 
         {/* Estatísticas */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <Users className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-              <p className="text-2xl font-bold">{stats.total}</p>
-              <p className="text-xs text-muted-foreground">Total</p>
-            </CardContent>
-          </Card>
-          <Card className="border-emerald-200 bg-emerald-50/50">
-            <CardContent className="p-4 text-center">
-              <CheckCircle className="h-5 w-5 mx-auto mb-1 text-emerald-600" />
-              <p className="text-2xl font-bold text-emerald-700">{stats.presentes}</p>
-              <p className="text-xs text-emerald-600">Presentes</p>
-            </CardContent>
-          </Card>
-          <Card className="border-orange-200 bg-orange-50/50">
-            <CardContent className="p-4 text-center">
-              <XCircle className="h-5 w-5 mx-auto mb-1 text-orange-600" />
-              <p className="text-2xl font-bold text-orange-700">{stats.ausentes}</p>
-              <p className="text-xs text-orange-600">Ausentes</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <Clock className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-              <p className="text-2xl font-bold">{stats.pendentes}</p>
-              <p className="text-xs text-muted-foreground">Aguardando</p>
-            </CardContent>
-          </Card>
+          <KpiCard rotulo="Total" valor={stats.total} icone={Users} carregando={loadingParticipantes} />
+          <KpiCard rotulo="Presentes" valor={stats.presentes} icone={CheckCircle} carregando={loadingParticipantes} />
+          <KpiCard rotulo="Ausentes" valor={stats.ausentes} icone={XCircle} carregando={loadingParticipantes} />
+          <KpiCard rotulo="Aguardando" valor={stats.pendentes} icone={Clock} carregando={loadingParticipantes} />
         </div>
 
         {/* Barra de progresso */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Progresso do Check-in</span>
+            <span className="text-muted-foreground" id="progresso-checkin">Progresso do check-in</span>
             <span className="font-medium">
               {stats.total > 0 
                 ? Math.round(((stats.presentes + stats.ausentes) / stats.total) * 100) 
                 : 0}%
             </span>
           </div>
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
+          <div
+            className="h-2 bg-muted rounded-full overflow-hidden"
+            role="progressbar"
+            aria-labelledby="progresso-checkin"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={stats.total > 0 ? Math.round(((stats.presentes + stats.ausentes) / stats.total) * 100) : 0}
+          >
             <div className="h-full flex">
               <div 
-                className="bg-emerald-500 transition-all duration-500"
+                className="bg-success transition-all duration-500"
                 style={{ width: `${stats.total > 0 ? (stats.presentes / stats.total) * 100 : 0}%` }}
               />
               <div 
-                className="bg-orange-500 transition-all duration-500"
+                className="bg-warning transition-all duration-500"
                 style={{ width: `${stats.total > 0 ? (stats.ausentes / stats.total) * 100 : 0}%` }}
               />
             </div>
@@ -362,9 +350,10 @@ export default function CheckinReuniaoPage() {
 
         {/* Busca */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <Input
             placeholder="Buscar participante..."
+            aria-label="Buscar participante por nome ou instituição"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -375,7 +364,7 @@ export default function CheckinReuniaoPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-medium flex items-center gap-2">
-              <Users className="h-4 w-4" />
+              <Users className="h-4 w-4" aria-hidden="true" />
               Participantes
               <Badge variant="secondary" className="ml-2">{filteredParticipantes.length}</Badge>
             </CardTitle>
@@ -395,10 +384,11 @@ export default function CheckinReuniaoPage() {
                 ))}
               </div>
             ) : filteredParticipantes.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">
-                <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>{searchTerm ? "Nenhum participante encontrado" : "Nenhum participante na reunião"}</p>
-              </div>
+              <EmptyState
+                icone={Users}
+                titulo={searchTerm ? "Nenhum participante encontrado" : "Nenhum participante na reunião"}
+                className="border-0"
+              />
             ) : (
               <div className="divide-y">
                 {filteredParticipantes.map((p) => {
@@ -409,15 +399,15 @@ export default function CheckinReuniaoPage() {
                     <div 
                       key={p.id} 
                       className={`p-4 flex items-center gap-4 transition-colors ${
-                        p.status === "presente" ? "bg-emerald-50/50" : 
-                        p.status === "ausente" ? "bg-orange-50/50" : ""
+                        p.status === "presente" ? "bg-success/5" : 
+                        p.status === "ausente" ? "bg-warning/5" : ""
                       }`}
                     >
                       <Avatar className="h-12 w-12">
-                        <AvatarImage src={p.servidor?.foto_url || undefined} />
+                        <AvatarImage src={p.servidor?.foto_url || undefined} alt="" />
                         <AvatarFallback className={`text-sm ${
-                          p.status === "presente" ? "bg-emerald-100 text-emerald-700" :
-                          p.status === "ausente" ? "bg-orange-100 text-orange-700" :
+                          p.status === "presente" ? "bg-success/15 text-success" :
+                          p.status === "ausente" ? "bg-warning/15 text-warning" :
                           "bg-primary/10"
                         }`}>
                           {getInitials(nome)}
@@ -437,7 +427,7 @@ export default function CheckinReuniaoPage() {
                           </p>
                         )}
                         {p.data_assinatura && p.status === "presente" && (
-                          <p className="text-xs text-emerald-600 mt-0.5">
+                          <p className="text-xs text-success mt-0.5">
                             Check-in: {format(new Date(p.data_assinatura), "HH:mm", { locale: ptBR })}
                           </p>
                         )}
@@ -452,9 +442,10 @@ export default function CheckinReuniaoPage() {
                               size="sm"
                               onClick={() => handleCheckin(p.id)}
                               disabled={updateStatusMutation.isPending}
-                              className="bg-emerald-600 hover:bg-emerald-700"
+                              className="bg-success text-success-foreground hover:bg-success/90"
+                              aria-label={`Marcar ${nome} como presente`}
                             >
-                              <UserCheck className="h-4 w-4 mr-1" />
+                              <UserCheck className="h-4 w-4 mr-1" aria-hidden="true" />
                               Presente
                             </Button>
                             <Button
@@ -462,8 +453,10 @@ export default function CheckinReuniaoPage() {
                               variant="outline"
                               onClick={() => handleAusencia(p.id)}
                               disabled={updateStatusMutation.isPending}
+                              aria-label={`Marcar ${nome} como ausente`}
+                              title="Marcar como ausente"
                             >
-                              <UserX className="h-4 w-4" />
+                              <UserX className="h-4 w-4" aria-hidden="true" />
                             </Button>
                           </div>
                         ) : (
@@ -474,8 +467,9 @@ export default function CheckinReuniaoPage() {
                             disabled={updateStatusMutation.isPending}
                             className="text-muted-foreground hover:text-foreground"
                             title="Desfazer check-in"
+                            aria-label={`Desfazer check-in de ${nome}`}
                           >
-                            <Undo2 className="h-4 w-4 mr-1" />
+                            <Undo2 className="h-4 w-4 mr-1" aria-hidden="true" />
                             Desfazer
                           </Button>
                         )}
@@ -493,13 +487,14 @@ export default function CheckinReuniaoPage() {
       <AlertDialog open={justificativaDialogOpen} onOpenChange={setJustificativaDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Registrar Ausência</AlertDialogTitle>
+            <AlertDialogTitle>Registrar ausência</AlertDialogTitle>
             <AlertDialogDescription>
               Informe a justificativa para a ausência do participante (opcional).
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Textarea
             placeholder="Justificativa..."
+            aria-label="Justificativa da ausência"
             value={justificativa}
             onChange={(e) => setJustificativa(e.target.value)}
             rows={3}
@@ -507,7 +502,7 @@ export default function CheckinReuniaoPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmarAusencia}>
-              Confirmar Ausência
+              Confirmar ausência
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -4,10 +4,9 @@
 
 import { useState, useEffect } from 'react';
 import { ModuleLayout } from '@/components/layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from '@/components/design-system';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -18,18 +17,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { useApprovalRequests } from '@/hooks/useApprovalRequests';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
-  APPROVAL_STATUS_LABELS, 
   ApprovalStatus, 
   ApprovalRequest 
 } from '@/types/auth';
@@ -40,33 +30,81 @@ import {
   XCircle, 
   Clock, 
   FileText, 
-  Search,
-  Filter,
   AlertTriangle,
   CheckCheck,
   X
 } from 'lucide-react';
 
-const STATUS_COLORS: Record<ApprovalStatus, string> = {
-  draft: 'bg-muted text-muted-foreground',
-  submitted: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  in_review: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  approved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-  cancelled: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+const SITUACOES: Record<ApprovalStatus, { label: string; tom: TomStatus }> = {
+  draft: { label: 'Rascunho', tom: 'neutro' },
+  submitted: { label: 'Submetido', tom: 'pendente' },
+  in_review: { label: 'Em análise', tom: 'andamento' },
+  approved: { label: 'Aprovado', tom: 'sucesso' },
+  rejected: { label: 'Rejeitado', tom: 'erro' },
+  cancelled: { label: 'Cancelado', tom: 'neutro' },
 };
 
-const PRIORITY_COLORS = {
-  low: 'bg-gray-100 text-gray-700',
-  normal: 'bg-blue-100 text-blue-700',
-  high: 'bg-orange-100 text-orange-700',
-  urgent: 'bg-red-100 text-red-700'
+const PRIORIDADES: Record<string, { label: string; tom: TomStatus }> = {
+  low: { label: 'Baixa', tom: 'neutro' },
+  normal: { label: 'Normal', tom: 'neutro' },
+  high: { label: 'Alta', tom: 'pendente' },
+  urgent: { label: 'Urgente', tom: 'destaque' },
 };
+
+const colunasBase: ColunaTabela<ApprovalRequest>[] = [
+  {
+    id: 'modulo',
+    cabecalho: 'Módulo',
+    celula: (request) => <span className="font-medium capitalize">{request.moduleName}</span>,
+    ordenarPor: (request) => request.moduleName,
+    // A justificativa não tem coluna, mas continua entrando na busca.
+    buscarPor: (request) => `${request.moduleName} ${request.justification ?? ''}`,
+    mobile: 'titulo',
+  },
+  {
+    id: 'tipo',
+    cabecalho: 'Tipo',
+    celula: (request) => request.entityType,
+    ordenarPor: (request) => request.entityType,
+    buscarPor: (request) => request.entityType,
+  },
+  {
+    id: 'solicitante',
+    cabecalho: 'Solicitante',
+    celula: (request) => request.requesterName || 'Não informado',
+    ordenarPor: (request) => request.requesterName,
+    buscarPor: (request) => request.requesterName,
+  },
+  {
+    id: 'prioridade',
+    cabecalho: 'Prioridade',
+    celula: (request) => {
+      // Mesma regra de antes: o que não for urgent/high/normal aparece como "Baixa".
+      const prioridade = PRIORIDADES[request.priority] ?? PRIORIDADES.low;
+      return <StatusBadge tom={prioridade.tom} icone={false}>{prioridade.label}</StatusBadge>;
+    },
+    ordenarPor: (request) => request.priority,
+  },
+  {
+    id: 'situacao',
+    cabecalho: 'Situação',
+    celula: (request) => {
+      const situacao = SITUACOES[request.status] ?? { label: request.status ?? 'Sem situação', tom: 'neutro' as TomStatus };
+      return <StatusBadge tom={situacao.tom}>{situacao.label}</StatusBadge>;
+    },
+    ordenarPor: (request) => request.status,
+  },
+  {
+    id: 'data',
+    cabecalho: 'Data',
+    celula: (request) => format(new Date(request.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }),
+    ordenarPor: (request) => new Date(request.createdAt),
+  },
+];
 
 export default function CentralAprovacoesPage() {
   const { user } = useAuth();
   const { requests, loading, fetchRequests, approveRequest, rejectRequest } = useApprovalRequests();
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedTab, setSelectedTab] = useState<string>('pendentes');
   const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(null);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
@@ -78,21 +116,16 @@ export default function CentralAprovacoesPage() {
     fetchRequests();
   }, [fetchRequests]);
 
+  // A busca textual fica no DataTable; aqui só o recorte da aba.
   const filteredRequests = requests.filter(r => {
-    const matchesSearch = 
-      r.entityType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.moduleName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.requesterName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.justification?.toLowerCase().includes(searchTerm.toLowerCase());
-
     if (selectedTab === 'pendentes') {
-      return matchesSearch && ['submitted', 'in_review'].includes(r.status);
+      return ['submitted', 'in_review'].includes(r.status);
     } else if (selectedTab === 'aprovadas') {
-      return matchesSearch && r.status === 'approved';
+      return r.status === 'approved';
     } else if (selectedTab === 'rejeitadas') {
-      return matchesSearch && r.status === 'rejected';
+      return r.status === 'rejected';
     }
-    return matchesSearch;
+    return true;
   });
 
   const pendingCount = requests.filter(r => ['submitted', 'in_review'].includes(r.status)).length;
@@ -129,190 +162,106 @@ export default function CentralAprovacoesPage() {
 
   return (
     <ModuleLayout module="admin">
-      {/* Cards de resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pendingCount}</div>
-            <p className="text-xs text-muted-foreground">Aguardando análise</p>
-          </CardContent>
-        </Card>
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: 'Administração', href: '/admin' }, { rotulo: 'Central de aprovações' }]}
+          titulo="Central de aprovações"
+          descricao="Solicitações aguardando decisão, aprovadas e rejeitadas"
+        />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Aprovadas</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{approvedCount}</div>
-            <p className="text-xs text-muted-foreground">Este mês</p>
-          </CardContent>
-        </Card>
+        {/* Indicadores */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <KpiCard rotulo="Pendentes" valor={pendingCount} icone={Clock} carregando={loading} />
+          <KpiCard rotulo="Aprovadas" valor={approvedCount} icone={CheckCircle} carregando={loading} />
+          <KpiCard rotulo="Rejeitadas" valor={rejectedCount} icone={XCircle} carregando={loading} />
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Rejeitadas</CardTitle>
-            <XCircle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{rejectedCount}</div>
-            <p className="text-xs text-muted-foreground">Este mês</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filtros e busca */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Buscar por tipo, módulo, solicitante..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Button variant="outline" className="gap-2">
-              <Filter className="h-4 w-4" />
-              Filtros
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Abas e tabela */}
-      <Card>
-        <CardHeader>
+        {/* Abas e tabela */}
+        <div className="space-y-4">
           <Tabs value={selectedTab} onValueChange={setSelectedTab}>
             <TabsList>
               <TabsTrigger value="pendentes" className="gap-2">
-                <Clock className="h-4 w-4" />
+                <Clock className="h-4 w-4" aria-hidden="true" />
                 Pendentes
                 {pendingCount > 0 && (
                   <Badge variant="secondary" className="ml-1">{pendingCount}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="aprovadas" className="gap-2">
-                <CheckCircle className="h-4 w-4" />
+                <CheckCircle className="h-4 w-4" aria-hidden="true" />
                 Aprovadas
               </TabsTrigger>
               <TabsTrigger value="rejeitadas" className="gap-2">
-                <XCircle className="h-4 w-4" />
+                <XCircle className="h-4 w-4" aria-hidden="true" />
                 Rejeitadas
               </TabsTrigger>
               <TabsTrigger value="todas" className="gap-2">
-                <FileText className="h-4 w-4" />
+                <FileText className="h-4 w-4" aria-hidden="true" />
                 Todas
               </TabsTrigger>
             </TabsList>
           </Tabs>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : filteredRequests.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Nenhuma solicitação encontrada</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Módulo</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Solicitante</TableHead>
-                  <TableHead>Prioridade</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRequests.map((request) => (
-                  <TableRow key={request.id}>
-                    <TableCell className="font-medium capitalize">
-                      {request.moduleName}
-                    </TableCell>
-                    <TableCell>{request.entityType}</TableCell>
-                    <TableCell>{request.requesterName || 'Não informado'}</TableCell>
-                    <TableCell>
-                      <Badge className={PRIORITY_COLORS[request.priority as keyof typeof PRIORITY_COLORS]}>
-                        {request.priority === 'urgent' ? 'Urgente' : 
-                         request.priority === 'high' ? 'Alta' :
-                         request.priority === 'normal' ? 'Normal' : 'Baixa'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={STATUS_COLORS[request.status]}>
-                        {APPROVAL_STATUS_LABELS[request.status]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(request.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {['submitted', 'in_review'].includes(request.status) && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1 text-green-600 hover:text-green-700 hover:bg-green-50"
-                              onClick={() => {
-                                setSelectedRequest(request);
-                                setShowApproveDialog(true);
-                              }}
-                            >
-                              <CheckCheck className="h-4 w-4" />
-                              Aprovar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              onClick={() => {
-                                setSelectedRequest(request);
-                                setShowRejectDialog(true);
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                              Rejeitar
-                            </Button>
-                          </>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setSelectedRequest(request)}
-                        >
-                          Detalhes
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+          <DataTable
+            rotulo="Solicitações de aprovação"
+            dados={filteredRequests}
+            colunas={colunasBase}
+            chaveLinha={(request) => request.id}
+            carregando={loading}
+            busca={{ placeholder: 'Buscar por tipo, módulo, solicitante...' }}
+            vazio={{ icone: FileText, titulo: 'Nenhuma solicitação encontrada' }}
+            acoesLinha={(request) => (
+              <div className="flex justify-end gap-2">
+                {['submitted', 'in_review'].includes(request.status) && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1 text-success hover:text-success hover:bg-success/10"
+                      onClick={() => {
+                        setSelectedRequest(request);
+                        setShowApproveDialog(true);
+                      }}
+                      aria-label={`Aprovar solicitação de ${request.requesterName || 'solicitante não informado'} (${request.entityType})`}
+                    >
+                      <CheckCheck className="h-4 w-4" aria-hidden="true" />
+                      Aprovar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => {
+                        setSelectedRequest(request);
+                        setShowRejectDialog(true);
+                      }}
+                      aria-label={`Rejeitar solicitação de ${request.requesterName || 'solicitante não informado'} (${request.entityType})`}
+                    >
+                      <X className="h-4 w-4" aria-hidden="true" />
+                      Rejeitar
+                    </Button>
+                  </>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSelectedRequest(request)}
+                  aria-label={`Ver detalhes da solicitação de ${request.requesterName || 'solicitante não informado'} (${request.entityType})`}
+                >
+                  Detalhes
+                </Button>
+              </div>
+            )}
+          />
+        </div>
+      </div>
 
       {/* Dialog de Aprovação */}
       <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-500" />
-              Aprovar Solicitação
+              <CheckCircle className="h-5 w-5 text-success" aria-hidden="true" />
+              Aprovar solicitação
             </DialogTitle>
             <DialogDescription>
               Você está prestes a aprovar esta solicitação. Esta ação será registrada com sua assinatura eletrônica.
@@ -330,8 +279,9 @@ export default function CentralAprovacoesPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium">Parecer (opcional)</label>
+              <label htmlFor="parecer-aprovacao" className="text-sm font-medium">Parecer (opcional)</label>
               <Textarea
+                id="parecer-aprovacao"
                 placeholder="Adicione um parecer ou observação..."
                 value={approvalDecision}
                 onChange={(e) => setApprovalDecision(e.target.value)}
@@ -339,9 +289,9 @@ export default function CentralAprovacoesPage() {
               />
             </div>
 
-            <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
-              <p className="text-sm text-green-800 dark:text-green-200">
-                <strong>Assinatura Eletrônica:</strong><br />
+            <div className="bg-success/10 p-4 rounded-lg border border-success/40">
+              <p className="text-sm text-foreground">
+                <strong>Assinatura eletrônica:</strong><br />
                 {user?.fullName || user?.email} - {user?.isSuperAdmin ? 'Super Admin' : 'Aprovador'}<br />
                 {format(new Date(), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
               </p>
@@ -352,8 +302,8 @@ export default function CentralAprovacoesPage() {
             <Button variant="outline" onClick={() => setShowApproveDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleApprove} className="bg-green-600 hover:bg-green-700">
-              Confirmar Aprovação
+            <Button onClick={handleApprove} className="bg-success text-success-foreground hover:bg-success/90">
+              Confirmar aprovação
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -364,8 +314,8 @@ export default function CentralAprovacoesPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-              Rejeitar Solicitação
+              <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden="true" />
+              Rejeitar solicitação
             </DialogTitle>
             <DialogDescription>
               Informe o motivo da rejeição. Esta informação será enviada ao solicitante.
@@ -380,8 +330,9 @@ export default function CentralAprovacoesPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium">Motivo da Rejeição *</label>
+              <label htmlFor="motivo-rejeicao" className="text-sm font-medium">Motivo da rejeição *</label>
               <Textarea
+                id="motivo-rejeicao"
                 placeholder="Descreva o motivo da rejeição..."
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
@@ -400,7 +351,7 @@ export default function CentralAprovacoesPage() {
               variant="destructive"
               disabled={!rejectReason.trim()}
             >
-              Confirmar Rejeição
+              Confirmar rejeição
             </Button>
           </DialogFooter>
         </DialogContent>

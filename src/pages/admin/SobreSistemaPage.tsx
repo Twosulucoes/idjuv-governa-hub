@@ -6,31 +6,31 @@ import { Info, Mail, Shield, Server, Database, Layout } from "lucide-react";
 import logoTwoSolucoes from "@/assets/logo-two-solucoes.png";
 import { Logo } from "@/components/ui/Logo";
 import { useDadosOficiais } from "@/hooks/useDadosOficiais";
+import { PageHeader } from "@/components/design-system";
 
 export default function SobreSistemaPage() {
   const { nomeOficial, nomeCurto } = useDadosOficiais();
 
   return (
     <ModuleLayout module="admin">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="space-y-6">
         {/* Header institucional */}
-        <div className="text-center space-y-4">
-          <Logo className="h-16 mx-auto" />
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">{nomeCurto}</h1>
-            <p className="text-muted-foreground">{nomeOficial}</p>
-          </div>
-        </div>
+        <PageHeader
+          migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Sobre o sistema" }]}
+          midia={<Logo className="h-16" />}
+          titulo={nomeCurto}
+          descricao={nomeOficial}
+        />
 
         {/* Card principal */}
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center gap-2">
-              <Info className="h-5 w-5" />
-              Sobre o Sistema
+              <Info className="h-5 w-5" aria-hidden="true" />
+              Sobre o sistema
             </CardTitle>
             <CardDescription>
-              Sistema de Gestão Institucional
+              Sistema de gestão institucional
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -49,28 +49,28 @@ export default function SobreSistemaPage() {
             {/* Módulos */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-                <Database className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Recursos Humanos</span>
+                <Database className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <span className="text-body">Recursos Humanos</span>
               </div>
               <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-                <Layout className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Folha de Pagamento</span>
+                <Layout className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <span className="text-body">Folha de Pagamento</span>
               </div>
               <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-                <Server className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Frequência</span>
+                <Server className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <span className="text-body">Frequência</span>
               </div>
               <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-                <Shield className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Governança</span>
+                <Shield className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <span className="text-body">Governança</span>
               </div>
               <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-                <Info className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Transparência</span>
+                <Info className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <span className="text-body">Transparência</span>
               </div>
               <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-                <Database className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Processos</span>
+                <Database className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <span className="text-body">Processos</span>
               </div>
             </div>
 
@@ -84,11 +84,11 @@ export default function SobreSistemaPage() {
                 className="h-12 w-auto"
               />
               <div className="text-center space-y-2">
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-caption">
                   Desenvolvido por Two Soluções
                 </Badge>
                 <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Mail className="h-4 w-4" />
+                  <Mail className="h-4 w-4" aria-hidden="true" />
                   <a 
                     href="mailto:solucoestwo@gmail.com" 
                     className="hover:text-foreground transition-colors"
@@ -96,7 +96,7 @@ export default function SobreSistemaPage() {
                     solucoestwo@gmail.com
                   </a>
                 </div>
-                <p className="text-xs text-muted-foreground/70">
+                <p className="text-caption text-muted-foreground">
                   Suporte técnico disponível por e-mail
                 </p>
               </div>
@@ -105,7 +105,7 @@ export default function SobreSistemaPage() {
         </Card>
 
         {/* Versão */}
-        <p className="text-center text-xs text-muted-foreground/50">
+        <p className="text-center text-caption text-muted-foreground">
           Versão 1.0.0 • {new Date().getFullYear()}
         </p>
       </div>

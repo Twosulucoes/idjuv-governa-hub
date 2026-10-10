@@ -8,6 +8,7 @@ import { ModuleLayout } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState, KpiCard, PageHeader, StatusBadge } from '@/components/design-system';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -68,34 +69,30 @@ function PainelDetalhes({ usuario, saving, onToggleModulo, onToggleAtivo }: Pain
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-lg font-semibold">{usuario.full_name || 'Sem nome'}</h2>
                 {isProtected && (
-                  <Badge variant="outline" className="text-amber-600 border-amber-300 gap-1">
-                    <Lock className="h-3 w-3" /> Protegido
-                  </Badge>
+                  <StatusBadge tom="pendente" icone={false}>
+                    <Lock className="h-3 w-3" aria-hidden="true" /> Protegido
+                  </StatusBadge>
                 )}
                 {!usuario.is_active && (
-                  <Badge variant="destructive" className="gap-1">
-                    <XCircle className="h-3 w-3" /> Bloqueado
-                  </Badge>
+                  <StatusBadge tom="erro">Bloqueado</StatusBadge>
                 )}
                 {usuario.is_active && (
-                  <Badge variant="outline" className="text-green-600 border-green-300 gap-1">
-                    <CheckCircle2 className="h-3 w-3" /> Ativo
-                  </Badge>
+                  <StatusBadge tom="sucesso">Ativo</StatusBadge>
                 )}
               </div>
 
               <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  <Mail className="h-3.5 w-3.5 shrink-0" />
+                  <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                   <span className="truncate">{usuario.email}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <User className="h-3.5 w-3.5 shrink-0" />
-                  <span className="capitalize">{usuario.tipo_usuario === 'tecnico' ? 'Usuário Técnico' : 'Usuário-Servidor'}</span>
+                  <User className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span className="capitalize">{usuario.tipo_usuario === 'tecnico' ? 'Usuário técnico' : 'Usuário-servidor'}</span>
                 </div>
                 {usuario.created_at && (
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-3.5 w-3.5 shrink-0" />
+                    <Calendar className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                     <span>Cadastrado em {format(new Date(usuario.created_at), "dd/MM/yyyy", { locale: ptBR })}</span>
                   </div>
                 )}
@@ -114,18 +111,18 @@ function PainelDetalhes({ usuario, saving, onToggleModulo, onToggleAtivo }: Pain
                   disabled={saving}
                   onClick={() => setConfirmBloqueio(true)}
                 >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldOff className="h-4 w-4" />}
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ShieldOff className="h-4 w-4" aria-hidden="true" />}
                   Bloquear usuário
                 </Button>
               ) : (
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-2 text-green-600 border-green-300 hover:bg-green-50"
+                  className="gap-2 text-success border-success/40 hover:bg-success/10"
                   disabled={saving}
                   onClick={() => onToggleAtivo(true)}
                 >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ShieldCheck className="h-4 w-4" aria-hidden="true" />}
                   Desbloquear usuário
                 </Button>
               )}
@@ -138,8 +135,8 @@ function PainelDetalhes({ usuario, saving, onToggleModulo, onToggleAtivo }: Pain
       <Card className="flex-1">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Package className="h-4 w-4" />
-            Módulos de Acesso
+            <Package className="h-4 w-4" aria-hidden="true" />
+            Módulos de acesso
             <Badge variant="secondary" className="ml-auto text-xs">
               {usuario.modulos.length} ativo{usuario.modulos.length !== 1 ? 's' : ''}
             </Badge>
@@ -148,8 +145,8 @@ function PainelDetalhes({ usuario, saving, onToggleModulo, onToggleAtivo }: Pain
         <CardContent>
           {isProtected ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <ShieldCheck className="h-4 w-4 text-primary" />
-              <span>Super Admin — acesso total a todos os módulos</span>
+              <ShieldCheck className="h-4 w-4 text-primary" aria-hidden="true" />
+              <span>Super admin — acesso total a todos os módulos</span>
             </div>
           ) : (
             <>
@@ -164,7 +161,7 @@ function PainelDetalhes({ usuario, saving, onToggleModulo, onToggleAtivo }: Pain
               />
               {usuario.modulos.length === 0 && (
                 <Alert className="mt-3" variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                   <AlertDescription>
                     Usuário sem módulos — não conseguirá acessar o sistema.
                   </AlertDescription>
@@ -247,27 +244,31 @@ export default function GestaoUsuariosPage() {
 
   return (
     <ModuleLayout module="admin">
-      <div className="flex flex-col gap-4 h-full">
-        {/* Cabeçalho com estatísticas */}
+      <div className="flex flex-col gap-6 h-full">
+        <PageHeader
+          migalhas={[{ rotulo: 'Administração', href: '/admin' }, { rotulo: 'Usuários' }]}
+          titulo="Usuários"
+          descricao="Acesso dos usuários por módulo e bloqueio de contas"
+          acoes={
+            <>
+              <Button variant="outline" onClick={() => fetchUsuarios()} disabled={loading}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+                Atualizar
+              </Button>
+              <Button onClick={() => setShowCriarDialog(true)}>
+                <UserPlus className="h-4 w-4 mr-2" aria-hidden="true" />
+                Novo usuário
+              </Button>
+            </>
+          }
+        />
+
+        {/* Indicadores */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: 'Total', value: stats.total, icon: User, color: 'text-foreground' },
-            { label: 'Ativos', value: stats.ativos, icon: CheckCircle2, color: 'text-green-600' },
-            { label: 'Bloqueados', value: stats.bloqueados, icon: XCircle, color: 'text-destructive' },
-            { label: 'Sem Módulo', value: stats.semModulos, icon: AlertTriangle, color: 'text-amber-600' },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <Card key={label}>
-              <CardContent className="pt-4 pb-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-muted-foreground">{label}</p>
-                    <p className={`text-2xl font-bold ${color}`}>{value}</p>
-                  </div>
-                  <Icon className={`h-8 w-8 opacity-20 ${color}`} />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          <KpiCard rotulo="Total" valor={stats.total} icone={User} carregando={loading} />
+          <KpiCard rotulo="Ativos" valor={stats.ativos} icone={CheckCircle2} carregando={loading} />
+          <KpiCard rotulo="Bloqueados" valor={stats.bloqueados} icone={XCircle} carregando={loading} />
+          <KpiCard rotulo="Sem módulo" valor={stats.semModulos} icone={AlertTriangle} carregando={loading} />
         </div>
 
         {error && (
@@ -280,30 +281,26 @@ export default function GestaoUsuariosPage() {
         <div className="flex gap-4 flex-1 min-h-0" style={{ minHeight: '500px' }}>
           {/* Coluna esquerda — lista */}
           <div className="flex flex-col gap-3 w-full lg:w-80 xl:w-96 shrink-0">
-            {/* Barra de busca e ações */}
+            {/* Barra de busca */}
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 <Input
+                  aria-label="Buscar usuário"
                   placeholder="Buscar usuário..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                   className="pl-9"
                 />
               </div>
-              <Button variant="outline" size="icon" onClick={() => fetchUsuarios()} disabled={loading}>
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              </Button>
-              <Button size="icon" onClick={() => setShowCriarDialog(true)}>
-                <UserPlus className="h-4 w-4" />
-              </Button>
             </div>
 
             {/* Filtros de status */}
-            <div className="flex gap-1">
+            <div className="flex gap-1" role="group" aria-label="Filtrar por situação">
               {(['todos', 'ativos', 'bloqueados'] as const).map(f => (
                 <Button
                   key={f}
+                  aria-pressed={filtroStatus === f}
                   variant={filtroStatus === f ? 'secondary' : 'ghost'}
                   size="sm"
                   className="flex-1 text-xs capitalize"
@@ -317,13 +314,11 @@ export default function GestaoUsuariosPage() {
             {/* Lista de usuários */}
             <Card className="flex-1 overflow-hidden">
               {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <div className="flex items-center justify-center py-12" role="status" aria-label="Carregando usuários">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" aria-hidden="true" />
                 </div>
               ) : usuariosFiltrados.length === 0 ? (
-                <div className="py-8 text-center text-sm text-muted-foreground">
-                  Nenhum usuário encontrado
-                </div>
+                <EmptyState icone={User} titulo="Nenhum usuário encontrado" />
               ) : (
                 <ScrollArea className="h-full">
                   <div className="divide-y">
@@ -338,6 +333,7 @@ export default function GestaoUsuariosPage() {
                             ${selecionado ? 'bg-primary/5 border-l-2 border-primary' : 'border-l-2 border-transparent'}
                             ${!usuario.is_active ? 'opacity-60' : ''}`}
                           onClick={() => setUsuarioSelecionado(usuario)}
+                          aria-current={selecionado ? 'true' : undefined}
                         >
                           <Avatar className="h-9 w-9 shrink-0">
                             <AvatarImage src={usuario.avatar_url || undefined} />
@@ -351,7 +347,7 @@ export default function GestaoUsuariosPage() {
                               <span className="text-sm font-medium truncate">
                                 {usuario.full_name || 'Sem nome'}
                               </span>
-                              {isProtected && <Lock className="h-3 w-3 text-amber-500 shrink-0" />}
+                              {isProtected && <Lock className="h-3 w-3 text-warning shrink-0" role="img" aria-label="Protegido" />}
                             </div>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-xs text-muted-foreground truncate">{usuario.email}</span>
@@ -360,13 +356,13 @@ export default function GestaoUsuariosPage() {
 
                           <div className="flex flex-col items-end gap-1 shrink-0">
                             {!usuario.is_active ? (
-                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Bloqueado</Badge>
+                              <StatusBadge tom="erro" icone={false} className="px-1.5 py-0">Bloqueado</StatusBadge>
                             ) : (
                               <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
                                 {usuario.modulos.length} mod.
                               </Badge>
                             )}
-                            {selecionado && <ChevronRight className="h-3.5 w-3.5 text-primary" />}
+                            {selecionado && <ChevronRight className="h-3.5 w-3.5 text-primary" aria-hidden="true" />}
                           </div>
                         </button>
                       );
@@ -388,11 +384,11 @@ export default function GestaoUsuariosPage() {
               />
             ) : (
               <div className="h-full flex items-center justify-center">
-                <div className="text-center text-muted-foreground">
-                  <User className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                  <p className="text-sm">Selecione um usuário na lista</p>
-                  <p className="text-xs mt-1">para ver e editar seus dados</p>
-                </div>
+                <EmptyState
+                  icone={User}
+                  titulo="Selecione um usuário na lista"
+                  descricao="para ver e editar seus dados"
+                />
               </div>
             )}
           </div>

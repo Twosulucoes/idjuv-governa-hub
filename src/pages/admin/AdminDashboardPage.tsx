@@ -15,13 +15,13 @@ import {
   Plane,
   ChevronRight,
   BookOpen,
-  Loader2,
   type LucideIcon,
 } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { KpiCard, PageHeader } from "@/components/design-system";
+import { useDadosOficiais } from "@/hooks/useDadosOficiais";
 import { menuConfig, getAllRouteItems } from "@/config/menu.config";
 import { useAdminDashboardStats } from "@/hooks/admin/useAdminDashboardStats";
 
@@ -37,13 +37,13 @@ interface QuickLink {
 
 const quickLinks: QuickLink[] = [
   {
-    label: "Novo Servidor",
+    label: "Novo servidor",
     description: "Cadastrar um novo servidor",
     href: "/rh/servidores/novo",
     icon: Users,
   },
   {
-    label: "Gestão de Férias",
+    label: "Gestão de férias",
     description: "Gerenciar férias dos servidores",
     href: "/rh/ferias",
     icon: Calendar,
@@ -55,7 +55,7 @@ const quickLinks: QuickLink[] = [
     icon: TrendingUp,
   },
   {
-    label: "Gestão de Usuários",
+    label: "Gestão de usuários",
     description: "Gerenciar acessos ao sistema",
     href: "/admin/usuarios",
     icon: Shield,
@@ -73,6 +73,7 @@ interface SearchableItem {
 export default function AdminDashboardPage() {
   const [recentPages, setRecentPages] = useState<string[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const { nomeCurto } = useDadosOficiais();
   
   // Buscar estatísticas reais do banco de dados
   const { data: stats, isLoading: statsLoading } = useAdminDashboardStats();
@@ -80,7 +81,7 @@ export default function AdminDashboardPage() {
   // Estatísticas dinâmicas baseadas nos dados do BD
   const quickStats = useMemo(() => [
     {
-      label: "Servidores Ativos",
+      label: "Servidores ativos",
       value: stats?.servidoresAtivos ?? 0,
       trend: stats?.servidoresTrend,
       trendUp: true,
@@ -144,56 +145,49 @@ export default function AdminDashboardPage() {
   return (
     <ModuleLayout module="admin">
       <div className="space-y-6">
-        {/* Page Header */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Painel Administrativo
-          </h1>
-          <p className="text-muted-foreground">
-            Bem-vindo ao sistema de gestão do IDJUV
-          </p>
-        </div>
+        <PageHeader
+          titulo="Painel administrativo"
+          descricao={`Bem-vindo ao sistema de gestão do ${nomeCurto}`}
+        />
 
-        {/* Quick Stats */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {quickStats.map((stat) => (
-            <Link key={stat.label} to={stat.href}>
-              <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {stat.label}
-                  </CardTitle>
-                  <stat.icon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  {statsLoading ? (
-                    <Skeleton className="h-8 w-16" />
-                  ) : (
-                    <div className="text-2xl font-bold">{stat.value}</div>
-                  )}
-                  {stat.trend && !statsLoading && (
-                    <p
-                      className={`text-xs ${
-                        stat.trendUp ? "text-green-600" : "text-muted-foreground"
-                      }`}
-                    >
-                      <TrendingUp className="inline h-3 w-3 mr-1" />
-                      {stat.trend}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
+        {/* Indicadores: cada cartão leva à tela do assunto */}
+        <section aria-labelledby="admin-indicadores">
+          <h2 id="admin-indicadores" className="sr-only">Indicadores</h2>
+          <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {quickStats.map((stat) => (
+              <li key={stat.label}>
+                <Link
+                  to={stat.href}
+                  className="block h-full rounded-lg transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <KpiCard
+                    rotulo={stat.label}
+                    valor={stat.value}
+                    detalhe={
+                      stat.trend ? (
+                        <span className="inline-flex items-center gap-1 font-medium text-success">
+                          <TrendingUp className="h-3 w-3" aria-hidden="true" />
+                          {stat.trend}
+                        </span>
+                      ) : undefined
+                    }
+                    icone={stat.icon}
+                    carregando={statsLoading}
+                    className="h-full"
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Recent Pages */}
           <Card className="lg:col-span-1">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Acessos Recentes
+                <Clock className="h-5 w-5" aria-hidden="true" />
+                Acessos recentes
               </CardTitle>
               <CardDescription>
                 Páginas que você visitou recentemente
@@ -209,10 +203,10 @@ export default function AdminDashboardPage() {
                       className="flex items-center justify-between p-2 rounded-lg hover:bg-accent transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <item.icon className="h-4 w-4 text-muted-foreground" />
+                        <item.icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                         <span className="text-sm">{item.label}</span>
                       </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     </Link>
                   ))}
                 </div>
@@ -228,7 +222,7 @@ export default function AdminDashboardPage() {
           <Card className="lg:col-span-1">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Star className="h-5 w-5 fill-yellow-500 text-yellow-500" />
+                <Star className="h-5 w-5 fill-warning text-warning" aria-hidden="true" />
                 Favoritos
               </CardTitle>
               <CardDescription>
@@ -245,7 +239,7 @@ export default function AdminDashboardPage() {
                       className="flex items-center justify-between p-2 rounded-lg hover:bg-accent transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <item.icon className="h-4 w-4 text-muted-foreground" />
+                        <item.icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                         <span className="text-sm">{item.label}</span>
                       </div>
                       <Badge variant="secondary" className="text-xs">
@@ -265,7 +259,7 @@ export default function AdminDashboardPage() {
           {/* Quick Links */}
           <Card className="lg:col-span-1">
             <CardHeader>
-              <CardTitle>Links Rápidos</CardTitle>
+              <CardTitle>Links rápidos</CardTitle>
               <CardDescription>
                 Atalhos para as ações mais comuns
               </CardDescription>
@@ -279,7 +273,7 @@ export default function AdminDashboardPage() {
                     className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent transition-colors"
                   >
                     <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <link.icon className="h-4 w-4 text-primary" />
+                      <link.icon className="h-4 w-4 text-primary" aria-hidden="true" />
                     </div>
                     <div>
                       <p className="text-sm font-medium">{link.label}</p>
@@ -298,8 +292,8 @@ export default function AdminDashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <HelpCircle className="h-5 w-5" />
-              Como Fazer?
+              <HelpCircle className="h-5 w-5" aria-hidden="true" />
+              Como fazer?
             </CardTitle>
             <CardDescription>
               Guias rápidos para tarefas comuns
@@ -312,19 +306,19 @@ export default function AdminDashboardPage() {
                 className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/50 transition-colors"
               >
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Users className="h-5 w-5 text-primary" />
+                  <Users className="h-5 w-5 text-primary" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm">Cadastrar servidor</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <span>Pessoas</span>
-                    <ChevronRight className="h-3 w-3" />
+                    <ChevronRight className="h-3 w-3" aria-hidden="true" />
                     <span>Servidores</span>
-                    <ChevronRight className="h-3 w-3" />
+                    <ChevronRight className="h-3 w-3" aria-hidden="true" />
                     <span>Novo</span>
                   </p>
                 </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
               </Link>
 
               <Link
@@ -332,19 +326,19 @@ export default function AdminDashboardPage() {
                 className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/50 transition-colors"
               >
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Plane className="h-5 w-5 text-primary" />
+                  <Plane className="h-5 w-5 text-primary" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm">Lançar viagem</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <span>Pessoas</span>
-                    <ChevronRight className="h-3 w-3" />
+                    <ChevronRight className="h-3 w-3" aria-hidden="true" />
                     <span>Viagens</span>
-                    <ChevronRight className="h-3 w-3" />
+                    <ChevronRight className="h-3 w-3" aria-hidden="true" />
                     <span>Nova</span>
                   </p>
                 </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
               </Link>
 
               <Link
@@ -352,17 +346,17 @@ export default function AdminDashboardPage() {
                 className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/50 transition-colors"
               >
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Calendar className="h-5 w-5 text-primary" />
+                  <Calendar className="h-5 w-5 text-primary" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm">Gerenciar férias</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <span>Pessoas</span>
-                    <ChevronRight className="h-3 w-3" />
+                    <ChevronRight className="h-3 w-3" aria-hidden="true" />
                     <span>Férias</span>
                   </p>
                 </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
               </Link>
 
               <Link
@@ -370,17 +364,17 @@ export default function AdminDashboardPage() {
                 className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/50 transition-colors"
               >
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Briefcase className="h-5 w-5 text-primary" />
+                  <Briefcase className="h-5 w-5 text-primary" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm">Cadastrar cargo</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <span>Cadastros</span>
-                    <ChevronRight className="h-3 w-3" />
+                    <ChevronRight className="h-3 w-3" aria-hidden="true" />
                     <span>Cargos</span>
                   </p>
                 </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
               </Link>
 
               <Link
@@ -388,17 +382,17 @@ export default function AdminDashboardPage() {
                 className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/50 transition-colors"
               >
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Building2 className="h-5 w-5 text-primary" />
+                  <Building2 className="h-5 w-5 text-primary" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm">Gerenciar unidades</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <span>Cadastros</span>
-                    <ChevronRight className="h-3 w-3" />
+                    <ChevronRight className="h-3 w-3" aria-hidden="true" />
                     <span>Organograma</span>
                   </p>
                 </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
               </Link>
 
               <Link
@@ -406,7 +400,7 @@ export default function AdminDashboardPage() {
                 className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/50 transition-colors bg-muted/30"
               >
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <BookOpen className="h-5 w-5 text-primary" />
+                  <BookOpen className="h-5 w-5 text-primary" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm">Ver todos os tutoriais</p>
@@ -414,7 +408,7 @@ export default function AdminDashboardPage() {
                     Guias completos passo a passo
                   </p>
                 </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
               </Link>
             </div>
           </CardContent>
@@ -423,7 +417,7 @@ export default function AdminDashboardPage() {
         {/* Module Overview */}
         <Card>
           <CardHeader>
-            <CardTitle>Mapa do Sistema</CardTitle>
+            <CardTitle>Mapa do sistema</CardTitle>
             <CardDescription>
               Visão geral de todos os módulos disponíveis
             </CardDescription>
@@ -437,7 +431,7 @@ export default function AdminDashboardPage() {
                 >
                   <div className="flex items-center gap-2 mb-3">
                     <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <section.icon className="h-4 w-4 text-primary" />
+                      <section.icon className="h-4 w-4 text-primary" aria-hidden="true" />
                     </div>
                     <h3 className="font-semibold">{section.label}</h3>
                   </div>

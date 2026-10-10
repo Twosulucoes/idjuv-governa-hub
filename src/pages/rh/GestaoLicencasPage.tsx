@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ModuleLayout } from '@/components/layout';
 import { ProtectedRoute } from '@/components/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -128,9 +129,42 @@ const emptyFormData: LicencaFormData = {
   observacoes: '',
 };
 
+// Com RLS, escrita sem permissão volta 42501 (INSERT/UPDATE barrado pelo WITH CHECK)
+// ou não afeta linha alguma (UPDATE/DELETE fora do USING), sem erro.
+const MENSAGEM_SEM_PERMISSAO: Record<'registrar' | 'alterar' | 'excluir', string> = {
+  registrar: 'Sem permissão para registrar licença/afastamento.',
+  alterar: 'Sem permissão para alterar este registro.',
+  excluir: 'Sem permissão para excluir este registro.',
+};
+
+class SemPermissaoLicencaError extends Error {
+  constructor(acao: keyof typeof MENSAGEM_SEM_PERMISSAO) {
+    super(MENSAGEM_SEM_PERMISSAO[acao]);
+    this.name = 'SemPermissaoLicencaError';
+  }
+}
+
+function lancarErroEscrita(
+  error: { code?: string; message: string } | null,
+  acao: keyof typeof MENSAGEM_SEM_PERMISSAO,
+) {
+  if (!error) return;
+  if (error.code === '42501') throw new SemPermissaoLicencaError(acao);
+  throw error;
+}
+
+function mensagemErro(prefixo: string, error: Error) {
+  return error instanceof SemPermissaoLicencaError ? error.message : `${prefixo}: ${error.message}`;
+}
+
 export default function GestaoLicencasPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const { isSuperAdmin, hasAnyPermission } = useAuth();
+  const podeCriar = isSuperAdmin || hasAnyPermission(['rh.licencas.criar', 'rh.licencas.gerenciar']);
+  const podeEditar = isSuperAdmin || hasAnyPermission(['rh.licencas.editar', 'rh.licencas.gerenciar']);
+  const podeExcluir = isSuperAdmin || hasAnyPermission(['rh.licencas.gerenciar']);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -190,7 +224,7 @@ export default function GestaoLicencasPage() {
             : data.dias_afastamento,
         }]);
       
-      if (error) throw error;
+      lancarErroEscrita(error, 'registrar');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['licencas-afastamentos'] });
@@ -198,8 +232,8 @@ export default function GestaoLicencasPage() {
       setIsDialogOpen(false);
       resetForm();
     },
-    onError: (error: any) => {
-      toast.error('Erro ao registrar: ' + error.message);
+    onError: (error: Error) => {
+      toast.error(mensagemErro('Erro ao registrar', error));
     },
   });
 
@@ -207,7 +241,7 @@ export default function GestaoLicencasPage() {
   const updateMutation = useMutation({
     mutationFn: async (data: LicencaFormData & { id: string }) => {
       const { id, ...updateData } = data;
-      const { error } = await supabase
+      const { data: alteradas, error } = await supabase
         .from('licencas_afastamentos')
         .update({
           ...updateData,
@@ -216,9 +250,11 @@ export default function GestaoLicencasPage() {
             ? differenceInDays(parseISO(updateData.data_fim), parseISO(updateData.data_inicio)) + 1 
             : updateData.dias_afastamento,
         })
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
       
-      if (error) throw error;
+      lancarErroEscrita(error, 'alterar');
+      if (!alteradas || alteradas.length === 0) throw new SemPermissaoLicencaError('alterar');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['licencas-afastamentos'] });
@@ -226,20 +262,22 @@ export default function GestaoLicencasPage() {
       setIsDialogOpen(false);
       resetForm();
     },
-    onError: (error: any) => {
-      toast.error('Erro ao atualizar: ' + error.message);
+    onError: (error: Error) => {
+      toast.error(mensagemErro('Erro ao atualizar', error));
     },
   });
 
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { data: excluidas, error } = await supabase
         .from('licencas_afastamentos')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
       
-      if (error) throw error;
+      lancarErroEscrita(error, 'excluir');
+      if (!excluidas || excluidas.length === 0) throw new SemPermissaoLicencaError('excluir');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['licencas-afastamentos'] });
@@ -247,8 +285,8 @@ export default function GestaoLicencasPage() {
       setIsDeleteDialogOpen(false);
       setSelectedLicenca(null);
     },
-    onError: (error: any) => {
-      toast.error('Erro ao excluir: ' + error.message);
+    onError: (error: Error) => {
+      toast.error(mensagemErro('Erro ao excluir', error));
     },
   });
 
@@ -356,10 +394,12 @@ export default function GestaoLicencasPage() {
                 </p>
               </div>
             </div>
-            <Button onClick={handleOpenCreate}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Licença/Afastamento
-            </Button>
+            {podeCriar && (
+              <Button onClick={handleOpenCreate}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Licença/Afastamento
+              </Button>
+            )}
           </div>
 
           {/* Stats Cards */}
@@ -562,20 +602,24 @@ export default function GestaoLicencasPage() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenEdit(licenca)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenDelete(licenca)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {podeEditar && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleOpenEdit(licenca)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {podeExcluir && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleOpenDelete(licenca)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

@@ -918,12 +918,12 @@ const App = () => (
               {/* ============================================ */}
               {/* FOLHA DE PAGAMENTO */}
               {/* ============================================ */}
-              <Route path="/folha" element={<ProtectedRoute><GestaoFolhaPagamentoPage /></ProtectedRoute>} />
-              <Route path="/folha/fichas" element={<ProtectedRoute><GestaoFolhaPagamentoPage /></ProtectedRoute>} />
-              <Route path="/folha/rubricas" element={<ProtectedRoute><ConfiguracaoFolhaPage /></ProtectedRoute>} />
-              <Route path="/folha/configuracao" element={<ProtectedRoute><ConfiguracaoFolhaPage /></ProtectedRoute>} />
-              <Route path="/folha/gestao" element={<ProtectedRoute><GestaoFolhaPagamentoPage /></ProtectedRoute>} />
-              <Route path="/folha/:id" element={<ProtectedRoute><FolhaDetalhePage /></ProtectedRoute>} />
+              <Route path="/folha" element={<ProtectedRoute requiredModule="rh" requiredPermissions="financeiro.folha.visualizar"><GestaoFolhaPagamentoPage /></ProtectedRoute>} />
+              <Route path="/folha/fichas" element={<ProtectedRoute requiredModule="rh" requiredPermissions="financeiro.folha.visualizar"><GestaoFolhaPagamentoPage /></ProtectedRoute>} />
+              <Route path="/folha/rubricas" element={<ProtectedRoute requiredModule="rh" requiredPermissions="financeiro.folha.configurar"><ConfiguracaoFolhaPage /></ProtectedRoute>} />
+              <Route path="/folha/configuracao" element={<ProtectedRoute requiredModule="rh" requiredPermissions="financeiro.folha.configurar"><ConfiguracaoFolhaPage /></ProtectedRoute>} />
+              <Route path="/folha/gestao" element={<ProtectedRoute requiredModule="rh" requiredPermissions="financeiro.folha.visualizar"><GestaoFolhaPagamentoPage /></ProtectedRoute>} />
+              <Route path="/folha/:id" element={<ProtectedRoute requiredModule="rh" requiredPermissions="financeiro.folha.visualizar"><FolhaDetalhePage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* PROCESSOS - Com permissões mapeadas */}

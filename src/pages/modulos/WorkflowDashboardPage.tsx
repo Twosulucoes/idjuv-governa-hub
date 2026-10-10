@@ -1,48 +1,46 @@
 /**
  * DASHBOARD - WORKFLOW / PROCESSOS
- * Usa ModuleLayout para navegação modular
+ * Usa ModuleLayout para navegação modular e os padrões do design system
+ * (PageHeader, KpiCard). Ver docs/GUIA_FRONTEND.md (Design System).
  */
 
-import { GitBranch, FileText, Clock, CheckCircle, FilePlus, Search, ArrowRight } from "lucide-react";
+import { FileText, Clock, CheckCircle, FilePlus, Search, ArrowRight, AlertCircle } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { useWorkflowDashboardStats } from "@/hooks/dashboard";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { KpiCard, PageHeader } from "@/components/design-system";
 import { Link } from "react-router-dom";
+
+const numero = new Intl.NumberFormat("pt-BR");
+
+interface Indicador {
+  rotulo: string;
+  valor: string;
+  icone: LucideIcon;
+  href?: string;
+}
 
 export default function WorkflowDashboardPage() {
   const { user } = useAuth();
-  const { data: stats, isLoading } = useWorkflowDashboardStats(user?.id);
+  const { data: stats, isLoading, isError, refetch } = useWorkflowDashboardStats(user?.id);
 
-  const statCards = [
-    { 
-      label: "Processos Ativos", 
-      value: isLoading ? "..." : String(stats?.processosAtivos || 0), 
-      icon: FileText, 
-      href: "/workflow/processos" 
-    },
-    { 
-      label: "Pendentes Comigo", 
-      value: isLoading ? "..." : String(stats?.pendentesComigo || 0), 
-      icon: Clock,
-      href: "/workflow/processos?meus=true"
-    },
-    { 
-      label: "Tramitados Hoje", 
-      value: isLoading ? "..." : String(stats?.tramitadosHoje || 0), 
-      icon: ArrowRight 
-    },
-    { 
-      label: "Concluídos (Mês)", 
-      value: isLoading ? "..." : String(stats?.concluidosMes || 0), 
-      icon: CheckCircle 
-    },
+  // Sem dado (erro) mostra "—" em vez de um zero que parece real
+  const valor = (n: number | undefined) => (stats ? numero.format(n || 0) : "—");
+
+  const indicadores: Indicador[] = [
+    { rotulo: "Processos ativos", valor: valor(stats?.processosAtivos), icone: FileText, href: "/workflow/processos" },
+    { rotulo: "Pendentes comigo", valor: valor(stats?.pendentesComigo), icone: Clock, href: "/workflow/processos?meus=true" },
+    { rotulo: "Tramitados hoje", valor: valor(stats?.tramitadosHoje), icone: ArrowRight },
+    { rotulo: "Concluídos no mês", valor: valor(stats?.concluidosMes), icone: CheckCircle },
   ];
 
   const quickActions = [
-    { label: "Novo Processo", description: "Iniciar processo", href: "/workflow/processos?acao=novo", icon: FilePlus },
-    { label: "Meus Processos", description: "Processos pendentes", href: "/workflow/processos?meus=true", icon: Clock },
+    { label: "Novo processo", description: "Iniciar processo", href: "/workflow/processos?acao=novo", icon: FilePlus },
+    { label: "Meus processos", description: "Processos pendentes", href: "/workflow/processos?meus=true", icon: Clock },
     { label: "Consultar", description: "Buscar processo", href: "/workflow/processos", icon: Search },
     { label: "Tramitar", description: "Encaminhar processo", href: "/workflow/processos", icon: ArrowRight },
   ];
@@ -50,64 +48,76 @@ export default function WorkflowDashboardPage() {
   return (
     <ModuleLayout module="workflow">
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <GitBranch className="h-8 w-8 text-primary" />
-            Processos Administrativos
-          </h1>
-          <p className="text-muted-foreground">Tramitação e gestão de processos</p>
-        </div>
+        <PageHeader
+          titulo="Processos administrativos"
+          descricao="Tramitação e gestão de processos"
+        />
 
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {statCards.map((stat) => {
-            const Icon = stat.icon;
-            const content = (
-              <Card className="hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    {stat.label}
-                  </CardTitle>
-                  <Icon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stat.value}</div>
-                </CardContent>
-              </Card>
-            );
+        {isError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" aria-hidden="true" />
+            <AlertDescription className="flex flex-wrap items-center gap-2">
+              Não foi possível carregar os indicadores.
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Tentar novamente
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
-            return stat.href ? (
-              <Link key={stat.label} to={stat.href}>
-                {content}
-              </Link>
-            ) : (
-              <div key={stat.label}>{content}</div>
-            );
-          })}
-        </div>
+        {/* Indicadores: os que têm tela própria levam a ela */}
+        <section aria-labelledby="workflow-indicadores">
+          <h2 id="workflow-indicadores" className="sr-only">Indicadores</h2>
+          <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {indicadores.map((ind) => {
+              const card = (
+                <KpiCard
+                  rotulo={ind.rotulo}
+                  valor={ind.valor}
+                  icone={ind.icone}
+                  carregando={isLoading}
+                  className="h-full"
+                />
+              );
+              return (
+                <li key={ind.rotulo}>
+                  {ind.href ? (
+                    <Link
+                      to={ind.href}
+                      className="block h-full rounded-lg transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      {card}
+                    </Link>
+                  ) : (
+                    card
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
 
-        {/* Quick Actions */}
+        {/* Ações rápidas */}
         <Card>
           <CardHeader>
-            <CardTitle>Ações Rápidas</CardTitle>
+            <h2 className="text-h2 text-foreground">Ações rápidas</h2>
             <CardDescription>Acesse as principais funcionalidades</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {quickActions.map((action) => {
                 const Icon = action.icon;
                 return (
                   <Button
                     key={action.label}
                     variant="outline"
-                    className="h-auto py-4 flex flex-col items-center gap-2"
+                    className="h-auto sm:h-auto py-4 flex flex-col items-center gap-2 whitespace-normal"
                     asChild
                   >
                     <Link to={action.href}>
-                      <Icon className="h-6 w-6" />
+                      <Icon className="h-6 w-6" aria-hidden="true" />
                       <span className="font-medium">{action.label}</span>
-                      <span className="text-xs text-muted-foreground">{action.description}</span>
+                      <span className="text-caption text-muted-foreground">{action.description}</span>
                     </Link>
                   </Button>
                 );

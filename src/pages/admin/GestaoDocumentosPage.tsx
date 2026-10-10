@@ -14,14 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -29,16 +21,15 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import type { LucideIcon } from "lucide-react";
 import {
   Plus,
   Pencil,
   Trash2,
-  Search,
   FileText,
   Clock,
   CheckCircle,
@@ -51,7 +42,6 @@ import {
   Users,
   Briefcase,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 
 type StatusDocumento = 'rascunho' | 'aguardando_publicacao' | 'publicado' | 'vigente' | 'revogado';
 type TipoDocumento = 'portaria' | 'resolucao' | 'instrucao_normativa' | 'ordem_servico' | 'comunicado' | 'decreto' | 'lei' | 'outro';
@@ -75,30 +65,30 @@ interface Documento {
   updated_at: string;
 }
 
-const statusConfig: Record<StatusDocumento, { label: string; color: string; icon: React.ReactNode }> = {
-  rascunho: { label: "Rascunho", color: "bg-muted text-muted-foreground", icon: <FileText className="h-3 w-3" /> },
-  aguardando_publicacao: { label: "Aguardando Publicação", color: "bg-yellow-500/20 text-yellow-700", icon: <Clock className="h-3 w-3" /> },
-  publicado: { label: "Publicado", color: "bg-blue-500/20 text-blue-700", icon: <Send className="h-3 w-3" /> },
-  vigente: { label: "Vigente", color: "bg-green-500/20 text-green-700", icon: <CheckCircle className="h-3 w-3" /> },
-  revogado: { label: "Revogado", color: "bg-red-500/20 text-red-700", icon: <XCircle className="h-3 w-3" /> },
+const statusConfig: Record<StatusDocumento, { label: string; tom: TomStatus; icone: LucideIcon }> = {
+  rascunho: { label: "Rascunho", tom: "neutro", icone: FileText },
+  aguardando_publicacao: { label: "Aguardando publicação", tom: "pendente", icone: Clock },
+  publicado: { label: "Publicado", tom: "andamento", icone: Send },
+  vigente: { label: "Vigente", tom: "sucesso", icone: CheckCircle },
+  revogado: { label: "Revogado", tom: "erro", icone: XCircle },
 };
 
 const tipoConfig: Record<TipoDocumento, string> = {
   portaria: "Portaria",
   resolucao: "Resolução",
-  instrucao_normativa: "Instrução Normativa",
-  ordem_servico: "Ordem de Serviço",
+  instrucao_normativa: "Instrução normativa",
+  ordem_servico: "Ordem de serviço",
   comunicado: "Comunicado",
   decreto: "Decreto",
   lei: "Lei",
   outro: "Outro",
 };
 
-const categoriaConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-  estruturante: { label: "Estruturante", icon: <Building2 className="h-3 w-3" />, color: "bg-primary/10 text-primary" },
-  normativa: { label: "Normativa", icon: <FileText className="h-3 w-3" />, color: "bg-green-500/10 text-green-600" },
-  pessoal: { label: "Pessoal", icon: <Users className="h-3 w-3" />, color: "bg-blue-500/10 text-blue-600" },
-  delegacao: { label: "Delegação", icon: <Briefcase className="h-3 w-3" />, color: "bg-amber-500/10 text-amber-600" },
+const categoriaConfig: Record<string, { label: string; icon: React.ReactNode }> = {
+  estruturante: { label: "Estruturante", icon: <Building2 className="h-3 w-3" aria-hidden="true" /> },
+  normativa: { label: "Normativa", icon: <FileText className="h-3 w-3" aria-hidden="true" /> },
+  pessoal: { label: "Pessoal", icon: <Users className="h-3 w-3" aria-hidden="true" /> },
+  delegacao: { label: "Delegação", icon: <Briefcase className="h-3 w-3" aria-hidden="true" /> },
 };
 
 const initialFormData = {
@@ -117,7 +107,6 @@ const initialFormData = {
 };
 
 export default function GestaoDocumentosPage() {
-  const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [filterTipo, setFilterTipo] = useState<string>("todos");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -128,7 +117,7 @@ export default function GestaoDocumentosPage() {
   
   const queryClient = useQueryClient();
 
-  const { data: documentos, isLoading } = useQuery({
+  const { data: documentos, isLoading, isError, refetch } = useQuery({
     queryKey: ["documentos"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -313,16 +302,12 @@ export default function GestaoDocumentosPage() {
     }
   };
 
+  // A busca textual (número, título, ementa) fica no DataTable.
   const filteredDocs = documentos?.filter((doc) => {
-    const matchesSearch =
-      doc.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (doc.ementa?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
-    
     const matchesStatus = filterStatus === "todos" || doc.status === filterStatus;
     const matchesTipo = filterTipo === "todos" || doc.tipo === filterTipo;
     
-    return matchesSearch && matchesStatus && matchesTipo;
+    return matchesStatus && matchesTipo;
   });
 
   const statusCounts = documentos?.reduce((acc, doc) => {
@@ -330,36 +315,77 @@ export default function GestaoDocumentosPage() {
     return acc;
   }, {} as Record<string, number>) || {};
 
+  const colunas: ColunaTabela<Documento>[] = [
+    {
+      id: "numero",
+      cabecalho: "Número",
+      celula: (doc) => <span className="font-medium">{doc.numero}</span>,
+      ordenarPor: (doc) => doc.numero,
+      buscarPor: (doc) => doc.numero,
+    },
+    {
+      id: "tipo",
+      cabecalho: "Tipo",
+      celula: (doc) => tipoConfig[doc.tipo],
+      ordenarPor: (doc) => tipoConfig[doc.tipo],
+    },
+    {
+      id: "categoria",
+      cabecalho: "Categoria",
+      celula: (doc) =>
+        doc.categoria && categoriaConfig[doc.categoria] ? (
+          <span className="inline-flex items-center gap-1 text-caption text-muted-foreground">
+            {categoriaConfig[doc.categoria].icon}
+            {categoriaConfig[doc.categoria].label}
+          </span>
+        ) : null,
+      ordenarPor: (doc) => doc.categoria,
+    },
+    {
+      id: "titulo",
+      cabecalho: "Título",
+      celula: (doc) => <span className="block max-w-xs truncate" title={doc.titulo}>{doc.titulo}</span>,
+      ordenarPor: (doc) => doc.titulo,
+      buscarPor: (doc) => `${doc.titulo} ${doc.ementa ?? ""}`,
+      mobile: "titulo",
+    },
+    {
+      id: "data",
+      cabecalho: "Data",
+      celula: (doc) => format(new Date(doc.data_documento), "dd/MM/yyyy", { locale: ptBR }),
+      ordenarPor: (doc) => doc.data_documento,
+    },
+    {
+      id: "status",
+      cabecalho: "Situação",
+      celula: (doc) => (
+        <StatusBadge tom={statusConfig[doc.status]?.tom ?? "neutro"}>
+          {statusConfig[doc.status]?.label ?? doc.status}
+        </StatusBadge>
+      ),
+      ordenarPor: (doc) => doc.status,
+    },
+  ];
+
   return (
     <ModuleLayout module="admin">
-      <div className="container mx-auto py-8 px-4">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-          <div>
-            <nav className="text-sm text-muted-foreground mb-2">
-              <Link to="/" className="hover:text-primary">Início</Link>
-              {" / "}
-              <Link to="/admin" className="hover:text-primary">Administração</Link>
-              {" / "}
-              <span className="text-foreground">Gestão de Documentos</span>
-            </nav>
-            <h1 className="text-3xl font-bold text-foreground">Gestão de Documentos</h1>
-            <p className="text-muted-foreground mt-1">
-              Gerencie portarias, resoluções, instruções normativas e demais documentos oficiais
-            </p>
-          </div>
-          
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Gestão de documentos" }]}
+          titulo="Gestão de documentos"
+          descricao="Gerencie portarias, resoluções, instruções normativas e demais documentos oficiais"
+          acoes={
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => { setEditingDoc(null); setFormData(initialFormData); }}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Documento
+                <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+                Novo documento
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
-                  {editingDoc ? "Editar Documento" : "Novo Documento"}
+                  {editingDoc ? "Editar documento" : "Novo documento"}
                 </DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -519,14 +545,14 @@ export default function GestaoDocumentosPage() {
                         </>
                       ) : (
                         <>
-                          <Upload className="h-4 w-4 mr-2" />
-                          Fazer Upload
+                          <Upload className="h-4 w-4 mr-2" aria-hidden="true" />
+                          Fazer upload
                         </>
                       )}
                     </Button>
                     {formData.arquivo_url && (
-                      <div className="flex items-center gap-2 text-sm text-green-600">
-                        <CheckCircle className="h-4 w-4" />
+                      <div className="flex items-center gap-2 text-sm text-success">
+                        <CheckCircle className="h-4 w-4" aria-hidden="true" />
                         <a 
                           href={formData.arquivo_url} 
                           target="_blank" 
@@ -568,50 +594,49 @@ export default function GestaoDocumentosPage() {
                     Cancelar
                   </Button>
                   <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                    {editingDoc ? "Salvar Alterações" : "Criar Documento"}
+                    {editingDoc ? "Salvar alterações" : "Criar documento"}
                   </Button>
                 </DialogFooter>
               </form>
             </DialogContent>
           </Dialog>
-        </div>
+          }
+        />
 
-        {/* Status Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-          {Object.entries(statusConfig).map(([status, config]) => (
-            <Card 
-              key={status} 
-              className={`cursor-pointer transition-all ${filterStatus === status ? 'ring-2 ring-primary' : ''}`}
-              onClick={() => setFilterStatus(filterStatus === status ? "todos" : status)}
+        {/* Indicadores por situação (clique filtra a lista) */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {(Object.entries(statusConfig) as [StatusDocumento, (typeof statusConfig)[StatusDocumento]][]).map(([status, config]) => (
+            // Botão cobrindo o cartão: evita <div> dentro de <button> e mantém o cartão inteiro clicável.
+            <div
+              key={status}
+              className={`relative rounded-lg transition-all ${filterStatus === status ? 'ring-2 ring-primary' : ''}`}
             >
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className={`p-2 rounded-full ${config.color}`}>
-                  {config.icon}
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{statusCounts[status] || 0}</p>
-                  <p className="text-xs text-muted-foreground">{config.label}</p>
-                </div>
-              </CardContent>
-            </Card>
+              <KpiCard rotulo={config.label} valor={statusCounts[status] || 0} icone={config.icone} carregando={isLoading} className="h-full" />
+              <button
+                type="button"
+                aria-pressed={filterStatus === status}
+                aria-label={`Filtrar por ${config.label}: ${statusCounts[status] || 0} documentos`}
+                className="absolute inset-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => setFilterStatus(filterStatus === status ? "todos" : status)}
+              />
+            </div>
           ))}
         </div>
 
-        {/* Filters */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por número, título ou ementa..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+        <DataTable
+          rotulo="Documentos"
+          dados={filteredDocs ?? []}
+          colunas={colunas}
+          chaveLinha={(doc) => doc.id}
+          carregando={isLoading}
+          erro={isError ? "Não foi possível carregar os documentos." : null}
+          aoTentarNovamente={() => refetch()}
+          busca={{ placeholder: "Buscar por número, título ou ementa..." }}
+          vazio={{ icone: FileText, titulo: "Nenhum documento encontrado" }}
+          filtros={
+            <>
               <Select value={filterTipo} onValueChange={setFilterTipo}>
-                <SelectTrigger className="w-full md:w-48">
+                <SelectTrigger className="w-full md:w-48" aria-label="Filtrar por tipo">
                   <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
                 <SelectContent>
@@ -622,120 +647,69 @@ export default function GestaoDocumentosPage() {
                 </SelectContent>
               </Select>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder="Status" />
+                <SelectTrigger className="w-full md:w-48" aria-label="Filtrar por situação">
+                  <SelectValue placeholder="Situação" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todos">Todos os status</SelectItem>
+                  <SelectItem value="todos">Todas as situações</SelectItem>
                   {Object.entries(statusConfig).map(([value, config]) => (
                     <SelectItem key={value} value={value}>{config.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </>
+          }
+          acoesLinha={(doc) => (
+            <div className="flex justify-end gap-1">
+              {doc.arquivo_url && (
+                <Button variant="ghost" size="icon" asChild>
+                  <a
+                    href={doc.arquivo_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Ver arquivo do documento ${doc.numero}`}
+                    title="Ver arquivo"
+                  >
+                    <Eye className="h-4 w-4" aria-hidden="true" />
+                  </a>
+                </Button>
+              )}
+              {doc.status === "aguardando_publicacao" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handlePublicar(doc)}
+                  title="Publicar"
+                  aria-label={`Publicar documento ${doc.numero}`}
+                >
+                  <Send className="h-4 w-4 text-info" aria-hidden="true" />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleEdit(doc)}
+                title="Editar"
+                aria-label={`Editar documento ${doc.numero}`}
+              >
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Excluir"
+                aria-label={`Excluir documento ${doc.numero}`}
+                onClick={() => {
+                  if (confirm("Tem certeza que deseja excluir este documento?")) {
+                    deleteMutation.mutate(doc.id);
+                  }
+                }}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
+              </Button>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Documents Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Documentos ({filteredDocs?.length || 0})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-center py-8 text-muted-foreground">Carregando...</div>
-            ) : filteredDocs?.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Nenhum documento encontrado
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Número</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Categoria</TableHead>
-                      <TableHead>Título</TableHead>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredDocs?.map((doc) => (
-                      <TableRow key={doc.id}>
-                        <TableCell className="font-medium">{doc.numero}</TableCell>
-                        <TableCell>{tipoConfig[doc.tipo]}</TableCell>
-                        <TableCell>
-                          {doc.categoria && categoriaConfig[doc.categoria] && (
-                            <Badge className={categoriaConfig[doc.categoria].color}>
-                              {categoriaConfig[doc.categoria].icon}
-                              <span className="ml-1">{categoriaConfig[doc.categoria].label}</span>
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate">{doc.titulo}</TableCell>
-                        <TableCell>
-                          {format(new Date(doc.data_documento), "dd/MM/yyyy", { locale: ptBR })}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={statusConfig[doc.status].color}>
-                            {statusConfig[doc.status].icon}
-                            <span className="ml-1">{statusConfig[doc.status].label}</span>
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            {doc.arquivo_url && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                asChild
-                              >
-                                <a href={doc.arquivo_url} target="_blank" rel="noopener noreferrer">
-                                  <Eye className="h-4 w-4" />
-                                </a>
-                              </Button>
-                            )}
-                            {doc.status === "aguardando_publicacao" && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handlePublicar(doc)}
-                                title="Publicar"
-                              >
-                                <Send className="h-4 w-4 text-blue-600" />
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(doc)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                if (confirm("Tem certeza que deseja excluir este documento?")) {
-                                  deleteMutation.mutate(doc.id);
-                                }
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          )}
+        />
       </div>
     </ModuleLayout>
   );

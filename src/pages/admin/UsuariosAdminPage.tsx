@@ -8,6 +8,7 @@ import { ModuleLayout } from '@/components/layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState, PageHeader, StatusBadge } from '@/components/design-system';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -62,8 +63,26 @@ export default function UsuariosAdminPage() {
   return (
     <ModuleLayout module="admin">
       <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: 'Administração', href: '/admin' }, { rotulo: 'Usuários' }]}
+          titulo="Usuários"
+          descricao="Acesso dos usuários por módulo"
+          acoes={
+            <>
+              <Button variant="outline" onClick={() => fetchUsuarios()} disabled={loading}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+                Atualizar
+              </Button>
+              <Button onClick={() => setShowCriarDialog(true)}>
+                <UserPlus className="h-4 w-4 mr-2" aria-hidden="true" />
+                Novo usuário
+              </Button>
+            </>
+          }
+        />
+
         <Alert>
-          <Info className="h-4 w-4" />
+          <Info className="h-4 w-4" aria-hidden="true" />
           <AlertDescription>
             Cada usuário possui acesso a <strong>módulos específicos</strong> com permissões granulares.
             Clique em um usuário para gerenciar seus módulos.
@@ -80,9 +99,10 @@ export default function UsuariosAdminPage() {
 
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <Input
-              placeholder="Buscar por nome ou email..."
+              aria-label="Buscar por nome ou e-mail"
+              placeholder="Buscar por nome ou e-mail..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
@@ -90,7 +110,7 @@ export default function UsuariosAdminPage() {
           </div>
 
           <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
-            <SelectTrigger className="w-full lg:w-40">
+            <SelectTrigger className="w-full lg:w-40" aria-label="Filtrar por situação">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -99,28 +119,21 @@ export default function UsuariosAdminPage() {
               <SelectItem value="bloqueado">Bloqueados</SelectItem>
             </SelectContent>
           </Select>
-
-          <Button variant="outline" onClick={() => fetchUsuarios()} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Atualizar
-          </Button>
-
-          <Button onClick={() => setShowCriarDialog(true)}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Novo Usuário
-          </Button>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="flex items-center justify-center py-12" role="status" aria-label="Carregando usuários">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
           </div>
         ) : usuariosFiltrados.length === 0 ? (
           <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              {searchTerm || filterStatus !== 'all'
-                ? 'Nenhum usuário encontrado com os filtros aplicados.'
-                : 'Nenhum usuário cadastrado.'}
+            <CardContent className="p-0">
+              <EmptyState
+                icone={User}
+                titulo={searchTerm || filterStatus !== 'all'
+                  ? 'Nenhum usuário encontrado com os filtros aplicados.'
+                  : 'Nenhum usuário cadastrado.'}
+              />
             </CardContent>
           </Card>
         ) : (
@@ -149,9 +162,9 @@ export default function UsuariosAdminPage() {
                           <span className="font-medium truncate">
                             {usuario.full_name || 'Sem nome'}
                           </span>
-                          {isProtected && <Lock className="h-3 w-3 text-amber-500" />}
+                          {isProtected && <Lock className="h-3 w-3 text-warning" aria-hidden="true" />}
                           {!usuario.is_active && (
-                            <Badge variant="destructive" className="text-xs">Bloqueado</Badge>
+                            <StatusBadge tom="erro">Bloqueado</StatusBadge>
                           )}
                         </div>
                         <div className="text-sm text-muted-foreground truncate">{usuario.email}</div>
@@ -170,15 +183,21 @@ export default function UsuariosAdminPage() {
                             size="sm"
                             onClick={(e) => handleToggleExpand(e, usuario.id)}
                             className="text-xs"
+                            aria-expanded={isExpanded}
                           >
                             Módulos
                           </Button>
                         )}
                         {isProtected && (
-                          <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">Protegido</Badge>
+                          <StatusBadge tom="pendente" icone={false}>Protegido</StatusBadge>
                         )}
-                        <Button variant="ghost" size="sm" onClick={() => handleOpenDetails(usuario)}>
-                          <ChevronRight className="h-4 w-4" />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenDetails(usuario)}
+                          aria-label={`Ver detalhes de ${usuario.full_name || usuario.email}`}
+                        >
+                          <ChevronRight className="h-4 w-4" aria-hidden="true" />
                         </Button>
                       </div>
                     </div>

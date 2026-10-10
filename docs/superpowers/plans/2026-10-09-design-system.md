@@ -95,6 +95,41 @@ Contratos → Financeiro → Folha → RH (depois do PR #35) → Admin → demai
   organograma e gestão de denúncias (`DataTable`, sem mostrar nada novo do denunciante). Telas
   públicas (lei de criação, decreto, canal de denúncias) mantêm o `MainLayout` público e ganharam
   só tokens e aria. Links quebrados do painel de Integridade apontam para as rotas registradas.
+- **Compras e Contratos**: painéis (links trocados para rotas registradas; "A vencer" e
+  "Aditivos" sem link até existir tela) e telas de processo (compras, diárias, convênios,
+  veículos, pagamentos, patrimônio, almoxarifado) com `PageHeader`, `KpiCard`, `StatusBadge`,
+  `DataTable` em pagamentos e checklist no mesmo padrão (`ol` no fluxograma, obrigatório
+  anunciado ao leitor de tela). Pendência: não há tela de lista de contratos (o menu aponta para
+  `/processos/compras?tab=…`, que a página não lê).
+- **Financeiro**: painéis (`/financeiro` e o painel de orçamento, com execução em `ChartCard` e
+  tabela alternativa), orçamento, alterações orçamentárias, solicitações, empenhos, sub-empenhos,
+  liquidações, pagamentos, restos a pagar, adiantamentos, contas bancárias e relatórios com
+  `PageHeader`, `KpiCard`, `DataTable` e `StatusBadge`. Correções de passagem: filtro "Todos" de
+  restos a pagar (mandava `all` para a consulta) e filtro de adiantamentos (opções fora do enum).
+  QDD fica com o fio de importação. Pendências: `/financeiro` está registrada duas vezes no
+  `App.tsx` (o painel de orçamento não é alcançável); botões sem ação (nova dotação, novo
+  adiantamento, nova conta, atualizar saldos, "ver" de liquidações/adiantamentos/contas).
+
+- **Comunicação/ASCOM, Programas, Workflow, Gabinete e cadastros**: painéis de Comunicação,
+  Programas, Gestores escolares, Workflow e Transparência; CMS (conteúdos, editor, banners,
+  galerias), calendário e aniversariantes; demandas da ASCOM (gestão, detalhe, nova); páginas dos
+  programas; federações e instituições; processos (lista e detalhe), Gabinete, avisos, cargos e
+  hub de módulos. Links quebrados trocados por rotas registradas (`/workflow/processos/:id`) ou
+  removidos; prévia do CMS usa o site do tenant. Pendências: mapas de situação duplicados entre
+  telas (centralizar em `src/types/`), `?acao=novo`/`?meus=true`/`?minhas=true` não lidos pelas
+  listas, CTAs das páginas de programas apontam para `/sistema`, textos "Roraima" nas páginas de
+  programas. Telas públicas (solicitação e protocolo da ASCOM, cadastro de federação, eventos)
+  ficam para a Fase 5.
+
+- **Admin**: painel, ajuda, auditoria, backup, disaster recovery, esquema do banco, relatórios,
+  importações, usuários (gestão, detalhe, técnicos), perfis, permissões, controle de acesso,
+  módulos, central de aprovações, reuniões e check-in, documentos, links úteis, menu do site,
+  páginas públicas, campos do pré-cadastro, envios e calibrador SEGAD. Só apresentação nas telas
+  de acesso: nenhuma checagem de permissão ou chamada mudou (revisão de segurança sem achados).
+  `KpiCard` ganhou `detalhe` (texto secundário fora do número). Pendências: h1 do `TopBarMobile`
+  duplica o do `PageHeader` em telas com `AdminLayout`; o `DataTable` não volta à página 1 quando
+  filtros externos mudam; nome do bucket de backup fixo no código e na Edge Function; o dump de
+  schema importado com `?url` vai para o build público.
 
 ## Fase 5 — Portal público e PWA
 

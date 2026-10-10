@@ -35,11 +35,11 @@ export default function SistemaEntryPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+        <div className="text-center space-y-4" role="status" aria-live="polite">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" aria-hidden="true" />
           <div>
-            <p className="text-lg font-medium">Carregando seu ambiente...</p>
-            <p className="text-sm text-muted-foreground">Verificando permissões</p>
+            <p className="text-h3 text-foreground">Carregando seu ambiente...</p>
+            <p className="text-body text-muted-foreground">Verificando permissões</p>
           </div>
         </div>
       </div>
@@ -50,9 +50,9 @@ export default function SistemaEntryPage() {
   if (shouldRedirect) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-          <p className="text-lg font-medium">Redirecionando...</p>
+        <div className="text-center space-y-4" role="status" aria-live="polite">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" aria-hidden="true" />
+          <p className="text-h3 text-foreground">Redirecionando...</p>
         </div>
       </div>
     );
@@ -66,7 +66,9 @@ export default function SistemaEntryPage() {
   // Fallback (não deve acontecer)
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <p className="text-muted-foreground">Carregando...</p>
+      <p className="text-body text-muted-foreground" role="status">
+        Carregando...
+      </p>
     </div>
   );
 }
