@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/form';
 import { FaixaBrasil } from '@/components/ui/FaixaBrasil';
 
-import { getMarcaAssets, useIdentidade } from '@/core/tenant';
+import { getMarcaAssets, useIdentidade, useTenant } from '@/core/tenant';
 import { SkipLink } from '@/components/design-system';
 
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
@@ -75,6 +75,7 @@ type FederacaoFormData = z.infer<typeof federacaoSchema>;
 
 export default function CadastroFederacaoPage() {
   const { sigla } = useIdentidade();
+  const instagram = useTenant().contato?.redesSociais?.instagram;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -223,18 +224,22 @@ export default function CadastroFederacaoPage() {
               <h1 className="text-2xl font-bold text-foreground mb-4">
                 Cadastro enviado com sucesso!
               </h1>
-              <p className="text-muted-foreground mb-6">
-                Acompanhe as ações e comunicados do {sigla} pelo Instagram:
-              </p>
-              <a 
-                href="https://www.instagram.com/idjuvroraima?igsh=Z3d3dmU0MTA3NHpi" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-flex min-h-11 items-center gap-2 text-primary hover:text-primary/80 font-semibold text-lg transition-colors"
-              >
-                @idjuvroraima
-                <span className="sr-only"> (abre em nova aba)</span>
-              </a>
+              {instagram && (
+                <>
+                  <p className="text-muted-foreground mb-6">
+                    Acompanhe as ações e comunicados do {sigla} pelo Instagram:
+                  </p>
+                  <a
+                    href={`https://www.instagram.com/${instagram}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-11 items-center gap-2 text-primary hover:text-primary/80 font-semibold text-lg transition-colors"
+                  >
+                    @{instagram}
+                    <span className="sr-only"> (abre em nova aba)</span>
+                  </a>
+                </>
+              )}
             </CardContent>
           </Card>
         </main>

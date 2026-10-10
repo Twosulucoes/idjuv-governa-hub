@@ -514,7 +514,7 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
 - **LAI / transparência**: `calcular_prazo_lai`, `consultar_protocolo_sic`,
   `list_public_tables`.
 - **Portal da Transparência (públicas, `anon` executa)** — migração
-  `supabase/migrations/20261010200000_transparencia_rpcs_publicas.sql` (ainda não aplicada em remoto).
+  `supabase/migrations/20261010200100_transparencia_rpcs_publicas.sql` (ainda não aplicada em remoto).
   `SECURITY DEFINER` + `STABLE`, `search_path` fixo; as tabelas continuam fechadas para `anon`, a função devolve só
   os campos da tela e aplica a LGPD no servidor:
   - `transparencia_execucao_orcamentaria()` — totais de `dotacoes_orcamentarias` por exercício (inicial, atual,
@@ -526,6 +526,17 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
     saem `NULL`). `data_homologacao` sai `NULL` (a tabela não tem a coluna).
   - `transparencia_patrimonio()` — bem (número, descrição, marca, modelo, situação, conservação, valor e data de
     aquisição), nome/município da unidade local e nome da unidade organizacional; nunca o responsável.
+  - `transparencia_cargos_publicos()` — migração `supabase/migrations/20261010234000_transparencia_cargos_publicos.sql` (ainda não
+    aplicada em remoto). Quadro de cargos em comissão e funções gratificadas ativos, **uma linha por vaga**: cargo,
+    símbolo (`cargos.sigla`), categoria, natureza, nível, vencimento (`vencimento_base`), lei de criação (número e
+    data), unidade (nome, sigla, unidade superior e diretoria, subindo `superior_id` até a unidade de tipo
+    `diretoria` ou a raiz), vagas previstas/ocupadas e o **nome do ocupante** (nome social quando houver). Vagas por
+    unidade vêm de `composicao_cargos` (unidades ativas; cargo sem composição usa `cargos.quantidade_vagas` sem
+    unidade); ocupante é o vínculo ativo em `vinculos_servidor` (a mesma fonte de ocupação do RH). Nunca CPF,
+    matrícula, indicação, contato, endereço, dado bancário nem remuneração individual. Usada por
+    `/transparencia/cargos` (`useTransparenciaCargos`). Substitui os arquivos estáticos public/data/cargos.json e cargos.csv,
+    removidos porque publicavam a `indicacao` dos ocupantes (no banco, restrita a administradores); os arquivos
+    continuam no histórico do git, e reescrever o histórico para apagá-los é decisão do dono do repositório.
 - **Parâmetros**: `obter_parametro_vigente`, `obter_parametro_simples`,
   `fn_calcular_nivel_parametro`.
 - **Reuniões**: `verificar_conflito_agenda`.

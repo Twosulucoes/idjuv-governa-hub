@@ -317,7 +317,9 @@ Limites conhecidos:
   de todos) foi fechada; as telas públicas passam a usar as RPCs `consultar_gestor_por_cpf` e
   `registrar_gestor_publico` (só devolvem id, nome, status e nome da escola). O front foi ajustado
   (`useGestoresEscolares.ts`), que cai no acesso direto à tabela quando a RPC não existe (banco anterior, sem o
-  baseline); `anon` executa **6** RPCs públicas no total. O formulário de árbitros segue o mesmo princípio e
+  baseline); `anon` executa **10** RPCs públicas no total (essas 6 e as 4 do Portal da Transparência:
+  `transparencia_execucao_orcamentaria`, `transparencia_licitacoes`, `transparencia_patrimonio` e
+  `transparencia_cargos_publicos`, esta última no lugar de `public/data/cargos.json`, que publicava a indicação dos ocupantes). O formulário de árbitros segue o mesmo princípio e
   tolera a falta das RPCs (`CadastroArbitroPage.tsx`), mas o log de acesso ao contracheque e o cadastro de
   árbitros só ficam íntegros depois de aplicada a migração `20261006230500`.
 - O banco ao vivo nunca foi inspecionado: o baseline foi derivado só dos arquivos do repositório.

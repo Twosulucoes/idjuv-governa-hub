@@ -51,10 +51,12 @@ GRANT EXECUTE ON FUNCTION public.arbitro_cpf_cadastrado(text) TO anon;
 GRANT EXECUTE ON FUNCTION public.obter_protocolo_arbitro(uuid) TO anon;
 GRANT EXECUTE ON FUNCTION public.consultar_gestor_por_cpf(text) TO anon;
 GRANT EXECUTE ON FUNCTION public.registrar_gestor_publico(uuid, text, text, text, date, text, text, text) TO anon;
--- Portal da Transparência (migração 20261010200000): só os campos das telas, filtro de LGPD no servidor
+-- Portal da Transparência (migração 20261010200100): só os campos das telas, filtro de LGPD no servidor
 GRANT EXECUTE ON FUNCTION public.transparencia_execucao_orcamentaria() TO anon;
 GRANT EXECUTE ON FUNCTION public.transparencia_licitacoes(integer, text) TO anon;
 GRANT EXECUTE ON FUNCTION public.transparencia_patrimonio() TO anon;
+-- Quadro de cargos comissionados (migração 20261010234000): nome do ocupante sim; indicação, CPF e contato nunca
+GRANT EXECUTE ON FUNCTION public.transparencia_cargos_publicos() TO anon;
 
 -- ---- funções só da service role (Edge Functions): fecham também para authenticated ----
 REVOKE EXECUTE ON FUNCTION public.list_public_tables() FROM authenticated;

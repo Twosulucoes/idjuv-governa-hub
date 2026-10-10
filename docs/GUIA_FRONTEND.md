@@ -56,6 +56,9 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
 - **Organização**: `useOrganograma`, `useInstituicoes`, `useAgrupamentoUnidades`,
   `usePortalDiretoria`, `useEscolasJer`, `useFederacoesRelatorio`,
   `useGestoresEscolares`.
+- **Transparência (portal público)**: `useTransparenciaPublicacoes`, `useTransparenciaCargos`
+  (quadro de cargos pela RPC pública `transparencia_cargos_publicos`; como a RPC ainda não está nos
+  tipos gerados, a chamada usa `supabase.rpc("…" as never)` e tipa a linha no próprio hook).
 - **UI/navegação**: `useSidebarCollapse`, `useModuleRouter`, `useModulosUsuario`,
   `use-toast`.
 

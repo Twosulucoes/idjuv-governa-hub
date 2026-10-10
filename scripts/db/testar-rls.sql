@@ -837,7 +837,7 @@ BEGIN
 
   -- anon: só as exceções públicas
   SELECT count(*) INTO n FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.prokind IN ('f','p') AND has_function_privilege('anon', p.oid, 'EXECUTE');
-  IF n <> 9 THEN PERFORM pg_temp.falha('anon executa ' || n || ' funções (esperado: 9 RPCs públicas)'); END IF;
+  IF n <> 10 THEN PERFORM pg_temp.falha('anon executa ' || n || ' funções (esperado: 10 RPCs públicas)'); END IF;
   SELECT count(*) INTO n FROM pg_class c WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r','p') AND (has_table_privilege('anon', c.oid, 'SELECT') OR has_table_privilege('anon', c.oid, 'INSERT') OR has_table_privilege('anon', c.oid, 'UPDATE') OR has_table_privilege('anon', c.oid, 'DELETE'));
   IF n <> (SELECT count(*) FROM mapa WHERE anon <> '') THEN PERFORM pg_temp.falha('anon tem privilégio em ' || n || ' tabelas; o mapa declara ' || (SELECT count(*) FROM mapa WHERE anon <> '')); END IF;
   FOR x IN SELECT tabela, anon FROM mapa WHERE anon <> '' LOOP
@@ -1071,8 +1071,10 @@ BEGIN
     -- RPCs públicas (formulários e portal): anon executa
     'arbitro_cpf_cadastrado','obter_protocolo_arbitro','obter_dado_oficial','registrar_denuncia_publica',
     'consultar_gestor_por_cpf','registrar_gestor_publico',
-    -- portal da transparência: só totais/campos públicos, LGPD filtrada no servidor (migração 20261010200000)
+    -- portal da transparência: só totais/campos públicos, LGPD filtrada no servidor (migração 20261010200100)
     'transparencia_execucao_orcamentaria','transparencia_licitacoes','transparencia_patrimonio',
+    -- quadro de cargos: só nome do ocupante, nunca indicação/CPF/contato (migração 20261010234000)
+    'transparencia_cargos_publicos',
     -- só authenticated executa (anon não); incrementa o contador de bloqueio por token errado
     'consultar_protocolo_sic'];
   FOR f IN
@@ -1115,6 +1117,29 @@ BEGIN
   BEGIN r := public.fn_gerar_esocial_s2200(sa::uuid)::text; EXCEPTION WHEN OTHERS THEN r := 'erro:' || SQLERRM; END;
   RESET ROLE;
   IF r NOT ILIKE '%Servidor Alheio%' THEN PERFORM pg_temp.falha('fn_gerar_esocial_s2200: o RH não recebe o servidor (' || left(r, 80) || ')'); END IF;
+
+  -- ===== portal: quadro de cargos (anon) mostra o nome do ocupante e nunca indicação nem CPF (migração 20261010234000)
+  INSERT INTO public.estrutura_organizacional (id, nome, sigla, tipo, nivel)
+    VALUES ('c0000000-0000-0000-0000-0000000000e1', 'Unidade Cargos Teste', 'UCT', 'diretoria', 2);
+  INSERT INTO public.cargos (id, nome, sigla, categoria, natureza, vencimento_base, quantidade_vagas)
+    VALUES ('c0000000-0000-0000-0000-0000000000c1', 'Cargo Teste LAI', 'CT-I', 'comissionado', 'comissionado', 1234.56, 2);
+  INSERT INTO public.composicao_cargos (unidade_id, cargo_id, quantidade_vagas)
+    VALUES ('c0000000-0000-0000-0000-0000000000e1', 'c0000000-0000-0000-0000-0000000000c1', 2);
+  INSERT INTO public.servidores (id, nome_completo, cpf, indicacao)
+    VALUES ('c0000000-0000-0000-0000-0000000000a1', 'Ocupante Publico Teste', '98765432100', 'Padrinho Secreto Teste');
+  INSERT INTO public.vinculos_servidor (servidor_id, tipo, cargo_id, unidade_id, data_inicio)
+    VALUES ('c0000000-0000-0000-0000-0000000000a1', 'comissionado', 'c0000000-0000-0000-0000-0000000000c1',
+            'c0000000-0000-0000-0000-0000000000e1', current_date);
+  PERFORM set_config('request.jwt.claims', json_build_object('role', 'anon')::text, true);
+  SET LOCAL ROLE anon;
+  BEGIN
+    SELECT string_agg(t::text, ' | '), count(*) INTO r, n FROM public.transparencia_cargos_publicos() t WHERE t.cargo = 'Cargo Teste LAI';
+  EXCEPTION WHEN OTHERS THEN r := 'erro:' || SQLERRM; n := -1;
+  END;
+  RESET ROLE;
+  IF n <> 2 THEN PERFORM pg_temp.falha('transparencia_cargos_publicos: esperadas 2 linhas (1 ocupada, 1 vaga) do cargo de teste, vieram ' || n || ' (' || left(coalesce(r, ''), 90) || ')'); END IF;
+  IF coalesce(r, '') NOT LIKE '%Ocupante Publico Teste%' THEN PERFORM pg_temp.falha('transparencia_cargos_publicos: anon não vê o nome do ocupante'); END IF;
+  IF r ILIKE '%Padrinho Secreto%' OR r LIKE '%98765432100%' THEN PERFORM pg_temp.falha('transparencia_cargos_publicos: expõe indicação ou CPF'); END IF;
 
   -- ===== privilégios padrão: função criada depois NÃO nasce executável por anon
   SET LOCAL ROLE postgres;

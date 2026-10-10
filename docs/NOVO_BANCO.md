@@ -110,8 +110,9 @@ Rode estas consultas como `postgres` no banco novo:
 ```sql
 -- 0 policies "acesso total"
 SELECT count(*) FROM pg_policies WHERE schemaname = 'public' AND policyname ILIKE 'acesso_total%';
--- anon executa exatamente 6 funções (registrar_denuncia_publica, obter_dado_oficial, arbitro_cpf_cadastrado,
--- obter_protocolo_arbitro, consultar_gestor_por_cpf, registrar_gestor_publico)
+-- anon executa exatamente 10 funções (registrar_denuncia_publica, obter_dado_oficial, arbitro_cpf_cadastrado,
+-- obter_protocolo_arbitro, consultar_gestor_por_cpf, registrar_gestor_publico, transparencia_execucao_orcamentaria,
+-- transparencia_licitacoes, transparencia_patrimonio, transparencia_cargos_publicos)
 SELECT p.oid::regprocedure FROM pg_proc p
  WHERE p.pronamespace = 'public'::regnamespace AND has_function_privilege('anon', p.oid, 'EXECUTE');
 -- toda tabela com RLS ligado (esperado: nenhuma linha)
