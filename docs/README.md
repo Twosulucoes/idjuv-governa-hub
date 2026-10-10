@@ -20,6 +20,7 @@
 | [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md) | Modelo de permissões, perfis, rotas protegidas |
 | [GUIA_FRONTEND.md](./GUIA_FRONTEND.md) | Estrutura do front, hooks, libs, padrões de código |
 | [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md) | Funções serverless (Deno) do Supabase |
+| [EMAILS_AUTH.md](./EMAILS_AUTH.md) | E-mails do Supabase Auth com o design system: gerador, templates por tenant e como aplicar na VPS |
 | [DESENVOLVIMENTO.md](./DESENVOLVIMENTO.md) | Setup, comandos, fluxo Git, deploy, como adicionar features |
 | [AUDITORIA_USUARIOS.md](./AUDITORIA_USUARIOS.md) | Auditoria de segurança do sistema de usuários (achados e hardening) |
 | [INVENTARIO_HARDCODE.md](./INVENTARIO_HARDCODE.md) | Mapa do hardcode do cliente (IDJUV) no código — base do White Label |
