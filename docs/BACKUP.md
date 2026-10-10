@@ -50,10 +50,11 @@ Confira os nomes com `docker ps --format '{{.Names}}'` (container do Postgres) e
 (`docker/volumes/storage` dentro da pasta do Supabase). O arquivo `/etc/idjuv-backup.env` tem prioridade
 sobre variáveis de ambiente.
 
-Agende no cron (`crontab -e`), 03:30 em Brasília:
+Agende no cron (`crontab -e`). O cron usa o fuso da VPS (confira com `date`); com a VPS em
+`America/Boa_Vista`, 03:30 locais:
 
 ```cron
-30 6 * * * /usr/local/bin/idjuv-backup >> /var/log/idjuv-backup.log 2>&1
+30 3 * * * /usr/local/bin/idjuv-backup >> /var/log/idjuv-backup.log 2>&1
 ```
 
 **No GitHub** (Settings → Secrets and variables → Actions), para o teste mensal:
@@ -62,7 +63,7 @@ Agende no cron (`crontab -e`), 03:30 em Brasília:
 |---|---|
 | `BACKUP_RCLONE_CONF` | conteúdo do `~/.config/rclone/rclone.conf` (de preferência com uma chave só-leitura) |
 | `BACKUP_RCLONE_REMOTE` | o mesmo `BACKUP_RCLONE_REMOTE` da VPS (ex.: `r2:idjuv-backups`) |
-| `BACKUP_AGE_KEY` | conteúdo do `idjuv-backup.key` |
+| `BACKUP_AGE_KEY` | conteúdo do `idjuv-backup.key` (a chave **privada**, linha `AGE-SECRET-KEY-1...`; a pública `age1...` não serve) |
 
 Variável opcional `SUPABASE_PG_IMAGE`: a imagem do container db da VPS
 (`docker inspect -f '{{.Config.Image}}' supabase-db`). Depois rode a Action uma vez à mão
