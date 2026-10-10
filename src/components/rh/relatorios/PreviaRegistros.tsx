@@ -12,6 +12,9 @@ interface PreviaRegistrosProps {
   substantivo?: [string, string];
   /** Complemento ao lado da contagem (ex.: "120 dias"). */
   detalhe?: ReactNode;
+  /** Textos do estado vazio (o padrão fala em "período"; cards sem período passam os seus). */
+  tituloVazio?: string;
+  descricaoVazio?: string;
 }
 
 /** Pré-visualização dos cards de relatório: estado dos filtros, carregamento, vazio ou "N registros". */
@@ -22,6 +25,8 @@ export function PreviaRegistros({
   total,
   substantivo = ["registro", "registros"],
   detalhe,
+  tituloVazio = "Nenhum registro no período",
+  descricaoVazio = "Ajuste o período ou os filtros para encontrar registros.",
 }: PreviaRegistrosProps) {
   if (filtrosInvalidos) {
     return <p className="text-sm text-muted-foreground">Informe um período válido para consultar.</p>;
@@ -45,8 +50,8 @@ export function PreviaRegistros({
     return (
       <EmptyState
         icone={SearchX}
-        titulo="Nenhum registro no período"
-        descricao="Ajuste o período ou os filtros para encontrar registros."
+        titulo={tituloVazio}
+        descricao={descricaoVazio}
         className="py-4"
       />
     );
