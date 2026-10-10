@@ -63,7 +63,11 @@ jobs:
           PASTA_INFORMADA="$PASTA"
           mkdir -p ~/.config/rclone "$RUNNER_TEMP/bk" "$RUNNER_TEMP/dados"
           printf '%s\n' "$RCLONE_CONF" > ~/.config/rclone/rclone.conf
-          printf '%s\n' "$AGE_KEY" > "$RUNNER_TEMP/chave.key"
+          # aceita o arquivo inteiro do age-keygen ou só a linha da chave, com espaços ou CRLF de cópia
+          if ! printf '%s\n' "$AGE_KEY" | tr -d ' \r' | grep -oE 'AGE-SECRET-KEY-1[0-9A-Z]+' > "$RUNNER_TEMP/chave.key"; then
+            echo "::error::BACKUP_AGE_KEY não tem a chave PRIVADA do age (linha AGE-SECRET-KEY-1...). A chave pública (age1...) não decifra. Ver docs/BACKUP.md."
+            exit 1
+          fi
           if [ -z "$PASTA" ]; then
             ultimo=$(rclone lsf --dirs-only "$REMOTO/diario" | sort | tail -1)
             [ -n "$ultimo" ] || { echo "::error::nenhum backup em $REMOTO/diario"; exit 1; }

@@ -1,9 +1,5 @@
-import { Link } from "react-router-dom";
 import { 
-  BarChart3, 
-  TrendingUp, 
   CheckCircle2, 
-  AlertTriangle, 
   Users, 
   FileText, 
   Shield,
@@ -15,7 +11,7 @@ import { ModuleLayout } from "@/components/layout/ModuleLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { ChartCard, PageHeader, StatusBadge, type TomStatus } from "@/components/design-system";
 import { generateRelatorioGovernancaPDF } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 import {
@@ -44,32 +40,32 @@ const indicadoresPrincipais = [
     valor: 87,
     meta: 90,
     icon: CheckCircle2,
-    cor: "text-emerald-600",
-    bgCor: "bg-emerald-100",
+    cor: "text-success",
+    bgCor: "bg-success/15",
   },
   {
     titulo: "Processos Mapeados",
     valor: 24,
     meta: 30,
     icon: FileText,
-    cor: "text-blue-600",
-    bgCor: "bg-blue-100",
+    cor: "text-info",
+    bgCor: "bg-info/15",
   },
   {
     titulo: "Capacitações Realizadas",
     valor: 156,
     meta: 200,
     icon: Users,
-    cor: "text-violet-600",
-    bgCor: "bg-violet-100",
+    cor: "text-primary",
+    bgCor: "bg-primary/15",
   },
   {
     titulo: "Riscos Mitigados",
     valor: 18,
     meta: 22,
     icon: Shield,
-    cor: "text-amber-600",
-    bgCor: "bg-amber-100",
+    cor: "text-warning",
+    bgCor: "bg-warning/15",
   },
 ];
 
@@ -91,19 +87,19 @@ const dadosConformidade = [
 
 // Dados do gráfico de processos por área
 const dadosProcessos = [
-  { area: "Compras", quantidade: 8, cor: "#3b82f6" },
-  { area: "RH", quantidade: 5, cor: "#8b5cf6" },
-  { area: "Patrimônio", quantidade: 4, cor: "#10b981" },
-  { area: "Financeiro", quantidade: 4, cor: "#f59e0b" },
-  { area: "Almoxarifado", quantidade: 3, cor: "#ef4444" },
+  { area: "Compras", quantidade: 8, cor: "hsl(var(--chart-1))" },
+  { area: "RH", quantidade: 5, cor: "hsl(var(--chart-2))" },
+  { area: "Patrimônio", quantidade: 4, cor: "hsl(var(--chart-3))" },
+  { area: "Financeiro", quantidade: 4, cor: "hsl(var(--chart-4))" },
+  { area: "Almoxarifado", quantidade: 3, cor: "hsl(var(--chart-5))" },
 ];
 
 // Dados de riscos por categoria
 const dadosRiscos = [
-  { categoria: "Baixo", quantidade: 12, cor: "#10b981" },
-  { categoria: "Médio", quantidade: 8, cor: "#f59e0b" },
-  { categoria: "Alto", quantidade: 4, cor: "#ef4444" },
-  { categoria: "Crítico", quantidade: 1, cor: "#7c2d12" },
+  { categoria: "Baixo", quantidade: 12, cor: "hsl(var(--success))" },
+  { categoria: "Médio", quantidade: 8, cor: "hsl(var(--chart-8))" },
+  { categoria: "Alto", quantidade: 4, cor: "hsl(var(--chart-3))" },
+  { categoria: "Crítico", quantidade: 1, cor: "hsl(var(--destructive))" },
 ];
 
 // Ações de integridade
@@ -146,6 +142,13 @@ const acoesIntegridade = [
   },
 ];
 
+// Situação da ação → rótulo e tom (status nunca só por cor)
+const SITUACAO_ACAO: Record<string, { label: string; tom: TomStatus }> = {
+  concluido: { label: "Concluído", tom: "sucesso" },
+  em_andamento: { label: "Em andamento", tom: "andamento" },
+  pendente: { label: "Pendente", tom: "pendente" },
+};
+
 const chartConfig = {
   conformidade: {
     label: "Conformidade",
@@ -160,33 +163,32 @@ const chartConfig = {
 export default function RelatorioGovernancaPage() {
   return (
     <ModuleLayout module="governanca">
-      <div className="space-y-8">
-        {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-              <BarChart3 className="h-8 w-8 text-primary" />
-              Relatório Anual de Governança e Integridade
-            </h1>
-            <p className="text-muted-foreground mt-1 flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Exercício 2025 - Atualizado em Dezembro
-            </p>
-          </div>
-          <Button 
-            variant="outline" 
-            className="flex items-center gap-2"
-            onClick={() => {
-              generateRelatorioGovernancaPDF();
-              toast.success("PDF do Relatório de Governança gerado com sucesso!");
-            }}
-          >
-            <Download className="w-4 h-4" />
-            Baixar PDF
-          </Button>
-        </div>
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: "Governança", href: "/governanca" }, { rotulo: "Relatório de governança" }]}
+          titulo="Relatório anual de governança e integridade"
+          descricao={
+            <span className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" aria-hidden="true" />
+              Exercício 2025 - Atualizado em dezembro
+            </span>
+          }
+          acoes={
+            <Button
+              onClick={() => {
+                generateRelatorioGovernancaPDF();
+                toast.success("PDF do Relatório de Governança gerado com sucesso!");
+              }}
+            >
+              <Download className="w-4 h-4" aria-hidden="true" />
+              Baixar PDF
+            </Button>
+          }
+        />
 
-        {/* Indicadores Principais */}
+        {/* Indicadores principais (com meta e progresso; por isso não usam KpiCard) */}
+        <section aria-labelledby="relatorio-indicadores">
+          <h2 id="relatorio-indicadores" className="sr-only">Indicadores principais</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {indicadoresPrincipais.map((indicador) => (
             <Card key={indicador.titulo} className="relative overflow-hidden">
@@ -196,7 +198,7 @@ export default function RelatorioGovernancaPage() {
                     <p className="text-sm text-muted-foreground mb-1">
                       {indicador.titulo}
                     </p>
-                    <p className="text-3xl font-bold">
+                    <p className="text-h1 tabular-nums">
                       {indicador.valor}
                       {indicador.titulo === "Conformidade Geral" && "%"}
                     </p>
@@ -205,32 +207,36 @@ export default function RelatorioGovernancaPage() {
                     </p>
                   </div>
                   <div className={`w-12 h-12 ${indicador.bgCor} rounded-lg flex items-center justify-center`}>
-                    <indicador.icon className={`w-6 h-6 ${indicador.cor}`} />
+                    <indicador.icon className={`w-6 h-6 ${indicador.cor}`} aria-hidden="true" />
                   </div>
                 </div>
                 <Progress 
                   value={(indicador.valor / indicador.meta) * 100} 
                   className="mt-4 h-2" 
+                  aria-label={`${indicador.titulo}: ${Math.round((indicador.valor / indicador.meta) * 100)}% da meta`}
                 />
               </CardContent>
             </Card>
           ))}
         </div>
+        </section>
 
         {/* Gráficos */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <h2 className="sr-only">Gráficos</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Gráfico de Conformidade */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-primary" />
-                Evolução da Conformidade
-              </CardTitle>
-              <CardDescription>
-                Índice mensal de conformidade vs meta estabelecida
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          <ChartCard
+            titulo="Evolução da conformidade"
+            descricao="Índice mensal de conformidade vs meta estabelecida"
+            tabela={{
+              colunas: [
+                { chave: "mes", rotulo: "Mês" },
+                { chave: "conformidade", rotulo: "Conformidade (%)", numerica: true },
+                { chave: "meta", rotulo: "Meta (%)", numerica: true },
+              ],
+              linhas: dadosConformidade,
+            }}
+          >
               <ChartContainer config={chartConfig} className="h-[300px] w-full">
                 <LineChart data={dadosConformidade}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -253,21 +259,20 @@ export default function RelatorioGovernancaPage() {
                   />
                 </LineChart>
               </ChartContainer>
-            </CardContent>
-          </Card>
+          </ChartCard>
 
           {/* Gráfico de Processos por Área */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-primary" />
-                Processos Mapeados por Área
-              </CardTitle>
-              <CardDescription>
-                Distribuição dos 24 processos formalizados
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          <ChartCard
+            titulo="Processos mapeados por área"
+            descricao="Distribuição dos 24 processos formalizados"
+            tabela={{
+              colunas: [
+                { chave: "area", rotulo: "Área" },
+                { chave: "quantidade", rotulo: "Processos", numerica: true },
+              ],
+              linhas: dadosProcessos.map(({ area, quantidade }) => ({ area, quantidade })),
+            }}
+          >
               <ChartContainer config={chartConfig} className="h-[300px] w-full">
                 <BarChart data={dadosProcessos} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -281,22 +286,21 @@ export default function RelatorioGovernancaPage() {
                   </Bar>
                 </BarChart>
               </ChartContainer>
-            </CardContent>
-          </Card>
+          </ChartCard>
 
           {/* Gráfico de Riscos */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-primary" />
-                Matriz de Riscos
-              </CardTitle>
-              <CardDescription>
-                Classificação dos 25 riscos identificados
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex items-center justify-center">
-              <ChartContainer config={chartConfig} className="h-[300px] w-full max-w-[400px]">
+          <ChartCard
+            titulo="Matriz de riscos"
+            descricao="Classificação dos 25 riscos identificados"
+            tabela={{
+              colunas: [
+                { chave: "categoria", rotulo: "Classificação" },
+                { chave: "quantidade", rotulo: "Riscos", numerica: true },
+              ],
+              linhas: dadosRiscos.map(({ categoria, quantidade }) => ({ categoria, quantidade })),
+            }}
+          >
+              <ChartContainer config={chartConfig} className="mx-auto h-[300px] w-full max-w-[400px]">
                 <PieChart>
                   <Pie
                     data={dadosRiscos}
@@ -315,15 +319,14 @@ export default function RelatorioGovernancaPage() {
                   <ChartTooltip content={<ChartTooltipContent />} />
                 </PieChart>
               </ChartContainer>
-            </CardContent>
-          </Card>
+          </ChartCard>
 
           {/* Ações de Integridade */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Target className="w-5 h-5 text-primary" />
-                Plano de Ação de Integridade
+                <Target className="w-5 h-5 text-primary" aria-hidden="true" />
+                Plano de ação de integridade
               </CardTitle>
               <CardDescription>
                 Acompanhamento das ações planejadas para 2025
@@ -336,32 +339,15 @@ export default function RelatorioGovernancaPage() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">{acao.titulo}</span>
                       <div className="flex items-center gap-2">
-                        <Badge 
-                          variant={
-                            acao.status === "concluido" 
-                              ? "default" 
-                              : acao.status === "em_andamento" 
-                              ? "secondary" 
-                              : "outline"
-                          }
-                          className={
-                            acao.status === "concluido" 
-                              ? "bg-emerald-600" 
-                              : ""
-                          }
-                        >
-                          {acao.status === "concluido" 
-                            ? "Concluído" 
-                            : acao.status === "em_andamento" 
-                            ? "Em Andamento" 
-                            : "Pendente"}
-                        </Badge>
+                        <StatusBadge tom={SITUACAO_ACAO[acao.status]?.tom ?? "neutro"}>
+                          {SITUACAO_ACAO[acao.status]?.label ?? acao.status}
+                        </StatusBadge>
                         <span className="text-xs text-muted-foreground">
                           {acao.prazo}
                         </span>
                       </div>
                     </div>
-                    <Progress value={acao.percentual} className="h-2" />
+                    <Progress value={acao.percentual} className="h-2" aria-label={`${acao.titulo}: ${acao.percentual}% concluído`} />
                   </div>
                 ))}
               </div>
@@ -372,14 +358,14 @@ export default function RelatorioGovernancaPage() {
         {/* Resumo Executivo */}
         <Card>
           <CardHeader>
-            <CardTitle className="font-serif text-2xl">Resumo Executivo</CardTitle>
+            <CardTitle className="text-h2">Resumo executivo</CardTitle>
           </CardHeader>
           <CardContent className="prose prose-sm max-w-none">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div>
                 <h4 className="font-semibold text-lg mb-3 flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                  Principais Conquistas
+                  <CheckCircle2 className="w-5 h-5 text-success" aria-hidden="true" />
+                  Principais conquistas
                 </h4>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li>• Implantação do Portal de Governança com 100% dos documentos estruturantes</li>
@@ -392,7 +378,7 @@ export default function RelatorioGovernancaPage() {
               </div>
               <div>
                 <h4 className="font-semibold text-lg mb-3 flex items-center gap-2">
-                  <Target className="w-5 h-5 text-primary" />
+                  <Target className="w-5 h-5 text-primary" aria-hidden="true" />
                   Metas para 2026
                 </h4>
                 <ul className="space-y-2 text-sm text-muted-foreground">
@@ -411,7 +397,7 @@ export default function RelatorioGovernancaPage() {
         {/* Fundamentos Legais */}
         <Card className="bg-primary/5 border-primary/20">
           <CardHeader>
-            <CardTitle className="font-serif text-xl">Fundamentação Legal</CardTitle>
+            <CardTitle className="text-h3">Fundamentação legal</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">

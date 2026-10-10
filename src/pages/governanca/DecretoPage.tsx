@@ -1,11 +1,10 @@
-import { Link } from "react-router-dom";
 import decretoPdf from "@tenants/idjuv/assets/documentos/DOE_5091_23-01-2026_Decreto_39840-E.pdf?url";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Scale, Calendar, Building2, Download, ExternalLink } from "lucide-react";
+import { FileText, Calendar, Building2, Download } from "lucide-react";
 import { useDadosOficiais } from "@/hooks/useDadosOficiais";
 
 const DecretoPage = () => {
@@ -19,41 +18,33 @@ const DecretoPage = () => {
     <MainLayout>
       <section className="container mx-auto px-4 py-10">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <Link to="/base-legal" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-4">
-            ← Base Legal
-          </Link>
-          <Badge variant="outline" className="mb-4">
-            <Scale className="w-3 h-3 mr-1" />
-            Governança
-          </Badge>
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Decreto Regulamentador
-          </h1>
-          <p className="text-muted-foreground">
-            {obterValor('decreto_regulamentacao')}
-          </p>
-        </div>
-
-        <Card className="mb-8">
-          <CardHeader className="bg-primary/5 flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-primary" />
-              Decreto nº 39.840-E, de 23 de janeiro de 2026
-            </CardTitle>
-            <Button variant="outline" size="sm" onClick={handleDownload}>
-              <Download className="w-4 h-4 mr-2" />
+        <PageHeader
+          migalhas={[{ rotulo: "Base legal", href: "/base-legal" }, { rotulo: "Decreto regulamentador" }]}
+          titulo="Decreto regulamentador"
+          descricao={obterValor('decreto_regulamentacao')}
+          acoes={
+            <Button onClick={handleDownload}>
+              <Download className="h-4 w-4" aria-hidden="true" />
               Baixar PDF
             </Button>
+          }
+        />
+
+        <Card className="mb-8">
+          <CardHeader className="bg-primary/5">
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary" aria-hidden="true" />
+              Decreto nº 39.840-E, de 23 de janeiro de 2026
+            </CardTitle>
           </CardHeader>
           <CardContent className="pt-6 prose prose-slate max-w-none">
             <div className="flex items-center gap-4 mb-6 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
-                <Calendar className="w-4 h-4" />
+                <Calendar className="w-4 h-4" aria-hidden="true" />
                 23 de janeiro de 2026
               </span>
               <span className="flex items-center gap-1">
-                <Building2 className="w-4 h-4" />
+                <Building2 className="w-4 h-4" aria-hidden="true" />
                 Governo do Estado de Roraima
               </span>
             </div>

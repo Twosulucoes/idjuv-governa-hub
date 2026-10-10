@@ -2,6 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
+import {
+  calcularTotaisFicha,
+  calcularTotaisFolha,
+  descreverErroBanco,
+  folhaEditavel,
+  itemJaLancado,
+  motivoBloqueioEdicao,
+  ORDEM_ITEM_MANUAL,
+} from '@/lib/folhaFichaRegras';
 
 type RubricaInsert = Database['public']['Tables']['rubricas']['Insert'];
 type ParametroInsert = Database['public']['Tables']['parametros_folha']['Insert'];
@@ -10,6 +19,8 @@ type FolhaInsert = Database['public']['Tables']['folhas_pagamento']['Insert'];
 type ConfigInsert = Database['public']['Tables']['config_autarquia']['Insert'];
 type FaixaINSSInsert = Database['public']['Tables']['tabela_inss']['Insert'];
 type FaixaIRRFInsert = Database['public']['Tables']['tabela_irrf']['Insert'];
+export type ConsignacaoRow = Database['public']['Tables']['consignacoes']['Row'];
+export type DependenteIRRFRow = Database['public']['Tables']['dependentes_irrf']['Row'];
 
 // ============== RUBRICAS ==============
 export function useRubricas(apenasAtivas = false) {
@@ -349,6 +360,110 @@ export function useFichaFinanceiraDetalhe(fichaId?: string) {
 }
 
 // ============== ITENS DA FICHA ==============
+type ItemFichaInsert = Database['public']['Tables']['itens_ficha_financeira']['Insert'];
+
+export interface ItemFichaInput {
+  id?: string;
+  ficha_id: string;
+  rubrica_id?: string | null;
+  descricao: string;
+  tipo: 'provento' | 'desconto';
+  referencia?: string | null;
+  valor: number;
+  base_calculo?: number | null;
+  percentual?: number | null;
+  ordem?: number | null;
+}
+
+// Chaves que mudam quando um item da ficha é incluído/alterado/excluído.
+function invalidarFichaEFolha(queryClient: ReturnType<typeof useQueryClient>, fichaId?: string) {
+  queryClient.invalidateQueries({ queryKey: ['itens-ficha-financeira', fichaId] });
+  queryClient.invalidateQueries({ queryKey: ['ficha-financeira-detalhe', fichaId] });
+  queryClient.invalidateQueries({ queryKey: ['fichas-financeiras'] });
+  queryClient.invalidateQueries({ queryKey: ['folha-detalhe'] });
+  queryClient.invalidateQueries({ queryKey: ['folhas-pagamento'] });
+  queryClient.invalidateQueries({ queryKey: ['contracheque-detalhe', fichaId] });
+  queryClient.invalidateQueries({ queryKey: ['itens-folha-contagem'] });
+}
+
+/**
+ * Recalcula os totais da ficha (vencimento/INSS/IRRF gravados pela RPC + itens lançados) e, em
+ * seguida, os da folha a partir das fichas. Não é atômico e não recalcula INSS/IRRF (só o
+ * reprocessamento faz isso) — ver spec, premissa 4. Em folha fechada o trigger
+ * `trg_bloquear_alteracao_ficha_fechada` recusa o UPDATE.
+ */
+export async function recalcularTotaisFicha(fichaId: string): Promise<void> {
+  const { data: ficha, error: erroFicha } = await supabase
+    .from('fichas_financeiras')
+    .select('folha_id, cargo_vencimento, valor_inss, valor_irrf, itens:itens_ficha_financeira(tipo, valor, descricao, ordem)')
+    .eq('id', fichaId)
+    .single();
+  if (erroFicha) throw erroFicha;
+
+  const totais = calcularTotaisFicha(ficha, ficha.itens ?? []);
+  const { error: erroUpdate } = await supabase
+    .from('fichas_financeiras')
+    .update({
+      total_proventos: totais.total_proventos,
+      total_descontos: totais.total_descontos,
+      valor_liquido: totais.valor_liquido,
+    })
+    .eq('id', fichaId);
+  if (erroUpdate) throw erroUpdate;
+
+  const folhaId = ficha.folha_id;
+  if (!folhaId) return;
+
+  const { data: fichas, error: erroFichas } = await supabase
+    .from('fichas_financeiras')
+    .select('total_proventos, total_descontos, valor_liquido, valor_inss, valor_irrf, inss_patronal, total_encargos')
+    .eq('folha_id', folhaId);
+  if (erroFichas) throw erroFichas;
+
+  const totaisFolha = calcularTotaisFolha(fichas ?? []);
+  const { error: erroFolha } = await supabase
+    .from('folhas_pagamento')
+    .update(totaisFolha)
+    .eq('id', folhaId);
+  if (erroFolha) throw erroFolha;
+}
+
+/**
+ * Relê o status da folha antes de INSERIR item: o trigger do banco só barra UPDATE/DELETE em folha
+ * fechada, e o status visto na tela pode estar defasado (`staleTime`). Lança `Error` legível.
+ */
+async function garantirFolhaEditavel(fichaId: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('fichas_financeiras')
+    .select('folha:folhas_pagamento(status)')
+    .eq('id', fichaId)
+    .single();
+  if (error) throw error;
+  const status = (data?.folha as { status?: string | null } | null)?.status;
+  if (!folhaEditavel(status)) {
+    throw new Error(motivoBloqueioEdicao(status, true) ?? 'A folha não está em um status que permita edição.');
+  }
+}
+
+/**
+ * Após inserir um item, recalcula; se o recálculo falhar, tenta excluir o item recém-criado para
+ * não deixar ficha e folha divergentes (compensação best-effort, até a RPC atômica de 13b/M2).
+ */
+async function recalcularOuDesfazerInsercao(fichaId: string, itemId: string): Promise<void> {
+  try {
+    await recalcularTotaisFicha(fichaId);
+  } catch (erroRecalculo) {
+    const { error: erroDesfazer } = await supabase.from('itens_ficha_financeira').delete().eq('id', itemId);
+    if (erroDesfazer) {
+      throw new Error(
+        `O item foi gravado, mas os totais não foram recalculados (${descreverErroBanco(erroRecalculo)}). ` +
+          'Exclua o item ou reprocesse a folha para corrigir os totais.',
+      );
+    }
+    throw erroRecalculo;
+  }
+}
+
 export function useItensFichaFinanceira(fichaId?: string) {
   return useQuery({
     queryKey: ['itens-ficha-financeira', fichaId],
@@ -358,7 +473,8 @@ export function useItensFichaFinanceira(fichaId?: string) {
         .select('*')
         .eq('ficha_id', fichaId)
         .order('tipo', { ascending: true })
-        .order('rubrica_codigo', { ascending: true });
+        .order('ordem', { ascending: true, nullsFirst: false })
+        .order('descricao', { ascending: true });
       if (error) throw error;
       return data;
     },
@@ -366,26 +482,68 @@ export function useItensFichaFinanceira(fichaId?: string) {
   });
 }
 
+/** Quantidade de itens lançados nas fichas da folha (o reprocessamento apaga todos). */
+export function useContagemItensFolha(folhaId?: string) {
+  return useQuery({
+    queryKey: ['itens-folha-contagem', folhaId],
+    queryFn: async () => {
+      const { data: fichas, error: erroFichas } = await supabase
+        .from('fichas_financeiras')
+        .select('id')
+        .eq('folha_id', folhaId);
+      if (erroFichas) throw erroFichas;
+      const ids = (fichas ?? []).map((f) => f.id);
+      if (ids.length === 0) return 0;
+      const { count, error } = await supabase
+        .from('itens_ficha_financeira')
+        .select('id', { count: 'exact', head: true })
+        .in('ficha_id', ids);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!folhaId,
+  });
+}
+
 export function useSaveItemFicha() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (item: { id?: string; ficha_id: string; rubrica_id?: string; descricao: string; tipo: string; referencia?: string; valor: number; base_calculo?: number; percentual?: number; ordem?: number }) => {
-      if (item.id) {
-        const { id, ...rest } = item;
-        const { data, error } = await supabase.from('itens_ficha_financeira').update(rest).eq('id', id).select().single();
+    mutationFn: async (item: ItemFichaInput) => {
+      const { id, ...rest } = item;
+      // Sem `ficha_id`: no UPDATE o item nunca muda de ficha (a de origem ficaria com totais velhos).
+      const campos: Omit<ItemFichaInsert, 'ficha_id'> = {
+        rubrica_id: rest.rubrica_id ?? null,
+        descricao: rest.descricao,
+        tipo: rest.tipo,
+        referencia: rest.referencia ?? null,
+        valor: rest.valor,
+        base_calculo: rest.base_calculo ?? null,
+        percentual: rest.percentual ?? null,
+        ordem: rest.ordem ?? ORDEM_ITEM_MANUAL,
+      };
+      if (id) {
+        // `.single()` em 0 linhas vira PGRST116, traduzido em descreverErroBanco (RLS/registro inexistente).
+        const { data, error } = await supabase
+          .from('itens_ficha_financeira')
+          .update(campos)
+          .eq('id', id)
+          .eq('ficha_id', rest.ficha_id)
+          .select()
+          .single();
         if (error) throw error;
-        return data;
-      } else {
-        const { data, error } = await supabase.from('itens_ficha_financeira').insert(item).select().single();
-        if (error) throw error;
+        await recalcularTotaisFicha(rest.ficha_id);
         return data;
       }
+      await garantirFolhaEditavel(rest.ficha_id);
+      const payload: ItemFichaInsert = { ...campos, ficha_id: rest.ficha_id };
+      const { data, error } = await supabase.from('itens_ficha_financeira').insert(payload).select().single();
+      if (error) throw error;
+      await recalcularOuDesfazerInsercao(rest.ficha_id, data.id);
+      return data;
     },
-    onSuccess: (_, variables) => { 
-      queryClient.invalidateQueries({ queryKey: ['itens-ficha-financeira', variables.ficha_id] }); 
-      toast.success('Item salvo!'); 
-    },
-    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
+    onSuccess: () => { toast.success('Item salvo e totais da ficha recalculados.'); },
+    onError: (e: unknown) => { toast.error(descreverErroBanco(e)); },
+    onSettled: (_data, _erro, variables) => { invalidarFichaEFolha(queryClient, variables.ficha_id); },
   });
 }
 
@@ -393,29 +551,81 @@ export function useDeleteItemFicha() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, fichaId }: { id: string; fichaId: string }) => {
-      const { error } = await supabase.from('itens_ficha_financeira').delete().eq('id', id);
+      // Sem `.select()` o DELETE filtrado pela RLS retorna sucesso com 0 linhas; aqui isso vira erro.
+      const { data, error } = await supabase.from('itens_ficha_financeira').delete().eq('id', id).select('id');
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error('Nenhum item foi excluído: ele não existe ou a política de acesso (RLS) não permite.');
+      }
+      await recalcularTotaisFicha(fichaId);
       return fichaId;
     },
-    onSuccess: (fichaId) => { 
-      queryClient.invalidateQueries({ queryKey: ['itens-ficha-financeira', fichaId] }); 
-      toast.success('Item excluído!'); 
+    onSuccess: () => { toast.success('Item excluído e totais da ficha recalculados.'); },
+    onError: (e: unknown) => { toast.error(descreverErroBanco(e)); },
+    onSettled: (_data, _erro, variables) => { invalidarFichaEFolha(queryClient, variables.fichaId); },
+  });
+}
+
+/**
+ * "Lançar na ficha": cria um desconto com `referencia = numero_contrato` e `valor = valor_parcela`
+ * da consignação, se ainda não houver item com a mesma referência (a RPC real não lança consignações).
+ * A checagem é ler-depois-inserir (sem índice único no banco até 13b): duas abas podem lançar duas vezes.
+ */
+export function useLancarConsignacaoNaFicha() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      ficha_id: string;
+      rubrica_id?: string | null;
+      descricao: string;
+      numero_contrato: string | null;
+      valor_parcela: number;
+    }) => {
+      await garantirFolhaEditavel(input.ficha_id);
+      const { data: itens, error: erroItens } = await supabase
+        .from('itens_ficha_financeira')
+        .select('tipo, referencia')
+        .eq('ficha_id', input.ficha_id);
+      if (erroItens) throw erroItens;
+      if (itemJaLancado(itens ?? [], input.numero_contrato)) {
+        throw new Error('Já existe um desconto com a referência deste contrato nesta ficha.');
+      }
+      const payload: ItemFichaInsert = {
+        ficha_id: input.ficha_id,
+        rubrica_id: input.rubrica_id ?? null,
+        descricao: input.descricao,
+        tipo: 'desconto',
+        referencia: input.numero_contrato,
+        valor: Math.round(input.valor_parcela * 100) / 100,
+        ordem: ORDEM_ITEM_MANUAL,
+      };
+      const { data, error } = await supabase.from('itens_ficha_financeira').insert(payload).select().single();
+      if (error) throw error;
+      await recalcularOuDesfazerInsercao(input.ficha_id, data.id);
+      return data;
     },
-    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
+    onSuccess: () => { toast.success('Consignação lançada na ficha como desconto.'); },
+    onError: (e: unknown) => { toast.error(descreverErroBanco(e)); },
+    onSettled: (_data, _erro, variables) => { invalidarFichaEFolha(queryClient, variables.ficha_id); },
   });
 }
 
 // ============== CONSIGNAÇÕES ==============
-export function useConsignacoesAtivas(servidorId?: string) {
+/**
+ * Consignações do servidor (ou de todos, sem `servidorId`). Por padrão só ativas e não quitadas;
+ * `incluirInativas` traz também suspensas (já vinham), quitadas e inativas, para a aba da ficha.
+ */
+export function useConsignacoesAtivas(servidorId?: string, incluirInativas = false) {
   return useQuery({
-    queryKey: ['consignacoes-ativas', servidorId],
+    queryKey: ['consignacoes-ativas', servidorId, { incluirInativas }],
     queryFn: async () => {
       let query = supabase
         .from('consignacoes')
         .select(`*, servidor:servidores(nome_completo, matricula)`)
-        .eq('ativo', true)
-        .eq('quitado', false)
         .order('data_inicio', { ascending: false });
+      if (!incluirInativas) {
+        query = query.eq('ativo', true).eq('quitado', false);
+      }
       
       if (servidorId) {
         query = query.eq('servidor_id', servidorId);
@@ -448,11 +658,12 @@ export function useSaveConsignacao() {
       queryClient.invalidateQueries({ queryKey: ['consignacoes-ativas'] }); 
       toast.success('Consignação salva!'); 
     },
-    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
+    onError: (e: unknown) => { toast.error(descreverErroBanco(e)); },
   });
 }
 
 // ============== DEPENDENTES IRRF ==============
+/** Dependentes ativos do servidor (inclusive os sem dedução de IRRF; a vigência é avaliada na tela). */
 export function useDependentesIRRF(servidorId?: string) {
   return useQuery({
     queryKey: ['dependentes-irrf', servidorId],
@@ -462,7 +673,6 @@ export function useDependentesIRRF(servidorId?: string) {
         .select('*')
         .eq('servidor_id', servidorId)
         .eq('ativo', true)
-        .eq('deduz_irrf', true)
         .order('nome', { ascending: true });
       if (error) throw error;
       return data;
@@ -490,7 +700,7 @@ export function useSaveDependenteIRRF() {
       queryClient.invalidateQueries({ queryKey: ['dependentes-irrf', variables.servidor_id] }); 
       toast.success('Dependente salvo!'); 
     },
-    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
+    onError: (e: unknown) => { toast.error(descreverErroBanco(e)); },
   });
 }
 
