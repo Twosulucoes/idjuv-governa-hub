@@ -1,10 +1,10 @@
-import { Link } from "react-router-dom";
-import { Users, Download } from "lucide-react";
+import { Download } from "lucide-react";
 import { ModuleLayout } from "@/components/layout/ModuleLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/design-system";
 import {
   Table,
   TableBody,
@@ -47,8 +47,8 @@ const matrizIntegridade = [
 const legendaRaci = [
   { letra: "R", nome: "Responsável", descricao: "Quem executa a atividade", cor: "bg-primary" },
   { letra: "A", nome: "Aprovador", descricao: "Quem autoriza a atividade", cor: "bg-success" },
-  { letra: "C", nome: "Consultado", descricao: "Quem é consultado", cor: "bg-info" },
-  { letra: "I", nome: "Informado", descricao: "Quem é informado", cor: "bg-muted" },
+  { letra: "C", nome: "Consultado", descricao: "Quem é consultado", cor: "bg-info text-info-foreground" },
+  { letra: "I", nome: "Informado", descricao: "Quem é informado", cor: "bg-muted text-muted-foreground hover:bg-muted" },
 ];
 
 function getBadgeClass(letra: string) {
@@ -56,29 +56,23 @@ function getBadgeClass(letra: string) {
     case "R": return "bg-primary";
     case "A": return "bg-success";
     case "C": return "bg-info text-info-foreground";
-    default: return "";
+    // "I" segue a legenda (fundo neutro), distinto de "R"
+    default: return "bg-muted text-muted-foreground hover:bg-muted";
   }
 }
 
 export default function MatrizRaciPage() {
   return (
     <ModuleLayout module="governanca">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <Badge variant="outline" className="mb-4">
-            <Users className="w-3 h-3 mr-1" />
-            Governança
-          </Badge>
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Matriz RACI
-          </h1>
-          <p className="text-muted-foreground">
-            Responsabilidades e papéis nos processos administrativos
-          </p>
-        </div>
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: "Governança", href: "/governanca" }, { rotulo: "Matriz RACI" }]}
+          titulo="Matriz RACI"
+          descricao="Responsabilidades e papéis nos processos administrativos"
+        />
 
         {/* Legenda */}
-        <Card className="mb-8">
+        <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -86,7 +80,7 @@ export default function MatrizRaciPage() {
                 <CardDescription>Papéis e responsabilidades por processo</CardDescription>
               </div>
               <Button variant="outline" size="sm">
-                <Download className="w-4 h-4 mr-2" />
+                <Download className="w-4 h-4 mr-2" aria-hidden="true" />
                 Baixar PDF
               </Button>
             </div>
@@ -115,9 +109,9 @@ export default function MatrizRaciPage() {
         </Card>
 
         {/* Compras e Contratações */}
-        <Card className="mb-6">
+        <Card>
           <CardHeader>
-            <CardTitle>Compras e Contratações (Lei 14.133)</CardTitle>
+            <CardTitle>Compras e contratações (Lei 14.133)</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -158,9 +152,9 @@ export default function MatrizRaciPage() {
         </Card>
 
         {/* Diárias e Viagens */}
-        <Card className="mb-6">
+        <Card>
           <CardHeader>
-            <CardTitle>Diárias e Viagens</CardTitle>
+            <CardTitle>Diárias e viagens</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -197,9 +191,9 @@ export default function MatrizRaciPage() {
         </Card>
 
         {/* Patrimônio */}
-        <Card className="mb-6">
+        <Card>
           <CardHeader>
-            <CardTitle>Patrimônio e Almoxarifado</CardTitle>
+            <CardTitle>Patrimônio e almoxarifado</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -238,7 +232,7 @@ export default function MatrizRaciPage() {
         {/* Integridade */}
         <Card>
           <CardHeader>
-            <CardTitle>Integridade e Ética</CardTitle>
+            <CardTitle>Integridade e ética</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>

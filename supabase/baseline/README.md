@@ -19,6 +19,11 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 > (não foi verificado: o banco ao vivo nunca foi inspecionado). Os overlays `10`, `12`, `18`, `20` e `40`
 > são idempotentes e podem ser avaliados para aplicação nele; isso não foi feito nem testado aqui
 > (invariante 8 do `AGENTS.md`).
+>
+> Exceção já levada ao histórico: `profiles`, `user_roles` e `user_modules`. No estado das migrações,
+> as `acesso_total_*` dessas tabelas deixavam qualquer logado se dar o papel `admin` (provado num replay).
+> A migração `20261010080000_s0_identidade_policies.sql` aplica nelas o mesmo desenho do baseline (overlay 12 e
+> classe `proprio_user`), com os mesmos privilégios do overlay 40; num banco do baseline ela é no-op.
 
 ## Conteúdo e ordem de aplicação (`aplicar.sh`, uma única transação)
 
