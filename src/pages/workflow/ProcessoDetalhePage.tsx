@@ -2,17 +2,17 @@
  * Página de detalhes do processo administrativo
  */
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  ArrowLeft, FileText, Clock, Send, MessageSquare, 
-  Paperclip, AlertTriangle, CheckCircle, User
+import { EmptyState, PageHeader, StatusBadge, type TomStatus } from '@/components/design-system';
+import {
+  ArrowLeft, FileText, Clock, Send, MessageSquare,
+  Paperclip, AlertTriangle, CheckCircle, User, FolderOpen
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -25,22 +25,52 @@ import {
 } from '@/hooks/useWorkflow';
 import {
   TIPO_PROCESSO_LABELS,
-  STATUS_PROCESSO_LABELS,
-  STATUS_PROCESSO_COLORS,
-  SIGILO_LABELS,
-  SIGILO_COLORS,
   TIPO_MOVIMENTACAO_LABELS,
-  STATUS_MOVIMENTACAO_LABELS,
-  STATUS_MOVIMENTACAO_COLORS,
   TIPO_DESPACHO_LABELS,
   DECISAO_LABELS,
+  type NivelSigilo,
+  type StatusMovimentacao,
+  type StatusProcesso,
 } from '@/types/workflow';
 import { NovoDespachoDialog } from '@/components/workflow/NovoDespachoDialog';
 import { NovaMovimentacaoDialog } from '@/components/workflow/NovaMovimentacaoDialog';
 
+type Selo = { label: string; tom: TomStatus };
+
+// Situações → selo (texto + tom; nunca só cor)
+const STATUS_PROCESSO_SELO: Record<StatusProcesso, Selo> = {
+  aberto: { label: 'Aberto', tom: 'andamento' },
+  em_tramitacao: { label: 'Em tramitação', tom: 'pendente' },
+  suspenso: { label: 'Suspenso', tom: 'neutro' },
+  concluido: { label: 'Concluído', tom: 'sucesso' },
+  arquivado: { label: 'Arquivado', tom: 'neutro' },
+};
+
+const SIGILO_SELO: Record<NivelSigilo, Selo> = {
+  publico: { label: 'Público', tom: 'sucesso' },
+  restrito: { label: 'Restrito', tom: 'pendente' },
+  sigiloso: { label: 'Sigiloso', tom: 'erro' },
+};
+
+const STATUS_MOVIMENTACAO_SELO: Record<StatusMovimentacao, Selo> = {
+  pendente: { label: 'Pendente', tom: 'pendente' },
+  recebido: { label: 'Recebido', tom: 'andamento' },
+  respondido: { label: 'Respondido', tom: 'sucesso' },
+  vencido: { label: 'Vencido', tom: 'erro' },
+  cancelado: { label: 'Cancelado', tom: 'neutro' },
+};
+
+function selo<K extends string>(mapa: Record<K, Selo>, valor: K | null | undefined, vazio: string): Selo {
+  return (valor && mapa[valor]) ?? { label: valor ?? vazio, tom: 'neutro' };
+}
+
+const MIGALHAS_BASE = [
+  { rotulo: 'Processos', href: '/workflow' },
+  { rotulo: 'Gestão de processos', href: '/workflow/processos' },
+];
+
 export default function ProcessoDetalhePage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const [despachoDialogOpen, setDespachoDialogOpen] = useState(false);
   const [movimentacaoDialogOpen, setMovimentacaoDialogOpen] = useState(false);
 
@@ -55,8 +85,8 @@ export default function ProcessoDetalhePage() {
   if (loadingProcesso) {
     return (
       <ModuleLayout module="workflow">
-        <div className="space-y-4">
-          <Skeleton className="h-8 w-64" />
+        <div className="space-y-4" aria-busy="true">
+          <PageHeader migalhas={[...MIGALHAS_BASE, { rotulo: 'Processo' }]} titulo="Carregando processo…" />
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-60 w-full" />
         </div>
@@ -67,97 +97,100 @@ export default function ProcessoDetalhePage() {
   if (!processo) {
     return (
       <ModuleLayout module="workflow">
-        <div className="text-center py-12">
-          <h2 className="text-xl font-semibold">Processo não encontrado</h2>
-          <Button className="mt-4" onClick={() => navigate('/admin/workflow')}>
-            Voltar para lista
-          </Button>
+        <div className="space-y-6">
+          <PageHeader migalhas={[...MIGALHAS_BASE, { rotulo: 'Processo' }]} titulo="Processo não encontrado" />
+          <EmptyState
+            icone={FolderOpen}
+            titulo="Processo não encontrado"
+            descricao="O processo pode ter sido removido ou você não tem acesso a ele."
+            acao={
+              <Button asChild variant="outline">
+                <Link to="/workflow/processos">
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  Voltar para lista
+                </Link>
+              </Button>
+            }
+          />
         </div>
       </ModuleLayout>
     );
   }
 
+  const numeroProcesso = `${processo.numero_processo}/${processo.ano}`;
+  const seloStatus = selo(STATUS_PROCESSO_SELO, processo.status, 'Sem situação');
+  const seloSigilo = selo(SIGILO_SELO, processo.sigilo, 'Sem sigilo');
+
   return (
     <ModuleLayout module="workflow">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/admin/workflow')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold">
-                Processo {processo.numero_processo}/{processo.ano}
-              </h1>
-              <Badge className={STATUS_PROCESSO_COLORS[processo.status]}>
-                {STATUS_PROCESSO_LABELS[processo.status]}
-              </Badge>
-              <Badge className={SIGILO_COLORS[processo.sigilo]}>
-                {SIGILO_LABELS[processo.sigilo]}
-              </Badge>
-            </div>
-            <p className="text-muted-foreground">{processo.assunto}</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setMovimentacaoDialogOpen(true)}>
-              <Send className="h-4 w-4 mr-2" />
-              Tramitar
-            </Button>
-            <Button onClick={() => setDespachoDialogOpen(true)}>
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Despachar
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          migalhas={[...MIGALHAS_BASE, { rotulo: numeroProcesso }]}
+          titulo={`Processo ${numeroProcesso}`}
+          descricao={processo.assunto}
+          status={
+            <>
+              <StatusBadge tom={seloStatus.tom}>{seloStatus.label}</StatusBadge>
+              <StatusBadge tom={seloSigilo.tom}>{seloSigilo.label}</StatusBadge>
+            </>
+          }
+          acoes={
+            <>
+              <Button variant="outline" onClick={() => setMovimentacaoDialogOpen(true)}>
+                <Send className="h-4 w-4" aria-hidden="true" />
+                Tramitar
+              </Button>
+              <Button onClick={() => setDespachoDialogOpen(true)}>
+                <MessageSquare className="h-4 w-4" aria-hidden="true" />
+                Despachar
+              </Button>
+            </>
+          }
+        />
 
-        {/* Info cards */}
-        <div className="grid gap-4 md:grid-cols-4">
+        {/* Dados principais */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Tipo</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="font-medium">{TIPO_PROCESSO_LABELS[processo.tipo_processo]}</div>
+            <CardContent className="p-4">
+              <dl className="space-y-1">
+                <dt className="text-body text-muted-foreground">Tipo</dt>
+                <dd className="font-medium">{TIPO_PROCESSO_LABELS[processo.tipo_processo] ?? processo.tipo_processo}</dd>
+              </dl>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Interessado</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="font-medium truncate">{processo.interessado_nome}</div>
-              <div className="text-xs text-muted-foreground capitalize">{processo.interessado_tipo}</div>
+            <CardContent className="p-4">
+              <dl className="space-y-1">
+                <dt className="text-body text-muted-foreground">Interessado</dt>
+                <dd>
+                  <span className="block font-medium truncate">{processo.interessado_nome}</span>
+                  <span className="block text-caption text-muted-foreground capitalize">{processo.interessado_tipo}</span>
+                </dd>
+              </dl>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Abertura</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="font-medium">
-                {format(new Date(processo.data_abertura), 'dd/MM/yyyy', { locale: ptBR })}
-              </div>
+            <CardContent className="p-4">
+              <dl className="space-y-1">
+                <dt className="text-body text-muted-foreground">Abertura</dt>
+                <dd className="font-medium">
+                  {format(new Date(processo.data_abertura), 'dd/MM/yyyy', { locale: ptBR })}
+                </dd>
+              </dl>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Prazos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                {prazosVencidos > 0 ? (
-                  <>
-                    <AlertTriangle className="h-4 w-4 text-red-500" />
-                    <span className="font-medium text-red-600">{prazosVencidos} vencido(s)</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    <span className="font-medium text-green-600">Em dia</span>
-                  </>
-                )}
-              </div>
+            <CardContent className="p-4">
+              <dl className="space-y-1">
+                <dt className="text-body text-muted-foreground">Prazos</dt>
+                <dd>
+                  {prazosVencidos > 0 ? (
+                    <StatusBadge tom="erro">{prazosVencidos} vencido(s)</StatusBadge>
+                  ) : (
+                    <StatusBadge tom="sucesso">Em dia</StatusBadge>
+                  )}
+                </dd>
+              </dl>
             </CardContent>
           </Card>
         </div>
@@ -166,19 +199,19 @@ export default function ProcessoDetalhePage() {
         <Tabs defaultValue="timeline" className="space-y-4">
           <TabsList>
             <TabsTrigger value="timeline" className="gap-2">
-              <Clock className="h-4 w-4" />
-              Linha do Tempo ({movimentacoes?.length || 0})
+              <Clock className="h-4 w-4" aria-hidden="true" />
+              Linha do tempo ({movimentacoes?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="despachos" className="gap-2">
-              <MessageSquare className="h-4 w-4" />
+              <MessageSquare className="h-4 w-4" aria-hidden="true" />
               Despachos ({despachos?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="documentos" className="gap-2">
-              <Paperclip className="h-4 w-4" />
+              <Paperclip className="h-4 w-4" aria-hidden="true" />
               Documentos ({documentos?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="prazos" className="gap-2">
-              <AlertTriangle className="h-4 w-4" />
+              <AlertTriangle className="h-4 w-4" aria-hidden="true" />
               Prazos ({prazos?.length || 0})
             </TabsTrigger>
           </TabsList>
@@ -187,7 +220,7 @@ export default function ProcessoDetalhePage() {
           <TabsContent value="timeline">
             <Card>
               <CardHeader>
-                <CardTitle>Histórico de Movimentações</CardTitle>
+                <h2 className="text-h3 text-foreground">Histórico de movimentações</h2>
               </CardHeader>
               <CardContent>
                 {loadingMovimentacoes ? (
@@ -197,15 +230,13 @@ export default function ProcessoDetalhePage() {
                     ))}
                   </div>
                 ) : movimentacoes?.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">
-                    Nenhuma movimentação registrada
-                  </p>
+                  <EmptyState icone={Clock} titulo="Nenhuma movimentação registrada" />
                 ) : (
                   <div className="relative space-y-6">
-                    <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-border" />
-                    {movimentacoes?.map((mov, index) => (
+                    <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-border" aria-hidden="true" />
+                    {movimentacoes?.map((mov) => (
                       <div key={mov.id} className="relative pl-10">
-                        <div className="absolute left-2 top-2 w-4 h-4 rounded-full bg-primary border-2 border-background" />
+                        <div className="absolute left-2 top-2 w-4 h-4 rounded-full bg-primary border-2 border-background" aria-hidden="true" />
                         <Card>
                           <CardContent className="pt-4">
                             <div className="flex items-start justify-between">
@@ -215,9 +246,9 @@ export default function ProcessoDetalhePage() {
                                   <Badge variant="outline">
                                     {TIPO_MOVIMENTACAO_LABELS[mov.tipo_movimentacao]}
                                   </Badge>
-                                  <Badge className={STATUS_MOVIMENTACAO_COLORS[mov.status]}>
-                                    {STATUS_MOVIMENTACAO_LABELS[mov.status]}
-                                  </Badge>
+                                  <StatusBadge tom={selo(STATUS_MOVIMENTACAO_SELO, mov.status, 'Sem situação').tom}>
+                                    {selo(STATUS_MOVIMENTACAO_SELO, mov.status, 'Sem situação').label}
+                                  </StatusBadge>
                                 </div>
                                 <p className="mt-1 text-sm">{mov.descricao}</p>
                                 {mov.unidade_destino && (
@@ -244,13 +275,11 @@ export default function ProcessoDetalhePage() {
           <TabsContent value="despachos">
             <Card>
               <CardHeader>
-                <CardTitle>Despachos</CardTitle>
+                <h2 className="text-h3 text-foreground">Despachos</h2>
               </CardHeader>
               <CardContent>
                 {despachos?.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">
-                    Nenhum despacho registrado
-                  </p>
+                  <EmptyState icone={MessageSquare} titulo="Nenhum despacho registrado" />
                 ) : (
                   <div className="space-y-4">
                     {despachos?.map((despacho) => (
@@ -280,7 +309,7 @@ export default function ProcessoDetalhePage() {
                           )}
                           {despacho.autoridade && (
                             <div className="flex items-center gap-2 mt-3 pt-3 border-t">
-                              <User className="h-4 w-4 text-muted-foreground" />
+                              <User className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                               <span className="text-sm">{despacho.autoridade.nome_completo}</span>
                             </div>
                           )}
@@ -297,18 +326,16 @@ export default function ProcessoDetalhePage() {
           <TabsContent value="documentos">
             <Card>
               <CardHeader>
-                <CardTitle>Documentos Anexados</CardTitle>
+                <h2 className="text-h3 text-foreground">Documentos anexados</h2>
               </CardHeader>
               <CardContent>
                 {documentos?.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">
-                    Nenhum documento anexado
-                  </p>
+                  <EmptyState icone={Paperclip} titulo="Nenhum documento anexado" />
                 ) : (
                   <div className="space-y-2">
                     {documentos?.map((doc) => (
                       <div key={doc.id} className="flex items-center gap-3 p-3 rounded-lg border">
-                        <FileText className="h-5 w-5 text-muted-foreground" />
+                        <FileText className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
                         <div className="flex-1">
                           <p className="font-medium">{doc.titulo}</p>
                           <p className="text-xs text-muted-foreground">
@@ -318,7 +345,12 @@ export default function ProcessoDetalhePage() {
                         </div>
                         {doc.arquivo_url && (
                           <Button variant="outline" size="sm" asChild>
-                            <a href={doc.arquivo_url} target="_blank" rel="noopener noreferrer">
+                            <a
+                              href={doc.arquivo_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label={`Abrir documento ${doc.titulo} (abre em nova aba)`}
+                            >
                               Abrir
                             </a>
                           </Button>
@@ -335,13 +367,11 @@ export default function ProcessoDetalhePage() {
           <TabsContent value="prazos">
             <Card>
               <CardHeader>
-                <CardTitle>Controle de Prazos</CardTitle>
+                <h2 className="text-h3 text-foreground">Controle de prazos</h2>
               </CardHeader>
               <CardContent>
                 {prazos?.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">
-                    Nenhum prazo registrado
-                  </p>
+                  <EmptyState icone={AlertTriangle} titulo="Nenhum prazo registrado" />
                 ) : (
                   <div className="space-y-2">
                     {prazos?.map((prazo) => {
@@ -350,16 +380,16 @@ export default function ProcessoDetalhePage() {
                         <div 
                           key={prazo.id} 
                           className={`flex items-center gap-3 p-3 rounded-lg border ${
-                            prazo.cumprido ? 'bg-green-50 border-green-200' : 
-                            vencido ? 'bg-red-50 border-red-200' : ''
+                            prazo.cumprido ? 'bg-success/10 border-success/30' : 
+                            vencido ? 'bg-destructive/10 border-destructive/30' : ''
                           }`}
                         >
                           {prazo.cumprido ? (
-                            <CheckCircle className="h-5 w-5 text-green-600" />
+                            <CheckCircle className="h-5 w-5 text-success" aria-hidden="true" />
                           ) : vencido ? (
-                            <AlertTriangle className="h-5 w-5 text-red-600" />
+                            <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden="true" />
                           ) : (
-                            <Clock className="h-5 w-5 text-muted-foreground" />
+                            <Clock className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
                           )}
                           <div className="flex-1">
                             <p className="font-medium">{prazo.descricao}</p>
@@ -368,10 +398,11 @@ export default function ProcessoDetalhePage() {
                               {prazo.base_legal && ` • ${prazo.base_legal}`}
                             </p>
                           </div>
+                          {vencido && <StatusBadge tom="erro">Vencido</StatusBadge>}
                           {prazo.cumprido && (
-                            <Badge variant="outline" className="text-green-600">
+                            <StatusBadge tom="sucesso">
                               Cumprido em {format(new Date(prazo.data_cumprimento!), 'dd/MM/yyyy', { locale: ptBR })}
-                            </Badge>
+                            </StatusBadge>
                           )}
                         </div>
                       );

@@ -20,6 +20,7 @@ import {
   Grid3X3,
   ExternalLink,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { ModuleLayout } from "@/components/layout";
@@ -35,17 +36,29 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { EmptyState, KpiCard, PageHeader } from "@/components/design-system";
 
 import { useCalendarioComunicacao, TipoEventoCalendario, EventoCalendario } from "@/hooks/comunicacao/useCalendarioComunicacao";
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-const TIPOS_EVENTO: { tipo: TipoEventoCalendario; label: string; icon: React.ElementType; cor: string }[] = [
-  { tipo: "demanda", label: "Demandas", icon: ClipboardList, cor: "bg-primary" },
-  { tipo: "aniversario", label: "Aniversários", icon: Cake, cor: "bg-pink-500" },
-  { tipo: "evento_federacao", label: "Eventos", icon: Trophy, cor: "bg-green-500" },
-  { tipo: "publicacao", label: "Publicações", icon: Newspaper, cor: "bg-blue-500" },
-  { tipo: "banner", label: "Banners", icon: Image, cor: "bg-orange-500" },
+// Cor por tipo: série categórica de gráficos (--chart-*), segue o tema do tenant.
+// `cor` é o ponto/legenda; `fundo` é o fundo suave do ícone (o ícone fica em text-foreground).
+// Tipos sem entrada (aniversário de instituição/representante) caem em `bg-muted`, como antes.
+const COR_TIPO = {
+  demanda: { cor: "bg-[hsl(var(--chart-1))]", fundo: "bg-[hsl(var(--chart-1)/0.15)]" },
+  aniversario: { cor: "bg-[hsl(var(--chart-2))]", fundo: "bg-[hsl(var(--chart-2)/0.15)]" },
+  evento_federacao: { cor: "bg-[hsl(var(--chart-3))]", fundo: "bg-[hsl(var(--chart-3)/0.15)]" },
+  publicacao: { cor: "bg-[hsl(var(--chart-4))]", fundo: "bg-[hsl(var(--chart-4)/0.15)]" },
+  banner: { cor: "bg-[hsl(var(--chart-5))]", fundo: "bg-[hsl(var(--chart-5)/0.15)]" },
+} satisfies Partial<Record<TipoEventoCalendario, { cor: string; fundo: string }>>;
+
+const TIPOS_EVENTO: { tipo: TipoEventoCalendario; label: string; icon: LucideIcon; cor: string }[] = [
+  { tipo: "demanda", label: "Demandas", icon: ClipboardList, cor: COR_TIPO.demanda.cor },
+  { tipo: "aniversario", label: "Aniversários", icon: Cake, cor: COR_TIPO.aniversario.cor },
+  { tipo: "evento_federacao", label: "Eventos", icon: Trophy, cor: COR_TIPO.evento_federacao.cor },
+  { tipo: "publicacao", label: "Publicações", icon: Newspaper, cor: COR_TIPO.publicacao.cor },
+  { tipo: "banner", label: "Banners", icon: Image, cor: COR_TIPO.banner.cor },
 ];
 
 export default function CalendarioComunicacaoPage() {
@@ -115,109 +128,123 @@ export default function CalendarioComunicacaoPage() {
     <ProtectedRoute>
       <ModuleLayout module="comunicacao">
         <div className="space-y-6">
-          {/* Header */}
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                <CalendarIcon className="h-7 w-7 text-primary" />
-                Calendário de Comunicação
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Visão integrada de demandas, aniversários, eventos e publicações
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* Navegação do mês */}
-              <Button variant="outline" size="icon" onClick={() => navegarMes(-1)}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-
-              <Button variant="outline" onClick={irParaHoje} className="min-w-[180px]">
-                <CalendarIcon className="h-4 w-4 mr-2" />
-                {format(dataAtual, "MMMM yyyy", { locale: ptBR })}
-              </Button>
-
-              <Button variant="outline" size="icon" onClick={() => navegarMes(1)}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-
-              {/* Filtros */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon">
-                    <Filter className="h-4 w-4" />
+          <PageHeader
+            migalhas={[{ rotulo: "Comunicação", href: "/comunicacao" }, { rotulo: "Calendário" }]}
+            titulo="Calendário de comunicação"
+            descricao="Visão integrada de demandas, aniversários, eventos e publicações"
+            acoes={
+              <>
+                {/* Navegação do mês */}
+                <div className="flex items-center gap-2" role="group" aria-label="Mês exibido">
+                  <Button variant="outline" size="icon" aria-label="Mês anterior" onClick={() => navegarMes(-1)}>
+                    <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-56" align="end">
-                  <div className="space-y-3">
-                    <p className="font-medium text-sm">Filtrar por tipo</p>
-                    {TIPOS_EVENTO.map(({ tipo, label, icon: Icon, cor }) => (
-                      <label
-                        key={tipo}
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
-                        <Checkbox
-                          checked={tiposFiltro.includes(tipo)}
-                          onCheckedChange={() => toggleTipoFiltro(tipo)}
-                        />
-                        <div className={cn("w-3 h-3 rounded-full", cor)} />
-                        <Icon className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
 
-              {/* Alternar visualização */}
-              <div className="flex border rounded-lg">
-                <Button
-                  variant={visualizacao === "calendario" ? "default" : "ghost"}
-                  size="icon"
-                  className="rounded-r-none"
-                  onClick={() => setVisualizacao("calendario")}
-                >
-                  <Grid3X3 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={visualizacao === "lista" ? "default" : "ghost"}
-                  size="icon"
-                  className="rounded-l-none"
-                  onClick={() => setVisualizacao("lista")}
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
+                  <Button
+                    variant="outline"
+                    onClick={irParaHoje}
+                    className="min-w-[180px] capitalize"
+                    aria-label={`${format(dataAtual, "MMMM yyyy", { locale: ptBR })}: ir para hoje`}
+                  >
+                    <CalendarIcon className="h-4 w-4 mr-2" aria-hidden="true" />
+                    {format(dataAtual, "MMMM yyyy", { locale: ptBR })}
+                  </Button>
 
-          {/* Cards de estatísticas */}
+                  <Button variant="outline" size="icon" aria-label="Próximo mês" onClick={() => navegarMes(1)}>
+                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </div>
+
+                {/* Filtros */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon" aria-label="Filtrar por tipo de evento">
+                      <Filter className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56" align="end">
+                    <div className="space-y-3">
+                      <p className="font-medium text-body">Filtrar por tipo</p>
+                      {TIPOS_EVENTO.map(({ tipo, label, icon: Icon, cor }) => (
+                        <label
+                          key={tipo}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <Checkbox
+                            checked={tiposFiltro.includes(tipo)}
+                            onCheckedChange={() => toggleTipoFiltro(tipo)}
+                          />
+                          <div className={cn("w-3 h-3 rounded-full", cor)} aria-hidden="true" />
+                          <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                          <span className="text-body">{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                {/* Alternar visualização */}
+                <div className="flex border rounded-lg" role="group" aria-label="Modo de visualização">
+                  <Button
+                    variant={visualizacao === "calendario" ? "default" : "ghost"}
+                    size="icon"
+                    className="rounded-r-none"
+                    aria-label="Ver em calendário"
+                    aria-pressed={visualizacao === "calendario"}
+                    onClick={() => setVisualizacao("calendario")}
+                  >
+                    <Grid3X3 className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                  <Button
+                    variant={visualizacao === "lista" ? "default" : "ghost"}
+                    size="icon"
+                    className="rounded-l-none"
+                    aria-label="Ver em lista"
+                    aria-pressed={visualizacao === "lista"}
+                    onClick={() => setVisualizacao("lista")}
+                  >
+                    <List className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </div>
+              </>
+            }
+          />
+
+          {/* Indicadores por tipo (clique liga/desliga o filtro do tipo) */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {TIPOS_EVENTO.map(({ tipo, label, icon: Icon, cor }) => (
-              <Card
-                key={tipo}
-                className={cn(
-                  "cursor-pointer transition-all",
-                  tiposFiltro.includes(tipo) ? "ring-2 ring-primary" : "opacity-60"
-                )}
-                onClick={() => toggleTipoFiltro(tipo)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className={cn("p-2 rounded-lg", cor, "text-white")}>
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">
-                        {estatisticas[tipo === "evento_federacao" ? "eventosFederacao" : `${tipo}s` as keyof typeof estatisticas] || 0}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{label}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            {TIPOS_EVENTO.map(({ tipo, label, icon: Icon, cor }) => {
+              const valor =
+                estatisticas[tipo === "evento_federacao" ? "eventosFederacao" : `${tipo}s` as keyof typeof estatisticas] || 0;
+              const ativo = tiposFiltro.includes(tipo);
+              return (
+                // Botão cobrindo o cartão: evita <div> dentro de <button> e mantém o cartão inteiro clicável.
+                <div
+                  key={tipo}
+                  className={cn("relative rounded-lg transition-all", ativo && "ring-2 ring-primary")}
+                >
+                  <KpiCard
+                    rotulo={label}
+                    valor={valor}
+                    icone={Icon}
+                    carregando={isLoading}
+                    detalhe={
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className={cn("h-2.5 w-2.5 rounded-full", cor)} aria-hidden="true" />
+                        {ativo ? "Exibindo" : "Oculto"}
+                      </span>
+                    }
+                    className="h-full"
+                  />
+                  <button
+                    type="button"
+                    aria-pressed={ativo}
+                    aria-label={`Mostrar ${label.toLowerCase()} no calendário (${valor})`}
+                    className="absolute inset-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => toggleTipoFiltro(tipo)}
+                  />
+                </div>
+              );
+            })}
           </div>
 
           {/* Conteúdo principal */}
@@ -225,13 +252,13 @@ export default function CalendarioComunicacaoPage() {
             {/* Calendário ou Lista */}
             <Card className="lg:col-span-2">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg">
-                  {visualizacao === "calendario" ? "Calendário Mensal" : "Lista de Eventos"}
+                <CardTitle className="text-h3">
+                  {visualizacao === "calendario" ? "Calendário mensal" : "Lista de eventos"}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
-                  <div className="py-20 text-center text-muted-foreground">
+                  <div className="py-20 text-center text-muted-foreground" role="status">
                     Carregando eventos...
                   </div>
                 ) : visualizacao === "calendario" ? (
@@ -242,7 +269,7 @@ export default function CalendarioComunicacaoPage() {
                       {DIAS_SEMANA.map((dia) => (
                         <div
                           key={dia}
-                          className="text-center text-xs font-medium text-muted-foreground py-2"
+                          className="text-center text-caption font-medium text-muted-foreground py-2"
                         >
                           {dia}
                         </div>
@@ -264,10 +291,16 @@ export default function CalendarioComunicacaoPage() {
                         return (
                           <button
                             key={dia.toISOString()}
+                            type="button"
                             onClick={() => setDiaSelecionado(dia)}
+                            aria-pressed={!!selecionado}
+                            aria-current={ehHoje ? "date" : undefined}
+                            aria-label={`${format(dia, "d 'de' MMMM", { locale: ptBR })}${
+                              ehHoje ? ", hoje" : ""
+                            }: ${eventosNoDia.length === 0 ? "nenhum evento" : `${eventosNoDia.length} evento(s)`}`}
                             className={cn(
-                              "aspect-square p-1 rounded-lg text-sm relative transition-all",
-                              "hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary",
+                              "aspect-square p-1 rounded-lg text-body relative transition-all",
+                              "hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                               selecionado && "bg-primary text-primary-foreground",
                               ehHoje && !selecionado && "ring-2 ring-primary",
                               !isSameMonth(dia, dataAtual) && "text-muted-foreground/50"
@@ -277,7 +310,7 @@ export default function CalendarioComunicacaoPage() {
 
                             {/* Indicadores de eventos */}
                             {temEventos && (
-                              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
+                              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5" aria-hidden="true">
                                 {eventosNoDia.slice(0, 3).map((evento, i) => (
                                   <div
                                     key={i}
@@ -304,9 +337,7 @@ export default function CalendarioComunicacaoPage() {
                   <ScrollArea className="h-[400px]">
                     <div className="space-y-3">
                       {eventosFiltrados.length === 0 ? (
-                        <div className="text-center py-10 text-muted-foreground">
-                          Nenhum evento neste mês
-                        </div>
+                        <EmptyState icone={CalendarIcon} titulo="Nenhum evento neste mês" />
                       ) : (
                         eventosFiltrados.map((evento) => (
                           <EventoCard key={evento.id} evento={evento} />
@@ -321,7 +352,7 @@ export default function CalendarioComunicacaoPage() {
             {/* Painel lateral - Eventos do dia */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg">
+                <CardTitle className="text-h3">
                   {diaSelecionado
                     ? format(diaSelecionado, "d 'de' MMMM", { locale: ptBR })
                     : "Selecione um dia"}
@@ -335,15 +366,9 @@ export default function CalendarioComunicacaoPage() {
               <CardContent>
                 <ScrollArea className="h-[400px]">
                   {!diaSelecionado ? (
-                    <div className="text-center py-10 text-muted-foreground">
-                      <CalendarIcon className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                      <p>Selecione um dia para ver os eventos</p>
-                    </div>
+                    <EmptyState icone={CalendarIcon} titulo="Selecione um dia para ver os eventos" />
                   ) : eventosDoDiaSelecionado.length === 0 ? (
-                    <div className="text-center py-10 text-muted-foreground">
-                      <CalendarIcon className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                      <p>Nenhum evento neste dia</p>
-                    </div>
+                    <EmptyState icone={CalendarIcon} titulo="Nenhum evento neste dia" />
                   ) : (
                     <div className="space-y-3">
                       {eventosDoDiaSelecionado.map((evento) => (
@@ -361,9 +386,9 @@ export default function CalendarioComunicacaoPage() {
             <CardContent className="py-4">
               <div className="flex flex-wrap items-center justify-center gap-6">
                 {TIPOS_EVENTO.map(({ tipo, label, icon: Icon, cor }) => (
-                  <div key={tipo} className="flex items-center gap-2 text-sm">
-                    <div className={cn("w-3 h-3 rounded-full", cor)} />
-                    <Icon className="h-4 w-4 text-muted-foreground" />
+                  <div key={tipo} className="flex items-center gap-2 text-body">
+                    <div className={cn("w-3 h-3 rounded-full", cor)} aria-hidden="true" />
+                    <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     <span>{label}</span>
                   </div>
                 ))}
@@ -389,16 +414,7 @@ function EventoCard({ evento, compact = false }: { evento: EventoCalendario; com
     }
   })();
 
-  const corClasse = (() => {
-    switch (evento.tipo) {
-      case "demanda": return "bg-primary";
-      case "aniversario": return "bg-pink-500";
-      case "evento_federacao": return "bg-green-500";
-      case "publicacao": return "bg-blue-500";
-      case "banner": return "bg-orange-500";
-      default: return "bg-muted";
-    }
-  })();
+  const corClasse = COR_TIPO[evento.tipo as keyof typeof COR_TIPO]?.fundo ?? "bg-muted";
 
   const baseClassName = cn(
     "flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors",
@@ -407,22 +423,22 @@ function EventoCard({ evento, compact = false }: { evento: EventoCalendario; com
 
   const content = (
     <>
-      <div className={cn("p-2 rounded-lg text-white shrink-0", corClasse)}>
-        <Icon className="h-4 w-4" />
+      <div className={cn("p-2 rounded-lg text-foreground shrink-0", corClasse)}>
+        <Icon className="h-4 w-4" aria-hidden="true" />
       </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <p className={cn("font-medium truncate", compact ? "text-sm" : "")}>
+          <p className={cn("font-medium truncate", compact ? "text-body" : "")}>
             {evento.titulo}
           </p>
           {evento.link && (
-            <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
+            <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" aria-hidden="true" />
           )}
         </div>
 
         {evento.descricao && (
-          <p className="text-xs text-muted-foreground truncate">
+          <p className="text-caption text-muted-foreground truncate">
             {evento.descricao}
           </p>
         )}
