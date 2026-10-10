@@ -358,8 +358,75 @@ levantamento em [`planejamento/REVISAO_RH.md`](./planejamento/REVISAO_RH.md) §3
     Function `delete-user` passar a desativar em vez de excluir fica para a E2;
   - `delete-user` não é atômica: remove módulos, papéis e o vínculo e só depois exclui em `auth.users`; se a exclusão
     falhar, o usuário fica sem acessos (a trilha registra as duas etapas);
-  - arquivos do Storage do RH (`frequencias`, `documentos-requerimento`, `documentos`) ainda não têm trilha (E2);
+  - arquivos do Storage do RH: `frequencias` e `documentos-requerimento` ganharam trilha na E2 (seção seguinte);
+    `documentos` (bucket do workflow e do RH) continua sem;
   - a exclusão de uma folha ou rubrica ainda leva o histórico dela pela cascata (a exclusão do pai fica na trilha).
+
+### Consulta da trilha e arquivos do RH no Storage — Onda E2 (banco)
+
+Migração `supabase/migrations/20261011000200_rh_trilha_consulta.sql`, **em PR rascunho** (sai da E1, PR #82).
+Idempotente, vale para o banco do baseline e para o só-migrações; spec
+[`2026-10-10-rh-trilha-tela-design.md`](./superpowers/specs/2026-10-10-rh-trilha-tela-design.md) (item 1). A tela, o
+hook e as chamadas a `registrar_evento` são do front (mesma spec).
+
+- **Índices de `audit_logs`** para as consultas da tela, criados só se não houver um equivalente (btree válido, sem
+  `WHERE`, mesmas colunas na mesma ordem, qualquer nome e direção):
+  `idx_audit_logs_entidade_seq (entity_type, entity_id, sequencia DESC)` (histórico de um registro),
+  `idx_audit_logs_servidor_seq (servidor_id, sequencia DESC)` (o que um servidor lançou),
+  `idx_audit_logs_modulo_tempo (module_name, "timestamp" DESC, sequencia DESC)` e
+  `idx_audit_logs_usuario_tempo (user_id, "timestamp" DESC, sequencia DESC)` (módulo ou usuário num período). Saem os
+  três que viraram prefixo deles (`idx_audit_logs_entity`, `idx_audit_logs_module`, `idx_audit_logs_user`), só depois
+  de o substituto existir: toda linha da trilha atualiza todos os índices (ficam 8, eram 7). `user_id` continua
+  coberto para a FK de `auth.users`. **Ordene por `sequencia DESC` puro** (PostgREST: `order=sequencia.desc`, sem
+  `nullsfirst`/`nullslast` e sem desempate por `timestamp`): a coluna é `NOT NULL` e única (identity), e
+  `sequencia DESC NULLS LAST` (o `nullsFirst: false` do supabase-js) não casa com nenhum índice e força sort da tabela
+  inteira. Medição local (Postgres 16, 300 mil linhas sintéticas, `LIMIT 50`): com `sequencia DESC`, lista geral,
+  por registro, por servidor e por módulo + período em 0,04–0,11 ms pelos índices; com `NULLS LAST` e desempate por
+  `timestamp`, 1,6 ms por servidor e 32–46 ms na lista geral e por módulo (sort em paralelo da tabela, cresce com
+  ela).
+- **`CREATE INDEX` comum, não `CONCURRENTLY`**: o CI aplica com `supabase db push`, que roda cada migração numa
+  transação, e `CREATE INDEX CONCURRENTLY` não roda dentro de transação. O índice comum segura trava `SHARE` em
+  `audit_logs` até o fim da migração: leituras seguem, mas toda gravação na trilha (todo lançamento auditado) espera.
+  Com a tabela pequena do banco novo, segundos. Se `audit_logs` estiver grande na hora do merge, crie os quatro
+  índices antes, à mão, com `CREATE INDEX CONCURRENTLY` e as mesmas colunas: a migração reconhece o equivalente e não
+  cria outro.
+- **Trilha dos arquivos do RH no Storage** — triggers `trilha_rh_storage_insert`, `trilha_rh_storage_update` e
+  `trilha_rh_storage_delete` (`AFTER`, por linha, com `WHEN` nos buckets `frequencias` e `documentos-requerimento`:
+  os outros buckets não pagam nada) em `storage.objects`, função `trilha_storage('rh')` (`SECURITY DEFINER`,
+  `search_path` fixo, sem EXECUTE para a API). Cada gravação (`action = 'upload'`), troca ou movimentação
+  (`'update'`, com `campos_alterados`) e exclusão (`'delete'`) vira uma linha em `audit_logs` com `module_name = 'rh'`,
+  `entity_type = 'storage.<bucket>'` e `entity_id` = id do objeto. Quem agiu vem de `trilha_contexto()` (E1): o
+  usuário do JWT que a Storage API repassa ao banco, servidor vinculado, origem (`sistema` para a service role),
+  papel, unidade, IP e user agent. UPDATE só de carimbo (`updated_at`, `last_accessed_at`) não grava, nem o que só
+  preenche `metadata` nula (conclusão do upload). Por ser `AFTER` e na mesma transação, gravação negada pela RLS ou
+  desfeita não deixa linha. Quem lê: as mesmas policies da E1 (admin; módulo `rh` com `rh.auditoria.visualizar`).
+- **Sem conteúdo e sem dado pessoal do caminho** — não há antes/depois. Em `metadata`: `chave`
+  (`trilha_storage_chave(bucket, nome)`: bucket; o caminho **em claro só quando cada pasta é um uuid ou `AAAA-MM` e o
+  arquivo é `<uuid>[.ext]`**, como `documentos-requerimento` (`<servidor_id>/<documento_id>.<ext>`); nos outros casos
+  só `caminho_sha256`, porque o PDF de frequência leva matrícula e nome do servidor no nome do arquivo;
+  `periodo` quando a primeira pasta é `AAAA-MM`; `extensao`), `objeto_id`, `tamanho` e `tipo_conteudo` (do
+  `metadata` da Storage API), `operacao_storage` (GUC `storage.operation`, quando a Storage API informa),
+  `servidor_alvo_id` (o servidor dono do arquivo quando dá para saber sem ler o arquivo: linha de
+  `frequencia_arquivos` com o mesmo caminho, ou a pasta `<servidor_id>/`; o PDF recém-enviado ainda não tem essa
+  linha) e, ao mover, `anterior` (a chave antiga). `user_metadata` (texto livre do cliente) não entra. Para achar o
+  arquivo de frequência de uma linha: `encode(sha256(convert_to(arquivo_path, 'UTF8')), 'hex')` em
+  `frequencia_arquivos` = `metadata->'chave'->>'caminho_sha256'`.
+- **Privilégio em `storage.objects` (limitação)** — a tabela é da plataforma (no Supabase, dono
+  `supabase_storage_admin`). Criar trigger exige o privilégio `TRIGGER` nela; o `postgres` que aplica as migrações
+  deve tê-lo, porque já cria as policies `st_*` (B3, overlay/50), o que exige ser dono da tabela ou membro do dono.
+  Não foi conferido no banco da VPS (nada é aplicado em remoto por agente). Se o banco de destino negar, a
+  migração **não falha**: emite `WARNING 'trilha do Storage do RH NÃO ligada ...'`, os índices entram e os arquivos
+  ficam sem trilha no banco (resta o registro pelo front, de melhor esforço). Conferir depois do deploy:
+  `select tgname from pg_trigger where tgrelid = 'storage.objects'::regclass and tgname like 'trilha_rh_storage_%'`
+  (esperado: 3 linhas). Atualização da Storage API não apaga trigger de usuário, mas confira depois de trocar a
+  versão do Storage. Validado no shim (dono `postgres`) e simulado com dono `supabase_storage_admin`: com `TRIGGER`
+  (direto ou herdado) cria e reaplica; sem ele, só o `WARNING`.
+- **No baseline** a função chega por `schema/`, os triggers pelo `overlay/50_storage.sql` e o REVOKE pelo
+  `overlay/40_privilegios.sql` (mesmo texto da migração). O guard `scripts/check-autoria-rh.mjs` reprova o overlay sem
+  os três triggers (ou com um deles desligado) e o schema sem `trilha_storage()`; o `validar-baseline.sh` compara
+  também os triggers de `storage.objects` com o replay.
+- **Fora**: o bucket `documentos` (workflow e RH) continua sem trilha; leitura (download por URL assinada) não passa
+  pelo banco e é registrada pelo front com `registrar_evento`.
 
 ### Financeiro / orçamento
 Núcleo (prefixo `fin_`): `fin_solicitacoes`, `fin_solicitacao_itens`,

@@ -8210,6 +8210,148 @@ $$;
 
 
 --
+-- Name: trilha_storage(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trilha_storage() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_novo jsonb;
+  v_velho jsonb;
+  v_obj jsonb;
+  v_acao text;
+  v_campos text[];
+  v_bucket text;
+  v_nome text;
+  v_id uuid;
+  v_alvo uuid;
+  v_pasta text;
+  v_tamanho text;
+  v_meta jsonb;
+  c jsonb;
+BEGIN
+  IF TG_OP <> 'DELETE' THEN v_novo := to_jsonb(NEW); END IF;
+  IF TG_OP <> 'INSERT' THEN v_velho := to_jsonb(OLD); END IF;
+  v_obj := coalesce(v_novo, v_velho);
+
+  IF TG_OP = 'INSERT' THEN
+    v_acao := 'upload';
+  ELSIF TG_OP = 'UPDATE' THEN
+    v_acao := 'update';
+    SELECT array_agg(k ORDER BY k) INTO v_campos
+      FROM unnest(ARRAY['bucket_id', 'name', 'owner', 'owner_id', 'version', 'metadata', 'user_metadata']) AS k
+     WHERE (v_novo -> k) IS DISTINCT FROM (v_velho -> k);
+    IF v_campos IS NULL THEN
+      RETURN NULL;   -- só carimbos (updated_at, last_accessed_at)
+    END IF;
+    IF v_campos = ARRAY['metadata'] AND coalesce(jsonb_typeof(v_velho -> 'metadata'), 'null') = 'null' THEN
+      RETURN NULL;   -- a Storage API completou os metadados do upload que acabou de gravar
+    END IF;
+  ELSE
+    v_acao := 'delete';
+  END IF;
+
+  v_bucket := v_obj ->> 'bucket_id';
+  v_nome := v_obj ->> 'name';
+  IF (v_obj ->> 'id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+    v_id := (v_obj ->> 'id')::uuid;
+  END IF;
+
+  -- servidor a que o arquivo pertence (não é quem agiu: esse vai em servidor_id)
+  IF v_nome IS NOT NULL THEN
+    IF v_bucket = 'frequencias' THEN
+      SELECT fa.servidor_id INTO v_alvo FROM public.frequencia_arquivos fa
+       WHERE fa.arquivo_path = v_nome AND fa.servidor_id IS NOT NULL LIMIT 1;
+    ELSIF v_bucket = 'documentos-requerimento' THEN
+      v_pasta := split_part(v_nome, '/', 1);
+      IF v_pasta ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+        SELECT s.id INTO v_alvo FROM public.servidores s WHERE s.id = v_pasta::uuid;
+      END IF;
+    END IF;
+  END IF;
+
+  v_tamanho := v_obj -> 'metadata' ->> 'size';
+  v_meta := jsonb_build_object(
+      'trigger', true, 'operation', TG_OP, 'table', 'storage.objects', 'fonte', 'storage',
+      'chave', public.trilha_storage_chave(v_bucket, v_nome),
+      'objeto_id', v_id)
+    || jsonb_strip_nulls(jsonb_build_object(
+      'tamanho', CASE WHEN v_tamanho ~ '^[0-9]{1,18}$' THEN v_tamanho::bigint END,
+      'tipo_conteudo', left(v_obj -> 'metadata' ->> 'mimetype', 100),
+      'operacao_storage', left(nullif(current_setting('storage.operation', true), ''), 60),
+      'servidor_alvo_id', v_alvo));
+  IF TG_OP = 'UPDATE' AND ('bucket_id' = ANY (v_campos) OR 'name' = ANY (v_campos)) THEN
+    v_meta := v_meta || jsonb_build_object('anterior',
+      public.trilha_storage_chave(v_velho ->> 'bucket_id', v_velho ->> 'name'));
+  END IF;
+
+  c := public.trilha_contexto();
+
+  INSERT INTO public.audit_logs (
+    action, entity_type, entity_id, module_name, user_id, description, metadata, campos_alterados, origem,
+    servidor_id, servidor_nome, servidor_matricula, role_at_time, org_unit_id, ip_address, user_agent, transacao
+  ) VALUES (
+    v_acao::public.audit_action, 'storage.' || coalesce(v_bucket, '?'), v_id, coalesce(TG_ARGV[0], 'rh'),
+    (c ->> 'user_id')::uuid,
+    CASE v_acao WHEN 'upload' THEN 'Arquivo enviado ao bucket '
+                WHEN 'update' THEN 'Arquivo substituído ou movido no bucket '
+                ELSE 'Arquivo excluído do bucket ' END || coalesce(v_bucket, '?'),
+    v_meta, v_campos, c ->> 'origem', (c ->> 'servidor_id')::uuid, c ->> 'servidor_nome', c ->> 'servidor_matricula',
+    (c ->> 'papel')::public.app_role, (c ->> 'unidade_id')::uuid, (c ->> 'ip')::inet, c ->> 'agente', txid_current()
+  );
+  RETURN NULL;
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION trilha_storage(); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.trilha_storage() IS 'Trigger de storage.objects: gravação, troca e exclusão de arquivo viram linha em audit_logs (módulo do argumento), sem conteúdo nem caminho com dado pessoal';
+
+
+--
+-- Name: trilha_storage_chave(text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trilha_storage_chave(p_bucket text, p_nome text) RETURNS jsonb
+    LANGUAGE plpgsql IMMUTABLE
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  u constant text := '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
+  v jsonb;
+BEGIN
+  v := jsonb_build_object('bucket', p_bucket);
+  IF p_nome IS NULL THEN
+    RETURN v || jsonb_build_object('caminho', NULL);
+  END IF;
+  v := v || jsonb_build_object(
+    'caminho', CASE WHEN p_nome ~ ('^((' || u || '|[0-9]{4}-[0-9]{2})/)*' || u || '(\.[A-Za-z0-9]{1,10})?$')
+                    THEN p_nome END,
+    'caminho_sha256', encode(sha256(convert_to(p_nome, 'UTF8')), 'hex'));
+  IF p_nome ~ '^[0-9]{4}-[0-9]{2}/' THEN
+    v := v || jsonb_build_object('periodo', left(p_nome, 7));
+  END IF;
+  IF p_nome ~ '\.[A-Za-z0-9]{1,10}$' THEN
+    v := v || jsonb_build_object('extensao', lower(substring(p_nome FROM '\.([A-Za-z0-9]{1,10})$')));
+  END IF;
+  RETURN v;
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION trilha_storage_chave(p_bucket text, p_nome text); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.trilha_storage_chave(p_bucket text, p_nome text) IS 'Chave de um objeto do Storage para a trilha: bucket, caminho só quando é feito de uuid/AAAA-MM, sha256 do caminho, período e extensão';
+
+
+--
 -- Name: update_approval_status_history(); Type: FUNCTION; Schema: public; Owner: -
 --
 

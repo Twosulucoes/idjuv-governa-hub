@@ -41,6 +41,8 @@
 --                    (postgres, service role, superusuário, modo réplica); folha (fechado_por, processado_por);
 --                    etapa da frequência sem atalho de autoria do admin; registrar_evento; leitura da trilha do RH;
 --                    cobertura de zz_fixar_autoria/fn_audit_trigger nas tabelas do RH do mapa
+--   RH (E2)          índices da consulta da trilha; trilha dos arquivos de frequencias e documentos-requerimento
+--                    (upload, troca, mover, exclusão; sem nome do caminho, user_metadata nem antes/depois)
 --   global           anon só nas exceções; nenhuma policy acesso_total; funções-stub não existem
 --
 -- Cobertura é exigida: tabela sem linha semente, fora do mapa ou sem RLS é FALHA. As tabelas temporárias do teste
@@ -2788,6 +2790,172 @@ BEGIN
   END IF;
 
   PERFORM pg_temp.nota('E1 (autoria e trilha do RH): autoria forçada, origem, máscara, imutabilidade, folha, frequência, registrar_evento, leitura e cobertura verificadas');
+END $$;
+
+-- ---------------------------------------------------------------- RH: consulta e trilha do Storage (Onda E2) (TRIGGERS LIGADOS)
+-- Migração 20261011000200_rh_trilha_consulta.sql (spec docs/superpowers/specs/2026-10-10-rh-trilha-tela-design.md):
+--   * índices de audit_logs da tela (entidade+sequencia, servidor+sequencia, módulo+tempo, usuário+tempo) e os três
+--     antigos que viraram prefixo removidos;
+--   * trilha do Storage: gravar ('upload'), trocar/mover ('update') e apagar ('delete') objeto em frequencias e
+--     documentos-requerimento grava linha em audit_logs (módulo rh, entity_type storage.<bucket>, entity_id = id do
+--     objeto) com usuário, servidor, origem, IP e user agent; só carimbo (updated_at) não grava; outro bucket não grava;
+--     service role vira origem `sistema`; nada do caminho com nome, de user_metadata nem de antes/depois na trilha;
+--     caminho de uuid em claro; servidor dono do arquivo quando dá para saber; função fora da API.
+-- Colunas da E1 lidas por to_jsonb(...): num banco anterior o bloco reprova sem abortar.
+DO $$
+DECLARE
+  u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
+  u_a uuid := (SELECT uid FROM persona WHERE nome='srv_a');
+  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  u_fl uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');   -- módulo rh + rh.frequencia.lancar
+  u_ed uuid := (SELECT uid FROM persona WHERE nome='perm_rh.servidores.editar');   -- módulo rh + rh.servidores.editar
+  sa uuid := 'b0000000-0000-0000-0000-00000000000a';
+  sb uuid := 'b0000000-0000-0000-0000-00000000000b';
+  o1 uuid := 'e2000000-0000-0000-0000-000000000001';
+  o2 uuid := 'e2000000-0000-0000-0000-000000000002';
+  o3 uuid := 'e2000000-0000-0000-0000-000000000003';
+  o4 uuid := 'e2000000-0000-0000-0000-000000000004';
+  o5 uuid := 'e2000000-0000-0000-0000-000000000005';
+  doc uuid := 'e2000000-0000-0000-0000-0000000000d1';
+  nome1 text := '2026-02/DIRAF/9999_Fulano_Sigiloso_1700000000000.pdf';
+  r text; n int; j jsonb; x record; f text;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM set_config('request.headers', '', true);
+  IF u_fl IS NULL OR u_ed IS NULL THEN RAISE EXCEPTION 'faltam as personas perm_rh.frequencia.lancar/perm_rh.servidores.editar (mapa.csv)'; END IF;
+
+  -- ===== estrutura: funções fora da API, triggers ligados com WHEN nos dois buckets, índices
+  FOREACH f IN ARRAY ARRAY['public.trilha_storage()', 'public.trilha_storage_chave(text,text)'] LOOP
+    IF to_regprocedure(f) IS NULL THEN PERFORM pg_temp.falha('E2 storage: função ' || f || ' não existe'); CONTINUE; END IF;
+    IF has_function_privilege('authenticated', f, 'EXECUTE') OR has_function_privilege('anon', f, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('E2 storage: ' || f || ' executável pela API');
+    END IF;
+  END LOOP;
+  IF to_regprocedure('public.trilha_storage()') IS NOT NULL
+     AND NOT (SELECT prosecdef AND coalesce(proconfig::text, '') ~ 'search_path' FROM pg_proc WHERE oid = to_regprocedure('public.trilha_storage()')) THEN
+    PERFORM pg_temp.falha('E2 storage: trilha_storage sem SECURITY DEFINER ou sem search_path fixo');
+  END IF;
+  FOREACH f IN ARRAY ARRAY['insert:4', 'update:16', 'delete:8'] LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger t JOIN pg_proc p ON p.oid = t.tgfoid
+                    WHERE t.tgrelid = 'storage.objects'::regclass AND t.tgname = 'trilha_rh_storage_' || split_part(f, ':', 1)
+                      AND p.proname = 'trilha_storage' AND t.tgenabled <> 'D' AND (t.tgtype & 1) <> 0 AND (t.tgtype & 2) = 0
+                      AND (t.tgtype & split_part(f, ':', 2)::int) <> 0 AND t.tgnargs = 1 AND encode(t.tgargs, 'escape') = 'rh\000'
+                      AND pg_get_triggerdef(t.oid) LIKE '%''frequencias''%' AND pg_get_triggerdef(t.oid) LIKE '%''documentos-requerimento''%') THEN
+      PERFORM pg_temp.falha('E2 storage: falta trilha_rh_storage_' || split_part(f, ':', 1) || ' (AFTER por linha, trilha_storage(''rh''), ligado, WHEN nos dois buckets)');
+    END IF;
+  END LOOP;
+  FOREACH f IN ARRAY ARRAY['idx_audit_logs_entidade_seq', 'idx_audit_logs_servidor_seq', 'idx_audit_logs_modulo_tempo', 'idx_audit_logs_usuario_tempo'] LOOP
+    IF to_regclass('public.' || f) IS NULL THEN PERFORM pg_temp.falha('E2 índices: falta ' || f); END IF;
+  END LOOP;
+  FOREACH f IN ARRAY ARRAY['idx_audit_logs_entity', 'idx_audit_logs_module', 'idx_audit_logs_user'] LOOP
+    IF to_regclass('public.' || f) IS NOT NULL THEN PERFORM pg_temp.falha('E2 índices: ' || f || ' (prefixo de um índice novo) continua'); END IF;
+  END LOOP;
+
+  -- quem age: perm_rh.frequencia.lancar vinculado ao servidor B (desfeito no fim); IP e user agent da requisição
+  r := pg_temp.exec_como(u_admin, 'authenticated', format('UPDATE public.profiles SET servidor_id = %L WHERE id = %L', sb, u_fl));
+  PERFORM set_config('request.headers', '{"x-real-ip": "192.0.2.20", "user-agent": "teste-e2"}', true);
+
+  -- ===== upload no bucket frequencias: caminho com nome do servidor não vai à trilha; user_metadata também não
+  r := pg_temp.exec_como(u_fl, 'authenticated', format(
+         'INSERT INTO storage.objects (id, bucket_id, name, metadata, user_metadata) VALUES (%L, ''frequencias'', %L, %L, %L)',
+         o1, nome1, '{"size": 1234, "mimetype": "application/pdf"}', '{"obs": "Segredo do cliente"}'));
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_type = 'storage.frequencias' AND a.entity_id = o1 AND a.action = 'upload';
+  IF r <> 'ok' OR j IS NULL THEN
+    PERFORM pg_temp.falha('E2 storage: upload em frequencias sem linha na trilha (' || r || ')');
+  ELSE
+    IF j ->> 'module_name' IS DISTINCT FROM 'rh' OR j ->> 'user_id' IS DISTINCT FROM u_fl::text OR j ->> 'origem' IS DISTINCT FROM 'usuario'
+       OR j ->> 'servidor_id' IS DISTINCT FROM sb::text OR j ->> 'transacao' IS NULL THEN
+      PERFORM pg_temp.falha('E2 storage: upload sem módulo rh, usuário, servidor ou origem (' || left(j::text, 160) || ')');
+    END IF;
+    IF j ->> 'ip_address' IS DISTINCT FROM '192.0.2.20' OR j ->> 'user_agent' IS DISTINCT FROM 'teste-e2' THEN
+      PERFORM pg_temp.falha('E2 storage: upload sem IP/user agent da requisição (' || coalesce(j ->> 'ip_address', 'nulo') || ', ' || coalesce(j ->> 'user_agent', 'nulo') || ')');
+    END IF;
+    IF j -> 'metadata' -> 'chave' ->> 'bucket' IS DISTINCT FROM 'frequencias'
+       OR jsonb_typeof(j -> 'metadata' -> 'chave' -> 'caminho') IS DISTINCT FROM 'null'
+       OR j -> 'metadata' -> 'chave' ->> 'caminho_sha256' IS DISTINCT FROM encode(sha256(convert_to(nome1, 'UTF8')), 'hex')
+       OR j -> 'metadata' -> 'chave' ->> 'periodo' IS DISTINCT FROM '2026-02' OR j -> 'metadata' -> 'chave' ->> 'extensao' IS DISTINCT FROM 'pdf'
+       OR j -> 'metadata' ->> 'objeto_id' IS DISTINCT FROM o1::text OR j -> 'metadata' ->> 'tamanho' IS DISTINCT FROM '1234'
+       OR j -> 'metadata' ->> 'tipo_conteudo' IS DISTINCT FROM 'application/pdf' OR j -> 'metadata' ->> 'fonte' IS DISTINCT FROM 'storage' THEN
+      PERFORM pg_temp.falha('E2 storage: chave/metadados do upload diferentes do esperado (' || left((j -> 'metadata')::text, 200) || ')');
+    END IF;
+    IF j -> 'before_data' IS DISTINCT FROM 'null'::jsonb OR j -> 'after_data' IS DISTINCT FROM 'null'::jsonb THEN
+      PERFORM pg_temp.falha('E2 storage: a linha do arquivo leva antes/depois');
+    END IF;
+  END IF;
+
+  -- ===== só carimbo (updated_at) não grava; troca (version/metadata) grava 'update' com os campos; mover leva o anterior
+  r := pg_temp.exec_como(u_fl, 'authenticated', format('UPDATE storage.objects SET updated_at = now(), last_accessed_at = now() WHERE id = %L', o1));
+  SELECT count(*) INTO n FROM public.audit_logs a WHERE a.entity_id = o1 AND a.action = 'update';
+  IF r <> 'ok' OR n <> 0 THEN PERFORM pg_temp.falha('E2 storage: UPDATE só de carimbo gravou ' || n || ' linha(s) (' || r || ')'); END IF;
+  r := pg_temp.exec_como(u_fl, 'authenticated', format('UPDATE storage.objects SET version = ''v2'', metadata = ''{"size": 2048, "mimetype": "application/pdf"}'' WHERE id = %L', o1));
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_id = o1 AND a.action = 'update';
+  IF r <> 'ok' OR j IS NULL OR j -> 'campos_alterados' IS DISTINCT FROM '["metadata", "version"]'::jsonb
+     OR j -> 'metadata' ->> 'tamanho' IS DISTINCT FROM '2048' OR j -> 'metadata' ? 'anterior' THEN
+    PERFORM pg_temp.falha('E2 storage: troca do arquivo sem linha update com campos_alterados (' || r || ', ' || coalesce(left(j::text, 160), 'nada') || ')');
+  END IF;
+  r := pg_temp.exec_como(u_fl, 'authenticated', format('UPDATE storage.objects SET name = %L WHERE id = %L', '2026-02/DIRAF/9999_Fulano_Sigiloso_v2.pdf', o1));
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_id = o1 AND a.action = 'update' AND (to_jsonb(a) -> 'campos_alterados') ? 'name';
+  IF r <> 'ok' OR j IS NULL OR j -> 'metadata' -> 'anterior' ->> 'caminho_sha256' IS DISTINCT FROM encode(sha256(convert_to(nome1, 'UTF8')), 'hex')
+     OR jsonb_typeof(j -> 'metadata' -> 'anterior' -> 'caminho') IS DISTINCT FROM 'null' THEN
+    PERFORM pg_temp.falha('E2 storage: mover o arquivo não registra o caminho anterior (pelo hash) (' || r || ', ' || coalesce(left((j -> 'metadata')::text, 160), 'nada') || ')');
+  END IF;
+
+  -- ===== exclusão: linha delete com o servidor dono do PDF (linha de frequencia_arquivos da semente da B3)
+  INSERT INTO storage.objects (id, bucket_id, name) VALUES (o2, 'frequencias', 'e2/' || sa || '/2026-03.pdf');
+  INSERT INTO public.frequencia_arquivos (periodo, ano, mes, servidor_id, tipo, arquivo_path, arquivo_nome)
+    VALUES ('2026-03', 2026, 3, sa, 'individual', 'e2/' || sa || '/2026-03.pdf', 'e2.pdf');
+  r := pg_temp.exec_como(u_fl, 'authenticated', format('DELETE FROM storage.objects WHERE id = %L', o2));
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_type = 'storage.frequencias' AND a.entity_id = o2 AND a.action = 'delete';
+  IF r <> 'ok' OR j IS NULL OR j ->> 'user_id' IS DISTINCT FROM u_fl::text OR j -> 'metadata' ->> 'servidor_alvo_id' IS DISTINCT FROM sa::text THEN
+    PERFORM pg_temp.falha('E2 storage: exclusão em frequencias sem linha delete com o servidor dono (' || r || ', ' || coalesce(left(j::text, 160), 'nada') || ')');
+  END IF;
+
+  -- ===== documentos-requerimento: caminho de uuid vai em claro, com o servidor da pasta; exclusão também grava
+  r := pg_temp.exec_como(u_ed, 'authenticated', format('INSERT INTO storage.objects (id, bucket_id, name) VALUES (%L, ''documentos-requerimento'', %L)', o3, sb || '/' || doc || '.pdf'));
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_type = 'storage.documentos-requerimento' AND a.entity_id = o3 AND a.action = 'upload';
+  IF r <> 'ok' OR j IS NULL OR j -> 'metadata' -> 'chave' ->> 'caminho' IS DISTINCT FROM sb || '/' || doc || '.pdf'
+     OR j -> 'metadata' ->> 'servidor_alvo_id' IS DISTINCT FROM sb::text OR j ->> 'origem' IS DISTINCT FROM 'usuario_sem_vinculo' THEN
+    PERFORM pg_temp.falha('E2 storage: upload em documentos-requerimento sem caminho de uuid, servidor da pasta ou origem (' || r || ', ' || coalesce(left(j::text, 200), 'nada') || ')');
+  END IF;
+  r := pg_temp.exec_como(u_ed, 'authenticated', format('DELETE FROM storage.objects WHERE id = %L', o3));
+  IF r <> 'ok' OR NOT EXISTS (SELECT 1 FROM public.audit_logs a WHERE a.entity_type = 'storage.documentos-requerimento' AND a.entity_id = o3 AND a.action = 'delete') THEN
+    PERFORM pg_temp.falha('E2 storage: exclusão em documentos-requerimento sem linha na trilha (' || r || ')');
+  END IF;
+
+  -- ===== outro bucket não grava; gravação negada pela RLS não grava; service role vira origem sistema
+  r := pg_temp.exec_como(u_admin, 'authenticated', format('INSERT INTO storage.objects (id, bucket_id, name) VALUES (%L, ''documentos'', ''e2/ato.pdf'')', o4));
+  IF r <> 'ok' OR EXISTS (SELECT 1 FROM public.audit_logs a WHERE a.entity_id = o4) THEN
+    PERFORM pg_temp.falha('E2 storage: objeto do bucket documentos gerou linha (ou não foi gravado: ' || r || ')');
+  END IF;
+  r := pg_temp.exec_como(u_a, 'authenticated', 'INSERT INTO storage.objects (bucket_id, name) VALUES (''frequencias'', ''e2/negado.pdf'')');
+  IF r NOT LIKE 'erro:42501%' OR EXISTS (SELECT 1 FROM public.audit_logs a WHERE a.metadata -> 'chave' ->> 'caminho_sha256' = encode(sha256(convert_to('e2/negado.pdf', 'UTF8')), 'hex')) THEN
+    PERFORM pg_temp.falha('E2 storage: gravação negada pela RLS deixou linha na trilha (ou passou: ' || r || ')');
+  END IF;
+  PERFORM set_config('request.headers', '', true);
+  r := pg_temp.exec_como(NULL, 'service_role', format('INSERT INTO storage.objects (id, bucket_id, name) VALUES (%L, ''frequencias'', ''2026-04/GERAL/lote.zip'')', o5));
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_id = o5;
+  IF r <> 'ok' OR j IS NULL OR j ->> 'origem' IS DISTINCT FROM 'sistema' OR j ->> 'user_id' IS NOT NULL THEN
+    PERFORM pg_temp.falha('E2 storage: gravação pela service role sem linha de origem sistema (' || r || ', ' || coalesce(left(j::text, 160), 'nada') || ')');
+  END IF;
+
+  -- ===== nada de nome do servidor, user_metadata ou conteúdo na trilha dos arquivos
+  SELECT count(*) INTO n FROM public.audit_logs a
+   WHERE a.entity_type LIKE 'storage.%' AND (a::text LIKE '%Fulano%' OR a::text LIKE '%Sigiloso%' OR a::text LIKE '%Segredo do cliente%');
+  IF n > 0 THEN PERFORM pg_temp.falha('E2 storage: ' || n || ' linha(s) da trilha com nome do caminho ou user_metadata'); END IF;
+  SELECT count(*) INTO n FROM public.audit_logs a WHERE a.entity_type LIKE 'storage.%';
+  IF n < 7 THEN PERFORM pg_temp.falha('E2 storage: esperava ao menos 7 linhas de arquivo na trilha, há ' || n); END IF;
+
+  -- ===== leitura: as linhas dos arquivos são do módulo rh (rh.auditoria.visualizar lê, o módulo sozinho não)
+  SELECT count(*) INTO n FROM public.audit_logs a WHERE a.entity_type LIKE 'storage.%' AND a.module_name = 'rh';
+  r := pg_temp.valor_desfeito_como(u_rh, 'authenticated', 'SELECT count(*)::text FROM public.audit_logs WHERE entity_type LIKE ''storage.%''');
+  IF r <> '0' THEN PERFORM pg_temp.falha('E2 storage: o módulo rh sem rh.auditoria.visualizar lê a trilha dos arquivos (' || r || ')'); END IF;
+  UPDATE public.user_modules SET permissions = ARRAY['rh.auditoria.visualizar'] WHERE user_id = u_rh AND module = 'rh';
+  r := pg_temp.valor_desfeito_como(u_rh, 'authenticated', 'SELECT count(*)::text FROM public.audit_logs WHERE entity_type LIKE ''storage.%''');
+  IF r IS DISTINCT FROM n::text THEN PERFORM pg_temp.falha('E2 storage: com rh.auditoria.visualizar não lê as ' || n || ' linhas dos arquivos (' || r || ')'); END IF;
+  UPDATE public.user_modules SET permissions = NULL WHERE user_id = u_rh AND module = 'rh';
+
+  r := pg_temp.exec_como(u_admin, 'authenticated', format('UPDATE public.profiles SET servidor_id = NULL WHERE id = %L', u_fl));
+  PERFORM pg_temp.nota('E2 (trilha do Storage do RH e índices da consulta): upload, troca, mover, exclusão, sem dado pessoal do caminho, origem sistema e leitura verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

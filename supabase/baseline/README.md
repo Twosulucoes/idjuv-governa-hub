@@ -46,8 +46,8 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 | 8 | `overlay/20_campos_iniciais.sql` | triggers: formulários públicos e pedidos do servidor não escolhem `status`, aprovação, autoria (nos pedidos do RH a isenção é por permissão, formato `perm:`, e nunca no próprio pedido); links do formulário de árbitros só do próprio bucket | à mão |
 | 9 | `overlay/30_remover_acesso_total.sql` | apaga as policies `acesso_total_*` e a tabela morta `_backup_usuario_modulos_old` | à mão |
 | 10 | `rls/35_policies_geradas.sql` | policies por módulo, **falha fechada** | **gerado** de `rls/mapa.csv` |
-| 11 | `overlay/40_privilegios.sql` | `anon` só com as exceções públicas; sem EXECUTE para PUBLIC em função nova; sem TRUNCATE/TRIGGER; `audit_logs` só-acréscimo; RPCs que escrevem fechadas; funções da E1 (autoria e trilha) sem EXECUTE pela API, exceto `registrar_evento` para `authenticated` | à mão |
-| 12 | `overlay/50_storage.sql` | buckets (com limite de tamanho/tipo no de árbitros, no privado `inventario-evidencias` e, desde a B3, no privado `documentos-requerimento`) e policies de storage por módulo; `frequencias` e `documentos-requerimento` (B3) gravam com módulo e código e o servidor lê o próprio arquivo | à mão |
+| 11 | `overlay/40_privilegios.sql` | `anon` só com as exceções públicas; sem EXECUTE para PUBLIC em função nova; sem TRUNCATE/TRIGGER; `audit_logs` só-acréscimo; RPCs que escrevem fechadas; funções da E1 (autoria e trilha) sem EXECUTE pela API, exceto `registrar_evento` para `authenticated`; `trilha_storage` e `trilha_storage_chave` (E2) sem EXECUTE pela API | à mão |
+| 12 | `overlay/50_storage.sql` | buckets (com limite de tamanho/tipo no de árbitros, no privado `inventario-evidencias` e, desde a B3, no privado `documentos-requerimento`) e policies de storage por módulo; `frequencias` e `documentos-requerimento` (B3) gravam com módulo e código e o servidor lê o próprio arquivo; triggers `trilha_rh_storage_*` (E2) gravam na trilha a gravação, troca e exclusão de arquivo nesses dois buckets | à mão |
 | 13 | `overlay/60_realtime.sql` | publicação realtime (folha) | à mão |
 
 `lacunas/` guarda a migração que cobre as tabelas usadas e nunca criadas; ela só serve ao replay
@@ -177,6 +177,12 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
   trilha de `profiles`; toda tabela do RH com `zz_fixar_autoria` (BEFORE INSERT OR UPDATE, último BEFORE) e
   `audit_<tabela>` (AFTER INSERT OR UPDATE OR DELETE, `'rh'`) ligados, e nas de trilha a imutabilidade também em
   TRUNCATE; privilégios das funções novas;
+- consulta e trilha do Storage do RH (E2, bloco "RH: consulta e trilha do Storage" de `testar-rls.sql`): os quatro
+  índices de `audit_logs` e os três antigos removidos; gravar, trocar, mover e apagar objeto em `frequencias` e
+  `documentos-requerimento` grava linha (`upload`/`update`/`delete`, módulo `rh`, usuário, servidor, origem, IP e
+  user agent); só carimbo não grava; outro bucket e gravação negada pela RLS não gravam; service role vira origem
+  `sistema`; caminho com nome do servidor só pelo hash, caminho de uuid em claro, servidor dono do arquivo; nada de
+  nome, `user_metadata` nem antes/depois na trilha; leitura só com `rh.auditoria.visualizar`; função fora da API;
 - inventário de campo: `fotos_vistoria_inventario` (INSERT só em nome próprio, UPDATE só do autor ou com
   `patrimonio.tramitar`, DELETE só com `patrimonio.tramitar`, campos de prova imutáveis), no bloco de
   cobertura adicional de `testar-rls.sql`;
@@ -184,7 +190,12 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
 - RPCs: injeção de SQL, `SECURITY DEFINER` sem checagem fora de lista revisada, privilégios padrão,
   campos que o autor não pode escolher nos formulários.
 
-Último resultado (2026-10-10, onda E1 depois da revisão de segurança e de código, PostgreSQL 16.15): replay de
+Último resultado (2026-10-10, onda E2, migração `20261011000200`, PostgreSQL 16.15): replay de **267 migrações com 0
+falhas**; `validar-baseline.sh` com `EXIGIR_REPLAY=1` **APROVADO** — RLS com 0 falhas em 4534 checagens de UPDATE/DELETE
+(235 tabelas), schema idêntico ao replay (43742 linhas) e triggers de `storage.objects` idênticos. A migração aplicada
+duas vezes no replay, no baseline novo e no baseline anterior à E2: sem erro e sem índice, trigger, policy ou função a
+mais; o teste passa com 0 falhas no baseline anterior com a migração aplicada e reprova com 20 falhas sem ela (prova
+de vida). Antes, na E1 depois da revisão de segurança e de código: replay de
 **266 migrações com 0 falhas** (com a main até a PR #80); `validar-baseline.sh` com `EXIGIR_REPLAY=1` **APROVADO** — RLS com 0 falhas em
 4534 checagens de UPDATE/DELETE (235 tabelas), só as 20 tabelas de catálogo com linhas e schema idêntico ao
 replay (43577 linhas). As migrações `20261011000000` e `20261011000100` aplicadas duas vezes no replay, no
@@ -306,6 +317,12 @@ Limites conhecidos:
   `SET LOCAL trilha.expurgo = 'autorizado'`; as FKs de autoria para `auth.users` que já existiam (quase todas sem
   `ON DELETE`) passam a barrar a exclusão de quem lançou algo, agora que o banco sempre grava o autor
   (`delete-user` deve passar a desativar).
+- **Migração `20261011000200` (E2, em PR rascunho) × overlays.** Os índices de `audit_logs` e as funções
+  `trilha_storage`/`trilha_storage_chave` chegam pelo replay em `schema/`; os triggers `trilha_rh_storage_*` em
+  `storage.objects` estão no overlay `50` (o dump só leva `public`) e o REVOKE das funções no overlay `40`, com o mesmo
+  texto da migração. Limitação: sem o privilégio `TRIGGER` em `storage.objects` no banco de destino, a migração emite
+  `WARNING` e os arquivos ficam sem trilha (consulta pós-deploy em
+  [`docs/BANCO_DE_DADOS.md`](../../docs/BANCO_DE_DADOS.md#consulta-da-trilha-e-arquivos-do-rh-no-storage--onda-e2-banco)).
 - **`servidores.situacao`** (anterior à B2): quem tem o módulo `rh` muda a situação de outro servidor, e isso
   bloqueia o perfil vinculado. Sem correção ainda.
 - Tabelas com fluxo de aprovação por RPC e UPDATE livre para o módulo: `folhas_pagamento` foi protegida (só quem

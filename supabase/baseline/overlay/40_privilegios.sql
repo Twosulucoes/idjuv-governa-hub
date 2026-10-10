@@ -118,6 +118,9 @@ REVOKE EXECUTE ON FUNCTION public.trilha_imutavel() FROM PUBLIC, anon, authentic
 REVOKE EXECUTE ON FUNCTION public.fixar_autoria() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.registrar_evento(text, text, uuid, text, jsonb) FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.registrar_evento(text, text, uuid, text, jsonb) TO authenticated;
+-- trilha dos arquivos do RH no Storage (migração 20261011000200, E2): função de trigger e de apoio fora da API
+REVOKE EXECUTE ON FUNCTION public.trilha_storage_chave(text, text) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.trilha_storage() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON public.avisos_leituras FROM anon, authenticated;
 GRANT SELECT, INSERT, DELETE ON public.avisos_leituras TO authenticated;
 REVOKE ALL ON public.envios_log FROM anon, authenticated;
