@@ -37,9 +37,10 @@ a E2 deixa isso **consultável** e registra o que não é gravação: ver, impri
    `rh.auditoria.visualizar`, item no menu do RH e em `ROUTE_PERMISSIONS`.
 5. **Abas "Histórico de alterações"** (componente único `HistoricoAlteracoesTab`): na ficha do servidor
    (`servidores` e tabelas ligadas ao servidor: vínculos, lotações, férias, licenças, viagens, frequência,
-   documentos) e no detalhe da folha (folha, fichas, itens, remessas, eventos do eSocial).
-6. **`registrar_evento` nas ações sem gravação:** PDFs do RH (portarias, frequência, relatórios, ficha
-   cadastral, declarações), planilhas (`/rh/exportar`, cards de relatórios, `src/export/*` quando chamados do
+   documentos) e no detalhe da folha (folha, fichas, remessas, eventos do eSocial; os itens de ficha só têm
+   `ficha_id` e ficam de fora).
+6. **`registrar_evento` nas ações sem gravação:** PDFs do RH (frequência, relatórios, ficha cadastral,
+   declarações, memorando de designação), planilhas (`/rh/exportar`, cards de relatórios, `src/export/*` quando chamados do
    RH), XML do eSocial, arquivo CNAB, contracheque (troca o `log_audit` pela RPC nova) e o CSV da trilha.
 7. **Docs:** `docs/GUIA_FRONTEND.md`, `docs/BANCO_DE_DADOS.md`, `docs/RBAC_PERMISSOES.md` (rota nova),
    `docs/planejamento/FINALIZACAO.md` e `ROADMAP.md`.
@@ -49,3 +50,10 @@ a E2 deixa isso **consultável** e registra o que não é gravação: ver, impri
 - Login e falha de login na trilha.
 - Particionar e reter `audit_logs`; encadeamento por hash.
 - Prova forte de leitura (geração do PDF no servidor).
+- Portarias (`NovaPortariaUnificada`, `PortariaColetivaDialog`, `RelatorioPortariasDialog`): são do Gabinete e
+  `registrar_evento` exige o módulo `rh`; ficam para quando a RPC aceitar outro módulo.
+- Modelos de documento em branco (sem dado pessoal) e os formulários antigos de `src/modules/rh/pages/formularios`.
+- Registro pelo front de envio, troca e exclusão de arquivo: `registrar_evento` só aceita `view`, `export` e
+  `download`; isso fica com a trilha do Storage no banco.
+- Exportar a trilha em `/admin/auditoria` exige o papel admin ou o módulo `rh`, porque o registro da exportação
+  usa `registrar_evento`, que grava no módulo `rh`.
