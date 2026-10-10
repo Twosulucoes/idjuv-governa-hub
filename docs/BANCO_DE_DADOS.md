@@ -400,8 +400,10 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   - `transparencia_execucao_orcamentaria()` — totais de `dotacoes_orcamentarias` por exercício (inicial, atual,
     empenhado, liquidado, pago, quantidade de dotações); nenhuma dotação individual.
   - `transparencia_licitacoes(p_ano, p_modalidade)` — processo, ano, modalidade, objeto, fase, valor estimado,
-    abertura, unidade requisitante e vencedor PJ (razão social + CNPJ mascarado `8 dígitos****2`); todo processo
-    aparece, e vencedor pessoa física nunca é exposto (sem PJ, nome e documento saem `NULL`). `data_homologacao` sai `NULL` (a tabela não tem a coluna).
+    abertura, unidade requisitante e vencedor PJ (razão social + CNPJ mascarado `8 dígitos****2`). Processos em
+    `planejamento`, `elaboracao` ou `edital` (ou sem fase) não aparecem; o vencedor só aparece em `homologacao`,
+    `adjudicacao`, `contratacao` ou `encerrado`. Vencedor pessoa física nunca é exposto (sem PJ, nome e documento
+    saem `NULL`). `data_homologacao` sai `NULL` (a tabela não tem a coluna).
   - `transparencia_patrimonio()` — bem (número, descrição, marca, modelo, situação, conservação, valor e data de
     aquisição), nome/município da unidade local e nome da unidade organizacional; nunca o responsável.
 - **Parâmetros**: `obter_parametro_vigente`, `obter_parametro_simples`,

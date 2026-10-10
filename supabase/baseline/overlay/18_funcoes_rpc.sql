@@ -599,8 +599,11 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
     WHERE vc.processo_id = p.id AND f.tipo_pessoa = 'PJ'
     ORDER BY f.razao_social
     LIMIT 1
-  ) v ON true
-  WHERE (p_ano IS NULL OR p.ano = p_ano)
+  ) v ON p.fase_atual IN ('homologacao', 'adjudicacao', 'contratacao', 'encerrado')
+  -- Fase interna (antes da publicação do edital) não é pública: o valor estimado pode ser
+  -- sigiloso até o julgamento (Lei 14.133, art. 24). O vencedor só aparece após a homologação.
+  WHERE p.fase_atual NOT IN ('planejamento', 'elaboracao', 'edital')
+    AND (p_ano IS NULL OR p.ano = p_ano)
     AND (p_modalidade IS NULL OR p.modalidade::text = p_modalidade)
   ORDER BY p.ano DESC, p.numero_processo DESC;
 $$;
@@ -643,6 +646,6 @@ $$;
 COMMENT ON FUNCTION public.transparencia_execucao_orcamentaria() IS
   'Exceção pública intencional (LAI, transparência ativa): executável por anon. Expõe só totais de dotacoes_orcamentarias por exercício (valor_inicial, valor_atual, valor_empenhado, valor_liquidado, valor_pago, quantidade de dotações).';
 COMMENT ON FUNCTION public.transparencia_licitacoes(integer, text) IS
-  'Exceção pública intencional (LAI, transparência ativa): executável por anon. Expõe de processos_licitatorios id, numero_processo, ano, modalidade, objeto, fase_atual, valor_estimado, data_abertura, data_homologacao (NULL: a tabela não tem a coluna), nome da unidade requisitante e, do vencedor pessoa jurídica, razão social e CNPJ mascarado (8 dígitos + **** + 2). O processo sempre aparece (LAI); vencedor pessoa física nunca é exposto: sem vencedor PJ, razão social e CNPJ saem NULL.';
+  'Exceção pública intencional (LAI, transparência ativa): executável por anon. Expõe de processos_licitatorios id, numero_processo, ano, modalidade, objeto, fase_atual, valor_estimado, data_abertura, data_homologacao (NULL: a tabela não tem a coluna), nome da unidade requisitante e, do vencedor pessoa jurídica, razão social e CNPJ mascarado (8 dígitos + **** + 2). Processos na fase interna (planejamento, elaboração, edital) ou sem fase não aparecem (valor estimado pode ser sigiloso, Lei 14.133 art. 24); o vencedor só aparece a partir da homologação; vencedor pessoa física nunca é exposto: sem vencedor PJ, razão social e CNPJ saem NULL.';
 COMMENT ON FUNCTION public.transparencia_patrimonio() IS
   'Exceção pública intencional (LAI, transparência ativa): executável por anon. Expõe de bens_patrimoniais id, numero_patrimonio, descricao, marca, modelo, situacao, estado_conservacao, valor_aquisicao, data_aquisicao, nome e município da unidade local e nome da unidade organizacional. Nunca responsável nem dado pessoal.';
