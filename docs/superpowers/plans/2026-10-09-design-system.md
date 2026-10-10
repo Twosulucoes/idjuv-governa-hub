@@ -104,6 +104,17 @@ Contratos → Financeiro → Folha → RH (depois do PR #35) → Admin → demai
   `App.tsx` (o painel de orçamento não é alcançável); botões sem ação (nova dotação, novo
   adiantamento, nova conta, atualizar saldos, "ver" de liquidações/adiantamentos/contas).
 
+- **Comunicação/ASCOM, Programas, Workflow, Gabinete e cadastros**: painéis de Comunicação,
+  Programas, Gestores escolares, Workflow e Transparência; CMS (conteúdos, editor, banners,
+  galerias), calendário e aniversariantes; demandas da ASCOM (gestão, detalhe, nova); páginas dos
+  programas; federações e instituições; processos (lista e detalhe), Gabinete, avisos, cargos e
+  hub de módulos. Links quebrados trocados por rotas registradas (`/workflow/processos/:id`) ou
+  removidos; prévia do CMS usa o site do tenant. Pendências: mapas de situação duplicados entre
+  telas (centralizar em `src/types/`), `?acao=novo`/`?meus=true`/`?minhas=true` não lidos pelas
+  listas, CTAs das páginas de programas apontam para `/sistema`, textos "Roraima" nas páginas de
+  programas. Telas públicas (solicitação e protocolo da ASCOM, cadastro de federação, eventos)
+  ficam para a Fase 5.
+
 ## Fase 5 — Portal público e PWA
 
 - Portal: corpo 16px, alvos 44px, skip-link, linguagem simples, contraste AA; serif opcional por

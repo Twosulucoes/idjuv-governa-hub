@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 import { ModuleLayout } from "@/components/layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,10 +46,12 @@ import {
   EyeOff,
   ExternalLink,
   Loader2,
-  Layers
+  Layers,
+  AlertCircle
 } from "lucide-react";
 import { useCMSBanners, type CMSBanner, POSICAO_LABELS } from "@/hooks/cms/useCMSBanners";
 import { DESTINO_LABELS, type CMSDestino } from "@/hooks/cms/useCMSConteudos";
+import { EmptyState, KpiCard, PageHeader, StatusBadge } from "@/components/design-system";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -58,7 +60,7 @@ export default function CMSBannersPage() {
   const [filtroAtivo, setFiltroAtivo] = useState<string>("todos");
   const [busca, setBusca] = useState("");
   
-  const { banners, isLoading, createBanner, updateBanner, deleteBanner, toggleBanner } = useCMSBanners();
+  const { banners, isLoading, error, createBanner, updateBanner, deleteBanner, toggleBanner } = useCMSBanners();
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -174,53 +176,29 @@ export default function CMSBannersPage() {
   return (
     <ModuleLayout module="comunicacao">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <Layers className="h-6 w-6 text-primary" />
-              CMS de Banners
-            </h1>
-            <p className="text-muted-foreground">Gerenciamento de banners e destaques visuais</p>
-          </div>
-          <Button onClick={handleOpenNew} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Novo Banner
-          </Button>
-        </div>
+        <PageHeader
+          migalhas={[{ rotulo: "Comunicação", href: "/comunicacao" }, { rotulo: "Banners" }]}
+          titulo="CMS de banners"
+          descricao="Gerenciamento de banners e destaques visuais"
+          acoes={
+            <Button onClick={handleOpenNew} className="gap-2">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Novo banner
+            </Button>
+          }
+        />
 
-        {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Total</CardDescription>
-              <CardTitle className="text-3xl">{banners.length}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Ativos</CardDescription>
-              <CardTitle className="text-3xl text-green-600">
-                {banners.filter(b => b.ativo).length}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Inativos</CardDescription>
-              <CardTitle className="text-3xl text-muted-foreground">
-                {banners.filter(b => !b.ativo).length}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Posição Hero</CardDescription>
-              <CardTitle className="text-3xl text-primary">
-                {banners.filter(b => b.posicao === "hero").length}
-              </CardTitle>
-            </CardHeader>
-          </Card>
+        {/* Indicadores */}
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+          <KpiCard rotulo="Total" valor={banners.length} icone={Layers} carregando={isLoading} />
+          <KpiCard rotulo="Ativos" valor={banners.filter(b => b.ativo).length} icone={Eye} carregando={isLoading} />
+          <KpiCard rotulo="Inativos" valor={banners.filter(b => !b.ativo).length} icone={EyeOff} carregando={isLoading} />
+          <KpiCard
+            rotulo="Posição hero"
+            valor={banners.filter(b => b.posicao === "hero").length}
+            icone={ImageIcon}
+            carregando={isLoading}
+          />
         </div>
 
         {/* Filtros */}
@@ -228,28 +206,29 @@ export default function CMSBannersPage() {
           <CardContent className="pt-6">
             <div className="flex flex-wrap gap-4">
               <div className="flex-1 min-w-[200px] relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 <Input
                   placeholder="Buscar por título..."
+                  aria-label="Buscar banners por título"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
                   className="pl-10"
                 />
               </div>
               <Select value={filtroDestino} onValueChange={setFiltroDestino}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[180px]" aria-label="Filtrar por destino">
                   <SelectValue placeholder="Destino" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todos">Todos Destinos</SelectItem>
+                  <SelectItem value="todos">Todos os destinos</SelectItem>
                   {Object.entries(DESTINO_LABELS).map(([key, label]) => (
                     <SelectItem key={key} value={key}>{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <Select value={filtroAtivo} onValueChange={setFiltroAtivo}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Status" />
+                <SelectTrigger className="w-[140px]" aria-label="Filtrar por situação">
+                  <SelectValue placeholder="Situação" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
@@ -263,17 +242,35 @@ export default function CMSBannersPage() {
 
         {/* Grid de Banners */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <div className="flex items-center justify-center py-12" role="status">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden="true" />
+            <span className="sr-only">Carregando banners...</span>
           </div>
+        ) : error ? (
+          <Card>
+            <CardContent className="p-0">
+              <EmptyState
+                icone={AlertCircle}
+                titulo="Não foi possível carregar os banners"
+                descricao="Recarregue a página e tente novamente."
+              />
+            </CardContent>
+          </Card>
         ) : bannersFiltrados.length === 0 ? (
           <Card>
-            <CardContent className="text-center py-12">
-              <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Nenhum banner encontrado</p>
-              <Button variant="outline" className="mt-4" onClick={handleOpenNew}>
-                Criar primeiro banner
-              </Button>
+            <CardContent className="p-0">
+              <EmptyState
+                icone={ImageIcon}
+                titulo="Nenhum banner encontrado"
+                descricao={banners.length > 0 ? "Ajuste a busca ou os filtros." : undefined}
+                acao={
+                  banners.length === 0 ? (
+                    <Button variant="outline" onClick={handleOpenNew}>
+                      Criar primeiro banner
+                    </Button>
+                  ) : undefined
+                }
+              />
             </CardContent>
           </Card>
         ) : (
@@ -289,14 +286,14 @@ export default function CMSBannersPage() {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                      <ImageIcon className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
                     </div>
                   )}
                   {/* Overlay com status */}
-                  <div className="absolute top-2 right-2 flex gap-1">
-                    <Badge variant={banner.ativo ? "default" : "secondary"}>
+                  <div className="absolute top-2 right-2 rounded-full bg-background flex gap-1">
+                    <StatusBadge tom={banner.ativo ? "sucesso" : "neutro"}>
                       {banner.ativo ? "Ativo" : "Inativo"}
-                    </Badge>
+                    </StatusBadge>
                   </div>
                   {/* Overlay com posição */}
                   <div className="absolute bottom-2 left-2">
@@ -309,7 +306,7 @@ export default function CMSBannersPage() {
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{banner.titulo}</h3>
+                        <h2 className="text-h3 truncate">{banner.titulo}</h2>
                         {banner.subtitulo && (
                           <p className="text-sm text-muted-foreground truncate">{banner.subtitulo}</p>
                         )}
@@ -321,7 +318,7 @@ export default function CMSBannersPage() {
                       </Badge>
                       {banner.link_url && (
                         <Badge variant="outline" className="text-xs gap-1">
-                          <ExternalLink className="h-3 w-3" />
+                          <ExternalLink className="h-3 w-3" aria-hidden="true" />
                           Link
                         </Badge>
                       )}
@@ -335,32 +332,35 @@ export default function CMSBannersPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
+                          aria-label={`${banner.ativo ? "Desativar" : "Ativar"} banner ${banner.titulo}`}
                           onClick={() => handleToggleAtivo(banner)}
                         >
                           {banner.ativo ? (
-                            <EyeOff className="h-4 w-4" />
+                            <EyeOff className="h-4 w-4" aria-hidden="true" />
                           ) : (
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-4 w-4" aria-hidden="true" />
                           )}
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
+                          aria-label={`Editar banner ${banner.titulo}`}
                           onClick={() => handleEdit(banner)}
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-4 w-4" aria-hidden="true" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive"
+                          aria-label={`Excluir banner ${banner.titulo}`}
                           onClick={() => {
                             setBannerDelete(banner);
                             setDeleteDialogOpen(true);
                           }}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </Button>
                       </div>
                     </div>
@@ -392,7 +392,7 @@ export default function CMSBannersPage() {
                 />
                 {form.imagem_url && (
                   <div className="mt-2 rounded-lg overflow-hidden bg-muted aspect-video max-w-[400px]">
-                    <img src={form.imagem_url} alt="Preview" className="w-full h-full object-cover" />
+                    <img src={form.imagem_url} alt="Pré-visualização do banner" className="w-full h-full object-cover" />
                   </div>
                 )}
               </div>
@@ -423,7 +423,7 @@ export default function CMSBannersPage() {
                 <div className="space-y-2">
                   <Label>Destino</Label>
                   <Select value={form.destino} onValueChange={(v: CMSDestino) => setForm({ ...form, destino: v })}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Destino">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -437,7 +437,7 @@ export default function CMSBannersPage() {
                 <div className="space-y-2">
                   <Label>Posição</Label>
                   <Select value={form.posicao} onValueChange={(v) => setForm({ ...form, posicao: v })}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Posição">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -495,17 +495,19 @@ export default function CMSBannersPage() {
                 <div className="flex items-center gap-6 pt-6">
                   <div className="flex items-center gap-2">
                     <Switch
+                      id="banner_ativo"
                       checked={form.ativo}
                       onCheckedChange={(checked) => setForm({ ...form, ativo: checked })}
                     />
-                    <Label>Ativo</Label>
+                    <Label htmlFor="banner_ativo">Ativo</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <Switch
+                      id="banner_link_externo"
                       checked={form.link_externo}
                       onCheckedChange={(checked) => setForm({ ...form, link_externo: checked })}
                     />
-                    <Label>Link Externo</Label>
+                    <Label htmlFor="banner_link_externo">Link externo</Label>
                   </div>
                 </div>
               </div>
@@ -520,9 +522,9 @@ export default function CMSBannersPage() {
                 disabled={!form.titulo || !form.imagem_url || createBanner.isPending || updateBanner.isPending}
               >
                 {(createBanner.isPending || updateBanner.isPending) && (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
                 )}
-                {bannerEdit ? "Salvar Alterações" : "Criar Banner"}
+                {bannerEdit ? "Salvar alterações" : "Criar banner"}
               </Button>
             </DialogFooter>
           </DialogContent>

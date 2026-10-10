@@ -1,5 +1,5 @@
  import { useState } from 'react';
- import { useParams, useNavigate } from 'react-router-dom';
+ import { Link, useParams, useNavigate } from 'react-router-dom';
  import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
  import { supabase } from '@/integrations/supabase/client';
  import { format, isValid, parseISO } from 'date-fns';
@@ -19,7 +19,7 @@
    XCircle,
    Pencil,
    Trash2,
-   Clock,
+   AlertTriangle,
  } from 'lucide-react';
  
  import { ModuleLayout } from '@/components/layout';
@@ -31,7 +31,7 @@
  
  import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
  import { Button } from '@/components/ui/button';
- import { Badge } from '@/components/ui/badge';
+ import { EmptyState, PageHeader, StatusBadge, type TomStatus } from '@/components/design-system';
  import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
  import { Separator } from '@/components/ui/separator';
  import {
@@ -75,19 +75,17 @@
    created_at: string;
  }
  
- const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
-   em_analise: { label: 'Em Análise', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
-   ativo: { label: 'Ativa', color: 'bg-green-100 text-green-800', icon: CheckCircle },
-   inativo: { label: 'Inativa', color: 'bg-gray-100 text-gray-800', icon: XCircle },
-   rejeitado: { label: 'Rejeitada', color: 'bg-red-100 text-red-800', icon: XCircle },
+ const statusConfig: Record<string, { label: string; tom: TomStatus }> = {
+   em_analise: { label: 'Em análise', tom: 'andamento' },
+   ativo: { label: 'Ativa', tom: 'sucesso' },
+   inativo: { label: 'Inativa', tom: 'neutro' },
+   rejeitado: { label: 'Rejeitada', tom: 'erro' },
  };
  
- const getStatusConfig = (status: string | null | undefined) => {
-   if (!status || !statusConfig[status]) {
-     return { label: 'Desconhecido', color: 'bg-gray-100 text-gray-800', icon: Clock };
-   }
-   return statusConfig[status];
- };
+ const getStatusConfig = (status: string | null | undefined) =>
+   (status ? statusConfig[status] : undefined) ?? { label: status || 'Sem situação', tom: 'neutro' as TomStatus };
+ 
+ const MIGALHA_FEDERACOES = { rotulo: 'Federações', href: '/admin/federacoes' };
  
  export default function FederacaoDetalhePage() {
    const { id } = useParams<{ id: string }>();
@@ -202,11 +200,8 @@
     if (isLoading) {
       return (
         <ModuleLayout module="organizacoes">
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <Skeleton className="h-10 w-24" />
-              <Skeleton className="h-8 w-64" />
-            </div>
+          <div className="space-y-6" aria-busy="true">
+            <PageHeader migalhas={[MIGALHA_FEDERACOES, { rotulo: 'Detalhe' }]} titulo="Carregando federação…" />
             <Skeleton className="h-96 w-full" />
           </div>
         </ModuleLayout>
@@ -216,87 +211,88 @@
     if (isError || !federacao) {
       return (
         <ModuleLayout module="organizacoes">
-          <div className="flex flex-col items-center justify-center py-16">
-            <h2 className="text-xl font-semibold text-foreground mb-2">Federação não encontrada</h2>
-            <p className="text-muted-foreground mb-4">O registro solicitado não existe ou foi removido.</p>
-            <Button onClick={() => navigate('/admin/federacoes')}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar para lista
-            </Button>
+          <div className="space-y-6">
+            <PageHeader migalhas={[MIGALHA_FEDERACOES, { rotulo: 'Detalhe' }]} titulo="Federação" />
+            <EmptyState
+              icone={AlertTriangle}
+              titulo="Federação não encontrada"
+              descricao="O registro solicitado não existe ou foi removido."
+              acao={
+                <Button asChild>
+                  <Link to="/admin/federacoes">
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                    Voltar para lista
+                  </Link>
+                </Button>
+              }
+            />
           </div>
         </ModuleLayout>
       );
     }
  
    const statusInfo = getStatusConfig(federacao.status);
-   const StatusIcon = statusInfo.icon;
  
    return (
       <FederacoesErrorBoundary>
         <ModuleLayout module="organizacoes">
           <div className="space-y-6">
-           {/* Header */}
-           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-             <div className="flex items-center gap-4">
-               <Button variant="ghost" size="sm" onClick={() => navigate('/admin/federacoes')}>
-                 <ArrowLeft className="h-4 w-4 mr-2" />
-                 Voltar
-               </Button>
-               <div>
-                 <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                   <Building2 className="h-6 w-6" />
-                   {federacao.sigla}
-                 </h1>
-                 <p className="text-muted-foreground">{federacao.nome}</p>
-               </div>
-             </div>
-             <div className="flex items-center gap-2">
-               <Badge className={statusInfo.color}>
-                 <StatusIcon className="h-3 w-3 mr-1" />
-                 {statusInfo.label}
-               </Badge>
-               <span className="text-sm text-muted-foreground">
-                 Cadastro: {formatDate(federacao.created_at)}
-               </span>
-             </div>
-           </div>
- 
-           {/* Ações de Status */}
-           <div className="flex flex-wrap gap-2">
-             {federacao.status === 'em_analise' && (
+           <PageHeader
+             migalhas={[MIGALHA_FEDERACOES, { rotulo: federacao.sigla || 'Detalhe' }]}
+             titulo={federacao.sigla || federacao.nome || "Federação"}
+             status={<StatusBadge tom={statusInfo.tom}>{statusInfo.label}</StatusBadge>}
+             descricao={
                <>
-                 <Button onClick={() => handleStatusChange('ativo')}>
-                   <CheckCircle className="h-4 w-4 mr-2" />
-                   Aprovar
+                 <span className="block">{federacao.nome}</span>
+                 <span className="block text-caption">Cadastro: {formatDate(federacao.created_at)}</span>
+               </>
+             }
+             acoes={
+               <>
+                 {federacao.status === 'em_analise' && (
+                   <>
+                     <Button onClick={() => handleStatusChange('ativo')}>
+                       <CheckCircle className="h-4 w-4" aria-hidden="true" />
+                       Aprovar
+                     </Button>
+                     <Button
+                       variant="outline"
+                       className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                       onClick={() => handleStatusChange('rejeitado')}
+                     >
+                       <XCircle className="h-4 w-4" aria-hidden="true" />
+                       Rejeitar
+                     </Button>
+                   </>
+                 )}
+ 
+                 {federacao.status === 'ativo' && (
+                   <Button variant="outline" onClick={() => handleStatusChange('inativo')}>
+                     Inativar federação
+                   </Button>
+                 )}
+ 
+                 {federacao.status === 'inativo' && (
+                   <Button onClick={() => handleStatusChange('ativo')}>
+                     Reativar federação
+                   </Button>
+                 )}
+ 
+                 <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
+                   <Pencil className="h-4 w-4" aria-hidden="true" />
+                   Editar dados
                  </Button>
-                 <Button variant="destructive" onClick={() => handleStatusChange('rejeitado')}>
-                   <XCircle className="h-4 w-4 mr-2" />
-                   Rejeitar
+                 <Button
+                   variant="outline"
+                   className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                   onClick={() => setDeleteDialogOpen(true)}
+                 >
+                   <Trash2 className="h-4 w-4" aria-hidden="true" />
+                   Excluir
                  </Button>
                </>
-             )}
- 
-             {federacao.status === 'ativo' && (
-               <Button variant="outline" onClick={() => handleStatusChange('inativo')}>
-                 Inativar Federação
-               </Button>
-             )}
- 
-             {federacao.status === 'inativo' && (
-               <Button onClick={() => handleStatusChange('ativo')}>
-                 Reativar Federação
-               </Button>
-             )}
- 
-             <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
-               <Pencil className="h-4 w-4 mr-2" />
-               Editar Dados
-             </Button>
-             <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
-               <Trash2 className="h-4 w-4 mr-2" />
-               Excluir
-             </Button>
-           </div>
+             }
+           />
  
            {/* Conteúdo em Tabs */}
            <Tabs defaultValue="dados" className="w-full">
@@ -312,27 +308,27 @@
                  <Card>
                    <CardHeader>
                      <CardTitle className="flex items-center gap-2">
-                       <Building2 className="h-5 w-5" />
-                       Dados da Federação
+                       <Building2 className="h-5 w-5" aria-hidden="true" />
+                       Dados da federação
                      </CardTitle>
                    </CardHeader>
                    <CardContent className="space-y-3 text-sm">
                      {federacao.cnpj && (
                        <div className="flex items-start gap-2">
-                         <Building2 className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                         <Building2 className="h-4 w-4 mt-0.5 text-muted-foreground" aria-hidden="true" />
                          <span>CNPJ: {formatCNPJ(federacao.cnpj)}</span>
                        </div>
                      )}
                      <div className="flex items-start gap-2">
-                       <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                       <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" aria-hidden="true" />
                        <span>Criada em {formatDate(federacao.data_criacao)}</span>
                      </div>
                      <div className="flex items-start gap-2">
-                       <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                       <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground" aria-hidden="true" />
                        <span>{federacao.endereco}</span>
                      </div>
                      <div className="flex items-center gap-2">
-                       <Phone className="h-4 w-4 text-muted-foreground" />
+                       <Phone className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                        {getWhatsappLink(federacao.telefone) ? (
                          <a
                            href={getWhatsappLink(federacao.telefone) as string}
@@ -341,21 +337,21 @@
                            className="text-primary hover:underline flex items-center gap-1"
                          >
                            {federacao.telefone}
-                           <ExternalLink className="h-3 w-3" />
+                           <ExternalLink className="h-3 w-3" aria-hidden="true" />
                          </a>
                        ) : (
                          <span className="text-muted-foreground">Não informado</span>
                        )}
                      </div>
                      <div className="flex items-center gap-2">
-                       <Mail className="h-4 w-4 text-muted-foreground" />
+                       <Mail className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                        <a href={`mailto:${federacao.email}`} className="text-primary hover:underline">
                          {federacao.email}
                        </a>
                      </div>
                      {federacao.instagram && (
                        <div className="flex items-center gap-2">
-                         <Instagram className="h-4 w-4 text-muted-foreground" />
+                         <Instagram className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                          <span>{federacao.instagram}</span>
                        </div>
                      )}
@@ -363,7 +359,7 @@
                      <Separator className="my-4" />
  
                      <div>
-                       <h4 className="font-semibold mb-2">Mandato Atual</h4>
+                       <h4 className="font-semibold mb-2">Mandato atual</h4>
                        <p className="text-sm">
                          {formatDate(federacao.mandato_inicio)} até {formatDate(federacao.mandato_fim)}
                        </p>
@@ -378,7 +374,7 @@
                        <>
                          <Separator className="my-4" />
                          <div>
-                           <h4 className="font-semibold mb-2">Observações Internas</h4>
+                           <h4 className="font-semibold mb-2">Observações internas</h4>
                            <p className="text-muted-foreground">{federacao.observacoes_internas}</p>
                          </div>
                        </>
@@ -390,18 +386,18 @@
                  <Card>
                    <CardHeader>
                      <CardTitle className="flex items-center gap-2">
-                       <User className="h-5 w-5" />
+                       <User className="h-5 w-5" aria-hidden="true" />
                        Presidente
                      </CardTitle>
                    </CardHeader>
                    <CardContent className="space-y-3 text-sm">
                      <div className="font-medium text-base">{federacao.presidente_nome}</div>
                      <div className="flex items-center gap-2">
-                       <Calendar className="h-4 w-4 text-muted-foreground" />
+                       <Calendar className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                        <span>Nascimento: {formatDate(federacao.presidente_nascimento)}</span>
                      </div>
                      <div className="flex items-center gap-2">
-                       <Phone className="h-4 w-4 text-muted-foreground" />
+                       <Phone className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                        {getWhatsappLink(federacao.presidente_telefone) ? (
                          <a
                            href={getWhatsappLink(federacao.presidente_telefone) as string}
@@ -410,27 +406,27 @@
                            className="text-primary hover:underline flex items-center gap-1"
                          >
                            {federacao.presidente_telefone}
-                           <ExternalLink className="h-3 w-3" />
+                           <ExternalLink className="h-3 w-3" aria-hidden="true" />
                          </a>
                        ) : (
                          <span className="text-muted-foreground">Não informado</span>
                        )}
                      </div>
                      <div className="flex items-center gap-2">
-                       <Mail className="h-4 w-4 text-muted-foreground" />
+                       <Mail className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                        <a href={`mailto:${federacao.presidente_email}`} className="text-primary hover:underline">
                          {federacao.presidente_email}
                        </a>
                      </div>
                      {federacao.presidente_endereco && (
                        <div className="flex items-start gap-2">
-                         <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                         <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground" aria-hidden="true" />
                          <span>{federacao.presidente_endereco}</span>
                        </div>
                      )}
                      {federacao.presidente_instagram && (
                        <div className="flex items-center gap-2">
-                         <Instagram className="h-4 w-4 text-muted-foreground" />
+                         <Instagram className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                          <span>{federacao.presidente_instagram}</span>
                        </div>
                      )}
@@ -438,10 +434,10 @@
                      <Separator className="my-4" />
  
                      <div>
-                       <h4 className="font-semibold mb-3">Outros Dirigentes</h4>
+                       <h4 className="font-semibold mb-3">Outros dirigentes</h4>
                        <div className="space-y-4">
                          <div>
-                           <div className="text-sm font-medium">Vice-Presidente</div>
+                           <div className="text-sm font-medium">Vice-presidente</div>
                            <div className="text-sm">{federacao.vice_presidente_nome}</div>
                            {getWhatsappLink(federacao.vice_presidente_telefone) ? (
                              <a
@@ -457,7 +453,7 @@
                            )}
                          </div>
                          <div>
-                           <div className="text-sm font-medium">Diretor Técnico</div>
+                           <div className="text-sm font-medium">Diretor técnico</div>
                            <div className="text-sm">{federacao.diretor_tecnico_nome || 'Não informado'}</div>
                            {getWhatsappLink(federacao.diretor_tecnico_telefone) ? (
                              <a
@@ -499,9 +495,9 @@
              <AlertDialogContent>
                <AlertDialogHeader>
                  <AlertDialogTitle>
-                   {confirmDialog.action === 'ativo' && 'Aprovar Federação'}
-                   {confirmDialog.action === 'rejeitado' && 'Rejeitar Federação'}
-                   {confirmDialog.action === 'inativo' && 'Inativar Federação'}
+                   {confirmDialog.action === 'ativo' && 'Aprovar federação'}
+                   {confirmDialog.action === 'rejeitado' && 'Rejeitar federação'}
+                   {confirmDialog.action === 'inativo' && 'Inativar federação'}
                  </AlertDialogTitle>
                  <AlertDialogDescription>
                    {confirmDialog.action === 'ativo' && 
@@ -516,6 +512,7 @@
                <div className="my-4">
                  <Textarea
                    placeholder="Observações (opcional)"
+                   aria-label="Observações (opcional)"
                    value={observacoes}
                    onChange={(e) => setObservacoes(e.target.value)}
                    rows={3}
@@ -538,7 +535,7 @@
            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
              <AlertDialogContent>
                <AlertDialogHeader>
-                 <AlertDialogTitle>Excluir Federação</AlertDialogTitle>
+                 <AlertDialogTitle>Excluir federação</AlertDialogTitle>
                  <AlertDialogDescription>
                    Tem certeza que deseja excluir a federação <strong>{federacao.sigla}</strong>? 
                    Esta ação não pode ser desfeita.
