@@ -1,8 +1,10 @@
 /**
  * Autoatendimento do servidor: dados do cadastro vinculado ao usuário logado.
  *
- * Somente leitura. A chave é servidores.user_id = auth.uid(); quem não tem
- * cadastro vinculado recebe null (a página orienta a procurar o RH).
+ * Somente leitura. A chave é profiles.servidor_id (user.servidorId no AuthContext),
+ * a mesma da RLS (meu_servidor_id()); servidores.user_id não é gravado por ninguém.
+ * Quem não tem cadastro vinculado não consulta e fica sem dados (a página orienta
+ * a procurar o RH).
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -12,15 +14,16 @@ import type { Servidor } from "@/types/rh";
 
 export function useMeuServidor() {
   const { user } = useAuth();
+  const servidorId = user?.servidorId;
 
   return useQuery({
-    queryKey: ["meu-servidor", user?.id],
-    enabled: !!user?.id,
+    queryKey: ["meu-servidor", servidorId],
+    enabled: !!servidorId,
     queryFn: async (): Promise<Servidor | null> => {
       const { data, error } = await supabase
         .from("servidores")
         .select("*")
-        .eq("user_id", user!.id)
+        .eq("id", servidorId!)
         .maybeSingle();
 
       if (error) throw error;

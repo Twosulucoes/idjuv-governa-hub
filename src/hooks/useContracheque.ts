@@ -49,21 +49,13 @@ interface ItemFichaFinanceira {
 // Hook para buscar contracheques do servidor logado
 export function useMeusContracheques() {
   const { user } = useAuth();
+  // Vínculo pelo profiles.servidor_id, a mesma chave da RLS (meu_servidor_id()).
+  const servidorId = user?.servidorId;
   
   return useQuery({
-    queryKey: ['meus-contracheques', user?.id],
+    queryKey: ['meus-contracheques', servidorId],
     queryFn: async () => {
-      if (!user?.id) return [];
-      
-      // Buscar servidor vinculado ao usuário
-      const { data: servidor, error: servidorError } = await supabase
-        .from('servidores')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      
-      if (servidorError) throw servidorError;
-      if (!servidor) return [];
+      if (!servidorId) return [];
       
       // Buscar fichas financeiras do servidor
       const { data, error } = await supabase
@@ -87,7 +79,7 @@ export function useMeusContracheques() {
           servidor:servidores(id, nome_completo, cpf, matricula, pis_pasep),
           folhas_pagamento!inner(status)
         `)
-        .eq('servidor_id', servidor.id)
+        .eq('servidor_id', servidorId)
         // Só folha fechada vira contracheque: prévia, aberta, em processamento
         // ou reaberta ainda podem mudar e não devem aparecer para o servidor.
         .eq('folhas_pagamento.status', 'fechada')
@@ -97,7 +89,7 @@ export function useMeusContracheques() {
       if (error) throw error;
       return (data || []) as unknown as FichaFinanceiraComServidor[];
     },
-    enabled: !!user?.id,
+    enabled: !!servidorId,
   });
 }
 
@@ -222,22 +214,24 @@ export function useLogAcessoContracheque() {
 // Hook para verificar se usuário é servidor
 export function useServidorLogado() {
   const { user } = useAuth();
+  // Vínculo pelo profiles.servidor_id, a mesma chave da RLS (meu_servidor_id()).
+  const servidorId = user?.servidorId;
   
   return useQuery({
-    queryKey: ['servidor-logado', user?.id],
+    queryKey: ['servidor-logado', servidorId],
     queryFn: async () => {
-      if (!user?.id) return null;
+      if (!servidorId) return null;
       
       const { data, error } = await supabase
         .from('servidores')
         .select('id, nome_completo, cpf, matricula')
-        .eq('user_id', user.id)
+        .eq('id', servidorId)
         .maybeSingle();
       
       if (error) throw error;
       return data;
     },
-    enabled: !!user?.id,
+    enabled: !!servidorId,
   });
 }
 

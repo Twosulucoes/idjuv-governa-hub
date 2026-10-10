@@ -6,7 +6,8 @@
  * rejeitar exige motivo. A RLS hoje só permite UPDATE a quem tem o módulo RH.
  *
  * Quem age: etapa da chefia só com `podeChefia` (rh.aprovar), etapa do RH só com
- * `podeRH` (rh.frequencia.lancar). Ninguém decide sobre a própria solicitação.
+ * `podeRH` (rh.frequencia.lancar). Rejeitar depois do aval da chefia é etapa do RH (o banco
+ * nega a chefia). Ninguém decide sobre a própria solicitação.
  */
 
 import { useState } from "react";
@@ -158,7 +159,7 @@ export function FilaAbonosTable({
                           Aprovar (RH)
                         </Button>
                       )}
-                      {(podeChefia || podeRH) && podeRejeitar(s) && (
+                      {(podeRH || (podeChefia && s.status === "pendente")) && podeRejeitar(s) && (
                         <Button
                           size="sm"
                           variant="ghost"

@@ -117,7 +117,8 @@ export default function NovaDemandaAscomPage() {
   // Carregar dados do servidor logado
   useEffect(() => {
     const fetchServidorLogado = async () => {
-      if (!user?.id) return;
+      // Vínculo pelo profiles.servidor_id, a mesma chave da RLS (meu_servidor_id()).
+      if (!user?.servidorId) return;
       
       const { data: servidor } = await supabase
         .from('servidores')
@@ -130,7 +131,7 @@ export default function NovaDemandaAscomPage() {
           cargo_atual_id,
           cargos:cargo_atual_id (nome)
         `)
-        .eq('user_id', user.id)
+        .eq('id', user.servidorId)
         .single();
       
       if (servidor) {
@@ -155,7 +156,7 @@ export default function NovaDemandaAscomPage() {
       }
     };
     fetchServidorLogado();
-  }, [user?.id, form]);
+  }, [user?.servidorId, form]);
 
   // Carregar unidades
   useEffect(() => {
