@@ -156,7 +156,10 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionCode | PermissionCode[]
   // FINANCEIRO / FOLHA
   // ============================================
   '/folha': 'financeiro.folha.visualizar',
+  '/folha/fichas': 'financeiro.folha.visualizar',
+  '/folha/rubricas': 'financeiro.folha.configurar',
   '/folha/configuracao': 'financeiro.folha.configurar',
+  '/folha/gestao': 'financeiro.folha.visualizar',
   '/folha/:id': 'financeiro.folha.visualizar',
   
   // ============================================
@@ -278,6 +281,9 @@ export const MODULE_PERMISSIONS = {
     'rh.modelos.visualizar',
     'rh.precadastros.visualizar',
     'rh.precadastros.converter',
+    'financeiro.folha.visualizar',
+    'financeiro.folha.processar',
+    'financeiro.folha.configurar',
   ],
   governanca: [
     'governanca.visualizar',
@@ -297,9 +303,6 @@ export const MODULE_PERMISSIONS = {
     'governanca.relatorios.visualizar',
   ],
   financeiro: [
-    'financeiro.folha.visualizar',
-    'financeiro.folha.processar',
-    'financeiro.folha.configurar',
     'financeiro.diarias.visualizar',
     'financeiro.diarias.gerenciar',
     'financeiro.pagamentos.visualizar',
