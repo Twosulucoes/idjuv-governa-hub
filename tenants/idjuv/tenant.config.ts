@@ -182,6 +182,13 @@ export const idjuvConfig: TenantConfig = {
     portalTransparenciaUrl: 'https://transparencia.rr.gov.br',
   },
 
+  // Tabela de diárias: preencha `linhas` com os valores do ato normativo de
+  // diárias da instituição (por categoria de cargo e faixa de destino). Vazia,
+  // a tela de viagens aceita quantidade e valor manuais.
+  rh: {
+    diarias: { linhas: [] },
+  },
+
   // Estado atual: todos os 17 módulos habilitados.
   // O guard por módulo entra na Fase 6 — hoje esta lista é informativa.
   modulos: [

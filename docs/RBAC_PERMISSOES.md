@@ -552,8 +552,8 @@ SELECT has_function_privilege('authenticated', 'public.eh_meu_servidor(uuid)', '
   a quem tem `rh` ou `financeiro` (`supabase/baseline/rls/35_policies_geradas.sql`). Os relatórios
   de férias, licenças, frequência e viagens só leem essas tabelas, sem RPC nem view nova, portanto
   não expõem nada além do que `/rh/ferias`, `/rh/licencas`, `/rh/frequencia` e `/rh/viagens` já
-  mostram. RLS granular por papel dentro do RH continua pendente (Onda B, item 8 de
-  `docs/planejamento/FINALIZACAO.md`).
+  mostram. A B2 (PR #69) passou a escrita dessas tabelas para permissão; a leitura continua pelo
+  módulo.
 - LGPD: os quatro relatórios novos identificam o servidor por nome e matrícula e não selecionam
   CPF, CID/CRM/médico, documento comprobatório, observações de licença nem dados bancários
   (`src/hooks/useRelatoriosRH.ts`, colunas explícitas). Os PDFs antigos de `pdfRelatoriosRH.ts`
@@ -566,6 +566,34 @@ SELECT has_function_privilege('authenticated', 'public.eh_meu_servidor(uuid)', '
   ficha), em `35_policies_geradas.sql`. Nenhuma permissão nova no catálogo. Os três relatórios são
   agregados (sem nome, CPF, PIS ou dados bancários); o relatório nominal de folha ficou fora até
   decisão do usuário, pois exigiria gate próprio e `log_audit` como no contracheque.
+
+### Viagens: edição, cancelamento e exclusão
+
+- `/rh/viagens` (`GestaoViagensPage`) exige `rh.viagens.visualizar` na rota e no item de menu.
+  Dentro da página, criar exige `rh.viagens.criar` ou `rh.viagens.gerenciar`; editar, mudar
+  status e cancelar exigem `rh.viagens.editar` ou `rh.viagens.gerenciar`; o workflow DIRAF,
+  `rh.viagens.gerenciar` ou `financeiro.diarias.gerenciar`; excluir fisicamente só super admin,
+  e só viagem `solicitada` sem nº de SEI e sem portaria (`podeExcluir`,
+  `src/lib/diariasRegras.ts`). As quatro permissões `rh.viagens.*` existem no catálogo
+  (`admin` e `manager` têm todas; `user` só `visualizar`).
+- **No banco, desde a B2 (PR #69):** gravar em `viagens_diarias` exige o módulo `rh` ou
+  `financeiro` **e** `rh.viagens.criar|editar|gerenciar` ou `financeiro.diarias.gerenciar`, nunca na
+  própria viagem; DELETE só o papel admin (ver
+  [a subseção da B2](#férias-licenças-viagens-e-frequência-rls-por-permissão-onda-b--b2)). O banco
+  ainda não separa criar de editar nem confere status e campos: quem tem um dos códigos consegue,
+  pela API, alterar valor/quantidade de viagem concluída, voltar `concluida` para `solicitada` e
+  inserir direto em `concluida`; o admin exclui viagem com SEI e portaria (o front só deixa excluir
+  `solicitada` sem SEI e sem portaria). Não há trigger de bloqueio por status nem CHECK em
+  `tipo_onus`, `data_retorno >= data_saida`, `valor_total` ou valores negativos, e o motivo de
+  cancelamento continua em `observacoes`. Pendência: trigger `BEFORE UPDATE` com as transições de
+  `statusPermitidos` e o bloqueio de valores com DIRAF concluído, os CHECKs acima e a coluna
+  `motivo_cancelamento` — ver `superpowers/specs/2026-10-10-viagens-diarias-design.md`.
+- Usuário com módulo `financeiro` sem `rh` escreve em `viagens_diarias` mas não lê
+  `servidores`/`cargos`. A trilha fica em `audit_logs` (`audit_viagens_diarias`, before/after
+  completos, `user_id = auth.uid()`), legível apenas por admin.
+- A tabela de valores de diária fica no perfil do tenant (`rh.diarias`, ver `WHITE_LABEL.md`),
+  portanto vai no bundle do front; são valores públicos (ato normativo de diárias), sem dado
+  pessoal.
 
 ### Importação de dados
 

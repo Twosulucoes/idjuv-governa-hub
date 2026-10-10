@@ -41,6 +41,16 @@ O maior módulo. Páginas em `src/pages/rh/` (~20), além de `folha/` e `curricu
   consolidados). Regras puras em `src/lib/frequenciaFluxo.ts`; `LancarFaltaDialog`
   bloqueia lançamento em competência `consolidado` ou fechamento consolidado sem reabertura.
 - **Afastamentos**: `GestaoFeriasPage`, `GestaoLicencasPage`, `GestaoViagensPage`.
+  Viagens a serviço (`/rh/viagens`, tabela `viagens_diarias`): criar e editar
+  (`ViagemFormDialog`, campos liberados conforme o status), cancelar com motivo
+  (`CancelarViagemDialog`; o motivo vai para `observacoes`), excluir fisicamente só como super
+  admin em viagem `solicitada` sem SEI/portaria, `Select` de status limitado às transições
+  `solicitada → autorizada → em_andamento → concluida` (cancelar só de solicitada/autorizada) e
+  workflow DIRAF (nº do SEI). Quantidade de diárias contada pelas datas (uma por pernoite + meia
+  no retorno; sem pernoite = meia) e valor unitário sugerido pela tabela de diárias do perfil do
+  tenant (`rh.diarias`, por categoria/nível do cargo e faixa de destino: intermunicipal,
+  interestadual, internacional), com "ajuste manual" justificado; tabela vazia → valor manual.
+  Regras puras em `src/lib/diariasRegras.ts`, dados em `src/hooks/useViagens.ts`.
 - **Portarias**: `CentralPortariasPage`, `PendenciasPortariasPage`,
   `AtribuicaoPortariasPage`.
 - **Contracheques**: `MeuContrachequePage`, `ConsultaContrachequesPage`.
