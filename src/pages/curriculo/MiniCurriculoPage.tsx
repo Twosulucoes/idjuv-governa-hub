@@ -238,7 +238,8 @@ export default function MiniCurriculoPage() {
               </div>
             </div>
             {formData.codigo_acesso && (
-              <Badge variant="secondary" className="text-sm font-mono" aria-label={`Código de acesso ${formData.codigo_acesso}`}>
+              <Badge variant="secondary" className="text-sm font-mono">
+                <span className="sr-only">Código de acesso </span>
                 {formData.codigo_acesso}
               </Badge>
             )}

@@ -214,7 +214,7 @@ export default function PatrimonioPublicoPage() {
       <section className="py-6 bg-muted/30 border-b">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KpiCard rotulo="Total de bens" valor={totalBens} icone={Package} carregando={isLoading} />
+            <KpiCard rotulo="Total de bens" detalhe={filtroSituacao === "todos" ? undefined : "Na situação selecionada"} valor={totalBens} icone={Package} carregando={isLoading} />
             <KpiCard rotulo="Valor total" valor={formatCurrency(valorTotal)} carregando={isLoading} />
           </div>
         </div>
@@ -225,6 +225,7 @@ export default function PatrimonioPublicoPage() {
         <div className="container mx-auto px-4">
           <h2 className="font-serif text-2xl font-bold mb-4">Bens patrimoniais</h2>
           <DataTable
+            key={filtroSituacao}
             rotulo="Bens patrimoniais"
             dados={bensFiltrados}
             colunas={colunas}

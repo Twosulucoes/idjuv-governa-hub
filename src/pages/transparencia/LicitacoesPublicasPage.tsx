@@ -221,6 +221,7 @@ export default function LicitacoesPublicasPage() {
         <div className="container mx-auto px-4">
           <h2 className="font-serif text-2xl font-bold mb-4">Processos licitatórios</h2>
           <DataTable
+            key={`${filtroAno}-${filtroModalidade}`}
             rotulo="Processos licitatórios"
             dados={licitacoes ?? []}
             colunas={colunas}

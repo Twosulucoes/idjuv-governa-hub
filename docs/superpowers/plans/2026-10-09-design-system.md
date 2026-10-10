@@ -137,6 +137,13 @@ Contratos → Financeiro → Folha → RH (depois do PR #35) → Admin → demai
   tenant.
 - PWA de inventário: botões ≥ 44px, estado offline visível, leitura de código em tela cheia.
 
+**Feito (PR da Fase 5):** `SkipLink` no design system e no `MainLayout` (`<main id="conteudo">`); shell
+institucional, transparência (DataTable/StatusBadge/KpiCard), login, acesso negado e denúncias; formulários
+públicos (mini currículo, ASCOM, federação, árbitros, gestores) só na apresentação; notícias, galerias e hotsite
+das Seleções sem cor crua; PWA com faixa offline (`FaixaOffline`), sincronizar ≥ 44px e leitor/câmera em escopo
+`dark`. Fora: serif por tenant, `/selecoes-v1`, prévia do portal, passos do cadastro de árbitros, `ErrorSummary`
+nos formulários públicos (exige mexer na validação) e textos institucionais com nome do cliente (CMS).
+
 ## Riscos
 
 | Risco | Mitigação |

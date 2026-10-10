@@ -50,8 +50,8 @@ export default function ExecucaoOrcamentariaPage() {
   });
 
   // Agregar por exercício (dados agregados, sem identificação pessoal)
-  // Os tipos gerados acusam a coluna `acao` no select (ver relatório); a linha é
-  // tipada à mão como antes, quando era `any`.
+  // PENDÊNCIA: os tipos gerados não conhecem a coluna `acao` usada no select; conferir o
+  // schema de dotacoes_orcamentarias. A linha é tipada à mão, como antes (quando era `any`).
   type LinhaDotacao = { exercicio: number } & Partial<Record<"valor_inicial" | "valor_atualizado" | "valor_empenhado" | "valor_liquidado" | "valor_pago", number | null>>;
   const resumoPorAno = ((dotacoes || []) as unknown as LinhaDotacao[]).reduce((acc: Record<number, ResumoAno>, d) => {
     const ano = d.exercicio;

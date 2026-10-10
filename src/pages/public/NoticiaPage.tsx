@@ -93,13 +93,13 @@ export default function NoticiaPage() {
   // Converter markdown para HTML
   const convertToHtml = (markdown: string): string => {
     return markdown
-      .replace(/^### (.*$)/gim, '<h3 class="text-xl font-semibold mt-6 mb-3">$1</h3>')
-      .replace(/^## (.*$)/gim, '<h2 class="text-2xl font-bold mt-8 mb-4">$1</h2>')
-      // "# " vira h2: a página já tem o h1 (título da notícia)
+      .replace(/^### (.*$)/gim, '<h4 class="text-lg font-semibold mt-6 mb-3">$1</h4>')
+      .replace(/^## (.*$)/gim, '<h3 class="text-xl font-semibold mt-6 mb-3">$1</h3>')
+      // Títulos descem um nível: a página já tem o h1 (título da notícia)
       .replace(/^# (.*$)/gim, '<h2 class="text-3xl font-bold mt-8 mb-4">$1</h2>')
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary underline hover:no-underline" target="_blank" rel="noopener">$1</a>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary underline hover:no-underline" target="_blank" rel="noopener noreferrer">$1</a>')
       .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<figure class="my-6"><img src="$2" alt="$1" class="w-full rounded-lg" /><figcaption class="text-sm text-muted-foreground mt-2 text-center">$1</figcaption></figure>')
       .replace(/^> (.*$)/gim, '<blockquote class="border-l-4 border-primary pl-4 italic text-muted-foreground my-6">$1</blockquote>')
       .replace(/^- (.*$)/gim, '<li class="ml-6 list-disc">$1</li>')
@@ -127,7 +127,7 @@ export default function NoticiaPage() {
       return;
     }
 
-    window.open(shareUrls[platform], "_blank", "width=600,height=400");
+    window.open(shareUrls[platform], "_blank", "width=600,height=400,noopener,noreferrer");
   };
 
   if (isLoading) {

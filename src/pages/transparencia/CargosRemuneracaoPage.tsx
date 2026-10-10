@@ -243,6 +243,7 @@ export default function CargosRemuneracaoPage() {
           </div>
 
           <DataTable
+            key={`${filterDiretoria}-${filterCodigo}-${filterVinculo}`}
             rotulo="Cargos comissionados"
             dados={filteredCargos}
             colunas={colunas}
