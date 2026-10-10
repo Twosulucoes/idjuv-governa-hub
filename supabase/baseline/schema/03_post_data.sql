@@ -3192,6 +3192,13 @@ CREATE INDEX idx_audit_logs_module ON public.audit_logs USING btree (module_name
 
 
 --
+-- Name: idx_audit_logs_sequencia; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_logs_sequencia ON public.audit_logs USING btree (sequencia DESC);
+
+
+--
 -- Name: idx_audit_logs_timestamp; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8025,7 +8032,28 @@ CREATE TRIGGER trigger_validate_processo_sei BEFORE UPDATE ON public.agenda_unid
 -- Name: audit_logs trilha_completar_contexto; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trilha_completar_contexto BEFORE INSERT ON public.audit_logs FOR EACH ROW EXECUTE FUNCTION public.trilha_completar_contexto();
+CREATE TRIGGER trilha_completar_contexto BEFORE INSERT ON public.audit_logs FOR EACH ROW WHEN (((new.transacao IS NULL) OR (new.origem IS NULL))) EXECUTE FUNCTION public.trilha_completar_contexto();
+
+
+--
+-- Name: profiles trilha_contexto_invalidar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trilha_contexto_invalidar AFTER INSERT OR DELETE OR UPDATE OF servidor_id ON public.profiles FOR EACH STATEMENT EXECUTE FUNCTION public.trilha_contexto_invalidar();
+
+
+--
+-- Name: user_org_units trilha_contexto_invalidar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trilha_contexto_invalidar AFTER INSERT OR DELETE OR UPDATE ON public.user_org_units FOR EACH STATEMENT EXECUTE FUNCTION public.trilha_contexto_invalidar();
+
+
+--
+-- Name: user_roles trilha_contexto_invalidar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trilha_contexto_invalidar AFTER INSERT OR DELETE OR UPDATE ON public.user_roles FOR EACH STATEMENT EXECUTE FUNCTION public.trilha_contexto_invalidar();
 
 
 --
@@ -9003,7 +9031,7 @@ CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.documentos_req
 -- Name: eventos_esocial zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.eventos_esocial FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria('+gerado_por:data_geracao');
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.eventos_esocial FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria('+gerado_por:data_geracao', 'enviado_por:data_envio');
 
 
 --
@@ -9038,7 +9066,7 @@ CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.fichas_finance
 -- Name: folhas_pagamento zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.folhas_pagamento FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria('processado_por');
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.folhas_pagamento FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria('processado_por:data_processamento');
 
 
 --
@@ -9199,7 +9227,7 @@ CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.regimes_trabal
 -- Name: registros_ponto zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.registros_ponto FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria('aprovador_id:data_aprovacao');
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.registros_ponto FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria('aprovador_id:data_aprovacao:aprovado');
 
 
 --

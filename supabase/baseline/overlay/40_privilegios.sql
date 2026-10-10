@@ -103,6 +103,8 @@ REVOKE EXECUTE ON FUNCTION public.config_envio_servidor(text) FROM authenticated
 GRANT EXECUTE ON FUNCTION public.config_envio_servidor(text) TO service_role;
 -- trilha e autoria do RH (migração 20261011000000, E1; o dump não leva GRANT/REVOKE): funções de apoio e de trigger
 -- sem EXECUTE para a API; registrar_evento só para authenticated (a guarda no corpo exige usuário ativo)
+REVOKE EXECUTE ON FUNCTION public.trilha_contexto() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.trilha_contexto_invalidar() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.responsavel_atual() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.rh_exige_servidor_vinculado() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.mascarar_parcial(text) FROM PUBLIC, anon, authenticated;

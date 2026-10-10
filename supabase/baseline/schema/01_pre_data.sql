@@ -2596,8 +2596,10 @@ CREATE FUNCTION public.fixar_autoria() RETURNS trigger
     SET search_path TO 'public'
     AS $$
 DECLARE
-  r record;
-  v_informa boolean;
+  c jsonb := public.trilha_contexto();
+  v_uid uuid := (c ->> 'user_id')::uuid;
+  v_informa boolean := c ->> 'origem' = 'sistema';
+  v_renovar text;
   n jsonb;
   o jsonb;
   ov jsonb := '{}'::jsonb;
@@ -2606,10 +2608,9 @@ DECLARE
   v_criacao boolean;
   c_por text;
   c_em text;
+  c_flag text;
 BEGIN
-  SELECT * INTO r FROM public.responsavel_atual();
-  v_informa := r.origem = 'sistema';
-  IF r.origem = 'usuario_sem_vinculo' AND public.rh_exige_servidor_vinculado() THEN
+  IF c ->> 'origem' = 'usuario_sem_vinculo' AND public.rh_exige_servidor_vinculado() THEN
     RAISE EXCEPTION 'Lançamento no RH exige usuário com servidor vinculado ao perfil (%)', TG_TABLE_NAME
       USING ERRCODE = '42501';
   END IF;
@@ -2621,8 +2622,8 @@ BEGIN
         (SELECT p.servidor_id FROM public.profiles p WHERE p.id = NEW.created_by), NEW.created_by_servidor_id);
       NEW.created_at := coalesce(NEW.created_at, now());
     ELSE
-      NEW.created_by := r.user_id;
-      NEW.created_by_servidor_id := r.servidor_id;
+      NEW.created_by := v_uid;
+      NEW.created_by_servidor_id := (c ->> 'servidor_id')::uuid;
       NEW.created_at := now();
     END IF;
     NEW.updated_by := NEW.created_by;
@@ -2641,8 +2642,8 @@ BEGIN
         NEW.updated_by_servidor_id := NULL;
       END IF;
     ELSE
-      NEW.updated_by := r.user_id;
-      NEW.updated_by_servidor_id := r.servidor_id;
+      NEW.updated_by := v_uid;
+      NEW.updated_by_servidor_id := (c ->> 'servidor_id')::uuid;
     END IF;
     NEW.updated_at := now();
   END IF;
@@ -2651,6 +2652,7 @@ BEGIN
   IF TG_NARGS > 0 AND NOT v_informa THEN
     n := to_jsonb(NEW);
     o := CASE WHEN TG_OP = 'UPDATE' THEN to_jsonb(OLD) ELSE '{}'::jsonb END;
+    v_renovar := coalesce(current_setting('trilha.renovar_decisao', true), '');
     FOR i IN 0 .. TG_NARGS - 1 LOOP
       arg := TG_ARGV[i];
       v_criacao := left(arg, 1) = '+';
@@ -2659,30 +2661,38 @@ BEGIN
       END IF;
       c_por := split_part(arg, ':', 1);
       c_em := nullif(split_part(arg, ':', 2), '');
+      c_flag := nullif(split_part(arg, ':', 3), '');
       CONTINUE WHEN NOT (n ? c_por);
       IF c_em IS NOT NULL AND NOT (n ? c_em) THEN
         c_em := NULL;
       END IF;
+      IF c_flag IS NOT NULL AND NOT (n ? c_flag) THEN
+        c_flag := NULL;
+      END IF;
       IF v_criacao THEN
         IF TG_OP = 'INSERT' THEN
-          ov := ov || jsonb_build_object(c_por, r.user_id);
+          ov := ov || jsonb_build_object(c_por, v_uid);
           IF c_em IS NOT NULL THEN ov := ov || jsonb_build_object(c_em, now()); END IF;
         ELSE
           ov := ov || jsonb_build_object(c_por, o -> c_por);
           IF c_em IS NOT NULL THEN ov := ov || jsonb_build_object(c_em, o -> c_em); END IF;
         END IF;
-      ELSIF (n ->> c_por) IS NULL THEN
-        IF c_em IS NOT NULL THEN
-          IF (o ->> c_por) IS NOT NULL THEN
-            ov := ov || jsonb_build_object(c_em, NULL);              -- decisão desfeita
-          ELSIF (n ->> c_em) IS DISTINCT FROM (o ->> c_em) THEN
-            ov := ov || jsonb_build_object(c_em, o -> c_em);         -- data sem autor não muda
-          END IF;
-        END IF;
-      ELSIF (n ->> c_por) IS DISTINCT FROM (o ->> c_por)
-            OR (c_em IS NOT NULL AND (n ->> c_em) IS DISTINCT FROM (o ->> c_em)) THEN
-        ov := ov || jsonb_build_object(c_por, r.user_id);
+      ELSIF v_renovar = TG_TABLE_NAME || '.' || c_por
+            OR (c_flag IS NOT NULL AND (n ->> c_flag) = 'true' AND (o ->> c_flag) IS DISTINCT FROM 'true') THEN
+        ov := ov || jsonb_build_object(c_por, v_uid);                 -- decisão refeita pela RPC ou flag virou true
         IF c_em IS NOT NULL THEN ov := ov || jsonb_build_object(c_em, now()); END IF;
+      ELSIF (n ->> c_por) IS NULL THEN
+        IF (o ->> c_por) IS NOT NULL THEN
+          ov := ov || jsonb_build_object(c_por, o -> c_por);          -- a API não apaga a decisão
+          IF c_em IS NOT NULL THEN ov := ov || jsonb_build_object(c_em, o -> c_em); END IF;
+        ELSIF c_em IS NOT NULL AND (n ->> c_em) IS DISTINCT FROM (o ->> c_em) THEN
+          ov := ov || jsonb_build_object(c_em, coalesce(o -> c_em, 'null'::jsonb));   -- data sem autor não muda
+        END IF;
+      ELSIF (n ->> c_por) IS DISTINCT FROM (o ->> c_por) THEN
+        ov := ov || jsonb_build_object(c_por, v_uid);                 -- nova decisão: de quem age, agora
+        IF c_em IS NOT NULL THEN ov := ov || jsonb_build_object(c_em, now()); END IF;
+      ELSIF c_em IS NOT NULL AND (n ->> c_em) IS DISTINCT FROM (o ->> c_em) THEN
+        ov := ov || jsonb_build_object(c_em, coalesce(o -> c_em, 'null'::jsonb));     -- só a data mudou: volta
       END IF;
     END LOOP;
     IF ov <> '{}'::jsonb THEN
@@ -3452,7 +3462,8 @@ DECLARE
   v_entidade uuid;
   v_chave jsonb;
   v_descricao text;
-  r record;
+  c jsonb;
+  s record;
 BEGIN
   IF TG_OP = 'INSERT' THEN
     v_acao := 'create';
@@ -3481,8 +3492,17 @@ BEGIN
     v_entidade := v_id::uuid;
   END IF;
 
-  v_antes := public.trilha_mascarar(TG_TABLE_NAME, v_antes);
-  v_depois := public.trilha_mascarar(TG_TABLE_NAME, v_depois);
+  -- máscara (mesma regra de trilha_mascarar, numa só leitura do catálogo para antes e depois)
+  FOR s IN SELECT m.coluna, m.tratamento FROM public.audit_colunas_sensiveis m WHERE m.tabela = TG_TABLE_NAME LOOP
+    IF v_antes ? s.coluna AND jsonb_typeof(v_antes -> s.coluna) <> 'null' THEN
+      v_antes := jsonb_set(v_antes, ARRAY[s.coluna], CASE WHEN s.tratamento = 'parcial'
+                   THEN to_jsonb(public.mascarar_parcial(v_antes ->> s.coluna)) ELSE to_jsonb('[protegido]'::text) END);
+    END IF;
+    IF v_depois ? s.coluna AND jsonb_typeof(v_depois -> s.coluna) <> 'null' THEN
+      v_depois := jsonb_set(v_depois, ARRAY[s.coluna], CASE WHEN s.tratamento = 'parcial'
+                   THEN to_jsonb(public.mascarar_parcial(v_depois ->> s.coluna)) ELSE to_jsonb('[protegido]'::text) END);
+    END IF;
+  END LOOP;
 
   IF v_entidade IS NULL THEN
     SELECT jsonb_object_agg(a.attname, coalesce(v_depois, v_antes) -> a.attname) INTO v_chave
@@ -3491,16 +3511,19 @@ BEGIN
      WHERE i.indrelid = TG_RELID AND i.indisprimary;
   END IF;
 
-  SELECT * INTO r FROM public.responsavel_atual();
+  c := public.trilha_contexto();
 
   INSERT INTO public.audit_logs (
     action, entity_type, entity_id, module_name, before_data, after_data, user_id, description, metadata,
-    campos_alterados, origem, servidor_id, servidor_nome, servidor_matricula
+    campos_alterados, origem, servidor_id, servidor_nome, servidor_matricula, role_at_time, org_unit_id,
+    ip_address, user_agent, transacao
   ) VALUES (
-    v_acao::public.audit_action, TG_TABLE_NAME, v_entidade, TG_ARGV[0], v_antes, v_depois, r.user_id, v_descricao,
+    v_acao::public.audit_action, TG_TABLE_NAME, v_entidade, TG_ARGV[0], v_antes, v_depois, (c ->> 'user_id')::uuid,
+    v_descricao,
     jsonb_build_object('trigger', true, 'operation', TG_OP, 'table', TG_TABLE_NAME)
       || CASE WHEN v_chave IS NOT NULL THEN jsonb_build_object('chave', v_chave) ELSE '{}'::jsonb END,
-    v_campos, r.origem, r.servidor_id, r.servidor_nome, r.servidor_matricula
+    v_campos, c ->> 'origem', (c ->> 'servidor_id')::uuid, c ->> 'servidor_nome', c ->> 'servidor_matricula',
+    (c ->> 'papel')::public.app_role, (c ->> 'unidade_id')::uuid, (c ->> 'ip')::inet, c ->> 'agente', txid_current()
   );
 
   RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
@@ -6009,7 +6032,32 @@ DECLARE
   _log_id UUID;
   _user_role app_role;
   _user_org_unit UUID;
+  _meta jsonb;
 BEGIN
+  -- perfil bloqueado/inexistente não grava (a sessão do Auth dele pode continuar válida). Sem usuário
+  -- (service role, ou registrar_denuncia_publica chamada por anon) segue como antes.
+  IF auth.uid() IS NOT NULL AND NOT public.is_active_user() THEN
+    RAISE EXCEPTION 'Usuário inativo' USING ERRCODE = '42501';
+  END IF;
+  IF lower(btrim(coalesce(_module_name, ''))) = 'rh' THEN
+    IF _action::text NOT IN ('view', 'export', 'download') THEN
+      RAISE EXCEPTION 'log_audit: no módulo rh só view, export e download (lançamentos entram pela trilha do banco)'
+        USING ERRCODE = '22023';
+    END IF;
+    IF _before_data IS NOT NULL OR _after_data IS NOT NULL THEN
+      RAISE EXCEPTION 'log_audit: no módulo rh a linha não leva antes/depois' USING ERRCODE = '22023';
+    END IF;
+  END IF;
+  IF length(coalesce(_before_data::text, '')) > 32768 OR length(coalesce(_after_data::text, '')) > 32768
+     OR length(coalesce(_metadata::text, '')) > 32768 THEN
+    RAISE EXCEPTION 'log_audit: antes, depois e metadados têm limite de 32 KB cada' USING ERRCODE = '22023';
+  END IF;
+  _meta := CASE WHEN _metadata IS NULL THEN '{}'::jsonb
+                WHEN jsonb_typeof(_metadata) = 'object' THEN _metadata
+                ELSE jsonb_build_object('valor', _metadata) END;
+  _meta := (_meta - ARRAY['trigger', 'operation', 'table', 'registrar_evento', 'fonte'])
+           || jsonb_build_object('fonte', 'log_audit');
+
   SELECT role INTO _user_role 
   FROM public.user_roles 
   WHERE user_id = auth.uid() 
@@ -6027,7 +6075,7 @@ BEGIN
   )
   VALUES (
     auth.uid(), _action, _entity_type, _entity_id, _module_name,
-    _before_data, _after_data, _description, _metadata,
+    _before_data, _after_data, _description, _meta,
     _user_role, _user_org_unit
   )
   RETURNING id INTO _log_id;
@@ -6059,17 +6107,27 @@ $$;
 --
 
 CREATE FUNCTION public.mascarar_parcial(p_valor text) RETURNS text
-    LANGUAGE sql IMMUTABLE
+    LANGUAGE plpgsql IMMUTABLE
     SET search_path TO 'public'
-    AS $$
-  SELECT CASE
-           WHEN p_valor IS NULL THEN NULL
-           WHEN length(d) = 11 THEN '***.' || substr(d, 4, 3) || '.' || substr(d, 7, 3) || '-**'
-           WHEN length(d) >= 6 THEN '***' || substr(d, 4, length(d) - 5) || '**'
-           ELSE '[protegido]'
-         END
-    FROM (SELECT regexp_replace(p_valor, '\D', '', 'g') AS d) x
-$$;
+    AS $_$
+DECLARE
+  d text;
+BEGIN
+  IF p_valor IS NULL THEN
+    RETURN NULL;
+  END IF;
+  IF p_valor = '[protegido]' OR p_valor ~ '^\*\*\*\.[0-9]{3}\.[0-9]{3}-\*\*$' OR p_valor ~ '^\*\*\*[0-9]*\*\*$' THEN
+    RETURN p_valor;
+  END IF;
+  d := regexp_replace(p_valor, '\D', '', 'g');
+  IF length(d) = 11 THEN
+    RETURN '***.' || substr(d, 4, 3) || '.' || substr(d, 7, 3) || '-**';
+  ELSIF length(d) >= 6 THEN
+    RETURN '***' || substr(d, 4, length(d) - 5) || '**';
+  END IF;
+  RETURN '[protegido]';
+END;
+$_$;
 
 
 --
@@ -6507,6 +6565,7 @@ BEGIN
   END LOOP;
   
   -- Atualizar totais da folha - manter status "aberta" para permitir ajustes
+  PERFORM set_config('trilha.renovar_decisao', 'folhas_pagamento.processado_por', true);
   UPDATE folhas_pagamento
   SET 
     total_bruto = COALESCE((SELECT SUM(total_proventos) FROM fichas_financeiras WHERE folha_id = p_folha_id), 0),
@@ -6521,6 +6580,7 @@ BEGIN
     processado_por = auth.uid(),
     updated_at = now()
   WHERE id = p_folha_id;
+  PERFORM set_config('trilha.renovar_decisao', '', true);
   
   -- Retorno em formato JSONB
   RETURN jsonb_build_object(
@@ -6539,6 +6599,7 @@ EXCEPTION
     -- a pedido de quem NÃO tem permissão.
     RAISE;
   WHEN OTHERS THEN
+  PERFORM set_config('trilha.renovar_decisao', '', true);
   -- Em caso de erro, reverter status
   UPDATE folhas_pagamento SET status = 'aberta', updated_at = now() WHERE id = p_folha_id;
   
@@ -6807,10 +6868,18 @@ BEGIN
   IF p_metadados IS NOT NULL AND (jsonb_typeof(p_metadados) <> 'object' OR length(p_metadados::text) > 4000) THEN
     RAISE EXCEPTION 'registrar_evento: metadados devem ser um objeto JSON de até 4000 caracteres' USING ERRCODE = '22023';
   END IF;
+  IF NOT public.can_access_module(v_uid, 'rh') THEN
+    IF p_entidade <> 'contracheque' OR p_entidade_id IS NULL
+       OR NOT EXISTS (SELECT 1 FROM public.fichas_financeiras f
+                       WHERE f.id = p_entidade_id AND public.eh_meu_servidor(f.servidor_id)) THEN
+      RAISE EXCEPTION 'registrar_evento: sem o módulo rh, só o próprio contracheque' USING ERRCODE = '42501';
+    END IF;
+  END IF;
 
   INSERT INTO public.audit_logs (action, entity_type, entity_id, module_name, user_id, description, metadata)
   VALUES (p_acao::public.audit_action, p_entidade, p_entidade_id, 'rh', v_uid, left(p_descricao, 500),
-          coalesce(p_metadados, '{}'::jsonb) || jsonb_build_object('registrar_evento', true))
+          (coalesce(p_metadados, '{}'::jsonb) - ARRAY['trigger', 'operation', 'table', 'fonte'])
+            || jsonb_build_object('registrar_evento', true, 'fonte', 'registrar_evento'))
   RETURNING id INTO v_id;
   RETURN v_id;
 END;
@@ -7174,22 +7243,19 @@ $$;
 --
 
 CREATE FUNCTION public.responsavel_atual() RETURNS TABLE(user_id uuid, servidor_id uuid, servidor_nome text, servidor_matricula text, origem text)
-    LANGUAGE sql STABLE SECURITY DEFINER
+    LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-  SELECT u.uid,
-         p.servidor_id,
-         s.nome_completo::text,
-         s.matricula::text,
-         CASE
-           WHEN u.uid IS NULL AND coalesce(current_setting('role', true), 'none') IN ('anon', 'authenticated') THEN 'anonimo'
-           WHEN u.uid IS NULL THEN 'sistema'
-           WHEN p.servidor_id IS NULL THEN 'usuario_sem_vinculo'
-           ELSE 'usuario'
-         END
-    FROM (SELECT auth.uid() AS uid) u
-    LEFT JOIN public.profiles p ON p.id = u.uid
-    LEFT JOIN public.servidores s ON s.id = p.servidor_id
+DECLARE
+  c jsonb := public.trilha_contexto();
+BEGIN
+  user_id := (c ->> 'user_id')::uuid;
+  servidor_id := (c ->> 'servidor_id')::uuid;
+  servidor_nome := c ->> 'servidor_nome';
+  servidor_matricula := c ->> 'servidor_matricula';
+  origem := c ->> 'origem';
+  RETURN NEXT;
+END;
 $$;
 
 
@@ -7205,10 +7271,12 @@ COMMENT ON FUNCTION public.responsavel_atual() IS 'Responsável pelo comando atu
 --
 
 CREATE FUNCTION public.rh_exige_servidor_vinculado() RETURNS boolean
-    LANGUAGE sql STABLE
+    LANGUAGE plpgsql STABLE
     SET search_path TO 'public'
     AS $$
-  SELECT false
+BEGIN
+  RETURN false;
+END;
 $$;
 
 
@@ -7654,40 +7722,121 @@ CREATE FUNCTION public.trilha_completar_contexto() RETURNS trigger
     SET search_path TO 'public'
     AS $$
 DECLARE
-  r record;
-  c record;
+  c jsonb := public.trilha_contexto();
+  v_srv uuid;
+  v_nome text;
+  v_mat text;
 BEGIN
-  SELECT * INTO r FROM public.responsavel_atual();
   NEW.transacao := coalesce(NEW.transacao, txid_current());
-  NEW.origem := coalesce(NEW.origem, r.origem);
-  IF NEW.user_id IS NOT NULL AND NEW.servidor_id IS NULL THEN
-    IF NEW.user_id IS NOT DISTINCT FROM r.user_id THEN
-      NEW.servidor_id := r.servidor_id;
-      NEW.servidor_nome := coalesce(NEW.servidor_nome, r.servidor_nome);
-      NEW.servidor_matricula := coalesce(NEW.servidor_matricula, r.servidor_matricula);
+  NEW.origem := coalesce(NEW.origem, c ->> 'origem');
+  IF NEW.user_id IS NOT NULL THEN
+    IF NEW.user_id = (c ->> 'user_id')::uuid THEN
+      IF NEW.servidor_id IS NULL THEN
+        NEW.servidor_id := (c ->> 'servidor_id')::uuid;
+        NEW.servidor_nome := coalesce(NEW.servidor_nome, c ->> 'servidor_nome');
+        NEW.servidor_matricula := coalesce(NEW.servidor_matricula, c ->> 'servidor_matricula');
+      END IF;
+      NEW.role_at_time := coalesce(NEW.role_at_time, (c ->> 'papel')::public.app_role);
+      NEW.org_unit_id := coalesce(NEW.org_unit_id, (c ->> 'unidade_id')::uuid);
     ELSE
-      SELECT p.servidor_id, s.nome_completo::text AS nome, s.matricula::text AS matricula INTO c
-        FROM public.profiles p LEFT JOIN public.servidores s ON s.id = p.servidor_id
-       WHERE p.id = NEW.user_id;
-      NEW.servidor_id := c.servidor_id;
-      NEW.servidor_nome := coalesce(NEW.servidor_nome, c.nome);
-      NEW.servidor_matricula := coalesce(NEW.servidor_matricula, c.matricula);
+      -- outro usuário (ex.: Edge Function que grava em nome do administrador que a chamou)
+      IF NEW.servidor_id IS NULL THEN
+        SELECT p.servidor_id, s.nome_completo::text, s.matricula::text INTO v_srv, v_nome, v_mat
+          FROM public.profiles p LEFT JOIN public.servidores s ON s.id = p.servidor_id
+         WHERE p.id = NEW.user_id;
+        NEW.servidor_id := v_srv;
+        NEW.servidor_nome := coalesce(NEW.servidor_nome, v_nome);
+        NEW.servidor_matricula := coalesce(NEW.servidor_matricula, v_mat);
+      END IF;
+      IF NEW.role_at_time IS NULL THEN
+        SELECT ur.role INTO NEW.role_at_time FROM public.user_roles ur
+         WHERE ur.user_id = NEW.user_id ORDER BY (ur.role = 'admin') DESC LIMIT 1;
+      END IF;
+      IF NEW.org_unit_id IS NULL THEN
+        SELECT uo.unidade_id INTO NEW.org_unit_id FROM public.user_org_units uo
+         WHERE uo.user_id = NEW.user_id AND uo.is_primary = true LIMIT 1;
+      END IF;
     END IF;
   END IF;
-  IF NEW.user_id IS NOT NULL AND NEW.role_at_time IS NULL THEN
-    SELECT ur.role INTO NEW.role_at_time FROM public.user_roles ur
-     WHERE ur.user_id = NEW.user_id ORDER BY (ur.role = 'admin') DESC LIMIT 1;
-  END IF;
-  IF NEW.user_id IS NOT NULL AND NEW.org_unit_id IS NULL THEN
-    SELECT uo.unidade_id INTO NEW.org_unit_id FROM public.user_org_units uo
-     WHERE uo.user_id = NEW.user_id AND uo.is_primary = true LIMIT 1;
-  END IF;
-  IF NEW.ip_address IS NULL OR NEW.user_agent IS NULL THEN
-    SELECT * INTO c FROM public.trilha_contexto_requisicao();
-    NEW.ip_address := coalesce(NEW.ip_address, c.ip);
-    NEW.user_agent := coalesce(NEW.user_agent, c.agente);
-  END IF;
+  NEW.ip_address := coalesce(NEW.ip_address, (c ->> 'ip')::inet);
+  NEW.user_agent := coalesce(NEW.user_agent, c ->> 'agente');
   RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: trilha_contexto(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trilha_contexto() RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_papel_sessao text := coalesce(current_setting('role', true), 'none');
+  v_chave text;
+  v_cache text := current_setting('trilha.contexto', true);
+  v_ctx jsonb;
+  v_srv uuid;
+  v_nome text;
+  v_mat text;
+  v_papel text;
+  v_unid uuid;
+  r record;
+BEGIN
+  v_chave := coalesce(v_uid::text, '-') || '|' || v_papel_sessao || '|'
+             || md5(coalesce(current_setting('request.headers', true), ''));
+  IF v_cache IS NOT NULL AND v_cache <> '' THEN
+    v_ctx := v_cache::jsonb;
+    IF v_ctx ->> 'k' = v_chave THEN
+      RETURN v_ctx;
+    END IF;
+  END IF;
+  IF v_uid IS NOT NULL THEN
+    SELECT p.servidor_id, s.nome_completo::text, s.matricula::text INTO v_srv, v_nome, v_mat
+      FROM public.profiles p LEFT JOIN public.servidores s ON s.id = p.servidor_id
+     WHERE p.id = v_uid;
+    SELECT ur.role::text INTO v_papel FROM public.user_roles ur
+     WHERE ur.user_id = v_uid ORDER BY (ur.role = 'admin') DESC LIMIT 1;
+    SELECT uo.unidade_id INTO v_unid FROM public.user_org_units uo
+     WHERE uo.user_id = v_uid AND uo.is_primary = true LIMIT 1;
+  END IF;
+  SELECT * INTO r FROM public.trilha_contexto_requisicao();
+  v_ctx := jsonb_build_object(
+    'k', v_chave,
+    'user_id', v_uid,
+    'servidor_id', v_srv,
+    'servidor_nome', v_nome,
+    'servidor_matricula', v_mat,
+    'origem', CASE
+                WHEN v_uid IS NULL AND v_papel_sessao IN ('anon', 'authenticated') THEN 'anonimo'
+                WHEN v_uid IS NULL THEN 'sistema'
+                WHEN v_srv IS NULL THEN 'usuario_sem_vinculo'
+                ELSE 'usuario'
+              END,
+    'papel', v_papel,
+    'unidade_id', v_unid,
+    'ip', r.ip::text,
+    'agente', r.agente);
+  PERFORM set_config('trilha.contexto', v_ctx::text, true);
+  RETURN v_ctx;
+END;
+$$;
+
+
+--
+-- Name: trilha_contexto_invalidar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trilha_contexto_invalidar() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  PERFORM set_config('trilha.contexto', '', true);
+  RETURN NULL;
 END;
 $$;
 
@@ -7703,6 +7852,8 @@ CREATE FUNCTION public.trilha_contexto_requisicao(OUT ip inet, OUT agente text) 
 DECLARE
   bruto text := current_setting('request.headers', true);
   h jsonb;
+  v text;
+  itens text[];
 BEGIN
   IF bruto IS NULL OR btrim(bruto) = '' THEN
     RETURN;
@@ -7713,7 +7864,12 @@ BEGIN
       RETURN;
     END IF;
     agente := left(h ->> 'user-agent', 500);
-    ip := nullif(btrim(split_part(coalesce(nullif(h ->> 'x-forwarded-for', ''), h ->> 'x-real-ip', ''), ',', 1)), '')::inet;
+    v := nullif(btrim(h ->> 'x-real-ip'), '');
+    IF v IS NULL THEN
+      itens := string_to_array(h ->> 'x-forwarded-for', ',');
+      v := nullif(btrim(itens[coalesce(array_length(itens, 1), 0)]), '');
+    END IF;
+    ip := v::inet;
   EXCEPTION WHEN OTHERS THEN
     ip := NULL;
   END;
@@ -7735,7 +7891,7 @@ BEGIN
   IF current_setting('trilha.expurgo', true) = 'autorizado' THEN
     RETURN CASE TG_OP WHEN 'DELETE' THEN OLD WHEN 'UPDATE' THEN NEW ELSE NULL END;
   END IF;
-  IF TG_OP = 'DELETE' AND TG_NARGS = 2 THEN
+  IF TG_OP = 'DELETE' AND TG_NARGS = 2 AND (to_jsonb(OLD) ->> TG_ARGV[0]) IS NOT NULL THEN
     EXECUTE format('SELECT EXISTS (SELECT 1 FROM public.%I WHERE id = $1)', TG_ARGV[1])
       INTO v_pai_existe USING (to_jsonb(OLD) ->> TG_ARGV[0])::uuid;
     IF NOT v_pai_existe THEN
@@ -7754,20 +7910,25 @@ $_$;
 --
 
 CREATE FUNCTION public.trilha_mascarar(p_tabela text, p_linha jsonb) RETURNS jsonb
-    LANGUAGE sql STABLE
+    LANGUAGE plpgsql STABLE
     SET search_path TO 'public'
     AS $$
-  SELECT CASE WHEN p_linha IS NULL THEN NULL ELSE
-    p_linha || coalesce((
-      SELECT jsonb_object_agg(s.coluna,
-               CASE
-                 WHEN jsonb_typeof(p_linha -> s.coluna) = 'null' THEN 'null'::jsonb
-                 WHEN s.tratamento = 'parcial' THEN to_jsonb(public.mascarar_parcial(p_linha ->> s.coluna))
-                 ELSE to_jsonb('[protegido]'::text)
-               END)
-        FROM public.audit_colunas_sensiveis s
-       WHERE s.tabela = p_tabela AND p_linha ? s.coluna), '{}'::jsonb)
-  END
+DECLARE
+  s record;
+  v jsonb := p_linha;
+BEGIN
+  IF p_linha IS NULL OR jsonb_typeof(p_linha) <> 'object' THEN
+    RETURN p_linha;
+  END IF;
+  FOR s IN SELECT m.coluna, m.tratamento FROM public.audit_colunas_sensiveis m WHERE m.tabela = p_tabela LOOP
+    IF v ? s.coluna AND jsonb_typeof(v -> s.coluna) <> 'null' THEN
+      v := jsonb_set(v, ARRAY[s.coluna], CASE WHEN s.tratamento = 'parcial'
+                                              THEN to_jsonb(public.mascarar_parcial(v ->> s.coluna))
+                                              ELSE to_jsonb('[protegido]'::text) END);
+    END IF;
+  END LOOP;
+  RETURN v;
+END;
 $$;
 
 
@@ -8852,6 +9013,7 @@ CREATE TABLE public.audit_logs (
     campos_alterados text[],
     origem text,
     transacao bigint,
+    sequencia bigint NOT NULL,
     CONSTRAINT audit_logs_origem_check CHECK (((origem IS NULL) OR (origem = ANY (ARRAY['usuario'::text, 'usuario_sem_vinculo'::text, 'sistema'::text, 'anonimo'::text]))))
 );
 
@@ -8884,6 +9046,27 @@ COMMENT ON COLUMN public.audit_logs.origem IS 'usuario | usuario_sem_vinculo | s
 --
 
 COMMENT ON COLUMN public.audit_logs.transacao IS 'txid_current() do registro: agrupa o que mudou no mesmo comando/transação';
+
+
+--
+-- Name: COLUMN audit_logs.sequencia; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.audit_logs.sequencia IS 'Ordem de gravação na trilha (identity; desempata o "timestamp", que é o da transação)';
+
+
+--
+-- Name: audit_logs_sequencia_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.audit_logs ALTER COLUMN sequencia ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.audit_logs_sequencia_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
 
 
 --
@@ -11780,6 +11963,7 @@ CREATE TABLE public.eventos_esocial (
     sequencia_lote integer,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
+    enviado_por uuid,
     created_by uuid,
     created_by_servidor_id uuid,
     updated_by uuid,

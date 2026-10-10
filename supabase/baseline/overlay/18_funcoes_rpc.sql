@@ -451,6 +451,8 @@ END;
 $function$;
 
 -- M2) log_audit gravava para usuário inativo (a sessão do Auth continua válida depois do bloqueio).
+--     E1 (migração 20261011000000, mesmo texto): no módulo rh só view/export/download sem antes/depois; chaves de
+--     trigger/registrar_evento tiradas dos metadados, que levam fonte = log_audit; antes/depois/metadados até 32 KB.
 CREATE OR REPLACE FUNCTION public.log_audit(_action audit_action, _entity_type character varying DEFAULT NULL::character varying, _entity_id uuid DEFAULT NULL::uuid, _module_name character varying DEFAULT NULL::character varying, _before_data jsonb DEFAULT NULL::jsonb, _after_data jsonb DEFAULT NULL::jsonb, _description text DEFAULT NULL::text, _metadata jsonb DEFAULT '{}'::jsonb)
  RETURNS uuid
  LANGUAGE plpgsql
@@ -461,12 +463,32 @@ DECLARE
   _log_id UUID;
   _user_role app_role;
   _user_org_unit UUID;
+  _meta jsonb;
 BEGIN
   -- perfil bloqueado/inexistente não grava (a sessão do Auth dele pode continuar válida). Sem usuário
   -- (service role, ou registrar_denuncia_publica chamada por anon) segue como antes.
   IF auth.uid() IS NOT NULL AND NOT public.is_active_user() THEN
     RAISE EXCEPTION 'Usuário inativo' USING ERRCODE = '42501';
   END IF;
+  IF lower(btrim(coalesce(_module_name, ''))) = 'rh' THEN
+    IF _action::text NOT IN ('view', 'export', 'download') THEN
+      RAISE EXCEPTION 'log_audit: no módulo rh só view, export e download (lançamentos entram pela trilha do banco)'
+        USING ERRCODE = '22023';
+    END IF;
+    IF _before_data IS NOT NULL OR _after_data IS NOT NULL THEN
+      RAISE EXCEPTION 'log_audit: no módulo rh a linha não leva antes/depois' USING ERRCODE = '22023';
+    END IF;
+  END IF;
+  IF length(coalesce(_before_data::text, '')) > 32768 OR length(coalesce(_after_data::text, '')) > 32768
+     OR length(coalesce(_metadata::text, '')) > 32768 THEN
+    RAISE EXCEPTION 'log_audit: antes, depois e metadados têm limite de 32 KB cada' USING ERRCODE = '22023';
+  END IF;
+  _meta := CASE WHEN _metadata IS NULL THEN '{}'::jsonb
+                WHEN jsonb_typeof(_metadata) = 'object' THEN _metadata
+                ELSE jsonb_build_object('valor', _metadata) END;
+  _meta := (_meta - ARRAY['trigger', 'operation', 'table', 'registrar_evento', 'fonte'])
+           || jsonb_build_object('fonte', 'log_audit');
+
   SELECT role INTO _user_role 
   FROM public.user_roles 
   WHERE user_id = auth.uid() 
@@ -484,7 +506,7 @@ BEGIN
   )
   VALUES (
     auth.uid(), _action, _entity_type, _entity_id, _module_name,
-    _before_data, _after_data, _description, _metadata,
+    _before_data, _after_data, _description, _meta,
     _user_role, _user_org_unit
   )
   RETURNING id INTO _log_id;
