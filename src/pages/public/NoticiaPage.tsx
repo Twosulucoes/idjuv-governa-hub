@@ -28,6 +28,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { SkipLink } from "@/components/design-system";
 
 interface NoticiaCompleta {
   id: string;
@@ -92,12 +93,13 @@ export default function NoticiaPage() {
   // Converter markdown para HTML
   const convertToHtml = (markdown: string): string => {
     return markdown
-      .replace(/^### (.*$)/gim, '<h3 class="text-xl font-semibold mt-6 mb-3">$1</h3>')
-      .replace(/^## (.*$)/gim, '<h2 class="text-2xl font-bold mt-8 mb-4">$1</h2>')
-      .replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold mt-8 mb-4">$1</h1>')
+      .replace(/^### (.*$)/gim, '<h4 class="text-lg font-semibold mt-6 mb-3">$1</h4>')
+      .replace(/^## (.*$)/gim, '<h3 class="text-xl font-semibold mt-6 mb-3">$1</h3>')
+      // Títulos descem um nível: a página já tem o h1 (título da notícia)
+      .replace(/^# (.*$)/gim, '<h2 class="text-3xl font-bold mt-8 mb-4">$1</h2>')
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary underline hover:no-underline" target="_blank" rel="noopener">$1</a>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary underline hover:no-underline" target="_blank" rel="noopener noreferrer">$1</a>')
       .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<figure class="my-6"><img src="$2" alt="$1" class="w-full rounded-lg" /><figcaption class="text-sm text-muted-foreground mt-2 text-center">$1</figcaption></figure>')
       .replace(/^> (.*$)/gim, '<blockquote class="border-l-4 border-primary pl-4 italic text-muted-foreground my-6">$1</blockquote>')
       .replace(/^- (.*$)/gim, '<li class="ml-6 list-disc">$1</li>')
@@ -125,13 +127,16 @@ export default function NoticiaPage() {
       return;
     }
 
-    window.open(shareUrls[platform], "_blank", "width=600,height=400");
+    window.open(shareUrls[platform], "_blank", "width=600,height=400,noopener,noreferrer");
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <>
+      <SkipLink />
+      <main id="conteudo" tabIndex={-1} aria-busy="true" className="min-h-screen bg-background focus:outline-none">
         <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <h1 className="sr-only">Carregando notícia</h1>
           <Skeleton className="h-8 w-32 mb-8" />
           <Skeleton className="aspect-video w-full rounded-lg mb-8" />
           <Skeleton className="h-12 w-3/4 mb-4" />
@@ -142,40 +147,46 @@ export default function NoticiaPage() {
             <Skeleton className="h-4 w-3/4" />
           </div>
         </div>
-      </div>
+      </main>
+      </>
     );
   }
 
   if (error || !noticia) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <>
+      <SkipLink />
+      <main id="conteudo" tabIndex={-1} className="min-h-screen bg-background flex items-center justify-center px-4 focus:outline-none">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Notícia não encontrada</h1>
-          <p className="text-muted-foreground mb-6">
+          <p className="text-base text-muted-foreground mb-6">
             A notícia que você procura não existe ou foi removida.
           </p>
-          <Link to="/noticias-portal">
-            <Button>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar para Notícias
-            </Button>
-          </Link>
+          <Button asChild className="min-h-11">
+            <Link to="/noticias-portal">
+              <ArrowLeft className="h-4 w-4 mr-2" aria-hidden="true" />
+              Voltar para notícias
+            </Link>
+          </Button>
         </div>
-      </div>
+      </main>
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+    <SkipLink />
+    <main id="conteudo" tabIndex={-1} className="min-h-screen bg-background focus:outline-none">
       {/* Breadcrumb */}
       <div className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <nav className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Link to="/" className="hover:text-foreground">Início</Link>
-            <ChevronRight className="h-4 w-4" />
-            <Link to="/noticias-portal" className="hover:text-foreground">Notícias</Link>
-            <ChevronRight className="h-4 w-4" />
-            <span className="text-foreground truncate max-w-[200px]">{noticia.titulo}</span>
+        <div className="container mx-auto px-4 py-1">
+          <nav aria-label="Você está em" className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Link to="/" className="inline-flex min-h-11 items-center hover:text-foreground">Início</Link>
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            <Link to="/noticias-portal" className="inline-flex min-h-11 items-center hover:text-foreground">Notícias</Link>
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            <span aria-current="page" className="text-foreground truncate max-w-[200px]">{noticia.titulo}</span>
           </nav>
         </div>
       </div>
@@ -186,9 +197,9 @@ export default function NoticiaPage() {
           animate={{ opacity: 1, y: 0 }}
         >
           {/* Voltar */}
-          <Link to="/noticias-portal" className="inline-flex items-center text-muted-foreground hover:text-foreground mb-6">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar para Notícias
+          <Link to="/noticias-portal" className="inline-flex min-h-11 items-center text-muted-foreground hover:text-foreground mb-4">
+            <ArrowLeft className="h-4 w-4 mr-2" aria-hidden="true" />
+            Voltar para notícias
           </Link>
 
           {/* Categoria e Tags */}
@@ -216,12 +227,12 @@ export default function NoticiaPage() {
           {/* Metadados */}
           <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
             <span className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
+              <Calendar className="h-4 w-4" aria-hidden="true" />
               {format(new Date(noticia.data_publicacao || noticia.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
             </span>
             {noticia.autor_nome && (
               <span className="flex items-center gap-1">
-                <User className="h-4 w-4" />
+                <User className="h-4 w-4" aria-hidden="true" />
                 {noticia.autor_nome}
               </span>
             )}
@@ -256,43 +267,51 @@ export default function NoticiaPage() {
           <Separator className="my-8" />
 
           {/* Compartilhar */}
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground flex items-center gap-2">
-              <Share2 className="h-4 w-4" />
+          <div className="flex flex-wrap items-center gap-4">
+            <span id="rotulo-compartilhar" className="text-base text-muted-foreground flex items-center gap-2">
+              <Share2 className="h-4 w-4" aria-hidden="true" />
               Compartilhar:
             </span>
-            <div className="flex gap-2">
+            <div role="group" aria-labelledby="rotulo-compartilhar" className="flex gap-2">
               <Button
                 variant="outline"
                 size="icon"
+                className="h-11 w-11"
                 onClick={() => handleShare("facebook")}
                 title="Compartilhar no Facebook"
+                aria-label="Compartilhar no Facebook"
               >
-                <Facebook className="h-4 w-4" />
+                <Facebook className="h-4 w-4" aria-hidden="true" />
               </Button>
               <Button
                 variant="outline"
                 size="icon"
+                className="h-11 w-11"
                 onClick={() => handleShare("twitter")}
                 title="Compartilhar no Twitter"
+                aria-label="Compartilhar no Twitter"
               >
-                <Twitter className="h-4 w-4" />
+                <Twitter className="h-4 w-4" aria-hidden="true" />
               </Button>
               <Button
                 variant="outline"
                 size="icon"
+                className="h-11 w-11"
                 onClick={() => handleShare("linkedin")}
                 title="Compartilhar no LinkedIn"
+                aria-label="Compartilhar no LinkedIn"
               >
-                <Linkedin className="h-4 w-4" />
+                <Linkedin className="h-4 w-4" aria-hidden="true" />
               </Button>
               <Button
                 variant="outline"
                 size="icon"
+                className="h-11 w-11"
                 onClick={() => handleShare("copy")}
                 title="Copiar link"
+                aria-label="Copiar link"
               >
-                <LinkIcon className="h-4 w-4" />
+                <LinkIcon className="h-4 w-4" aria-hidden="true" />
               </Button>
             </div>
           </div>
@@ -311,12 +330,12 @@ export default function NoticiaPage() {
                         {rel.imagem_destaque_url ? (
                           <img
                             src={rel.imagem_destaque_url}
-                            alt={rel.titulo}
+                            alt=""
                             className="w-full h-full object-cover"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <Tag className="h-6 w-6 text-muted-foreground" />
+                            <Tag className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
                           </div>
                         )}
                       </div>
@@ -336,6 +355,7 @@ export default function NoticiaPage() {
           </section>
         )}
       </article>
-    </div>
+    </main>
+    </>
   );
 }

@@ -16,27 +16,27 @@ import { useTenant } from '@/core/tenant';
 const { entidadeSuperiorDark: logoGovernoDark, entidadeSuperiorLight: logoGoverno } = getMarcaAssets();
 
 export function SeletivaHeaderV2() {
-  const { contato } = useTenant();
+  const { contato, entidadeSuperior } = useTenant();
   const instagram = contato?.redesSociais?.instagram;
   const { theme, setTheme } = useTheme();
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-zinc-100/95 dark:bg-zinc-900/95 backdrop-blur-sm border-b border-zinc-300 dark:border-zinc-700 transition-colors">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border transition-colors">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link to="/" className="flex items-center gap-3">
+          <Link to="/" aria-label="Página inicial" className="flex min-h-11 items-center gap-3">
             <Logo variant="light" className="h-8 dark:hidden" />
             <Logo variant="dark" className="h-8 hidden dark:block" />
           </Link>
-          <div className="h-6 w-px bg-zinc-400 dark:bg-zinc-600" />
+          <div aria-hidden="true" className="h-6 w-px bg-border" />
           <img 
             src={logoGoverno} 
-            alt="Governo de Roraima" 
+            alt={entidadeSuperior?.nome ?? ""} 
             className="h-6 object-contain dark:hidden"
           />
           <img 
             src={logoGovernoDark} 
-            alt="Governo de Roraima" 
+            alt={entidadeSuperior?.nome ?? ""} 
             className="h-6 object-contain hidden dark:block"
           />
         </div>
@@ -47,10 +47,10 @@ export function SeletivaHeaderV2() {
             variant="ghost"
             size="icon"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="rounded-full w-9 h-9 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700"
+            className="rounded-full h-11 w-11 bg-muted text-foreground hover:bg-muted/70"
           >
-            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-zinc-700" />
-            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-zinc-300" />
+            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" aria-hidden="true" />
+            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" aria-hidden="true" />
             <span className="sr-only">Alternar tema</span>
           </Button>
 
@@ -59,9 +59,10 @@ export function SeletivaHeaderV2() {
             href={`https://www.instagram.com/${instagram}/`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 rounded-full hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
+            aria-label={`Instagram @${instagram} (abre em nova aba)`}
+            className="flex min-h-11 min-w-11 items-center justify-center gap-2 px-4 py-2 bg-foreground text-background rounded-full hover:bg-foreground/85 transition-colors"
           >
-            <Instagram className="w-4 h-4" />
+            <Instagram className="w-4 h-4" aria-hidden="true" />
             <span className="text-xs font-bold tracking-wider uppercase hidden sm:inline">@{instagram}</span>
           </a>
         </div>

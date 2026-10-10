@@ -51,8 +51,8 @@ export function RevisaoForm({ dados }: Props) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-primary">Revisão do Pré-Cadastro</h3>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-lg font-semibold text-primary">Revisão do Pré-Cadastro</h2>
+        <p className="text-base text-muted-foreground">
           Revise todas as informações antes de enviar.
         </p>
       </div>
@@ -67,9 +67,9 @@ export function RevisaoForm({ dados }: Props) {
                 <p className="text-2xl font-bold">{progressoCampos}%</p>
               </div>
               {progressoCampos === 100 ? (
-                <CheckCircle2 className="h-8 w-8 text-green-500" />
+                <CheckCircle2 className="h-8 w-8 text-success" aria-hidden="true" />
               ) : (
-                <AlertCircle className="h-8 w-8 text-amber-500" />
+                <AlertCircle className="h-8 w-8 text-warning" aria-hidden="true" />
               )}
             </div>
             <div className="w-full bg-muted rounded-full h-2 mt-2">
@@ -89,9 +89,9 @@ export function RevisaoForm({ dados }: Props) {
                 <p className="text-2xl font-bold">{docsMarcados}/{todosDocumentos.length}</p>
               </div>
               {progressoDocs === 100 ? (
-                <CheckCircle2 className="h-8 w-8 text-green-500" />
+                <CheckCircle2 className="h-8 w-8 text-success" aria-hidden="true" />
               ) : (
-                <AlertCircle className="h-8 w-8 text-amber-500" />
+                <AlertCircle className="h-8 w-8 text-warning" aria-hidden="true" />
               )}
             </div>
             <div className="w-full bg-muted rounded-full h-2 mt-2">
@@ -106,15 +106,15 @@ export function RevisaoForm({ dados }: Props) {
 
       {/* Campos não preenchidos */}
       {progressoCampos < 100 && (
-        <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
+        <Card className="border-warning/40 bg-warning/15">
           <CardContent className="p-4">
             <div className="flex items-start gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+              <AlertCircle className="h-5 w-5 text-warning mt-0.5" aria-hidden="true" />
               <div>
-                <p className="font-medium text-amber-800 dark:text-amber-200">
+                <p className="font-medium text-foreground">
                   Campos obrigatórios pendentes:
                 </p>
-                <ul className="text-sm text-amber-700 dark:text-amber-300 mt-1 space-y-1">
+                <ul className="text-base text-foreground mt-1 space-y-1">
                   {camposObrigatorios
                     .filter((c) => !dados[c.campo as keyof PreCadastro])
                     .map((c) => (

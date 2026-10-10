@@ -5,7 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardDescription } from '@/components/ui/card';
+import { SkipLink } from '@/components/design-system';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Mail, Lock, ArrowLeft, KeyRound, CheckCircle, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -322,9 +323,9 @@ const AuthPage: React.FC = () => {
 
   const PasswordToggle = ({ show, onToggle }: { show: boolean; onToggle: () => void }) => (
     <button type="button" onClick={onToggle} aria-pressed={show}
-      className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       aria-label={show ? 'Ocultar senha' : 'Mostrar senha'}>
-      {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      {show ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
     </button>
   );
 
@@ -338,7 +339,11 @@ const AuthPage: React.FC = () => {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <SkipLink />
+        <main id="conteudo" tabIndex={-1} className="focus:outline-none" role="status">
+          <h1 className="sr-only">Carregando</h1>
+          <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+        </main>
       </div>
     );
   }
@@ -347,15 +352,16 @@ const AuthPage: React.FC = () => {
   if (isResetMode) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
-        <div className="w-full max-w-md space-y-6">
+        <SkipLink />
+        <main id="conteudo" tabIndex={-1} className="w-full max-w-md space-y-6 focus:outline-none">
           <div className="text-center space-y-2">
-            <div className="flex justify-center">
+            <div className="flex justify-center" aria-hidden="true">
               <div className="p-3 bg-primary/10 rounded-full">
-                <KeyRound className="h-8 w-8 text-primary" />
+                <KeyRound className="h-8 w-8 text-primary" aria-hidden="true" />
               </div>
             </div>
             <h1 className="text-2xl font-bold">{primeiraSenha ? 'Crie sua senha' : 'Redefinir senha'}</h1>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-base">
               {primeiraSenha ? `Defina a senha do seu acesso ao Sistema de Gestão ${identidade.nomeCurto}` : 'Digite sua nova senha'}
             </p>
           </div>
@@ -364,13 +370,13 @@ const AuthPage: React.FC = () => {
             <CardContent className="pt-6 space-y-4">
               {error && (
                 <Alert variant="destructive" role="alert">
-                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
               {success && (
                 <Alert className="border-primary/50 bg-primary/10 text-primary" role="status">
-                  <CheckCircle className="h-4 w-4" />
+                  <CheckCircle className="h-4 w-4" aria-hidden="true" />
                   <AlertDescription>{success}</AlertDescription>
                 </Alert>
               )}
@@ -389,10 +395,10 @@ const AuthPage: React.FC = () => {
                   <div className="space-y-2">
                     <Label htmlFor="new-password">{primeiraSenha ? 'Senha' : 'Nova senha'}</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                       <Input ref={newPassRef} id="new-password" type={showNewPassword ? 'text' : 'password'}
                         aria-describedby={fieldErrors.newPassword ? 'newPassword-erro' : 'new-password-dica'}
-                        aria-invalid={!!fieldErrors.newPassword} className="pl-10 pr-10"
+                        aria-invalid={!!fieldErrors.newPassword} className="pl-10 pr-12"
                         value={newPasswordForm.password} autoComplete="new-password"
                         onChange={e => { setNewPasswordForm(p => ({ ...p, password: e.target.value })); validateField('newPassword', e.target.value); }} />
                       <PasswordToggle show={showNewPassword} onToggle={() => setShowNewPassword(v => !v)} />
@@ -404,10 +410,10 @@ const AuthPage: React.FC = () => {
                   <div className="space-y-2">
                     <Label htmlFor="confirm-password">Confirme a senha</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                       <Input id="confirm-password" type={showConfirmPassword ? 'text' : 'password'}
                         aria-describedby={fieldErrors.confirmPassword ? 'confirmPassword-erro' : undefined}
-                        aria-invalid={!!fieldErrors.confirmPassword} className="pl-10 pr-10"
+                        aria-invalid={!!fieldErrors.confirmPassword} className="pl-10 pr-12"
                         value={newPasswordForm.confirmPassword} autoComplete="new-password"
                         onChange={e => { setNewPasswordForm(p => ({ ...p, confirmPassword: e.target.value })); validateField('confirmPassword', e.target.value); }} />
                       <PasswordToggle show={showConfirmPassword} onToggle={() => setShowConfirmPassword(v => !v)} />
@@ -416,18 +422,18 @@ const AuthPage: React.FC = () => {
                   </div>
 
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</> : primeiraSenha ? 'Criar senha' : 'Salvar nova senha'}
+                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />Salvando...</> : primeiraSenha ? 'Criar senha' : 'Salvar nova senha'}
                   </Button>
                 </form>
               )}
             </CardContent>
             <CardFooter className="flex justify-center border-t pt-4">
-              <Link to="/auth" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1">
-                <ArrowLeft className="h-4 w-4" /> Voltar para login
+              <Link to="/auth" className="text-sm text-muted-foreground hover:text-primary inline-flex min-h-11 items-center gap-1">
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Voltar para login
               </Link>
             </CardFooter>
           </Card>
-        </div>
+        </main>
       </div>
     );
   }
@@ -437,62 +443,63 @@ const AuthPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
-      <div className="w-full max-w-md space-y-6">
+      <SkipLink />
+      <main id="conteudo" tabIndex={-1} className="w-full max-w-md space-y-6 focus:outline-none">
         {/* Header */}
         <div className="text-center space-y-1">
           <h1 className="text-2xl font-bold text-foreground">Sistema de Gestão {identidade.nomeCurto}</h1>
-          <p className="text-sm text-muted-foreground">Acesse sua conta para continuar</p>
+          <p className="text-base text-muted-foreground">Acesse sua conta para continuar</p>
         </div>
 
         <Card className="shadow-lg">
           {tab === 'forgot' ? (
             <>
               <CardHeader className="text-center pb-2">
-                <div className="flex justify-center mb-2">
+                <div className="flex justify-center mb-2" aria-hidden="true">
                   <div className="p-2 bg-primary/10 rounded-full">
-                    <Mail className="h-6 w-6 text-primary" />
+                    <Mail className="h-6 w-6 text-primary" aria-hidden="true" />
                   </div>
                 </div>
-                <CardTitle>Recuperar Senha</CardTitle>
+                <h2 className="text-h3 leading-tight tracking-tight">Recuperar senha</h2>
                 <CardDescription>Enviaremos um link para o seu email</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {error && <Alert variant="destructive" role="alert"><AlertTriangle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
-                {success && <Alert className="border-primary/50 bg-primary/10 text-primary" role="status"><CheckCircle className="h-4 w-4" /><AlertDescription>{success}</AlertDescription></Alert>}
+                {error && <Alert variant="destructive" role="alert"><AlertTriangle className="h-4 w-4" aria-hidden="true" /><AlertDescription>{error}</AlertDescription></Alert>}
+                {success && <Alert className="border-primary/50 bg-primary/10 text-primary" role="status"><CheckCircle className="h-4 w-4" aria-hidden="true" /><AlertDescription>{success}</AlertDescription></Alert>}
 
                 <form onSubmit={handleForgotPassword} className="space-y-4" noValidate>
                   <div className="space-y-2">
                     <Label htmlFor="forgot-email">Email</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                       <Input ref={forgotRef} id="forgot-email" type="email" placeholder="seu@email.com"
                         className="pl-10" value={forgotEmail} autoComplete="email"
                         onChange={e => setForgotEmail(e.target.value)} required />
                     </div>
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Enviando...</> : 'Enviar Link de Recuperação'}
+                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />Enviando...</> : 'Enviar link de recuperação'}
                   </Button>
                 </form>
               </CardContent>
               <CardFooter className="flex justify-center border-t pt-4">
-                <button onClick={() => { setTab('login'); setError(null); setSuccess(null); setFieldErrors({}); }}
-                  className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1">
-                  <ArrowLeft className="h-4 w-4" /> Voltar para login
+                <button type="button" onClick={() => { setTab('login'); setError(null); setSuccess(null); setFieldErrors({}); }}
+                  className="text-sm text-muted-foreground hover:text-primary inline-flex min-h-11 items-center gap-1">
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Voltar para login
                 </button>
               </CardFooter>
             </>
           ) : (
             <>
               <CardHeader className="text-center pb-2">
-                <CardTitle>Entrar no Sistema</CardTitle>
+                <h2 className="text-h3 leading-tight tracking-tight">Entrar no sistema</h2>
                 <CardDescription>Use suas credenciais de acesso</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {error && <Alert variant="destructive" role="alert" aria-live="assertive"><AlertTriangle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
+                {error && <Alert variant="destructive" role="alert" aria-live="assertive"><AlertTriangle className="h-4 w-4" aria-hidden="true" /><AlertDescription>{error}</AlertDescription></Alert>}
                 {isLockedOut && (
                   <Alert variant="destructive" role="alert">
-                    <Lock className="h-4 w-4" />
+                    <Lock className="h-4 w-4" aria-hidden="true" />
                     <AlertDescription>Bloqueado temporariamente. Tente em {lockoutRemaining}s.</AlertDescription>
                   </Alert>
                 )}
@@ -501,7 +508,7 @@ const AuthPage: React.FC = () => {
                   <div className="space-y-2">
                     <Label htmlFor="login-email">Email</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                       <Input ref={emailRef} id="login-email" type="email" placeholder="seu@email.com"
                         className="pl-10" value={loginForm.email} autoComplete="email" disabled={isLockedOut}
                         aria-invalid={!!fieldErrors.email} aria-describedby={fieldErrors.email ? 'email-erro' : undefined}
@@ -515,14 +522,14 @@ const AuthPage: React.FC = () => {
                     <div className="flex justify-between items-center">
                       <Label htmlFor="login-password">Senha</Label>
                       <button type="button" onClick={() => { setTab('forgot'); setError(null); setFieldErrors({}); }}
-                        className="text-sm text-primary hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                        className="inline-flex min-h-11 items-center text-sm text-primary hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                         Esqueci a senha
                       </button>
                     </div>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                       <Input id="login-password" type={showPassword ? 'text' : 'password'} placeholder="••••••••"
-                        className="pl-10 pr-10" value={loginForm.password} autoComplete="current-password" disabled={isLockedOut}
+                        className="pl-10 pr-12" value={loginForm.password} autoComplete="current-password" disabled={isLockedOut}
                         aria-invalid={!!fieldErrors.password} aria-describedby={fieldErrors.password ? 'password-erro' : undefined}
                         onChange={e => { setLoginForm(p => ({ ...p, password: e.target.value })); validateField('password', e.target.value); }}
                         onBlur={e => validateField('password', e.target.value)} required />
@@ -532,7 +539,7 @@ const AuthPage: React.FC = () => {
                   </div>
 
                   <Button type="submit" className="w-full" disabled={isLoading || isLockedOut} aria-busy={isLoading}>
-                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Entrando...</>
+                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />Entrando...</>
                       : isLockedOut ? `Aguarde ${lockoutRemaining}s`
                       : 'Entrar'}
                   </Button>
@@ -540,18 +547,18 @@ const AuthPage: React.FC = () => {
               </CardContent>
 
               <CardFooter className="flex justify-center border-t pt-4">
-                <Link to="/" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1">
-                  <ArrowLeft className="h-4 w-4" /> Voltar para o início
+                <Link to="/" className="text-sm text-muted-foreground hover:text-primary inline-flex min-h-11 items-center gap-1">
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Voltar para o início
                 </Link>
               </CardFooter>
             </>
           )}
         </Card>
 
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-sm text-muted-foreground">
           Acesso restrito a usuários cadastrados pelo administrador.
         </p>
-      </div>
+      </main>
     </div>
   );
 };

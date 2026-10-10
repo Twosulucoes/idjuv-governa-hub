@@ -30,6 +30,7 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
+import { EmptyState, SkipLink } from "@/components/design-system";
 
 interface NoticiaPublica {
   id: string;
@@ -108,7 +109,9 @@ export default function NoticiasPublicasPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+    <SkipLink />
+    <main id="conteudo" tabIndex={-1} className="min-h-screen bg-background focus:outline-none">
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-primary/10 via-primary/5 to-background py-12 lg:py-20">
         <div className="container mx-auto px-4">
@@ -127,16 +130,18 @@ export default function NoticiasPublicasPage() {
             {/* Barra de busca */}
             <div className="flex flex-col sm:flex-row gap-3 max-w-xl mx-auto">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 <Input
+                  type="search"
+                  aria-label="Buscar notícias"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
                   placeholder="Buscar notícias..."
-                  className="pl-10"
+                  className="h-11 pl-10 text-base"
                 />
               </div>
               <Select value={categoria} onValueChange={setCategoria}>
-                <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectTrigger aria-label="Filtrar por categoria" className="h-11 w-full sm:w-[180px]">
                   <SelectValue placeholder="Categoria" />
                 </SelectTrigger>
                 <SelectContent>
@@ -155,7 +160,7 @@ export default function NoticiasPublicasPage() {
       {noticiasDestaque.length > 0 && (
         <section className="py-12 container mx-auto px-4">
           <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-            <Newspaper className="h-6 w-6 text-primary" />
+            <Newspaper className="h-6 w-6 text-primary" aria-hidden="true" />
             Destaques
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
@@ -177,7 +182,7 @@ export default function NoticiasPublicasPage() {
                         />
                       ) : (
                         <div className="w-full h-full bg-muted flex items-center justify-center">
-                          <Newspaper className="h-12 w-12 text-muted-foreground" />
+                          <Newspaper className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
                         </div>
                       )}
                       {noticia.categoria && (
@@ -191,18 +196,18 @@ export default function NoticiasPublicasPage() {
                         {noticia.titulo}
                       </h3>
                       {noticia.resumo && (
-                        <p className="text-muted-foreground text-sm line-clamp-2 mt-2">
+                        <p className="text-muted-foreground text-base line-clamp-2 mt-2">
                           {noticia.resumo}
                         </p>
                       )}
                       <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
+                          <Calendar className="h-3 w-3" aria-hidden="true" />
                           {format(new Date(noticia.data_publicacao || noticia.created_at), "dd/MM/yyyy", { locale: ptBR })}
                         </span>
                         {noticia.autor_nome && (
                           <span className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
+                            <User className="h-3 w-3" aria-hidden="true" />
                             {noticia.autor_nome}
                           </span>
                         )}
@@ -234,10 +239,11 @@ export default function NoticiasPublicasPage() {
             ))}
           </div>
         ) : noticiasPaginadas.length === 0 ? (
-          <div className="text-center py-12">
-            <Newspaper className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground text-lg">Nenhuma notícia encontrada</p>
-          </div>
+          <EmptyState
+            icone={Newspaper}
+            titulo="Nenhuma notícia encontrada"
+            descricao={busca || categoria !== "todas" ? "Tente outra busca ou escolha outra categoria." : "Ainda não há notícias publicadas."}
+          />
         ) : (
           <motion.div
             variants={containerVariants}
@@ -258,7 +264,7 @@ export default function NoticiasPublicasPage() {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Newspaper className="h-8 w-8 text-muted-foreground" />
+                          <Newspaper className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
                         </div>
                       )}
                     </div>
@@ -274,7 +280,7 @@ export default function NoticiasPublicasPage() {
                         {noticia.titulo}
                       </h3>
                       <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
-                        <Calendar className="h-3 w-3" />
+                        <Calendar className="h-3 w-3" aria-hidden="true" />
                         {format(new Date(noticia.data_publicacao || noticia.created_at), "dd/MM/yyyy", { locale: ptBR })}
                       </div>
                     </CardContent>
@@ -287,9 +293,10 @@ export default function NoticiasPublicasPage() {
 
         {/* Paginação */}
         {totalPaginas > 1 && (
-          <div className="flex justify-center gap-2 mt-8">
+          <nav aria-label="Paginação das notícias" className="flex flex-wrap justify-center gap-2 mt-8">
             <Button
               variant="outline"
+              className="min-h-11"
               onClick={() => setPagina(p => Math.max(1, p - 1))}
               disabled={pagina === 1}
             >
@@ -301,6 +308,9 @@ export default function NoticiasPublicasPage() {
                   key={i}
                   variant={pagina === i + 1 ? "default" : "outline"}
                   size="icon"
+                  className="h-11 w-11"
+                  aria-label={`Página ${i + 1}`}
+                  aria-current={pagina === i + 1 ? "page" : undefined}
                   onClick={() => setPagina(i + 1)}
                 >
                   {i + 1}
@@ -309,14 +319,16 @@ export default function NoticiasPublicasPage() {
             </div>
             <Button
               variant="outline"
+              className="min-h-11"
               onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
               disabled={pagina === totalPaginas}
             >
               Próximo
             </Button>
-          </div>
+          </nav>
         )}
       </section>
-    </div>
+    </main>
+    </>
   );
 }

@@ -10,8 +10,10 @@ import {
   Plus, MoreVertical, Home, Wifi, Camera, MapPin
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SkipLink } from "@/components/design-system/SkipLink";
+import { useIdentidade } from "@/core/tenant";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -19,6 +21,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export default function InstalarAppPage() {
+  const { sigla } = useIdentidade();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -60,14 +63,17 @@ export default function InstalarAppPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/10 to-background">
+      <SkipLink />
       {/* Header */}
       <header className="p-6 text-center">
         <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
-          <Smartphone className="w-10 h-10 text-primary-foreground" />
+          <Smartphone className="w-10 h-10 text-primary-foreground" aria-hidden="true" />
         </div>
-        <h1 className="text-2xl font-bold">IDJUV Inventário</h1>
-        <p className="text-muted-foreground mt-1">Coleta de Bens em Campo</p>
+        <h1 className="text-2xl font-bold">{sigla} Inventário</h1>
+        <p className="text-muted-foreground mt-1">Coleta de bens em campo</p>
       </header>
+
+      <main id="conteudo" tabIndex={-1} className="focus:outline-none">
 
       {/* Status de Instalação */}
       <section className="px-6 mb-6">
@@ -75,11 +81,11 @@ export default function InstalarAppPage() {
           <Card className="border-success bg-success/10">
             <CardContent className="py-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-success flex items-center justify-center">
-                <Check className="w-5 h-5 text-white" />
+                <Check className="w-5 h-5 text-success-foreground" aria-hidden="true" />
               </div>
               <div>
                 <p className="font-medium text-success">App Instalado!</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base text-muted-foreground">
                   Acesse pela sua tela inicial
                 </p>
               </div>
@@ -89,18 +95,18 @@ export default function InstalarAppPage() {
           <Card>
             <CardContent className="py-4">
               <Button onClick={handleInstall} className="w-full h-14 text-lg">
-                <Download className="w-5 h-5 mr-2" />
-                Instalar Aplicativo
+                <Download className="w-5 h-5 mr-2" aria-hidden="true" />
+                Instalar aplicativo
               </Button>
             </CardContent>
           </Card>
         ) : isIOS ? (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Share className="w-5 h-5" />
+              <h2 className="text-lg font-semibold leading-tight tracking-tight flex items-center gap-2">
+                <Share className="w-5 h-5" aria-hidden="true" />
                 Instalar no iPhone/iPad
-              </CardTitle>
+              </h2>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-start gap-3">
@@ -109,8 +115,8 @@ export default function InstalarAppPage() {
                 </div>
                 <div>
                   <p className="font-medium">Toque no botão Compartilhar</p>
-                  <p className="text-sm text-muted-foreground">
-                    <Share className="w-4 h-4 inline" /> na barra do Safari
+                  <p className="text-base text-muted-foreground">
+                    <Share className="w-4 h-4 inline" aria-hidden="true" /> na barra do Safari
                   </p>
                 </div>
               </div>
@@ -120,8 +126,8 @@ export default function InstalarAppPage() {
                 </div>
                 <div>
                   <p className="font-medium">Selecione "Adicionar à Tela Inicial"</p>
-                  <p className="text-sm text-muted-foreground">
-                    <Plus className="w-4 h-4 inline" /> Add to Home Screen
+                  <p className="text-base text-muted-foreground">
+                    <Plus className="w-4 h-4 inline" aria-hidden="true" /> Add to Home Screen
                   </p>
                 </div>
               </div>
@@ -131,7 +137,7 @@ export default function InstalarAppPage() {
                 </div>
                 <div>
                   <p className="font-medium">Confirme a instalação</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     Toque em "Adicionar"
                   </p>
                 </div>
@@ -141,10 +147,10 @@ export default function InstalarAppPage() {
         ) : (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <MoreVertical className="w-5 h-5" />
+              <h2 className="text-lg font-semibold leading-tight tracking-tight flex items-center gap-2">
+                <MoreVertical className="w-5 h-5" aria-hidden="true" />
                 Instalar no Android
-              </CardTitle>
+              </h2>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-start gap-3">
@@ -153,8 +159,8 @@ export default function InstalarAppPage() {
                 </div>
                 <div>
                   <p className="font-medium">Toque no menu do navegador</p>
-                  <p className="text-sm text-muted-foreground">
-                    <MoreVertical className="w-4 h-4 inline" /> (três pontos)
+                  <p className="text-base text-muted-foreground">
+                    <MoreVertical className="w-4 h-4 inline" aria-hidden="true" /> (três pontos)
                   </p>
                 </div>
               </div>
@@ -164,7 +170,7 @@ export default function InstalarAppPage() {
                 </div>
                 <div>
                   <p className="font-medium">Selecione "Instalar aplicativo"</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     Ou "Adicionar à tela inicial"
                   </p>
                 </div>
@@ -180,28 +186,28 @@ export default function InstalarAppPage() {
         <div className="grid grid-cols-2 gap-3">
           <Card>
             <CardContent className="py-4 text-center">
-              <Camera className="w-8 h-8 mx-auto mb-2 text-primary" />
+              <Camera className="w-8 h-8 mx-auto mb-2 text-primary" aria-hidden="true" />
               <p className="text-sm font-medium">Scanner QR</p>
               <p className="text-xs text-muted-foreground">Leia códigos de barras</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="py-4 text-center">
-              <MapPin className="w-8 h-8 mx-auto mb-2 text-primary" />
+              <MapPin className="w-8 h-8 mx-auto mb-2 text-primary" aria-hidden="true" />
               <p className="text-sm font-medium">GPS</p>
               <p className="text-xs text-muted-foreground">Localização do bem</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="py-4 text-center">
-              <Wifi className="w-8 h-8 mx-auto mb-2 text-primary" />
+              <Wifi className="w-8 h-8 mx-auto mb-2 text-primary" aria-hidden="true" />
               <p className="text-sm font-medium">Modo Offline</p>
               <p className="text-xs text-muted-foreground">Funciona sem internet</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="py-4 text-center">
-              <Home className="w-8 h-8 mx-auto mb-2 text-primary" />
+              <Home className="w-8 h-8 mx-auto mb-2 text-primary" aria-hidden="true" />
               <p className="text-sm font-medium">Na Tela Inicial</p>
               <p className="text-xs text-muted-foreground">Acesso rápido</p>
             </CardContent>
@@ -213,16 +219,17 @@ export default function InstalarAppPage() {
       <section className="px-6 pb-8">
         <Button asChild className="w-full h-14 text-lg mb-3">
           <Link to="/patrimonio-mobile">
-            <ArrowRight className="w-5 h-5 mr-2" />
-            Abrir App Patrimônio
+            <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" />
+            Abrir app de patrimônio
           </Link>
         </Button>
-        <Button asChild variant="outline" className="w-full">
+        <Button asChild variant="outline" className="w-full min-h-11">
           <Link to="/inventario">
-            Acessar Sistema Completo
+            Acessar sistema completo
           </Link>
         </Button>
       </section>
+      </main>
     </div>
   );
 }

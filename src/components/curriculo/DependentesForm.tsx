@@ -51,7 +51,7 @@ export function DependentesForm({ dados, onChange }: Props) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-primary">Dependentes</h3>
+        <h2 className="text-lg font-semibold text-primary">Dependentes</h2>
         <p className="text-sm text-muted-foreground">
           Informe os dependentes para fins de dedução de Imposto de Renda (se houver).
         </p>
@@ -61,7 +61,7 @@ export function DependentesForm({ dados, onChange }: Props) {
         {/* Lista de dependentes cadastrados */}
         {dependentes.length > 0 && (
           <div className="space-y-3">
-            <h4 className="font-medium text-sm">Dependentes cadastrados ({dependentes.length})</h4>
+            <h3 className="font-medium text-sm">Dependentes cadastrados ({dependentes.length})</h3>
             {dependentes.map((dep, index) => (
               <Card key={index}>
                 <CardContent className="p-4">
@@ -108,7 +108,7 @@ export function DependentesForm({ dados, onChange }: Props) {
         {/* Formulário para adicionar dependente */}
         <Card className="border-dashed">
           <CardContent className="p-4 space-y-4">
-            <h4 className="font-medium text-sm">Adicionar Dependente</h4>
+            <h3 className="font-medium text-sm">Adicionar Dependente</h3>
 
             <div className="grid gap-4">
               <div className="grid gap-2">
@@ -330,7 +330,7 @@ export function DependentesForm({ dados, onChange }: Props) {
         </Card>
 
         <div className="p-4 bg-muted/50 rounded-lg">
-          <h4 className="font-medium text-sm mb-2">Quem pode ser dependente para IR?</h4>
+          <h3 className="font-medium text-sm mb-2">Quem pode ser dependente para IR?</h3>
           <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
             <li>Cônjuge ou companheiro(a)</li>
             <li>Filhos ou enteados até 21 anos (ou até 24 anos se universitário)</li>

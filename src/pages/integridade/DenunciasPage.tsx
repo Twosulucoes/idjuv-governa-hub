@@ -5,7 +5,7 @@ import {
   FileText, CheckCircle2, Info
 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -111,20 +111,20 @@ export default function DenunciasPage() {
       {/* Cabeçalho */}
       <section className="bg-warning text-warning-foreground py-12">
         <div className="container mx-auto px-4">
-          <nav aria-label="Trilha de navegação" className="flex items-center gap-3 text-sm mb-4 opacity-80">
-            <Link to="/" className="hover:underline">Início</Link>
+          <nav aria-label="Trilha de navegação" className="flex items-center gap-3 text-sm mb-4 opacity-90">
+            <Link to="/" className="inline-flex min-h-11 items-center hover:underline">Início</Link>
             <span aria-hidden="true">/</span>
-            <Link to="/integridade" className="hover:underline">Integridade</Link>
+            <Link to="/integridade" className="inline-flex min-h-11 items-center hover:underline">Integridade</Link>
             <span aria-hidden="true">/</span>
-            <span aria-current="page">Canal de Denúncias</span>
+            <span aria-current="page">Canal de denúncias</span>
           </nav>
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center">
+            <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center" aria-hidden="true">
               <AlertTriangle className="w-8 h-8 text-primary-foreground" aria-hidden="true" />
             </div>
             <div>
               <h1 className="font-serif text-3xl lg:text-4xl font-bold">Canal de Denúncias</h1>
-              <p className="opacity-90 mt-1">
+              <p className="text-base opacity-90 mt-1">
                 Comunicação segura e confidencial de irregularidades
               </p>
             </div>
@@ -141,8 +141,8 @@ export default function DenunciasPage() {
               <Card className="text-center">
                 <CardContent className="pt-6">
                   <Shield className="w-10 h-10 text-success mx-auto mb-3" aria-hidden="true" />
-                  <h3 className="font-semibold mb-1">Sigilo Garantido</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <h2 className="text-base font-semibold mb-1">Sigilo garantido</h2>
+                  <p className="text-base text-muted-foreground">
                     Proteção total da identidade do denunciante
                   </p>
                 </CardContent>
@@ -150,8 +150,8 @@ export default function DenunciasPage() {
               <Card className="text-center">
                 <CardContent className="pt-6">
                   <Lock className="w-10 h-10 text-info mx-auto mb-3" aria-hidden="true" />
-                  <h3 className="font-semibold mb-1">Denúncia Anônima</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <h2 className="text-base font-semibold mb-1">Denúncia anônima</h2>
+                  <p className="text-base text-muted-foreground">
                     Opção de não identificação disponível
                   </p>
                 </CardContent>
@@ -159,8 +159,8 @@ export default function DenunciasPage() {
               <Card className="text-center">
                 <CardContent className="pt-6">
                   <FileText className="w-10 h-10 text-primary mx-auto mb-3" aria-hidden="true" />
-                  <h3 className="font-semibold mb-1">Conformidade LGPD</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <h2 className="text-base font-semibold mb-1">Conformidade com a LGPD</h2>
+                  <p className="text-base text-muted-foreground">
                     Tratamento conforme Lei de Proteção de Dados
                   </p>
                 </CardContent>
@@ -172,8 +172,8 @@ export default function DenunciasPage() {
             {/* Formulário */}
             <Card>
               <CardHeader>
-                <CardTitle>Formulário de Denúncia</CardTitle>
-                <CardDescription>
+                <h2 className="text-h3 leading-tight tracking-tight">Formulário de denúncia</h2>
+                <CardDescription className="text-base">
                   Relate a irregularidade com o máximo de detalhes possível
                 </CardDescription>
               </CardHeader>
@@ -181,21 +181,22 @@ export default function DenunciasPage() {
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Identificação */}
                   <div className="space-y-4">
-                    <Label className="text-base font-semibold">Identificação</Label>
+                    <h3 id="denuncia-identificacao" className="text-base font-semibold">Identificação</h3>
                     <RadioGroup 
+                      aria-labelledby="denuncia-identificacao"
                       value={isAnonimo ? "anonimo" : "identificado"}
                       onValueChange={(v) => setIsAnonimo(v === "anonimo")}
                     >
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="anonimo" id="anonimo" />
-                        <Label htmlFor="anonimo" className="flex items-center gap-2 cursor-pointer">
+                        <Label htmlFor="anonimo" className="flex min-h-11 items-center gap-2 text-base cursor-pointer">
                           <EyeOff className="w-4 h-4" aria-hidden="true" />
                           Denúncia anônima
                         </Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="identificado" id="identificado" />
-                        <Label htmlFor="identificado" className="flex items-center gap-2 cursor-pointer">
+                        <Label htmlFor="identificado" className="flex min-h-11 items-center gap-2 text-base cursor-pointer">
                           <Eye className="w-4 h-4" aria-hidden="true" />
                           Desejo me identificar
                         </Label>
@@ -228,13 +229,13 @@ export default function DenunciasPage() {
 
                   {/* Tipo de Denúncia */}
                   <div className="space-y-4">
-                    <Label className="text-base font-semibold">Tipo de Denúncia *</Label>
-                    <RadioGroup value={tipoDenuncia} onValueChange={setTipoDenuncia}>
+                    <h3 id="denuncia-tipo" className="text-base font-semibold">Tipo de denúncia *</h3>
+                    <RadioGroup aria-labelledby="denuncia-tipo" aria-required="true" value={tipoDenuncia} onValueChange={setTipoDenuncia}>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         {tiposDenuncia.map((tipo) => (
                           <div key={tipo.id} className="flex items-center space-x-2">
                             <RadioGroupItem value={tipo.id} id={tipo.id} />
-                            <Label htmlFor={tipo.id} className="cursor-pointer">{tipo.label}</Label>
+                            <Label htmlFor={tipo.id} className="flex min-h-11 items-center text-base cursor-pointer">{tipo.label}</Label>
                           </div>
                         ))}
                       </div>
@@ -305,7 +306,7 @@ export default function DenunciasPage() {
                     <div className="flex items-start gap-3">
                       <Info className="w-5 h-5 text-info flex-shrink-0 mt-0.5" aria-hidden="true" />
                       <div className="space-y-3">
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-base text-muted-foreground">
                           Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), 
                           informamos que os dados pessoais eventualmente fornecidos serão tratados 
                           exclusivamente para fins de apuração da denúncia, sendo garantido o sigilo 
@@ -317,7 +318,7 @@ export default function DenunciasPage() {
                             checked={aceitaLGPD}
                             onCheckedChange={(checked) => setAceitaLGPD(checked === true)}
                           />
-                          <Label htmlFor="lgpd" className="text-sm cursor-pointer">
+                          <Label htmlFor="lgpd" className="flex min-h-11 items-center text-base cursor-pointer">
                             Li e aceito os termos de tratamento de dados *
                           </Label>
                         </div>
@@ -343,7 +344,7 @@ export default function DenunciasPage() {
                       ) : (
                         <>
                           <Send className="w-4 h-4 mr-2" aria-hidden="true" />
-                          Enviar Denúncia
+                          Enviar denúncia
                         </>
                       )}
                     </Button>

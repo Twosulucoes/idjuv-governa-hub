@@ -15,7 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
+import { badgeVariants } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -26,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CameraCapture } from "@/components/mobile/CameraCapture";
+import { FaixaOffline } from "@/components/mobile/FaixaOffline";
 import { useCampanhasInventario } from "@/hooks/usePatrimonio";
 import { useAtualizarSituacaoUnidade, useUnidadesCampanha } from "@/hooks/useVistoriaInventario";
 import { useFilaFotosVistoria } from "@/hooks/useFilaFotosVistoria";
@@ -97,19 +99,24 @@ export function VistoriaUnidade({ onVoltar }: VistoriaUnidadeProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="text-primary-foreground hover:bg-primary-foreground/20 shrink-0"
+            className="text-primary-foreground hover:bg-primary-foreground/20 shrink-0 min-h-11 min-w-11"
             onClick={voltar}
+            aria-label="Voltar"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5" aria-hidden="true" />
           </Button>
           <h1 className="font-semibold truncate">{titulo}</h1>
         </div>
         {fila.online ? (
-          <Wifi className="w-5 h-5 text-primary-foreground/80 shrink-0" />
+          <Wifi className="w-5 h-5 text-primary-foreground/80 shrink-0" aria-hidden="true" />
         ) : (
-          <WifiOff className="w-5 h-5 text-destructive shrink-0" />
+          <WifiOff className="w-5 h-5 text-primary-foreground shrink-0" aria-hidden="true" />
         )}
       </header>
+      <FaixaOffline
+        online={fila.online}
+        mensagem="Sem conexão. As fotos ficam salvas no aparelho e são enviadas quando a internet voltar."
+      />
 
       <main className="flex-1 p-4 space-y-3 pb-32">
         {fila.erroAmbiente && (
@@ -131,8 +138,8 @@ export function VistoriaUnidade({ onVoltar }: VistoriaUnidadeProps) {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">Apagar essas fotos do aparelho? Não há como desfazer.</span>
                   <Button
-                    size="sm"
                     variant="destructive"
+                    className="min-h-11"
                     onClick={() => {
                       setConfirmandoDescarte(false);
                       void fila.descartarFotosOutroUsuario();
@@ -140,12 +147,12 @@ export function VistoriaUnidade({ onVoltar }: VistoriaUnidadeProps) {
                   >
                     Sim, apagar
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setConfirmandoDescarte(false)}>
+                  <Button variant="outline" className="min-h-11" onClick={() => setConfirmandoDescarte(false)}>
                     Cancelar
                   </Button>
                 </div>
               ) : (
-                <Button size="sm" variant="outline" onClick={() => setConfirmandoDescarte(true)}>
+                <Button variant="outline" className="min-h-11" onClick={() => setConfirmandoDescarte(true)}>
                   Descartar fotos de outro usuário
                 </Button>
               )}
@@ -156,7 +163,7 @@ export function VistoriaUnidade({ onVoltar }: VistoriaUnidadeProps) {
         {/* 1. Campanha */}
         {!campanhaId && (
           <>
-            <p className="text-center text-muted-foreground text-sm">Selecione a campanha</p>
+            <p className="text-center text-muted-foreground text-base">Selecione a campanha</p>
             {carregandoCampanhas ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -168,21 +175,22 @@ export function VistoriaUnidade({ onVoltar }: VistoriaUnidadeProps) {
               </Alert>
             ) : (
               campanhasAtivas.map((c) => (
-                <Card
+                <button
+                  type="button"
                   key={c.id}
-                  className="cursor-pointer hover:border-primary transition-colors"
+                  className="w-full min-h-11 rounded-lg border bg-card text-card-foreground text-left shadow-sm hover:border-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   onClick={() => setCampanhaId(c.id)}
                 >
-                  <CardContent className="p-4 flex items-center gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium">{c.nome}</p>
-                      <p className="text-sm text-muted-foreground">
+                  <span className="p-4 flex items-center gap-4">
+                    <span className="flex-1 min-w-0">
+                      <span className="block font-medium">{c.nome}</span>
+                      <span className="block text-sm text-muted-foreground">
                         {c.status === "em_andamento" ? "Em andamento" : "Planejada"}
-                      </p>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                  </CardContent>
-                </Card>
+                      </span>
+                    </span>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
+                  </span>
+                </button>
               ))
             )}
           </>
@@ -192,8 +200,9 @@ export function VistoriaUnidade({ onVoltar }: VistoriaUnidadeProps) {
         {campanhaId && !unidadeAtual && (
           <>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <Input
+                aria-label="Buscar unidade ou município"
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 placeholder="Buscar unidade ou município"
@@ -218,29 +227,31 @@ export function VistoriaUnidade({ onVoltar }: VistoriaUnidadeProps) {
                 const cfg = SITUACAO_UNIDADE_CONFIG[u.situacao] ?? SITUACAO_UNIDADE_CONFIG.a_visitar;
                 const pendentes = fila.pendentesDaUnidade(u.campanha_id, u.unidade_local_id);
                 return (
-                  <Card
+                  <button
+                    type="button"
                     key={u.id}
-                    className="cursor-pointer hover:border-primary transition-colors"
+                    className="w-full min-h-11 rounded-lg border bg-card text-card-foreground text-left shadow-sm hover:border-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     onClick={() => setUnidadeCampanhaId(u.id)}
                   >
-                    <CardContent className="p-4 flex items-center gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium">{u.unidade?.nome_unidade || "Unidade"}</p>
-                        <p className="text-sm text-muted-foreground truncate">{u.unidade?.municipio || "-"}</p>
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          <Badge variant="outline" className={`${cfg.badge} border-0 text-xs`}>
+                    <span className="p-4 flex items-center gap-3">
+                      <span className="flex-1 min-w-0">
+                        <span className="block font-medium">{u.unidade?.nome_unidade || "Unidade"}</span>
+                        <span className="block text-sm text-muted-foreground truncate">{u.unidade?.municipio || "-"}</span>
+                        <span className="mt-1 flex flex-wrap gap-1">
+                          {/* span com o estilo do Badge: o Badge renderiza div, inválido dentro de <button> */}
+                          <span className={cn(badgeVariants({ variant: "outline" }), cfg.badge, "border-0 text-xs")}>
                             {cfg.label}
-                          </Badge>
+                          </span>
                           {pendentes > 0 && (
-                            <Badge variant="outline" className="gap-1 text-xs">
-                              <CloudOff className="h-3 w-3" /> {pendentes} a enviar
-                            </Badge>
+                            <span className={cn(badgeVariants({ variant: "outline" }), "gap-1 text-xs")}>
+                              <CloudOff className="h-3 w-3" aria-hidden="true" /> {pendentes} a enviar
+                            </span>
                           )}
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
-                    </CardContent>
-                  </Card>
+                        </span>
+                      </span>
+                      <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" aria-hidden="true" />
+                    </span>
+                  </button>
                 );
               })
             )}
@@ -359,8 +370,8 @@ function TelaUnidade({ unidadeCampanha, online, pendentes, adicionarFoto, bloque
             <p className="font-medium flex items-center gap-2">
               <MapPin className="w-4 h-4" /> GPS
             </p>
-            <Button variant="outline" size="sm" onClick={gps.atualizar} disabled={gps.carregando}>
-              {gps.carregando ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            <Button variant="outline" className="min-h-11" onClick={gps.atualizar} disabled={gps.carregando}>
+              {gps.carregando ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <RefreshCw className="w-4 h-4" aria-hidden="true" />}
               <span className="ml-2">Atualizar</span>
             </Button>
           </div>

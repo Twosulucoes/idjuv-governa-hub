@@ -18,7 +18,7 @@ export function EnderecoForm({ dados, onChange }: Props) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-primary">Endereço</h3>
+        <h2 className="text-lg font-semibold text-primary">Endereço</h2>
         <p className="text-sm text-muted-foreground">
           Informe seu endereço residencial completo.
         </p>

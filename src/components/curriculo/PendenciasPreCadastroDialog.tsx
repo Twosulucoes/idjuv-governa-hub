@@ -282,7 +282,7 @@ export function PendenciasPreCadastroDialog({
               }}
               className="gap-2"
             >
-              <Printer className="h-4 w-4" />
+              <Printer className="h-4 w-4" aria-hidden="true" />
               Imprimir Relatório
             </Button>
           </div>
@@ -293,10 +293,10 @@ export function PendenciasPreCadastroDialog({
 
         {/* Filtro de incompletos */}
         <div className="flex items-center gap-3 bg-muted/50 p-3 rounded-lg">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Filtrar:</span>
+          <Filter className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          <span id="filtro-pendencias-rotulo" className="text-sm font-medium">Filtrar:</span>
           <Select value={filtroIncompleto} onValueChange={(v) => setFiltroIncompleto(v as FiltroIncompleto)}>
-            <SelectTrigger className="w-[220px]">
+            <SelectTrigger className="w-[220px]" aria-labelledby="filtro-pendencias-rotulo">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -339,12 +339,12 @@ export function PendenciasPreCadastroDialog({
             </CardContent>
           </Card>
 
-          <Card className="border-orange-500/30 bg-orange-500/5">
+          <Card className="border-warning/30 bg-warning/5">
             <CardContent className="p-3">
               <div className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-orange-500" />
+                <Building2 className="h-5 w-5 text-warning" />
                 <div>
-                  <p className="text-xl font-bold text-orange-600">
+                  <p className="text-xl font-bold text-warning">
                     {stats.comPendenciaBancaria}
                   </p>
                   <p className="text-xs text-muted-foreground">Bancária</p>
@@ -353,12 +353,12 @@ export function PendenciasPreCadastroDialog({
             </CardContent>
           </Card>
 
-          <Card className="border-blue-500/30 bg-blue-500/5">
+          <Card className="border-info/30 bg-info/5">
             <CardContent className="p-3">
               <div className="flex items-center gap-2">
-                <GraduationCap className="h-5 w-5 text-blue-500" />
+                <GraduationCap className="h-5 w-5 text-info" />
                 <div>
-                  <p className="text-xl font-bold text-blue-600">
+                  <p className="text-xl font-bold text-info">
                     {stats.comPendenciaOpcional}
                   </p>
                   <p className="text-xs text-muted-foreground">Opcionais</p>
@@ -367,12 +367,12 @@ export function PendenciasPreCadastroDialog({
             </CardContent>
           </Card>
 
-          <Card className="border-green-500/30 bg-green-500/5">
+          <Card className="border-success/30 bg-success/5">
             <CardContent className="p-3">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <CheckCircle2 className="h-5 w-5 text-success" />
                 <div>
-                  <p className="text-xl font-bold text-green-600">
+                  <p className="text-xl font-bold text-success">
                     {stats.completos}
                   </p>
                   <p className="text-xs text-muted-foreground">Completos</p>
@@ -390,19 +390,19 @@ export function PendenciasPreCadastroDialog({
               eSocial ({stats.comPendenciaEsocial})
             </TabsTrigger>
             <TabsTrigger value="bancaria" className="text-xs">
-              <Building2 className="h-3 w-3 mr-1 text-orange-500" />
+              <Building2 className="h-3 w-3 mr-1 text-warning" />
               Bancária ({stats.comPendenciaBancaria})
             </TabsTrigger>
             <TabsTrigger value="pessoal" className="text-xs">
-              <User className="h-3 w-3 mr-1 text-purple-500" />
+              <User className="h-3 w-3 mr-1 text-primary" />
               Pessoal ({stats.comPendenciaPessoal})
             </TabsTrigger>
             <TabsTrigger value="opcional" className="text-xs">
-              <GraduationCap className="h-3 w-3 mr-1 text-blue-500" />
+              <GraduationCap className="h-3 w-3 mr-1 text-info" />
               Opcionais ({stats.comPendenciaOpcional})
             </TabsTrigger>
             <TabsTrigger value="completos" className="text-xs">
-              <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
+              <CheckCircle2 className="h-3 w-3 mr-1 text-success" />
               Completos ({stats.completos})
             </TabsTrigger>
           </TabsList>
@@ -480,12 +480,12 @@ function TabelaPendencias({
       <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
         {tipo === "completos" ? (
           <>
-            <CheckCircle2 className="h-12 w-12 mb-3 text-green-500" />
+            <CheckCircle2 className="h-12 w-12 mb-3 text-success" />
             <p>Nenhum pré-cadastro com dados obrigatórios completos</p>
           </>
         ) : (
           <>
-            <CheckCircle2 className="h-12 w-12 mb-3 text-green-500" />
+            <CheckCircle2 className="h-12 w-12 mb-3 text-success" />
             <p>Nenhuma pendência encontrada nesta categoria</p>
           </>
         )}
@@ -498,11 +498,11 @@ function TabelaPendencias({
       case "esocial":
         return "bg-destructive/10 text-destructive border-destructive/30";
       case "bancaria":
-        return "bg-orange-500/10 text-orange-600 border-orange-500/30";
+        return "bg-warning/10 text-warning border-warning/30";
       case "pessoal":
-        return "bg-purple-500/10 text-purple-600 border-purple-500/30";
+        return "bg-primary/10 text-primary border-primary/30";
       case "opcional":
-        return "bg-blue-500/10 text-blue-600 border-blue-500/30";
+        return "bg-info/10 text-info border-info/30";
       default:
         return "";
     }
@@ -550,7 +550,7 @@ function TabelaPendencias({
                 {tipo === "completos" ? (
                   <Badge
                     variant="outline"
-                    className="bg-green-500/10 text-green-600 border-green-500/30"
+                    className="bg-success/10 text-success border-success/30"
                   >
                     <CheckCircle2 className="h-3 w-3 mr-1" />
                     Dados obrigatórios completos
@@ -580,8 +580,9 @@ function TabelaPendencias({
                   size="icon"
                   onClick={() => onVerDetalhes(preCadastro)}
                   title="Ver detalhes"
+                  aria-label={`Ver detalhes de ${preCadastro.nome_completo}`}
                 >
-                  <Eye className="h-4 w-4" />
+                  <Eye className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </TableCell>
             </TableRow>

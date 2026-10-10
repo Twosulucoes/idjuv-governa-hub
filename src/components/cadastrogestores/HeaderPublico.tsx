@@ -1,10 +1,10 @@
 /**
  * Header Institucional para páginas públicas do módulo de Cadastro de Gestores
- * Segue o padrão visual do projeto com logos do Governo RR e IDJuv
+ * Segue o padrão visual do projeto com logos da entidade superior e do órgão (perfil do tenant)
  */
 
 import { Link } from 'react-router-dom';
-import { useLogoOrgao } from '@/core/tenant';
+import { useIdentidade, useLogoOrgao, useTenant } from '@/core/tenant';
 
 import { getMarcaAssets } from '@/core/tenant';
 
@@ -21,25 +21,28 @@ export function HeaderPublico({
   subtitulo = "Jogos Escolares de Roraima - JER's 2026"
 }: HeaderPublicoProps) {
   const logoIdjuv = useLogoOrgao();
+  const { nomeOficial, sigla } = useIdentidade();
+  const { entidadeSuperior } = useTenant();
+  const nomeEntidadeSuperior = entidadeSuperior?.nome ?? '';
 
   return (
     <header className="bg-primary text-primary-foreground">
       {/* Linha dourada superior */}
-      <div className="h-1 bg-[#B4914B]" />
+      <div className="h-1 bg-highlight" aria-hidden="true" />
       
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between gap-4">
           {/* Logo Governo (esquerda) */}
-          <Link to="/" className="flex-shrink-0">
-            <div className="bg-white/95 rounded-lg p-1.5">
+          <Link to="/" className="flex-shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground" aria-label="Ir para a página inicial">
+            <div className="bg-background/95 rounded-lg p-1.5">
               <img
                 src={logoGoverno}
-                alt="Governo do Estado de Roraima"
+                alt={nomeEntidadeSuperior}
                 className="h-10 md:h-12 w-auto object-contain dark:hidden"
               />
               <img
                 src={logoGovernoDark}
-                alt="Governo do Estado de Roraima"
+                alt={nomeEntidadeSuperior}
                 className="h-10 md:h-12 w-auto object-contain hidden dark:block"
               />
             </div>
@@ -47,20 +50,22 @@ export function HeaderPublico({
 
           {/* Textos Centrais */}
           <div className="flex-1 text-center hidden sm:block">
-            <p className="font-bold text-sm md:text-base text-white">
-              GOVERNO DO ESTADO DE RORAIMA
-            </p>
-            <p className="text-xs md:text-sm text-white/90">
-              Instituto de Desporto, Juventude e Lazer
+            {nomeEntidadeSuperior && (
+              <p className="font-bold text-sm md:text-base text-primary-foreground uppercase">
+                {nomeEntidadeSuperior}
+              </p>
+            )}
+            <p className="text-xs md:text-sm text-primary-foreground/90">
+              {nomeOficial}
             </p>
           </div>
 
-          {/* Logo IDJuv (direita) */}
-          <Link to="/" className="flex-shrink-0">
-            <div className="bg-white/95 rounded-lg p-1.5">
+          {/* Logo do órgão (direita) */}
+          <Link to="/" className="flex-shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground" aria-label={`${sigla} — página inicial`}>
+            <div className="bg-background/95 rounded-lg p-1.5">
               <img
                 src={logoIdjuv}
-                alt="IDJuv"
+                alt={sigla}
                 className="h-10 md:h-12 w-auto object-contain"
               />
             </div>
@@ -68,11 +73,11 @@ export function HeaderPublico({
         </div>
 
         {/* Título da página */}
-        <div className="text-center mt-4 pt-4 border-t border-white/20">
-          <h1 className="font-bold text-lg md:text-xl text-white">
+        <div className="text-center mt-4 pt-4 border-t border-primary-foreground/20">
+          <h1 className="font-bold text-lg md:text-xl text-primary-foreground">
             {titulo}
           </h1>
-          <p className="text-sm text-white/80 mt-1">
+          <p className="text-base text-primary-foreground/80 mt-1">
             {subtitulo}
           </p>
         </div>

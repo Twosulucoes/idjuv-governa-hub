@@ -193,7 +193,7 @@ export function SeletivaRegulamentoV2() {
   }, [emblaApi, onSelect]);
 
   return (
-    <section className="py-20 px-4 bg-zinc-100 dark:bg-zinc-900 transition-colors overflow-hidden">
+    <section className="py-20 px-4 bg-muted/50 transition-colors overflow-hidden">
       <div className="container mx-auto max-w-6xl">
         {/* Header */}
         <motion.div
@@ -202,16 +202,16 @@ export function SeletivaRegulamentoV2() {
           viewport={{ once: true }}
           className="text-center mb-12"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 dark:bg-zinc-100 rounded-full mb-6">
-            <FileText className="w-4 h-4 text-white dark:text-zinc-900" />
-            <span className="text-xs font-bold tracking-[0.2em] uppercase text-white dark:text-zinc-900">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-foreground rounded-full mb-6">
+            <FileText className="w-4 h-4 text-background" aria-hidden="true" />
+            <span className="text-xs font-bold tracking-[0.2em] uppercase text-background">
               Documento Oficial
             </span>
           </div>
-          <h2 className="text-3xl md:text-4xl font-black tracking-[0.15em] uppercase text-zinc-900 dark:text-zinc-100 mb-3">
+          <h2 className="text-3xl md:text-4xl font-black tracking-[0.15em] uppercase text-foreground mb-3">
             {regulamentoCompleto.titulo}
           </h2>
-          <p className="text-lg tracking-[0.1em] uppercase text-zinc-500 dark:text-zinc-400">
+          <p className="text-lg tracking-[0.1em] uppercase text-muted-foreground">
             {regulamentoCompleto.subtitulo}
           </p>
         </motion.div>
@@ -228,18 +228,20 @@ export function SeletivaRegulamentoV2() {
             variant="outline"
             size="icon"
             onClick={scrollPrev}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 hidden md:flex w-12 h-12 rounded-full bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 shadow-lg hover:scale-110 transition-transform -translate-x-6"
+            aria-label="Seção anterior"
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 hidden md:flex w-12 h-12 rounded-full bg-card border-border shadow-lg hover:scale-110 transition-transform -translate-x-6"
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="w-6 h-6" aria-hidden="true" />
           </Button>
           
           <Button
             variant="outline"
             size="icon"
             onClick={scrollNext}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 hidden md:flex w-12 h-12 rounded-full bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 shadow-lg hover:scale-110 transition-transform translate-x-6"
+            aria-label="Próxima seção"
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 hidden md:flex w-12 h-12 rounded-full bg-card border-border shadow-lg hover:scale-110 transition-transform translate-x-6"
           >
-            <ChevronRight className="w-6 h-6" />
+            <ChevronRight className="w-6 h-6" aria-hidden="true" />
           </Button>
 
           {/* Embla Viewport */}
@@ -260,23 +262,23 @@ export function SeletivaRegulamentoV2() {
                         opacity: isActive ? 1 : 0.5,
                       }}
                       transition={{ duration: 0.3 }}
-                      className="bg-white dark:bg-zinc-800 rounded-2xl md:rounded-3xl p-5 md:p-8 shadow-xl h-full min-h-[340px] md:min-h-[360px] flex flex-col overflow-hidden"
+                      className="bg-card rounded-2xl md:rounded-3xl p-5 md:p-8 shadow-xl h-full min-h-[340px] md:min-h-[360px] flex flex-col overflow-hidden"
                     >
                       {/* Header do Card */}
                       <div className="flex items-start gap-3 md:gap-4 mb-4 md:mb-6">
-                        <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center shadow-lg flex-shrink-0">
-                          <span className="text-lg md:text-xl font-black text-white dark:text-zinc-900">
+                        <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-foreground flex items-center justify-center shadow-lg flex-shrink-0">
+                          <span className="text-lg md:text-xl font-black text-background">
                             {secao.numero}
                           </span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <IconComponent className="w-4 h-4 text-zinc-500 dark:text-zinc-400 flex-shrink-0" />
-                            <span className="text-[10px] md:text-xs font-bold tracking-[0.1em] uppercase text-zinc-500 dark:text-zinc-400">
+                            <IconComponent className="w-4 h-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+                            <span className="text-xs font-bold tracking-[0.1em] uppercase text-muted-foreground">
                               Seção {secao.numero}
                             </span>
                           </div>
-                          <h3 className="text-base md:text-xl font-black tracking-[0.05em] md:tracking-[0.1em] uppercase text-zinc-900 dark:text-zinc-100 leading-tight">
+                          <h3 className="text-base md:text-xl font-black tracking-[0.05em] md:tracking-[0.1em] uppercase text-foreground leading-tight">
                             {secao.titulo}
                           </h3>
                         </div>
@@ -285,13 +287,13 @@ export function SeletivaRegulamentoV2() {
                       {/* Conteúdo */}
                       <div className="flex-1 overflow-y-auto">
                         {secao.destaque && (
-                          <p className="text-sm md:text-base font-bold text-zinc-900 dark:text-zinc-100 mb-2 px-3 py-2 bg-zinc-100 dark:bg-zinc-700 rounded-lg">
+                          <p className="text-base font-bold text-foreground mb-2 px-3 py-2 bg-muted rounded-lg">
                             {secao.destaque}
                           </p>
                         )}
 
                         {secao.conteudo && (
-                          <p className="text-sm md:text-base text-zinc-600 dark:text-zinc-300 leading-relaxed mb-3">
+                          <p className="text-base text-muted-foreground leading-relaxed mb-3">
                             {secao.conteudo}
                           </p>
                         )}
@@ -300,8 +302,8 @@ export function SeletivaRegulamentoV2() {
                           <ul className="space-y-1.5 md:space-y-2">
                             {secao.lista.map((item, i) => (
                               <li key={i} className="flex items-start gap-2 md:gap-3">
-                                <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-zinc-900 dark:bg-zinc-100 mt-1.5 md:mt-2 flex-shrink-0" />
-                                <span className="text-xs md:text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed">{item}</span>
+                                <span aria-hidden="true" className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-foreground mt-1.5 md:mt-2 flex-shrink-0" />
+                                <span className="text-base text-muted-foreground leading-relaxed">{item}</span>
                               </li>
                             ))}
                           </ul>
@@ -309,19 +311,19 @@ export function SeletivaRegulamentoV2() {
                       </div>
 
                       {/* Footer com indicador de progresso */}
-                      <div className="mt-4 pt-3 md:pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                      <div className="mt-4 pt-3 md:pt-4 border-t border-border">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] md:text-xs font-bold tracking-[0.1em] uppercase text-zinc-400 dark:text-zinc-500">
+                          <span className="text-xs font-bold tracking-[0.1em] uppercase text-muted-foreground">
                             {index + 1} de {regulamentoCompleto.secoes.length}
                           </span>
-                          <div className="flex gap-0.5 md:gap-1">
+                          <div aria-hidden="true" className="flex gap-0.5 md:gap-1">
                             {regulamentoCompleto.secoes.map((_, i) => (
                               <div
                                 key={i}
                                 className={`h-1 rounded-full transition-all duration-300 ${
                                   i === index 
-                                    ? "w-4 md:w-6 bg-zinc-900 dark:bg-zinc-100" 
-                                    : "w-1 bg-zinc-300 dark:bg-zinc-600"
+                                    ? "w-4 md:w-6 bg-foreground" 
+                                    : "w-1 bg-muted-foreground/40"
                                 }`}
                               />
                             ))}
@@ -341,33 +343,42 @@ export function SeletivaRegulamentoV2() {
               variant="outline"
               size="icon"
               onClick={scrollPrev}
+              aria-label="Seção anterior"
               className="w-12 h-12 rounded-full"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-5 h-5" aria-hidden="true" />
             </Button>
             <Button
               variant="outline"
               size="icon"
               onClick={scrollNext}
+              aria-label="Próxima seção"
               className="w-12 h-12 rounded-full"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-5 h-5" aria-hidden="true" />
             </Button>
           </div>
 
           {/* Dots Indicator */}
-          <div className="flex justify-center gap-2 mt-8">
+          <div className="flex flex-wrap justify-center mt-6">
             {regulamentoCompleto.secoes.map((_, index) => (
               <button
+                type="button"
                 key={index}
                 onClick={() => scrollTo(index)}
-                className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                  index === selectedIndex 
-                    ? "bg-zinc-900 dark:bg-zinc-100 scale-125" 
-                    : "bg-zinc-300 dark:bg-zinc-600 hover:bg-zinc-400 dark:hover:bg-zinc-500"
-                }`}
+                className="group flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label={`Ir para seção ${index + 1}`}
-              />
+                aria-current={index === selectedIndex ? "true" : undefined}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                    index === selectedIndex 
+                      ? "bg-foreground scale-125" 
+                      : "bg-muted-foreground/40 group-hover:bg-muted-foreground/70"
+                  }`}
+                />
+              </button>
             ))}
           </div>
         </motion.div>
@@ -380,33 +391,35 @@ export function SeletivaRegulamentoV2() {
           transition={{ delay: 0.3 }}
           className="mt-12"
         >
-          <div className="bg-zinc-900 dark:bg-zinc-100 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="bg-foreground rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-zinc-800 dark:bg-zinc-200 flex items-center justify-center">
-                <FileText className="w-8 h-8 text-zinc-300 dark:text-zinc-600" />
+              <div aria-hidden="true" className="w-16 h-16 rounded-2xl bg-background/10 flex items-center justify-center">
+                <FileText className="w-8 h-8 text-background/80" />
               </div>
               <div>
-                <p className="text-xs tracking-[0.2em] uppercase text-zinc-400 dark:text-zinc-500 mb-1">
+                <p className="text-xs tracking-[0.2em] uppercase text-background/75 mb-1">
                   Download Disponível
                 </p>
-                <p className="text-lg font-bold tracking-wide text-white dark:text-zinc-900">
+                <p className="text-lg font-bold tracking-wide text-background">
                   Regulamento Nº 001/2026 – IDJUV
                 </p>
-                <p className="text-sm text-zinc-400 dark:text-zinc-500">
+                <p className="text-base text-background/75">
                   Seletiva da Seleção Coletiva • PDF Oficial
                 </p>
               </div>
             </div>
 
-            <a href={REGULAMENTO_PDF_URL} target="_blank" rel="noopener noreferrer" download>
-              <Button 
-                size="lg" 
-                className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full px-8 font-bold tracking-wide shadow-lg"
-              >
-                <Download className="mr-2 w-5 h-5" />
+            <Button 
+              asChild
+              size="lg" 
+              className="min-h-11 bg-background text-foreground hover:bg-background/85 rounded-full px-8 font-bold tracking-wide shadow-lg"
+            >
+              <a href={REGULAMENTO_PDF_URL} target="_blank" rel="noopener noreferrer" download>
+                <Download className="mr-2 w-5 h-5" aria-hidden="true" />
                 BAIXAR PDF
-              </Button>
-            </a>
+                <span className="sr-only"> do regulamento</span>
+              </a>
+            </Button>
           </div>
         </motion.div>
 
@@ -415,7 +428,7 @@ export function SeletivaRegulamentoV2() {
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          className="text-center text-sm text-zinc-500 dark:text-zinc-500 mt-8"
+          className="text-center text-base text-muted-foreground mt-8"
         >
           Este regulamento pode sofrer alterações. Consulte sempre a versão mais atualizada em idjuv.online/selecoes
         </motion.p>

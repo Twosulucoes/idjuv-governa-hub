@@ -32,13 +32,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Logo } from "@/components/ui/Logo";
+import { SkipLink } from "@/components/design-system";
+import { useIdentidade } from "@/core/tenant";
 
 import {
   CategoriaDemandasAscom,
@@ -75,6 +77,7 @@ type SolicitacaoFormData = z.infer<typeof solicitacaoSchema>;
 
 export default function SolicitacaoPublicaAscomPage() {
   const navigate = useNavigate();
+  const { nomeOficial, sigla } = useIdentidade();
   const { user, isLoading: carregandoAuth } = useAuth();
   const [arquivosParaUpload, setArquivosParaUpload] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -269,17 +272,19 @@ export default function SolicitacaoPublicaAscomPage() {
   // Tela de sucesso
   if (protocoloGerado) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
+        <SkipLink />
+        <main id="conteudo" tabIndex={-1} className="min-h-screen flex items-center justify-center p-4 focus:outline-none">
         <Card className="max-w-lg w-full">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 p-4 rounded-full bg-emerald-100 dark:bg-emerald-900/30 w-fit">
-              <CheckCircle2 className="h-12 w-12 text-emerald-600 dark:text-emerald-400" />
+            <div className="mx-auto mb-4 p-4 rounded-full bg-success/15 w-fit">
+              <CheckCircle2 className="h-12 w-12 text-success" aria-hidden="true" />
             </div>
-            <CardTitle className="text-2xl text-emerald-700 dark:text-emerald-400">
-              Solicitação Enviada!
-            </CardTitle>
+            <h1 className="text-2xl font-semibold leading-tight tracking-tight text-success">
+              Solicitação enviada!
+            </h1>
             <CardDescription className="text-base mt-2">
-              Sua demanda foi registrada com sucesso na ASCOM do IDJuv
+              Sua demanda foi registrada com sucesso na ASCOM do {sigla}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -289,7 +294,7 @@ export default function SolicitacaoPublicaAscomPage() {
             </div>
 
             <Alert>
-              <AlertCircle className="h-4 w-4" />
+              <AlertCircle className="h-4 w-4" aria-hidden="true" />
               <AlertTitle>Guarde este número!</AlertTitle>
               <AlertDescription>
                 Use o protocolo acima para acompanhar o andamento da sua solicitação.
@@ -302,7 +307,7 @@ export default function SolicitacaoPublicaAscomPage() {
                 className="w-full"
                 onClick={() => navigate(`/ascom/consultar?protocolo=${protocoloGerado}`)}
               >
-                Consultar Andamento
+                Consultar andamento
               </Button>
               <Button 
                 variant="outline" 
@@ -313,48 +318,50 @@ export default function SolicitacaoPublicaAscomPage() {
                   setArquivosParaUpload([]);
                 }}
               >
-                Nova Solicitação
+                Nova solicitação
               </Button>
               <Button 
                 variant="ghost" 
                 className="w-full"
                 onClick={() => navigate('/')}
               >
-                Voltar ao Site
+                Voltar ao site
               </Button>
             </div>
           </CardContent>
         </Card>
+        </main>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
+      <SkipLink />
       {/* Header */}
       <header className="bg-background border-b sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Logo className="h-10 w-auto" />
             <div>
-              <h1 className="font-semibold text-lg">IDJuv - ASCOM</h1>
+              <p className="font-semibold text-lg">{sigla} - ASCOM</p>
               <p className="text-sm text-muted-foreground">Assessoria de Comunicação</p>
             </div>
           </div>
           <Button variant="outline" onClick={() => navigate('/ascom/consultar')}>
-            Consultar Protocolo
+            Consultar protocolo
           </Button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
+      <main id="conteudo" tabIndex={-1} className="container mx-auto px-4 py-8 max-w-4xl focus:outline-none">
         <div className="mb-8 text-center">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-4">
-            <Megaphone className="h-5 w-5" />
-            <span className="font-medium">Solicitação de Demanda</span>
+            <Megaphone className="h-5 w-5" aria-hidden="true" />
+            <span className="font-medium">Solicitação de demanda</span>
           </div>
-          <h2 className="text-3xl font-bold mb-2">Solicitar Serviço da ASCOM</h2>
+          <h1 className="text-3xl font-bold mb-2">Solicitar serviço da ASCOM</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Preencha o formulário abaixo para solicitar cobertura de eventos, criação de materiais, 
             conteúdo institucional ou outros serviços da Assessoria de Comunicação.
@@ -366,10 +373,10 @@ export default function SolicitacaoPublicaAscomPage() {
             {/* Dados do Solicitante */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Dados do Solicitante
-                </CardTitle>
+                <h2 className="text-h3 leading-tight tracking-tight flex items-center gap-2">
+                  <User className="h-5 w-5" aria-hidden="true" />
+                  Dados do solicitante
+                </h2>
                 <CardDescription>
                   {servidorLogado 
                     ? 'Dados preenchidos automaticamente a partir do seu cadastro de servidor'
@@ -380,14 +387,14 @@ export default function SolicitacaoPublicaAscomPage() {
               <CardContent className="space-y-4">
                 {isLoadingServidor && (
                   <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                     Verificando dados do servidor...
                   </div>
                 )}
                 
                 {servidorLogado && (
                   <Alert className="mb-4">
-                    <CheckCircle2 className="h-4 w-4" />
+                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                     <AlertTitle>Identificação automática</AlertTitle>
                     <AlertDescription>
                       Seus dados foram preenchidos automaticamente. Você pode editá-los se necessário.
@@ -496,10 +503,10 @@ export default function SolicitacaoPublicaAscomPage() {
             {/* Classificação da Demanda */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Classificação da Demanda
-                </CardTitle>
+                <h2 className="text-h3 leading-tight tracking-tight flex items-center gap-2">
+                  <FileText className="h-5 w-5" aria-hidden="true" />
+                  Classificação da demanda
+                </h2>
                 <CardDescription>Selecione a categoria e tipo de serviço</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-2">
@@ -594,10 +601,10 @@ export default function SolicitacaoPublicaAscomPage() {
 
                 {requerAutorizacao && (
                   <div className="md:col-span-2">
-                    <Alert variant="default" className="bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800">
-                      <AlertCircle className="h-4 w-4 text-orange-600" />
-                      <AlertTitle className="text-orange-800 dark:text-orange-300">Autorização Necessária</AlertTitle>
-                      <AlertDescription className="text-orange-700 dark:text-orange-400">
+                    <Alert variant="default" className="bg-warning/15 border-warning/40 [&>svg]:text-warning">
+                      <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                      <AlertTitle className="text-warning">Autorização necessária</AlertTitle>
+                      <AlertDescription className="text-foreground">
                         Este tipo de demanda requer autorização da Presidência antes de ser executada.
                       </AlertDescription>
                     </Alert>
@@ -609,7 +616,7 @@ export default function SolicitacaoPublicaAscomPage() {
             {/* Detalhamento */}
             <Card>
               <CardHeader>
-                <CardTitle>Detalhamento da Solicitação</CardTitle>
+                <h2 className="text-h3 leading-tight tracking-tight">Detalhamento da solicitação</h2>
                 <CardDescription>Descreva sua demanda com o máximo de detalhes possível</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -692,11 +699,11 @@ export default function SolicitacaoPublicaAscomPage() {
             {/* Dados do Evento (se aplicável) */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Dados do Evento
+                <h2 className="text-h3 leading-tight tracking-tight flex items-center gap-2">
+                  <Calendar className="h-5 w-5" aria-hidden="true" />
+                  Dados do evento
                   <Badge variant="outline" className="ml-2">Opcional</Badge>
-                </CardTitle>
+                </h2>
                 <CardDescription>Preencha se a demanda estiver relacionada a um evento específico</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-3">
@@ -747,27 +754,27 @@ export default function SolicitacaoPublicaAscomPage() {
             {/* Anexos */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Upload className="h-5 w-5" />
+                <h2 className="text-h3 leading-tight tracking-tight flex items-center gap-2">
+                  <Upload className="h-5 w-5" aria-hidden="true" />
                   Anexos
                   <Badge variant="outline" className="ml-2">Opcional</Badge>
-                </CardTitle>
+                </h2>
                 <CardDescription>Anexe arquivos de referência (máximo 10MB por arquivo)</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
+                <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
                   <input
                     type="file"
                     id="anexos"
                     multiple
-                    className="hidden"
+                    className="sr-only"
                     onChange={handleFileChange}
                     accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
                   />
                   <label htmlFor="anexos" className="cursor-pointer">
-                    <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-sm font-medium">Clique para selecionar arquivos</p>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" aria-hidden="true" />
+                    <p className="text-base font-medium">Clique para selecionar arquivos</p>
+                    <p className="text-sm text-muted-foreground mt-1">
                       Imagens, PDFs, documentos do Office (máx. 10MB cada)
                     </p>
                   </label>
@@ -778,7 +785,7 @@ export default function SolicitacaoPublicaAscomPage() {
                     {arquivosParaUpload.map((file, index) => (
                       <div key={index} className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
                         <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <FileText className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                           <span className="text-sm truncate max-w-[200px]">{file.name}</span>
                           <span className="text-xs text-muted-foreground">
                             ({(file.size / 1024 / 1024).toFixed(2)} MB)
@@ -787,10 +794,11 @@ export default function SolicitacaoPublicaAscomPage() {
                         <Button
                           type="button"
                           variant="ghost"
-                          size="sm"
+                          size="icon"
                           onClick={() => removerArquivo(index)}
+                          aria-label={`Remover arquivo ${file.name}`}
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-4 w-4" aria-hidden="true" />
                         </Button>
                       </div>
                     ))}
@@ -814,8 +822,8 @@ export default function SolicitacaoPublicaAscomPage() {
                   <>Enviando...</>
                 ) : (
                   <>
-                    <Send className="h-4 w-4" />
-                    Enviar Solicitação
+                    <Send className="h-4 w-4" aria-hidden="true" />
+                    Enviar solicitação
                   </>
                 )}
               </Button>
@@ -827,7 +835,7 @@ export default function SolicitacaoPublicaAscomPage() {
       {/* Footer */}
       <footer className="border-t bg-muted/30 mt-12">
         <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
-          <p>Instituto de Desenvolvimento da Juventude, Esporte e Lazer de Roraima - IDJuv</p>
+          <p>{nomeOficial} - {sigla}</p>
           <p className="mt-1">Assessoria de Comunicação Social - ASCOM</p>
         </div>
       </footer>

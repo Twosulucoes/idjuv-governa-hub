@@ -2,16 +2,10 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
 import { 
   FileText, 
-  Search, 
-  Download,
   Building2,
   ExternalLink,
   Gavel
@@ -19,6 +13,18 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 
 import { useTenant } from "@/core/tenant";
+
+/** Fase do processo → rótulo e tom. Fase desconhecida cai em neutro com o próprio texto. */
+const SITUACAO_LICITACAO: Record<string, { label: string; tom: TomStatus }> = {
+  em_andamento: { label: "Em andamento", tom: "andamento" },
+  publicado: { label: "Publicado", tom: "andamento" },
+  julgamento: { label: "Em julgamento", tom: "andamento" },
+  homologado: { label: "Homologado", tom: "sucesso" },
+  revogado: { label: "Revogado", tom: "erro" },
+  fracassado: { label: "Fracassado", tom: "erro" },
+  deserto: { label: "Deserto", tom: "neutro" },
+};
+
 interface LicitacaoPublica {
   id: string;
   numero_processo: string;
@@ -35,13 +41,12 @@ interface LicitacaoPublica {
 }
 
 export default function LicitacoesPublicasPage() {
-  const { integracoes } = useTenant();
+  const { integracoes, identidade } = useTenant();
   const [filtroAno, setFiltroAno] = useState<string>("todos");
   const [filtroModalidade, setFiltroModalidade] = useState<string>("todos");
-  const [busca, setBusca] = useState("");
 
   // LGPD-Safe: Busca apenas fornecedores pessoa jurídica
-  const { data: licitacoes, isLoading } = useQuery({
+  const { data: licitacoes, isLoading, isError, refetch } = useQuery({
     queryKey: ['transparencia-licitacoes', filtroAno, filtroModalidade],
     queryFn: async () => {
       let query = supabase
@@ -102,12 +107,6 @@ export default function LicitacoesPublicasPage() {
     }
   });
 
-  const licitacoesFiltradas = (licitacoes || []).filter(lic => 
-    busca === "" || 
-    lic.objeto?.toLowerCase().includes(busca.toLowerCase()) ||
-    lic.numero_processo?.toLowerCase().includes(busca.toLowerCase())
-  );
-
   const formatCurrency = (value: number | null) => {
     if (!value) return "-";
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -118,29 +117,74 @@ export default function LicitacoesPublicasPage() {
     return new Date(dateStr).toLocaleDateString('pt-BR');
   };
 
-  const getSituacaoBadge = (situacao: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      'em_andamento': 'default',
-      'homologado': 'secondary',
-      'revogado': 'destructive',
-      'deserto': 'outline',
-      'fracassado': 'destructive',
-    };
-    const labels: Record<string, string> = {
-      'em_andamento': 'Em Andamento',
-      'homologado': 'Homologado',
-      'revogado': 'Revogado',
-      'deserto': 'Deserto',
-      'fracassado': 'Fracassado',
-      'publicado': 'Publicado',
-      'julgamento': 'Em Julgamento',
-    };
-    return (
-      <Badge variant={variants[situacao] || 'outline'}>
-        {labels[situacao] || situacao}
-      </Badge>
-    );
+  const getSituacaoBadge = (situacao: string | null) => {
+    const s = (situacao && SITUACAO_LICITACAO[situacao]) ?? { label: situacao ?? "Sem situação", tom: "neutro" as const };
+    return <StatusBadge tom={s.tom}>{s.label}</StatusBadge>;
   };
+
+  const colunas: ColunaTabela<LicitacaoPublica>[] = [
+    {
+      id: "processo",
+      cabecalho: "Processo",
+      celula: (lic) => (
+        <span className="font-medium whitespace-nowrap">
+          {lic.numero_processo}/{lic.ano}
+        </span>
+      ),
+      ordenarPor: (lic) => `${lic.ano}-${lic.numero_processo}`,
+      buscarPor: (lic) => `${lic.numero_processo}/${lic.ano}`,
+    },
+    {
+      id: "modalidade",
+      cabecalho: "Modalidade",
+      celula: (lic) => <span className="whitespace-nowrap">{lic.modalidade?.replace(/_/g, " ")}</span>,
+      ordenarPor: (lic) => lic.modalidade,
+    },
+    {
+      id: "objeto",
+      cabecalho: "Objeto",
+      celula: (lic) => (
+        <span className="block max-w-xs truncate" title={lic.objeto}>
+          {lic.objeto}
+        </span>
+      ),
+      buscarPor: (lic) => lic.objeto,
+      mobile: "titulo",
+    },
+    {
+      id: "valor",
+      cabecalho: "Valor estimado",
+      celula: (lic) => <span className="whitespace-nowrap tabular-nums">{formatCurrency(lic.valor_estimado)}</span>,
+      ordenarPor: (lic) => lic.valor_estimado,
+      alinhamento: "direita",
+    },
+    {
+      id: "abertura",
+      cabecalho: "Abertura",
+      celula: (lic) => <span className="whitespace-nowrap">{formatDate(lic.data_abertura)}</span>,
+      ordenarPor: (lic) => lic.data_abertura,
+    },
+    {
+      id: "situacao",
+      cabecalho: "Situação",
+      celula: (lic) => getSituacaoBadge(lic.situacao),
+      ordenarPor: (lic) => lic.situacao,
+    },
+    {
+      id: "vencedor",
+      cabecalho: "Vencedor (PJ)",
+      celula: (lic) =>
+        lic.vencedor_nome ? (
+          <div>
+            <p className="font-medium truncate max-w-[150px]">{lic.vencedor_nome}</p>
+            <p className="text-muted-foreground text-sm">{lic.vencedor_documento_parcial}</p>
+          </div>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        ),
+      buscarPor: (lic) => lic.vencedor_nome,
+    },
+  ];
 
   const anos = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
@@ -149,74 +193,24 @@ export default function LicitacoesPublicasPage() {
       {/* Cabeçalho */}
       <section className="bg-primary text-primary-foreground py-12">
         <div className="container mx-auto px-4">
-          <div className="flex items-center gap-3 text-sm mb-4 opacity-80">
-            <Link to="/" className="hover:underline">Início</Link>
-            <span>/</span>
-            <Link to="/transparencia" className="hover:underline">Transparência</Link>
-            <span>/</span>
-            <span>Licitações e Contratos</span>
-          </div>
+          <nav aria-label="Trilha de navegação" className="flex items-center gap-3 text-sm mb-4 opacity-90">
+            <Link to="/" className="inline-flex min-h-11 items-center hover:underline">Início</Link>
+            <span aria-hidden="true">/</span>
+            <Link to="/transparencia" className="inline-flex min-h-11 items-center hover:underline">Transparência</Link>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Licitações e contratos</span>
+          </nav>
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-accent rounded-xl flex items-center justify-center">
+            <div className="w-16 h-16 bg-accent rounded-xl flex items-center justify-center" aria-hidden="true">
               <Gavel className="w-8 h-8 text-accent-foreground" />
             </div>
             <div>
               <h1 className="font-serif text-3xl lg:text-4xl font-bold">
                 Licitações e Contratos
               </h1>
-              <p className="opacity-90 mt-1">
-                Processos licitatórios públicos do IDJUV
+              <p className="text-base opacity-90 mt-1">
+                Processos licitatórios públicos do {identidade.sigla}
               </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Filtros */}
-      <section className="py-6 bg-muted/30 border-b">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="flex-1">
-              <label className="text-sm font-medium mb-1 block">Buscar</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Buscar por objeto ou número do processo..."
-                  className="pl-10"
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="w-full md:w-40">
-              <label className="text-sm font-medium mb-1 block">Ano</label>
-              <Select value={filtroAno} onValueChange={setFiltroAno}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  {anos.map(ano => (
-                    <SelectItem key={ano} value={ano.toString()}>{ano}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="w-full md:w-48">
-              <label className="text-sm font-medium mb-1 block">Modalidade</label>
-              <Select value={filtroModalidade} onValueChange={setFiltroModalidade}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todas</SelectItem>
-                  <SelectItem value="pregao_eletronico">Pregão Eletrônico</SelectItem>
-                  <SelectItem value="pregao_presencial">Pregão Presencial</SelectItem>
-                  <SelectItem value="concorrencia">Concorrência</SelectItem>
-                  <SelectItem value="dispensa">Dispensa</SelectItem>
-                  <SelectItem value="inexigibilidade">Inexigibilidade</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </div>
@@ -225,104 +219,74 @@ export default function LicitacoesPublicasPage() {
       {/* Tabela */}
       <section className="py-8">
         <div className="container mx-auto px-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Processos Licitatórios</CardTitle>
-                  <CardDescription>
-                    {isLoading ? "Carregando..." : `${licitacoesFiltradas.length} processo(s) encontrado(s)`}
-                  </CardDescription>
-                </div>
-                <Button variant="outline" size="sm">
-                  <Download className="w-4 h-4 mr-2" />
-                  Exportar
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  Carregando dados...
-                </div>
-              ) : licitacoesFiltradas.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>Nenhum processo encontrado</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Processo</TableHead>
-                        <TableHead>Modalidade</TableHead>
-                        <TableHead className="max-w-xs">Objeto</TableHead>
-                        <TableHead>Valor Estimado</TableHead>
-                        <TableHead>Abertura</TableHead>
-                        <TableHead>Situação</TableHead>
-                        <TableHead>Vencedor (PJ)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {licitacoesFiltradas.map((lic) => (
-                        <TableRow key={lic.id}>
-                          <TableCell className="font-medium whitespace-nowrap">
-                            {lic.numero_processo}/{lic.ano}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            {lic.modalidade?.replace(/_/g, ' ')}
-                          </TableCell>
-                          <TableCell className="max-w-xs truncate" title={lic.objeto}>
-                            {lic.objeto}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            {formatCurrency(lic.valor_estimado)}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            {formatDate(lic.data_abertura)}
-                          </TableCell>
-                          <TableCell>
-                            {getSituacaoBadge(lic.situacao)}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {lic.vencedor_nome ? (
-                              <div>
-                                <p className="font-medium truncate max-w-[150px]">{lic.vencedor_nome}</p>
-                                <p className="text-muted-foreground text-xs">{lic.vencedor_documento_parcial}</p>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <h2 className="font-serif text-2xl font-bold mb-4">Processos licitatórios</h2>
+          <DataTable
+            key={`${filtroAno}-${filtroModalidade}`}
+            rotulo="Processos licitatórios"
+            dados={licitacoes ?? []}
+            colunas={colunas}
+            chaveLinha={(lic) => lic.id}
+            carregando={isLoading}
+            erro={isError ? "Não foi possível carregar os processos licitatórios." : null}
+            aoTentarNovamente={() => refetch()}
+            busca={{ placeholder: "Buscar por objeto ou número do processo…" }}
+            filtros={
+              <>
+                <Select value={filtroAno} onValueChange={setFiltroAno}>
+                  <SelectTrigger className="w-full sm:w-40" aria-label="Ano">
+                    <SelectValue placeholder="Todos os anos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os anos</SelectItem>
+                    {anos.map(ano => (
+                      <SelectItem key={ano} value={ano.toString()}>{ano}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={filtroModalidade} onValueChange={setFiltroModalidade}>
+                  <SelectTrigger className="w-full sm:w-48" aria-label="Modalidade">
+                    <SelectValue placeholder="Todas as modalidades" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todas as modalidades</SelectItem>
+                    <SelectItem value="pregao_eletronico">Pregão eletrônico</SelectItem>
+                    <SelectItem value="pregao_presencial">Pregão presencial</SelectItem>
+                    <SelectItem value="concorrencia">Concorrência</SelectItem>
+                    <SelectItem value="dispensa">Dispensa</SelectItem>
+                    <SelectItem value="inexigibilidade">Inexigibilidade</SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
+            }
+            vazio={{
+              icone: FileText,
+              titulo: "Nenhum processo encontrado",
+              descricao: "Troque o ano ou a modalidade para ver outros processos.",
+            }}
+          />
 
           {/* Informações adicionais */}
           <div className="mt-8 bg-muted/50 rounded-xl p-6">
-            <h3 className="font-semibold mb-3 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-primary" />
-              Informações Complementares
-            </h3>
-            <p className="text-sm text-muted-foreground mb-4">
+            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-primary" aria-hidden="true" />
+              Informações complementares
+            </h2>
+            <p className="text-base text-muted-foreground mb-4">
               Os dados exibidos seguem a Lei nº 14.133/2021 (Nova Lei de Licitações) e a LGPD. 
               Contratos com pessoa física não são exibidos para proteção de dados pessoais.
             </p>
-            <a 
-              href={integracoes?.portalTransparenciaUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-primary hover:underline text-sm font-medium"
-            >
-              Portal de Transparência do Estado
-              <ExternalLink className="w-4 h-4" />
-            </a>
+            {integracoes?.portalTransparenciaUrl && (
+              <a
+                href={integracoes.portalTransparenciaUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-11 items-center gap-2 text-primary hover:underline text-base font-medium"
+              >
+                Portal da Transparência do Estado
+                <span className="sr-only"> (abre em nova aba)</span>
+                <ExternalLink className="w-4 h-4" aria-hidden="true" />
+              </a>
+            )}
           </div>
         </div>
       </section>

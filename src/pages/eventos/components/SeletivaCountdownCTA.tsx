@@ -39,12 +39,12 @@ function calculateTimeLeft(targetDate: Date): TimeLeft {
 function CountdownUnit({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex flex-col items-center">
-      <div className="w-14 h-14 md:w-16 md:h-16 bg-zinc-900 dark:bg-zinc-100 rounded-xl flex items-center justify-center">
-        <span className="text-2xl md:text-3xl font-black text-white dark:text-zinc-900 tabular-nums">
+      <div className="w-14 h-14 md:w-16 md:h-16 bg-foreground rounded-xl flex items-center justify-center">
+        <span className="text-2xl md:text-3xl font-black text-background tabular-nums">
           {String(value).padStart(2, "0")}
         </span>
       </div>
-      <span className="text-[10px] md:text-xs font-bold tracking-wider uppercase text-zinc-500 dark:text-zinc-400 mt-1">
+      <span className="text-xs font-bold tracking-wider uppercase text-muted-foreground mt-1">
         {label}
       </span>
     </div>
@@ -88,28 +88,28 @@ export function SeletivaCountdownCTA() {
   );
 
   return (
-    <section className="py-12 px-4 bg-gradient-to-b from-zinc-200 to-zinc-100 dark:from-zinc-800 dark:to-zinc-900">
+    <section className="py-12 px-4 bg-gradient-to-b from-muted to-background">
       <div className="container mx-auto max-w-4xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="bg-white dark:bg-zinc-800 rounded-3xl p-6 md:p-10 shadow-xl border border-zinc-200 dark:border-zinc-700"
+          className="bg-card rounded-3xl p-6 md:p-10 shadow-xl border border-border"
         >
           {/* Status: Antes da Inscrição */}
           {status === "antes_inscricao" && (
             <>
               <div className="text-center mb-6">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-700 rounded-full mb-4">
-                  <Clock className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
-                  <span className="text-sm font-bold tracking-wider uppercase text-zinc-600 dark:text-zinc-300">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-muted rounded-full mb-4">
+                  <Clock className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                  <span className="text-sm font-bold tracking-wider uppercase text-muted-foreground">
                     Inscrições em breve
                   </span>
                 </div>
-                <h2 className="text-2xl md:text-3xl font-black tracking-[0.1em] uppercase text-zinc-900 dark:text-zinc-100 mb-2">
+                <h2 className="text-2xl md:text-3xl font-black tracking-[0.1em] uppercase text-foreground mb-2">
                   INSCRIÇÕES ABREM EM
                 </h2>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                <p className="text-base text-muted-foreground">
                   09 de Fevereiro de 2026
                 </p>
               </div>
@@ -121,30 +121,32 @@ export function SeletivaCountdownCTA() {
           {status === "inscricao_aberta" && (
             <>
               <div className="text-center mb-6">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-full mb-4 animate-pulse">
-                  <AlertCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
-                  <span className="text-sm font-bold tracking-wider uppercase text-green-600 dark:text-green-400">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-success/15 rounded-full mb-4 animate-pulse">
+                  <AlertCircle className="w-4 h-4 text-success" aria-hidden="true" />
+                  <span className="text-sm font-bold tracking-wider uppercase text-success">
                     Inscrições Abertas!
                   </span>
                 </div>
-                <h2 className="text-2xl md:text-3xl font-black tracking-[0.1em] uppercase text-zinc-900 dark:text-zinc-100 mb-2">
+                <h2 className="text-2xl md:text-3xl font-black tracking-[0.1em] uppercase text-foreground mb-2">
                   INSCREVA-SE AGORA
                 </h2>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+                <p className="text-base text-muted-foreground mb-4">
                   As inscrições encerram em:
                 </p>
               </div>
               {renderCountdown(timeToFimInscricao)}
               <div className="mt-8 text-center">
-                <a href={INSCRICAO_URL} target="_blank" rel="noopener noreferrer">
-                  <Button 
-                    size="lg" 
-                    className="bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 font-bold tracking-wider uppercase px-8 py-6 text-base rounded-xl shadow-lg hover:shadow-xl transition-all"
-                  >
-                    <ExternalLink className="mr-2 w-5 h-5" />
+                <Button 
+                  asChild
+                  size="lg" 
+                  className="min-h-11 bg-foreground hover:bg-foreground/85 text-background font-bold tracking-wider uppercase px-8 py-6 text-base rounded-xl shadow-lg hover:shadow-xl transition-all"
+                >
+                  <a href={INSCRICAO_URL} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-2 w-5 h-5" aria-hidden="true" />
                     FAZER INSCRIÇÃO
-                  </Button>
-                </a>
+                    <span className="sr-only"> (abre em nova aba)</span>
+                  </a>
+                </Button>
               </div>
             </>
           )}
@@ -153,16 +155,16 @@ export function SeletivaCountdownCTA() {
           {status === "inscricao_encerrada" && (
             <>
               <div className="text-center mb-6">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-full mb-4">
-                  <Calendar className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
-                  <span className="text-sm font-bold tracking-wider uppercase text-zinc-600 dark:text-zinc-300">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-muted rounded-full mb-4">
+                  <Calendar className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                  <span className="text-sm font-bold tracking-wider uppercase text-muted-foreground">
                     Inscrições encerradas
                   </span>
                 </div>
-                <h2 className="text-2xl md:text-3xl font-black tracking-[0.1em] uppercase text-zinc-900 dark:text-zinc-100 mb-2">
+                <h2 className="text-2xl md:text-3xl font-black tracking-[0.1em] uppercase text-foreground mb-2">
                   SELETIVAS COMEÇAM EM
                 </h2>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                <p className="text-base text-muted-foreground">
                   28 de Fevereiro de 2026
                 </p>
               </div>
@@ -173,24 +175,24 @@ export function SeletivaCountdownCTA() {
           {/* Status: Seletiva Iniciada */}
           {status === "seletiva_iniciada" && (
             <div className="text-center">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-full mb-4">
-                <AlertCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
-                <span className="text-sm font-bold tracking-wider uppercase text-green-600 dark:text-green-400">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-success/15 rounded-full mb-4">
+                <AlertCircle className="w-4 h-4 text-success" aria-hidden="true" />
+                <span className="text-sm font-bold tracking-wider uppercase text-success">
                   Em Andamento
                 </span>
               </div>
-              <h2 className="text-2xl md:text-3xl font-black tracking-[0.1em] uppercase text-zinc-900 dark:text-zinc-100">
+              <h2 className="text-2xl md:text-3xl font-black tracking-[0.1em] uppercase text-foreground">
                 SELETIVAS EM CURSO
               </h2>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">
+              <p className="text-base text-muted-foreground mt-2">
                 Confira o cronograma e resultados abaixo
               </p>
             </div>
           )}
 
           {/* Cronograma resumido */}
-          <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-zinc-700">
-            <h3 className="text-sm font-bold tracking-[0.15em] uppercase text-zinc-500 dark:text-zinc-400 mb-4 text-center">
+          <div className="mt-8 pt-6 border-t border-border">
+            <h3 className="text-sm font-bold tracking-[0.15em] uppercase text-muted-foreground mb-4 text-center">
               Cronograma das Seletivas
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -202,12 +204,12 @@ export function SeletivaCountdownCTA() {
               ].map((item) => (
                 <div
                   key={item.mod}
-                  className="bg-zinc-100 dark:bg-zinc-900/50 rounded-xl p-3 text-center"
+                  className="bg-muted/60 rounded-xl p-3 text-center"
                 >
-                  <p className="text-xs font-bold tracking-wider uppercase text-zinc-900 dark:text-zinc-100">
+                  <p className="text-xs font-bold tracking-wider uppercase text-foreground">
                     {item.mod}
                   </p>
-                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {item.datas}
                   </p>
                 </div>

@@ -15,6 +15,7 @@ import { SeletivaNoticiasV2 } from "./components/SeletivaNoticiasV2";
 import { SeletivaContatosV2 } from "./components/SeletivaContatosV2";
 import { SeletivaCountdownCTA } from "./components/SeletivaCountdownCTA";
 import heroImage from "@/assets/hero-4-modalidades.jpg";
+import { SkipLink } from "@/components/design-system";
 
 // Dados das modalidades
 const modalidades = [
@@ -106,13 +107,15 @@ const modalidades = [
 
 export default function SeletivaEstudantilV2Page() {
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 transition-colors duration-300">
+    <div className="min-h-screen bg-background transition-colors duration-300">
+      <SkipLink />
       <SeletivaHeaderV2 />
-      
+
+      <main id="conteudo" tabIndex={-1} className="focus:outline-none">
       {/* Hero Section com Imagem */}
       <section className="relative pt-20 pb-8 md:pt-24 md:pb-12 overflow-hidden">
         {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-zinc-200/50 to-zinc-100 dark:from-zinc-800/50 dark:to-zinc-900" />
+        <div className="absolute inset-0 bg-gradient-to-b from-muted/60 to-background" />
         
         <div className="container mx-auto max-w-6xl px-4 relative z-10">
           {/* Dots Indicator */}
@@ -133,29 +136,29 @@ export default function SeletivaEstudantilV2Page() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <p className="text-sm md:text-base font-bold tracking-[0.3em] uppercase text-zinc-500 dark:text-zinc-400 mb-2">
+              <p className="text-sm md:text-base font-bold tracking-[0.3em] uppercase text-muted-foreground mb-2">
                 SELETIVA DAS
               </p>
-              <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-[0.15em] uppercase text-zinc-900 dark:text-zinc-100 leading-none mb-4">
+              <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-[0.15em] uppercase text-foreground leading-none mb-4">
                 SELEÇÕES<br />
-                <span className="text-zinc-600 dark:text-zinc-300">ESTUDANTIS</span>
+                <span className="text-muted-foreground">ESTUDANTIS</span>
               </h1>
               
               {/* Badges */}
               <div className="flex flex-wrap gap-3 mt-6">
-                <div className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 rounded-full">
-                  <span className="text-xs md:text-sm font-bold tracking-[0.15em] uppercase text-white dark:text-zinc-900">
+                <div className="px-4 py-2 bg-foreground rounded-full">
+                  <span className="text-xs md:text-sm font-bold tracking-[0.15em] uppercase text-background">
                     19/FEV a 01/MAR
                   </span>
                 </div>
-                <div className="px-4 py-2 border-2 border-zinc-900 dark:border-zinc-100 rounded-full">
-                  <span className="text-xs md:text-sm font-bold tracking-[0.15em] uppercase text-zinc-900 dark:text-zinc-100">
+                <div className="px-4 py-2 border-2 border-foreground rounded-full">
+                  <span className="text-xs md:text-sm font-bold tracking-[0.15em] uppercase text-foreground">
                     15 a 17 ANOS
                   </span>
                 </div>
               </div>
 
-              <p className="mt-6 text-sm md:text-base tracking-[0.05em] uppercase text-zinc-600 dark:text-zinc-400">
+              <p className="mt-6 text-base tracking-[0.05em] uppercase text-muted-foreground">
                 Jogos da Juventude 2026 — Representando Roraima
               </p>
             </motion.div>
@@ -174,7 +177,7 @@ export default function SeletivaEstudantilV2Page() {
                   className="w-full h-auto object-cover aspect-square md:aspect-video grayscale"
                 />
                 {/* Overlay sutil */}
-                <div className="absolute inset-0 bg-gradient-to-t from-zinc-900/30 to-transparent" />
+                <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
               </div>
               
               {/* Labels das modalidades */}
@@ -185,7 +188,7 @@ export default function SeletivaEstudantilV2Page() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 + i * 0.1 }}
-                    className="px-3 py-1.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] md:text-xs font-bold tracking-wider rounded-full shadow-md"
+                    className="px-3 py-1.5 bg-foreground text-background text-xs font-bold tracking-wider rounded-full shadow-md"
                   >
                     {mod}
                   </motion.span>
@@ -200,7 +203,7 @@ export default function SeletivaEstudantilV2Page() {
       <SeletivaCountdownCTA />
 
       {/* Seção de Modalidades */}
-      <section className="py-16 px-4 bg-white dark:bg-zinc-800 transition-colors">
+      <section className="py-16 px-4 bg-card transition-colors">
         <div className="container mx-auto max-w-5xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -208,10 +211,10 @@ export default function SeletivaEstudantilV2Page() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-3xl md:text-4xl font-black tracking-[0.2em] uppercase text-zinc-900 dark:text-zinc-100 mb-3">
+            <h2 className="text-3xl md:text-4xl font-black tracking-[0.2em] uppercase text-foreground mb-3">
               MODALIDADES
             </h2>
-            <p className="text-base tracking-[0.1em] uppercase text-zinc-500 dark:text-zinc-400">
+            <p className="text-base tracking-[0.1em] uppercase text-muted-foreground">
               Calendário completo das seletivas
             </p>
           </motion.div>
@@ -246,6 +249,7 @@ export default function SeletivaEstudantilV2Page() {
 
       {/* Contatos e Links Oficiais */}
       <SeletivaContatosV2 />
+      </main>
 
       {/* Footer */}
       <SeletivaFooterV2 />

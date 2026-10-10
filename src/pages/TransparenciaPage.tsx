@@ -8,10 +8,11 @@ import { useTransparenciaPublicacoesPublicas } from "@/hooks/useTransparenciaPub
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTenant } from "@/core/tenant";
+import { EmptyState } from "@/components/design-system";
 
 export default function TransparenciaPage() {
   const { publicacoes, isLoading } = useTransparenciaPublicacoesPublicas();
-  const { entidadeSuperior, integracoes } = useTenant();
+  const { entidadeSuperior, integracoes, identidade } = useTenant();
 
   interface ItemTransparencia {
     title: string;
@@ -84,18 +85,18 @@ export default function TransparenciaPage() {
       {/* Cabeçalho */}
       <section className="bg-success text-success-foreground py-12">
         <div className="container mx-auto px-4">
-          <div className="flex items-center gap-3 text-sm mb-4 opacity-80">
-            <Link to="/" className="hover:underline">Início</Link>
-            <span>/</span>
-            <span>Transparência</span>
-          </div>
+          <nav aria-label="Trilha de navegação" className="flex items-center gap-3 text-sm mb-4 opacity-90">
+            <Link to="/" className="inline-flex min-h-11 items-center hover:underline">Início</Link>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Transparência</span>
+          </nav>
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-accent rounded-xl flex items-center justify-center">
+            <div className="w-16 h-16 bg-accent rounded-xl flex items-center justify-center" aria-hidden="true">
               <Eye className="w-8 h-8 text-accent-foreground" />
             </div>
             <div>
               <h1 className="font-serif text-3xl lg:text-4xl font-bold">Transparência</h1>
-              <p className="opacity-90 mt-1">
+              <p className="text-base opacity-90 mt-1">
                 Acesso público a informações institucionais
               </p>
             </div>
@@ -109,10 +110,10 @@ export default function TransparenciaPage() {
           <div className="max-w-5xl mx-auto">
             {/* Introdução */}
             <div className="bg-muted/50 rounded-xl p-6 mb-8">
-              <h2 className="font-serif text-xl font-bold mb-3">Compromisso com a Transparência</h2>
-              <p className="text-muted-foreground leading-relaxed">
+              <h2 className="font-serif text-xl font-bold mb-3">Compromisso com a transparência</h2>
+              <p className="text-base text-muted-foreground leading-relaxed">
                 Em cumprimento à Lei de Acesso à Informação (Lei nº 12.527/2011) e aos 
-                princípios constitucionais da publicidade e transparência, o IDJUV 
+                princípios constitucionais da publicidade e transparência, o {identidade.sigla}{" "}
                 disponibiliza informações sobre sua gestão, estrutura e atividades.
               </p>
             </div>
@@ -120,17 +121,20 @@ export default function TransparenciaPage() {
             {/* Editais */}
             <div className="mb-10">
               <h2 className="font-serif text-2xl font-bold mb-6 flex items-center gap-3">
-                <FileText className="w-6 h-6 text-primary" />
+                <FileText className="w-6 h-6 text-primary" aria-hidden="true" />
                 Editais
               </h2>
               {isLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                <div className="flex items-center justify-center py-12" role="status">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" aria-hidden="true" />
+                  <span className="sr-only">Carregando editais</span>
                 </div>
               ) : publicacoes.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground bg-muted/30 rounded-xl">
-                  Nenhum edital disponível no momento
-                </div>
+                <EmptyState
+                  icone={FileText}
+                  titulo="Nenhum edital disponível no momento"
+                  className="bg-muted/30 rounded-xl"
+                />
               ) : (
                 <div className="grid gap-4">
                   {publicacoes.map((doc) => (
@@ -140,19 +144,24 @@ export default function TransparenciaPage() {
                           <div className="flex-1">
                             {doc.data_publicacao && (
                               <span className="text-sm text-muted-foreground flex items-center gap-1 mb-2">
-                                <Calendar className="w-3 h-3" />
+                                <Calendar className="w-3 h-3" aria-hidden="true" />
                                 {format(new Date(doc.data_publicacao), "dd/MM/yyyy", { locale: ptBR })}
                               </span>
                             )}
                             <h3 className="font-semibold mb-1">{doc.titulo}</h3>
                             {doc.descricao && (
-                              <p className="text-sm text-muted-foreground">{doc.descricao}</p>
+                              <p className="text-base text-muted-foreground">{doc.descricao}</p>
                             )}
                           </div>
                           {doc.arquivo_url && (
                             <Button asChild variant="outline">
-                              <a href={doc.arquivo_url} target="_blank" rel="noopener noreferrer">
-                                <Download className="w-4 h-4 mr-2" />
+                              <a
+                                href={doc.arquivo_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={`Baixar ${doc.titulo} (abre em nova aba)`}
+                              >
+                                <Download className="w-4 h-4 mr-2" aria-hidden="true" />
                                 Baixar
                               </a>
                             </Button>
@@ -168,38 +177,42 @@ export default function TransparenciaPage() {
             <Separator className="my-8" />
 
             {/* Grid de itens */}
-            <h2 className="font-serif text-2xl font-bold mb-6">Informações Disponíveis</h2>
+            <h2 className="font-serif text-2xl font-bold mb-6">Informações disponíveis</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {transparenciaItems.map((item) => {
-                const conteudo = (
-                  <Card className="h-full hover:shadow-lg transition-all hover:border-success group">
+                // Link "esticado" sobre o cartão: o cartão inteiro é clicável sem
+                // pôr bloco dentro do link. Internos pelo router; o portal externo
+                // abre em aba nova.
+                const classeLink = "focus-visible:outline-none after:absolute after:inset-0 after:content-['']";
+                return (
+                  <Card
+                    key={item.href}
+                    className="relative h-full hover:shadow-lg transition-all hover:border-success group focus-within:ring-2 focus-within:ring-ring"
+                  >
                     <CardHeader className="flex flex-row items-start gap-4">
-                      <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center flex-shrink-0" aria-hidden="true">
                         <item.icon className="w-6 h-6 text-success" />
                       </div>
                       <div>
                         <CardTitle className="text-lg group-hover:text-success transition-colors flex items-center gap-2">
-                          {item.title}
-                          {item.external && <ExternalLink className="w-4 h-4" />}
+                          {item.external ? (
+                            <a href={item.href} target="_blank" rel="noopener noreferrer" className={classeLink}>
+                              {item.title}
+                              <span className="sr-only"> (abre em nova aba)</span>
+                            </a>
+                          ) : (
+                            <Link to={item.href} className={classeLink}>
+                              {item.title}
+                            </Link>
+                          )}
+                          {item.external && <ExternalLink className="w-4 h-4" aria-hidden="true" />}
                         </CardTitle>
-                        <CardDescription className="mt-1">
+                        <CardDescription className="mt-1 text-base">
                           {item.description}
                         </CardDescription>
                       </div>
                     </CardHeader>
                   </Card>
-                );
-
-                // Destinos internos navegam pelo router; só o portal do Estado
-                // abre em aba nova.
-                return item.external ? (
-                  <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer">
-                    {conteudo}
-                  </a>
-                ) : (
-                  <Link key={item.href} to={item.href}>
-                    {conteudo}
-                  </Link>
                 );
               })}
             </div>
@@ -207,22 +220,25 @@ export default function TransparenciaPage() {
             {/* LAI */}
             <div className="mt-12 bg-info/10 border border-info/30 rounded-xl p-6">
               <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-info" />
+                <FileText className="w-5 h-5 text-info" aria-hidden="true" />
                 Lei de Acesso à Informação
               </h3>
-              <p className="text-sm text-muted-foreground mb-4">
+              <p className="text-base text-muted-foreground mb-4">
                 Para solicitar informações não disponíveis neste portal, utilize o 
                 Serviço de Informação ao Cidadão (SIC){entidadeSuperior ? ` do ${entidadeSuperior.nome}` : ""}.
               </p>
-              <a 
-                href={integracoes?.portalTransparenciaUrl}
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-info hover:underline font-medium"
-              >
-                Acessar SIC
-                <ExternalLink className="w-4 h-4" />
-              </a>
+              {integracoes?.portalTransparenciaUrl && (
+                <a
+                  href={integracoes.portalTransparenciaUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-11 items-center gap-2 text-info hover:underline font-medium"
+                >
+                  Acessar o SIC
+                  <span className="sr-only"> (abre em nova aba)</span>
+                  <ExternalLink className="w-4 h-4" aria-hidden="true" />
+                </a>
+              )}
             </div>
 
             {/* Última atualização */}
