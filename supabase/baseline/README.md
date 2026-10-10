@@ -178,9 +178,9 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
 - RPCs: injeção de SQL, `SECURITY DEFINER` sem checagem fora de lista revisada, privilégios padrão,
   campos que o autor não pode escolher nos formulários.
 
-Último resultado (2026-10-10, onda E1, PostgreSQL 16.15): replay de **263 migrações com 0 falhas**;
+Último resultado (2026-10-10, onda E1 com a main até a PR #81, PostgreSQL 16.15): replay de **264 migrações com 0 falhas**;
 `validar-baseline.sh` com `EXIGIR_REPLAY=1` **APROVADO** — RLS com 0 falhas em 4534 checagens de UPDATE/DELETE
-(235 tabelas), só as 20 tabelas de catálogo com linhas e schema idêntico ao replay (42917 linhas). A migração
+(235 tabelas), só as 20 tabelas de catálogo com linhas e schema idêntico ao replay (43045 linhas). A migração
 `20261011000000` aplicada duas vezes no replay e no baseline: sem erro e sem trigger ou policy a mais. O mesmo
 teste reprova com 203 falhas no baseline anterior à E1 (prova de vida). Na correção de contornos: 258 migrações,
 schema de 40800 linhas, 54 falhas no baseline da B2 sem os contornos. Antes, na B2: 257 migrações,
