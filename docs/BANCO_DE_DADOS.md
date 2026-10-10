@@ -22,9 +22,12 @@ muda em relação ao estado das migrações:
   `;proprio`, `;pai=<tabela>.<fk>` e `;filho=<tabela>.<fk>` acrescentam a leitura do próprio servidor, direta,
   pela tabela pai ou por uma tabela filha com `servidor_id`); escrita (INSERT/UPDATE/DELETE) exige o módulo
   **e** a permissão granular do `extra` (`escrita=<código>`), via `can_access_module` + `has_permission_code`.
-  Hoje são as 10 tabelas da folha (`financeiro.folha.processar` para operar,
+  Hoje são 22 tabelas (apurado em 2026-10-10): as 10 da folha (`financeiro.folha.processar` para operar,
   `financeiro.folha.configurar` para rubricas, parâmetros e tabelas de INSS/IRRF) — detalhe em
-  [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#folha-rls-por-permissão-onda-b--b1). `scripts/db/testar-rls.sql`
+  [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#folha-rls-por-permissão-onda-b--b1) — e 12 do RH na B2 (férias,
+  licenças, viagens, frequência; seção "RH — frequência e ponto" abaixo). A B2 acrescentou ao gerador lista de
+  códigos (`escrita=a|b`) e os sufixos `;excluir=`, `;insere_proprio`, `;sem_autoaprovacao` e `;coluna=`
+  (formato no [README do baseline](../supabase/baseline/README.md)). `scripts/db/testar-rls.sql`
   cobre a classe com uma persona por código (módulo + código em `user_modules.permissions`) e uma persona
   com a permissão avulsa sem o módulo (não lê nem escreve).
 - **Perfil ativo é pré-condição.** `is_admin_user`, `has_permission_code` e `meu_servidor_id` passam a
@@ -43,7 +46,8 @@ muda em relação ao estado das migrações:
 - **`anon`** só tem as 6 RPCs públicas (denúncia, dado oficial, árbitros, gestores escolares) e as tabelas de formulário/portal declaradas no mapa (coluna `anon`);
   `authenticated` mantém os privilégios padrão de tabela (menos `TRUNCATE`/`TRIGGER`, e sem escrita em
   `audit_logs`), limitados pela RLS. As exceções são as funções `SECURITY DEFINER` de apoio listadas no teste.
-- **Formulários e pedidos.** Quem não gere o módulo não escolhe `status`, aprovação nem autoria; os links
+- **Formulários e pedidos.** Quem não gere o módulo não escolhe `status`, aprovação nem autoria (nos pedidos
+  de abono, ajuste e justificativa do RH, desde a B2: quem não tem a permissão, ou pede para si); os links
   do formulário de árbitros só podem apontar para o bucket `arbitros-docs`.
 - **Fechamento de folha** só por quem pode (trigger em `folhas_pagamento`), e o bloqueio automático por
   `servidores.situacao` nunca reativa administrador nem conta bloqueada à mão.
@@ -78,6 +82,37 @@ mudança de schema continua por migração nova (e regeneração do baseline). T
 `lancamentos_banco_horas`, `dias_nao_uteis`, `feriados`,
 `config_assinatura_frequencia`, `config_fechamento_frequencia`,
 `config_jornada_padrao`, `config_compensacao`, `config_incidencias`.
+
+Segurança do RH — Onda B / B2 (**migração `supabase/migrations/20261010090000_onda_b_rh_permissoes.sql`, na
+PR da B2, ainda não aplicada em remoto**; idempotente, vale para o banco do baseline e para o só-migrações;
+depende da S0 `20261010080000` e da B1). Regra por tabela e quem perde acesso em
+[RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#férias-licenças-viagens-e-frequência-rls-por-permissão-onda-b--b2).
+
+- **Policies** de 16 tabelas do RH (as `acesso_total_*`, `rh_module_*` e `vinculos_*` saem): 12 na classe
+  `permissao` — gravar exige o módulo `rh` **e** um código do catálogo (`ferias_servidor`,
+  `licencas_afastamentos`, `viagens_diarias`, `registros_ponto`, `frequencia_mensal`, `solicitacoes_abono`,
+  `frequencia_fechamento`, `config_fechamento_frequencia`, `solicitacoes_ajuste_ponto`,
+  `justificativas_ponto`, `banco_horas`, `lancamentos_banco_horas`); `servidores`, `vinculos_servidor` e
+  `lotacoes` em `proprio_leitura` (o servidor lê a própria linha por `meu_servidor_id()`; em `servidores`
+  a posse é a coluna `id` e o DELETE exige `rh.servidores.excluir`); `cargos` em `catalogo`. `anon` perde
+  todo privilégio nas 16 tabelas e `authenticated` perde TRUNCATE/TRIGGER/REFERENCES.
+- **Sem autoaprovação** em `solicitacoes_abono`, `solicitacoes_ajuste_ponto`, `justificativas_ponto` e
+  `frequencia_fechamento`: quem decide pelo caminho da permissão não grava a própria linha (para
+  justificativa, a posse vem de `registros_ponto`). O servidor insere o próprio pedido de abono, ajuste e
+  justificativa.
+- **Trigger `trg_validar_etapa_frequencia`** (função `validar_etapa_frequencia()`, `SECURITY DEFINER`,
+  `search_path` fixo, sem EXECUTE para PUBLIC/`anon`/`authenticated`), BEFORE INSERT, UPDATE e DELETE em
+  `solicitacoes_abono` e `frequencia_fechamento`: etapa da chefia exige `rh.aprovar`; etapa do RH (e o
+  DELETE) exige `rh.frequencia.lancar`; a chefia encerra o fluxo quando o tipo de abono dispensa o RH. O
+  papel admin, a service role e funções internas passam (o teste é o GUC `role`). Recusa com `42501`. O
+  nome começa com `trg_v` para rodar depois de `trg_forcar_campos_iniciais`.
+- **`forcar_campos_iniciais`** aceita no primeiro argumento, além de `<módulo>`, o formato
+  `perm:<módulo>:<c1>|<c2>[:<tabela_pai>.<coluna_fk>]`: fica isento (pode gravar status e aprovação no
+  INSERT) só quem tem o módulo **e** um dos códigos, e mesmo assim não na linha do próprio servidor (posse
+  por `servidor_id` ou pela tabela pai). Usado em `solicitacoes_abono`, `solicitacoes_ajuste_ponto` e
+  `justificativas_ponto` (`rh.aprovar|rh.frequencia.lancar`); `documentos_requerimento_servidor` segue no
+  formato de módulo. A migração cria a função e os triggers no só-migrações, onde não existiam; o overlay
+  20 tem o mesmo texto. EXECUTE só para `authenticated` e `service_role`.
 
 ### Folha de pagamento
 `folhas_pagamento`, `folha_historico_status`, `fichas_financeiras`,
