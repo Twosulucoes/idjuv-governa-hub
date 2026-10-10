@@ -18,12 +18,15 @@ muda em relação ao estado das migrações:
 - **RLS por módulo, falha fechada.** As policies `acesso_total_*` (qualquer usuário logado) saem; cada
   tabela recebe policies de `can_access_module` conforme `supabase/baseline/rls/mapa.csv` (fonte da
   verdade, gerada em `rls/35_policies_geradas.sql`). Tabela fora do mapa reprova no teste.
-- **RLS por permissão (classe `permissao` do gerador).** Leitura pelo módulo, como em `modulo`; escrita
-  (INSERT/UPDATE/DELETE) só com a permissão granular do `extra` (`escrita=<código>[;proprio|;pai=<tabela>.<fk>]`),
-  via `has_permission_code`. Hoje são as 10 tabelas da folha (`financeiro.folha.processar` para operar,
+- **RLS por permissão (classe `permissao` do gerador).** Leitura pelo módulo, como em `modulo` (sufixos
+  `;proprio`, `;pai=<tabela>.<fk>` e `;filho=<tabela>.<fk>` acrescentam a leitura do próprio servidor, direta,
+  pela tabela pai ou por uma tabela filha com `servidor_id`); escrita (INSERT/UPDATE/DELETE) exige o módulo
+  **e** a permissão granular do `extra` (`escrita=<código>`), via `can_access_module` + `has_permission_code`.
+  Hoje são as 10 tabelas da folha (`financeiro.folha.processar` para operar,
   `financeiro.folha.configurar` para rubricas, parâmetros e tabelas de INSS/IRRF) — detalhe em
   [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#folha-rls-por-permissão-onda-b--b1). `scripts/db/testar-rls.sql`
-  cobre a classe com uma persona por código (módulo + código em `user_modules.permissions`).
+  cobre a classe com uma persona por código (módulo + código em `user_modules.permissions`) e uma persona
+  com a permissão avulsa sem o módulo (não lê nem escreve).
 - **Perfil ativo é pré-condição.** `is_admin_user`, `has_permission_code` e `meu_servidor_id` passam a
   exigir `profiles.is_active`; administrador bloqueado deixa de ser administrador. Desde a migração
   `supabase/migrations/20261010070000_onda_b_folha_rls_permissao.sql` essas funções-base (e `usuario_eh_admin`,
@@ -90,7 +93,10 @@ ainda não aplicada em remoto**; idempotente, vale tanto para o banco do baselin
 pelas migrações):
 
 - Policies por permissão nas 10 tabelas da folha (classe `permissao`, acima) e remoção das `acesso_total_*`
-  delas na mesma transação.
+  delas na mesma transação; `anon` perde todo privilégio nas dez tabelas e `authenticated` perde
+  TRUNCATE/TRIGGER/REFERENCES (a RLS não cobre TRUNCATE); as funções-oráculo que as policies chamam
+  (`has_module`, `can_access_module`, `get_user_permission_codes`, `folha_esta_bloqueada`,
+  `usuario_pode_fechar_folha`, `usuario_pode_reabrir_folha`) deixam de ser executáveis por `anon`.
 - `processar_folha_pagamento`: guarda `has_permission_code(auth.uid(), 'financeiro.folha.processar')` no
   início (`42501`, não engolido pelo handler da função); EXECUTE para `authenticated` e `service_role`, não
   para `anon`/PUBLIC. O `DELETE FROM fichas_financeiras` do reprocessamento continua (preservar itens
@@ -98,7 +104,10 @@ pelas migrações):
 - Triggers BEFORE INSERT `trg_bloquear_insercao_ficha_fechada` (`fichas_financeiras`) e
   `trg_bloquear_insercao_item_ficha_fechada` (`itens_ficha_financeira`): folha bloqueada
   (`folha_esta_bloqueada`) recusa a inclusão com `42501`, exceto para `usuario_eh_admin` — espelho dos triggers
-  de UPDATE/DELETE já existentes.
+  de UPDATE/DELETE já existentes. Novo `trg_folhas_proteger_exclusao` (BEFORE DELETE em `folhas_pagamento`):
+  folha fechada só o admin apaga (a cascata levaria fichas e itens). `bloquear_alteracao_ficha_fechada` e
+  `bloquear_alteracao_item_ficha_fechada` são recriados para checar também a folha de **origem** (mover
+  ficha/item para fora de uma folha fechada era permitido) e passam a usar `ERRCODE 42501`.
 - Índice único parcial `itens_ficha_financeira_ficha_referencia_desconto_uidx` em
   `(ficha_id, lower(referencia)) WHERE tipo = 'desconto' AND referencia IS NOT NULL` (um desconto por
   referência em cada ficha). Criado só se não houver duplicata; com duplicata a migração emite `WARNING` no log

@@ -71,6 +71,11 @@ REVOKE EXECUTE ON FUNCTION public.fixar_autoria_config_envio() FROM authenticate
 REVOKE EXECUTE ON FUNCTION public.bloquear_insercao_ficha_fechada() FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.bloquear_insercao_item_ficha_fechada() FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.folhas_proteger_fechamento() FROM authenticated;
+-- triggers de folha fechada que já existiam (o dump não leva o REVOKE; a migração 20261010070000 também o faz)
+REVOKE EXECUTE ON FUNCTION public.bloquear_alteracao_ficha_fechada() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.bloquear_alteracao_item_ficha_fechada() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.bloquear_exclusao_ficha_fechada() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.folhas_proteger_exclusao() FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.config_envio_servidor(text) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.config_envio_servidor(text) TO service_role;
 REVOKE ALL ON public.avisos_leituras FROM anon, authenticated;

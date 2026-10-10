@@ -140,24 +140,30 @@ não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos 
 
 Migração `supabase/migrations/20261010070000_onda_b_folha_rls_permissao.sql` (spec
 `docs/superpowers/specs/2026-10-10-onda-b-folha-seguranca-design.md`; em PR, **ainda não aplicada em
-remoto**). A folha pertence ao módulo `rh`: **ler** exige o módulo; **escrever** exige a permissão granular
-que o front já usava como gate, conferida no banco por `has_permission_code` (o papel admin passa; o perfil
-precisa estar ativo). As policies `acesso_total_*` dessas dez tabelas são removidas na mesma transação.
+remoto**). A folha pertence ao módulo `rh`: **ler** exige o módulo; **escrever** exige o módulo **e** a
+permissão granular que o front já usava como gate, conferida no banco por `can_access_module` +
+`has_permission_code` (o papel admin passa pelos dois; o perfil precisa estar ativo; uma permissão avulsa em
+`user_permissions` sem o módulo `rh` não escreve). As policies `acesso_total_*` dessas dez tabelas são
+removidas na mesma transação, e a migração também tira de `anon` todo privilégio nas dez tabelas e de
+`authenticated` o TRUNCATE/TRIGGER/REFERENCES (no banco só de migrações a API tinha tudo).
 
 | Tabela | Leitura (SELECT) | Escrita (INSERT/UPDATE/DELETE) |
 |---|---|---|
-| `folhas_pagamento`, `lancamentos_folha`, `consignacoes`, `dependentes_irrf` | módulo `rh` | `financeiro.folha.processar` |
-| `fichas_financeiras` | módulo `rh` **ou** o próprio servidor (`servidor_id = meu_servidor_id()`) | `financeiro.folha.processar` |
-| `itens_ficha_financeira` | módulo `rh` **ou** itens da própria ficha | `financeiro.folha.processar` |
-| `parametros_folha`, `rubricas`, `tabela_inss`, `tabela_irrf` | módulo `rh` | `financeiro.folha.configurar` |
+| `folhas_pagamento` | módulo `rh` **ou** o servidor que tem ficha nela (contracheque: `/rh/meu-contracheque` lê `folhas_pagamento!inner`) | módulo `rh` + `financeiro.folha.processar` |
+| `lancamentos_folha`, `consignacoes`, `dependentes_irrf` | módulo `rh` | módulo `rh` + `financeiro.folha.processar` |
+| `fichas_financeiras` | módulo `rh` **ou** o próprio servidor (`servidor_id = meu_servidor_id()`) | módulo `rh` + `financeiro.folha.processar` |
+| `itens_ficha_financeira` | módulo `rh` **ou** itens da própria ficha | módulo `rh` + `financeiro.folha.processar` |
+| `parametros_folha`, `rubricas`, `tabela_inss`, `tabela_irrf` | módulo `rh` | módulo `rh` + `financeiro.folha.configurar` |
 
 - **RPC `processar_folha_pagamento`**: exige `financeiro.folha.processar` no início do corpo (erro `42501`,
   que o handler de erros da função não engole) e volta a ser executável por `authenticated` — no baseline
   estava sem EXECUTE e o botão Processar falhava; `anon` não executa. Fechar/reabrir folha não mudou:
   `usuario_pode_fechar_folha` exige `rh.admin`, código que não existe no catálogo, logo só o papel admin
   fecha e reabre (decisão de negócio pendente).
-- **Folha fechada** barra também o INSERT em `fichas_financeiras` e `itens_ficha_financeira` (admin passa),
-  como já valia para UPDATE/DELETE.
+- **Folha fechada** barra também o INSERT em `fichas_financeiras` e `itens_ficha_financeira`, o DELETE da
+  própria folha (trigger `trg_folhas_proteger_exclusao`; antes, quem tinha `processar` apagava a folha fechada
+  com fichas e itens em cascata) e a saída de ficha/item de uma folha fechada para outra (os triggers de
+  UPDATE passam a olhar a origem, não só o destino). Admin passa; erro `42501` em todos.
 - **Catálogo**: `financeiro.folha.visualizar|processar|configurar` passam a `module_code = 'rh'` em
   `module_permissions_catalog` (e de `MODULE_PERMISSIONS.financeiro` para `.rh` em `src/types/auth.ts`)
   **sem mudar de código** — gates do front, `role_permissions` e `user_permissions` continuam iguais. Como a
@@ -170,8 +176,13 @@ precisa estar ativo). As policies `acesso_total_*` dessas dez tabelas são remov
   não mudaram.
 - **Auditoria** (`fn_audit_trigger('rh')`) em `folhas_pagamento`, `itens_ficha_financeira` e `consignacoes`.
   `fichas_financeiras` (dados bancários, PIS) e `dependentes_irrf` (CPF) ficam **sem** o trigger genérico,
-  que copia a linha inteira para `audit_logs`; auditoria com mascaramento é pendência.
-- Quem perde acesso: usuário com o módulo `rh` que escrevia na folha **sem** a permissão, direto na API.
+  que copia a linha inteira para `audit_logs`. Sem CPF nem dado bancário na trilha, mas `consignacoes` e
+  `itens_ficha_financeira` ainda são dado financeiro de pessoa identificável (`servidor_id`, valores); só o
+  papel admin lê `audit_logs`, e a auditoria com mascaramento é pendência.
+- Quem perde acesso: usuário com o módulo `rh` que escrevia na folha **sem** a permissão, direto na API; e
+  quem tinha a permissão avulsa sem o módulo `rh`. No banco só de migrações, quem não tem o módulo `rh` deixa
+  de ler `folhas_pagamento` inteira (lia tudo pelas `acesso_total_*`); o servidor continua lendo a folha das
+  suas fichas.
 
 Conferência pós-merge, pelo administrador, no banco real:
 

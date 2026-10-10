@@ -138,7 +138,7 @@ fin_solicitacao_itens,financeiro,modulo,alta,,,,
 fin_solicitacoes,financeiro,modulo,alta,,,,
 fin_sub_empenhos,financeiro,modulo,alta,,,,
 folha_historico_status,rh,trilha,alta,trilha de auditoria/histórico: o módulo lê; ninguém escreve por API (triggers SECURITY DEFINER e service role gravam),,,
-folhas_pagamento,rh,permissao,alta,folha: escrita só com financeiro.folha.processar (fechar/reabrir pelas RPCs),escrita=financeiro.folha.processar,,
+folhas_pagamento,rh,permissao,alta,folha: RH lê; o servidor lê a folha em que tem ficha (contracheque); escrita só com financeiro.folha.processar (fechar/reabrir pelas RPCs),escrita=financeiro.folha.processar;filho=fichas_financeiras.folha_id,,
 form_field_config,admin,modulo,alta,módulo admin gere; leitura anônima/autenticada (formulários públicos) mantida pelas policies admin_read_form_config e anon_read_form_config,,admin_write_form_config,select
 fornecedores,compras|contratos,modulo,alta,"policies por módulo (as mesmas do replay, agora geradas e testadas)",,comp_module_delete|comp_module_select|comp_module_update|comp_module_write,
 fotos_vistoria_inventario,patrimonio|patrimonio_mobile,preservar,alta,"policies próprias na migração 20261009160000 (vêm do replay em schema/03_post_data.sql): módulo lê; INSERT exige usuario_id = auth.uid(); UPDATE só do autor ou com has_permission_code patrimonio.tramitar; DELETE só com patrimonio.tramitar; trigger só deixa alterar legenda, tem_pessoa e codigo_objeto; testes no bloco de cobertura adicional de testar-rls.sql",,,

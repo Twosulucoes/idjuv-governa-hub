@@ -17,12 +17,14 @@
  *   proprio          idem, e o próprio servidor também pode INSERIR (pedidos/requerimentos).
  *   proprio_filho    como proprio_leitura, mas a posse vem da tabela pai: extra=pai=<tabela>.<fk>;
  *                    com `;insere` o servidor também pode INSERIR registros ligados a pai seu.
- *   permissao        leitura por módulo (como modulo); ESCRITA só com permissão granular:
- *                    extra=escrita=<código>[;proprio|;pai=<tabela>.<fk>]. INSERT/UPDATE/DELETE exigem
- *                    has_permission_code(auth.uid(), '<código>') (já dá passagem ao papel admin e exige
- *                    perfil ativo). O sufixo muda só o SELECT: `;proprio` = o próprio servidor também lê
- *                    (servidor_id = meu_servidor_id(), como proprio_leitura); `;pai=` = posse pela tabela
- *                    pai (como proprio_filho). Ex.: folha (financeiro.folha.processar|configurar).
+ *   permissao        leitura por módulo (como modulo); ESCRITA exige o módulo E a permissão granular:
+ *                    extra=escrita=<código>[;proprio|;pai=<tabela>.<fk>|;filho=<tabela>.<fk>]. INSERT/UPDATE/
+ *                    DELETE exigem can_access_module(<módulos>) AND has_permission_code(auth.uid(), '<código>')
+ *                    (a permissão avulsa em user_permissions não basta sem o módulo; o papel admin passa pelos
+ *                    dois). O sufixo muda só o SELECT: `;proprio` = o próprio servidor também lê (servidor_id =
+ *                    meu_servidor_id(), como proprio_leitura); `;pai=` = posse pela tabela pai (como
+ *                    proprio_filho); `;filho=` = posse derivada de uma tabela filha com servidor_id
+ *                    (ex.: o servidor lê a folha em que tem ficha). Ex.: folha (financeiro.folha.processar|configurar).
  *   catalogo_admin   SELECT para qualquer usuário ativo; escrita só do papel admin (catálogos de permissão,
  *                    configuração de módulos, dados oficiais: o app os lê no login/rodapé, mas só admin altera).
  *   proprio_user     dado de configuração por usuário: extra=coluna=<col_do_usuario>; o próprio usuário (ativo)
@@ -117,6 +119,13 @@ for (const r of dados) {
   const M = mods.length
     ? "(" + mods.map((m) => `public.can_access_module(auth.uid(), ${q(m)})`).join(" OR ") + ")"
     : "";
+  // Posse pelo servidor logado via outra tabela (que precisa ter servidor_id):
+  //   doServidor(pai, ref)   -> a linha referencia (ref = <tabela>.<fk>) um pai do próprio servidor
+  //   filhoDoServidor(filha, fk) -> existe uma filha do próprio servidor apontando (filha.fk) para <tabela>.id
+  const doServidor = (pai, ref) =>
+    `EXISTS (SELECT 1 FROM public.${pai} p WHERE p.id = ${ref} AND p.servidor_id = public.meu_servidor_id())`;
+  const filhoDoServidor = (filha, fk) =>
+    `EXISTS (SELECT 1 FROM public.${filha} f WHERE f.${fk} = ${t}.id AND f.servidor_id = public.meu_servidor_id())`;
   const politica = (nome, cmd, using, check) => {
     L.push(`DROP POLICY IF EXISTS ${id(nome)} ON public.${t};`);
     const partes = [`CREATE POLICY ${id(nome)} ON public.${t} FOR ${cmd} TO authenticated`];
@@ -153,11 +162,8 @@ for (const r of dados) {
       const m = /^pai=([a-z_][a-z0-9_]*)\.([a-z_][a-z0-9_]*)(;insere)?$/.exec(extra);
       if (!m) { erros.push(`${t}: extra deve ser pai=<tabela_pai>.<coluna_fk>[;insere]`); break; }
       const [, pai, fk, insere] = m;
-      // A tabela pai precisa ter servidor_id; p.id é a chave referenciada por <coluna_fk>.
-      const doServidor = (ref) =>
-        `EXISTS (SELECT 1 FROM public.${pai} p WHERE p.id = ${ref} AND p.servidor_id = public.meu_servidor_id())`;
-      politica("rls_select", "SELECT", `${M} OR ${doServidor(`${t}.${fk}`)}`, null);
-      if (insere) politica("rls_insert", "INSERT", null, `${M} OR ${doServidor(`${t}.${fk}`)}`);
+      politica("rls_select", "SELECT", `${M} OR ${doServidor(pai, `${t}.${fk}`)}`, null);
+      if (insere) politica("rls_insert", "INSERT", null, `${M} OR ${doServidor(pai, `${t}.${fk}`)}`);
       else politica("rls_insert", "INSERT", null, M);
       politica("rls_update", "UPDATE", M, M);
       politica("rls_delete", "DELETE", M, null);
@@ -165,13 +171,15 @@ for (const r of dados) {
     }
     case "permissao": {
       // Código de permissão: segmentos minúsculos separados por ponto (ex.: financeiro.folha.processar).
-      const m = /^escrita=([a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+)(?:;(proprio)|;pai=([a-z_][a-z0-9_]*)\.([a-z_][a-z0-9_]*))?$/.exec(extra);
-      if (!m) { erros.push(`${t}: extra deve ser escrita=<código>[;proprio|;pai=<tabela_pai>.<coluna_fk>]`); break; }
-      const [, codigo, proprio, pai, fk] = m;
-      const P = `public.has_permission_code(auth.uid(), ${q(codigo)})`;
+      const m = /^escrita=([a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+)(?:;(proprio)|;pai=([a-z_][a-z0-9_]*)\.([a-z_][a-z0-9_]*)|;filho=([a-z_][a-z0-9_]*)\.([a-z_][a-z0-9_]*))?$/.exec(extra);
+      if (!m) { erros.push(`${t}: extra deve ser escrita=<código>[;proprio|;pai=<tabela_pai>.<coluna_fk>|;filho=<tabela_filha>.<coluna_fk>]`); break; }
+      const [, codigo, proprio, pai, fk, filha, fkFilha] = m;
+      // Escrita: módulo E permissão (a permissão sozinha, avulsa em user_permissions, não escreve sem o módulo).
+      const P = `${M} AND public.has_permission_code(auth.uid(), ${q(codigo)})`;
       let leitura = M;
       if (proprio) leitura = `${M} OR servidor_id = public.meu_servidor_id()`;
-      else if (pai) leitura = `${M} OR EXISTS (SELECT 1 FROM public.${pai} p WHERE p.id = ${t}.${fk} AND p.servidor_id = public.meu_servidor_id())`;
+      else if (pai) leitura = `${M} OR ${doServidor(pai, `${t}.${fk}`)}`;
+      else if (filha) leitura = `${M} OR ${filhoDoServidor(filha, fkFilha)}`;
       politica("rls_select", "SELECT", leitura, null);
       politica("rls_insert", "INSERT", null, P);
       politica("rls_update", "UPDATE", P, P);

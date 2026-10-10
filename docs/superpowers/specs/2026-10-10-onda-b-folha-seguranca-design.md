@@ -43,8 +43,9 @@ premissas abaixo valem até o usuário dizer o contrário; as decisões que muda
 5. **Fechar/reabrir folha não muda de dono.** `usuario_pode_fechar_folha` exige `rh.admin`, código que não
    existe no catálogo, logo só o papel admin fecha e envia para conferência hoje. Fica assim (registrado);
    alinhar a `financeiro.folha.processar` é decisão de negócio para outra entrega.
-6. **Sem dado pessoal na auditoria.** `fn_audit_trigger` copia a linha inteira para `audit_logs`. Entra em
-   `folhas_pagamento`, `itens_ficha_financeira` e `consignacoes` (sem CPF/banco). `fichas_financeiras`
+6. **Sem CPF nem dado bancário na auditoria.** `fn_audit_trigger` copia a linha inteira para `audit_logs`. Entra em
+   `folhas_pagamento`, `itens_ficha_financeira` e `consignacoes` (sem CPF/banco; itens e consignações ainda são
+   dado financeiro de pessoa identificável, lido só pelo papel admin). `fichas_financeiras`
    (dados bancários, PIS) e `dependentes_irrf` (CPF do dependente) **não** recebem o trigger genérico;
    auditoria com mascaramento fica registrada como pendência.
 7. **O gerador de RLS continua sendo a fonte da verdade.** Em vez de policies "à mão" fora do modelo, o

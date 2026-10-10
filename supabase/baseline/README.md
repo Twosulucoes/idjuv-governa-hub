@@ -53,7 +53,7 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas
 | Classe | Tabelas | Regra |
 |---|---|---|
 | `modulo` | 172 | módulo(s) do mapa leem e escrevem; admin (papel) também |
-| `permissao` | 10 | módulo lê (com `;proprio`/`;pai=` o servidor lê o seu, como `proprio_leitura`/`proprio_filho`); **escreve só quem tem a permissão granular** do `extra` (`escrita=<código>`, via `has_permission_code`; admin passa). Hoje: as 10 tabelas da folha — `financeiro.folha.processar` (folhas, fichas, itens, consignações, dependentes IRRF, lançamentos) e `financeiro.folha.configurar` (rubricas, parâmetros, tabelas INSS/IRRF); migração `supabase/migrations/20261010070000_onda_b_folha_rls_permissao.sql` carrega o mesmo SQL |
+| `permissao` | 10 | módulo lê (com `;proprio`/`;pai=` o servidor lê o seu, como `proprio_leitura`/`proprio_filho`; com `;filho=<tabela>.<fk>` lê a linha que tem uma filha sua — a folha em que tem ficha); **escreve só quem tem o módulo E a permissão granular** do `extra` (`escrita=<código>`, via `can_access_module` + `has_permission_code`; admin passa). Hoje: as 10 tabelas da folha — `financeiro.folha.processar` (folhas, fichas, itens, consignações, dependentes IRRF, lançamentos) e `financeiro.folha.configurar` (rubricas, parâmetros, tabelas INSS/IRRF); migração `supabase/migrations/20261010070000_onda_b_folha_rls_permissao.sql` carrega o mesmo SQL |
 | `trilha` | 9 | módulo lê; **ninguém escreve por API** (auditoria e históricos gravados por trigger) |
 | `proprio_leitura` / `proprio` / `proprio_filho` | 11 / 3 / 2 | módulo + o próprio servidor lê; em `proprio*` o servidor também cria o próprio pedido (status/aprovação forçados pelo overlay 20) |
 | `catalogo` | 6 | qualquer usuário ativo lê; escrita por módulo |
@@ -87,7 +87,8 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
 - por tabela: `SELECT`, `INSERT`, `UPDATE` e `DELETE` para admin, admin bloqueado, sem módulo, inativo,
   servidores (ativo e bloqueado), cada módulo do mapa e um módulo alheio; `anon` conforme a coluna `anon`;
   na classe `permissao`, mais uma persona por código exigido (`perm_<código>`: módulo + código em
-  `user_modules.permissions`) — só ela e o admin escrevem; o módulo sem o código lê e não altera;
+  `user_modules.permissions`) e uma com a permissão avulsa sem o módulo (`perm_avulsa_<código>`) — só a
+  primeira e o admin escrevem; o módulo sem o código lê e não altera; a avulsa não lê nem altera;
 - folha: `processar_folha_pagamento` deve ser executável por `authenticated` **e** ter guarda
   `has_permission_code` no corpo (não por `anon`); UPDATE direto de `status` em `folhas_pagamento` barrado
   mesmo para quem processa; INSERT de ficha/item em folha fechada recusado (`42501`), exceto para admin;

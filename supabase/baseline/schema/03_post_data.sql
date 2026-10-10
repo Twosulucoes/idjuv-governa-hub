@@ -7150,6 +7150,13 @@ CREATE TRIGGER trg_ferias_atualiza_situacao AFTER INSERT OR UPDATE ON public.fer
 
 
 --
+-- Name: folhas_pagamento trg_folhas_proteger_exclusao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_folhas_proteger_exclusao BEFORE DELETE ON public.folhas_pagamento FOR EACH ROW EXECUTE FUNCTION public.folhas_proteger_exclusao();
+
+
+--
 -- Name: fotos_vistoria_inventario trg_fotos_vistoria_inventario_imutavel; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -20833,28 +20840,28 @@ CREATE POLICY rls_delete ON public.campanhas_inventario_unidades FOR DELETE TO a
 -- Name: consignacoes rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.consignacoes FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_delete ON public.consignacoes FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
 -- Name: dependentes_irrf rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.dependentes_irrf FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_delete ON public.dependentes_irrf FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
 -- Name: fichas_financeiras rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.fichas_financeiras FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_delete ON public.fichas_financeiras FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
 -- Name: folhas_pagamento rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.folhas_pagamento FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_delete ON public.folhas_pagamento FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
@@ -20868,42 +20875,42 @@ CREATE POLICY rls_delete ON public.fotos_vistoria_inventario FOR DELETE TO authe
 -- Name: itens_ficha_financeira rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.itens_ficha_financeira FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_delete ON public.itens_ficha_financeira FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
 -- Name: lancamentos_folha rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.lancamentos_folha FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_delete ON public.lancamentos_folha FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
 -- Name: parametros_folha rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.parametros_folha FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text));
+CREATE POLICY rls_delete ON public.parametros_folha FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
 
 
 --
 -- Name: rubricas rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.rubricas FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text));
+CREATE POLICY rls_delete ON public.rubricas FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
 
 
 --
 -- Name: tabela_inss rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.tabela_inss FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text));
+CREATE POLICY rls_delete ON public.tabela_inss FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
 
 
 --
 -- Name: tabela_irrf rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.tabela_irrf FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text));
+CREATE POLICY rls_delete ON public.tabela_irrf FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
 
 
 --
@@ -20917,28 +20924,28 @@ CREATE POLICY rls_insert ON public.campanhas_inventario_unidades FOR INSERT TO a
 -- Name: consignacoes rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.consignacoes FOR INSERT TO authenticated WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_insert ON public.consignacoes FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
 -- Name: dependentes_irrf rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.dependentes_irrf FOR INSERT TO authenticated WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_insert ON public.dependentes_irrf FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
 -- Name: fichas_financeiras rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.fichas_financeiras FOR INSERT TO authenticated WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_insert ON public.fichas_financeiras FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
 -- Name: folhas_pagamento rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.folhas_pagamento FOR INSERT TO authenticated WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_insert ON public.folhas_pagamento FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
@@ -20952,42 +20959,42 @@ CREATE POLICY rls_insert ON public.fotos_vistoria_inventario FOR INSERT TO authe
 -- Name: itens_ficha_financeira rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.itens_ficha_financeira FOR INSERT TO authenticated WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_insert ON public.itens_ficha_financeira FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
 -- Name: lancamentos_folha rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.lancamentos_folha FOR INSERT TO authenticated WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_insert ON public.lancamentos_folha FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
 -- Name: parametros_folha rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.parametros_folha FOR INSERT TO authenticated WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text));
+CREATE POLICY rls_insert ON public.parametros_folha FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
 
 
 --
 -- Name: rubricas rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.rubricas FOR INSERT TO authenticated WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text));
+CREATE POLICY rls_insert ON public.rubricas FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
 
 
 --
 -- Name: tabela_inss rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.tabela_inss FOR INSERT TO authenticated WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text));
+CREATE POLICY rls_insert ON public.tabela_inss FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
 
 
 --
 -- Name: tabela_irrf rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.tabela_irrf FOR INSERT TO authenticated WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text));
+CREATE POLICY rls_insert ON public.tabela_irrf FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
 
 
 --
@@ -21022,7 +21029,9 @@ CREATE POLICY rls_select ON public.fichas_financeiras FOR SELECT TO authenticate
 -- Name: folhas_pagamento rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.folhas_pagamento FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_select ON public.folhas_pagamento FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (EXISTS ( SELECT 1
+   FROM public.fichas_financeiras f
+  WHERE ((f.folha_id = folhas_pagamento.id) AND (f.servidor_id = public.meu_servidor_id()))))));
 
 
 --
@@ -21087,28 +21096,28 @@ CREATE POLICY rls_update ON public.campanhas_inventario_unidades FOR UPDATE TO a
 -- Name: consignacoes rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.consignacoes FOR UPDATE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)) WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_update ON public.consignacoes FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
 -- Name: dependentes_irrf rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.dependentes_irrf FOR UPDATE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)) WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_update ON public.dependentes_irrf FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
 -- Name: fichas_financeiras rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.fichas_financeiras FOR UPDATE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)) WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_update ON public.fichas_financeiras FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
 -- Name: folhas_pagamento rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.folhas_pagamento FOR UPDATE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)) WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_update ON public.folhas_pagamento FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
@@ -21122,42 +21131,42 @@ CREATE POLICY rls_update ON public.fotos_vistoria_inventario FOR UPDATE TO authe
 -- Name: itens_ficha_financeira rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.itens_ficha_financeira FOR UPDATE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)) WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_update ON public.itens_ficha_financeira FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
 -- Name: lancamentos_folha rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.lancamentos_folha FOR UPDATE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)) WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text));
+CREATE POLICY rls_update ON public.lancamentos_folha FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
 -- Name: parametros_folha rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.parametros_folha FOR UPDATE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)) WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text));
+CREATE POLICY rls_update ON public.parametros_folha FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
 
 
 --
 -- Name: rubricas rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.rubricas FOR UPDATE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)) WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text));
+CREATE POLICY rls_update ON public.rubricas FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
 
 
 --
 -- Name: tabela_inss rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.tabela_inss FOR UPDATE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)) WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text));
+CREATE POLICY rls_update ON public.tabela_inss FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
 
 
 --
 -- Name: tabela_irrf rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.tabela_irrf FOR UPDATE TO authenticated USING (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)) WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text));
+CREATE POLICY rls_update ON public.tabela_irrf FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
 
 
 --

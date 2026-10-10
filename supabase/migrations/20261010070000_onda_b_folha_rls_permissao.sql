@@ -23,10 +23,14 @@
 -- Blocos:
 --   1. funções-base (cópia textual de overlay/10_funcoes_acesso.sql e, da folha, overlay/18_funcoes_rpc.sql)
 --   2. policies das 10 tabelas da folha — classe `permissao` do gerador (supabase/baseline/rls/mapa.csv):
---      leitura pelo módulo rh (fichas/itens também pelo próprio servidor); escrita só com
---      financeiro.folha.processar (operação) ou financeiro.folha.configurar (rubricas/parâmetros/tabelas)
+--      leitura pelo módulo rh (ficha e itens também pelo próprio servidor; a folha, pelo servidor que tem
+--      ficha nela — contracheque); escrita exige o módulo rh E a permissão financeiro.folha.processar
+--      (operação) ou financeiro.folha.configurar (rubricas/parâmetros/tabelas) — a permissão avulsa sem o
+--      módulo não escreve. Em seguida, privilégios de tabela: anon sem nada; authenticated sem
+--      TRUNCATE/TRIGGER/REFERENCES (no estado (b) a API tinha tudo)
 --   3. processar_folha_pagamento: guarda has_permission_code + EXECUTE para authenticated (anon não)
---   4. folha fechada barra também o INSERT em fichas_financeiras e itens_ficha_financeira (42501)
+--   4. folha fechada barra também o INSERT em fichas_financeiras e itens_ficha_financeira, o DELETE da
+--      própria folha (a cascata apagaria fichas e itens) e a mudança de folha/ficha de origem (42501)
 --   5. índice único parcial para "Lançar na ficha" (só se não houver duplicata; senão WARNING)
 --   6. auditoria (fn_audit_trigger) em folhas_pagamento, itens_ficha_financeira e consignacoes
 --      (fichas_financeiras e dependentes_irrf ficam fora: dado bancário/CPF — premissa 6)
@@ -336,6 +340,20 @@ REVOKE EXECUTE ON FUNCTION public.fechar_folha(uuid, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fechar_folha(uuid, text) TO authenticated, service_role;
 REVOKE EXECUTE ON FUNCTION public.reabrir_folha(uuid, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.reabrir_folha(uuid, text) TO authenticated, service_role;
+-- Funções auxiliares que já existem nos dois estados e que as policies/triggers desta migração chamam:
+-- no estado (b) são executáveis por anon (privilégio padrão da plataforma); no baseline o overlay/40 já as fecha.
+REVOKE EXECUTE ON FUNCTION public.has_module(uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.has_module(uuid, text) TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.can_access_module(uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.can_access_module(uuid, text) TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.get_user_permission_codes(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_user_permission_codes(uuid) TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.folha_esta_bloqueada(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.folha_esta_bloqueada(uuid) TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.usuario_pode_fechar_folha(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.usuario_pode_fechar_folha(uuid) TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.usuario_pode_reabrir_folha(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.usuario_pode_reabrir_folha(uuid) TO authenticated, service_role;
 -- folhas_proteger_fechamento é função de trigger: ninguém a chama diretamente.
 REVOKE EXECUTE ON FUNCTION public.folhas_proteger_fechamento() FROM PUBLIC, anon, authenticated;
 
@@ -344,7 +362,7 @@ REVOKE EXECUTE ON FUNCTION public.folhas_proteger_fechamento() FROM PUBLIC, anon
 --    supabase/baseline/rls/35_policies_geradas.sql — não editar à mão, regenerar)
 -- ----------------------------------------------------------------------------
 -- Policies permissivas são OR: qualquer `acesso_total_*` que sobrasse anularia a restrição, por isso os
--- nomes dos dois estados são removidos antes de criar as geradas.
+-- nomes do estado (b) são removidos antes de criar as geradas (os nomes rls_* são removidos pelo SQL gerado).
 
 -- folhas_pagamento
 ALTER TABLE public.folhas_pagamento ENABLE ROW LEVEL SECURITY;
@@ -352,24 +370,20 @@ DROP POLICY IF EXISTS acesso_total_select ON public.folhas_pagamento;
 DROP POLICY IF EXISTS acesso_total_insert ON public.folhas_pagamento;
 DROP POLICY IF EXISTS acesso_total_update ON public.folhas_pagamento;
 DROP POLICY IF EXISTS acesso_total_delete ON public.folhas_pagamento;
-DROP POLICY IF EXISTS rls_select ON public.folhas_pagamento;
-DROP POLICY IF EXISTS rls_insert ON public.folhas_pagamento;
-DROP POLICY IF EXISTS rls_update ON public.folhas_pagamento;
-DROP POLICY IF EXISTS rls_delete ON public.folhas_pagamento;
--- (gerado por scripts/db/gerar-rls.mjs — classe permissao)
+-- (gerado por scripts/db/gerar-rls.mjs — classe permissao; os DROP dos nomes rls_* vêm no próprio SQL gerado)
 DROP POLICY IF EXISTS "rls_select" ON public.folhas_pagamento;
 CREATE POLICY "rls_select" ON public.folhas_pagamento FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')));
+  USING ((public.can_access_module(auth.uid(), 'rh')) OR EXISTS (SELECT 1 FROM public.fichas_financeiras f WHERE f.folha_id = folhas_pagamento.id AND f.servidor_id = public.meu_servidor_id()));
 DROP POLICY IF EXISTS "rls_insert" ON public.folhas_pagamento;
 CREATE POLICY "rls_insert" ON public.folhas_pagamento FOR INSERT TO authenticated
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 DROP POLICY IF EXISTS "rls_update" ON public.folhas_pagamento;
 CREATE POLICY "rls_update" ON public.folhas_pagamento FOR UPDATE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'))
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.folhas_pagamento;
 CREATE POLICY "rls_delete" ON public.folhas_pagamento FOR DELETE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 
 -- fichas_financeiras
 ALTER TABLE public.fichas_financeiras ENABLE ROW LEVEL SECURITY;
@@ -377,24 +391,20 @@ DROP POLICY IF EXISTS acesso_total_select ON public.fichas_financeiras;
 DROP POLICY IF EXISTS acesso_total_insert ON public.fichas_financeiras;
 DROP POLICY IF EXISTS acesso_total_update ON public.fichas_financeiras;
 DROP POLICY IF EXISTS acesso_total_delete ON public.fichas_financeiras;
-DROP POLICY IF EXISTS rls_select ON public.fichas_financeiras;
-DROP POLICY IF EXISTS rls_insert ON public.fichas_financeiras;
-DROP POLICY IF EXISTS rls_update ON public.fichas_financeiras;
-DROP POLICY IF EXISTS rls_delete ON public.fichas_financeiras;
--- (gerado por scripts/db/gerar-rls.mjs — classe permissao)
+-- (gerado por scripts/db/gerar-rls.mjs — classe permissao; os DROP dos nomes rls_* vêm no próprio SQL gerado)
 DROP POLICY IF EXISTS "rls_select" ON public.fichas_financeiras;
 CREATE POLICY "rls_select" ON public.fichas_financeiras FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')) OR servidor_id = public.meu_servidor_id());
 DROP POLICY IF EXISTS "rls_insert" ON public.fichas_financeiras;
 CREATE POLICY "rls_insert" ON public.fichas_financeiras FOR INSERT TO authenticated
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 DROP POLICY IF EXISTS "rls_update" ON public.fichas_financeiras;
 CREATE POLICY "rls_update" ON public.fichas_financeiras FOR UPDATE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'))
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.fichas_financeiras;
 CREATE POLICY "rls_delete" ON public.fichas_financeiras FOR DELETE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 
 -- itens_ficha_financeira
 ALTER TABLE public.itens_ficha_financeira ENABLE ROW LEVEL SECURITY;
@@ -402,24 +412,20 @@ DROP POLICY IF EXISTS acesso_total_select ON public.itens_ficha_financeira;
 DROP POLICY IF EXISTS acesso_total_insert ON public.itens_ficha_financeira;
 DROP POLICY IF EXISTS acesso_total_update ON public.itens_ficha_financeira;
 DROP POLICY IF EXISTS acesso_total_delete ON public.itens_ficha_financeira;
-DROP POLICY IF EXISTS rls_select ON public.itens_ficha_financeira;
-DROP POLICY IF EXISTS rls_insert ON public.itens_ficha_financeira;
-DROP POLICY IF EXISTS rls_update ON public.itens_ficha_financeira;
-DROP POLICY IF EXISTS rls_delete ON public.itens_ficha_financeira;
--- (gerado por scripts/db/gerar-rls.mjs — classe permissao)
+-- (gerado por scripts/db/gerar-rls.mjs — classe permissao; os DROP dos nomes rls_* vêm no próprio SQL gerado)
 DROP POLICY IF EXISTS "rls_select" ON public.itens_ficha_financeira;
 CREATE POLICY "rls_select" ON public.itens_ficha_financeira FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')) OR EXISTS (SELECT 1 FROM public.fichas_financeiras p WHERE p.id = itens_ficha_financeira.ficha_id AND p.servidor_id = public.meu_servidor_id()));
 DROP POLICY IF EXISTS "rls_insert" ON public.itens_ficha_financeira;
 CREATE POLICY "rls_insert" ON public.itens_ficha_financeira FOR INSERT TO authenticated
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 DROP POLICY IF EXISTS "rls_update" ON public.itens_ficha_financeira;
 CREATE POLICY "rls_update" ON public.itens_ficha_financeira FOR UPDATE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'))
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.itens_ficha_financeira;
 CREATE POLICY "rls_delete" ON public.itens_ficha_financeira FOR DELETE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 
 -- consignacoes
 ALTER TABLE public.consignacoes ENABLE ROW LEVEL SECURITY;
@@ -427,24 +433,20 @@ DROP POLICY IF EXISTS acesso_total_select ON public.consignacoes;
 DROP POLICY IF EXISTS acesso_total_insert ON public.consignacoes;
 DROP POLICY IF EXISTS acesso_total_update ON public.consignacoes;
 DROP POLICY IF EXISTS acesso_total_delete ON public.consignacoes;
-DROP POLICY IF EXISTS rls_select ON public.consignacoes;
-DROP POLICY IF EXISTS rls_insert ON public.consignacoes;
-DROP POLICY IF EXISTS rls_update ON public.consignacoes;
-DROP POLICY IF EXISTS rls_delete ON public.consignacoes;
--- (gerado por scripts/db/gerar-rls.mjs — classe permissao)
+-- (gerado por scripts/db/gerar-rls.mjs — classe permissao; os DROP dos nomes rls_* vêm no próprio SQL gerado)
 DROP POLICY IF EXISTS "rls_select" ON public.consignacoes;
 CREATE POLICY "rls_select" ON public.consignacoes FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 DROP POLICY IF EXISTS "rls_insert" ON public.consignacoes;
 CREATE POLICY "rls_insert" ON public.consignacoes FOR INSERT TO authenticated
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 DROP POLICY IF EXISTS "rls_update" ON public.consignacoes;
 CREATE POLICY "rls_update" ON public.consignacoes FOR UPDATE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'))
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.consignacoes;
 CREATE POLICY "rls_delete" ON public.consignacoes FOR DELETE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 
 -- dependentes_irrf
 ALTER TABLE public.dependentes_irrf ENABLE ROW LEVEL SECURITY;
@@ -452,24 +454,20 @@ DROP POLICY IF EXISTS acesso_total_select ON public.dependentes_irrf;
 DROP POLICY IF EXISTS acesso_total_insert ON public.dependentes_irrf;
 DROP POLICY IF EXISTS acesso_total_update ON public.dependentes_irrf;
 DROP POLICY IF EXISTS acesso_total_delete ON public.dependentes_irrf;
-DROP POLICY IF EXISTS rls_select ON public.dependentes_irrf;
-DROP POLICY IF EXISTS rls_insert ON public.dependentes_irrf;
-DROP POLICY IF EXISTS rls_update ON public.dependentes_irrf;
-DROP POLICY IF EXISTS rls_delete ON public.dependentes_irrf;
--- (gerado por scripts/db/gerar-rls.mjs — classe permissao)
+-- (gerado por scripts/db/gerar-rls.mjs — classe permissao; os DROP dos nomes rls_* vêm no próprio SQL gerado)
 DROP POLICY IF EXISTS "rls_select" ON public.dependentes_irrf;
 CREATE POLICY "rls_select" ON public.dependentes_irrf FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 DROP POLICY IF EXISTS "rls_insert" ON public.dependentes_irrf;
 CREATE POLICY "rls_insert" ON public.dependentes_irrf FOR INSERT TO authenticated
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 DROP POLICY IF EXISTS "rls_update" ON public.dependentes_irrf;
 CREATE POLICY "rls_update" ON public.dependentes_irrf FOR UPDATE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'))
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.dependentes_irrf;
 CREATE POLICY "rls_delete" ON public.dependentes_irrf FOR DELETE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 
 -- lancamentos_folha
 ALTER TABLE public.lancamentos_folha ENABLE ROW LEVEL SECURITY;
@@ -477,24 +475,20 @@ DROP POLICY IF EXISTS acesso_total_select ON public.lancamentos_folha;
 DROP POLICY IF EXISTS acesso_total_insert ON public.lancamentos_folha;
 DROP POLICY IF EXISTS acesso_total_update ON public.lancamentos_folha;
 DROP POLICY IF EXISTS acesso_total_delete ON public.lancamentos_folha;
-DROP POLICY IF EXISTS rls_select ON public.lancamentos_folha;
-DROP POLICY IF EXISTS rls_insert ON public.lancamentos_folha;
-DROP POLICY IF EXISTS rls_update ON public.lancamentos_folha;
-DROP POLICY IF EXISTS rls_delete ON public.lancamentos_folha;
--- (gerado por scripts/db/gerar-rls.mjs — classe permissao)
+-- (gerado por scripts/db/gerar-rls.mjs — classe permissao; os DROP dos nomes rls_* vêm no próprio SQL gerado)
 DROP POLICY IF EXISTS "rls_select" ON public.lancamentos_folha;
 CREATE POLICY "rls_select" ON public.lancamentos_folha FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 DROP POLICY IF EXISTS "rls_insert" ON public.lancamentos_folha;
 CREATE POLICY "rls_insert" ON public.lancamentos_folha FOR INSERT TO authenticated
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 DROP POLICY IF EXISTS "rls_update" ON public.lancamentos_folha;
 CREATE POLICY "rls_update" ON public.lancamentos_folha FOR UPDATE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'))
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.lancamentos_folha;
 CREATE POLICY "rls_delete" ON public.lancamentos_folha FOR DELETE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 
 -- parametros_folha
 ALTER TABLE public.parametros_folha ENABLE ROW LEVEL SECURITY;
@@ -502,24 +496,20 @@ DROP POLICY IF EXISTS acesso_total_select ON public.parametros_folha;
 DROP POLICY IF EXISTS acesso_total_insert ON public.parametros_folha;
 DROP POLICY IF EXISTS acesso_total_update ON public.parametros_folha;
 DROP POLICY IF EXISTS acesso_total_delete ON public.parametros_folha;
-DROP POLICY IF EXISTS rls_select ON public.parametros_folha;
-DROP POLICY IF EXISTS rls_insert ON public.parametros_folha;
-DROP POLICY IF EXISTS rls_update ON public.parametros_folha;
-DROP POLICY IF EXISTS rls_delete ON public.parametros_folha;
--- (gerado por scripts/db/gerar-rls.mjs — classe permissao)
+-- (gerado por scripts/db/gerar-rls.mjs — classe permissao; os DROP dos nomes rls_* vêm no próprio SQL gerado)
 DROP POLICY IF EXISTS "rls_select" ON public.parametros_folha;
 CREATE POLICY "rls_select" ON public.parametros_folha FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 DROP POLICY IF EXISTS "rls_insert" ON public.parametros_folha;
 CREATE POLICY "rls_insert" ON public.parametros_folha FOR INSERT TO authenticated
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
 DROP POLICY IF EXISTS "rls_update" ON public.parametros_folha;
 CREATE POLICY "rls_update" ON public.parametros_folha FOR UPDATE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'))
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.parametros_folha;
 CREATE POLICY "rls_delete" ON public.parametros_folha FOR DELETE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
 
 -- rubricas
 ALTER TABLE public.rubricas ENABLE ROW LEVEL SECURITY;
@@ -527,24 +517,20 @@ DROP POLICY IF EXISTS acesso_total_select ON public.rubricas;
 DROP POLICY IF EXISTS acesso_total_insert ON public.rubricas;
 DROP POLICY IF EXISTS acesso_total_update ON public.rubricas;
 DROP POLICY IF EXISTS acesso_total_delete ON public.rubricas;
-DROP POLICY IF EXISTS rls_select ON public.rubricas;
-DROP POLICY IF EXISTS rls_insert ON public.rubricas;
-DROP POLICY IF EXISTS rls_update ON public.rubricas;
-DROP POLICY IF EXISTS rls_delete ON public.rubricas;
--- (gerado por scripts/db/gerar-rls.mjs — classe permissao)
+-- (gerado por scripts/db/gerar-rls.mjs — classe permissao; os DROP dos nomes rls_* vêm no próprio SQL gerado)
 DROP POLICY IF EXISTS "rls_select" ON public.rubricas;
 CREATE POLICY "rls_select" ON public.rubricas FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 DROP POLICY IF EXISTS "rls_insert" ON public.rubricas;
 CREATE POLICY "rls_insert" ON public.rubricas FOR INSERT TO authenticated
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
 DROP POLICY IF EXISTS "rls_update" ON public.rubricas;
 CREATE POLICY "rls_update" ON public.rubricas FOR UPDATE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'))
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.rubricas;
 CREATE POLICY "rls_delete" ON public.rubricas FOR DELETE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
 
 -- tabela_inss
 ALTER TABLE public.tabela_inss ENABLE ROW LEVEL SECURITY;
@@ -552,24 +538,20 @@ DROP POLICY IF EXISTS acesso_total_select ON public.tabela_inss;
 DROP POLICY IF EXISTS acesso_total_insert ON public.tabela_inss;
 DROP POLICY IF EXISTS acesso_total_update ON public.tabela_inss;
 DROP POLICY IF EXISTS acesso_total_delete ON public.tabela_inss;
-DROP POLICY IF EXISTS rls_select ON public.tabela_inss;
-DROP POLICY IF EXISTS rls_insert ON public.tabela_inss;
-DROP POLICY IF EXISTS rls_update ON public.tabela_inss;
-DROP POLICY IF EXISTS rls_delete ON public.tabela_inss;
--- (gerado por scripts/db/gerar-rls.mjs — classe permissao)
+-- (gerado por scripts/db/gerar-rls.mjs — classe permissao; os DROP dos nomes rls_* vêm no próprio SQL gerado)
 DROP POLICY IF EXISTS "rls_select" ON public.tabela_inss;
 CREATE POLICY "rls_select" ON public.tabela_inss FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 DROP POLICY IF EXISTS "rls_insert" ON public.tabela_inss;
 CREATE POLICY "rls_insert" ON public.tabela_inss FOR INSERT TO authenticated
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
 DROP POLICY IF EXISTS "rls_update" ON public.tabela_inss;
 CREATE POLICY "rls_update" ON public.tabela_inss FOR UPDATE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'))
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.tabela_inss;
 CREATE POLICY "rls_delete" ON public.tabela_inss FOR DELETE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
 
 -- tabela_irrf
 ALTER TABLE public.tabela_irrf ENABLE ROW LEVEL SECURITY;
@@ -577,28 +559,33 @@ DROP POLICY IF EXISTS acesso_total_select ON public.tabela_irrf;
 DROP POLICY IF EXISTS acesso_total_insert ON public.tabela_irrf;
 DROP POLICY IF EXISTS acesso_total_update ON public.tabela_irrf;
 DROP POLICY IF EXISTS acesso_total_delete ON public.tabela_irrf;
-DROP POLICY IF EXISTS rls_select ON public.tabela_irrf;
-DROP POLICY IF EXISTS rls_insert ON public.tabela_irrf;
-DROP POLICY IF EXISTS rls_update ON public.tabela_irrf;
-DROP POLICY IF EXISTS rls_delete ON public.tabela_irrf;
--- (gerado por scripts/db/gerar-rls.mjs — classe permissao)
+-- (gerado por scripts/db/gerar-rls.mjs — classe permissao; os DROP dos nomes rls_* vêm no próprio SQL gerado)
 DROP POLICY IF EXISTS "rls_select" ON public.tabela_irrf;
 CREATE POLICY "rls_select" ON public.tabela_irrf FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 DROP POLICY IF EXISTS "rls_insert" ON public.tabela_irrf;
 CREATE POLICY "rls_insert" ON public.tabela_irrf FOR INSERT TO authenticated
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
 DROP POLICY IF EXISTS "rls_update" ON public.tabela_irrf;
 CREATE POLICY "rls_update" ON public.tabela_irrf FOR UPDATE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'))
-  WITH CHECK (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.tabela_irrf;
 CREATE POLICY "rls_delete" ON public.tabela_irrf FOR DELETE TO authenticated
-  USING (public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+
+-- ---- privilégios de tabela (estado (b): anon/authenticated tinham ALL; o baseline já faz isto no overlay/40) ----
+-- anon não lê nem escreve na folha; TRUNCATE/TRIGGER/REFERENCES não servem à API. Idempotente.
+REVOKE ALL ON public.folhas_pagamento, public.fichas_financeiras, public.itens_ficha_financeira, public.consignacoes, public.dependentes_irrf, public.lancamentos_folha, public.parametros_folha, public.rubricas, public.tabela_inss, public.tabela_irrf FROM anon;
+REVOKE TRUNCATE, TRIGGER, REFERENCES ON public.folhas_pagamento, public.fichas_financeiras, public.itens_ficha_financeira, public.consignacoes, public.dependentes_irrf, public.lancamentos_folha, public.parametros_folha, public.rubricas, public.tabela_inss, public.tabela_irrf FROM authenticated;
 
 -- ----------------------------------------------------------------------------
 -- 3. processar_folha_pagamento: corpo atual (schema/01_pre_data.sql) + guarda de permissão
 -- ----------------------------------------------------------------------------
+-- A RPC é do front (usuário logado com financeiro.folha.processar ou papel admin). Sem JWT de usuário —
+-- service_role "puro", cron, Edge Function sem repassar a sessão — auth.uid() é NULL e
+-- has_permission_code(NULL, ...) é false: a guarda NEGA. Processamento automatizado precisa de outro
+-- caminho (fora do escopo B1).
 CREATE OR REPLACE FUNCTION public.processar_folha_pagamento(p_folha_id uuid) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
@@ -839,8 +826,77 @@ REVOKE EXECUTE ON FUNCTION public.processar_folha_pagamento(uuid) FROM PUBLIC, a
 GRANT EXECUTE ON FUNCTION public.processar_folha_pagamento(uuid) TO authenticated, service_role;
 
 -- ----------------------------------------------------------------------------
--- 4. Folha fechada barra também o INSERT (espelho de bloquear_alteracao_*_ficha_fechada)
+-- 4. Folha fechada: barra o INSERT (espelho de bloquear_alteracao_*_ficha_fechada), o DELETE da folha
+--    e a mudança de folha/ficha de origem
 -- ----------------------------------------------------------------------------
+-- 4a. Quem tem financeiro.folha.processar passa pela RLS de DELETE em folhas_pagamento; sem este trigger
+--     apagaria uma folha FECHADA inteira (fichas e itens em cascata). Só o papel admin pode.
+CREATE OR REPLACE FUNCTION public.folhas_proteger_exclusao()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF OLD.status = 'fechada' AND NOT public.usuario_eh_admin(auth.uid()) THEN
+    RAISE EXCEPTION 'Folha fechada: não é possível excluir a folha' USING ERRCODE = '42501';
+  END IF;
+  RETURN OLD;
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.folhas_proteger_exclusao() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_folhas_proteger_exclusao ON public.folhas_pagamento;
+CREATE TRIGGER trg_folhas_proteger_exclusao
+  BEFORE DELETE ON public.folhas_pagamento
+  FOR EACH ROW EXECUTE FUNCTION public.folhas_proteger_exclusao();
+
+-- 4b. Os triggers de UPDATE existentes só olhavam o DESTINO (NEW): mover uma ficha para outra folha, ou um
+--     item para a ficha de outra folha, tirava registros de uma folha FECHADA. Passam a checar também a
+--     ORIGEM (OLD). Mesmas mensagens e mesma exceção para o papel admin; ganham ERRCODE 42501 (como os demais).
+CREATE OR REPLACE FUNCTION public.bloquear_alteracao_ficha_fechada()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  -- Verificar se a folha (de destino OU de origem) está fechada
+  IF public.folha_esta_bloqueada(NEW.folha_id) OR public.folha_esta_bloqueada(OLD.folha_id) THEN
+    -- Permitir apenas para super_admin
+    IF NOT public.usuario_eh_admin(auth.uid()) THEN
+      RAISE EXCEPTION 'Folha fechada: não é possível alterar fichas financeiras' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.bloquear_alteracao_item_ficha_fechada()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_folha_id UUID;
+  v_folha_origem_id UUID;
+BEGIN
+  -- Buscar folha_id via ficha (destino no UPDATE, a própria no DELETE)
+  SELECT folha_id INTO v_folha_id
+  FROM public.fichas_financeiras
+  WHERE id = COALESCE(NEW.ficha_id, OLD.ficha_id);
+
+  -- No UPDATE que troca a ficha, a folha da ficha de ORIGEM também conta
+  IF TG_OP = 'UPDATE' AND NEW.ficha_id IS DISTINCT FROM OLD.ficha_id THEN
+    SELECT folha_id INTO v_folha_origem_id FROM public.fichas_financeiras WHERE id = OLD.ficha_id;
+  END IF;
+
+  IF public.folha_esta_bloqueada(v_folha_id) OR public.folha_esta_bloqueada(v_folha_origem_id) THEN
+    IF NOT public.usuario_eh_admin(auth.uid()) THEN
+      RAISE EXCEPTION 'Folha fechada: não é possível alterar itens de fichas financeiras' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+-- funções de trigger já existentes: no estado (b) são executáveis por anon/authenticated
+REVOKE EXECUTE ON FUNCTION public.bloquear_alteracao_ficha_fechada() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.bloquear_alteracao_item_ficha_fechada() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.bloquear_exclusao_ficha_fechada() FROM PUBLIC, anon, authenticated;
+
+-- 4c. INSERT em folha fechada
 CREATE OR REPLACE FUNCTION public.bloquear_insercao_ficha_fechada()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN

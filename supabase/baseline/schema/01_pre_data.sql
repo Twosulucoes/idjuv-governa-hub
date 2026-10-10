@@ -1865,14 +1865,14 @@ CREATE FUNCTION public.bloquear_alteracao_ficha_fechada() RETURNS trigger
     SET search_path TO 'public'
     AS $$
 BEGIN
-  -- Verificar se a folha está fechada
-  IF public.folha_esta_bloqueada(NEW.folha_id) THEN
+  -- Verificar se a folha (de destino OU de origem) está fechada
+  IF public.folha_esta_bloqueada(NEW.folha_id) OR public.folha_esta_bloqueada(OLD.folha_id) THEN
     -- Permitir apenas para super_admin
     IF NOT public.usuario_eh_admin(auth.uid()) THEN
-      RAISE EXCEPTION 'Folha fechada: não é possível alterar fichas financeiras';
+      RAISE EXCEPTION 'Folha fechada: não é possível alterar fichas financeiras' USING ERRCODE = '42501';
     END IF;
   END IF;
-  
+
   RETURN NEW;
 END;
 $$;
@@ -1888,18 +1888,24 @@ CREATE FUNCTION public.bloquear_alteracao_item_ficha_fechada() RETURNS trigger
     AS $$
 DECLARE
   v_folha_id UUID;
+  v_folha_origem_id UUID;
 BEGIN
-  -- Buscar folha_id via ficha
+  -- Buscar folha_id via ficha (destino no UPDATE, a própria no DELETE)
   SELECT folha_id INTO v_folha_id
   FROM public.fichas_financeiras
   WHERE id = COALESCE(NEW.ficha_id, OLD.ficha_id);
-  
-  IF public.folha_esta_bloqueada(v_folha_id) THEN
+
+  -- No UPDATE que troca a ficha, a folha da ficha de ORIGEM também conta
+  IF TG_OP = 'UPDATE' AND NEW.ficha_id IS DISTINCT FROM OLD.ficha_id THEN
+    SELECT folha_id INTO v_folha_origem_id FROM public.fichas_financeiras WHERE id = OLD.ficha_id;
+  END IF;
+
+  IF public.folha_esta_bloqueada(v_folha_id) OR public.folha_esta_bloqueada(v_folha_origem_id) THEN
     IF NOT public.usuario_eh_admin(auth.uid()) THEN
-      RAISE EXCEPTION 'Folha fechada: não é possível alterar itens de fichas financeiras';
+      RAISE EXCEPTION 'Folha fechada: não é possível alterar itens de fichas financeiras' USING ERRCODE = '42501';
     END IF;
   END IF;
-  
+
   RETURN COALESCE(NEW, OLD);
 END;
 $$;
@@ -4230,6 +4236,23 @@ CREATE FUNCTION public.folha_esta_bloqueada(p_folha_id uuid) RETURNS boolean
   SELECT status = 'fechada'
   FROM public.folhas_pagamento
   WHERE id = p_folha_id;
+$$;
+
+
+--
+-- Name: folhas_proteger_exclusao(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.folhas_proteger_exclusao() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF OLD.status = 'fechada' AND NOT public.usuario_eh_admin(auth.uid()) THEN
+    RAISE EXCEPTION 'Folha fechada: não é possível excluir a folha' USING ERRCODE = '42501';
+  END IF;
+  RETURN OLD;
+END;
 $$;
 
 
