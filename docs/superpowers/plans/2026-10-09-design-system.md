@@ -101,6 +101,14 @@ Contratos → Financeiro → Folha → RH (depois do PR #35) → Admin → demai
   `DataTable` em pagamentos e checklist no mesmo padrão (`ol` no fluxograma, obrigatório
   anunciado ao leitor de tela). Pendência: não há tela de lista de contratos (o menu aponta para
   `/processos/compras?tab=…`, que a página não lê).
+- **Financeiro**: painéis (`/financeiro` e o painel de orçamento, com execução em `ChartCard` e
+  tabela alternativa), orçamento, alterações orçamentárias, solicitações, empenhos, sub-empenhos,
+  liquidações, pagamentos, restos a pagar, adiantamentos, contas bancárias e relatórios com
+  `PageHeader`, `KpiCard`, `DataTable` e `StatusBadge`. Correções de passagem: filtro "Todos" de
+  restos a pagar (mandava `all` para a consulta) e filtro de adiantamentos (opções fora do enum).
+  QDD fica com o fio de importação. Pendências: `/financeiro` está registrada duas vezes no
+  `App.tsx` (o painel de orçamento não é alcançável); botões sem ação (nova dotação, novo
+  adiantamento, nova conta, atualizar saldos, "ver" de liquidações/adiantamentos/contas).
 
 - **Comunicação/ASCOM, Programas, Workflow, Gabinete e cadastros**: painéis de Comunicação,
   Programas, Gestores escolares, Workflow e Transparência; CMS (conteúdos, editor, banners,

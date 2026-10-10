@@ -1,18 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ModuleLayout } from "@/components/layout";
 import LiquidacaoFormDialog from "@/components/financeiro/LiquidacaoFormDialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -20,130 +9,134 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Plus, FileCheck, Eye, Paperclip } from "lucide-react";
+import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
+import { Plus, FileCheck, Eye, Paperclip } from "lucide-react";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { useLiquidacoes } from "@/hooks/useFinanceiro";
-import { STATUS_LIQUIDACAO_COLORS, STATUS_LIQUIDACAO_LABELS } from "@/types/financeiro";
+import type { Liquidacao } from "@/types/financeiro";
+
+/** Situação da liquidação → rótulo e tom do selo. */
+const SITUACAO_LIQUIDACAO: Record<string, { label: string; tom: TomStatus }> = {
+  pendente: { label: "Pendente", tom: "pendente" },
+  em_analise: { label: "Em análise", tom: "andamento" },
+  atestada: { label: "Atestada", tom: "andamento" },
+  aprovada: { label: "Aprovada", tom: "sucesso" },
+  rejeitada: { label: "Rejeitada", tom: "erro" },
+  cancelada: { label: "Cancelada", tom: "neutro" },
+};
+
+const colunas: ColunaTabela<Liquidacao>[] = [
+  {
+    id: "numero",
+    cabecalho: "Número",
+    celula: (liq) => <span className="font-medium">{liq.numero}</span>,
+    ordenarPor: (liq) => liq.numero,
+    buscarPor: (liq) => liq.numero,
+    mobile: "titulo",
+  },
+  {
+    id: "empenho",
+    cabecalho: "Empenho",
+    celula: (liq) => liq.empenho?.numero ?? "-",
+    ordenarPor: (liq) => liq.empenho?.numero,
+    buscarPor: (liq) => liq.empenho?.numero,
+  },
+  {
+    id: "atesto",
+    cabecalho: "Data do atesto",
+    celula: (liq) => formatDateBR(liq.atestado_em),
+    ordenarPor: (liq) => (liq.atestado_em ? new Date(liq.atestado_em) : null),
+  },
+  {
+    id: "valor",
+    cabecalho: "Valor",
+    celula: (liq) => <span className="font-mono tabular-nums">{formatCurrency(liq.valor_liquidado)}</span>,
+    ordenarPor: (liq) => Number(liq.valor_liquidado),
+    alinhamento: "direita",
+  },
+  {
+    id: "situacao",
+    cabecalho: "Situação",
+    celula: (liq) => {
+      const s = SITUACAO_LIQUIDACAO[liq.status];
+      return s ? <StatusBadge tom={s.tom}>{s.label}</StatusBadge> : <StatusBadge tom="neutro">{liq.status}</StatusBadge>;
+    },
+    ordenarPor: (liq) => SITUACAO_LIQUIDACAO[liq.status]?.label ?? liq.status,
+  },
+  {
+    id: "anexos",
+    cabecalho: "Anexos",
+    celula: (liq) =>
+      liq.historico_status && liq.historico_status.length > 0 ? (
+        <>
+          <Paperclip className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          <span className="sr-only">Possui anexos</span>
+        </>
+      ) : null,
+    mobile: "oculta",
+  },
+];
 
 export default function LiquidacoesPage() {
-  const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [formOpen, setFormOpen] = useState(false);
-  
-  const { data: liquidacoes, isLoading } = useLiquidacoes();
 
-  const filteredLiquidacoes = liquidacoes?.filter((liq) => {
-    const matchesSearch = 
-      liq.numero?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      liq.empenho?.numero?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "todos" || liq.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const { data: liquidacoes, isLoading, isError, refetch } = useLiquidacoes();
+
+  const filteredLiquidacoes = useMemo(
+    () => (liquidacoes ?? []).filter((liq) => statusFilter === "todos" || liq.status === statusFilter),
+    [liquidacoes, statusFilter],
+  );
 
   return (
     <ModuleLayout module="financeiro">
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Liquidações</h1>
-          <p className="text-muted-foreground">
-            Gestão de liquidações e atesto de despesas
-          </p>
-        </div>
-        <Button className="gap-2" onClick={() => setFormOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Nova Liquidação
-        </Button>
-      </div>
+      <PageHeader
+        migalhas={[{ rotulo: "Financeiro", href: "/financeiro" }, { rotulo: "Liquidações" }]}
+        titulo="Liquidações"
+        descricao="Gestão de liquidações e atesto de despesas"
+        acoes={
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Nova liquidação
+          </Button>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileCheck className="h-5 w-5" />
-            Liquidações Registradas
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por número..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os Status</SelectItem>
-                <SelectItem value="pendente">Pendente</SelectItem>
-                <SelectItem value="em_analise">Em Análise</SelectItem>
-                <SelectItem value="aprovada">Aprovada</SelectItem>
-                <SelectItem value="rejeitada">Rejeitada</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Carregando liquidações...
-            </div>
-          ) : filteredLiquidacoes?.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nenhuma liquidação encontrada
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Número</TableHead>
-                    <TableHead>Empenho</TableHead>
-                    <TableHead>Data Atesto</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Anexos</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredLiquidacoes?.map((liq) => (
-                    <TableRow key={liq.id}>
-                      <TableCell className="font-medium">
-                        {liq.numero}
-                      </TableCell>
-                      <TableCell>{liq.empenho?.numero}</TableCell>
-                      <TableCell>{formatDateBR(liq.atestado_em)}</TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatCurrency(liq.valor_liquidado)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={STATUS_LIQUIDACAO_COLORS[liq.status] || ""}>
-                          {STATUS_LIQUIDACAO_LABELS[liq.status] || liq.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {liq.historico_status && liq.historico_status.length > 0 && (
-                          <Paperclip className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <DataTable
+        rotulo="Liquidações registradas"
+        dados={filteredLiquidacoes}
+        colunas={colunas}
+        chaveLinha={(liq) => liq.id}
+        carregando={isLoading}
+        erro={isError ? "Verifique sua conexão e tente novamente." : null}
+        aoTentarNovamente={() => refetch()}
+        busca={{ placeholder: "Buscar por número..." }}
+        filtros={
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-48" aria-label="Filtrar por situação">
+              <SelectValue placeholder="Situação" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todas as situações</SelectItem>
+              <SelectItem value="pendente">Pendente</SelectItem>
+              <SelectItem value="em_analise">Em análise</SelectItem>
+              <SelectItem value="aprovada">Aprovada</SelectItem>
+              <SelectItem value="rejeitada">Rejeitada</SelectItem>
+            </SelectContent>
+          </Select>
+        }
+        vazio={{
+          icone: FileCheck,
+          titulo: "Nenhuma liquidação encontrada",
+          descricao: "Não há liquidações para os filtros selecionados.",
+        }}
+        acoesLinha={(liq) => (
+          <Button variant="ghost" size="icon" aria-label={`Ver liquidação ${liq.numero}`}>
+            <Eye className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        )}
+      />
     </div>
     <LiquidacaoFormDialog open={formOpen} onOpenChange={setFormOpen} />
     </ModuleLayout>
