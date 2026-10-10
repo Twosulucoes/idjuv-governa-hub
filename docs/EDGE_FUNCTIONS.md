@@ -63,6 +63,15 @@ senha temporária e `delete-user` apagava a conta de qualquer não-administrador
 (`PROTECTED_SUPER_ADMIN_ID`), que não existe num banco novo: o último administrador de um banco novo só é protegido
 por não poder excluir a si mesmo.
 
+Trilha (onda E1, [`BANCO_DE_DADOS.md`](./BANCO_DE_DADOS.md#trilha-de-auditoria-e-servidor-responsável-do-rh--onda-e1)):
+as gravações dessas funções rodam pela service role e entram em `audit_logs` com origem `sistema`, sem autor. Por
+isso `admin-create-user` grava uma linha complementar (módulo `admin`, `entity_type = 'user'`, ação `create`, ou
+`update` quando só garante o perfil de um usuário que já existia) com o administrador que pediu, e `delete-user`
+grava outra (`update`, etapa `remover_acessos`) antes de remover módulos, papéis e o vínculo com o servidor, além da
+linha `delete` que já gravava depois da exclusão. As linhas novas não levam e-mail nem outro dado pessoal (a linha
+`delete` antiga ainda leva o e-mail e o nome em `description`/`before_data`). `delete-user` não é atômica: se a
+exclusão no Auth falhar, o usuário fica sem módulos, papéis e vínculo.
+
 `backup-offsite`: só o token **igual** à `SUPABASE_SERVICE_ROLE_KEY` vale como chamada de cron (antes decodificava o
 JWT sem validar a assinatura) e o usuário com papel precisa ter o perfil ativo.
 

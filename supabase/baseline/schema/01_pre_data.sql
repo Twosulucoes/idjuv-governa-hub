@@ -2589,6 +2589,123 @@ $$;
 
 
 --
+-- Name: fixar_autoria(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fixar_autoria() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  c jsonb := public.trilha_contexto();
+  v_uid uuid := (c ->> 'user_id')::uuid;
+  v_informa boolean := c ->> 'origem' = 'sistema';
+  v_renovar text;
+  n jsonb;
+  o jsonb;
+  ov jsonb := '{}'::jsonb;
+  i int;
+  arg text;
+  v_criacao boolean;
+  c_por text;
+  c_em text;
+  c_flag text;
+BEGIN
+  IF c ->> 'origem' = 'usuario_sem_vinculo' AND public.rh_exige_servidor_vinculado() THEN
+    RAISE EXCEPTION 'Lançamento no RH exige usuário com servidor vinculado ao perfil (%)', TG_TABLE_NAME
+      USING ERRCODE = '42501';
+  END IF;
+
+  -- colunas padrão
+  IF TG_OP = 'INSERT' THEN
+    IF v_informa THEN
+      NEW.created_by_servidor_id := coalesce(
+        (SELECT p.servidor_id FROM public.profiles p WHERE p.id = NEW.created_by), NEW.created_by_servidor_id);
+      NEW.created_at := coalesce(NEW.created_at, now());
+    ELSE
+      NEW.created_by := v_uid;
+      NEW.created_by_servidor_id := (c ->> 'servidor_id')::uuid;
+      NEW.created_at := now();
+    END IF;
+    NEW.updated_by := NEW.created_by;
+    NEW.updated_by_servidor_id := NEW.created_by_servidor_id;
+    NEW.updated_at := NEW.created_at;
+  ELSE
+    NEW.created_by := OLD.created_by;
+    NEW.created_by_servidor_id := OLD.created_by_servidor_id;
+    NEW.created_at := OLD.created_at;
+    IF v_informa THEN
+      IF NEW.updated_by IS NOT NULL AND NEW.updated_by IS DISTINCT FROM OLD.updated_by THEN
+        NEW.updated_by_servidor_id := coalesce(
+          (SELECT p.servidor_id FROM public.profiles p WHERE p.id = NEW.updated_by), NEW.updated_by_servidor_id);
+      ELSE
+        NEW.updated_by := NULL;
+        NEW.updated_by_servidor_id := NULL;
+      END IF;
+    ELSE
+      NEW.updated_by := v_uid;
+      NEW.updated_by_servidor_id := (c ->> 'servidor_id')::uuid;
+    END IF;
+    NEW.updated_at := now();
+  END IF;
+
+  -- colunas de decisão (argumentos)
+  IF TG_NARGS > 0 AND NOT v_informa THEN
+    n := to_jsonb(NEW);
+    o := CASE WHEN TG_OP = 'UPDATE' THEN to_jsonb(OLD) ELSE '{}'::jsonb END;
+    v_renovar := coalesce(current_setting('trilha.renovar_decisao', true), '');
+    FOR i IN 0 .. TG_NARGS - 1 LOOP
+      arg := TG_ARGV[i];
+      v_criacao := left(arg, 1) = '+';
+      IF v_criacao THEN
+        arg := substr(arg, 2);
+      END IF;
+      c_por := split_part(arg, ':', 1);
+      c_em := nullif(split_part(arg, ':', 2), '');
+      c_flag := nullif(split_part(arg, ':', 3), '');
+      CONTINUE WHEN NOT (n ? c_por);
+      IF c_em IS NOT NULL AND NOT (n ? c_em) THEN
+        c_em := NULL;
+      END IF;
+      IF c_flag IS NOT NULL AND NOT (n ? c_flag) THEN
+        c_flag := NULL;
+      END IF;
+      IF v_criacao THEN
+        IF TG_OP = 'INSERT' THEN
+          ov := ov || jsonb_build_object(c_por, v_uid);
+          IF c_em IS NOT NULL THEN ov := ov || jsonb_build_object(c_em, now()); END IF;
+        ELSE
+          ov := ov || jsonb_build_object(c_por, o -> c_por);
+          IF c_em IS NOT NULL THEN ov := ov || jsonb_build_object(c_em, o -> c_em); END IF;
+        END IF;
+      ELSIF v_renovar = TG_TABLE_NAME || '.' || c_por
+            OR (c_flag IS NOT NULL AND (n ->> c_flag) = 'true' AND (o ->> c_flag) IS DISTINCT FROM 'true') THEN
+        ov := ov || jsonb_build_object(c_por, v_uid);                 -- decisão refeita pela RPC ou flag virou true
+        IF c_em IS NOT NULL THEN ov := ov || jsonb_build_object(c_em, now()); END IF;
+      ELSIF (n ->> c_por) IS NULL THEN
+        IF (o ->> c_por) IS NOT NULL THEN
+          ov := ov || jsonb_build_object(c_por, o -> c_por);          -- a API não apaga a decisão
+          IF c_em IS NOT NULL THEN ov := ov || jsonb_build_object(c_em, o -> c_em); END IF;
+        ELSIF c_em IS NOT NULL AND (n ->> c_em) IS DISTINCT FROM (o ->> c_em) THEN
+          ov := ov || jsonb_build_object(c_em, coalesce(o -> c_em, 'null'::jsonb));   -- data sem autor não muda
+        END IF;
+      ELSIF (n ->> c_por) IS DISTINCT FROM (o ->> c_por) THEN
+        ov := ov || jsonb_build_object(c_por, v_uid);                 -- nova decisão: de quem age, agora
+        IF c_em IS NOT NULL THEN ov := ov || jsonb_build_object(c_em, now()); END IF;
+      ELSIF c_em IS NOT NULL AND (n ->> c_em) IS DISTINCT FROM (o ->> c_em) THEN
+        ov := ov || jsonb_build_object(c_em, coalesce(o -> c_em, 'null'::jsonb));     -- só a data mudou: volta
+      END IF;
+    END LOOP;
+    IF ov <> '{}'::jsonb THEN
+      NEW := jsonb_populate_record(NEW, ov);
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: fixar_autoria_aviso(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -3336,72 +3453,83 @@ COMMENT ON FUNCTION public.fn_audit_parametros() IS 'Registra alterações em pa
 CREATE FUNCTION public.fn_audit_trigger() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
-    AS $$
+    AS $_$
 DECLARE
-  _action text;
-  _before jsonb;
-  _after jsonb;
-  _entity_id uuid;
-  _user_id uuid;
-  _description text;
-  _module text;
+  v_acao text;
+  v_antes jsonb;
+  v_depois jsonb;
+  v_campos text[];
+  v_id text;
+  v_entidade uuid;
+  v_chave jsonb;
+  v_descricao text;
+  c jsonb;
+  s record;
 BEGIN
-  -- Determinar ação
   IF TG_OP = 'INSERT' THEN
-    _action := 'create';
-    _before := NULL;
-    _after := to_jsonb(NEW);
-    _entity_id := NEW.id;
-    _description := 'Registro criado em ' || TG_TABLE_NAME;
+    v_acao := 'create';
+    v_depois := to_jsonb(NEW);
+    v_descricao := 'Registro criado em ' || TG_TABLE_NAME;
   ELSIF TG_OP = 'UPDATE' THEN
-    _action := 'update';
-    _before := to_jsonb(OLD);
-    _after := to_jsonb(NEW);
-    _entity_id := NEW.id;
-    _description := 'Registro atualizado em ' || TG_TABLE_NAME;
-  ELSIF TG_OP = 'DELETE' THEN
-    _action := 'delete';
-    _before := to_jsonb(OLD);
-    _after := NULL;
-    _entity_id := OLD.id;
-    _description := 'Registro excluído de ' || TG_TABLE_NAME;
+    v_acao := 'update';
+    v_antes := to_jsonb(OLD);
+    v_depois := to_jsonb(NEW);
+    SELECT array_agg(k ORDER BY k) INTO v_campos
+      FROM jsonb_object_keys(v_depois) AS k
+     WHERE (v_depois -> k) IS DISTINCT FROM (v_antes -> k)
+       AND k NOT IN ('updated_at', 'updated_by', 'updated_by_servidor_id');
+    IF v_campos IS NULL THEN
+      RETURN NEW;   -- nada mudou além do carimbo de atualização
+    END IF;
+    v_descricao := 'Registro atualizado em ' || TG_TABLE_NAME;
+  ELSE
+    v_acao := 'delete';
+    v_antes := to_jsonb(OLD);
+    v_descricao := 'Registro excluído de ' || TG_TABLE_NAME;
   END IF;
 
-  -- Obter user_id da sessão (pode ser nulo em operações de sistema)
-  _user_id := auth.uid();
+  v_id := coalesce(v_depois, v_antes) ->> 'id';
+  IF v_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+    v_entidade := v_id::uuid;
+  END IF;
 
-  -- Obter o módulo a partir do TG_ARGV (passado como argumento do trigger)
-  _module := TG_ARGV[0];
+  -- máscara (mesma regra de trilha_mascarar, numa só leitura do catálogo para antes e depois)
+  FOR s IN SELECT m.coluna, m.tratamento FROM public.audit_colunas_sensiveis m WHERE m.tabela = TG_TABLE_NAME LOOP
+    IF v_antes ? s.coluna AND jsonb_typeof(v_antes -> s.coluna) <> 'null' THEN
+      v_antes := jsonb_set(v_antes, ARRAY[s.coluna], CASE WHEN s.tratamento = 'parcial'
+                   THEN to_jsonb(public.mascarar_parcial(v_antes ->> s.coluna)) ELSE to_jsonb('[protegido]'::text) END);
+    END IF;
+    IF v_depois ? s.coluna AND jsonb_typeof(v_depois -> s.coluna) <> 'null' THEN
+      v_depois := jsonb_set(v_depois, ARRAY[s.coluna], CASE WHEN s.tratamento = 'parcial'
+                   THEN to_jsonb(public.mascarar_parcial(v_depois ->> s.coluna)) ELSE to_jsonb('[protegido]'::text) END);
+    END IF;
+  END LOOP;
 
-  -- Inserir log de auditoria
+  IF v_entidade IS NULL THEN
+    SELECT jsonb_object_agg(a.attname, coalesce(v_depois, v_antes) -> a.attname) INTO v_chave
+      FROM pg_index i
+      JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY (i.indkey)
+     WHERE i.indrelid = TG_RELID AND i.indisprimary;
+  END IF;
+
+  c := public.trilha_contexto();
+
   INSERT INTO public.audit_logs (
-    action,
-    entity_type,
-    entity_id,
-    module_name,
-    before_data,
-    after_data,
-    user_id,
-    description,
-    metadata
+    action, entity_type, entity_id, module_name, before_data, after_data, user_id, description, metadata,
+    campos_alterados, origem, servidor_id, servidor_nome, servidor_matricula, role_at_time, org_unit_id,
+    ip_address, user_agent, transacao
   ) VALUES (
-    _action::audit_action,
-    TG_TABLE_NAME,
-    _entity_id,
-    _module,
-    _before,
-    _after,
-    _user_id,
-    _description,
+    v_acao::public.audit_action, TG_TABLE_NAME, v_entidade, TG_ARGV[0], v_antes, v_depois, (c ->> 'user_id')::uuid,
+    v_descricao,
     jsonb_build_object('trigger', true, 'operation', TG_OP, 'table', TG_TABLE_NAME)
+      || CASE WHEN v_chave IS NOT NULL THEN jsonb_build_object('chave', v_chave) ELSE '{}'::jsonb END,
+    v_campos, c ->> 'origem', (c ->> 'servidor_id')::uuid, c ->> 'servidor_nome', c ->> 'servidor_matricula',
+    (c ->> 'papel')::public.app_role, (c ->> 'unidade_id')::uuid, (c ->> 'ip')::inet, c ->> 'agente', txid_current()
   );
 
-  IF TG_OP = 'DELETE' THEN
-    RETURN OLD;
-  END IF;
-  RETURN NEW;
+  RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
 END;
-$$;
+$_$;
 
 
 --
@@ -5957,7 +6085,32 @@ DECLARE
   _log_id UUID;
   _user_role app_role;
   _user_org_unit UUID;
+  _meta jsonb;
 BEGIN
+  -- perfil bloqueado/inexistente não grava (a sessão do Auth dele pode continuar válida). Sem usuário
+  -- (service role, ou registrar_denuncia_publica chamada por anon) segue como antes.
+  IF auth.uid() IS NOT NULL AND NOT public.is_active_user() THEN
+    RAISE EXCEPTION 'Usuário inativo' USING ERRCODE = '42501';
+  END IF;
+  IF lower(btrim(coalesce(_module_name, ''))) = 'rh' THEN
+    IF _action::text NOT IN ('view', 'export', 'download') THEN
+      RAISE EXCEPTION 'log_audit: no módulo rh só view, export e download (lançamentos entram pela trilha do banco)'
+        USING ERRCODE = '22023';
+    END IF;
+    IF _before_data IS NOT NULL OR _after_data IS NOT NULL THEN
+      RAISE EXCEPTION 'log_audit: no módulo rh a linha não leva antes/depois' USING ERRCODE = '22023';
+    END IF;
+  END IF;
+  IF length(coalesce(_before_data::text, '')) > 32768 OR length(coalesce(_after_data::text, '')) > 32768
+     OR length(coalesce(_metadata::text, '')) > 32768 THEN
+    RAISE EXCEPTION 'log_audit: antes, depois e metadados têm limite de 32 KB cada' USING ERRCODE = '22023';
+  END IF;
+  _meta := CASE WHEN _metadata IS NULL THEN '{}'::jsonb
+                WHEN jsonb_typeof(_metadata) = 'object' THEN _metadata
+                ELSE jsonb_build_object('valor', _metadata) END;
+  _meta := (_meta - ARRAY['trigger', 'operation', 'table', 'registrar_evento', 'fonte'])
+           || jsonb_build_object('fonte', 'log_audit');
+
   SELECT role INTO _user_role 
   FROM public.user_roles 
   WHERE user_id = auth.uid() 
@@ -5975,7 +6128,7 @@ BEGIN
   )
   VALUES (
     auth.uid(), _action, _entity_type, _entity_id, _module_name,
-    _before_data, _after_data, _description, _metadata,
+    _before_data, _after_data, _description, _meta,
     _user_role, _user_org_unit
   )
   RETURNING id INTO _log_id;
@@ -6000,6 +6153,34 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+
+--
+-- Name: mascarar_parcial(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.mascarar_parcial(p_valor text) RETURNS text
+    LANGUAGE plpgsql IMMUTABLE
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  d text;
+BEGIN
+  IF p_valor IS NULL THEN
+    RETURN NULL;
+  END IF;
+  IF p_valor = '[protegido]' OR p_valor ~ '^\*\*\*\.[0-9]{3}\.[0-9]{3}-\*\*$' OR p_valor ~ '^\*\*\*[0-9]*\*\*$' THEN
+    RETURN p_valor;
+  END IF;
+  d := regexp_replace(p_valor, '\D', '', 'g');
+  IF length(d) = 11 THEN
+    RETURN '***.' || substr(d, 4, 3) || '.' || substr(d, 7, 3) || '-**';
+  ELSIF length(d) >= 6 THEN
+    RETURN '***' || substr(d, 4, length(d) - 5) || '**';
+  END IF;
+  RETURN '[protegido]';
+END;
+$_$;
 
 
 --
@@ -6625,6 +6806,7 @@ BEGIN
   END LOOP;
   
   -- Atualizar totais da folha - manter status "aberta" para permitir ajustes
+  PERFORM set_config('trilha.renovar_decisao', 'folhas_pagamento.processado_por', true);
   UPDATE folhas_pagamento
   SET 
     total_bruto = COALESCE((SELECT SUM(total_proventos) FROM fichas_financeiras WHERE folha_id = p_folha_id), 0),
@@ -6635,8 +6817,11 @@ BEGIN
     quantidade_servidores = v_count,
     status = 'aberta',
     data_processamento = now(),
+    -- E1 (migração 20261011000000): quem processou, gravado pelo banco (o trigger zz_fixar_autoria confirma)
+    processado_por = auth.uid(),
     updated_at = now()
   WHERE id = p_folha_id;
+  PERFORM set_config('trilha.renovar_decisao', '', true);
   
   -- Retorno em formato JSONB
   RETURN jsonb_build_object(
@@ -6655,6 +6840,7 @@ EXCEPTION
     -- a pedido de quem NÃO tem permissão.
     RAISE;
   WHEN OTHERS THEN
+  PERFORM set_config('trilha.renovar_decisao', '', true);
   -- Em caso de erro, reverter status
   UPDATE folhas_pagamento SET status = 'aberta', updated_at = now() WHERE id = p_folha_id;
   
@@ -6874,6 +7060,78 @@ BEGIN
   RETURN _protocolo;
 END;
 $$;
+
+
+--
+-- Name: registrar_evento(text, text, uuid, text, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.registrar_evento(p_acao text, p_entidade text, p_entidade_id uuid DEFAULT NULL::uuid, p_descricao text DEFAULT NULL::text, p_metadados jsonb DEFAULT '{}'::jsonb) RETURNS uuid
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_id uuid;
+BEGIN
+  IF v_uid IS NULL OR NOT public.is_active_user() THEN
+    RAISE EXCEPTION 'registrar_evento: usuário não autenticado ou inativo' USING ERRCODE = '42501';
+  END IF;
+  IF p_acao IS NULL OR p_acao NOT IN ('view', 'export', 'download') THEN
+    RAISE EXCEPTION 'registrar_evento: ação fora da lista (view, export, download; imprimir = download): %',
+      left(coalesce(p_acao, '(nula)'), 40) USING ERRCODE = '22023';
+  END IF;
+  IF p_entidade IS NULL OR p_entidade <> ALL (ARRAY[
+      -- tabelas do RH (as mesmas do bloco 8 e as duas de trilha)
+      'adicionais_tempo_servico', 'agrupamento_unidade_vinculo', 'banco_horas', 'bancos_cnab',
+      'cargo_unidade_compatibilidade', 'cargos', 'cessoes', 'composicao_cargos', 'config_agrupamento_unidades',
+      'config_assinatura_frequencia', 'config_autarquia', 'config_compensacao', 'config_fechamento_folha',
+      'config_fechamento_frequencia', 'config_incidencias', 'config_institucional', 'config_jornada_padrao',
+      'config_motivos_desligamento', 'config_regras_calculo', 'config_rubricas', 'config_situacoes_funcionais',
+      'config_tipos_ato', 'config_tipos_onus', 'config_tipos_rubrica', 'config_tipos_servidor', 'configuracao_jornada',
+      'consignacoes', 'contas_autarquia', 'dependentes_irrf', 'designacoes', 'dias_nao_uteis', 'documentos',
+      'documentos_requerimento_servidor', 'eventos_esocial', 'exportacoes_folha', 'feriados', 'ferias_servidor',
+      'fichas_financeiras', 'folha_historico_status', 'folhas_pagamento', 'frequencia_arquivos',
+      'frequencia_fechamento', 'frequencia_mensal', 'frequencia_pacotes', 'historico_funcional', 'horarios_jornada',
+      'itens_ficha_financeira', 'itens_retorno_bancario', 'justificativas_ponto', 'lancamentos_banco_horas',
+      'lancamentos_folha', 'licencas_afastamentos', 'lotacoes', 'memorandos_lotacao', 'nomeacoes_chefe_unidade',
+      'ocorrencias_servidor', 'parametros_folha', 'pensoes_alimenticias', 'portarias_servidor', 'pre_cadastros',
+      'provimentos', 'regimes_trabalho', 'registros_ponto', 'remessas_bancarias', 'retornos_bancarios', 'rubricas',
+      'rubricas_historico', 'servidor_regime', 'servidor_tag_vinculos', 'servidor_tags', 'servidores',
+      'solicitacoes_abono', 'solicitacoes_ajuste_ponto', 'tabela_inss', 'tabela_irrf', 'tipos_abono',
+      'viagens_diarias', 'vinculos_funcionais', 'vinculos_servidor',
+      -- documentos e consultas que não são uma tabela
+      'contracheque', 'relatorio_rh', 'exportacao_rh', 'arquivo_esocial', 'arquivo_cnab', 'trilha_auditoria'
+    ]) THEN
+    RAISE EXCEPTION 'registrar_evento: entidade fora da lista: %', left(coalesce(p_entidade, '(nula)'), 60)
+      USING ERRCODE = '22023';
+  END IF;
+  IF p_metadados IS NOT NULL AND (jsonb_typeof(p_metadados) <> 'object' OR length(p_metadados::text) > 4000) THEN
+    RAISE EXCEPTION 'registrar_evento: metadados devem ser um objeto JSON de até 4000 caracteres' USING ERRCODE = '22023';
+  END IF;
+  IF NOT public.can_access_module(v_uid, 'rh') THEN
+    IF p_entidade <> 'contracheque' OR p_entidade_id IS NULL
+       OR NOT EXISTS (SELECT 1 FROM public.fichas_financeiras f
+                       WHERE f.id = p_entidade_id AND public.eh_meu_servidor(f.servidor_id)) THEN
+      RAISE EXCEPTION 'registrar_evento: sem o módulo rh, só o próprio contracheque' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  INSERT INTO public.audit_logs (action, entity_type, entity_id, module_name, user_id, description, metadata)
+  VALUES (p_acao::public.audit_action, p_entidade, p_entidade_id, 'rh', v_uid, left(p_descricao, 500),
+          (coalesce(p_metadados, '{}'::jsonb) - ARRAY['trigger', 'operation', 'table', 'fonte'])
+            || jsonb_build_object('registrar_evento', true, 'fonte', 'registrar_evento'))
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END;
+$$;
+
+
+--
+-- Name: FUNCTION registrar_evento(p_acao text, p_entidade text, p_entidade_id uuid, p_descricao text, p_metadados jsonb); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.registrar_evento(p_acao text, p_entidade text, p_entidade_id uuid, p_descricao text, p_metadados jsonb) IS 'Registra na trilha do RH uma ação sem gravação (view, export, download; imprimir = download) sobre entidade de lista fechada';
 
 
 --
@@ -7208,14 +7466,27 @@ CREATE FUNCTION public.registrar_transicao_folha() RETURNS trigger
     AS $$
 DECLARE
   v_user_nome TEXT;
+  v_uid uuid := auth.uid();
+  v_informa boolean := auth.uid() IS NULL
+    AND coalesce(current_setting('role', true), 'none') NOT IN ('anon', 'authenticated');
 BEGIN
-  SELECT full_name INTO v_user_nome FROM public.profiles WHERE id = auth.uid();
+  SELECT full_name INTO v_user_nome FROM public.profiles WHERE id = v_uid;
+
+  -- quem fechou, conferiu ou reabriu só muda na transição de status (abaixo)
+  IF NOT v_informa THEN
+    NEW.fechado_por := OLD.fechado_por;
+    NEW.fechado_em := OLD.fechado_em;
+    NEW.conferido_por := OLD.conferido_por;
+    NEW.conferido_em := OLD.conferido_em;
+    NEW.reaberto_por := OLD.reaberto_por;
+    NEW.reaberto_em := OLD.reaberto_em;
+  END IF;
 
   IF OLD.status IS DISTINCT FROM NEW.status THEN
     INSERT INTO public.folha_historico_status (
       folha_id, status_anterior, status_novo, usuario_id, usuario_nome, justificativa
     ) VALUES (
-      NEW.id, OLD.status, NEW.status, auth.uid(), v_user_nome,
+      NEW.id, OLD.status, NEW.status, v_uid, v_user_nome,
       CASE
         WHEN NEW.status = 'fechada' THEN NEW.justificativa_fechamento
         WHEN NEW.status = 'reaberta' THEN NEW.justificativa_reabertura
@@ -7224,22 +7495,64 @@ BEGIN
     );
 
     IF NEW.status = 'fechada' AND OLD.status != 'fechada' THEN
-      NEW.fechado_por := COALESCE(NEW.fechado_por, auth.uid());
-      NEW.fechado_em := COALESCE(NEW.fechado_em, now());
+      NEW.fechado_por := CASE WHEN v_informa THEN COALESCE(NEW.fechado_por, v_uid) ELSE v_uid END;
+      NEW.fechado_em := CASE WHEN v_informa THEN COALESCE(NEW.fechado_em, now()) ELSE now() END;
     END IF;
 
     IF NEW.status = 'processando' AND OLD.status = 'aberta' THEN
-      NEW.conferido_por := COALESCE(NEW.conferido_por, auth.uid());
-      NEW.conferido_em := COALESCE(NEW.conferido_em, now());
+      NEW.conferido_por := CASE WHEN v_informa THEN COALESCE(NEW.conferido_por, v_uid) ELSE v_uid END;
+      NEW.conferido_em := CASE WHEN v_informa THEN COALESCE(NEW.conferido_em, now()) ELSE now() END;
     END IF;
 
     IF NEW.status = 'reaberta' THEN
-      NEW.reaberto_por := COALESCE(NEW.reaberto_por, auth.uid());
-      NEW.reaberto_em := COALESCE(NEW.reaberto_em, now());
+      NEW.reaberto_por := CASE WHEN v_informa THEN COALESCE(NEW.reaberto_por, v_uid) ELSE v_uid END;
+      NEW.reaberto_em := CASE WHEN v_informa THEN COALESCE(NEW.reaberto_em, now()) ELSE now() END;
     END IF;
   END IF;
 
   RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: responsavel_atual(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.responsavel_atual() RETURNS TABLE(user_id uuid, servidor_id uuid, servidor_nome text, servidor_matricula text, origem text)
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  c jsonb := public.trilha_contexto();
+BEGIN
+  user_id := (c ->> 'user_id')::uuid;
+  servidor_id := (c ->> 'servidor_id')::uuid;
+  servidor_nome := c ->> 'servidor_nome';
+  servidor_matricula := c ->> 'servidor_matricula';
+  origem := c ->> 'origem';
+  RETURN NEXT;
+END;
+$$;
+
+
+--
+-- Name: FUNCTION responsavel_atual(); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.responsavel_atual() IS 'Responsável pelo comando atual: usuário, servidor vinculado (retrato), nome, matrícula e origem (usuario, usuario_sem_vinculo, sistema, anonimo)';
+
+
+--
+-- Name: rh_exige_servidor_vinculado(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rh_exige_servidor_vinculado() RETURNS boolean
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  RETURN false;
 END;
 $$;
 
@@ -7678,6 +7991,225 @@ $$;
 
 
 --
+-- Name: trilha_completar_contexto(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trilha_completar_contexto() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  c jsonb := public.trilha_contexto();
+  v_srv uuid;
+  v_nome text;
+  v_mat text;
+BEGIN
+  NEW.transacao := coalesce(NEW.transacao, txid_current());
+  NEW.origem := coalesce(NEW.origem, c ->> 'origem');
+  IF NEW.user_id IS NOT NULL THEN
+    IF NEW.user_id = (c ->> 'user_id')::uuid THEN
+      IF NEW.servidor_id IS NULL THEN
+        NEW.servidor_id := (c ->> 'servidor_id')::uuid;
+        NEW.servidor_nome := coalesce(NEW.servidor_nome, c ->> 'servidor_nome');
+        NEW.servidor_matricula := coalesce(NEW.servidor_matricula, c ->> 'servidor_matricula');
+      END IF;
+      NEW.role_at_time := coalesce(NEW.role_at_time, (c ->> 'papel')::public.app_role);
+      NEW.org_unit_id := coalesce(NEW.org_unit_id, (c ->> 'unidade_id')::uuid);
+    ELSE
+      -- outro usuário (ex.: Edge Function que grava em nome do administrador que a chamou)
+      IF NEW.servidor_id IS NULL THEN
+        SELECT p.servidor_id, s.nome_completo::text, s.matricula::text INTO v_srv, v_nome, v_mat
+          FROM public.profiles p LEFT JOIN public.servidores s ON s.id = p.servidor_id
+         WHERE p.id = NEW.user_id;
+        NEW.servidor_id := v_srv;
+        NEW.servidor_nome := coalesce(NEW.servidor_nome, v_nome);
+        NEW.servidor_matricula := coalesce(NEW.servidor_matricula, v_mat);
+      END IF;
+      IF NEW.role_at_time IS NULL THEN
+        SELECT ur.role INTO NEW.role_at_time FROM public.user_roles ur
+         WHERE ur.user_id = NEW.user_id ORDER BY (ur.role = 'admin') DESC LIMIT 1;
+      END IF;
+      IF NEW.org_unit_id IS NULL THEN
+        SELECT uo.unidade_id INTO NEW.org_unit_id FROM public.user_org_units uo
+         WHERE uo.user_id = NEW.user_id AND uo.is_primary = true LIMIT 1;
+      END IF;
+    END IF;
+  END IF;
+  NEW.ip_address := coalesce(NEW.ip_address, (c ->> 'ip')::inet);
+  NEW.user_agent := coalesce(NEW.user_agent, c ->> 'agente');
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: trilha_contexto(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trilha_contexto() RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_papel_sessao text := coalesce(current_setting('role', true), 'none');
+  v_chave text;
+  v_cache text := current_setting('trilha.contexto', true);
+  v_ctx jsonb;
+  v_srv uuid;
+  v_nome text;
+  v_mat text;
+  v_papel text;
+  v_unid uuid;
+  r record;
+BEGIN
+  v_chave := coalesce(v_uid::text, '-') || '|' || v_papel_sessao || '|'
+             || md5(coalesce(current_setting('request.headers', true), ''));
+  IF v_cache IS NOT NULL AND v_cache <> '' THEN
+    v_ctx := v_cache::jsonb;
+    IF v_ctx ->> 'k' = v_chave THEN
+      RETURN v_ctx;
+    END IF;
+  END IF;
+  IF v_uid IS NOT NULL THEN
+    SELECT p.servidor_id, s.nome_completo::text, s.matricula::text INTO v_srv, v_nome, v_mat
+      FROM public.profiles p LEFT JOIN public.servidores s ON s.id = p.servidor_id
+     WHERE p.id = v_uid;
+    SELECT ur.role::text INTO v_papel FROM public.user_roles ur
+     WHERE ur.user_id = v_uid ORDER BY (ur.role = 'admin') DESC LIMIT 1;
+    SELECT uo.unidade_id INTO v_unid FROM public.user_org_units uo
+     WHERE uo.user_id = v_uid AND uo.is_primary = true LIMIT 1;
+  END IF;
+  SELECT * INTO r FROM public.trilha_contexto_requisicao();
+  v_ctx := jsonb_build_object(
+    'k', v_chave,
+    'user_id', v_uid,
+    'servidor_id', v_srv,
+    'servidor_nome', v_nome,
+    'servidor_matricula', v_mat,
+    'origem', CASE
+                WHEN v_uid IS NULL AND v_papel_sessao IN ('anon', 'authenticated') THEN 'anonimo'
+                WHEN v_uid IS NULL THEN 'sistema'
+                WHEN v_srv IS NULL THEN 'usuario_sem_vinculo'
+                ELSE 'usuario'
+              END,
+    'papel', v_papel,
+    'unidade_id', v_unid,
+    'ip', r.ip::text,
+    'agente', r.agente);
+  PERFORM set_config('trilha.contexto', v_ctx::text, true);
+  RETURN v_ctx;
+END;
+$$;
+
+
+--
+-- Name: trilha_contexto_invalidar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trilha_contexto_invalidar() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  PERFORM set_config('trilha.contexto', '', true);
+  RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: trilha_contexto_requisicao(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trilha_contexto_requisicao(OUT ip inet, OUT agente text) RETURNS record
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  bruto text := current_setting('request.headers', true);
+  h jsonb;
+  v text;
+  itens text[];
+BEGIN
+  IF bruto IS NULL OR btrim(bruto) = '' THEN
+    RETURN;
+  END IF;
+  BEGIN
+    h := bruto::jsonb;
+    IF jsonb_typeof(h) <> 'object' THEN
+      RETURN;
+    END IF;
+    agente := left(h ->> 'user-agent', 500);
+    v := nullif(btrim(h ->> 'x-real-ip'), '');
+    IF v IS NULL THEN
+      itens := string_to_array(h ->> 'x-forwarded-for', ',');
+      v := nullif(btrim(itens[coalesce(array_length(itens, 1), 0)]), '');
+    END IF;
+    ip := v::inet;
+  EXCEPTION WHEN OTHERS THEN
+    ip := NULL;
+  END;
+END;
+$$;
+
+
+--
+-- Name: trilha_imutavel(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trilha_imutavel() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_pai_existe boolean;
+BEGIN
+  IF current_setting('trilha.expurgo', true) = 'autorizado' THEN
+    RETURN CASE TG_OP WHEN 'DELETE' THEN OLD WHEN 'UPDATE' THEN NEW ELSE NULL END;
+  END IF;
+  IF TG_OP = 'DELETE' AND TG_NARGS = 2 AND (to_jsonb(OLD) ->> TG_ARGV[0]) IS NOT NULL THEN
+    EXECUTE format('SELECT EXISTS (SELECT 1 FROM public.%I WHERE id = $1)', TG_ARGV[1])
+      INTO v_pai_existe USING (to_jsonb(OLD) ->> TG_ARGV[0])::uuid;
+    IF NOT v_pai_existe THEN
+      RETURN OLD;
+    END IF;
+  END IF;
+  RAISE EXCEPTION 'Trilha de auditoria imutável: % em % recusado', TG_OP, TG_TABLE_NAME
+    USING ERRCODE = '42501',
+          HINT = 'Registros de auditoria não são alterados nem apagados (migração 20261011000000).';
+END;
+$_$;
+
+
+--
+-- Name: trilha_mascarar(text, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trilha_mascarar(p_tabela text, p_linha jsonb) RETURNS jsonb
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  s record;
+  v jsonb := p_linha;
+BEGIN
+  IF p_linha IS NULL OR jsonb_typeof(p_linha) <> 'object' THEN
+    RETURN p_linha;
+  END IF;
+  FOR s IN SELECT m.coluna, m.tratamento FROM public.audit_colunas_sensiveis m WHERE m.tabela = p_tabela LOOP
+    IF v ? s.coluna AND jsonb_typeof(v -> s.coluna) <> 'null' THEN
+      v := jsonb_set(v, ARRAY[s.coluna], CASE WHEN s.tratamento = 'parcial'
+                                              THEN to_jsonb(public.mascarar_parcial(v ->> s.coluna))
+                                              ELSE to_jsonb('[protegido]'::text) END);
+    END IF;
+  END LOOP;
+  RETURN v;
+END;
+$$;
+
+
+--
 -- Name: update_approval_status_history(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -7938,6 +8470,10 @@ CREATE FUNCTION public.validar_etapa_frequencia() RETURNS trigger
     AS $$
 DECLARE
   v_uid uuid := auth.uid();
+  -- E1: o papel admin continua dispensado das REGRAS de etapa (abaixo, `NOT v_admin`; as checagens de permissão
+  -- passam porque has_permission_code dá passagem ao admin), mas não da AUTORIA: o par _por/_em e o created_by
+  -- do abono são gravados pelo banco também para ele.
+  v_admin boolean;
   v_chefia boolean;
   v_rh boolean;
   o jsonb;
@@ -7963,10 +8499,10 @@ DECLARE
   p_hist boolean[] := '{}';
   i int;
 BEGIN
-  IF coalesce(current_setting('role', true), 'none') NOT IN ('anon', 'authenticated')
-     OR public.is_admin_user(v_uid) THEN
+  IF coalesce(current_setting('role', true), 'none') NOT IN ('anon', 'authenticated') THEN
     RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
   END IF;
+  v_admin := public.is_admin_user(v_uid);
   v_chefia := public.has_permission_code(v_uid, 'rh.aprovar');
   v_rh := public.has_permission_code(v_uid, 'rh.frequencia.lancar');
 
@@ -7988,14 +8524,14 @@ BEGIN
   o := CASE WHEN TG_OP = 'INSERT' THEN '{}'::jsonb ELSE to_jsonb(OLD) END;
 
   IF TG_TABLE_NAME = 'solicitacoes_abono' THEN
-    IF n ->> 'status' IS NULL THEN
+    IF n ->> 'status' IS NULL AND NOT v_admin THEN
       RAISE EXCEPTION 'Abono: o status não pode ser nulo' USING ERRCODE = '42501';
     END IF;
     st_antes := coalesce(o ->> 'status', 'pendente');
     st_depois := n ->> 'status';
     mudou_status := st_depois IS DISTINCT FROM st_antes;
     -- status legado (CHECK do banco): nenhuma tela grava; fica fora da autoria, então ninguém transiciona para ele
-    IF mudou_status AND st_depois = 'aprovado_rh' THEN
+    IF mudou_status AND st_depois = 'aprovado_rh' AND NOT v_admin THEN
       RAISE EXCEPTION 'Abono: o status legado aprovado_rh não é mais usado (o RH aprova com aprovado)' USING ERRCODE = '42501';
     END IF;
     -- sem RH, o pedido nasce na etapa inicial: status pendente (decidido é recusado) e campos de decisão nulos
@@ -8086,7 +8622,7 @@ BEGIN
     p_hist := ARRAY[st_depois IN ('rejeitado', 'cancelado', 'aprovado_rh'), st_depois IN ('rejeitado', 'cancelado', 'aprovado_rh')];
 
   ELSIF TG_TABLE_NAME = 'frequencia_fechamento' THEN
-    IF TG_OP = 'UPDATE'
+    IF TG_OP = 'UPDATE' AND NOT v_admin
        AND ((n ->> 'servidor_id') IS DISTINCT FROM (o ->> 'servidor_id')
             OR (n ->> 'ano') IS DISTINCT FROM (o ->> 'ano')
             OR (n ->> 'mes') IS DISTINCT FROM (o ->> 'mes')) THEN
@@ -8099,7 +8635,7 @@ BEGIN
     END IF;
     IF (coalesce((n ->> 'assinado_servidor')::boolean, false) IS DISTINCT FROM coalesce((o ->> 'assinado_servidor')::boolean, false)
         OR (n ->> 'assinado_servidor_em') IS DISTINCT FROM (o ->> 'assinado_servidor_em'))
-       AND (n ->> 'servidor_id')::uuid IS DISTINCT FROM public.meu_servidor_id() THEN
+       AND (n ->> 'servidor_id')::uuid IS DISTINCT FROM public.meu_servidor_id() AND NOT v_admin THEN
       RAISE EXCEPTION 'Assinatura do servidor: só o próprio servidor assina (ou desfaz a assinatura de) a sua frequência'
         USING ERRCODE = '42501';
     END IF;
@@ -8136,7 +8672,7 @@ BEGIN
 
   ELSE
     -- justificativas_ponto e solicitacoes_ajuste_ponto: uma etapa só (chefia ou RH decidem; status_solicitacao)
-    IF n ->> 'status' IS NULL THEN
+    IF n ->> 'status' IS NULL AND NOT v_admin THEN
       RAISE EXCEPTION 'Pedido de ponto: o status não pode ser nulo' USING ERRCODE = '42501';
     END IF;
     st_antes := coalesce(o ->> 'status', 'pendente');
@@ -8467,7 +9003,10 @@ CREATE TABLE public.adicionais_tempo_servico (
     ativo boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    created_by uuid
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -8566,7 +9105,12 @@ CREATE TABLE public.agrupamento_unidade_vinculo (
     agrupamento_id uuid NOT NULL,
     unidade_id uuid NOT NULL,
     ordem integer DEFAULT 0,
-    created_at timestamp with time zone DEFAULT now()
+    created_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -8674,6 +9218,28 @@ CREATE TABLE public.atas_registro_preco (
 
 
 --
+-- Name: audit_colunas_sensiveis; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.audit_colunas_sensiveis (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tabela text NOT NULL,
+    coluna text NOT NULL,
+    tratamento text NOT NULL,
+    motivo text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT audit_colunas_sensiveis_tratamento_check CHECK ((tratamento = ANY (ARRAY['parcial'::text, 'omitir'::text])))
+);
+
+
+--
+-- Name: TABLE audit_colunas_sensiveis; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.audit_colunas_sensiveis IS 'Máscara LGPD da trilha (fn_audit_trigger): coluna e tratamento (parcial/omitir). Só o papel admin altera.';
+
+
+--
 -- Name: audit_log_licitacoes; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -8715,10 +9281,67 @@ CREATE TABLE public.audit_logs (
     org_unit_id uuid,
     description text,
     metadata jsonb DEFAULT '{}'::jsonb,
-    role_at_time public.app_role
+    role_at_time public.app_role,
+    servidor_id uuid,
+    servidor_nome text,
+    servidor_matricula text,
+    campos_alterados text[],
+    origem text,
+    transacao bigint,
+    sequencia bigint NOT NULL,
+    CONSTRAINT audit_logs_origem_check CHECK (((origem IS NULL) OR (origem = ANY (ARRAY['usuario'::text, 'usuario_sem_vinculo'::text, 'sistema'::text, 'anonimo'::text]))))
 );
 
 ALTER TABLE ONLY public.audit_logs FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: COLUMN audit_logs.servidor_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.audit_logs.servidor_id IS 'Retrato do servidor vinculado ao perfil de quem agiu, no momento do registro (sem FK: não muda se o vínculo mudar)';
+
+
+--
+-- Name: COLUMN audit_logs.campos_alterados; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.audit_logs.campos_alterados IS 'Colunas que mudaram no UPDATE (o nome aparece mesmo quando o valor é mascarado)';
+
+
+--
+-- Name: COLUMN audit_logs.origem; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.audit_logs.origem IS 'usuario | usuario_sem_vinculo | sistema | anonimo (ver public.responsavel_atual)';
+
+
+--
+-- Name: COLUMN audit_logs.transacao; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.audit_logs.transacao IS 'txid_current() do registro: agrupa o que mudou no mesmo comando/transação';
+
+
+--
+-- Name: COLUMN audit_logs.sequencia; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.audit_logs.sequencia IS 'Ordem de gravação na trilha (identity; desempata o "timestamp", que é o da transação)';
+
+
+--
+-- Name: audit_logs_sequencia_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.audit_logs ALTER COLUMN sequencia ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.audit_logs_sequencia_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
 
 
 --
@@ -8945,7 +9568,11 @@ CREATE TABLE public.banco_horas (
     horas_compensadas numeric(6,2) DEFAULT 0,
     saldo_atual numeric(6,2) DEFAULT 0,
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -8964,7 +9591,11 @@ CREATE TABLE public.bancos_cnab (
     configuracao_cnab400 jsonb,
     ativo boolean DEFAULT true,
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -9138,7 +9769,12 @@ CREATE TABLE public.cargo_unidade_compatibilidade (
     unidade_especifica_id uuid,
     quantidade_maxima integer DEFAULT 1,
     observacao text,
-    created_at timestamp with time zone DEFAULT now()
+    created_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -9176,7 +9812,11 @@ CREATE TABLE public.cargos (
     ativo boolean DEFAULT true,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    natureza public.natureza_cargo
+    natureza public.natureza_cargo,
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -9269,6 +9909,8 @@ CREATE TABLE public.cessoes (
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now(),
     updated_by uuid,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT cessoes_onus_check CHECK ((onus = ANY (ARRAY['origem'::text, 'destino'::text, 'compartilhado'::text]))),
     CONSTRAINT cessoes_tipo_check CHECK ((tipo = ANY (ARRAY['entrada'::text, 'saida'::text])))
 );
@@ -9479,7 +10121,12 @@ CREATE TABLE public.composicao_cargos (
     unidade_id uuid NOT NULL,
     cargo_id uuid NOT NULL,
     quantidade_vagas integer DEFAULT 1,
-    created_at timestamp with time zone DEFAULT now()
+    created_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -9523,7 +10170,10 @@ CREATE TABLE public.config_agrupamento_unidades (
     ativo boolean DEFAULT true,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    created_by uuid
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -9554,6 +10204,10 @@ CREATE TABLE public.config_assinatura_frequencia (
     updated_at timestamp with time zone DEFAULT now(),
     instituicao_id uuid,
     codigo character varying(50),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT config_assinatura_frequencia_quem_valida_final_check CHECK (((quem_valida_final)::text = ANY ((ARRAY['servidor'::character varying, 'chefia'::character varying, 'rh'::character varying])::text[]))),
     CONSTRAINT config_assinatura_frequencia_tipo_assinatura_check CHECK (((tipo_assinatura)::text = ANY ((ARRAY['manual'::character varying, 'digital'::character varying, 'ambas'::character varying])::text[])))
 );
@@ -9620,7 +10274,9 @@ CREATE TABLE public.config_autarquia (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     created_by uuid,
-    updated_by uuid
+    updated_by uuid,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -9650,6 +10306,9 @@ CREATE TABLE public.config_compensacao (
     created_by uuid,
     instituicao_id uuid,
     codigo character varying(50),
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT config_compensacao_quem_autoriza_check CHECK (((quem_autoriza)::text = ANY ((ARRAY['chefia'::character varying, 'rh'::character varying, 'ambos'::character varying])::text[])))
 );
 
@@ -9745,7 +10404,9 @@ CREATE TABLE public.config_fechamento_folha (
     created_at timestamp with time zone DEFAULT now(),
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now(),
-    updated_by uuid
+    updated_by uuid,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -9781,6 +10442,10 @@ CREATE TABLE public.config_fechamento_frequencia (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     instituicao_id uuid,
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT config_fechamento_frequencia_mes_check CHECK (((mes >= 1) AND (mes <= 12))),
     CONSTRAINT config_fechamento_frequencia_status_check CHECK (((status)::text = ANY ((ARRAY['aberto'::character varying, 'fechado_servidor'::character varying, 'fechado_chefia'::character varying, 'consolidado'::character varying])::text[])))
 );
@@ -9810,6 +10475,10 @@ CREATE TABLE public.config_incidencias (
     ativo boolean DEFAULT true,
     created_at timestamp with time zone DEFAULT now(),
     created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT config_incidencias_tipo_incidencia_check CHECK (((tipo_incidencia)::text = ANY ((ARRAY['base_calculo'::character varying, 'deduz_base'::character varying, 'proporcionaliza'::character varying, 'condiciona'::character varying, 'exclui'::character varying])::text[])))
 );
 
@@ -9846,7 +10515,9 @@ CREATE TABLE public.config_institucional (
     created_at timestamp with time zone DEFAULT now(),
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now(),
-    updated_by uuid
+    updated_by uuid,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -9915,6 +10586,8 @@ CREATE TABLE public.config_jornada_padrao (
     vigencia_fim date,
     fundamentacao_legal text,
     instituicao_id uuid,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT config_jornada_padrao_escopo_check CHECK (((escopo)::text = ANY ((ARRAY['orgao'::character varying, 'unidade'::character varying, 'cargo'::character varying, 'servidor'::character varying])::text[])))
 );
 
@@ -9963,7 +10636,9 @@ CREATE TABLE public.config_motivos_desligamento (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_by uuid
+    updated_by uuid,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid
 );
 
 ALTER TABLE ONLY public.config_motivos_desligamento FORCE ROW LEVEL SECURITY;
@@ -10198,6 +10873,8 @@ CREATE TABLE public.config_regras_calculo (
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now(),
     updated_by uuid,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT config_regras_calculo_escopo_check CHECK (((escopo)::text = ANY ((ARRAY['geral'::character varying, 'cargo'::character varying, 'vinculo'::character varying, 'regime'::character varying, 'unidade'::character varying, 'servidor'::character varying])::text[]))),
     CONSTRAINT config_regras_calculo_tipo_regra_check CHECK (((tipo_regra)::text = ANY ((ARRAY['calculo_base'::character varying, 'adicional_tempo'::character varying, 'gratificacao'::character varying, 'desconto_legal'::character varying, 'desconto_voluntario'::character varying, 'proporcionalidade'::character varying, 'arredondamento'::character varying, 'teto'::character varying])::text[])))
 );
@@ -10254,6 +10931,8 @@ CREATE TABLE public.config_rubricas (
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now(),
     updated_by uuid,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT config_rubricas_natureza_check CHECK (((natureza)::text = ANY ((ARRAY['provento'::character varying, 'desconto'::character varying, 'encargo'::character varying, 'informativo'::character varying])::text[]))),
     CONSTRAINT config_rubricas_tipo_calculo_check CHECK (((tipo_calculo)::text = ANY ((ARRAY['fixo'::character varying, 'percentual'::character varying, 'formula'::character varying, 'referencia'::character varying, 'tabela'::character varying, 'manual'::character varying])::text[])))
 );
@@ -10287,7 +10966,9 @@ CREATE TABLE public.config_situacoes_funcionais (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_by uuid
+    updated_by uuid,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid
 );
 
 ALTER TABLE ONLY public.config_situacoes_funcionais FORCE ROW LEVEL SECURITY;
@@ -10318,7 +10999,9 @@ CREATE TABLE public.config_tipos_ato (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_by uuid
+    updated_by uuid,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid
 );
 
 ALTER TABLE ONLY public.config_tipos_ato FORCE ROW LEVEL SECURITY;
@@ -10344,7 +11027,11 @@ CREATE TABLE public.config_tipos_onus (
     ordem integer DEFAULT 0,
     ativo boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    created_by uuid
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 ALTER TABLE ONLY public.config_tipos_onus FORCE ROW LEVEL SECURITY;
@@ -10378,6 +11065,8 @@ CREATE TABLE public.config_tipos_rubrica (
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now(),
     updated_by uuid,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT config_tipos_rubrica_natureza_check CHECK (((natureza)::text = ANY ((ARRAY['provento'::character varying, 'desconto'::character varying, 'encargo'::character varying, 'informativo'::character varying])::text[])))
 );
 
@@ -10419,6 +11108,8 @@ CREATE TABLE public.config_tipos_servidor (
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_by uuid,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT chk_tipos_servidor_vigencia CHECK (((vigencia_fim IS NULL) OR (vigencia_fim >= vigencia_inicio)))
 );
 
@@ -10450,7 +11141,11 @@ CREATE TABLE public.configuracao_jornada (
     permite_compensacao boolean DEFAULT true,
     limite_banco_horas numeric(6,2) DEFAULT 40,
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -10485,7 +11180,10 @@ CREATE TABLE public.consignacoes (
     observacoes text,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    created_by uuid
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 ALTER TABLE ONLY public.consignacoes FORCE ROW LEVEL SECURITY;
@@ -10511,7 +11209,10 @@ CREATE TABLE public.contas_autarquia (
     ativo boolean DEFAULT true,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    created_by uuid
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -10937,7 +11638,10 @@ CREATE TABLE public.dependentes_irrf (
     ativo boolean DEFAULT true,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    created_by uuid
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 ALTER TABLE ONLY public.dependentes_irrf FORCE ROW LEVEL SECURITY;
@@ -10970,6 +11674,9 @@ CREATE TABLE public.designacoes (
     created_at timestamp with time zone DEFAULT now(),
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now(),
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT designacoes_status_check CHECK ((status = ANY (ARRAY['pendente'::text, 'aprovada'::text, 'rejeitada'::text, 'encerrada'::text])))
 );
 
@@ -11046,6 +11753,8 @@ CREATE TABLE public.dias_nao_uteis (
     updated_by uuid,
     fundamentacao_legal text,
     instituicao_id uuid,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT dias_nao_uteis_abrangencia_check CHECK (((abrangencia)::text = ANY ((ARRAY['todas'::character varying, 'especifica'::character varying])::text[]))),
     CONSTRAINT dias_nao_uteis_tipo_check CHECK (((tipo)::text = ANY ((ARRAY['feriado_nacional'::character varying, 'feriado_estadual'::character varying, 'feriado_municipal'::character varying, 'ponto_facultativo'::character varying, 'recesso'::character varying, 'suspensao_expediente'::character varying, 'expediente_reduzido'::character varying])::text[])))
 );
@@ -11120,7 +11829,10 @@ CREATE TABLE public.documentos (
     doe_data date,
     conteudo_unificado jsonb,
     doe_link text,
-    responsavel_id uuid
+    responsavel_id uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 ALTER TABLE ONLY public.documentos FORCE ROW LEVEL SECURITY;
@@ -11233,6 +11945,9 @@ CREATE TABLE public.documentos_requerimento_servidor (
     created_by uuid,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT documentos_requerimento_servidor_status_check CHECK ((status = ANY (ARRAY['pendente'::text, 'recebido'::text, 'analisado'::text, 'arquivado'::text])))
 );
 
@@ -11453,7 +12168,12 @@ CREATE TABLE public.eventos_esocial (
     lote_id character varying(50),
     sequencia_lote integer,
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    enviado_por uuid,
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -11506,7 +12226,13 @@ CREATE TABLE public.exportacoes_folha (
     gerado_em timestamp with time zone DEFAULT now(),
     gerado_por uuid,
     enviado_em timestamp with time zone,
-    enviado_por uuid
+    enviado_por uuid,
+    created_at timestamp with time zone,
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -11665,7 +12391,12 @@ CREATE TABLE public.feriados (
     tipo text DEFAULT 'nacional'::text,
     recorrente boolean DEFAULT false,
     ativo boolean DEFAULT true,
-    created_at timestamp with time zone DEFAULT now()
+    created_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -11692,6 +12423,10 @@ CREATE TABLE public.ferias_servidor (
     observacoes text,
     created_at timestamp with time zone DEFAULT now(),
     created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT ferias_servidor_status_check CHECK ((status = ANY (ARRAY['programada'::text, 'em_gozo'::text, 'concluida'::text, 'interrompida'::text, 'cancelada'::text])))
 );
 
@@ -11740,7 +12475,11 @@ CREATE TABLE public.fichas_financeiras (
     competencia_mes integer,
     tipo_folha character varying,
     unidade_id uuid,
-    unidade_nome character varying
+    unidade_nome character varying,
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 ALTER TABLE ONLY public.fichas_financeiras FORCE ROW LEVEL SECURITY;
@@ -12630,7 +13369,10 @@ CREATE TABLE public.folhas_pagamento (
     fechado_em timestamp with time zone,
     justificativa_fechamento text,
     conferido_por uuid,
-    conferido_em timestamp with time zone
+    conferido_em timestamp with time zone,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 ALTER TABLE ONLY public.folhas_pagamento FORCE ROW LEVEL SECURITY;
@@ -12759,7 +13501,11 @@ CREATE TABLE public.frequencia_arquivos (
     arquivo_tamanho integer,
     hash_conteudo character varying(64),
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    created_by uuid
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -12787,6 +13533,10 @@ CREATE TABLE public.frequencia_fechamento (
     observacoes text,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT frequencia_fechamento_mes_check CHECK (((mes >= 1) AND (mes <= 12)))
 );
 
@@ -12815,7 +13565,11 @@ CREATE TABLE public.frequencia_mensal (
     fechado boolean DEFAULT false,
     data_fechamento timestamp with time zone,
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -12844,7 +13598,10 @@ CREATE TABLE public.frequencia_pacotes (
     gerado_em timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     created_by uuid,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -12993,7 +13750,11 @@ CREATE TABLE public.historico_funcional (
     fundamentacao_legal text,
     observacoes text,
     created_at timestamp with time zone DEFAULT now(),
-    created_by uuid
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -13062,7 +13823,13 @@ CREATE TABLE public.horarios_jornada (
     entrada1 time without time zone,
     saida1 time without time zone,
     entrada2 time without time zone,
-    saida2 time without time zone
+    saida2 time without time zone,
+    created_at timestamp with time zone,
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -13239,6 +14006,11 @@ CREATE TABLE public.itens_ficha_financeira (
     percentual numeric(8,4),
     ordem integer DEFAULT 0,
     created_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT itens_ficha_financeira_tipo_check CHECK (((tipo)::text = ANY ((ARRAY['provento'::character varying, 'desconto'::character varying])::text[])))
 );
 
@@ -13328,6 +14100,11 @@ CREATE TABLE public.itens_retorno_bancario (
     descricao_ocorrencia text,
     data_pagamento date,
     created_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT itens_retorno_bancario_status_check CHECK (((status)::text = ANY ((ARRAY['pago'::character varying, 'rejeitado'::character varying, 'devolvido'::character varying])::text[])))
 );
 
@@ -13347,7 +14124,11 @@ CREATE TABLE public.justificativas_ponto (
     data_aprovacao timestamp with time zone,
     observacao_aprovador text,
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -13363,7 +14144,12 @@ CREATE TABLE public.lancamentos_banco_horas (
     horas numeric(5,2) NOT NULL,
     motivo text,
     registro_ponto_id uuid,
-    created_at timestamp with time zone DEFAULT now()
+    created_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -13386,7 +14172,12 @@ CREATE TABLE public.lancamentos_folha (
     origem public.origem_lancamento DEFAULT 'automatico'::public.origem_lancamento,
     competencia_referencia character varying(7),
     observacao text,
-    created_at timestamp with time zone DEFAULT now()
+    created_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -13416,6 +14207,10 @@ CREATE TABLE public.licencas_afastamentos (
     observacoes text,
     created_at timestamp with time zone DEFAULT now(),
     created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT licencas_afastamentos_status_check CHECK ((status = ANY (ARRAY['ativa'::text, 'encerrada'::text, 'prorrogada'::text, 'cancelada'::text])))
 );
 
@@ -13494,7 +14289,11 @@ CREATE TABLE public.lotacoes (
     ato_url text,
     ato_tipo text,
     ato_doe_numero text,
-    ato_doe_data date
+    ato_doe_data date,
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 ALTER TABLE ONLY public.lotacoes FORCE ROW LEVEL SECURITY;
@@ -13667,6 +14466,10 @@ CREATE TABLE public.memorandos_lotacao (
     status character varying(20) DEFAULT 'gerado'::character varying,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT memorandos_lotacao_status_check CHECK (((status)::text = ANY ((ARRAY['gerado'::character varying, 'entregue'::character varying, 'cancelado'::character varying])::text[])))
 );
 
@@ -13882,7 +14685,9 @@ CREATE TABLE public.nomeacoes_chefe_unidade (
     created_by uuid,
     created_at timestamp with time zone DEFAULT now(),
     updated_by uuid,
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -13948,7 +14753,11 @@ CREATE TABLE public.ocorrencias_servidor (
     descricao text NOT NULL,
     documento_url text,
     created_at timestamp with time zone DEFAULT now(),
-    created_by uuid
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -13993,7 +14802,9 @@ CREATE TABLE public.parametros_folha (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     created_by uuid,
-    updated_by uuid
+    updated_by uuid,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -14122,7 +14933,10 @@ CREATE TABLE public.pensoes_alimenticias (
     observacoes text,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    created_by uuid
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -14216,6 +15030,10 @@ CREATE TABLE public.portarias_servidor (
     observacoes text,
     created_at timestamp with time zone DEFAULT now(),
     created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT portarias_servidor_status_check CHECK ((status = ANY (ARRAY['vigente'::text, 'revogada'::text, 'substituida'::text])))
 );
 
@@ -14382,6 +15200,10 @@ CREATE TABLE public.pre_cadastros (
     molestia_grave boolean DEFAULT false,
     ano_inicio_primeiro_emprego integer,
     ano_fim_primeiro_emprego integer,
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT pre_cadastros_status_check CHECK ((status = ANY (ARRAY['rascunho'::text, 'enviado'::text, 'aprovado'::text, 'rejeitado'::text, 'convertido'::text])))
 );
 
@@ -14565,7 +15387,9 @@ CREATE TABLE public.provimentos (
     created_at timestamp with time zone DEFAULT now(),
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now(),
-    updated_by uuid
+    updated_by uuid,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid
 );
 
 ALTER TABLE ONLY public.provimentos FORCE ROW LEVEL SECURITY;
@@ -14685,6 +15509,9 @@ CREATE TABLE public.regimes_trabalho (
     updated_at timestamp with time zone DEFAULT now(),
     created_by uuid,
     instituicao_id uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT regimes_trabalho_tipo_check CHECK (((tipo)::text = ANY ((ARRAY['presencial'::character varying, 'teletrabalho'::character varying, 'hibrido'::character varying, 'plantao'::character varying, 'escala'::character varying])::text[])))
 );
 
@@ -14725,7 +15552,11 @@ CREATE TABLE public.registros_ponto (
     aprovador_id uuid,
     data_aprovacao timestamp with time zone,
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -14752,6 +15583,10 @@ CREATE TABLE public.remessas_bancarias (
     enviado_por uuid,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT remessas_bancarias_status_check CHECK (((status)::text = ANY ((ARRAY['gerada'::character varying, 'enviada'::character varying, 'processada'::character varying, 'erro'::character varying, 'cancelada'::character varying])::text[])))
 );
 
@@ -14847,7 +15682,12 @@ CREATE TABLE public.retornos_bancarios (
     valor_rejeitado numeric(15,2) DEFAULT 0,
     detalhes jsonb DEFAULT '[]'::jsonb,
     processado_por uuid,
-    created_at timestamp with time zone DEFAULT now()
+    created_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -14975,7 +15815,9 @@ CREATE TABLE public.rubricas (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     created_by uuid,
-    updated_by uuid
+    updated_by uuid,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -15037,7 +15879,10 @@ CREATE TABLE public.servidor_regime (
     ativo boolean DEFAULT true,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    created_by uuid
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -15050,7 +15895,11 @@ CREATE TABLE public.servidor_tag_vinculos (
     servidor_id uuid NOT NULL,
     tag_id uuid NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    created_by uuid
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -15064,7 +15913,11 @@ CREATE TABLE public.servidor_tags (
     cor text DEFAULT 'blue'::text NOT NULL,
     descricao text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    created_by uuid
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -15190,6 +16043,8 @@ CREATE TABLE public.servidores (
     molestia_grave boolean DEFAULT false,
     ano_inicio_primeiro_emprego integer,
     ano_fim_primeiro_emprego integer,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT servidores_sexo_check CHECK ((sexo = ANY (ARRAY['M'::text, 'F'::text, 'O'::text])))
 );
 
@@ -15373,6 +16228,9 @@ CREATE TABLE public.solicitacoes_abono (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT solicitacoes_abono_status_check CHECK (((status)::text = ANY ((ARRAY['pendente'::character varying, 'aprovado_chefia'::character varying, 'aprovado_rh'::character varying, 'aprovado'::character varying, 'rejeitado'::character varying, 'cancelado'::character varying])::text[])))
 );
 
@@ -15397,7 +16255,11 @@ CREATE TABLE public.solicitacoes_ajuste_ponto (
     data_aprovacao timestamp with time zone,
     observacao_aprovador text,
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -15449,7 +16311,11 @@ CREATE TABLE public.tabela_inss (
     aliquota numeric(6,4) NOT NULL,
     descricao text,
     created_at timestamp with time zone DEFAULT now(),
-    created_by uuid
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -15468,7 +16334,11 @@ CREATE TABLE public.tabela_irrf (
     parcela_deduzir numeric(15,2) DEFAULT 0 NOT NULL,
     descricao text,
     created_at timestamp with time zone DEFAULT now(),
-    created_by uuid
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone,
+    updated_by uuid,
+    updated_by_servidor_id uuid
 );
 
 
@@ -15537,6 +16407,10 @@ CREATE TABLE public.tipos_abono (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     instituicao_id uuid,
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT tipos_abono_impacto_horas_check CHECK (((impacto_horas)::text = ANY ((ARRAY['neutro'::character varying, 'reduz'::character varying, 'compensa'::character varying])::text[])))
 );
 
@@ -16097,6 +16971,9 @@ CREATE TABLE public.vinculos_servidor (
     data_posse date,
     data_exercicio date,
     motivo_encerramento text,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT vinculos_servidor_onus_check CHECK ((onus = ANY (ARRAY['origem'::text, 'destino'::text, 'compartilhado'::text])))
 );
 
@@ -16244,6 +17121,9 @@ CREATE TABLE public.viagens_diarias (
     workflow_diraf_solicitado_em timestamp with time zone,
     workflow_diraf_concluido_em timestamp with time zone,
     workflow_diraf_observacoes text,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
     CONSTRAINT viagens_diarias_status_check CHECK ((status = ANY (ARRAY['solicitada'::text, 'autorizada'::text, 'em_andamento'::text, 'concluida'::text, 'cancelada'::text])))
 );
 
@@ -16296,7 +17176,9 @@ CREATE TABLE public.vinculos_funcionais (
     created_at timestamp with time zone DEFAULT now(),
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now(),
-    updated_by uuid
+    updated_by uuid,
+    created_by_servidor_id uuid,
+    updated_by_servidor_id uuid
 );
 
 
