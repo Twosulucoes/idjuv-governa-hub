@@ -203,7 +203,7 @@ export function useUploadFrequencia() {
         .from('frequencias')
         .upload(arquivoPath, pdfBlob, {
           contentType: 'application/pdf',
-          upsert: true,
+          upsert: false, // caminho já leva carimbo de tempo: nunca sobrescreve
         });
 
       if (uploadError) {
