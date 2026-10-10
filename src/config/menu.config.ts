@@ -99,6 +99,10 @@ export type PermissaoInstitucional =
   | 'rh.aprovar'
   | 'rh.frequencia.lancar'
   | 'rh.self'
+  // Folha (módulo rh; códigos do catálogo, ver docs/RBAC_PERMISSOES.md)
+  | 'financeiro.folha.visualizar'
+  | 'financeiro.folha.processar'
+  | 'financeiro.folha.configurar'
   // Orçamento
   | 'orcamento.visualizar'
   | 'orcamento.criar'
