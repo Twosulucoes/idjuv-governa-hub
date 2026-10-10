@@ -40,70 +40,52 @@ interface LicitacaoPublica {
   vencedor_documento_parcial: string | null;
 }
 
+// Linha devolvida pela RPC pública transparencia_licitacoes (fora dos tipos gerados)
+interface LicitacaoRpc {
+  id: string;
+  numero_processo: string;
+  ano: number;
+  modalidade: string;
+  objeto: string;
+  fase_atual: string;
+  valor_estimado: number | null;
+  data_abertura: string | null;
+  data_homologacao: string | null;
+  unidade_requisitante: string | null;
+  vencedor_razao_social: string | null;
+  vencedor_cnpj_parcial: string | null;
+}
+
 export default function LicitacoesPublicasPage() {
   const { integracoes, identidade } = useTenant();
   const [filtroAno, setFiltroAno] = useState<string>("todos");
   const [filtroModalidade, setFiltroModalidade] = useState<string>("todos");
 
-  // LGPD-Safe: Busca apenas fornecedores pessoa jurídica
+  // RPC pública: o banco só devolve vencedor pessoa jurídica, com CNPJ mascarado (LGPD no servidor)
   const { data: licitacoes, isLoading, isError, refetch } = useQuery({
     queryKey: ['transparencia-licitacoes', filtroAno, filtroModalidade],
     queryFn: async () => {
-      let query = supabase
-        .from('processos_licitatorios')
-        .select(`
-          id,
-          numero_processo,
-          ano,
-          modalidade,
-          objeto,
-          fase_atual,
-          valor_estimado,
-          data_abertura,
-          data_homologacao,
-          unidade_requisitante_id,
-          estrutura_organizacional!processos_licitatorios_unidade_requisitante_id_fkey(nome),
-          fornecedores!processos_licitatorios_fornecedor_id_fkey(razao_social, tipo_pessoa, cnpj)
-        `)
-        .order('ano', { ascending: false })
-        .order('numero_processo', { ascending: false });
+      const { data, error } = await supabase.rpc('transparencia_licitacoes' as never, {
+        p_ano: filtroAno !== "todos" ? parseInt(filtroAno) : null,
+        p_modalidade: filtroModalidade !== "todos" ? filtroModalidade : null,
+      } as never);
 
-      if (filtroAno !== "todos") {
-        query = query.eq('ano', parseInt(filtroAno));
-      }
-      if (filtroModalidade !== "todos") {
-        query = query.eq('modalidade', filtroModalidade as any);
-      }
-
-      const { data, error } = await query;
-      
       if (error) throw error;
-      
-      // LGPD-Safe: Exclui pessoa física, mascara CNPJ
-      return (data || [])
-        .filter((item: any) => 
-          !item.fornecedores || item.fornecedores.tipo_pessoa !== 'fisica'
-        )
-        .map((item: any) => ({
-          id: item.id,
-          numero_processo: item.numero_processo,
-          ano: item.ano,
-          modalidade: item.modalidade,
-          objeto: item.objeto,
-          situacao: item.fase_atual,
-          valor_estimado: item.valor_estimado,
-          data_abertura: item.data_abertura,
-          data_homologacao: item.data_homologacao,
-          unidade_requisitante: item.estrutura_organizacional?.nome,
-          // Apenas razão social de PJ (nunca nome de pessoa física)
-          vencedor_nome: item.fornecedores?.tipo_pessoa === 'juridica' 
-            ? item.fornecedores?.razao_social 
-            : null,
-          // CNPJ mascarado (nunca CPF)
-          vencedor_documento_parcial: item.fornecedores?.cnpj 
-            ? `${item.fornecedores.cnpj.substring(0, 8)}****${item.fornecedores.cnpj.substring(12)}`
-            : null
-        })) as LicitacaoPublica[];
+
+      return ((data as unknown as LicitacaoRpc[] | null) ?? []).map((item): LicitacaoPublica => ({
+        id: item.id,
+        numero_processo: item.numero_processo,
+        ano: item.ano,
+        modalidade: item.modalidade,
+        objeto: item.objeto,
+        situacao: item.fase_atual,
+        valor_estimado: item.valor_estimado,
+        data_abertura: item.data_abertura,
+        data_homologacao: item.data_homologacao,
+        unidade_requisitante: item.unidade_requisitante,
+        vencedor_nome: item.vencedor_razao_social,
+        vencedor_documento_parcial: item.vencedor_cnpj_parcial,
+      }));
     }
   });
 

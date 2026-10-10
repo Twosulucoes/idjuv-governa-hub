@@ -12,6 +12,17 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { EmptyState } from "@/components/design-system";
 
+// Linha devolvida pela RPC pública transparencia_execucao_orcamentaria (fora dos tipos gerados)
+interface ExecucaoPorExercicio {
+  exercicio: number;
+  valor_inicial: number;
+  valor_atual: number;
+  valor_empenhado: number;
+  valor_liquidado: number;
+  valor_pago: number;
+  quantidade_dotacoes: number;
+}
+
 interface ResumoAno {
   ano: number;
   valor_inicial: number;
@@ -23,44 +34,26 @@ interface ResumoAno {
 }
 
 export default function ExecucaoOrcamentariaPage() {
-  const { data: dotacoes, isLoading } = useQuery({
+  const { data: execucao, isLoading } = useQuery({
     queryKey: ['transparencia-execucao'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('dotacoes_orcamentarias')
-        // Só os valores somados por exercício: a página mostra apenas totais
-        .select('exercicio, valor_inicial, valor_atual, valor_empenhado, valor_liquidado, valor_pago')
-        .order('exercicio', { ascending: false });
-      
+      // RPC pública: o banco já devolve só os totais por exercício (a tabela de dotações é fechada ao portal)
+      const { data, error } = await supabase.rpc('transparencia_execucao_orcamentaria' as never);
       if (error) throw error;
-      return data || [];
+      return (data as unknown as ExecucaoPorExercicio[] | null) ?? [];
     }
   });
 
-  // Agregar por exercício (dados agregados, sem identificação pessoal)
-  const resumoPorAno = (dotacoes || []).reduce((acc: Record<number, ResumoAno>, d) => {
-    const ano = d.exercicio;
-    if (!acc[ano]) {
-      acc[ano] = {
-        ano,
-        valor_inicial: 0,
-        valor_atualizado: 0,
-        valor_empenhado: 0,
-        valor_liquidado: 0,
-        valor_pago: 0,
-        dotacoes: 0
-      };
-    }
-    acc[ano].valor_inicial += d.valor_inicial || 0;
-    acc[ano].valor_atualizado += d.valor_atual || 0;
-    acc[ano].valor_empenhado += d.valor_empenhado || 0;
-    acc[ano].valor_liquidado += d.valor_liquidado || 0;
-    acc[ano].valor_pago += d.valor_pago || 0;
-    acc[ano].dotacoes += 1;
-    return acc;
-  }, {});
-
-  const anos = Object.values(resumoPorAno).sort((a, b) => b.ano - a.ano);
+  // numeric chega do PostgREST como número; Number() cobre o caso de vir como texto
+  const anos: ResumoAno[] = (execucao || []).map((e) => ({
+    ano: e.exercicio,
+    valor_inicial: Number(e.valor_inicial) || 0,
+    valor_atualizado: Number(e.valor_atual) || 0,
+    valor_empenhado: Number(e.valor_empenhado) || 0,
+    valor_liquidado: Number(e.valor_liquidado) || 0,
+    valor_pago: Number(e.valor_pago) || 0,
+    dotacoes: Number(e.quantidade_dotacoes) || 0,
+  }));
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
