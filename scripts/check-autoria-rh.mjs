@@ -10,8 +10,13 @@
  *
  * Regra, lida de supabase/baseline/rls/mapa.csv (linhas com `rh` em modulos) contra o schema do baseline
  * (supabase/baseline/schema/03_post_data.sql, gerado do replay das migrações):
- *   - classe `trilha` (históricos gravados por trigger): exige o trigger `trilha_imutavel` (UPDATE/DELETE recusados);
- *   - demais classes: exigem um trigger com `public.fixar_autoria(` E um com `public.fn_audit_trigger(`.
+ *   - demais classes: `zz_fixar_autoria` BEFORE INSERT OR UPDATE, FOR EACH ROW, sem WHEN, com public.fixar_autoria(...)
+ *     E `audit_<tabela>` AFTER INSERT OR DELETE OR UPDATE (todas as colunas), FOR EACH ROW, sem WHEN, com
+ *     public.fn_audit_trigger('rh');
+ *   - classe `trilha` (históricos gravados por trigger): `trilha_imutavel` BEFORE DELETE OR UPDATE por linha E
+ *     `trilha_imutavel_truncate` BEFORE TRUNCATE por comando, ambos com public.trilha_imutavel e ENABLE ALWAYS;
+ *   - em qualquer classe: nenhum desses triggers desligado (ALTER TABLE ... DISABLE TRIGGER, inclusive ALL/USER, ou
+ *     ENABLE REPLICA TRIGGER, que só dispara em modo réplica).
  * Exceções: scripts/autoria-rh-excecoes.txt, uma por linha no formato `tabela | motivo` (motivo obrigatório).
  * Exceção de tabela que não é do RH no mapa, repetida ou que já cumpre a regra também reprova (exceção obsoleta).
  *
@@ -61,13 +66,34 @@ for (const l of linhas.slice(1)) {
   if (c[iModulos].split("|").includes("rh")) rh.set(c[iTabela], c[iClasse]);
 }
 
-// CREATE TRIGGER <nome> <quando> ON public.<tabela> ... EXECUTE FUNCTION public.<função>(
-const triggers = new Map(); // tabela -> Set(função)
+// CREATE TRIGGER <nome> <BEFORE|AFTER> <eventos> ON public.<tabela> FOR EACH <ROW|STATEMENT> [WHEN (...)]
+//   EXECUTE FUNCTION public.<função>(<argumentos>);   (uma linha por trigger no pg_dump)
+const triggers = new Map(); // tabela -> Map(nome -> {momento, eventos, nivel, quando, funcao, args})
 const schema = readFileSync(SCHEMA, "utf8");
-const re = /^CREATE TRIGGER \S+ .*? ON public\.([a-z0-9_]+) .*?EXECUTE FUNCTION public\.([a-z0-9_]+)\(/gm;
+const re =
+  /^CREATE TRIGGER (\S+) (BEFORE|AFTER|INSTEAD OF) (.+?) ON public\.([a-z0-9_]+) (?:.*? )?FOR EACH (ROW|STATEMENT) (?:WHEN \((.*)\) )?EXECUTE FUNCTION public\.([a-z0-9_]+)\((.*)\);$/gm;
 for (const m of schema.matchAll(re)) {
-  if (!triggers.has(m[1])) triggers.set(m[1], new Set());
-  triggers.get(m[1]).add(m[2]);
+  const [, nome, momento, eventos, tabela, nivel, quando, funcao, args] = m;
+  if (!triggers.has(tabela)) triggers.set(tabela, new Map());
+  triggers.get(tabela).set(nome, {
+    momento,
+    eventos: eventos.split(" OR ").sort().join(" OR "), // "UPDATE OF col" fica diferente de "UPDATE" (restrito)
+    nivel,
+    quando: quando ?? null,
+    funcao,
+    args,
+  });
+}
+// ALTER TABLE [ONLY] public.<tabela> DISABLE TRIGGER <nome|ALL|USER> / ENABLE REPLICA TRIGGER <nome>
+const desligados = new Map(); // tabela -> Set(nome)
+const reDes = /^ALTER TABLE (?:ONLY )?public\.([a-z0-9_]+) (?:DISABLE|ENABLE REPLICA) TRIGGER (\S+);$/gm;
+for (const m of schema.matchAll(reDes)) {
+  if (!desligados.has(m[1])) desligados.set(m[1], new Set());
+  desligados.get(m[1]).add(m[2]);
+}
+const sempre = new Set(); // "tabela.trigger" com ENABLE ALWAYS
+for (const m of schema.matchAll(/^ALTER TABLE (?:ONLY )?public\.([a-z0-9_]+) ENABLE ALWAYS TRIGGER (\S+);$/gm)) {
+  sempre.add(`${m[1]}.${m[2]}`);
 }
 
 const falhas = [];
@@ -84,10 +110,36 @@ for (const [n, bruta] of readFileSync(EXCECOES, "utf8").split(/\r?\n/).entries()
   else excecoes.set(t, motivo);
 }
 
+/** Exigências por classe: nome do trigger, momento, eventos, nível, função, argumentos (null = qualquer), ALWAYS. */
+function exigidos(tabela, classe) {
+  if (classe === "trilha") {
+    return [
+      { nome: "trilha_imutavel", momento: "BEFORE", eventos: "DELETE OR UPDATE", nivel: "ROW", funcao: "trilha_imutavel", args: null, sempre: true },
+      { nome: "trilha_imutavel_truncate", momento: "BEFORE", eventos: "TRUNCATE", nivel: "STATEMENT", funcao: "trilha_imutavel", args: "", sempre: true },
+    ];
+  }
+  return [
+    { nome: "zz_fixar_autoria", momento: "BEFORE", eventos: "INSERT OR UPDATE", nivel: "ROW", funcao: "fixar_autoria", args: null, sempre: false },
+    { nome: `audit_${tabela}`, momento: "AFTER", eventos: "DELETE OR INSERT OR UPDATE", nivel: "ROW", funcao: "fn_audit_trigger", args: "'rh'", sempre: false },
+  ];
+}
+
 function faltando(tabela, classe) {
-  const f = triggers.get(tabela) ?? new Set();
-  if (classe === "trilha") return f.has("trilha_imutavel") ? [] : ["trilha_imutavel"];
-  return ["fixar_autoria", "fn_audit_trigger"].filter((fn) => !f.has(fn));
+  const t = triggers.get(tabela) ?? new Map();
+  const des = desligados.get(tabela) ?? new Set();
+  const problemas = [];
+  for (const e of exigidos(tabela, classe)) {
+    const g = t.get(e.nome);
+    const desc = `${e.nome} (${e.momento} ${e.eventos} FOR EACH ${e.nivel}, ${e.funcao}${e.args === null ? "(...)" : `(${e.args})`})`;
+    if (!g) problemas.push(`${desc} ausente`);
+    else if (g.momento !== e.momento || g.eventos !== e.eventos || g.nivel !== e.nivel || g.funcao !== e.funcao
+             || (e.args !== null && g.args !== e.args) || g.quando !== null) {
+      problemas.push(`${desc} diferente no schema: ${g.momento} ${g.eventos} FOR EACH ${g.nivel}${g.quando ? ` WHEN (${g.quando})` : ""} ${g.funcao}(${g.args})`);
+    }
+    if (des.has(e.nome) || des.has("ALL") || des.has("USER")) problemas.push(`${e.nome} desligado (DISABLE/ENABLE REPLICA TRIGGER)`);
+    if (e.sempre && !sempre.has(`${tabela}.${e.nome}`)) problemas.push(`${e.nome} sem ENABLE ALWAYS`);
+  }
+  return problemas;
 }
 
 let ok = 0;
@@ -98,7 +150,7 @@ for (const [tabela, classe] of [...rh].sort()) {
     continue;
   }
   if (falta.length > 0) {
-    falhas.push(`${tabela} [${classe}] sem trigger de ${falta.join(" e ")} no schema do baseline`);
+    falhas.push(`${tabela} [${classe}]: ${falta.join("; ")}`);
   } else ok++;
 }
 
