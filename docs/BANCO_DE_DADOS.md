@@ -26,8 +26,8 @@ muda em relação ao estado das migrações:
   `financeiro.folha.configurar` para rubricas, parâmetros e tabelas de INSS/IRRF) — detalhe em
   [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#folha-rls-por-permissão-onda-b--b1) — e 12 do RH na B2 (férias,
   licenças, viagens, frequência; seção "RH — frequência e ponto" abaixo). A B2 acrescentou ao gerador lista de
-  códigos (`escrita=a|b`) e os sufixos `;excluir=`, `;insere_proprio`, `;sem_autoaprovacao` e `;coluna=`
-  (formato no [README do baseline](../supabase/baseline/README.md)). `scripts/db/testar-rls.sql`
+  códigos (`escrita=a|b`) e os sufixos `;excluir=`, `;insere_proprio`, `;sem_autoaprovacao`, `;coluna=` e
+  `;posse=usuario` (formato no [README do baseline](../supabase/baseline/README.md)). `scripts/db/testar-rls.sql`
   cobre a classe com uma persona por código (módulo + código em `user_modules.permissions`) e uma persona
   com a permissão avulsa sem o módulo (não lê nem escreve).
 - **Perfil ativo é pré-condição.** `is_admin_user`, `has_permission_code` e `meu_servidor_id` passam a
@@ -40,7 +40,8 @@ muda em relação ao estado das migrações:
   bloqueio, tipo, CPF e e-mail; antes qualquer usuário se ativava e assumia o servidor de outro.
 - **RPCs.** `fn_gerar_numero_financeiro` aceita só tipos de uma lista (havia injeção de SQL); as RPCs de
   leitura com dado pessoal rodam como o usuário (`SECURITY INVOKER`); `fn_atualizar_situacao_servidor` perde o
-  EXECUTE de `authenticated` (`processar_folha_pagamento` voltou a ser executável por `authenticated` na migração
+  EXECUTE de `authenticated` (no banco só de migrações, desde a migração `20261010090000` da B2, também de
+  PUBLIC e `anon`) (`processar_folha_pagamento` voltou a ser executável por `authenticated` na migração
   `20261010070000`, com guarda `financeiro.folha.processar` no corpo); função nova não nasce executável por
   `anon` nem por PUBLIC.
 - **`anon`** só tem as 6 RPCs públicas (denúncia, dado oficial, árbitros, gestores escolares) e as tabelas de formulário/portal declaradas no mapa (coluna `anon`);
@@ -96,23 +97,46 @@ depende da S0 `20261010080000` e da B1). Regra por tabela e quem perde acesso em
   `lotacoes` em `proprio_leitura` (o servidor lê a própria linha por `meu_servidor_id()`; em `servidores`
   a posse é a coluna `id` e o DELETE exige `rh.servidores.excluir`); `cargos` em `catalogo`. `anon` perde
   todo privilégio nas 16 tabelas e `authenticated` perde TRUNCATE/TRIGGER/REFERENCES.
-- **Sem autoaprovação** em `solicitacoes_abono`, `solicitacoes_ajuste_ponto`, `justificativas_ponto` e
-  `frequencia_fechamento`: quem decide pelo caminho da permissão não grava a própria linha (para
-  justificativa, a posse vem de `registros_ponto`). O servidor insere o próprio pedido de abono, ajuste e
-  justificativa.
+- **Posse por usuário.** Em `banco_horas` e `solicitacoes_ajuste_ponto` a coluna `servidor_id` tem FK para
+  `profiles(id)`, não para `servidores`: a posse é comparada com `auth.uid()` (sufixo `;posse=usuario`), e
+  `lancamentos_banco_horas` herda a regra pelo banco de horas pai.
+- **Sem autoaprovação** em 11 das 12 tabelas `permissao` (todas menos `config_fechamento_frequencia`):
+  quem grava pelo caminho da permissão não grava a própria linha (admin passa). Na justificativa a posse vem
+  de `registros_ponto`; nos lançamentos, de `banco_horas`. O servidor insere o próprio pedido de abono,
+  ajuste e justificativa pelo caminho da posse.
+- **Função `eh_meu_servidor(uuid)`** (`SECURITY DEFINER`, `STABLE`, `search_path` fixo, EXECUTE só para
+  `authenticated`; mesmo texto no overlay 10): verdadeira se o id é `meu_servidor_id()` ou, quando o perfil
+  não tem vínculo, se os dígitos do CPF do perfil batem com os do servidor (CPF vazio nunca casa). Nunca
+  devolve NULL. É a condição "não é sua" das policies e da isenção de `forcar_campos_iniciais`.
+- **Exclusão** de abono, fechamento e justificativa só com `rh.frequencia.lancar`.
 - **Trigger `trg_validar_etapa_frequencia`** (função `validar_etapa_frequencia()`, `SECURITY DEFINER`,
   `search_path` fixo, sem EXECUTE para PUBLIC/`anon`/`authenticated`), BEFORE INSERT, UPDATE e DELETE em
-  `solicitacoes_abono` e `frequencia_fechamento`: etapa da chefia exige `rh.aprovar`; etapa do RH (e o
-  DELETE) exige `rh.frequencia.lancar`; a chefia encerra o fluxo quando o tipo de abono dispensa o RH. O
-  papel admin, a service role e funções internas passam (o teste é o GUC `role`). Recusa com `42501`. O
-  nome começa com `trg_v` para rodar depois de `trg_forcar_campos_iniciais`.
+  `solicitacoes_abono` e `frequencia_fechamento`:
+  - abono, sem `rh.frequencia.lancar`: `servidor_id` e `tipo_abono_id` nunca mudam; datas, horas,
+    justificativa, `documento_url`, `motivo_rejeicao` e `created_by` só enquanto pendente; a chefia
+    (`rh.aprovar`) só decide a partir de `pendente`, para `aprovado_chefia`, `rejeitado` ou `aprovado` (este
+    só se o tipo de abono da linha antes do comando dispensa o RH);
+  - fechamento: `servidor_id`, `ano` e `mes` imutáveis; `assinado_servidor*` só pelo dono; linha
+    consolidada travada sem `rh.frequencia.lancar`; validar exige `rh.aprovar`; reabrir e consolidar,
+    `rh.frequencia.lancar`;
+  - DELETE exige `rh.frequencia.lancar`;
+  - autoria: quando um par `<etapa>_por`/`<etapa>_em` muda para valor não nulo, o banco grava
+    `_por = auth.uid()` e `_em = now()` (o valor do cliente é ignorado).
+
+  O papel admin, a service role e funções internas passam (o teste é o GUC `role`). Recusa com `42501`. O
+  nome começa com `trg_v` para rodar depois de `trg_forcar_campos_iniciais`. Limitação: o servidor ainda
+  não assina o próprio fechamento pela API (não há policy de UPDATE para o dono).
 - **`forcar_campos_iniciais`** aceita no primeiro argumento, além de `<módulo>`, o formato
-  `perm:<módulo>:<c1>|<c2>[:<tabela_pai>.<coluna_fk>]`: fica isento (pode gravar status e aprovação no
-  INSERT) só quem tem o módulo **e** um dos códigos, e mesmo assim não na linha do próprio servidor (posse
-  por `servidor_id` ou pela tabela pai). Usado em `solicitacoes_abono`, `solicitacoes_ajuste_ponto` e
-  `justificativas_ponto` (`rh.aprovar|rh.frequencia.lancar`); `documentos_requerimento_servidor` segue no
-  formato de módulo. A migração cria a função e os triggers no só-migrações, onde não existiam; o overlay
-  20 tem o mesmo texto. EXECUTE só para `authenticated` e `service_role`.
+  `perm:<módulo>:<c1>|<c2>[:<tabela_pai>.<coluna_fk> | :usuario]`: fica isento (pode gravar status e
+  aprovação no INSERT) só quem tem o módulo **e** um dos códigos, e mesmo assim não na própria linha (posse
+  por `servidor_id` ou pela tabela pai, conferida por `eh_meu_servidor`; com `:usuario`, `servidor_id`
+  comparado a `auth.uid()`). Usado em `solicitacoes_abono`, `justificativas_ponto` e
+  `solicitacoes_ajuste_ponto` (`:usuario`), sempre com `rh.aprovar|rh.frequencia.lancar`;
+  `documentos_requerimento_servidor` segue no formato de módulo. A migração cria a função e os triggers no
+  só-migrações, onde não existiam; o overlay 20 tem o mesmo texto. EXECUTE só para `authenticated` e
+  `service_role`.
+- **`fn_atualizar_situacao_servidor`** sem EXECUTE para PUBLIC, `anon` e `authenticated` (só os triggers a
+  chamam), como no overlay 40.
 
 ### Folha de pagamento
 `folhas_pagamento`, `folha_historico_status`, `fichas_financeiras`,
