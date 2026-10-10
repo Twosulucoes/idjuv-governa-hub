@@ -98,6 +98,7 @@ export type PermissaoInstitucional =
   | 'rh.tramitar'
   | 'rh.aprovar'
   | 'rh.frequencia.lancar'
+  | 'rh.frequencia.configurar'
   | 'rh.self'
   // Folha (módulo rh; códigos do catálogo, ver docs/RBAC_PERMISSOES.md)
   | 'financeiro.folha.visualizar'
@@ -334,7 +335,7 @@ export const menuConfig: MenuSection[] = [
             labelShort: "Parâmetros",
             route: "/rh/frequencia/configuracao",
             icon: Settings,
-            permission: "rh.aprovar",
+            permission: "rh.frequencia.configurar",
           },
         ],
       },

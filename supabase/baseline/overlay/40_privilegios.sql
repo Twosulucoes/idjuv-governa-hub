@@ -76,6 +76,13 @@ REVOKE EXECUTE ON FUNCTION public.bloquear_alteracao_ficha_fechada() FROM authen
 REVOKE EXECUTE ON FUNCTION public.bloquear_alteracao_item_ficha_fechada() FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.bloquear_exclusao_ficha_fechada() FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.folhas_proteger_exclusao() FROM authenticated;
+-- trigger de etapas do abono/fechamento (migração 20261010090000, B2). Guardado por existência: a função só
+-- entra em schema/ quando o baseline é regenerado a partir do replay.
+DO $$ BEGIN
+  IF to_regprocedure('public.validar_etapa_frequencia()') IS NOT NULL THEN
+    REVOKE EXECUTE ON FUNCTION public.validar_etapa_frequencia() FROM authenticated;
+  END IF;
+END $$;
 REVOKE EXECUTE ON FUNCTION public.config_envio_servidor(text) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.config_envio_servidor(text) TO service_role;
 REVOKE ALL ON public.avisos_leituras FROM anon, authenticated;

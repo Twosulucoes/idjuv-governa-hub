@@ -99,6 +99,30 @@ RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT servidor_id FROM public.profiles WHERE id = auth.uid() AND is_active;
 $$;
 
+-- Este servidor é do usuário logado? Base de ";sem_autoaprovacao" (rls/mapa.csv) e da isenção por permissão de
+-- forcar_campos_iniciais (overlay 20): ninguém decide sobre o próprio pedido. Verdadeira quando _servidor_id =
+-- meu_servidor_id() ou, se o perfil não tem vínculo (meu_servidor_id() nulo), quando o CPF do perfil é o do
+-- servidor (só os dígitos; CPF nulo ou vazio nunca casa): o aprovador sem vínculo que é servidor não aprova o
+-- próprio pedido. Nunca devolve NULL. Mesmo texto na migração 20261010090000_onda_b_rh_permissoes.sql.
+-- EXECUTE só para authenticated (as policies a chamam como o usuário; a service role não passa por RLS).
+CREATE OR REPLACE FUNCTION public.eh_meu_servidor(_servidor_id uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT CASE
+    WHEN _servidor_id IS NULL OR auth.uid() IS NULL THEN false
+    WHEN public.meu_servidor_id() IS NOT NULL THEN _servidor_id = public.meu_servidor_id()
+    ELSE EXISTS (
+      SELECT 1
+      FROM public.profiles p
+      JOIN public.servidores s ON s.id = _servidor_id
+      WHERE p.id = auth.uid()
+        AND nullif(regexp_replace(coalesce(p.cpf, ''), '[^0-9]', '', 'g'), '')
+            = regexp_replace(coalesce(s.cpf, ''), '[^0-9]', '', 'g')
+    )
+  END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.eh_meu_servidor(uuid) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.eh_meu_servidor(uuid) TO authenticated;
+
 -- ---- perfil ativo como pré-condição ----
 CREATE OR REPLACE FUNCTION public.is_admin_user(_user_id uuid DEFAULT auth.uid())
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
