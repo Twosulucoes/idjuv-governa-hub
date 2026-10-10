@@ -1,19 +1,21 @@
 /**
  * DASHBOARD DE INVENTÁRIO E PATRIMÔNIO
  * Visão geral do módulo com KPIs e ações rápidas
+ * Padrões do design system: PageHeader, KpiCard, StatusBadge.
  */
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { 
   Package, Boxes, TrendingUp, AlertTriangle, ClipboardCheck,
-  Wrench, FileX, ArrowRight, BarChart3, QrCode, PackagePlus, ArrowRightLeft
+  Wrench, FileX, ArrowRight, BarChart3, QrCode, PackagePlus, ArrowRightLeft, AlertCircle
 } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { KpiCard, PageHeader, StatusBadge } from "@/components/design-system";
 import { useEstatisticasPatrimonio, useCampanhasInventario } from "@/hooks/usePatrimonio";
 import { useEstatisticasAlmoxarifado } from "@/hooks/useAlmoxarifado";
 import { CadastroLoteDialog } from "@/components/inventario/CadastroLoteDialog";
@@ -23,8 +25,18 @@ export default function DashboardInventarioPage() {
   const [cadastroLoteOpen, setCadastroLoteOpen] = useState(false);
   const [movimentacaoLoteOpen, setMovimentacaoLoteOpen] = useState(false);
   
-  const { data: estatisticasPatrimonio, isLoading: loadingPatrimonio } = useEstatisticasPatrimonio();
-  const { data: estatisticasAlmoxarifado, isLoading: loadingAlmoxarifado } = useEstatisticasAlmoxarifado();
+  const {
+    data: estatisticasPatrimonio,
+    isLoading: loadingPatrimonio,
+    isError: erroPatrimonio,
+    refetch: refetchPatrimonio,
+  } = useEstatisticasPatrimonio();
+  const {
+    data: estatisticasAlmoxarifado,
+    isLoading: loadingAlmoxarifado,
+    isError: erroAlmoxarifado,
+    refetch: refetchAlmoxarifado,
+  } = useEstatisticasAlmoxarifado();
   const { data: campanhas } = useCampanhasInventario(new Date().getFullYear());
 
   const campanhaAtiva = campanhas?.find(c => c.status === 'em_andamento');
@@ -32,204 +44,191 @@ export default function DashboardInventarioPage() {
   const formatCurrency = (value: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
+  // Valor do indicador com linha de apoio (valor em reais ou explicação)
+  const valorComApoio = (valor: number | string, apoio: string) => (
+    <>
+      {valor}
+      <span className="block text-caption font-normal text-muted-foreground">{apoio}</span>
+    </>
+  );
+
   return (
     <ModuleLayout module="patrimonio">
-      {/* Header */}
-      <section className="bg-secondary text-secondary-foreground py-8">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-accent rounded-xl flex items-center justify-center">
-              <Package className="w-7 h-7 text-accent-foreground" />
-            </div>
-            <div>
-              <h1 className="font-serif text-2xl lg:text-3xl font-bold">Inventário e Patrimônio</h1>
-              <p className="opacity-90">Gestão integrada de bens e materiais</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* KPIs */}
-      <section className="py-6 -mt-4">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Bens Patrimoniais */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription className="flex items-center gap-2">
-                  <Package className="w-4 h-4" />
-                  Bens Patrimoniais
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {loadingPatrimonio ? '...' : estatisticasPatrimonio?.totalBens || 0}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {formatCurrency(estatisticasPatrimonio?.valorTotal || 0)}
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Estoque */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription className="flex items-center gap-2">
-                  <Boxes className="w-4 h-4" />
-                  Itens em Estoque
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {loadingAlmoxarifado ? '...' : estatisticasAlmoxarifado?.totalItens || 0}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {formatCurrency(estatisticasAlmoxarifado?.valorTotal || 0)}
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Alertas */}
-            <Card className={estatisticasAlmoxarifado?.abaixoMinimo ? 'border-warning' : ''}>
-              <CardHeader className="pb-2">
-                <CardDescription className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4" />
-                  Alertas Estoque
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-warning">
-                  {loadingAlmoxarifado ? '...' : estatisticasAlmoxarifado?.abaixoMinimo || 0}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Itens abaixo do mínimo
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Requisições Pendentes */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription className="flex items-center gap-2">
-                  <ClipboardCheck className="w-4 h-4" />
-                  Requisições
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {loadingAlmoxarifado ? '...' : estatisticasAlmoxarifado?.requisicoesPendentes || 0}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Pendentes de atendimento
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Campanha de Inventário Ativa */}
-      {campanhaAtiva && (
-        <section className="py-4">
-          <div className="container mx-auto px-4">
-            <Card className="border-2 border-primary/30 bg-primary/5">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <QrCode className="w-6 h-6 text-primary" />
-                    <div>
-                      <CardTitle className="text-lg">{campanhaAtiva.nome}</CardTitle>
-                      <CardDescription>
-                        Campanha de inventário em andamento
-                      </CardDescription>
-                    </div>
-                  </div>
-                  <Badge variant="default">Em Andamento</Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span>Progresso: {campanhaAtiva.total_conferidos || 0} de {campanhaAtiva.total_bens_esperados || 0} bens</span>
-                    <span className="font-medium">{campanhaAtiva.percentual_conclusao?.toFixed(1) || 0}%</span>
-                  </div>
-                  <Progress value={campanhaAtiva.percentual_conclusao || 0} />
-                  {campanhaAtiva.total_divergencias ? (
-                    <p className="text-sm text-warning flex items-center gap-1">
-                      <AlertTriangle className="w-4 h-4" />
-                      {campanhaAtiva.total_divergencias} divergências identificadas
-                    </p>
-                  ) : null}
-                </div>
-                <div className="mt-4 flex gap-2">
-                  <Button asChild size="sm">
-                    <Link to={`/inventario/campanhas/${campanhaAtiva.id}`}>
-                      Continuar Coleta
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-      )}
-
-      {/* Ações Rápidas */}
-      <section className="py-6">
-        <div className="container mx-auto px-4">
-          <h2 className="font-serif text-xl font-bold mb-4">Ações Rápidas</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-            <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: "Inventário" }]}
+          titulo="Inventário e patrimônio"
+          descricao="Gestão integrada de bens e materiais"
+          acoes={
+            <Button asChild>
               <Link to="/inventario/bens?acao=novo">
-                <Package className="w-5 h-5" />
-                <span>Novo Bem</span>
+                <Package className="h-4 w-4" aria-hidden="true" />
+                Novo bem
               </Link>
             </Button>
-            <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={() => setCadastroLoteOpen(true)}>
-              <PackagePlus className="w-5 h-5" />
-              <span>Cadastro em Lote</span>
+          }
+        />
+
+        {(erroPatrimonio || erroAlmoxarifado) && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" aria-hidden="true" />
+            <AlertDescription className="flex flex-wrap items-center gap-2">
+              Não foi possível carregar os indicadores.
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (erroPatrimonio) refetchPatrimonio();
+                  if (erroAlmoxarifado) refetchAlmoxarifado();
+                }}
+              >
+                Tentar novamente
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* KPIs */}
+        <section aria-labelledby="inventario-indicadores">
+          <h2 id="inventario-indicadores" className="sr-only">Indicadores</h2>
+          <ul className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <li>
+              <KpiCard
+                rotulo="Bens patrimoniais"
+                icone={Package}
+                carregando={loadingPatrimonio}
+                valor={valorComApoio(estatisticasPatrimonio?.totalBens || 0, formatCurrency(estatisticasPatrimonio?.valorTotal || 0))}
+                className="h-full"
+              />
+            </li>
+            <li>
+              <KpiCard
+                rotulo="Itens em estoque"
+                icone={Boxes}
+                carregando={loadingAlmoxarifado}
+                valor={valorComApoio(estatisticasAlmoxarifado?.totalItens || 0, formatCurrency(estatisticasAlmoxarifado?.valorTotal || 0))}
+                className="h-full"
+              />
+            </li>
+            <li>
+              <KpiCard
+                rotulo="Alertas de estoque"
+                icone={AlertTriangle}
+                carregando={loadingAlmoxarifado}
+                valor={valorComApoio(estatisticasAlmoxarifado?.abaixoMinimo || 0, "Itens abaixo do mínimo")}
+                className={estatisticasAlmoxarifado?.abaixoMinimo ? 'h-full border-warning' : 'h-full'}
+              />
+            </li>
+            <li>
+              <KpiCard
+                rotulo="Requisições"
+                icone={ClipboardCheck}
+                carregando={loadingAlmoxarifado}
+                valor={valorComApoio(estatisticasAlmoxarifado?.requisicoesPendentes || 0, "Pendentes de atendimento")}
+                className="h-full"
+              />
+            </li>
+          </ul>
+        </section>
+
+        {/* Campanha de Inventário Ativa */}
+        {campanhaAtiva && (
+          <Card className="border-2 border-primary/30 bg-primary/5">
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <QrCode className="w-6 h-6 text-primary" aria-hidden="true" />
+                  <div>
+                    <h2 className="text-h3 text-foreground">{campanhaAtiva.nome}</h2>
+                    <CardDescription>
+                      Campanha de inventário em andamento
+                    </CardDescription>
+                  </div>
+                </div>
+                <StatusBadge tom="andamento">Em andamento</StatusBadge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span>Progresso: {campanhaAtiva.total_conferidos || 0} de {campanhaAtiva.total_bens_esperados || 0} bens</span>
+                  <span className="font-medium tabular-nums">{campanhaAtiva.percentual_conclusao?.toFixed(1) || 0}%</span>
+                </div>
+                <Progress
+                  value={campanhaAtiva.percentual_conclusao || 0}
+                  aria-label={`Progresso da campanha ${campanhaAtiva.nome}`}
+                />
+                {campanhaAtiva.total_divergencias ? (
+                  <p className="text-sm text-warning flex items-center gap-1">
+                    <AlertTriangle className="w-4 h-4" aria-hidden="true" />
+                    {campanhaAtiva.total_divergencias} divergências identificadas
+                  </p>
+                ) : null}
+              </div>
+              <div className="mt-4 flex gap-2">
+                <Button asChild size="sm">
+                  <Link to={`/inventario/campanhas/${campanhaAtiva.id}`}>
+                    Continuar coleta
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Ações Rápidas */}
+        <section aria-labelledby="inventario-acoes">
+          <h2 id="inventario-acoes" className="text-h2 text-foreground mb-4">Ações rápidas</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+            <Button asChild variant="outline" className="h-auto sm:h-auto py-4 flex-col gap-2 whitespace-normal">
+              <Link to="/inventario/bens?acao=novo">
+                <Package className="w-5 h-5" aria-hidden="true" />
+                <span>Novo bem</span>
+              </Link>
             </Button>
-            <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
+            <Button variant="outline" className="h-auto sm:h-auto py-4 flex-col gap-2 whitespace-normal" onClick={() => setCadastroLoteOpen(true)}>
+              <PackagePlus className="w-5 h-5" aria-hidden="true" />
+              <span>Cadastro em lote</span>
+            </Button>
+            <Button asChild variant="outline" className="h-auto sm:h-auto py-4 flex-col gap-2 whitespace-normal">
               <Link to="/inventario/movimentacoes?acao=nova">
-                <TrendingUp className="w-5 h-5" />
+                <TrendingUp className="w-5 h-5" aria-hidden="true" />
                 <span>Movimentação</span>
               </Link>
             </Button>
-            <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={() => setMovimentacaoLoteOpen(true)}>
-              <ArrowRightLeft className="w-5 h-5" />
-              <span>Mov. em Lote</span>
+            <Button variant="outline" className="h-auto sm:h-auto py-4 flex-col gap-2 whitespace-normal" onClick={() => setMovimentacaoLoteOpen(true)}>
+              <ArrowRightLeft className="w-5 h-5" aria-hidden="true" />
+              <span>Movimentação em lote</span>
             </Button>
-            <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
+            <Button asChild variant="outline" className="h-auto sm:h-auto py-4 flex-col gap-2 whitespace-normal">
               <Link to="/inventario/requisicoes?acao=nova">
-                <ClipboardCheck className="w-5 h-5" />
+                <ClipboardCheck className="w-5 h-5" aria-hidden="true" />
                 <span>Requisição</span>
               </Link>
             </Button>
-            <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
+            <Button asChild variant="outline" className="h-auto sm:h-auto py-4 flex-col gap-2 whitespace-normal">
               <Link to="/inventario/campanhas">
-                <QrCode className="w-5 h-5" />
+                <QrCode className="w-5 h-5" aria-hidden="true" />
                 <span>Inventário</span>
               </Link>
             </Button>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Dialogs de Lote */}
-      <CadastroLoteDialog open={cadastroLoteOpen} onOpenChange={setCadastroLoteOpen} />
-      <MovimentacaoLoteDialog open={movimentacaoLoteOpen} onOpenChange={setMovimentacaoLoteOpen} />
+        {/* Dialogs de Lote */}
+        <CadastroLoteDialog open={cadastroLoteOpen} onOpenChange={setCadastroLoteOpen} />
+        <MovimentacaoLoteDialog open={movimentacaoLoteOpen} onOpenChange={setMovimentacaoLoteOpen} />
 
-      {/* Módulos */}
-      <section className="py-6">
-        <div className="container mx-auto px-4">
-          <h2 className="font-serif text-xl font-bold mb-4">Módulos</h2>
+        {/* Módulos */}
+        <section aria-labelledby="inventario-modulos">
+          <h2 id="inventario-modulos" className="text-h2 text-foreground mb-4">Módulos</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Patrimônio */}
             <Card className="group hover:border-primary/50 transition-colors">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Package className="w-5 h-5 text-primary" />
-                  Bens Patrimoniais
+                <CardTitle className="flex items-center gap-2 text-h3">
+                  <Package className="w-5 h-5 text-primary" aria-hidden="true" />
+                  Bens patrimoniais
                 </CardTitle>
                 <CardDescription>
                   Cadastro, tombamento e gestão de bens permanentes
@@ -238,8 +237,8 @@ export default function DashboardInventarioPage() {
               <CardContent>
                 <Button asChild variant="ghost" size="sm" className="w-full justify-between">
                   <Link to="/inventario/bens">
-                    Acessar
-                    <ArrowRight className="w-4 h-4" />
+                    Acessar<span className="sr-only"> Bens patrimoniais</span>
+                    <ArrowRight className="w-4 h-4" aria-hidden="true" />
                   </Link>
                 </Button>
               </CardContent>
@@ -248,8 +247,8 @@ export default function DashboardInventarioPage() {
             {/* Movimentações */}
             <Card className="group hover:border-primary/50 transition-colors">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <TrendingUp className="w-5 h-5 text-info" />
+                <CardTitle className="flex items-center gap-2 text-h3">
+                  <TrendingUp className="w-5 h-5 text-info" aria-hidden="true" />
                   Movimentações
                 </CardTitle>
                 <CardDescription>
@@ -259,8 +258,8 @@ export default function DashboardInventarioPage() {
               <CardContent>
                 <Button asChild variant="ghost" size="sm" className="w-full justify-between">
                   <Link to="/inventario/movimentacoes">
-                    Acessar
-                    <ArrowRight className="w-4 h-4" />
+                    Acessar<span className="sr-only"> Movimentações</span>
+                    <ArrowRight className="w-4 h-4" aria-hidden="true" />
                   </Link>
                 </Button>
               </CardContent>
@@ -269,8 +268,8 @@ export default function DashboardInventarioPage() {
             {/* Almoxarifado */}
             <Card className="group hover:border-primary/50 transition-colors">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Boxes className="w-5 h-5 text-success" />
+                <CardTitle className="flex items-center gap-2 text-h3">
+                  <Boxes className="w-5 h-5 text-success" aria-hidden="true" />
                   Almoxarifado
                 </CardTitle>
                 <CardDescription>
@@ -280,8 +279,8 @@ export default function DashboardInventarioPage() {
               <CardContent>
                 <Button asChild variant="ghost" size="sm" className="w-full justify-between">
                   <Link to="/inventario/almoxarifado">
-                    Acessar
-                    <ArrowRight className="w-4 h-4" />
+                    Acessar<span className="sr-only"> Almoxarifado</span>
+                    <ArrowRight className="w-4 h-4" aria-hidden="true" />
                   </Link>
                 </Button>
               </CardContent>
@@ -290,8 +289,8 @@ export default function DashboardInventarioPage() {
             {/* Requisições */}
             <Card className="group hover:border-primary/50 transition-colors">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <ClipboardCheck className="w-5 h-5 text-warning" />
+                <CardTitle className="flex items-center gap-2 text-h3">
+                  <ClipboardCheck className="w-5 h-5 text-warning" aria-hidden="true" />
                   Requisições
                 </CardTitle>
                 <CardDescription>
@@ -301,8 +300,8 @@ export default function DashboardInventarioPage() {
               <CardContent>
                 <Button asChild variant="ghost" size="sm" className="w-full justify-between">
                   <Link to="/inventario/requisicoes">
-                    Acessar
-                    <ArrowRight className="w-4 h-4" />
+                    Acessar<span className="sr-only"> Requisições</span>
+                    <ArrowRight className="w-4 h-4" aria-hidden="true" />
                   </Link>
                 </Button>
               </CardContent>
@@ -311,8 +310,8 @@ export default function DashboardInventarioPage() {
             {/* Manutenções */}
             <Card className="group hover:border-primary/50 transition-colors">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Wrench className="w-5 h-5 text-muted-foreground" />
+                <CardTitle className="flex items-center gap-2 text-h3">
+                  <Wrench className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
                   Manutenções
                 </CardTitle>
                 <CardDescription>
@@ -322,8 +321,8 @@ export default function DashboardInventarioPage() {
               <CardContent>
                 <Button asChild variant="ghost" size="sm" className="w-full justify-between">
                   <Link to="/inventario/manutencoes">
-                    Acessar
-                    <ArrowRight className="w-4 h-4" />
+                    Acessar<span className="sr-only"> Manutenções</span>
+                    <ArrowRight className="w-4 h-4" aria-hidden="true" />
                   </Link>
                 </Button>
               </CardContent>
@@ -332,8 +331,8 @@ export default function DashboardInventarioPage() {
             {/* Baixas */}
             <Card className="group hover:border-primary/50 transition-colors">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <FileX className="w-5 h-5 text-destructive" />
+                <CardTitle className="flex items-center gap-2 text-h3">
+                  <FileX className="w-5 h-5 text-destructive" aria-hidden="true" />
                   Baixas
                 </CardTitle>
                 <CardDescription>
@@ -343,43 +342,39 @@ export default function DashboardInventarioPage() {
               <CardContent>
                 <Button asChild variant="ghost" size="sm" className="w-full justify-between">
                   <Link to="/inventario/baixas">
-                    Acessar
-                    <ArrowRight className="w-4 h-4" />
+                    Acessar<span className="sr-only"> Baixas</span>
+                    <ArrowRight className="w-4 h-4" aria-hidden="true" />
                   </Link>
                 </Button>
               </CardContent>
             </Card>
           </div>
-        </div>
-      </section>
-
-      {/* Situação por Categoria */}
-      {estatisticasPatrimonio && Object.keys(estatisticasPatrimonio.porCategoria).length > 0 && (
-        <section className="py-6">
-          <div className="container mx-auto px-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5" />
-                  Patrimônio por Categoria
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                  {Object.entries(estatisticasPatrimonio.porCategoria).map(([cat, count]) => (
-                    <div key={cat} className="text-center p-3 bg-muted/50 rounded-lg">
-                      <div className="text-xl font-bold">{count}</div>
-                      <div className="text-xs text-muted-foreground capitalize">
-                        {cat.replace('_', ' ')}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </section>
-      )}
+
+        {/* Situação por Categoria */}
+        {estatisticasPatrimonio && Object.keys(estatisticasPatrimonio.porCategoria).length > 0 && (
+          <Card>
+            <CardHeader>
+              <h2 className="text-h2 text-foreground flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" aria-hidden="true" />
+                Patrimônio por categoria
+              </h2>
+            </CardHeader>
+            <CardContent>
+              <ul className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {Object.entries(estatisticasPatrimonio.porCategoria).map(([cat, count]) => (
+                  <li key={cat} className="text-center p-3 bg-muted/50 rounded-lg">
+                    <div className="text-xl font-bold tabular-nums">{count}</div>
+                    <div className="text-xs text-muted-foreground capitalize">
+                      {cat.replace('_', ' ')}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </ModuleLayout>
   );
 }

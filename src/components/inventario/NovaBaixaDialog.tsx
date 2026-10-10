@@ -220,7 +220,7 @@ export function NovaBaixaDialog({ open, onOpenChange }: NovaBaixaDialogProps) {
               </Button>
               <Button type="submit" disabled={createBaixa.isPending}>
                 {createBaixa.isPending && (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
                 )}
                 Solicitar Baixa
               </Button>

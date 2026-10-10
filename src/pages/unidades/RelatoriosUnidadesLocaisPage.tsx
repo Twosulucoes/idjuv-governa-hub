@@ -22,9 +22,8 @@ import {
   X,
   ChevronDown,
   CheckCircle,
-  AlertCircle,
   Clock,
-  Ban,
+  RefreshCw,
   Eye,
   Settings2,
   FileDown,
@@ -61,6 +60,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
+import { PageHeader } from '@/components/design-system';
+import { StatusUnidadeBadge } from '@/components/unidades/StatusUnidadeBadge';
 
 import {
   downloadRelatorioUnidadesPDF,
@@ -170,9 +171,9 @@ const StatCard = ({ title, value, icon: Icon, description, variant = 'default' }
 }) => {
   const variantClasses = {
     default: 'bg-card border-border',
-    success: 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800',
-    warning: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800',
-    danger: 'bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800'
+    success: 'bg-success/10 border-success/30',
+    warning: 'bg-warning/10 border-warning/30',
+    danger: 'bg-destructive/10 border-destructive/30'
   };
 
   return (
@@ -180,10 +181,10 @@ const StatCard = ({ title, value, icon: Icon, description, variant = 'default' }
       <CardContent className="p-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-primary/10 rounded-lg">
-            <Icon className="h-5 w-5 text-primary" />
+            <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
           </div>
           <div>
-            <p className="text-2xl font-bold">{value}</p>
+            <p className="text-2xl font-bold tabular-nums">{value}</p>
             <p className="text-sm text-muted-foreground">{title}</p>
             {description && (
               <p className="text-xs text-muted-foreground mt-1">{description}</p>
@@ -459,16 +460,6 @@ function RelatoriosUnidadesLocaisContent() {
     return [...new Set(unidades.map(u => u.diretoria_vinculada).filter(Boolean))];
   }, [unidades]);
 
-  // Status icon
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'ativa': return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'manutencao': return <Clock className="h-4 w-4 text-yellow-600" />;
-      case 'interditada': return <Ban className="h-4 w-4 text-red-600" />;
-      default: return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
-    }
-  };
-
   // Agrupar campos por categoria
   const camposPorGrupo = useMemo(() => {
     const grupos: Record<string, typeof CAMPOS_DISPONIVEIS[number][]> = {};
@@ -483,52 +474,46 @@ function RelatoriosUnidadesLocaisContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex items-center justify-center h-96" role="status" aria-label="Carregando relatório">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <BarChart3 className="h-6 w-6" />
-            Relatórios de Unidades Locais
-          </h1>
-          <p className="text-muted-foreground">
-            Visão completa do acervo de unidades esportivas e culturais
-          </p>
-        </div>
-        
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={loadUnidades}>
-            <Loader2 className="h-4 w-4 mr-2" />
-            Atualizar
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button>
-                <Download className="h-4 w-4 mr-2" />
-                Exportar
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setExportDialogOpen(true)}>
-                <FileText className="h-4 w-4 mr-2" />
-                Exportar PDF (personalizado)
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={exportToCSV}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Exportar CSV (todos os campos)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        migalhas={[{ rotulo: "Unidades locais", href: "/unidades" }, { rotulo: "Relatórios" }]}
+        titulo="Relatórios de unidades locais"
+        descricao="Visão completa do acervo de unidades esportivas e culturais"
+        acoes={
+          <>
+            <Button variant="outline" onClick={loadUnidades}>
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              Atualizar
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button>
+                  <Download className="h-4 w-4" aria-hidden="true" />
+                  Exportar
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setExportDialogOpen(true)}>
+                  <FileText className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Exportar PDF (personalizado)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={exportToCSV}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Exportar CSV (todos os campos)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        }
+      />
 
       {/* Estatísticas principais */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -571,12 +556,12 @@ function RelatoriosUnidadesLocaisContent() {
       <Tabs defaultValue="lista" className="space-y-4">
         <TabsList>
           <TabsTrigger value="lista">
-            <FileText className="h-4 w-4 mr-2" />
-            Lista Detalhada
+            <FileText className="h-4 w-4 mr-2" aria-hidden="true" />
+            Lista detalhada
           </TabsTrigger>
           <TabsTrigger value="resumo">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Resumo por Categoria
+            <BarChart3 className="h-4 w-4 mr-2" aria-hidden="true" />
+            Resumo por categoria
           </TabsTrigger>
         </TabsList>
 
@@ -587,7 +572,7 @@ function RelatoriosUnidadesLocaisContent() {
               <CardHeader className="pb-3">
                 <CollapsibleTrigger className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-2">
-                    <Filter className="h-5 w-5" />
+                    <Filter className="h-5 w-5" aria-hidden="true" />
                     <CardTitle className="text-lg">Filtros</CardTitle>
                     {hasActiveFilters && (
                       <Badge variant="secondary" className="ml-2">
@@ -595,15 +580,16 @@ function RelatoriosUnidadesLocaisContent() {
                       </Badge>
                     )}
                   </div>
-                  <ChevronDown className={`h-5 w-5 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`h-5 w-5 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
                 </CollapsibleTrigger>
               </CardHeader>
               <CollapsibleContent>
                 <CardContent className="space-y-4">
                   {/* Busca */}
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     <Input
+                      aria-label="Buscar por nome, código, município ou chefe"
                       placeholder="Buscar por nome, código, município ou chefe..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -614,9 +600,9 @@ function RelatoriosUnidadesLocaisContent() {
                   {/* Filtros principais */}
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                     <div className="space-y-1.5">
-                      <Label>Município</Label>
+                      <Label htmlFor="filtro-municipio">Município</Label>
                       <Select value={filterMunicipio} onValueChange={setFilterMunicipio}>
-                        <SelectTrigger>
+                        <SelectTrigger id="filtro-municipio">
                           <SelectValue placeholder="Todos" />
                         </SelectTrigger>
                         <SelectContent>
@@ -629,9 +615,9 @@ function RelatoriosUnidadesLocaisContent() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label>Tipo</Label>
+                      <Label htmlFor="filtro-tipo">Tipo</Label>
                       <Select value={filterTipo} onValueChange={setFilterTipo}>
-                        <SelectTrigger>
+                        <SelectTrigger id="filtro-tipo">
                           <SelectValue placeholder="Todos" />
                         </SelectTrigger>
                         <SelectContent>
@@ -644,9 +630,9 @@ function RelatoriosUnidadesLocaisContent() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label>Status</Label>
+                      <Label htmlFor="filtro-status">Status</Label>
                       <Select value={filterStatus} onValueChange={setFilterStatus}>
-                        <SelectTrigger>
+                        <SelectTrigger id="filtro-status">
                           <SelectValue placeholder="Todos" />
                         </SelectTrigger>
                         <SelectContent>
@@ -659,9 +645,9 @@ function RelatoriosUnidadesLocaisContent() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label>Natureza de Uso</Label>
+                      <Label htmlFor="filtro-natureza">Natureza de Uso</Label>
                       <Select value={filterNatureza} onValueChange={setFilterNatureza}>
-                        <SelectTrigger>
+                        <SelectTrigger id="filtro-natureza">
                           <SelectValue placeholder="Todas" />
                         </SelectTrigger>
                         <SelectContent>
@@ -674,9 +660,9 @@ function RelatoriosUnidadesLocaisContent() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label>Diretoria</Label>
+                      <Label htmlFor="filtro-diretoria">Diretoria</Label>
                       <Select value={filterDiretoria} onValueChange={setFilterDiretoria}>
-                        <SelectTrigger>
+                        <SelectTrigger id="filtro-diretoria">
                           <SelectValue placeholder="Todas" />
                         </SelectTrigger>
                         <SelectContent>
@@ -692,12 +678,12 @@ function RelatoriosUnidadesLocaisContent() {
                   {/* Filtros avançados */}
                   <div className="flex flex-wrap gap-6 pt-2">
                     <div className="flex items-center gap-2">
-                      <Label>Com chefe:</Label>
+                      <Label htmlFor="filtro-com-chefe">Com chefe:</Label>
                       <Select 
                         value={filterComChefe === 'all' ? 'all' : filterComChefe ? 'sim' : 'nao'}
                         onValueChange={(v) => setFilterComChefe(v === 'all' ? 'all' : v === 'sim')}
                       >
-                        <SelectTrigger className="w-24">
+                        <SelectTrigger id="filtro-com-chefe" className="w-24">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -709,12 +695,12 @@ function RelatoriosUnidadesLocaisContent() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Label>Com patrimônio:</Label>
+                      <Label htmlFor="filtro-com-patrimonio">Com patrimônio:</Label>
                       <Select 
                         value={filterComPatrimonio === 'all' ? 'all' : filterComPatrimonio ? 'sim' : 'nao'}
                         onValueChange={(v) => setFilterComPatrimonio(v === 'all' ? 'all' : v === 'sim')}
                       >
-                        <SelectTrigger className="w-24">
+                        <SelectTrigger id="filtro-com-patrimonio" className="w-24">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -726,12 +712,12 @@ function RelatoriosUnidadesLocaisContent() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Label>Com agendamentos:</Label>
+                      <Label htmlFor="filtro-com-agendamentos">Com agendamentos:</Label>
                       <Select 
                         value={filterComAgendamentos === 'all' ? 'all' : filterComAgendamentos ? 'sim' : 'nao'}
                         onValueChange={(v) => setFilterComAgendamentos(v === 'all' ? 'all' : v === 'sim')}
                       >
-                        <SelectTrigger className="w-24">
+                        <SelectTrigger id="filtro-com-agendamentos" className="w-24">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -744,7 +730,7 @@ function RelatoriosUnidadesLocaisContent() {
 
                     {hasActiveFilters && (
                       <Button variant="ghost" size="sm" onClick={clearFilters}>
-                        <X className="h-4 w-4 mr-1" />
+                        <X className="h-4 w-4 mr-1" aria-hidden="true" />
                         Limpar filtros
                       </Button>
                     )}
@@ -759,13 +745,13 @@ function RelatoriosUnidadesLocaisContent() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Eye className="h-5 w-5" />
+                  <Eye className="h-5 w-5" aria-hidden="true" />
                   Visualização em Tela
                 </CardTitle>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm">
-                      <Settings2 className="h-4 w-4 mr-2" />
+                      <Settings2 className="h-4 w-4 mr-2" aria-hidden="true" />
                       Colunas
                     </Button>
                   </DropdownMenuTrigger>
@@ -850,19 +836,14 @@ function RelatoriosUnidadesLocaisContent() {
                           {visibleColumns.municipio && (
                             <TableCell>
                               <div className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3 text-muted-foreground" />
+                                <MapPin className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
                                 {unidade.municipio}
                               </div>
                             </TableCell>
                           )}
                           {visibleColumns.status && (
                             <TableCell>
-                              <div className="flex items-center gap-1.5">
-                                {getStatusIcon(unidade.status)}
-                                <span className="text-sm">
-                                  {STATUS_LABELS[unidade.status] || unidade.status}
-                                </span>
-                              </div>
+                              <StatusUnidadeBadge status={unidade.status} />
                             </TableCell>
                           )}
                           {visibleColumns.chefe && (
@@ -945,7 +926,7 @@ function RelatoriosUnidadesLocaisContent() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
+                  <Building2 className="h-5 w-5" aria-hidden="true" />
                   Por Tipo de Unidade
                 </CardTitle>
               </CardHeader>
@@ -973,7 +954,7 @@ function RelatoriosUnidadesLocaisContent() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
+                  <MapPin className="h-5 w-5" aria-hidden="true" />
                   Por Município
                 </CardTitle>
               </CardHeader>
@@ -1003,7 +984,7 @@ function RelatoriosUnidadesLocaisContent() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5" />
+                  <Package className="h-5 w-5" aria-hidden="true" />
                   Resumo do Patrimônio
                 </CardTitle>
               </CardHeader>
@@ -1044,7 +1025,7 @@ function RelatoriosUnidadesLocaisContent() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
+                  <Calendar className="h-5 w-5" aria-hidden="true" />
                   Resumo de Agendamentos
                 </CardTitle>
               </CardHeader>
@@ -1055,8 +1036,8 @@ function RelatoriosUnidadesLocaisContent() {
                       <p className="text-2xl font-bold">{stats.totalAgendamentos}</p>
                       <p className="text-sm text-muted-foreground">Total</p>
                     </div>
-                    <div className="p-4 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
-                      <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">
+                    <div className="p-4 bg-warning/10 rounded-lg">
+                      <p className="text-2xl font-bold text-warning">
                         {stats.agendamentosPendentes}
                       </p>
                       <p className="text-sm text-muted-foreground">Pendentes</p>

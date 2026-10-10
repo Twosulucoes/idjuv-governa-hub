@@ -1,23 +1,23 @@
 /**
  * DETALHE DO BEM PATRIMONIAL
  * Visualização completa de um bem específico — layout modernizado com abas
+ * Padrões do design system: PageHeader, KpiCard, StatusBadge, EmptyState.
  */
 
 import { Link, useParams } from "react-router-dom";
 import { 
   Package, ArrowLeft, Edit, MapPin, User, Calendar, 
   Hash, Tag, Wrench, FileText, Clock, Building2, 
-  DollarSign, QrCode, Shield, ChevronRight, Truck,
+  DollarSign, QrCode, Shield, Truck,
   Info, History, Image as ImageIcon
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { EmptyState, KpiCard, PageHeader, StatusBadge, type TomStatus } from "@/components/design-system";
 import { useBemPatrimonial, useHistoricoPatrimonio } from "@/hooks/usePatrimonio";
 import { motion } from "framer-motion";
 
@@ -45,46 +45,51 @@ function formatDate(date: string | null | undefined) {
   }
 }
 
+// Situação do bem → rótulo e tom (status nunca só por cor: o selo tem ícone e texto)
+const SITUACOES: Record<string, { label: string; tom: TomStatus }> = {
+  cadastrado: { label: "Cadastrado", tom: "neutro" },
+  tombado: { label: "Tombado", tom: "andamento" },
+  alocado: { label: "Alocado", tom: "sucesso" },
+  ativo: { label: "Ativo", tom: "sucesso" },
+  em_uso: { label: "Em uso", tom: "sucesso" },
+  disponivel: { label: "Disponível", tom: "andamento" },
+  manutencao: { label: "Em manutenção", tom: "pendente" },
+  em_manutencao: { label: "Em manutenção", tom: "pendente" },
+  baixado: { label: "Baixado", tom: "erro" },
+  extraviado: { label: "Extraviado", tom: "erro" },
+  inservivel: { label: "Inservível", tom: "erro" },
+};
+
+const CONSERVACAO: Record<string, { label: string; tom: TomStatus }> = {
+  otimo: { label: "Ótimo", tom: "sucesso" },
+  bom: { label: "Bom", tom: "sucesso" },
+  regular: { label: "Regular", tom: "pendente" },
+  ruim: { label: "Ruim", tom: "erro" },
+  inservivel: { label: "Inservível", tom: "erro" },
+};
+
+function rotuloLivre(valor: string) {
+  const texto = valor.replace(/_/g, " ");
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
 function SituacaoBadge({ situacao }: { situacao: string | null }) {
-  const label = situacao || "Cadastrado";
-  const colorMap: Record<string, string> = {
-    ativo: "bg-success/15 text-success border-success/30",
-    em_uso: "bg-success/15 text-success border-success/30",
-    disponivel: "bg-info/15 text-info border-info/30",
-    manutencao: "bg-warning/15 text-warning border-warning/30",
-    baixado: "bg-destructive/15 text-destructive border-destructive/30",
-    inservivel: "bg-destructive/15 text-destructive border-destructive/30",
-  };
-  const cls = colorMap[label.toLowerCase()] || "bg-muted text-muted-foreground border-border";
-  return (
-    <Badge variant="outline" className={`${cls} capitalize font-medium text-xs px-2.5 py-0.5`}>
-      {label.replace(/_/g, " ")}
-    </Badge>
-  );
+  const valor = situacao || "cadastrado";
+  const item = SITUACOES[valor.toLowerCase()];
+  return <StatusBadge tom={item?.tom ?? "neutro"}>{item?.label ?? rotuloLivre(valor)}</StatusBadge>;
 }
 
 function ConservacaoBadge({ estado }: { estado: string | null }) {
   if (!estado) return <span className="text-muted-foreground">—</span>;
-  const colorMap: Record<string, string> = {
-    bom: "bg-success/15 text-success border-success/30",
-    regular: "bg-warning/15 text-warning border-warning/30",
-    ruim: "bg-destructive/15 text-destructive border-destructive/30",
-    inservivel: "bg-destructive/15 text-destructive border-destructive/30",
-    otimo: "bg-success/15 text-success border-success/30",
-  };
-  const cls = colorMap[estado.toLowerCase()] || "bg-muted text-muted-foreground border-border";
-  return (
-    <Badge variant="outline" className={`${cls} capitalize font-medium text-xs`}>
-      {estado.replace(/_/g, " ")}
-    </Badge>
-  );
+  const item = CONSERVACAO[estado.toLowerCase()];
+  return <StatusBadge tom={item?.tom ?? "neutro"}>{item?.label ?? rotuloLivre(estado)}</StatusBadge>;
 }
 
-function InfoItem({ icon: Icon, label, children }: { icon: any; label: string; children: React.ReactNode }) {
+function InfoItem({ icon: Icon, label, children }: { icon: LucideIcon; label: string; children: React.ReactNode }) {
   return (
     <motion.div {...fadeIn} className="flex items-start gap-3 py-3">
       <div className="mt-0.5 rounded-md bg-muted p-1.5">
-        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+        <Icon className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1">
         <dt className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{label}</dt>
@@ -97,7 +102,7 @@ function InfoItem({ icon: Icon, label, children }: { icon: any; label: string; c
 function DetailSkeleton() {
   return (
     <ModuleLayout module="patrimonio">
-      <div className="container mx-auto px-4 md:px-6 py-8 space-y-6">
+      <div className="space-y-6" aria-busy="true" aria-label="Carregando dados do bem">
         {/* Header skeleton */}
         <div className="flex items-center gap-2">
           <Skeleton className="h-4 w-20" />
@@ -138,7 +143,7 @@ function DetailSkeleton() {
 }
 
 function TimelineEvent({ evento, isLast }: { evento: any; isLast: boolean }) {
-  const iconMap: Record<string, any> = {
+  const iconMap: Record<string, LucideIcon> = {
     cadastro: Package,
     movimentacao: Truck,
     manutencao: Wrench,
@@ -150,7 +155,7 @@ function TimelineEvent({ evento, isLast }: { evento: any; isLast: boolean }) {
     <motion.div {...fadeIn} className="flex gap-3">
       <div className="flex flex-col items-center">
         <div className="rounded-full bg-primary/10 p-2">
-          <Icon className="h-3.5 w-3.5 text-primary" />
+          <Icon className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
         </div>
         {!isLast && <div className="w-px flex-1 bg-border mt-1" />}
       </div>
@@ -164,7 +169,7 @@ function TimelineEvent({ evento, isLast }: { evento: any; isLast: boolean }) {
         </p>
         {evento.unidade_local?.nome_unidade && (
           <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-            <MapPin className="h-3 w-3" />
+            <MapPin className="h-3 w-3" aria-hidden="true" />
             {evento.unidade_local.nome_unidade}
           </p>
         )}
@@ -183,23 +188,29 @@ export default function BemDetalhePage() {
   if (error || !bem) {
     return (
       <ModuleLayout module="patrimonio">
-        <div className="container mx-auto px-4 py-16">
-          <Card className="max-w-md mx-auto border-dashed">
-            <CardContent className="py-12 text-center space-y-4">
-              <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                <Package className="w-6 h-6 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="font-medium text-foreground">Bem não encontrado</p>
-                <p className="text-sm text-muted-foreground mt-1">O item solicitado não existe ou foi removido.</p>
-              </div>
-              <Button asChild variant="outline">
-                <Link to="/inventario/bens">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Voltar à listagem
-                </Link>
-              </Button>
-            </CardContent>
+        <div className="space-y-6">
+          <PageHeader
+            migalhas={[
+              { rotulo: "Inventário", href: "/inventario" },
+              { rotulo: "Bens", href: "/inventario/bens" },
+              { rotulo: "Detalhe" },
+            ]}
+            titulo="Detalhe do bem"
+          />
+          <Card className="border-dashed">
+            <EmptyState
+              icone={Package}
+              titulo="Bem não encontrado"
+              descricao="O item solicitado não existe ou foi removido."
+              acao={
+                <Button asChild variant="outline">
+                  <Link to="/inventario/bens">
+                    <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
+                    Voltar à listagem
+                  </Link>
+                </Button>
+              }
+            />
           </Card>
         </div>
       </ModuleLayout>
@@ -208,121 +219,89 @@ export default function BemDetalhePage() {
 
   return (
     <ModuleLayout module="patrimonio">
-      <motion.div initial="initial" animate="animate" variants={stagger}>
-        {/* Breadcrumb + Header */}
-        <section className="border-b bg-card">
-          <div className="container mx-auto px-4 md:px-6 py-5">
-            {/* Breadcrumb */}
-            <nav className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4">
-              <Link to="/inventario" className="hover:text-foreground transition-colors">Inventário</Link>
-              <ChevronRight className="h-3 w-3" />
-              <Link to="/inventario/bens" className="hover:text-foreground transition-colors">Bens</Link>
-              <ChevronRight className="h-3 w-3" />
-              <span className="text-foreground font-medium">{bem.numero_patrimonio || "Detalhe"}</span>
-            </nav>
+      <motion.div initial="initial" animate="animate" variants={stagger} className="space-y-6">
+        <PageHeader
+          migalhas={[
+            { rotulo: "Inventário", href: "/inventario" },
+            { rotulo: "Bens", href: "/inventario/bens" },
+            { rotulo: bem.numero_patrimonio || "Detalhe" },
+          ]}
+          midia={
+            <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+              <Package className="h-6 w-6 text-primary" aria-hidden="true" />
+            </div>
+          }
+          titulo={bem.descricao}
+          status={<SituacaoBadge situacao={bem.situacao} />}
+          descricao={
+            bem.numero_patrimonio ? (
+              <span className="font-mono">Patrimônio {bem.numero_patrimonio}</span>
+            ) : undefined
+          }
+          acoes={
+            <>
+              <Button variant="outline" asChild>
+                <Link to="/inventario/bens">
+                  <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+                  Voltar
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link to={`/inventario/bens/${bem.id}/editar`}>
+                  <Edit className="w-4 h-4" aria-hidden="true" />
+                  Editar
+                </Link>
+              </Button>
+            </>
+          }
+        />
 
-            {/* Title row */}
-            <motion.div {...fadeIn} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 shrink-0">
-                  <Package className="h-6 w-6 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <h1 className="font-serif text-xl md:text-2xl font-bold text-foreground leading-tight truncate">
-                    {bem.descricao}
-                  </h1>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className="text-sm text-muted-foreground font-mono">
-                      {bem.numero_patrimonio}
-                    </span>
-                    <SituacaoBadge situacao={bem.situacao} />
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-2 shrink-0">
-                <Button variant="outline" size="sm" asChild>
-                  <Link to="/inventario/bens">
-                    <ArrowLeft className="w-4 h-4 mr-1.5" />
-                    Voltar
-                  </Link>
-                </Button>
-                <Button size="sm" asChild>
-                  <Link to={`/inventario/bens/${bem.id}/editar`}>
-                    <Edit className="w-4 h-4 mr-1.5" />
-                    Editar
-                  </Link>
-                </Button>
-              </div>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* Summary cards */}
-        <section className="border-b bg-muted/30">
-          <div className="container mx-auto px-4 md:px-6 py-4">
-            <motion.div {...fadeIn} className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Card className="border shadow-none bg-card">
-                <CardContent className="p-3.5">
-                  <div className="flex items-center gap-2 mb-1">
-                    <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground font-medium">Valor Aquisição</span>
-                  </div>
-                  <p className="text-lg font-bold text-foreground">{formatCurrency(bem.valor_aquisicao)}</p>
-                </CardContent>
-              </Card>
-              <Card className="border shadow-none bg-card">
-                <CardContent className="p-3.5">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground font-medium">Data Aquisição</span>
-                  </div>
-                  <p className="text-lg font-bold text-foreground">{formatDate(bem.data_aquisicao)}</p>
-                </CardContent>
-              </Card>
-              <Card className="border shadow-none bg-card">
-                <CardContent className="p-3.5">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground font-medium">Conservação</span>
-                  </div>
-                  <div className="mt-1">
-                    <ConservacaoBadge estado={bem.estado_conservacao} />
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border shadow-none bg-card">
-                <CardContent className="p-3.5">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Tag className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground font-medium">Categoria</span>
-                  </div>
-                  <p className="text-sm font-semibold text-foreground capitalize mt-1">
-                    {bem.categoria_bem?.replace(/_/g, " ") || "—"}
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </div>
+        {/* Resumo */}
+        <section aria-label="Resumo do bem">
+          <ul className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <li>
+              <KpiCard rotulo="Valor de aquisição" icone={DollarSign} valor={formatCurrency(bem.valor_aquisicao)} className="h-full" />
+            </li>
+            <li>
+              <KpiCard rotulo="Data de aquisição" icone={Calendar} valor={formatDate(bem.data_aquisicao)} className="h-full" />
+            </li>
+            <li>
+              <KpiCard
+                rotulo="Conservação"
+                icone={Wrench}
+                valor={<span className="block text-body"><ConservacaoBadge estado={bem.estado_conservacao} /></span>}
+                className="h-full"
+              />
+            </li>
+            <li>
+              <KpiCard
+                rotulo="Categoria"
+                icone={Tag}
+                valor={<span className="block text-h3 capitalize">{bem.categoria_bem?.replace(/_/g, " ") || "—"}</span>}
+                className="h-full"
+              />
+            </li>
+          </ul>
         </section>
 
         {/* Tabs */}
-        <section className="container mx-auto px-4 md:px-6 py-6">
+        <section aria-label="Dados do bem">
           <Tabs defaultValue="geral" className="space-y-5">
             <TabsList className="bg-muted/50 p-1">
               <TabsTrigger value="geral" className="text-xs sm:text-sm gap-1.5">
-                <Info className="h-3.5 w-3.5" />
+                <Info className="h-3.5 w-3.5" aria-hidden="true" />
                 Geral
               </TabsTrigger>
               <TabsTrigger value="localizacao" className="text-xs sm:text-sm gap-1.5">
-                <MapPin className="h-3.5 w-3.5" />
+                <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
                 Localização
               </TabsTrigger>
               <TabsTrigger value="historico" className="text-xs sm:text-sm gap-1.5">
-                <History className="h-3.5 w-3.5" />
+                <History className="h-3.5 w-3.5" aria-hidden="true" />
                 Histórico
               </TabsTrigger>
               <TabsTrigger value="documentos" className="text-xs sm:text-sm gap-1.5">
-                <FileText className="h-3.5 w-3.5" />
+                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
                 Documentos
               </TabsTrigger>
             </TabsList>
@@ -500,12 +479,7 @@ export default function BemDetalhePage() {
                       ))}
                     </motion.div>
                   ) : (
-                    <div className="py-8 text-center">
-                      <div className="mx-auto w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-3">
-                        <History className="w-5 h-5 text-muted-foreground" />
-                      </div>
-                      <p className="text-sm text-muted-foreground">Nenhum evento registrado para este bem.</p>
-                    </div>
+                    <EmptyState icone={History} titulo="Nenhum evento registrado para este bem." className="py-8" />
                   )}
                 </CardContent>
               </Card>
@@ -527,7 +501,7 @@ export default function BemDetalhePage() {
                         rel="noopener noreferrer"
                         className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors group"
                       >
-                        <FileText className="h-5 w-5 text-primary shrink-0" />
+                        <FileText className="h-5 w-5 text-primary shrink-0" aria-hidden="true" />
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">Termo de Responsabilidade</p>
                           <p className="text-xs text-muted-foreground">Documento vinculado</p>
@@ -541,7 +515,7 @@ export default function BemDetalhePage() {
                         rel="noopener noreferrer"
                         className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors group"
                       >
-                        <ImageIcon className="h-5 w-5 text-primary shrink-0" />
+                        <ImageIcon className="h-5 w-5 text-primary shrink-0" aria-hidden="true" />
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">Foto do Bem</p>
                           <p className="text-xs text-muted-foreground">Imagem vinculada</p>
@@ -555,7 +529,7 @@ export default function BemDetalhePage() {
                         rel="noopener noreferrer"
                         className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors group"
                       >
-                        <QrCode className="h-5 w-5 text-primary shrink-0" />
+                        <QrCode className="h-5 w-5 text-primary shrink-0" aria-hidden="true" />
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">Foto Etiqueta QR</p>
                           <p className="text-xs text-muted-foreground">Imagem vinculada</p>
@@ -564,12 +538,7 @@ export default function BemDetalhePage() {
                     )}
                   </div>
                   {!bem.termo_responsabilidade_url && !bem.foto_bem_url && !bem.foto_etiqueta_qr_url && (
-                    <div className="py-8 text-center">
-                      <div className="mx-auto w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-3">
-                        <FileText className="w-5 h-5 text-muted-foreground" />
-                      </div>
-                      <p className="text-sm text-muted-foreground">Nenhum documento vinculado a este bem.</p>
-                    </div>
+                    <EmptyState icone={FileText} titulo="Nenhum documento vinculado a este bem." className="py-8" />
                   )}
                 </CardContent>
               </Card>
@@ -581,13 +550,13 @@ export default function BemDetalhePage() {
             <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
               {bem.created_at && (
                 <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
+                  <Clock className="h-3 w-3" aria-hidden="true" />
                   Criado em {formatDate(bem.created_at?.split("T")[0])}
                 </span>
               )}
               {bem.updated_at && (
                 <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
+                  <Clock className="h-3 w-3" aria-hidden="true" />
                   Atualizado em {formatDate(bem.updated_at?.split("T")[0])}
                 </span>
               )}
