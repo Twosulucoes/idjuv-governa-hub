@@ -90,6 +90,11 @@ Contratos → Financeiro → Folha → RH (depois do PR #35) → Admin → demai
   tipográfica (`text-h3` e `text-lg` se substituem) e `CardTitle` passou a `text-h3` (antes
   `text-xl sm:text-2xl`, que vencia qualquer tamanho passado por `className` no desktop).
   Formulários (corpo do cadastro simplificado e diálogos) ficam para a etapa de formulários.
+- **Governança e Integridade**: painéis, portarias, regimento, matriz RACI, estrutura
+  organizacional, relatório anual (gráficos em `ChartCard` com tabela alternativa), gestão do
+  organograma e gestão de denúncias (`DataTable`, sem mostrar nada novo do denunciante). Telas
+  públicas (lei de criação, decreto, canal de denúncias) mantêm o `MainLayout` público e ganharam
+  só tokens e aria. Links quebrados do painel de Integridade apontam para as rotas registradas.
 
 - **Comunicação/ASCOM, Programas, Workflow, Gabinete e cadastros**: painéis de Comunicação,
   Programas, Gestores escolares, Workflow e Transparência; CMS (conteúdos, editor, banners,
