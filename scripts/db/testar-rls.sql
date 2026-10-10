@@ -602,7 +602,8 @@ CREATE TEMP TABLE bucket_modulos (bucket text, modulos text[]);
 INSERT INTO bucket_modulos VALUES
   ('arbitros-docs', ARRAY['arbitros']), ('ascom-demandas', ARRAY['comunicacao']),
   ('documentos', ARRAY['workflow','rh']), ('documentos-requerimento', ARRAY['rh']),
-  ('frequencias', ARRAY['rh']), ('inventario-fotos', ARRAY['patrimonio','patrimonio_mobile']),
+  ('frequencias', ARRAY['rh']), ('inventario-evidencias', ARRAY['patrimonio','patrimonio_mobile']),
+  ('inventario-fotos', ARRAY['patrimonio','patrimonio_mobile']),
   ('patrimonio-docs', ARRAY['patrimonio','patrimonio_mobile']), ('patrimonio-fotos', ARRAY['patrimonio','patrimonio_mobile']),
   ('transparencia-publicacoes', ARRAY['transparencia']);
 
@@ -1000,6 +1001,9 @@ BEGIN
   FOR b IN SELECT * FROM bucket_modulos LOOP
     FOR p IN SELECT * FROM persona WHERE nome IN ('admin','admin_inativo','nenhum','inativo','srv_a','mod_admin') OR nome IN (SELECT 'mod_' || x FROM unnest(b.modulos) x) LOOP
       permitido := p.nome = 'admin' OR (p.nome LIKE 'mod_%' AND substr(p.nome, 5) = ANY (b.modulos));
+      -- evidências do inventário: sobrescrever/apagar exige patrimonio.tramitar (o módulo sozinho não basta;
+      -- o caso positivo está no bloco "inventário de campo")
+      IF b.bucket = 'inventario-evidencias' THEN permitido := p.nome = 'admin'; END IF;
       FOREACH op IN ARRAY ARRAY['UPDATE', 'DELETE'] LOOP
         n := pg_temp.mut_obj(p.uid, 'authenticated', b.bucket, op);
         IF permitido AND n < 1 THEN PERFORM pg_temp.falha(format('storage %s: %s deveria conseguir %s (afetou %s)', b.bucket, p.nome, op, n)); END IF;
@@ -1081,6 +1085,92 @@ BEGIN
   IF r IS NULL OR r LIKE 'erro:%' OR r NOT LIKE '%FULANO%' THEN PERFORM pg_temp.falha('consultar_gestor_por_cpf (anon) não acha o gestor: ' || coalesce(r, 'NULL')); END IF;
   IF r ~* 'cpf|email|celular|12345678901' THEN PERFORM pg_temp.falha('consultar_gestor_por_cpf devolve dado pessoal: ' || r); END IF;
   IF pg_temp.valor_como(NULL, 'anon', 'SELECT public.consultar_gestor_por_cpf(''000'')::text') IS NOT NULL THEN PERFORM pg_temp.falha('consultar_gestor_por_cpf aceita CPF inválido'); END IF;
+END $$;
+
+-- ---------------------------------------------------------------- inventário de campo (migração 20261009160000)
+-- fotos_vistoria_inventario é `preservar`: módulo lê, INSERT só em nome próprio, UPDATE só do autor ou com
+-- patrimonio.tramitar, DELETE só com patrimonio.tramitar; só legenda/tem_pessoa/codigo_objeto mudam (trigger). O bucket inventario-evidencias segue a mesma regra
+-- para sobrescrever/apagar. TRIGGERS LIGADOS.
+DO $$
+DECLARE
+  u_trm uuid := 'a0000000-0000-0000-0000-0000000000f1';   -- módulo patrimonio + patrimonio.tramitar
+  u_pat uuid := (SELECT uid FROM persona WHERE nome='mod_patrimonio');
+  u_mob uuid := (SELECT uid FROM persona WHERE nome='mod_patrimonio_mobile');
+  camp text := (SELECT id_a FROM semeado WHERE tabela = 'campanhas_inventario');
+  unid text := (SELECT id_a FROM semeado WHERE tabela = 'unidades_locais');
+  hash text := repeat('ab', 32);
+  ins_sql text := 'INSERT INTO public.fotos_vistoria_inventario (campanha_id, unidade_local_id, storage_path, hash_sha256, capturada_em%s) VALUES (%L, %L, %L, %L, now()%s)';
+  foto text; r text; p record; campo text;
+BEGIN
+  INSERT INTO auth.users (id, email) VALUES (u_trm, 'tramitar@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id = u_trm;
+  INSERT INTO public.user_permissions (user_id, permission) VALUES (u_trm, 'patrimonio.tramitar');
+  INSERT INTO public.user_modules (user_id, module) VALUES (u_trm, 'patrimonio');
+  foto := pg_temp.seed_row('fotos_vistoria_inventario', jsonb_build_object('campanha_id', camp, 'unidade_local_id', unid,
+            'storage_path', camp || '/' || unid || '/semente.jpg', 'hash_sha256', hash, 'capturada_em', now()::text, 'usuario_id', u_pat));
+  IF foto IS NULL THEN
+    PERFORM pg_temp.falha('não consegui semear fotos_vistoria_inventario: ' || coalesce((SELECT msg FROM seed_erro WHERE tabela = 'fotos_vistoria_inventario' LIMIT 1), '?'));
+    RETURN;
+  END IF;
+  FOR p IN SELECT * FROM persona WHERE nome IN ('admin', 'mod_patrimonio', 'mod_patrimonio_mobile') LOOP
+    IF pg_temp.sel(p.uid, 'authenticated', 'fotos_vistoria_inventario') < 1 THEN PERFORM pg_temp.falha('fotos_vistoria_inventario: ' || p.nome || ' não lê'); END IF;
+  END LOOP;
+  FOR p IN SELECT * FROM persona WHERE nome IN ('nenhum', 'inativo', 'srv_a', 'admin_inativo', 'mod_rh', 'mod_admin') LOOP
+    IF pg_temp.sel(p.uid, 'authenticated', 'fotos_vistoria_inventario') > 0 THEN PERFORM pg_temp.falha('fotos_vistoria_inventario: ' || p.nome || ' enxerga fotos'); END IF;
+    IF pg_temp.upd(p.uid, 'authenticated', 'fotos_vistoria_inventario') > 0 OR pg_temp.del(p.uid, 'authenticated', 'fotos_vistoria_inventario') > 0 THEN
+      PERFORM pg_temp.falha('fotos_vistoria_inventario: ' || p.nome || ' altera/apaga fotos');
+    END IF;
+    r := pg_temp.sql_como(p.uid, 'authenticated', format(ins_sql, '', camp, unid, 'x/' || p.nome, hash, ''));
+    IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('fotos_vistoria_inventario: ' || p.nome || ' insere (' || r || ')'); END IF;
+  END LOOP;
+  IF pg_temp.sel(NULL, 'anon', 'fotos_vistoria_inventario') <> -1 THEN PERFORM pg_temp.falha('fotos_vistoria_inventario: anon consegue SELECT'); END IF;
+  -- INSERT: o módulo grava em nome próprio (usuario_id padrão = auth.uid()), nunca em nome de outro
+  r := pg_temp.sql_como(u_mob, 'authenticated', format(ins_sql, '', camp, unid, 'mob/1.jpg', hash, ''));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('fotos_vistoria_inventario: mod_patrimonio_mobile não insere em nome próprio (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_mob, 'authenticated', format(ins_sql, ', usuario_id', camp, unid, 'mob/2.jpg', hash, ', ' || quote_literal(u_pat)));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('fotos_vistoria_inventario: módulo insere em nome de OUTRO usuário (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_mob, 'authenticated', format(ins_sql, '', camp, unid, 'mob/3.jpg', 'NAOHEX', ''));
+  IF r NOT LIKE 'erro:23514%' THEN PERFORM pg_temp.falha('fotos_vistoria_inventario: aceita hash_sha256 inválido (' || r || ')'); END IF;
+  -- UPDATE: o autor (mod_patrimonio, dono da semente) e quem tem patrimonio.tramitar editam; outro usuário do módulo não
+  r := pg_temp.sql_como(u_pat, 'authenticated', 'UPDATE public.fotos_vistoria_inventario SET legenda = ''fachada'', tem_pessoa = true, codigo_objeto = ''OBJ-1''');
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('fotos_vistoria_inventario: o autor não edita legenda/tem_pessoa/codigo_objeto (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_mob, 'authenticated', 'UPDATE public.fotos_vistoria_inventario SET legenda = ''alheia''');
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('fotos_vistoria_inventario: módulo edita foto de OUTRO autor sem patrimonio.tramitar (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_trm, 'authenticated', 'UPDATE public.fotos_vistoria_inventario SET legenda = ''revisada''');
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('fotos_vistoria_inventario: quem tem patrimonio.tramitar não edita a legenda (' || r || ')'); END IF;
+  -- campos de prova: ninguém altera (nem quem tem patrimonio.tramitar)
+  FOREACH campo IN ARRAY ARRAY['hash_sha256 = repeat(''cd'', 32)', 'storage_path = ''outro''', 'capturada_em = now() - interval ''1 day''',
+                               'latitude = 1', 'longitude = 1', 'usuario_id = auth.uid()', 'id = gen_random_uuid()',
+                               'campanha_id = gen_random_uuid()', 'unidade_local_id = gen_random_uuid()', 'bem_id = gen_random_uuid()',
+                               'enviada_em = now() - interval ''1 hour''', 'precisao_m = 5', 'mime_type = ''image/webp''',
+                               'tamanho_bytes = 10', 'dispositivo_info = ''{"so":"x"}''::jsonb'] LOOP
+    r := pg_temp.sql_como(u_trm, 'authenticated', 'UPDATE public.fotos_vistoria_inventario SET ' || campo);
+    IF r NOT LIKE 'erro:23514%' THEN PERFORM pg_temp.falha('fotos_vistoria_inventario: UPDATE de campo de prova passou (' || campo || ': ' || r || ')'); END IF;
+  END LOOP;
+  -- DELETE: só com patrimonio.tramitar
+  r := pg_temp.sql_como(u_pat, 'authenticated', 'DELETE FROM public.fotos_vistoria_inventario');
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('fotos_vistoria_inventario: módulo sem patrimonio.tramitar apaga (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_trm, 'authenticated', 'DELETE FROM public.fotos_vistoria_inventario');
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('fotos_vistoria_inventario: quem tem patrimonio.tramitar não apaga (' || r || ')'); END IF;
+  -- bucket: sobrescrever/apagar a evidência só com patrimonio.tramitar
+  r := pg_temp.sql_como(u_pat, 'authenticated', 'DELETE FROM storage.objects WHERE bucket_id = ''inventario-evidencias''');
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('storage inventario-evidencias: módulo sem patrimonio.tramitar apaga (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_pat, 'authenticated', 'UPDATE storage.objects SET name = name WHERE bucket_id = ''inventario-evidencias''');
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('storage inventario-evidencias: módulo sem patrimonio.tramitar sobrescreve (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_trm, 'authenticated', 'DELETE FROM storage.objects WHERE bucket_id = ''inventario-evidencias''');
+  IF r NOT LIKE 'ok:%' OR r = 'ok:0' THEN PERFORM pg_temp.falha('storage inventario-evidencias: quem tem patrimonio.tramitar não apaga (' || r || ')'); END IF;
+  IF (SELECT public OR file_size_limit IS DISTINCT FROM 10485760 FROM storage.buckets WHERE id = 'inventario-evidencias') THEN
+    PERFORM pg_temp.falha('storage inventario-evidencias: bucket público ou sem limite de 10 MB');
+  END IF;
+  -- unidades por campanha: a autoria do INSERT é sempre quem grava (o campo enviado é sobrescrito)
+  r := pg_temp.valor_como(u_pat, 'authenticated', format('INSERT INTO public.campanhas_inventario_unidades (campanha_id, unidade_local_id, created_by, updated_by) VALUES (%L, %L, %L, %L) RETURNING created_by::text || ''|'' || updated_by::text', camp, unid, u_mob, u_mob));
+  IF r IS DISTINCT FROM (u_pat::text || '|' || u_pat::text) THEN PERFORM pg_temp.falha('campanhas_inventario_unidades: created_by/updated_by escolhidos pelo cliente (' || coalesce(r, 'NULL') || ')'); END IF;
+  FOREACH campo IN ARRAY ARRAY['campanhas_inventario_unidades', 'fotos_vistoria_inventario'] LOOP
+    IF NOT (SELECT relforcerowsecurity FROM pg_class WHERE oid = ('public.' || campo)::regclass) THEN PERFORM pg_temp.falha(campo || ': sem FORCE ROW LEVEL SECURITY'); END IF;
+  END LOOP;
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.campanhas_inventario_unidades'::regclass AND NOT tgisinternal AND tgenabled <> 'D') THEN
+    PERFORM pg_temp.falha('campanhas_inventario_unidades: falta o trigger de updated_at/updated_by');
+  END IF;
 END $$;
 
 -- ---------------------------------------------------------------- resumo

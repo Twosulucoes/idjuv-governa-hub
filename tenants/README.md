@@ -33,6 +33,8 @@ cp -r tenants/_template tenants/<slug>
 # 2. trocar as imagens em tenants/<slug>/assets/ (ver o README de lá)
 # 3. registrar o slug em tenants/index.ts
 # 4. no .env do deploy: VITE_TENANT_SLUG=<slug>
+# 5. gerar os e-mails do Auth: bun scripts/emails/gerar-templates-email.ts <slug>
+#    (aplicação na VPS: docs/EMAILS_AUTH.md)
 ```
 
 O contrato de `TenantConfig` está em [`src/core/tenant/types.ts`](../src/core/tenant/types.ts).

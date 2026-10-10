@@ -245,6 +245,7 @@ import {
   CampanhasInventarioPage,
   CampanhaDetalhePage,
   ColetaInventarioPage,
+  PainelCampoInventarioPage,
   AlmoxarifadoEstoquePage,
   RequisicoesMaterialPage,
   ManutencoesBensPage,
@@ -1051,6 +1052,11 @@ const App = () => (
               <Route path="/inventario/campanhas/:id/coleta" element={
                 <ProtectedRoute requiredPermissions="patrimonio.tramitar">
                   <ColetaInventarioPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventario/campanhas/:id/painel" element={
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
+                  <PainelCampoInventarioPage />
                 </ProtectedRoute>
               } />
               <Route path="/inventario/movimentacoes/:id" element={

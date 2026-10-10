@@ -26,6 +26,7 @@ cadastro_arbitros,arbitros,modulo,alta,INSERT anônimo (formulário) mantido; ge
 cadastro_arbitros_modalidades,arbitros,modulo,alta,INSERT anônimo mantido; gestão por módulo arbitros,,arbitros_modalidades_select_authenticated|Admin pode deletar modalidades|Admin pode atualizar modalidades,insert
 calendario_federacao,federacoes,modulo,alta,,,,
 campanhas_inventario,patrimonio|patrimonio_mobile,modulo,alta,,,,
+campanhas_inventario_unidades,patrimonio|patrimonio_mobile,modulo,alta,"inventário de campo (migração 20261009160000): situação de cada unidade na campanha; created_by/updated_by forçados por trigger no INSERT",,,
 cargo_unidade_compatibilidade,rh,modulo,alta,,,,
 cargos,rh,modulo,alta,"policies por módulo (as mesmas do replay, agora geradas e testadas)",,rh_module_delete|rh_module_select|rh_module_update|rh_module_write,
 categorias_material,patrimonio|patrimonio_mobile,modulo,alta,,,,
@@ -140,6 +141,7 @@ folha_historico_status,rh,trilha,alta,trilha de auditoria/histórico: o módulo 
 folhas_pagamento,rh,modulo,alta,,,,
 form_field_config,admin,modulo,alta,módulo admin gere; leitura anônima/autenticada (formulários públicos) mantida pelas policies admin_read_form_config e anon_read_form_config,,admin_write_form_config,select
 fornecedores,compras|contratos,modulo,alta,"policies por módulo (as mesmas do replay, agora geradas e testadas)",,comp_module_delete|comp_module_select|comp_module_update|comp_module_write,
+fotos_vistoria_inventario,patrimonio|patrimonio_mobile,preservar,alta,"policies próprias na migração 20261009160000 (vêm do replay em schema/03_post_data.sql): módulo lê; INSERT exige usuario_id = auth.uid(); UPDATE só do autor ou com has_permission_code patrimonio.tramitar; DELETE só com patrimonio.tramitar; trigger só deixa alterar legenda, tem_pessoa e codigo_objeto; testes no bloco de cobertura adicional de testar-rls.sql",,,
 frequencia_arquivos,rh,modulo,alta,,,,
 frequencia_fechamento,rh,proprio_leitura,alta,RH vê tudo; o servidor lê apenas os próprios (servidor_id = meu_servidor_id()),,,
 frequencia_mensal,rh,proprio_leitura,alta,RH vê tudo; o servidor lê apenas os próprios (servidor_id = meu_servidor_id()),,,

@@ -148,6 +148,11 @@ export default defineConfig(({ mode }) => {
           navigateFallbackDenylist: [/^\/~oauth/],
           runtimeCaching: [
             {
+              // URLs assinadas (evidências em bucket privado) nunca vão para o cache
+              urlPattern: ({ url }) => url.pathname.includes("/storage/v1/object/sign/"),
+              handler: "NetworkOnly",
+            },
+            {
               urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
               handler: "NetworkFirst",
               options: {

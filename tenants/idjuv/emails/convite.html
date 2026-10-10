@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>Convite para o Sistema de Gestão IDJuv</title>
+  <!-- Gerado por scripts/emails/gerar-templates-email.ts — não edite à mão (ver docs/EMAILS_AUTH.md). -->
+  <style>
+    body { margin:0; padding:0; width:100%; -webkit-text-size-adjust:100%; }
+    a { color:inherit; }
+    @media (max-width: 620px) {
+      .container { width:100% !important; }
+      .miolo { padding:24px 20px !important; }
+    }
+    @media (prefers-color-scheme: dark) {
+      .fundo { background:#0E141B !important; }
+      .cartao { background:#161F27 !important; border-color:#2D3843 !important; }
+      .cabecalho { background:#2BADEE !important; }
+      .cabecalho-texto { color:#0E141B !important; }
+      .texto { color:#F3F5F7 !important; }
+      .texto-suave, .link-suave { color:#A5B7C0 !important; }
+      .aviso { color:#F9CE1F !important; border-color:#2D3843 !important; }
+      .caixa { background:#242E38 !important; }
+      .botao { background:#2BADEE !important; }
+      .botao-link { color:#0E141B !important; }
+    }
+  </style>
+</head>
+<body class="fundo" style="margin:0;padding:0;background:#F9FAFB;font-family:'IBM Plex Sans', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">Você recebeu acesso ao Sistema de Gestão IDJuv. Defina sua senha para entrar.&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="fundo" style="background:#F9FAFB;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="container cartao" style="width:600px;max-width:600px;background:#FFFFFF;border:1px solid #DCE2E5;border-radius:8px;overflow:hidden;">
+          <tr>
+            <td class="cabecalho" bgcolor="#164069" style="background:#164069;padding:20px 32px;border-bottom:4px solid #F9C806;">
+              <span class="cabecalho-texto" style="font-family:'IBM Plex Sans', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:20px;line-height:28px;font-weight:700;letter-spacing:0.5px;color:#FFFFFF;">IDJUV</span>
+              <span class="cabecalho-texto" style="font-family:'IBM Plex Sans', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;line-height:20px;color:#FFFFFF;">&nbsp;·&nbsp;Sistema de gestão</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="miolo" style="padding:32px;font-family:'IBM Plex Sans', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              <h1 class="texto" style="margin:0 0 16px;font-size:24px;line-height:32px;font-weight:600;color:#172E45;">Você foi convidado</h1>
+              <p class="texto" style="margin:0 0 16px;font-size:16px;line-height:24px;color:#172E45;">Olá{{ if .Data.full_name }}, {{ .Data.full_name }}{{ end }}.</p>
+              <p class="texto" style="margin:0 0 16px;font-size:16px;line-height:24px;color:#172E45;">Um administrador criou seu acesso ao Sistema de Gestão IDJuv com o e-mail <strong>{{ .Email }}</strong>. Aceite o convite para definir sua senha e entrar.</p>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px;">
+                <tr>
+                  <td class="botao" bgcolor="#164069" style="border-radius:8px;background:#164069;mso-padding-alt:14px 28px;">
+                    <a href="{{ .SiteURL }}/auth?token_hash={{ .TokenHash }}&amp;type=invite" target="_blank" class="botao-link" style="display:inline-block;padding:14px 28px;font-family:'IBM Plex Sans', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;line-height:20px;font-weight:600;color:#FFFFFF;text-decoration:none;border-radius:8px;">Aceitar convite</a>
+                  </td>
+                </tr>
+              </table>
+              <p class="texto-suave" style="margin:0 0 24px;font-size:14px;line-height:20px;color:#566B81;">Se o botão não funcionar, copie e cole este endereço no navegador:<br><a href="{{ .SiteURL }}/auth?token_hash={{ .TokenHash }}&amp;type=invite" class="link-suave" style="color:#566B81;text-decoration:underline;word-break:break-all;">{{ .SiteURL }}/auth?token_hash={{ .TokenHash }}&amp;type=invite</a></p>
+              <p class="aviso" style="margin:0;padding-top:16px;border-top:1px solid #DCE2E5;font-size:14px;line-height:20px;color:#9B5608;">Se você não esperava este convite, ignore este e-mail ou avise o suporte.</p>
+            </td>
+          </tr>
+        </table>
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="container" style="width:600px;max-width:600px;">
+          <tr>
+            <td class="texto-suave" style="padding:20px 32px 0;font-family:'IBM Plex Sans', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#566B81;text-align:center;">
+              <strong>Instituto de Desporto, Juventude e Lazer do Estado de Roraima – IDJuv</strong><br>Governo do Estado de Roraima<br>Av. Brigadeiro Eduardo Gomes, 3232 · Anexo IDJuv · Estados · Boa Vista/RR · CEP 69.305-455<br>Mensagem automática, não responda. Dúvidas: <a href="mailto:ti@idjuv.rr.gov.br" class="link-suave" style="color:inherit;text-decoration:underline;">ti@idjuv.rr.gov.br</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
