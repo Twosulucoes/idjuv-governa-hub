@@ -90,6 +90,12 @@ Contratos → Financeiro → Folha → RH (depois do PR #35) → Admin → demai
   tipográfica (`text-h3` e `text-lg` se substituem) e `CardTitle` passou a `text-h3` (antes
   `text-xl sm:text-2xl`, que vencia qualquer tamanho passado por `className` no desktop).
   Formulários (corpo do cadastro simplificado e diálogos) ficam para a etapa de formulários.
+- **Compras e Contratos**: painéis (links trocados para rotas registradas; "A vencer" e
+  "Aditivos" sem link até existir tela) e telas de processo (compras, diárias, convênios,
+  veículos, pagamentos, patrimônio, almoxarifado) com `PageHeader`, `KpiCard`, `StatusBadge`,
+  `DataTable` em pagamentos e checklist no mesmo padrão (`ol` no fluxograma, obrigatório
+  anunciado ao leitor de tela). Pendência: não há tela de lista de contratos (o menu aponta para
+  `/processos/compras?tab=…`, que a página não lê).
 
 ## Fase 5 — Portal público e PWA
 
