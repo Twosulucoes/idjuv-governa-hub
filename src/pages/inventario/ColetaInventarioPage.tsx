@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { 
-  ArrowLeft, QrCode, Search, CheckCircle2, AlertTriangle,
+  ArrowLeft, QrCode, Search, AlertTriangle,
   Package, MapPin, User, Camera, Save, X, Clock, Smartphone
 } from "lucide-react";
 import { format } from "date-fns";
@@ -19,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -37,6 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { EmptyState, PageHeader, StatusBadge, type TomStatus } from "@/components/design-system";
 import { toast } from "sonner";
 import { 
   useCampanhaInventario, 
@@ -46,11 +46,11 @@ import {
   useUnidadesLocaisPatrimonio 
 } from "@/hooks/usePatrimonio";
 
-const STATUS_COLETA_OPTIONS = [
-  { value: "conferido", label: "Conferido", description: "Bem localizado sem divergências" },
-  { value: "divergente", label: "Divergente", description: "Localização ou estado diferente do esperado" },
-  { value: "nao_localizado", label: "Não Localizado", description: "Bem não encontrado no local" },
-  { value: "sem_etiqueta", label: "Sem Etiqueta", description: "Bem encontrado sem plaqueta" },
+const STATUS_COLETA_OPTIONS: { value: string; label: string; description: string; tom: TomStatus }[] = [
+  { value: "conferido", label: "Conferido", description: "Bem localizado sem divergências", tom: "sucesso" },
+  { value: "divergente", label: "Divergente", description: "Localização ou estado diferente do esperado", tom: "pendente" },
+  { value: "nao_localizado", label: "Não localizado", description: "Bem não encontrado no local", tom: "erro" },
+  { value: "sem_etiqueta", label: "Sem etiqueta", description: "Bem encontrado sem plaqueta", tom: "neutro" },
 ];
 
 export default function ColetaInventarioPage() {
@@ -146,11 +146,9 @@ export default function ColetaInventarioPage() {
   if (isLoading) {
     return (
       <ModuleLayout module="patrimonio">
-        <section className="py-6">
-          <div className="container mx-auto px-4">
-            <Skeleton className="h-32 w-full" />
-          </div>
-        </section>
+        <div role="status" aria-label="Carregando campanha">
+          <Skeleton className="h-32 w-full" />
+        </div>
       </ModuleLayout>
     );
   }
@@ -158,15 +156,21 @@ export default function ColetaInventarioPage() {
   if (!campanha) {
     return (
       <ModuleLayout module="patrimonio">
-        <section className="py-12">
-          <div className="container mx-auto px-4 text-center">
-            <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <h2 className="text-xl font-semibold mb-2">Campanha não encontrada</h2>
-            <Button asChild className="mt-4">
-              <Link to="/inventario/campanhas">Voltar para Campanhas</Link>
-            </Button>
-          </div>
-        </section>
+        <div className="space-y-6">
+          <PageHeader
+            migalhas={[{ rotulo: "Inventário", href: "/inventario" }, { rotulo: "Campanhas", href: "/inventario/campanhas" }, { rotulo: "Coleta" }]}
+            titulo="Coleta de inventário"
+          />
+          <EmptyState
+            icone={AlertTriangle}
+            titulo="Campanha não encontrada"
+            acao={
+              <Button asChild>
+                <Link to="/inventario/campanhas">Voltar para campanhas</Link>
+              </Button>
+            }
+          />
+        </div>
       </ModuleLayout>
     );
   }
@@ -174,175 +178,154 @@ export default function ColetaInventarioPage() {
   if (campanha.status !== "em_andamento") {
     return (
       <ModuleLayout module="patrimonio">
-        <section className="py-12">
-          <div className="container mx-auto px-4 text-center">
-            <Clock className="w-12 h-12 mx-auto mb-4 text-warning" />
-            <h2 className="text-xl font-semibold mb-2">Campanha não está em andamento</h2>
-            <p className="text-muted-foreground mb-4">
-              Esta campanha está com status "{campanha.status}". 
-              Inicie a campanha para realizar coletas.
-            </p>
-            <Button asChild>
-              <Link to={`/inventario/campanhas/${id}`}>Ver Detalhes</Link>
-            </Button>
-          </div>
-        </section>
+        <div className="space-y-6">
+          <PageHeader
+            migalhas={[{ rotulo: "Inventário", href: "/inventario" }, { rotulo: "Campanhas", href: "/inventario/campanhas" }, { rotulo: "Coleta" }]}
+            titulo="Coleta de inventário"
+          />
+          <EmptyState
+            icone={Clock}
+            titulo="Campanha não está em andamento"
+            descricao={`Esta campanha está com status "${campanha.status}". Inicie a campanha para realizar coletas.`}
+            acao={
+              <Button asChild>
+                <Link to={`/inventario/campanhas/${id}`}>Ver detalhes</Link>
+              </Button>
+            }
+          />
+        </div>
       </ModuleLayout>
     );
   }
 
   return (
     <ModuleLayout module="patrimonio">
-      {/* Header */}
-      <section className="bg-secondary text-secondary-foreground py-6">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center gap-2 text-sm mb-3 opacity-80">
-            <Link to="/inventario" className="hover:underline">Inventário</Link>
-            <span>/</span>
-            <Link to="/inventario/campanhas" className="hover:underline">Campanhas</Link>
-            <span>/</span>
-            <Link to={`/inventario/campanhas/${id}`} className="hover:underline">
-              {campanha.nome}
-            </Link>
-            <span>/</span>
-            <span>Coleta</span>
-          </div>
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <QrCode className="w-8 h-8" />
-              <div>
-                <h1 className="font-serif text-2xl font-bold">Coleta de Inventário</h1>
-                <p className="opacity-90 text-sm">{campanha.nome}</p>
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[
+            { rotulo: "Inventário", href: "/inventario" },
+            { rotulo: "Campanhas", href: "/inventario/campanhas" },
+            { rotulo: campanha.nome, href: `/inventario/campanhas/${id}` },
+            { rotulo: "Coleta" },
+          ]}
+          titulo="Coleta de inventário"
+          descricao={campanha.nome}
+          status={
+            <StatusBadge tom="sucesso">
+              {campanha.total_conferidos || 0} conferidos
+            </StatusBadge>
+          }
+          acoes={
+            <Button variant="outline" asChild>
+              <Link to={`/inventario/campanhas/${id}`}>
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Voltar
+              </Link>
+            </Button>
+          }
+        />
+
+        {/* Banner App Mobile */}
+        <Alert>
+          <Smartphone className="w-4 h-4" aria-hidden="true" />
+          <AlertTitle>Coleta em campo?</AlertTitle>
+          <AlertDescription className="flex items-center justify-between flex-wrap gap-2">
+            <span>Use o app mobile para escanear QR Codes e trabalhar offline.</span>
+            <Button asChild size="sm" variant="outline">
+              <Link to={`/patrimonio-mobile?campanha=${id}`}>
+                <Smartphone className="h-4 w-4" aria-hidden="true" />
+                Abrir app mobile
+              </Link>
+            </Button>
+          </AlertDescription>
+        </Alert>
+
+        {/* Área de Busca */}
+        <Card className="max-w-2xl mx-auto">
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center gap-2 text-h3">
+              <Search className="w-5 h-5" aria-hidden="true" />
+              Buscar bem
+            </CardTitle>
+            <CardDescription id="busca-bem-ajuda">
+              Digite o número do patrimônio ou escaneie o QR Code
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={(e) => { e.preventDefault(); handleBuscar(); }} className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  ref={inputRef}
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Número do patrimônio ou código QR..."
+                  aria-label="Número do patrimônio ou código QR"
+                  aria-describedby="busca-bem-ajuda"
+                  className="text-lg h-12"
+                  autoComplete="off"
+                />
+                <Button type="submit" size="lg" className="px-6" aria-label="Buscar bem">
+                  <Search className="w-5 h-5" aria-hidden="true" />
+                </Button>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-primary/20">
-                <CheckCircle2 className="w-3 h-3 mr-1" />
-                {campanha.total_conferidos || 0} conferidos
-              </Badge>
-              <Button variant="outline" size="sm" asChild>
-                <Link to={`/inventario/campanhas/${id}`}>
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Voltar
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
+              <p className="text-sm text-muted-foreground text-center">
+                Pressione Enter para buscar
+              </p>
+            </form>
+          </CardContent>
+        </Card>
 
-      {/* Banner App Mobile */}
-      <section className="py-4 border-b bg-primary/5">
-        <div className="container mx-auto px-4">
-          <Alert>
-            <Smartphone className="w-4 h-4" />
-            <AlertTitle>Coleta em campo?</AlertTitle>
-            <AlertDescription className="flex items-center justify-between flex-wrap gap-2">
-              <span>Use o app mobile para escanear QR Codes e trabalhar offline.</span>
-              <Button asChild size="sm" variant="outline">
-                <Link to={`/patrimonio-mobile?campanha=${id}`}>
-                  <Smartphone className="w-4 h-4 mr-2" />
-                  Abrir App Mobile
-                </Link>
-              </Button>
-            </AlertDescription>
-          </Alert>
-        </div>
-      </section>
-
-      {/* Área de Busca */}
-      <section className="py-6">
-        <div className="container mx-auto px-4">
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader className="text-center">
-              <CardTitle className="flex items-center justify-center gap-2">
-                <Search className="w-5 h-5" />
-                Buscar Bem
-              </CardTitle>
-              <CardDescription>
-                Digite o número do patrimônio ou escaneie o QR Code
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={(e) => { e.preventDefault(); handleBuscar(); }} className="space-y-4">
-                <div className="flex gap-2">
-                  <Input
-                    ref={inputRef}
-                    value={busca}
-                    onChange={(e) => setBusca(e.target.value)}
-                    placeholder="Número do patrimônio ou código QR..."
-                    className="text-lg h-12"
-                    autoComplete="off"
-                  />
-                  <Button type="submit" size="lg" className="px-6">
-                    <Search className="w-5 h-5" />
-                  </Button>
-                </div>
-                <p className="text-sm text-muted-foreground text-center">
-                  Pressione Enter para buscar
-                </p>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Últimas Coletas */}
-          <Card className="max-w-2xl mx-auto mt-6">
-            <CardHeader>
-              <CardTitle className="text-lg">Últimas Coletas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {coletas?.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">
-                  Nenhuma coleta registrada ainda
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {coletas?.slice(0, 5).map((coleta) => (
-                    <div 
+        {/* Últimas Coletas */}
+        <Card className="max-w-2xl mx-auto">
+          <CardHeader>
+            <CardTitle className="text-h3">Últimas coletas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!coletas?.length ? (
+              <p className="text-center text-muted-foreground py-4">
+                Nenhuma coleta registrada ainda
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {coletas.slice(0, 5).map((coleta) => {
+                  const st = STATUS_COLETA_OPTIONS.find(s => s.value === coleta.status_coleta);
+                  return (
+                    <li
                       key={coleta.id}
                       className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
                     >
                       <div className="flex items-center gap-3">
-                        <Package className="w-4 h-4 text-muted-foreground" />
+                        <Package className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
                         <div>
                           <span className="font-mono text-sm">
-                            {(coleta as any).bem?.numero_patrimonio}
+                            {coleta.bem?.numero_patrimonio}
                           </span>
                           <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                            {(coleta as any).bem?.descricao}
+                            {coleta.bem?.descricao}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge 
-                          variant="outline" 
-                          className={
-                            coleta.status_coleta === "conferido" ? "bg-success/10 text-success" :
-                            coleta.status_coleta === "divergente" ? "bg-warning/10 text-warning" :
-                            "bg-destructive/10 text-destructive"
-                          }
-                        >
-                          {STATUS_COLETA_OPTIONS.find(s => s.value === coleta.status_coleta)?.label}
-                        </Badge>
+                        <StatusBadge tom={st?.tom ?? "neutro"}>{st?.label ?? "Sem status"}</StatusBadge>
                         <span className="text-xs text-muted-foreground">
                           {format(new Date(coleta.data_coleta), "HH:mm")}
                         </span>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Dialog de Coleta */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5" />
+              <Package className="w-5 h-5" aria-hidden="true" />
               Registrar Coleta
             </DialogTitle>
             <DialogDescription>
@@ -372,9 +355,9 @@ export default function ColetaInventarioPage() {
 
               {/* Status da Coleta */}
               <div className="space-y-2">
-                <Label>Status da Coleta *</Label>
+                <Label htmlFor="coleta-status">Status da Coleta *</Label>
                 <Select value={statusColeta} onValueChange={setStatusColeta}>
-                  <SelectTrigger>
+                  <SelectTrigger id="coleta-status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -393,9 +376,9 @@ export default function ColetaInventarioPage() {
               {/* Localização Encontrada */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Unidade Encontrada</Label>
+                  <Label htmlFor="coleta-unidade">Unidade Encontrada</Label>
                   <Select value={unidadeEncontrada} onValueChange={setUnidadeEncontrada}>
-                    <SelectTrigger>
+                    <SelectTrigger id="coleta-unidade">
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -408,8 +391,9 @@ export default function ColetaInventarioPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Sala/Local</Label>
+                  <Label htmlFor="coleta-sala">Sala/Local</Label>
                   <Input 
+                    id="coleta-sala"
                     value={salaEncontrada}
                     onChange={(e) => setSalaEncontrada(e.target.value)}
                     placeholder="Ex: Sala 101"
@@ -418,8 +402,9 @@ export default function ColetaInventarioPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Detalhe da Localização</Label>
+                <Label htmlFor="coleta-detalhe">Detalhe da Localização</Label>
                 <Input 
+                  id="coleta-detalhe"
                   value={detalheLocalizacao}
                   onChange={(e) => setDetalheLocalizacao(e.target.value)}
                   placeholder="Ex: Mesa próxima à janela"
@@ -427,8 +412,9 @@ export default function ColetaInventarioPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Observações</Label>
+                <Label htmlFor="coleta-observacoes">Observações</Label>
                 <Textarea 
+                  id="coleta-observacoes"
                   value={observacoes}
                   onChange={(e) => setObservacoes(e.target.value)}
                   placeholder="Observações adicionais..."
@@ -440,11 +426,11 @@ export default function ColetaInventarioPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              <X className="w-4 h-4 mr-2" />
+              <X className="w-4 h-4 mr-2" aria-hidden="true" />
               Cancelar
             </Button>
             <Button onClick={handleRegistrarColeta} disabled={createColeta.isPending}>
-              <Save className="w-4 h-4 mr-2" />
+              <Save className="w-4 h-4 mr-2" aria-hidden="true" />
               {createColeta.isPending ? "Salvando..." : "Registrar Coleta"}
             </Button>
           </DialogFooter>

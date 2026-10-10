@@ -33,14 +33,14 @@ import {
   UnidadeLocal,
   NomeacaoChefeUnidade,
   TIPO_UNIDADE_LABELS,
-  STATUS_UNIDADE_LABELS,
-  STATUS_UNIDADE_COLORS,
   TIPO_ATO_LABELS,
 } from "@/types/unidadesLocais";
+import { EmptyState, PageHeader } from "@/components/design-system";
 import { UnidadeLocalForm } from "@/components/unidades/UnidadeLocalForm";
 import { PatrimonioTab } from "@/components/unidades/PatrimonioTab";
 import { AgendaTab } from "@/components/unidades/AgendaTab";
 import { TermosCessaoTab } from "@/components/unidades/TermosCessaoTab";
+import { StatusUnidadeBadge } from "@/components/unidades/StatusUnidadeBadge";
 
 function UnidadeDetalheContent() {
   const { id } = useParams<{ id: string }>();
@@ -105,8 +105,8 @@ function UnidadeDetalheContent() {
   if (loading) {
     return (
       <ModuleLayout module="patrimonio">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex items-center justify-center py-12" role="status" aria-label="Carregando unidade">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
         </div>
       </ModuleLayout>
     );
@@ -115,11 +115,20 @@ function UnidadeDetalheContent() {
   if (!unidade) {
     return (
       <ModuleLayout module="patrimonio">
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Unidade não encontrada</p>
-          <Button variant="link" onClick={() => navigate("/unidades")}>
-            Voltar para lista
-          </Button>
+        <div className="space-y-6">
+          <PageHeader
+            migalhas={[{ rotulo: "Unidades locais", href: "/unidades" }, { rotulo: "Detalhe" }]}
+            titulo="Unidade local"
+          />
+          <EmptyState
+            icone={Building2}
+            titulo="Unidade não encontrada"
+            acao={
+              <Button variant="outline" onClick={() => navigate("/unidades")}>
+                Voltar para lista
+              </Button>
+            }
+          />
         </div>
       </ModuleLayout>
     );
@@ -128,36 +137,33 @@ function UnidadeDetalheContent() {
   return (
     <ModuleLayout module="patrimonio">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="flex items-start gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/unidades")}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold tracking-tight">{unidade.nome_unidade}</h1>
-                <Badge className={STATUS_UNIDADE_COLORS[unidade.status]}>
-                  {STATUS_UNIDADE_LABELS[unidade.status]}
-                </Badge>
-              </div>
-              <p className="text-muted-foreground">
-                {TIPO_UNIDADE_LABELS[unidade.tipo_unidade]} • {unidade.municipio}
-              </p>
-            </div>
-          </div>
-          <Button onClick={() => setShowEditDialog(true)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar Unidade
-          </Button>
-        </div>
+        <PageHeader
+          migalhas={[{ rotulo: "Unidades locais", href: "/unidades" }, { rotulo: unidade.nome_unidade }]}
+          titulo={unidade.nome_unidade}
+          status={
+            <StatusUnidadeBadge status={unidade.status} />
+          }
+          descricao={`${TIPO_UNIDADE_LABELS[unidade.tipo_unidade]} • ${unidade.municipio}`}
+          acoes={
+            <>
+              <Button variant="outline" onClick={() => navigate("/unidades")}>
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Voltar
+              </Button>
+              <Button onClick={() => setShowEditDialog(true)}>
+                <Edit className="h-4 w-4" aria-hidden="true" />
+                Editar unidade
+              </Button>
+            </>
+          }
+        />
 
         {/* Chefe Atual em destaque */}
         <Card className="border-primary/20 bg-primary/5">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <UserCog className="h-5 w-5 text-primary" />
-              Chefe da Unidade (Responsável Atual)
+            <CardTitle className="flex items-center gap-2 text-h3">
+              <UserCog className="h-5 w-5 text-primary" aria-hidden="true" />
+              Chefe da unidade (responsável atual)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -168,11 +174,11 @@ function UnidadeDetalheContent() {
                     {chefeAtual.servidor?.foto_url ? (
                       <img
                         src={chefeAtual.servidor.foto_url}
-                        alt={chefeAtual.servidor.nome_completo}
+                        alt=""
                         className="h-12 w-12 rounded-full object-cover"
                       />
                     ) : (
-                      <Users className="h-6 w-6 text-primary" />
+                      <Users className="h-6 w-6 text-primary" aria-hidden="true" />
                     )}
                   </div>
                   <div>
@@ -205,24 +211,24 @@ function UnidadeDetalheContent() {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="dados" className="flex items-center gap-1">
-              <Building2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Dados Gerais</span>
+            <TabsTrigger value="dados" className="flex items-center gap-1" aria-label="Dados gerais">
+              <Building2 className="h-4 w-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Dados gerais</span>
             </TabsTrigger>
-            <TabsTrigger value="patrimonio" className="flex items-center gap-1">
-              <Package className="h-4 w-4" />
+            <TabsTrigger value="patrimonio" className="flex items-center gap-1" aria-label="Patrimônio">
+              <Package className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">Patrimônio</span>
             </TabsTrigger>
-            <TabsTrigger value="agenda" className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
+            <TabsTrigger value="agenda" className="flex items-center gap-1" aria-label="Agenda">
+              <Calendar className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">Agenda</span>
             </TabsTrigger>
-            <TabsTrigger value="termos" className="flex items-center gap-1">
-              <FileText className="h-4 w-4" />
+            <TabsTrigger value="termos" className="flex items-center gap-1" aria-label="Termos">
+              <FileText className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">Termos</span>
             </TabsTrigger>
-            <TabsTrigger value="historico" className="flex items-center gap-1">
-              <History className="h-4 w-4" />
+            <TabsTrigger value="historico" className="flex items-center gap-1" aria-label="Histórico">
+              <History className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">Histórico</span>
             </TabsTrigger>
           </TabsList>
@@ -231,8 +237,8 @@ function UnidadeDetalheContent() {
             <div className="grid gap-6 md:grid-cols-2">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MapPin className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-2 text-h3">
+                    <MapPin className="h-5 w-5" aria-hidden="true" />
                     Localização
                   </CardTitle>
                 </CardHeader>
@@ -250,8 +256,8 @@ function UnidadeDetalheContent() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-2 text-h3">
+                    <Clock className="h-5 w-5" aria-hidden="true" />
                     Funcionamento
                   </CardTitle>
                 </CardHeader>
@@ -271,7 +277,7 @@ function UnidadeDetalheContent() {
 
               <Card className="md:col-span-2">
                 <CardHeader>
-                  <CardTitle>Áreas Disponíveis</CardTitle>
+                  <CardTitle className="text-h3">Áreas disponíveis</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {unidade.areas_disponiveis && unidade.areas_disponiveis.length > 0 ? (
@@ -291,7 +297,7 @@ function UnidadeDetalheContent() {
               {unidade.regras_de_uso && (
                 <Card className="md:col-span-2">
                   <CardHeader>
-                    <CardTitle>Regras de Uso</CardTitle>
+                    <CardTitle className="text-h3">Regras de uso</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="whitespace-pre-wrap">{unidade.regras_de_uso}</p>
@@ -302,7 +308,7 @@ function UnidadeDetalheContent() {
               {unidade.observacoes && (
                 <Card className="md:col-span-2">
                   <CardHeader>
-                    <CardTitle>Observações</CardTitle>
+                    <CardTitle className="text-h3">Observações</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="whitespace-pre-wrap">{unidade.observacoes}</p>
@@ -311,7 +317,6 @@ function UnidadeDetalheContent() {
               )}
             </div>
           </TabsContent>
-
 
           <TabsContent value="patrimonio" className="mt-6">
             <PatrimonioTab unidadeId={unidade.id} />
@@ -328,7 +333,7 @@ function UnidadeDetalheContent() {
           <TabsContent value="historico" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Histórico de Alterações</CardTitle>
+                <CardTitle className="text-h3">Histórico de alterações</CardTitle>
                 <CardDescription>
                   Registro de todas as modificações realizadas nesta unidade
                 </CardDescription>

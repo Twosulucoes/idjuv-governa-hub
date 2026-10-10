@@ -134,7 +134,7 @@ export function NovaCampanhaDialog() {
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Plus className="w-5 h-5" />
+            <Plus className="w-5 h-5" aria-hidden="true" />
             Nova Campanha de Inventário
           </DialogTitle>
           <DialogDescription>
@@ -243,7 +243,7 @@ export function NovaCampanhaDialog() {
                             ) : (
                               <span>Selecione a data</span>
                             )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" aria-hidden="true" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
@@ -284,7 +284,7 @@ export function NovaCampanhaDialog() {
                             ) : (
                               <span>Selecione a data</span>
                             )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" aria-hidden="true" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
