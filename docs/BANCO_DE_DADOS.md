@@ -239,18 +239,24 @@ pelas migrações):
 
 ### Trilha de auditoria e servidor responsável do RH — Onda E1
 
-Migração `supabase/migrations/20261011000000_rh_autoria_trilha.sql` (**em PR rascunho**; idempotente, vale para o
-banco do baseline e para o só-migrações; spec
-[`2026-10-10-rh-trilha-auditoria-design.md`](./superpowers/specs/2026-10-10-rh-trilha-auditoria-design.md),
-levantamento em [`planejamento/REVISAO_RH.md`](./planejamento/REVISAO_RH.md) §3). Escopo: as 79 tabelas com `rh` em
+Migrações `supabase/migrations/20261011000000_rh_autoria_trilha.sql` (autoria e trilha) e
+`supabase/migrations/20261011000100_rh_auditoria_leitura.sql` (permissão e policy de leitura, separada para poder ser
+segurada: mexe em RLS existente), **em PR rascunho**. Idempotentes, valem para o banco do baseline e para o
+só-migrações; spec [`2026-10-10-rh-trilha-auditoria-design.md`](./superpowers/specs/2026-10-10-rh-trilha-auditoria-design.md),
+levantamento em [`planejamento/REVISAO_RH.md`](./planejamento/REVISAO_RH.md) §3. Escopo: as 79 tabelas com `rh` em
 `modulos` no `supabase/baseline/rls/mapa.csv` (lista explícita na migração; a que não existir é pulada com NOTICE).
 
-- **Responsável** — `responsavel_atual()` (`STABLE`, `SECURITY DEFINER`, sem EXECUTE para a API) devolve
-  `auth.uid()`, o `profiles.servidor_id` desse usuário **naquele momento** (retrato; não exige perfil ativo), nome e
-  matrícula do servidor e a origem: `usuario`, `usuario_sem_vinculo`, `sistema` (sem `auth.uid()` e fora dos papéis
-  da API: service role, Edge Function, job) ou `anonimo` (papel `anon` sem usuário). `rh_exige_servidor_vinculado()`
-  devolve `false` (decisão 1 da revisão: quem não tem servidor vinculado lança e a trilha marca
-  `usuario_sem_vinculo`); bloquear é trocar para `true` numa migração nova.
+- **Responsável** — `trilha_contexto()` (plpgsql, `SECURITY DEFINER`, sem EXECUTE para a API) lê **uma vez por
+  transação** `auth.uid()`, o `profiles.servidor_id` desse usuário **naquele momento** (retrato; não exige perfil
+  ativo), nome e matrícula do servidor, papel, unidade principal, IP e user agent, e guarda na variável local
+  `trilha.contexto` (`set_config(..., true)`, some no fim da transação). A chave do cache é usuário + papel da sessão +
+  hash dos cabeçalhos: se mudar, relê; mudança em `profiles` (vínculo), `user_roles` ou `user_org_units` zera o cache
+  (trigger `trilha_contexto_invalidar`). A API não define variáveis de sessão (o PostgREST só grava `request.*`), então
+  o cliente não forja o cache. `responsavel_atual()` devolve o mesmo em formato de tabela. Origem: `usuario`,
+  `usuario_sem_vinculo`, `sistema` (sem `auth.uid()` e fora dos papéis da API: service role, Edge Function, job) ou
+  `anonimo` (papel `anon` sem usuário). `rh_exige_servidor_vinculado()` devolve `false` (decisão 1 da revisão: quem
+  não tem servidor vinculado lança e a trilha marca `usuario_sem_vinculo`); bloquear é trocar para `true` numa
+  migração nova.
 - **Autoria gravada pelo banco** — nas 77 tabelas de lançamento: colunas `created_at`, `created_by`,
   `created_by_servidor_id`, `updated_at`, `updated_by`, `updated_by_servidor_id` criadas onde faltam (sem DEFAULT nem
   FK: linhas antigas ficam nulas; as `*_by` que já existiam mantêm tipo e FK) e o trigger `zz_fixar_autoria`
@@ -260,55 +266,100 @@ levantamento em [`planejamento/REVISAO_RH.md`](./planejamento/REVISAO_RH.md) §3
   alguém; o servidor vem do perfil informado). O prefixo `zz_` faz o trigger rodar por último entre os BEFORE (ordem
   alfabética): a autoria final é a do banco, depois de `trg_forcar_campos_iniciais`, `trg_validar_etapa_frequencia`
   e `update_*_updated_at`.
-- **Colunas de decisão** (argumentos do trigger): `aprovado_por/data_aprovacao` (designações),
-  `aprovador_id/data_aprovacao` (ponto), `convertido_por/convertido_em` (pré-cadastro), `fechado_por/fechado_em` e
-  `consolidado_por/consolidado_em` (fechamento da frequência), `enviado_por/enviado_em` (remessa e exportação) e
-  `processado_por` (folha): quando o par muda para valor não nulo, vira `auth.uid()` e `now()`; `_por` nulo desfaz a
-  decisão (a data vai a nulo). De criação (gravadas no INSERT e imutáveis): `gerado_por/data_geracao` (eSocial e
-  remessa), `gerado_por/gerado_em` (exportação), `emitido_por` (memorando), `processado_por` (retorno bancário).
-  Sem isenção para admin. As etapas da frequência continuam em `validar_etapa_frequencia`, que deixa de isentar o
-  admin da **autoria** (as regras de etapa continuam dispensadas para ele).
+- **Colunas de decisão** (argumentos do trigger, formato `por:em[:flag]`): `aprovado_por/data_aprovacao`
+  (designações), `aprovador_id/data_aprovacao` (ponto; `aprovado` virando `true` também grava o par),
+  `convertido_por/convertido_em` (pré-cadastro), `fechado_por/fechado_em` e `consolidado_por/consolidado_em`
+  (fechamento da frequência), `enviado_por/enviado_em` (remessa e exportação), `enviado_por/data_envio` (eSocial;
+  `enviado_por` é coluna nova) e `processado_por/data_processamento` (folha). Quando `_por` passa a um valor não nulo
+  diferente, o par vira `auth.uid()` e `now()`. Na sessão da API a decisão não é apagada (`_por` mandado nulo volta ao
+  valor antigo, com a data) e a data não muda sozinha (com `_por` igual ou sem autor, volta à antiga). A RPC que refaz
+  a decisão liga a variável local `trilha.renovar_decisao` só durante o UPDATE dela (`processar_folha_pagamento`: o
+  reprocessamento pelo mesmo usuário renova a data). De criação (gravadas no INSERT e imutáveis):
+  `gerado_por/data_geracao` (eSocial e remessa), `gerado_por/gerado_em` (exportação), `emitido_por` (memorando),
+  `processado_por` (retorno bancário). Sem isenção para admin. As etapas da frequência continuam em
+  `validar_etapa_frequencia`, que deixa de isentar o admin da **autoria** (as regras de etapa continuam dispensadas
+  para ele).
 - **Folha** — `registrar_transicao_folha`: `fechado_por`, `conferido_por` e `reaberto_por` (e as datas) são de quem
   age, agora, e não mudam fora da transição de status (antes `COALESCE` com o valor do cliente; mesmo texto no
-  overlay 18). `processar_folha_pagamento` grava `processado_por = auth.uid()`.
+  overlay 18). `processar_folha_pagamento` grava `processado_por` e `data_processamento` de quem processou.
 - **Trilha (`fn_audit_trigger` v2)**, mesma assinatura `fn_audit_trigger('<módulo>')`, agora em 77 tabelas do RH
   (`audit_<tabela>`, módulo `rh`; as multimódulo como `documentos` e `contas_autarquia` também gravam `rh`) e, com
-  módulo `admin`, em `profiles` (só UPDATE de `servidor_id`, `is_active`, bloqueio, tipo, CPF, e-mail e
-  `restringir_modulos`), `user_permissions`, `user_org_units` e `audit_colunas_sensiveis`. Colunas novas em
-  `audit_logs`: `servidor_id`, `servidor_nome`, `servidor_matricula` (retrato, sem FK), `campos_alterados text[]`,
-  `origem` (CHECK com os quatro valores) e `transacao` (`txid_current()`). UPDATE que só mexe em `updated_*` não grava
-  linha. Tabela sem coluna `id` uuid grava `entity_id` nulo e a chave primária em `metadata.chave`.
-- **Contexto completado** — trigger `trilha_completar_contexto` (`BEFORE INSERT` em `audit_logs`): quem grava sem
-  informar (`fn_audit_trigger`, `log_audit`, `fechar_folha`, `audit_permission_changes`, Edge Functions) recebe
-  servidor do perfil de `user_id`, origem, `role_at_time`, unidade principal, IP (`x-forwarded-for`, primeiro item,
-  ou `x-real-ip`, de `request.headers`) e user agent; cabeçalho ausente ou inválido vira nulo, sem erro.
+  módulo `admin`, em `profiles` (INSERT, DELETE e UPDATE de `servidor_id`, `is_active`, bloqueio, tipo, CPF, e-mail e
+  `restringir_modulos`; troca de nome ou avatar não gera linha), `user_permissions`, `user_org_units` e
+  `audit_colunas_sensiveis`. Colunas novas em `audit_logs`: `servidor_id`, `servidor_nome`, `servidor_matricula`
+  (retrato, sem FK), `campos_alterados text[]`, `origem` (CHECK com os quatro valores, criado `NOT VALID` e validado
+  em seguida), `transacao` (`txid_current()`) e `sequencia` (`bigint GENERATED ALWAYS AS IDENTITY`, com índice: ordem
+  de gravação, porque `"timestamp"` é o início da transação e empata dentro dela). UPDATE que só mexe em `updated_*`
+  não grava linha. Tabela sem coluna `id` uuid grava `entity_id` nulo e a chave primária em `metadata.chave`. A função
+  já grava o contexto completo (papel, unidade, IP, user agent, transação).
+- **Contexto completado** — trigger `trilha_completar_contexto` (`BEFORE INSERT` em `audit_logs`, só quando a linha
+  chega sem `transacao` ou sem `origem`): quem grava sem informar (`log_audit`, `registrar_evento`, `fechar_folha`,
+  `audit_permission_changes`, Edge Functions) recebe servidor do perfil de `user_id`, origem, `role_at_time`, unidade
+  principal, IP e user agent de `request.headers`. **IP**: `x-real-ip`; sem ele, o **último** item de
+  `x-forwarded-for` (o que o último proxy acrescentou; os anteriores vêm do cliente e podem ser forjados). O IP é
+  **indicativo**: só vale o endereço de quem conectou se o nginx da VPS sobrescrever `X-Real-IP` com `$remote_addr`
+  (e a cadeia até o PostgREST preservar esse cabeçalho). Cabeçalho ausente ou inválido vira nulo, sem erro.
 - **Máscara LGPD** — tabela-catálogo `audit_colunas_sensiveis(tabela, coluna, tratamento, motivo)` (classe
   `catalogo_admin`: todo usuário ativo lê, só o papel admin altera, e a alteração vai à trilha), carregada pela
-  migração com 90 colunas: CPF e PIS `parcial` (`***.456.789-**`); RG, títulos e demais documentos, nascimento,
-  e-mail pessoal, telefones, endereço, agência e conta, PIX, dependentes, filiação, raça/cor, saúde (CID, PcD,
-  tipo sanguíneo, moléstia grave), indicação, geolocalização e IP do ponto, código de acesso do pré-cadastro e link de
-  download do pacote de frequência viram `"[protegido]"`. O nome da coluna continua em `campos_alterados`. Funções
-  `mascarar_parcial(text)` e `trilha_mascarar(text, jsonb)`.
+  migração com 123 colunas (só as que existem no banco): CPF e PIS `parcial` (`***.456.789-**`); RG (com órgão, UF e
+  data), títulos e demais documentos, registro de estrangeiro, nascimento, nome social, e-mail pessoal, telefones,
+  contato de emergência, endereço, agência e conta, PIX, dependentes (nome, documentos), filiação, raça/cor, saúde
+  (CID, médico, CRM, atestado, PcD, tipo sanguíneo, moléstia grave), processo da pensão (número, vara, comarca,
+  beneficiário, decisão), declarações e foto (links), indicação, geolocalização, IP e dispositivo do ponto, código de
+  acesso do pré-cadastro, link do pacote de frequência e o **payload do eSocial** (`payload` e `payload_xml`: CPF
+  completo e remuneração) viram `"[protegido]"`. O nome da coluna continua em `campos_alterados`. Funções
+  `mascarar_parcial(text)` e `trilha_mascarar(text, jsonb)` (reaplicar não muda o valor). A trilha antiga do módulo
+  `rh` (15 tabelas já auditadas antes da E1) é mascarada pela migração antes de ficar imutável.
 - **Trilha imutável** — trigger `trilha_imutavel` (`BEFORE UPDATE OR DELETE`, por linha) e
   `trilha_imutavel_truncate` (`BEFORE TRUNCATE`) em `audit_logs`, `folha_historico_status` e `rubricas_historico`,
-  ambos `ENABLE ALWAYS` (valem também com `session_replication_role = replica`): recusam com `42501` para todos,
-  inclusive `postgres`, service role e superusuário. Exceções: o histórico some na cascata do pai (folha ou rubrica já
-  excluída, exclusão registrada na trilha) e a sessão com `SET LOCAL trilha.expurgo = 'autorizado'` (reservado a uma
-  rotina futura de retenção; hoje nenhum expurgo, decisão 11). `pg_restore --clean` não é afetado (DROP não dispara
-  trigger); restauração só de dados sobre tabela existente precisa do GUC. As tabelas do escopo perdem
-  TRUNCATE/TRIGGER/REFERENCES para `anon` e `authenticated`.
-- **Leitura** — além do papel admin, policy `audit_logs_rh_auditoria_select` (fora do gerador): quem tem o módulo
-  `rh` **e** `rh.auditoria.visualizar` lê as linhas com `module_name = 'rh'` (ver
+  ambos `ENABLE ALWAYS` (valem também com `session_replication_role = replica`): recusam o **DML** com `42501` para
+  todos, inclusive `postgres`, service role e superusuário. Não protege contra DDL: o dono da tabela e o superusuário
+  ainda podem `DROP TRIGGER`/`DISABLE TRIGGER` (a imutabilidade é para o uso, não contra o administrador do banco).
+  Exceções: o histórico some na cascata do pai (folha ou rubrica já excluída, exclusão registrada na trilha; linha com
+  FK nula não passa por essa exceção) e a sessão com `SET LOCAL trilha.expurgo = 'autorizado'` (reservado a uma rotina
+  futura de retenção; hoje nenhum expurgo, decisão 11; a própria migração o usa só para mascarar a trilha antiga).
+  `pg_restore --clean` não é afetado (DROP não dispara trigger); restauração só de dados sobre tabela existente
+  precisa do GUC. As tabelas do escopo perdem TRUNCATE/TRIGGER/REFERENCES para `anon` e `authenticated`.
+- **Eventos sem gravação** — RPC `registrar_evento(acao, entidade, entidade_id, descricao, metadados)`: só
+  `authenticated` com perfil ativo; ações `view`, `export`, `download` (imprimir = download); entidades numa lista
+  fechada (as tabelas do RH e `contracheque`, `relatorio_rh`, `exportacao_rh`, `arquivo_esocial`, `arquivo_cnab`,
+  `trilha_auditoria`). Exige o módulo `rh`; sem ele, só o **próprio** contracheque (`entidade_id` = ficha financeira
+  do servidor do usuário). Metadados: objeto de até 4000 caracteres, sem as chaves que marcam linha de trigger.
+- **`log_audit` não forja a trilha do RH** — no módulo `rh` (sem diferença de caixa ou espaços) só `view`, `export`
+  e `download`, sem antes/depois (lançamento do RH entra pelos triggers); em qualquer módulo, as chaves `trigger`,
+  `operation`, `table`, `registrar_evento` e `fonte` saem dos metadados, que levam `fonte = 'log_audit'`, e antes,
+  depois e metadados têm limite de 32 KB cada (`22023`). Chamadores conferidos: contracheque (`view` no `rh`, segue
+  funcionando), `useAuditLog` (módulos `financeiro` e `aprovacoes`; um `logCreate` com módulo `rh` passaria a falhar
+  em silêncio, porque o hook engole o erro) e `backup-offsite`.
+- **Leitura** — além do papel admin, policy `audit_logs_rh_auditoria_select` (migração 20261011000100, fora do
+  gerador): quem tem o módulo `rh` **e** `rh.auditoria.visualizar` lê as linhas com `module_name = 'rh'` (ver
   [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#trilha-de-auditoria-do-rh-onda-e1)).
-- **Volume** — `processar_folha_pagamento` apaga e recria as fichas a cada processamento: com a trilha em
+- **Edge Functions** — `admin-create-user` e `delete-user` gravam pela service role (origem `sistema`, sem autor);
+  cada uma grava também uma linha complementar em `audit_logs` (módulo `admin`, `entity_type = 'user'`) com o
+  administrador que pediu, sem e-mail nem outro dado pessoal.
+- **Volume e tempo** — `processar_folha_pagamento` apaga e recria as fichas a cada processamento: com a trilha em
   `fichas_financeiras` e `itens_ficha_financeira`, cada reprocessamento grava cerca de N×(2+k) linhas (N servidores,
-  k itens apagados em cascata por ficha), com a linha inteira mascarada. Não bloqueia a folha; partição e retenção de
-  `audit_logs` ficam para depois.
-- **Guard** — `scripts/check-autoria-rh.mjs` (no `scripts/gate.sh`) reprova tabela com `rh` no mapa sem
-  `fixar_autoria` e `fn_audit_trigger` no schema do baseline (classe `trilha`: sem `trilha_imutavel`), salvo exceção
-  com motivo em `scripts/autoria-rh-excecoes.txt` (hoje nenhuma).
-- **Risco registrado** — as FKs de autoria antigas para `auth.users`/`profiles` (e `audit_logs.user_id`) impedem
-  excluir o usuário que lançou; a Edge Function `delete-user` passar a desativar em vez de excluir fica para a E2.
+  k itens apagados em cascata por ficha), com a linha inteira mascarada. Medição local (Postgres 16, 2000 servidores
+  com provimento, sem itens): sem a E1, ~265 ms para processar e ~310 ms para reprocessar; com a primeira versão da E1,
+  ~3,1 s e ~4,7 s; com o contexto em cache por transação e as funções de apoio em plpgsql, **~0,8–0,9 s e ~1,1–1,2 s**
+  (6004 linhas de trilha nas duas passadas). O resto do custo é gravar a linha (jsonb inteiro e índices de
+  `audit_logs`). Não bloqueia a folha; partição e retenção de `audit_logs` ficam para depois, e a tela
+  `/admin/auditoria` fica pesada depois de processar a folha (a E2 refaz a tela).
+- **Guard** — `scripts/check-autoria-rh.mjs` (no `scripts/gate.sh`) reprova tabela com `rh` no mapa sem, no schema do
+  baseline, `zz_fixar_autoria` (`BEFORE INSERT OR UPDATE`, por linha, sem `WHEN`, `fixar_autoria`) e
+  `audit_<tabela>` (`AFTER INSERT OR DELETE OR UPDATE` de todas as colunas, por linha, `fn_audit_trigger('rh')`);
+  classe `trilha`: `trilha_imutavel` e `trilha_imutavel_truncate`, ambos `ENABLE ALWAYS`; e reprova qualquer um deles
+  desligado (`DISABLE TRIGGER` ou `ENABLE REPLICA TRIGGER`). Exceção só com motivo em `scripts/autoria-rh-excecoes.txt`
+  (hoje nenhuma).
+- **Riscos registrados** —
+  - as FKs `NO ACTION` de `audit_logs.user_id` (para `auth.users`) e `audit_logs.org_unit_id` (para
+    `estrutura_organizacional`), com a trilha imutável, impedem excluir o usuário ou a unidade que aparecem na trilha;
+    o mesmo vale para as FKs de autoria antigas (`created_by` etc.) agora que o banco sempre grava o autor. A Edge
+    Function `delete-user` passar a desativar em vez de excluir fica para a E2;
+  - `delete-user` não é atômica: remove módulos, papéis e o vínculo e só depois exclui em `auth.users`; se a exclusão
+    falhar, o usuário fica sem acessos (a trilha registra as duas etapas);
+  - arquivos do Storage do RH (`frequencias`, `documentos-requerimento`, `documentos`) ainda não têm trilha (E2);
+  - a exclusão de uma folha ou rubrica ainda leva o histórico dela pela cascata (a exclusão do pai fica na trilha).
 
 ### Financeiro / orçamento
 Núcleo (prefixo `fin_`): `fin_solicitacoes`, `fin_solicitacao_itens`,
@@ -485,7 +536,9 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   ao administrador inserir, alterar e apagar a trilha, e `log_audit` aceitava
   chamada anônima. A RPC `log_audit` falhava em toda chamada, porque inseria
   `audit_logs.role_at_time`, coluna que a tabela nunca teve; a migração a cria.
-  `list_public_tables()` passa a ser só da service role.
+  `list_public_tables()` passa a ser só da service role. Desde a E1 (migração 20261011000000) `log_audit` não
+  aceita, no módulo `rh`, outra ação além de `view`/`export`/`download` nem antes/depois, limpa as chaves de
+  trigger dos metadados e limita antes/depois/metadados a 32 KB (seção "Trilha de auditoria ... Onda E1").
 - **Folha / RH**: `calcular_inss_servidor`, `calcular_irrf`, `count_dependentes_irrf`,
   `fn_calcular_ferias`, `calcular_horas_trabalhadas`, `fechar_folha`,
   `reabrir_folha`, `usuario_pode_fechar_folha`, `usuario_pode_reabrir_folha`,
@@ -496,9 +549,11 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   `SECURITY DEFINER`, EXECUTE só para `authenticated`, exige perfil ativo. Registra em `audit_logs` (módulo `rh`) uma
   ação sem gravação: `p_acao` em `view`, `export`, `download` (imprimir = `download`), senão `22023`; `p_entidade`
   numa lista fechada (as 79 tabelas do RH e `contracheque`, `relatorio_rh`, `exportacao_rh`, `arquivo_esocial`,
-  `arquivo_cnab`, `trilha_auditoria`); metadados só objeto JSON de até 4000 caracteres, descrição cortada em 500.
+  `arquivo_cnab`, `trilha_auditoria`); exige o módulo `rh` (sem ele, `42501`, salvo o próprio contracheque);
+  metadados só objeto JSON de até 4000 caracteres, descrição cortada em 500.
   Usuário, servidor, origem, IP, user agent e transação vêm do banco. A E2 liga o front a ela. Funções internas
-  (sem EXECUTE para a API): `responsavel_atual`, `rh_exige_servidor_vinculado`, `fixar_autoria`, `trilha_mascarar`,
+  (sem EXECUTE para a API): `trilha_contexto`, `trilha_contexto_invalidar`, `responsavel_atual`,
+  `rh_exige_servidor_vinculado`, `fixar_autoria`, `trilha_mascarar`,
   `mascarar_parcial`, `trilha_contexto_requisicao`, `trilha_completar_contexto`, `trilha_imutavel`.
 - **Financeiro**: `fn_gerar_numero_financeiro`, `fn_inscrever_restos_pagar`.
 - **Importação**: `importar_qdd_fiplan(p_exercicio, p_linhas, p_arquivo, p_simular)` — `SECURITY DEFINER`,
