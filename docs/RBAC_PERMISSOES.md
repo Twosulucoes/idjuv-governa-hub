@@ -139,23 +139,19 @@ não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos 
   Ninguém decide sobre a própria solicitação nem sobre o próprio fechamento (comparação com o
   servidor vinculado ao usuário, `useMeuServidor`). Não há permissão fina
   `rh.frequencia.validar/consolidar` no catálogo.
-- **No banco**, a separação por etapa e a trava de autoaprovação chegam com a B2 (em PR; ver
-  [a subseção da B2](#férias-licenças-viagens-e-frequência-rls-por-permissão-onda-b--b2)). Enquanto ela não
-  for aplicada, a RLS de `solicitacoes_abono`, `frequencia_fechamento` e `config_fechamento_frequencia`
-  libera a escrita a qualquer usuário com o módulo `rh`, e quem tem o módulo aprova o próprio abono pela
-  API. Mesmo com a B2, ficam de fora: chefia **sem** o módulo `rh` (vê a tela, o banco recusa),
-  `permite_reabertura` e restringir `rh.aprovar` à própria equipe.
+- **No banco**, a separação por etapa e a trava de autoaprovação vêm da B2 (mesclada na PR #69; ver
+  [a subseção da B2](#férias-licenças-viagens-e-frequência-rls-por-permissão-onda-b--b2)). Ficam de fora:
+  chefia **sem** o módulo `rh` (vê a tela, o banco recusa), `permite_reabertura` e restringir
+  `rh.aprovar` à própria equipe.
 - `/rh/minha-frequencia` (`MinhaFrequenciaPage`) só exige login, como `/rh/meus-dados`. As queries
   usam o servidor do perfil (`user.servidorId` do `AuthContext`, vindo de `profiles.servidor_id`), a
   mesma chave da RLS (`meu_servidor_id()`). Antes usavam `servidores.user_id`, coluna que nada preenche.
-  A leitura da própria linha em `servidores`, `vinculos_servidor` e `lotacoes` entra com a B2; sem ela
-  aplicada, só quem tem o módulo `rh` lê `servidores`.
+  A leitura da própria linha em `servidores`, `vinculos_servidor` e `lotacoes` vem da B2.
 
 ### Folha: RLS por permissão (Onda B / B1)
 
 Migração `supabase/migrations/20261010070000_onda_b_folha_rls_permissao.sql` (spec
-`docs/superpowers/specs/2026-10-10-onda-b-folha-seguranca-design.md`; em PR, **ainda não aplicada em
-remoto**). A folha pertence ao módulo `rh`: **ler** exige o módulo; **escrever** exige o módulo **e** a
+`docs/superpowers/specs/2026-10-10-onda-b-folha-seguranca-design.md`; mesclada na PR #63). A folha pertence ao módulo `rh`: **ler** exige o módulo; **escrever** exige o módulo **e** a
 permissão granular que o front já usava como gate, conferida no banco por `can_access_module` +
 `has_permission_code` (o papel admin passa pelos dois; o perfil precisa estar ativo; uma permissão avulsa em
 `user_permissions` sem o módulo `rh` não escreve). As policies `acesso_total_*` dessas dez tabelas são
@@ -223,15 +219,18 @@ Também pendentes: RPC de recálculo atômico da ficha e preservação dos itens
 ### Férias, licenças, viagens e frequência: RLS por permissão (Onda B / B2)
 
 Migração `supabase/migrations/20261010090000_onda_b_rh_permissoes.sql` (spec
-`docs/superpowers/specs/2026-10-10-onda-b-rh-permissoes-design.md`; na PR da B2, **ainda não aplicada em
-remoto**). Depende da S0 (`supabase/migrations/20261010080000_s0_identidade_policies.sql`) e da B1: ordem de
-merge S0 → B1 → B2. Sem a S0, no banco só de migrações, qualquer logado troca o próprio
-`profiles.servidor_id` e a leitura da "própria linha" exporia qualquer servidor.
+`docs/superpowers/specs/2026-10-10-onda-b-rh-permissoes-design.md`; mesclada na PR #69 em 2026-10-10), mais
+a correção de contornos `supabase/migrations/20261010100000_onda_b_rh_contornos.sql` (**em PR rascunho**;
+achados da segunda revisão de segurança). Depende da S0
+(`supabase/migrations/20261010080000_s0_identidade_policies.sql`, PR #67) e da B1 (PR #63). Sem a S0, no
+banco só de migrações, qualquer logado trocaria o próprio `profiles.servidor_id` e a leitura da "própria
+linha" exporia qualquer servidor. O que muda com a migração de contornos está marcado como "(contornos)".
 
-Regra geral: **gravar** nas 16 tabelas abaixo exige o módulo `rh` **e** um código do catálogo (nenhum
-código novo). O papel admin passa em tudo. As `acesso_total_*` (e as `rh_module_*`/`vinculos_*` que
-sobravam) são removidas; `anon` perde todo privilégio nas 16 tabelas e `authenticated` perde
-TRUNCATE/TRIGGER/REFERENCES. A migração também tira de PUBLIC, `anon` e `authenticated` o EXECUTE de
+Regra geral: nas 12 tabelas de férias, licenças, viagens, ponto e frequência, **gravar** exige o módulo
+`rh` **e** um código do catálogo (nenhum código novo); `tipos_abono` também, desde os contornos.
+`servidores`, `vinculos_servidor`, `lotacoes` e `cargos` seguem gravados pelo módulo, com as exceções da
+tabela. O papel admin passa em tudo. As `acesso_total_*` (e as `rh_module_*`/`vinculos_*` que sobravam) são
+removidas; `anon` perde todo privilégio nessas tabelas e `authenticated` perde TRUNCATE/TRIGGER/REFERENCES. A migração também tira de PUBLIC, `anon` e `authenticated` o EXECUTE de
 `fn_atualizar_situacao_servidor` (só os triggers a chamam), como o overlay 40.
 
 Posse ("próprio") e a trava "nunca a própria":
@@ -242,7 +241,8 @@ Posse ("próprio") e a trava "nunca a própria":
 - **Nunca a própria** (sufixo `;sem_autoaprovacao`): quem grava pelo caminho da permissão não grava a linha
   que é sua. A conferência usa `eh_meu_servidor(<servidor>)`: verdadeira se o servidor é o do perfil
   (`meu_servidor_id()`) ou, se o perfil não tem vínculo, se os dígitos do CPF do perfil batem com os do
-  servidor (CPF vazio nunca casa). Na posse por usuário, compara com `auth.uid()`. O papel admin passa.
+  servidor, completados com zeros à esquerda até 11 (contornos; CPF vazio nunca casa). Na posse por
+  usuário, compara com `auth.uid()`. O papel admin passa.
 
 | Tabela | Leitura | Gravação (INSERT/UPDATE) | Exclusão |
 |---|---|---|---|
@@ -253,22 +253,32 @@ Posse ("próprio") e a trava "nunca a própria":
 | `banco_horas` | `rh` ou o próprio usuário | `rh` + `rh.frequencia.lancar`, nunca o próprio saldo | igual à gravação |
 | `lancamentos_banco_horas` | `rh` ou os do próprio banco de horas (usuário) | `rh` + `rh.frequencia.lancar`, nunca no próprio banco | igual à gravação |
 | `solicitacoes_abono` | `rh` ou o próprio | o servidor insere o próprio pedido (status e decisão forçados por `forcar_campos_iniciais`); quem decide: `rh` + `rh.aprovar` ou `rh.frequencia.lancar`, nunca a própria; etapas pelo trigger | `rh` + `rh.frequencia.lancar`, nunca a própria |
-| `solicitacoes_ajuste_ponto` | `rh` ou o próprio usuário | o usuário insere o próprio pedido (campos forçados); quem decide: `rh` + `rh.aprovar` ou `rh.frequencia.lancar`, nunca o próprio | `rh` + um dos dois códigos, nunca o próprio |
-| `justificativas_ponto` | `rh` ou as do próprio ponto (posse por `registros_ponto`) | o servidor insere para o próprio ponto; quem decide: `rh` + `rh.aprovar` ou `rh.frequencia.lancar`, nunca sobre o próprio ponto | `rh` + `rh.frequencia.lancar`, nunca sobre o próprio ponto |
+| `solicitacoes_ajuste_ponto` | `rh` ou o próprio usuário | o usuário insere o próprio pedido (campos forçados); quem decide: `rh` + `rh.aprovar` ou `rh.frequencia.lancar`, nunca o próprio; etapas pelo trigger (contornos) | `rh` + `rh.frequencia.lancar`, nunca o próprio (contornos; antes, um dos dois códigos) |
+| `justificativas_ponto` | `rh` ou as do próprio ponto (posse por `registros_ponto`) | o servidor insere para o próprio ponto; quem decide: `rh` + `rh.aprovar` ou `rh.frequencia.lancar`, nunca sobre o próprio ponto; etapas pelo trigger (contornos) | `rh` + `rh.frequencia.lancar`, nunca sobre o próprio ponto |
 | `frequencia_fechamento` | `rh` ou o próprio | `rh` + `rh.aprovar` ou `rh.frequencia.lancar`, nunca a própria; etapas pelo trigger | `rh` + `rh.frequencia.lancar`, nunca a própria |
 | `config_fechamento_frequencia` | `rh` | `rh` + `rh.frequencia.configurar` | idem |
-| `servidores` | `rh` ou a própria linha (`id = meu_servidor_id()`) | módulo `rh` (sem mudança) | `rh` + `rh.servidores.excluir` |
+| `servidores` | `rh` ou a própria linha (`id = meu_servidor_id()`) | módulo `rh`, nunca a própria ficha (contornos) | `rh` + `rh.servidores.excluir`, nunca a própria (contornos) |
 | `vinculos_servidor`, `lotacoes` | `rh` ou os próprios | módulo `rh` | módulo `rh` |
 | `cargos` | qualquer usuário ativo (catálogo, sem dado pessoal) | módulo `rh` | módulo `rh` |
+| `tipos_abono` (contornos) | qualquer usuário ativo (catálogo) | `rh` + `rh.frequencia.configurar` | idem |
 
-Em `solicitacoes_abono` e `frequencia_fechamento` o trigger `validar_etapa_frequencia` (BEFORE INSERT,
-UPDATE e DELETE) separa as etapas. O papel admin, a service role e funções internas passam; a recusa é erro
-`42501` com a etapa na mensagem. "Chefia" abaixo é quem tem `rh.aprovar` sem `rh.frequencia.lancar`.
+`tipos_abono` entrou na lista porque `exige_aprovacao_rh` decide se a chefia encerra o fluxo do abono:
+antes, quem tinha o módulo trocava o tipo, encerrava o fluxo e desfazia. Em `servidores`, sem a trava o RH
+sem vínculo trocava o CPF da própria ficha para escapar de `eh_meu_servidor`.
+
+O trigger `validar_etapa_frequencia` (BEFORE INSERT, UPDATE e DELETE) separa as etapas em
+`solicitacoes_abono` e `frequencia_fechamento` e, desde a migração de contornos, também em
+`justificativas_ponto` e `solicitacoes_ajuste_ponto`. O papel admin, a service role e funções internas
+passam; a recusa é erro `42501` com a etapa na mensagem. "Chefia" abaixo é quem tem `rh.aprovar` sem
+`rh.frequencia.lancar`.
 
 Abono:
 
-- A chefia nunca muda `servidor_id` nem `tipo_abono_id`. Datas, horas, justificativa, `documento_url`,
-  `motivo_rejeicao` e `created_by` ela só muda enquanto o pedido está `pendente`.
+- `created_by` é sempre quem insere (`auth.uid()`, também para quem tem a permissão) e não muda depois
+  (contornos).
+- A chefia nunca muda `servidor_id`, `tipo_abono_id`, datas, horas, justificativa nem `documento_url`,
+  nem com o pedido em `pendente` (contornos: a chefia decide, não edita). `motivo_rejeicao` ela só grava ao
+  rejeitar um pendente; `aprovado_chefia_*`, só junto com a decisão sobre um pendente.
 - A chefia só decide a partir de `pendente`, para `aprovado_chefia`, `rejeitado` ou `aprovado`. O
   `aprovado` vale só com a aprovação da chefia no mesmo comando e quando o tipo de abono da linha (o de
   antes do comando) dispensa o RH (`tipos_abono.exige_aprovacao_rh = false`), como `chefiaEncerraFluxo` no
@@ -285,11 +295,22 @@ Fechamento:
 - Validar (`validado_chefia*`) exige `rh.aprovar`. Desfazer a validação, `consolidado_rh*`, `reaberto*` e
   `justificativa_reabertura` exigem `rh.frequencia.lancar`.
 
-Nas duas tabelas:
+Justificativa e ajuste de ponto (contornos):
+
+- Sem `rh.frequencia.lancar`, o texto do pedido não muda (justificativa: ponto, tipo, descrição, arquivo;
+  ajuste: servidor, ponto, data, tipo, campo, horários, motivo, comprovante).
+- A chefia só decide com `rh.aprovar`, de `pendente` para `aprovada` ou `rejeitada`; `aprovador_id`,
+  `data_aprovacao` e `observacao_aprovador` ela só grava junto com essa decisão. Outras mudanças de status
+  exigem `rh.frequencia.lancar`.
+
+Nas quatro tabelas:
 
 - Excluir exige `rh.frequencia.lancar` (na policy e no trigger).
-- **Autoria pelo banco**: quando o par `<etapa>_por`/`<etapa>_em` muda para um valor não nulo, o trigger
-  grava `_por = auth.uid()` e `_em = now()`. O valor enviado pelo cliente é ignorado.
+- **Autoria pelo banco**: a etapa que acontece no comando grava o seu par (`<etapa>_por`/`<etapa>_em`, ou
+  `aprovador_id`/`data_aprovacao`) com `auth.uid()` e `now()`, mesmo que o cliente não o envie; o valor
+  enviado é ignorado. Enquanto a etapa vale (status ou flag ativos), o par não pode ser apagado
+  (contornos). No abono, ir para `aprovado` grava o par da chefia quando é ela quem encerra o fluxo, e o do
+  RH nos demais casos; a rejeição do abono não tem coluna de autoria.
 - No INSERT a comparação é com a linha vazia: o upsert do front não cria linha já consolidada por quem só
   valida.
 - **Não bloqueado**: o RH (`rh.frequencia.lancar`) aprovar um pendente que exige chefia, pulando a chefia.
@@ -322,10 +343,14 @@ Front:
 - ninguém (exceto o papel admin) decide sobre o próprio pedido ou o próprio fechamento;
 - **ninguém grava a própria linha** pelo caminho da permissão: RH ou gestor que também é servidor não
   lança o próprio ponto, frequência, férias, licença, viagem ou banco de horas; outro colega lança;
-- a chefia (sem `rh.frequencia.lancar`) não mexe mais em abono que já saiu de `pendente` nem em fechamento
-  já consolidado;
-- excluir férias e viagens passa a ser só do papel admin; excluir abono, fechamento e justificativa exige
-  `rh.frequencia.lancar`; excluir servidor exige `rh.servidores.excluir`.
+- a chefia (sem `rh.frequencia.lancar`) só decide: não edita os dados de abono, justificativa ou ajuste
+  (nem pendentes, desde os contornos) e não mexe em fechamento já consolidado;
+- quem tem o módulo `rh` não edita nem exclui a própria ficha em `servidores` (contornos): servidor do RH
+  não altera os próprios dados em `ServidorFormPage`, e as mutações de vínculo que atualizam `servidores`
+  (ativação, situação, cargo e unidade atuais) falham na própria ficha; outro colega altera;
+- só quem tem `rh.frequencia.configurar` grava `tipos_abono` (contornos);
+- excluir férias e viagens passa a ser só do papel admin; excluir abono, fechamento, justificativa e ajuste
+  exige `rh.frequencia.lancar`; excluir servidor exige `rh.servidores.excluir`.
 
 Leitura não diminui: o servidor passa a ler a própria linha em `servidores`, `vinculos_servidor` e
 `lotacoes`, e qualquer usuário ativo lê `cargos`.
@@ -337,10 +362,15 @@ máscara de CID em licenças. **Assinatura do servidor no fechamento**: o trigge
 `assinado_servidor*` ao dono, mas o servidor ainda não assina pela API, porque não há policy de UPDATE para
 o dono da linha (e a assinatura não tem tela).
 
-#### Dimensionamento antes do merge
+Pendente, anterior à B2: quem tem o módulo `rh` muda `servidores.situacao` de outro servidor, e isso
+bloqueia o perfil vinculado (sincronização por situação do servidor).
+
+#### Dimensionamento de quem perde acesso
 
 Para saber quem perde acesso, o administrador pode rodar no banco de produção, numa conexão de
-administrador do banco (`postgres`, que não é barrado pela RLS de `audit_logs`). Só leitura.
+administrador do banco (`postgres`, que não é barrado pela RLS de `audit_logs`). Só leitura. As consultas
+olham os 90 dias anteriores; não cobrem `tipos_abono` nem a trava da própria ficha em `servidores`
+(contornos).
 
 A primeira consulta usa `audit_logs`. Das 16 tabelas, 8 têm o trigger de auditoria
 (`fn_audit_trigger('rh')`, migração `20260214235823`); a consulta olha 7: `ferias_servidor`,
@@ -451,7 +481,10 @@ SELECT tablename, policyname FROM pg_policies
                      'servidores','vinculos_servidor','lotacoes','cargos');
 -- esperado: nenhuma linha
 SELECT tgrelid::regclass, tgname FROM pg_trigger WHERE tgname = 'trg_validar_etapa_frequencia';
--- esperado: solicitacoes_abono e frequencia_fechamento
+-- esperado: solicitacoes_abono e frequencia_fechamento; com os contornos, também justificativas_ponto e
+-- solicitacoes_ajuste_ponto
+SELECT policyname FROM pg_policies WHERE tablename = 'tipos_abono' AND policyname ILIKE 'acesso_total%';
+-- esperado (com os contornos): nenhuma linha
 SELECT has_function_privilege('authenticated', 'public.eh_meu_servidor(uuid)', 'EXECUTE'),  -- true
        has_function_privilege('anon',          'public.eh_meu_servidor(uuid)', 'EXECUTE');  -- false
 ```
