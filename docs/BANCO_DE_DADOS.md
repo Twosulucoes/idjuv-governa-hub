@@ -45,7 +45,7 @@ muda em relação ao estado das migrações:
   PUBLIC e `anon`) (`processar_folha_pagamento` voltou a ser executável por `authenticated` na migração
   `20261010070000`, com guarda `financeiro.folha.processar` no corpo); função nova não nasce executável por
   `anon` nem por PUBLIC.
-- **`anon`** só tem as 6 RPCs públicas (denúncia, dado oficial, árbitros, gestores escolares) e as tabelas de formulário/portal declaradas no mapa (coluna `anon`);
+- **`anon`** só tem as 9 RPCs públicas (denúncia, dado oficial, árbitros, gestores escolares, portal da transparência) e as tabelas de formulário/portal declaradas no mapa (coluna `anon`);
   `authenticated` mantém os privilégios padrão de tabela (menos `TRUNCATE`/`TRIGGER`, e sem escrita em
   `audit_logs`), limitados pela RLS. As exceções são as funções `SECURITY DEFINER` de apoio listadas no teste.
 - **Formulários e pedidos.** Quem não gere o módulo não escolhe `status`, aprovação nem autoria (nos pedidos
@@ -393,6 +393,19 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   `get_subordinados_unidade`, `get_chefe_unidade_atual`.
 - **LAI / transparência**: `calcular_prazo_lai`, `consultar_protocolo_sic`,
   `list_public_tables`.
+- **Portal da Transparência (públicas, `anon` executa)** — migração
+  `supabase/migrations/20261010200000_transparencia_rpcs_publicas.sql` (ainda não aplicada em remoto).
+  `SECURITY DEFINER` + `STABLE`, `search_path` fixo; as tabelas continuam fechadas para `anon`, a função devolve só
+  os campos da tela e aplica a LGPD no servidor:
+  - `transparencia_execucao_orcamentaria()` — totais de `dotacoes_orcamentarias` por exercício (inicial, atual,
+    empenhado, liquidado, pago, quantidade de dotações); nenhuma dotação individual.
+  - `transparencia_licitacoes(p_ano, p_modalidade)` — processo, ano, modalidade, objeto, fase, valor estimado,
+    abertura, unidade requisitante e vencedor PJ (razão social + CNPJ mascarado `8 dígitos****2`). Processos em
+    `planejamento`, `elaboracao` ou `edital` (ou sem fase) não aparecem; o vencedor só aparece em `homologacao`,
+    `adjudicacao`, `contratacao` ou `encerrado`. Vencedor pessoa física nunca é exposto (sem PJ, nome e documento
+    saem `NULL`). `data_homologacao` sai `NULL` (a tabela não tem a coluna).
+  - `transparencia_patrimonio()` — bem (número, descrição, marca, modelo, situação, conservação, valor e data de
+    aquisição), nome/município da unidade local e nome da unidade organizacional; nunca o responsável.
 - **Parâmetros**: `obter_parametro_vigente`, `obter_parametro_simples`,
   `fn_calcular_nivel_parametro`.
 - **Reuniões**: `verificar_conflito_agenda`.

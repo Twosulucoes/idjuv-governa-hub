@@ -21,35 +21,35 @@ const SITUACAO_BEM: Record<string, { label: string; tom: TomStatus }> = {
   baixado: { label: "Baixado", tom: "erro" },
 };
 
+// Linha devolvida pela RPC pública transparencia_patrimonio (fora dos tipos gerados)
+interface BemRpc {
+  id: string;
+  numero_patrimonio: string;
+  descricao: string;
+  marca: string | null;
+  modelo: string | null;
+  situacao: string | null;
+  estado_conservacao: string | null;
+  valor_aquisicao: number | null;
+  data_aquisicao: string | null;
+  unidade_local_nome: string | null;
+  unidade_local_municipio: string | null;
+  unidade_organizacional_nome: string | null;
+}
+
 export default function PatrimonioPublicoPage() {
   const [filtroSituacao, setFiltroSituacao] = useState<string>("todos");
   const { sigla } = useIdentidade();
 
-  // LGPD-Safe: Busca SEM dados de responsável pessoal
+  // RPC pública: o banco devolve só dados do bem e da unidade, nunca o responsável (LGPD no servidor)
   const { data: bens, isLoading, isError, refetch } = useQuery({
     queryKey: ['transparencia-patrimonio'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bens_patrimoniais')
-        .select(`
-          id,
-          numero_patrimonio,
-          descricao,
-          marca,
-          modelo,
-          situacao,
-          estado_conservacao,
-          valor_aquisicao,
-          data_aquisicao,
-          unidades_locais!bens_patrimoniais_unidade_local_id_fkey(nome, municipio),
-          estrutura_organizacional!bens_patrimoniais_unidade_id_fkey(nome)
-        `)
-        .order('numero_patrimonio', { ascending: true });
-      
+      const { data, error } = await supabase.rpc('transparencia_patrimonio' as never);
+
       if (error) throw error;
-      
-      // LGPD-Safe: SEM responsavel_id, responsavel_nome, responsavel_matricula
-      return (data || []).map((item: any) => ({
+
+      return ((data as unknown as BemRpc[] | null) ?? []).map((item) => ({
         id: item.id,
         numero_patrimonio: item.numero_patrimonio,
         descricao: item.descricao,
@@ -60,9 +60,9 @@ export default function PatrimonioPublicoPage() {
         valor_aquisicao: item.valor_aquisicao,
         data_aquisicao: item.data_aquisicao,
         // Apenas dados institucionais
-        localizacao: item.unidades_locais?.nome,
-        municipio: item.unidades_locais?.municipio,
-        unidade_administrativa: item.estrutura_organizacional?.nome
+        localizacao: item.unidade_local_nome,
+        municipio: item.unidade_local_municipio,
+        unidade_administrativa: item.unidade_organizacional_nome
       }));
     }
   });

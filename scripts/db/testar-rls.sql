@@ -829,7 +829,7 @@ BEGIN
 
   -- anon: só as exceções públicas
   SELECT count(*) INTO n FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.prokind IN ('f','p') AND has_function_privilege('anon', p.oid, 'EXECUTE');
-  IF n <> 6 THEN PERFORM pg_temp.falha('anon executa ' || n || ' funções (esperado: 6 RPCs públicas)'); END IF;
+  IF n <> 9 THEN PERFORM pg_temp.falha('anon executa ' || n || ' funções (esperado: 9 RPCs públicas)'); END IF;
   SELECT count(*) INTO n FROM pg_class c WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r','p') AND (has_table_privilege('anon', c.oid, 'SELECT') OR has_table_privilege('anon', c.oid, 'INSERT') OR has_table_privilege('anon', c.oid, 'UPDATE') OR has_table_privilege('anon', c.oid, 'DELETE'));
   IF n <> (SELECT count(*) FROM mapa WHERE anon <> '') THEN PERFORM pg_temp.falha('anon tem privilégio em ' || n || ' tabelas; o mapa declara ' || (SELECT count(*) FROM mapa WHERE anon <> '')); END IF;
   FOR x IN SELECT tabela, anon FROM mapa WHERE anon <> '' LOOP
@@ -1057,6 +1057,8 @@ BEGIN
     -- RPCs públicas (formulários e portal): anon executa
     'arbitro_cpf_cadastrado','obter_protocolo_arbitro','obter_dado_oficial','registrar_denuncia_publica',
     'consultar_gestor_por_cpf','registrar_gestor_publico',
+    -- portal da transparência: só totais/campos públicos, LGPD filtrada no servidor (migração 20261010200000)
+    'transparencia_execucao_orcamentaria','transparencia_licitacoes','transparencia_patrimonio',
     -- só authenticated executa (anon não); incrementa o contador de bloqueio por token errado
     'consultar_protocolo_sic'];
   FOR f IN
