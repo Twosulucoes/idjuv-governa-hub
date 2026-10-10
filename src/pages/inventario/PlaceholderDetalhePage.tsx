@@ -1,13 +1,15 @@
 /**
  * PÁGINA PLACEHOLDER PARA DETALHES
  * Usada quando a página de detalhe ainda não foi implementada
+ * Padrões do design system: PageHeader, EmptyState.
  */
 
 import { Link, useParams, useLocation } from "react-router-dom";
 import { ArrowLeft, Construction } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { EmptyState, PageHeader } from "@/components/design-system";
 
 export default function PlaceholderDetalhePage() {
   const { id } = useParams<{ id: string }>();
@@ -40,48 +42,35 @@ export default function PlaceholderDetalhePage() {
 
   return (
     <ModuleLayout module="patrimonio">
-      <section className="bg-secondary text-secondary-foreground py-6">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center gap-2 text-sm mb-3 opacity-80">
-            <Link to="/inventario" className="hover:underline">Inventário</Link>
-            <span>/</span>
-            <span>{tipo}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Construction className="w-8 h-8" />
-              <div>
-                <h1 className="font-serif text-2xl font-bold">Detalhe - {tipo}</h1>
-                <p className="opacity-90 text-sm font-mono">ID: {id}</p>
-              </div>
-            </div>
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: "Inventário", href: "/inventario" }, { rotulo: tipo }]}
+          titulo={`Detalhe: ${tipo.toLowerCase()}`}
+          descricao={<span className="font-mono">ID: {id}</span>}
+          acoes={
             <Button variant="outline" asChild>
               <Link to={voltar}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
+                <ArrowLeft className="w-4 h-4" aria-hidden="true" />
                 Voltar
               </Link>
             </Button>
-          </div>
-        </div>
-      </section>
+          }
+        />
 
-      <section className="py-12">
-        <div className="container mx-auto px-4">
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Construction className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-              <CardTitle className="mb-2">Página em Construção</CardTitle>
-              <CardDescription className="max-w-md mx-auto">
-                A visualização detalhada de {tipo.toLowerCase()} está sendo desenvolvida. 
-                Em breve você poderá visualizar todas as informações aqui.
-              </CardDescription>
-              <Button asChild className="mt-6">
-                <Link to={voltar}>Voltar para Listagem</Link>
+        <Card>
+          <EmptyState
+            icone={Construction}
+            titulo="Página em construção"
+            descricao={`A visualização detalhada de ${tipo.toLowerCase()} está sendo desenvolvida. Em breve você poderá visualizar todas as informações aqui.`}
+            acao={
+              <Button asChild>
+                <Link to={voltar}>Voltar para a listagem</Link>
               </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+            }
+            className="py-12"
+          />
+        </Card>
+      </div>
     </ModuleLayout>
   );
 }

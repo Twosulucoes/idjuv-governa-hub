@@ -259,7 +259,7 @@ export function NovaRequisicaoDialog({ open, onOpenChange }: NovaRequisicaoDialo
               
               <div className="flex gap-2">
                 <Select value={itemSelecionado} onValueChange={setItemSelecionado}>
-                  <SelectTrigger className="flex-1">
+                  <SelectTrigger className="flex-1" aria-label="Item a adicionar">
                     <SelectValue placeholder="Selecione um item" />
                   </SelectTrigger>
                   <SelectContent>
@@ -275,6 +275,7 @@ export function NovaRequisicaoDialog({ open, onOpenChange }: NovaRequisicaoDialo
                   min={1}
                   className="w-24"
                   placeholder="Qtd"
+                  aria-label="Quantidade"
                   value={quantidadeItem}
                   onChange={e => setQuantidadeItem(parseInt(e.target.value) || 1)}
                 />
@@ -283,8 +284,9 @@ export function NovaRequisicaoDialog({ open, onOpenChange }: NovaRequisicaoDialo
                   variant="secondary" 
                   onClick={adicionarItem}
                   disabled={!itemSelecionado}
+                  aria-label="Adicionar item"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4" aria-hidden="true" />
                 </Button>
               </div>
 
@@ -295,7 +297,7 @@ export function NovaRequisicaoDialog({ open, onOpenChange }: NovaRequisicaoDialo
                       <TableHead>Item</TableHead>
                       <TableHead className="w-24 text-center">Qtd</TableHead>
                       <TableHead className="w-20 text-center">Unid.</TableHead>
-                      <TableHead className="w-12"></TableHead>
+                      <TableHead className="w-12"><span className="sr-only">Ações</span></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -310,8 +312,9 @@ export function NovaRequisicaoDialog({ open, onOpenChange }: NovaRequisicaoDialo
                             variant="ghost"
                             size="icon"
                             onClick={() => removerItem(item.item_id)}
+                            aria-label={`Remover ${item.item_descricao}`}
                           >
-                            <Trash2 className="w-4 h-4 text-destructive" />
+                            <Trash2 className="w-4 h-4 text-destructive" aria-hidden="true" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -356,7 +359,7 @@ export function NovaRequisicaoDialog({ open, onOpenChange }: NovaRequisicaoDialo
                 disabled={createRequisicao.isPending || itensRequisicao.length === 0}
               >
                 {createRequisicao.isPending && (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
                 )}
                 Criar Requisição
               </Button>

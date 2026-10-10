@@ -10,6 +10,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Mail, Lock, ArrowLeft, KeyRound, CheckCircle, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
+import { useToast } from '@/hooks/use-toast';
+import { useIdentidade } from '@/core/tenant';
 
 // ============ SCHEMAS ============
 
@@ -34,6 +36,25 @@ const newPasswordSchema = z.object({
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 60_000;
 
+// ============ LINKS DOS E-MAILS ============
+// Os e-mails do Auth (tenants/<slug>/emails/, docs/EMAILS_AUTH.md) trazem
+// /auth?token_hash=…&type=…; a página valida o token com verifyOtp. Assim o token
+// só é gasto quando a pessoa abre a página, não quando um filtro de e-mail visita o link.
+const TIPOS_LINK = ['signup', 'invite', 'magiclink', 'recovery', 'email_change', 'email'] as const;
+type TipoLink = typeof TIPOS_LINK[number];
+const ehTipoLink = (v: string | null): v is TipoLink => !!v && (TIPOS_LINK as readonly string[]).includes(v);
+const MSG_LINK_INVALIDO = 'Este link é inválido, já foi usado ou expirou. Peça um novo e-mail.';
+
+/** Lido na primeira renderização para não redirecionar quem chega por link de senha. */
+function chegouParaCriarSenha(): boolean {
+  const q = new URLSearchParams(window.location.search);
+  const tipo = q.get('type');
+  const hash = window.location.hash;
+  return q.get('mode') === 'reset'
+    || (!!q.get('token_hash') && (tipo === 'recovery' || tipo === 'invite'))
+    || hash.includes('type=recovery') || hash.includes('type=invite');
+}
+
 // ============ COMPONENTE ============
 
 const AuthPage: React.FC = () => {
@@ -41,13 +62,18 @@ const AuthPage: React.FC = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { signIn, resetPassword, updatePassword, signOut, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const identidade = useIdentidade();
 
   const [tab, setTab] = useState<'login' | 'forgot'>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [isResetMode, setIsResetMode] = useState(false);
+  const [isResetMode, setIsResetMode] = useState(chegouParaCriarSenha);
   const [recoveryReady, setRecoveryReady] = useState(false);
+  const [verificandoLink, setVerificandoLink] = useState(false);
+  // Convite: a pessoa cria a primeira senha (mesma tela da redefinição, outro texto)
+  const [primeiraSenha, setPrimeiraSenha] = useState(() => new URLSearchParams(window.location.search).get('type') === 'invite' || window.location.hash.includes('type=invite'));
 
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -81,34 +107,80 @@ const AuthPage: React.FC = () => {
     return () => clearInterval(id);
   }, [lockoutUntil]);
 
-  // ============ RESET MODE DETECTION ============
+  // ============ LINKS DE E-MAIL (token_hash, erro do GoTrue, recuperação) ============
   useEffect(() => {
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const erroLink = searchParams.get('error_code') || hashParams.get('error_code')
+      || searchParams.get('error') || hashParams.get('error');
+    const tokenHash = searchParams.get('token_hash');
+    const tipo = searchParams.get('type');
     const mode = searchParams.get('mode');
     const code = searchParams.get('code');
     const hash = window.location.hash;
-    const isReset = mode === 'reset' || (hash && (hash.includes('type=recovery') || hash.includes('access_token'))) || !!code;
 
+    // Link expirado/usado: o GoTrue devolve #error_code=otp_expired&…
+    if (erroLink) {
+      setIsResetMode(false);
+      setTab('forgot');
+      setError(MSG_LINK_INVALIDO);
+      navigate('/auth', { replace: true });
+      return;
+    }
+
+    if (tokenHash && ehTipoLink(tipo)) {
+      const criaSenha = tipo === 'recovery' || tipo === 'invite';
+      setIsResetMode(criaSenha);
+      setPrimeiraSenha(tipo === 'invite');
+      setVerificandoLink(true);
+      (async () => {
+        const { error: ex } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: tipo });
+        setVerificandoLink(false);
+        if (ex) {
+          setError(MSG_LINK_INVALIDO);
+          if (!criaSenha) setTab('forgot');
+          navigate(criaSenha ? '/auth?mode=reset' : '/auth', { replace: true });
+          return;
+        }
+        if (criaSenha) {
+          setRecoveryReady(true);
+          navigate('/auth?mode=reset', { replace: true });
+        } else {
+          toast({
+            title: tipo === 'email_change' ? 'E-mail alterado' : tipo === 'magiclink' ? 'Acesso liberado' : 'E-mail confirmado',
+            description: 'Você já está conectado.',
+          });
+          // Com a sessão criada, o redirecionamento de autenticado leva ao sistema
+          navigate('/auth', { replace: true });
+        }
+      })();
+      return;
+    }
+
+    const isReset = mode === 'reset' || (hash && (hash.includes('type=recovery') || hash.includes('type=invite') || hash.includes('access_token'))) || !!code;
     if (!isReset) return;
 
     setIsResetMode(true);
+    setVerificandoLink(true);
 
     (async () => {
       if (code) {
         const { error: ex } = await supabase.auth.exchangeCodeForSession(code);
         if (ex) {
-          setError('Link inválido ou expirado. Solicite um novo email.');
+          setVerificandoLink(false);
+          setError(MSG_LINK_INVALIDO);
           return;
         }
         navigate('/auth?mode=reset', { replace: true });
       }
       const { data } = await supabase.auth.getSession();
+      setVerificandoLink(false);
       if (data.session) {
         setRecoveryReady(true);
       } else {
-        setError('Link inválido ou expirado. Solicite um novo email.');
+        setError(MSG_LINK_INVALIDO);
       }
     })();
-  }, [searchParams, navigate]);
+  }, [searchParams, navigate, toast]);
 
   // ============ AUTO-FOCUS ============
   useEffect(() => {
@@ -213,7 +285,7 @@ const AuthPage: React.FC = () => {
     setIsLoading(false);
 
     if (!error) {
-      setSuccess('Email enviado! Verifique sua caixa de entrada.');
+      setSuccess('Se o e-mail estiver cadastrado, você vai receber um link para criar uma nova senha. Confira também a pasta de spam.');
       setForgotEmail('');
     }
   };
@@ -235,21 +307,22 @@ const AuthPage: React.FC = () => {
     setIsLoading(false);
 
     if (!error) {
-      setSuccess('Senha atualizada! Redirecionando para o login...');
+      setSuccess(primeiraSenha ? 'Senha criada! Agora entre com seu e-mail e a nova senha.' : 'Senha atualizada! Agora entre com a nova senha.');
       // Desloga o usuário após redefinir a senha para evitar redirect automático para /sistema
       setTimeout(async () => {
         await signOut();
         setIsResetMode(false);
+        setPrimeiraSenha(false);
         navigate('/auth', { replace: true });
-      }, 2000);
+      }, 2500);
     }
   };
 
   // ============ SUB-COMPONENTS ============
 
   const PasswordToggle = ({ show, onToggle }: { show: boolean; onToggle: () => void }) => (
-    <button type="button" onClick={onToggle} tabIndex={-1}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+    <button type="button" onClick={onToggle} aria-pressed={show}
+      className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       aria-label={show ? 'Ocultar senha' : 'Mostrar senha'}>
       {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
     </button>
@@ -258,7 +331,7 @@ const AuthPage: React.FC = () => {
   const FieldError = ({ field }: { field: string }) => {
     const msg = fieldErrors[field];
     if (!msg) return null;
-    return <p className="text-xs text-destructive mt-1" role="alert">{msg}</p>;
+    return <p id={`${field}-erro`} className="text-sm text-destructive mt-1" role="alert">{msg}</p>;
   };
 
   // ============ LOADING GLOBAL ============
@@ -281,8 +354,10 @@ const AuthPage: React.FC = () => {
                 <KeyRound className="h-8 w-8 text-primary" />
               </div>
             </div>
-            <h1 className="text-2xl font-bold">Redefinir Senha</h1>
-            <p className="text-muted-foreground text-sm">Digite sua nova senha</p>
+            <h1 className="text-2xl font-bold">{primeiraSenha ? 'Crie sua senha' : 'Redefinir senha'}</h1>
+            <p className="text-muted-foreground text-sm">
+              {primeiraSenha ? `Defina a senha do seu acesso ao Sistema de Gestão ${identidade.nomeCurto}` : 'Digite sua nova senha'}
+            </p>
           </div>
 
           <Card className="shadow-lg">
@@ -300,32 +375,39 @@ const AuthPage: React.FC = () => {
                 </Alert>
               )}
 
-              {!recoveryReady ? (
+              {verificandoLink ? (
+                <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground" role="status" aria-live="polite">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Validando seu link…
+                </div>
+              ) : !recoveryReady ? (
                 <Button className="w-full" onClick={() => { setIsResetMode(false); setTab('forgot'); setError(null); navigate('/auth', { replace: true }); }}>
-                  Solicitar novo email de recuperação
+                  Pedir um novo e-mail
                 </Button>
               ) : (
 
                 <form onSubmit={handleUpdatePassword} className="space-y-4" noValidate>
                   <div className="space-y-2">
-                    <Label htmlFor="new-password">Nova Senha</Label>
+                    <Label htmlFor="new-password">{primeiraSenha ? 'Senha' : 'Nova senha'}</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input ref={newPassRef} id="new-password" type={showNewPassword ? 'text' : 'password'}
-                        placeholder="Mínimo 8 caracteres" className="pl-10 pr-10"
+                        aria-describedby={fieldErrors.newPassword ? 'newPassword-erro' : 'new-password-dica'}
+                        aria-invalid={!!fieldErrors.newPassword} className="pl-10 pr-10"
                         value={newPasswordForm.password} autoComplete="new-password"
                         onChange={e => { setNewPasswordForm(p => ({ ...p, password: e.target.value })); validateField('newPassword', e.target.value); }} />
                       <PasswordToggle show={showNewPassword} onToggle={() => setShowNewPassword(v => !v)} />
                     </div>
+                    {!fieldErrors.newPassword && <p id="new-password-dica" className="text-sm text-muted-foreground">Use pelo menos 8 caracteres.</p>}
                     <FieldError field="newPassword" />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="confirm-password">Confirmar Nova Senha</Label>
+                    <Label htmlFor="confirm-password">Confirme a senha</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input id="confirm-password" type={showConfirmPassword ? 'text' : 'password'}
-                        placeholder="Repita a senha" className="pl-10 pr-10"
+                        aria-describedby={fieldErrors.confirmPassword ? 'confirmPassword-erro' : undefined}
+                        aria-invalid={!!fieldErrors.confirmPassword} className="pl-10 pr-10"
                         value={newPasswordForm.confirmPassword} autoComplete="new-password"
                         onChange={e => { setNewPasswordForm(p => ({ ...p, confirmPassword: e.target.value })); validateField('confirmPassword', e.target.value); }} />
                       <PasswordToggle show={showConfirmPassword} onToggle={() => setShowConfirmPassword(v => !v)} />
@@ -334,7 +416,7 @@ const AuthPage: React.FC = () => {
                   </div>
 
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</> : 'Salvar Nova Senha'}
+                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</> : primeiraSenha ? 'Criar senha' : 'Salvar nova senha'}
                   </Button>
                 </form>
               )}
@@ -358,7 +440,7 @@ const AuthPage: React.FC = () => {
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="text-center space-y-1">
-          <h1 className="text-2xl font-bold text-foreground">IDJUV — Sistema</h1>
+          <h1 className="text-2xl font-bold text-foreground">Sistema de Gestão {identidade.nomeCurto}</h1>
           <p className="text-sm text-muted-foreground">Acesse sua conta para continuar</p>
         </div>
 
@@ -422,6 +504,7 @@ const AuthPage: React.FC = () => {
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input ref={emailRef} id="login-email" type="email" placeholder="seu@email.com"
                         className="pl-10" value={loginForm.email} autoComplete="email" disabled={isLockedOut}
+                        aria-invalid={!!fieldErrors.email} aria-describedby={fieldErrors.email ? 'email-erro' : undefined}
                         onChange={e => { setLoginForm(p => ({ ...p, email: e.target.value })); validateField('email', e.target.value); }}
                         onBlur={e => validateField('email', e.target.value)} required />
                     </div>
@@ -432,7 +515,7 @@ const AuthPage: React.FC = () => {
                     <div className="flex justify-between items-center">
                       <Label htmlFor="login-password">Senha</Label>
                       <button type="button" onClick={() => { setTab('forgot'); setError(null); setFieldErrors({}); }}
-                        className="text-xs text-primary hover:underline focus:outline-none rounded">
+                        className="text-sm text-primary hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                         Esqueci a senha
                       </button>
                     </div>
@@ -440,6 +523,7 @@ const AuthPage: React.FC = () => {
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input id="login-password" type={showPassword ? 'text' : 'password'} placeholder="••••••••"
                         className="pl-10 pr-10" value={loginForm.password} autoComplete="current-password" disabled={isLockedOut}
+                        aria-invalid={!!fieldErrors.password} aria-describedby={fieldErrors.password ? 'password-erro' : undefined}
                         onChange={e => { setLoginForm(p => ({ ...p, password: e.target.value })); validateField('password', e.target.value); }}
                         onBlur={e => validateField('password', e.target.value)} required />
                       <PasswordToggle show={showPassword} onToggle={() => setShowPassword(v => !v)} />

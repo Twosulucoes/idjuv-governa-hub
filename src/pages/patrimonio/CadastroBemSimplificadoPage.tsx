@@ -53,6 +53,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PageHeader } from "@/components/design-system";
 
 import {
   useCadastroBemSimplificado,
@@ -183,29 +184,23 @@ export default function CadastroBemSimplificadoPage() {
   return (
     <ModuleLayout module="patrimonio">
       <div className="space-y-6 max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-              <Link to="/inventario" className="hover:underline">Patrimônio</Link>
-              <span>/</span>
-              <span>Cadastro Simplificado</span>
-            </div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Package className="h-7 w-7 text-primary" />
-              Cadastro de Bem Patrimonial
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Cadastro simplificado com geração automática de tombamento
-            </p>
-          </div>
-          <Link to="/inventario/bens">
-            <Button variant="outline">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
+        <PageHeader
+          migalhas={[
+            { rotulo: "Inventário", href: "/inventario" },
+            { rotulo: "Bens patrimoniais", href: "/inventario/bens" },
+            { rotulo: "Cadastro simplificado" },
+          ]}
+          titulo="Cadastro de bem patrimonial"
+          descricao="Cadastro simplificado com geração automática de tombamento"
+          acoes={
+            <Button variant="outline" asChild>
+              <Link to="/inventario/bens">
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Voltar
+              </Link>
             </Button>
-          </Link>
-        </div>
+          }
+        />
 
         {/* Formulário */}
         <Form {...form}>
@@ -214,7 +209,7 @@ export default function CadastroBemSimplificadoPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <Building2 className="h-5 w-5" />
+                  <Building2 className="h-5 w-5" aria-hidden="true" />
                   Localização
                 </CardTitle>
                 <CardDescription>
@@ -274,7 +269,7 @@ export default function CadastroBemSimplificadoPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <Package className="h-5 w-5" />
+                  <Package className="h-5 w-5" aria-hidden="true" />
                   Identificação do Bem
                 </CardTitle>
               </CardHeader>
@@ -409,7 +404,7 @@ export default function CadastroBemSimplificadoPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <QrCode className="h-5 w-5" />
+                  <QrCode className="h-5 w-5" aria-hidden="true" />
                   Tombamento
                 </CardTitle>
                 <CardDescription>
@@ -469,7 +464,7 @@ export default function CadastroBemSimplificadoPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <FileText className="h-5 w-5" />
+                  <FileText className="h-5 w-5" aria-hidden="true" />
                   Dados de Aquisição
                 </CardTitle>
                 <CardDescription>
@@ -594,12 +589,12 @@ export default function CadastroBemSimplificadoPage() {
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
                     Cadastrando...
                   </>
                 ) : (
                   <>
-                    <Plus className="h-4 w-4 mr-2" />
+                    <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
                     Cadastrar Bem
                   </>
                 )}
@@ -612,8 +607,8 @@ export default function CadastroBemSimplificadoPage() {
         <Dialog open={mostrarSucesso} onOpenChange={setMostrarSucesso}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-green-600">
-                <CheckCircle2 className="h-6 w-6" />
+              <DialogTitle className="flex items-center gap-2 text-success">
+                <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
                 Bem Cadastrado com Sucesso!
               </DialogTitle>
               <DialogDescription>
@@ -638,11 +633,11 @@ export default function CadastroBemSimplificadoPage() {
 
                 <div className="flex gap-3">
                   <Button variant="outline" className="flex-1" onClick={imprimirEtiqueta}>
-                    <Printer className="h-4 w-4 mr-2" />
+                    <Printer className="h-4 w-4 mr-2" aria-hidden="true" />
                     Imprimir Etiqueta
                   </Button>
                   <Button className="flex-1" onClick={handleNovoCadastro}>
-                    <Plus className="h-4 w-4 mr-2" />
+                    <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
                     Novo Cadastro
                   </Button>
                 </div>

@@ -82,6 +82,15 @@ troca cor crua por token (baixando o baseline `corCrua`), adota `PageHeader`/`Da
 `FormSection`, passa no checklist §6. Ordem sugerida: Patrimônio → Governança → Compras →
 Contratos → Financeiro → Folha → RH (depois do PR #35) → Admin → demais.
 
+**Progresso:**
+- **Patrimônio** (inventário, almoxarifado, campanhas, unidades locais e painel): 21 telas com
+  `PageHeader` (um `h1`, migalhas), `DataTable` nas listas, `StatusBadge` com mapa situação→tom
+  (`StatusUnidadeBadge` para unidades), `KpiCard` nos painéis, `EmptyState` nos vazios e "não
+  encontrado", `aria-label` nos botões de ícone. Base ajustada na mesma PR: `cn` conhece a escala
+  tipográfica (`text-h3` e `text-lg` se substituem) e `CardTitle` passou a `text-h3` (antes
+  `text-xl sm:text-2xl`, que vencia qualquer tamanho passado por `className` no desktop).
+  Formulários (corpo do cadastro simplificado e diálogos) ficam para a etapa de formulários.
+
 ## Fase 5 — Portal público e PWA
 
 - Portal: corpo 16px, alvos 44px, skip-link, linguagem simples, contraste AA; serif opcional por

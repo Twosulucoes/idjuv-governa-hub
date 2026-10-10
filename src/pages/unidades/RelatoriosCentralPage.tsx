@@ -25,11 +25,11 @@
    Activity,
  } from 'lucide-react';
  
- import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
  import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
  import { Badge } from '@/components/ui/badge';
  import { Separator } from '@/components/ui/separator';
  
+ import { KpiCard, PageHeader } from '@/components/design-system';
  import { ReportCard } from '@/components/unidades/reports/ReportCard';
  import { ReportFilters, type ReportFiltersState } from '@/components/unidades/reports/ReportFilters';
  
@@ -347,51 +347,26 @@
  
    if (loading) {
      return (
-       <div className="flex items-center justify-center h-96">
-         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+       <div className="flex items-center justify-center h-96" role="status" aria-label="Carregando unidades">
+         <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
        </div>
      );
    }
  
    return (
-     <div className="space-y-6 p-6">
-       {/* Header */}
-       <div className="flex flex-col gap-2">
-         <div className="flex items-center gap-2">
-           <Building2 className="h-6 w-6 text-primary" />
-           <h1 className="text-2xl font-bold">Central de Relatórios</h1>
-         </div>
-         <p className="text-muted-foreground">
-           Gere relatórios institucionais padronizados para unidades locais
-         </p>
-       </div>
+     <div className="space-y-6">
+       <PageHeader
+         migalhas={[{ rotulo: "Unidades locais", href: "/unidades" }, { rotulo: "Central de relatórios" }]}
+         titulo="Central de relatórios"
+         descricao="Gere relatórios institucionais padronizados para unidades locais"
+       />
  
        {/* Estatísticas rápidas */}
        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-         <Card>
-           <CardContent className="p-4">
-             <div className="text-2xl font-bold">{stats.total}</div>
-             <div className="text-sm text-muted-foreground">Unidades no filtro</div>
-           </CardContent>
-         </Card>
-         <Card>
-           <CardContent className="p-4">
-              <div className="text-2xl font-bold text-primary">{stats.ativas}</div>
-             <div className="text-sm text-muted-foreground">Ativas</div>
-           </CardContent>
-         </Card>
-         <Card>
-           <CardContent className="p-4">
-             <div className="text-2xl font-bold">{stats.comChefe}</div>
-             <div className="text-sm text-muted-foreground">Com responsável</div>
-           </CardContent>
-         </Card>
-         <Card>
-           <CardContent className="p-4">
-             <div className="text-2xl font-bold">{stats.comPatrimonio}</div>
-             <div className="text-sm text-muted-foreground">Com patrimônio</div>
-           </CardContent>
-         </Card>
+         <KpiCard rotulo="Unidades no filtro" valor={stats.total} icone={Building2} />
+         <KpiCard rotulo="Ativas" valor={stats.ativas} icone={Activity} />
+         <KpiCard rotulo="Com responsável" valor={stats.comChefe} icone={Users} />
+         <KpiCard rotulo="Com patrimônio" valor={stats.comPatrimonio} icone={Package} />
        </div>
  
        {/* Filtros */}
