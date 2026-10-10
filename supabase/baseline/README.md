@@ -185,9 +185,9 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
   campos que o autor não pode escolher nos formulários.
 
 Último resultado (2026-10-10, onda E1 depois da revisão de segurança e de código, PostgreSQL 16.15): replay de
-**265 migrações com 0 falhas**; `validar-baseline.sh` com `EXIGIR_REPLAY=1` **APROVADO** — RLS com 0 falhas em
+**266 migrações com 0 falhas** (com a main até a PR #80); `validar-baseline.sh` com `EXIGIR_REPLAY=1` **APROVADO** — RLS com 0 falhas em
 4534 checagens de UPDATE/DELETE (235 tabelas), só as 20 tabelas de catálogo com linhas e schema idêntico ao
-replay (43276 linhas). As migrações `20261011000000` e `20261011000100` aplicadas duas vezes no replay, no
+replay (43577 linhas). As migrações `20261011000000` e `20261011000100` aplicadas duas vezes no replay, no
 baseline e no baseline anterior à E1: sem erro e sem trigger, policy ou linha de catálogo a mais. O mesmo teste
 reprova com 225 falhas no baseline da `main` anterior à E1 (prova de vida). Na correção de contornos: 258 migrações,
 schema de 40800 linhas, 54 falhas no baseline da B2 sem os contornos. Antes, na B2: 257 migrações,
