@@ -2578,7 +2578,7 @@ BEGIN
   INSERT INTO public.audit_logs (
     action, entity_type, entity_id, module_name, description, user_id
   ) VALUES (
-    'update', 'folhas_pagamento', p_folha_id, 'folha',
+    'update', 'folhas_pagamento', p_folha_id, 'rh',
     format('Folha %s/%s fechada. Justificativa: %s', v_folha.competencia_mes, v_folha.competencia_ano, COALESCE(p_justificativa, 'Sem justificativa')),
     v_user_id
   );
@@ -6101,6 +6101,10 @@ BEGIN
       RAISE EXCEPTION 'log_audit: no módulo rh a linha não leva antes/depois' USING ERRCODE = '22023';
     END IF;
   END IF;
+  -- linha de arquivo do Storage (entity_type storage.<bucket>) só vem do trigger trilha_storage (E2)
+  IF lower(btrim(coalesce(_entity_type, ''))) LIKE 'storage.%' THEN
+    RAISE EXCEPTION 'log_audit: entity_type storage.* é gravado só pelo banco (trilha do Storage)' USING ERRCODE = '22023';
+  END IF;
   IF length(coalesce(_before_data::text, '')) > 32768 OR length(coalesce(_after_data::text, '')) > 32768
      OR length(coalesce(_metadata::text, '')) > 32768 THEN
     RAISE EXCEPTION 'log_audit: antes, depois e metadados têm limite de 32 KB cada' USING ERRCODE = '22023';
@@ -6108,7 +6112,7 @@ BEGIN
   _meta := CASE WHEN _metadata IS NULL THEN '{}'::jsonb
                 WHEN jsonb_typeof(_metadata) = 'object' THEN _metadata
                 ELSE jsonb_build_object('valor', _metadata) END;
-  _meta := (_meta - ARRAY['trigger', 'operation', 'table', 'registrar_evento', 'fonte'])
+  _meta := (_meta - ARRAY['trigger', 'operation', 'table', 'registrar_evento', 'fonte', 'servidor_alvo_id'])
            || jsonb_build_object('fonte', 'log_audit');
 
   SELECT role INTO _user_role 
@@ -6988,7 +6992,7 @@ BEGIN
   INSERT INTO public.audit_logs (
     action, entity_type, entity_id, module_name, description, user_id
   ) VALUES (
-    'update', 'folhas_pagamento', p_folha_id, 'folha',
+    'update', 'folhas_pagamento', p_folha_id, 'rh',
     format('Folha %s/%s REABERTA por super_admin. Justificativa: %s', v_folha.competencia_mes, v_folha.competencia_ano, p_justificativa),
     v_user_id
   );
@@ -7119,7 +7123,7 @@ BEGIN
 
   INSERT INTO public.audit_logs (action, entity_type, entity_id, module_name, user_id, description, metadata)
   VALUES (p_acao::public.audit_action, p_entidade, p_entidade_id, 'rh', v_uid, left(p_descricao, 500),
-          (coalesce(p_metadados, '{}'::jsonb) - ARRAY['trigger', 'operation', 'table', 'fonte'])
+          (coalesce(p_metadados, '{}'::jsonb) - ARRAY['trigger', 'operation', 'table', 'fonte', 'servidor_alvo_id'])
             || jsonb_build_object('registrar_evento', true, 'fonte', 'registrar_evento'))
   RETURNING id INTO v_id;
   RETURN v_id;
@@ -8279,7 +8283,8 @@ BEGIN
       'objeto_id', v_id)
     || jsonb_strip_nulls(jsonb_build_object(
       'tamanho', CASE WHEN v_tamanho ~ '^[0-9]{1,18}$' THEN v_tamanho::bigint END,
-      'tipo_conteudo', left(v_obj -> 'metadata' ->> 'mimetype', 100),
+      'tipo_conteudo', CASE WHEN lower(v_obj -> 'metadata' ->> 'mimetype') ~ '^[a-z0-9.+-]{1,50}/[a-z0-9.+-]{1,50}$'
+                            THEN lower(v_obj -> 'metadata' ->> 'mimetype') END,
       'operacao_storage', left(nullif(current_setting('storage.operation', true), ''), 60),
       'servidor_alvo_id', v_alvo));
   IF TG_OP = 'UPDATE' AND ('bucket_id' = ANY (v_campos) OR 'name' = ANY (v_campos)) THEN
@@ -8323,6 +8328,7 @@ CREATE FUNCTION public.trilha_storage_chave(p_bucket text, p_nome text) RETURNS 
     AS $_$
 DECLARE
   u constant text := '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
+  ext constant text := '(pdf|png|jpe?g|webp|zip|docx?|odt|xlsx?|csv)';
   v jsonb;
 BEGIN
   v := jsonb_build_object('bucket', p_bucket);
@@ -8330,14 +8336,14 @@ BEGIN
     RETURN v || jsonb_build_object('caminho', NULL);
   END IF;
   v := v || jsonb_build_object(
-    'caminho', CASE WHEN p_nome ~ ('^((' || u || '|[0-9]{4}-[0-9]{2})/)*' || u || '(\.[A-Za-z0-9]{1,10})?$')
+    'caminho', CASE WHEN p_nome ~* ('^((' || u || '|[0-9]{4}-[0-9]{2})/)*' || u || '(\.' || ext || ')?$')
                     THEN p_nome END,
     'caminho_sha256', encode(sha256(convert_to(p_nome, 'UTF8')), 'hex'));
   IF p_nome ~ '^[0-9]{4}-[0-9]{2}/' THEN
     v := v || jsonb_build_object('periodo', left(p_nome, 7));
   END IF;
-  IF p_nome ~ '\.[A-Za-z0-9]{1,10}$' THEN
-    v := v || jsonb_build_object('extensao', lower(substring(p_nome FROM '\.([A-Za-z0-9]{1,10})$')));
+  IF p_nome ~* ('\.' || ext || '$') THEN
+    v := v || jsonb_build_object('extensao', lower(substring(p_nome FROM ('(?i)\.' || ext || '$'))));
   END IF;
   RETURN v;
 END;
@@ -8348,7 +8354,7 @@ $_$;
 -- Name: FUNCTION trilha_storage_chave(p_bucket text, p_nome text); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.trilha_storage_chave(p_bucket text, p_nome text) IS 'Chave de um objeto do Storage para a trilha: bucket, caminho só quando é feito de uuid/AAAA-MM, sha256 do caminho, período e extensão';
+COMMENT ON FUNCTION public.trilha_storage_chave(p_bucket text, p_nome text) IS 'Chave de um objeto do Storage para a trilha: bucket, caminho só quando é feito de uuid/AAAA-MM com extensão da lista fechada, sha256 do caminho, período e extensão';
 
 
 --
@@ -9431,6 +9437,19 @@ CREATE TABLE public.audit_logs (
     origem text,
     transacao bigint,
     sequencia bigint NOT NULL,
+    alvos text[] GENERATED ALWAYS AS (array_remove(ARRAY[
+CASE
+    WHEN ((entity_type)::text = 'servidores'::text) THEN ('s:'::text || (entity_id)::text)
+    ELSE NULL::text
+END, ('s:'::text || (after_data ->> 'servidor_id'::text)), ('s:'::text || (before_data ->> 'servidor_id'::text)), ('s:'::text || (metadata ->> 'servidor_id'::text)),
+CASE
+    WHEN ((metadata ->> 'fonte'::text) = 'storage'::text) THEN ('s:'::text || (metadata ->> 'servidor_alvo_id'::text))
+    ELSE NULL::text
+END,
+CASE
+    WHEN ((entity_type)::text = 'folhas_pagamento'::text) THEN ('f:'::text || (entity_id)::text)
+    ELSE NULL::text
+END, ('f:'::text || (after_data ->> 'folha_id'::text)), ('f:'::text || (before_data ->> 'folha_id'::text)), ('f:'::text || (metadata ->> 'folha_id'::text))], NULL::text)) STORED,
     CONSTRAINT audit_logs_origem_check CHECK (((origem IS NULL) OR (origem = ANY (ARRAY['usuario'::text, 'usuario_sem_vinculo'::text, 'sistema'::text, 'anonimo'::text]))))
 );
 
@@ -9470,6 +9489,13 @@ COMMENT ON COLUMN public.audit_logs.transacao IS 'txid_current() do registro: ag
 --
 
 COMMENT ON COLUMN public.audit_logs.sequencia IS 'Ordem de gravação na trilha (identity; desempata o "timestamp", que é o da transação)';
+
+
+--
+-- Name: COLUMN audit_logs.alvos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.audit_logs.alvos IS 'Recorte da aba de histórico (gerada): s:<servidor_id> e f:<folha_id> citados pela linha; filtro alvos @> ARRAY[''s:<id>'']';
 
 
 --

@@ -2794,7 +2794,7 @@ END $$;
 
 -- ---------------------------------------------------------------- RH: consulta e trilha do Storage (Onda E2) (TRIGGERS LIGADOS)
 -- Migração 20261011000200_rh_trilha_consulta.sql (spec docs/superpowers/specs/2026-10-10-rh-trilha-tela-design.md):
---   * índices de audit_logs da tela (entidade+sequencia, servidor+sequencia, módulo+tempo, usuário+tempo) e os três
+--   * índices de audit_logs da tela (entidade, servidor, módulo e usuário, todos + sequencia) e os três
 --     antigos que viraram prefixo removidos;
 --   * trilha do Storage: gravar ('upload'), trocar/mover ('update') e apagar ('delete') objeto em frequencias e
 --     documentos-requerimento grava linha em audit_logs (módulo rh, entity_type storage.<bucket>, entity_id = id do
@@ -2844,7 +2844,7 @@ BEGIN
       PERFORM pg_temp.falha('E2 storage: falta trilha_rh_storage_' || split_part(f, ':', 1) || ' (AFTER por linha, trilha_storage(''rh''), ligado, WHEN nos dois buckets)');
     END IF;
   END LOOP;
-  FOREACH f IN ARRAY ARRAY['idx_audit_logs_entidade_seq', 'idx_audit_logs_servidor_seq', 'idx_audit_logs_modulo_tempo', 'idx_audit_logs_usuario_tempo'] LOOP
+  FOREACH f IN ARRAY ARRAY['idx_audit_logs_entidade_seq', 'idx_audit_logs_servidor_seq', 'idx_audit_logs_modulo_seq', 'idx_audit_logs_usuario_seq'] LOOP
     IF to_regclass('public.' || f) IS NULL THEN PERFORM pg_temp.falha('E2 índices: falta ' || f); END IF;
   END LOOP;
   FOREACH f IN ARRAY ARRAY['idx_audit_logs_entity', 'idx_audit_logs_module', 'idx_audit_logs_user'] LOOP
@@ -2953,6 +2953,83 @@ BEGIN
   r := pg_temp.valor_desfeito_como(u_rh, 'authenticated', 'SELECT count(*)::text FROM public.audit_logs WHERE entity_type LIKE ''storage.%''');
   IF r IS DISTINCT FROM n::text THEN PERFORM pg_temp.falha('E2 storage: com rh.auditoria.visualizar não lê as ' || n || ' linhas dos arquivos (' || r || ')'); END IF;
   UPDATE public.user_modules SET permissions = NULL WHERE user_id = u_rh AND module = 'rh';
+
+  -- ===== revisão de segurança: extensão de lista fechada (M1) e tipo de conteúdo só tipo/subtipo (M2)
+  IF to_regprocedure('public.trilha_storage_chave(text,text)') IS NOT NULL THEN
+    EXECUTE format('SELECT public.trilha_storage_chave(''documentos-requerimento'', %L)', sb || '/' || doc || '.MariaSouza') INTO j;
+    IF jsonb_typeof(j -> 'caminho') IS DISTINCT FROM 'null' OR j ? 'extensao' OR j::text LIKE '%MariaSouza%' THEN
+      PERFORM pg_temp.falha('E2 storage: sufixo livre (.MariaSouza) sai em claro na chave (' || left(j::text, 160) || ')');
+    END IF;
+    EXECUTE format('SELECT public.trilha_storage_chave(''documentos-requerimento'', %L)', sb || '/' || doc || '.PDF') INTO j;
+    IF j ->> 'caminho' IS DISTINCT FROM sb || '/' || doc || '.PDF' OR j ->> 'extensao' IS DISTINCT FROM 'pdf' THEN
+      PERFORM pg_temp.falha('E2 storage: caminho de uuid com extensão da lista (.PDF) não sai em claro (' || left(j::text, 160) || ')');
+    END IF;
+  END IF;
+  r := pg_temp.exec_como(u_ed, 'authenticated', format(
+         'INSERT INTO storage.objects (id, bucket_id, name, metadata) VALUES (%L, ''documentos-requerimento'', %L, %L)',
+         'e2000000-0000-0000-0000-000000000006', sb || '/' || doc || '-2.pdf', '{"mimetype": "text/html; charset=<b>Fulano</b>"}'));
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_id = 'e2000000-0000-0000-0000-000000000006' AND a.action = 'upload';
+  IF r <> 'ok' OR j IS NULL OR j -> 'metadata' ? 'tipo_conteudo' THEN
+    PERFORM pg_temp.falha('E2 storage: Content-Type livre do cliente gravado como tipo_conteudo (' || r || ', ' || coalesce(left((j -> 'metadata')::text, 160), 'nada') || ')');
+  END IF;
+
+  -- ===== M4: o cliente não forja linha de arquivo nem o servidor dono do arquivo
+  r := pg_temp.valor_como(u_rh, 'authenticated', 'SELECT public.log_audit(''view''::public.audit_action, ''storage.frequencias'', NULL, ''rh'')::text');
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('E2 log_audit: aceita entity_type storage.* (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_como(u_rh, 'authenticated', 'SELECT public.log_audit(''view''::public.audit_action, '' Storage.x'', NULL, ''admin'')::text');
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('E2 log_audit: aceita entity_type Storage.* com caixa/espaço (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_como(u_rh, 'authenticated', format(
+         'SELECT public.log_audit(''view''::public.audit_action, ''contracheque'', NULL, ''rh'', NULL, NULL, ''e2'', %L)::text',
+         jsonb_build_object('servidor_alvo_id', sa, 'fonte', 'storage')));
+  IF r IS NULL OR r LIKE 'erro:%' OR (SELECT metadata ? 'servidor_alvo_id' OR metadata ->> 'fonte' IS DISTINCT FROM 'log_audit' FROM public.audit_logs WHERE id::text = r) IS NOT FALSE THEN
+    PERFORM pg_temp.falha('E2 log_audit: servidor_alvo_id/fonte do cliente gravados (' || coalesce(r, 'nulo') || ')');
+  END IF;
+  r := pg_temp.valor_como(u_rh, 'authenticated', format(
+         'SELECT public.registrar_evento(''view'', ''servidores'', %L, ''e2'', %L)::text', sa, jsonb_build_object('servidor_alvo_id', sb, 'fonte', 'storage')));
+  IF r IS NULL OR r LIKE 'erro:%' OR (SELECT metadata ? 'servidor_alvo_id' OR metadata ->> 'fonte' IS DISTINCT FROM 'registrar_evento' FROM public.audit_logs WHERE id::text = r) IS NOT FALSE THEN
+    PERFORM pg_temp.falha('E2 registrar_evento: servidor_alvo_id/fonte do cliente gravados (' || coalesce(r, 'nulo') || ')');
+  END IF;
+
+  -- ===== alvos (migração 20261011000300): coluna gerada com GIN; s:<servidor> e f:<folha> nas linhas do recorte
+  IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.audit_logs'::regclass AND attname = 'alvos' AND attgenerated = 's' AND NOT attisdropped) THEN
+    PERFORM pg_temp.falha('E2 alvos: audit_logs.alvos (coluna gerada STORED) não existe');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid JOIN pg_am am ON am.oid = c.relam
+                  WHERE i.indrelid = 'public.audit_logs'::regclass AND am.amname = 'gin' AND i.indpred IS NULL
+                    AND pg_get_indexdef(i.indexrelid) LIKE '%(alvos)') THEN
+    PERFORM pg_temp.falha('E2 alvos: falta o índice GIN (sem WHERE) em audit_logs.alvos');
+  END IF;
+  FOR x IN SELECT * FROM (VALUES
+      ('upload em documentos-requerimento (servidor_alvo_id da trilha do Storage)', 'storage.documentos-requerimento', o3::text, 's:' || sb),
+      ('UPDATE de servidores (entity_id)', 'servidores', sb::text, 's:' || sb),
+      ('licença do servidor (after_data.servidor_id)', 'licencas_afastamentos', NULL, 's:' || sb)) AS v(caso, tipo, ent, token) LOOP
+    IF NOT EXISTS (SELECT 1 FROM public.audit_logs a WHERE a.entity_type = x.tipo AND (x.ent IS NULL OR a.entity_id::text = x.ent)
+                      AND coalesce((to_jsonb(a) -> 'alvos') ? x.token, false)) THEN
+      PERFORM pg_temp.falha('E2 alvos: ' || x.caso || ' sem ' || x.token);
+    END IF;
+  END LOOP;
+  -- servidor_alvo_id só conta na linha da trilha do Storage (metadata.fonte = storage); servidor alheio não entra
+  IF EXISTS (SELECT 1 FROM public.audit_logs a WHERE a.metadata ->> 'fonte' IS DISTINCT FROM 'storage' AND a.metadata ? 'servidor_alvo_id'
+                AND coalesce((to_jsonb(a) -> 'alvos') ? ('s:' || (a.metadata ->> 'servidor_alvo_id')), false)
+                AND NOT coalesce((to_jsonb(a) -> 'alvos') ? ('s:' || (a.after_data ->> 'servidor_id')), false)) THEN
+    PERFORM pg_temp.falha('E2 alvos: servidor_alvo_id fora da trilha do Storage entrou no recorte');
+  END IF;
+  -- a consulta da aba (alvos @> ARRAY[s:<id>]) acha a licença e o arquivo do servidor B
+  SELECT count(*) INTO n FROM public.audit_logs a WHERE a.module_name = 'rh' AND (to_jsonb(a) -> 'alvos') @> to_jsonb(ARRAY['s:' || sb]);
+  IF n < 3 THEN PERFORM pg_temp.falha('E2 alvos: o recorte do servidor B acha só ' || n || ' linha(s)'); END IF;
+
+  -- ===== fechar_folha / reabrir_folha gravam no módulo rh (bloco da 2ª revisão: folha 7/2031)
+  IF (SELECT string_agg(DISTINCT a.module_name, ',') FROM public.audit_logs a
+       WHERE a.entity_type = 'folhas_pagamento' AND (a.description LIKE 'Folha 7/2031 fechada%' OR a.description LIKE 'Folha 7/2031 REABERTA%')) IS DISTINCT FROM 'rh' THEN
+    PERFORM pg_temp.falha('E2 folha: fechar_folha/reabrir_folha não gravam no módulo rh');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.audit_logs a WHERE a.entity_type = 'folhas_pagamento' AND a.description LIKE 'Folha 7/2031 fechada%'
+                    AND coalesce((to_jsonb(a) -> 'alvos') ? ('f:' || a.entity_id::text), false)) THEN
+    PERFORM pg_temp.falha('E2 alvos: o fechamento da folha não entra no recorte f:<folha>');
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.audit_logs WHERE module_name = 'folha') THEN
+    PERFORM pg_temp.falha('E2 folha: ainda há linha nova com module_name folha');
+  END IF;
 
   r := pg_temp.exec_como(u_admin, 'authenticated', format('UPDATE public.profiles SET servidor_id = NULL WHERE id = %L', u_fl));
   PERFORM pg_temp.nota('E2 (trilha do Storage do RH e índices da consulta): upload, troca, mover, exclusão, sem dado pessoal do caminho, origem sistema e leitura verificados');

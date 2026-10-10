@@ -42,7 +42,7 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 | 4 | `overlay/10_funcoes_acesso.sql` | `is_admin_user`, `is_admin_atual`, `has_permission_code`, `meu_servidor_id` exigem perfil **ativo**; fim dos stubs “acesso total”; alias `usuario_eh_admin`; `eh_meu_servidor(uuid)` (B2: "este servidor é o do usuário?", por vínculo ou, sem vínculo, por CPF); `eh_meu_arquivo_frequencia(text)` e `eh_minha_pasta_servidor(text)` (B3: o objeto do storage é do servidor do usuário?) | à mão |
 | 5 | `overlay/12_protecao_profiles.sql` | trigger: quem não é admin não muda `is_active`, `servidor_id`, bloqueio, tipo, CPF, e-mail; policies de `profiles` sem duplicatas | à mão |
 | 6 | `overlay/15_novo_usuario.sql` | `handle_new_user` (antes quebrava o cadastro) + trigger em `auth.users` | à mão |
-| 7 | `overlay/18_funcoes_rpc.sql` | `fn_gerar_numero_financeiro` com lista fechada (injeção de SQL); RPCs de leitura com dado pessoal viram `SECURITY INVOKER`; `obter_parametro_*` não vazam valor individual; `sync_usuario_servidor_status` não reativa administrador; trigger de fechamento de folha; correção da auditoria de folha/parâmetros (`entity_id` uuid); `log_audit` recusa usuário inativo e, desde a E1, não forja a trilha do RH (mesmo texto da migração `20261011000000`); `registrar_transicao_folha` grava `fechado_por`/`conferido_por` pelo banco (E1, mesmo texto da migração `20261011000000`) | à mão |
+| 7 | `overlay/18_funcoes_rpc.sql` | `fn_gerar_numero_financeiro` com lista fechada (injeção de SQL); RPCs de leitura com dado pessoal viram `SECURITY INVOKER`; `obter_parametro_*` não vazam valor individual; `sync_usuario_servidor_status` não reativa administrador; trigger de fechamento de folha; correção da auditoria de folha/parâmetros (`entity_id` uuid); `log_audit` recusa usuário inativo e, desde a E1, não forja a trilha do RH (mesmo texto da migração `20261011000000`; desde a E2, `20261011000200`, também recusa `entity_type` `storage.*` e tira `servidor_alvo_id` dos metadados); `fechar_folha`/`reabrir_folha` gravam no módulo `rh` desde a E2 (`20261011000300`); `registrar_transicao_folha` grava `fechado_por`/`conferido_por` pelo banco (E1, mesmo texto da migração `20261011000000`) | à mão |
 | 8 | `overlay/20_campos_iniciais.sql` | triggers: formulários públicos e pedidos do servidor não escolhem `status`, aprovação, autoria (nos pedidos do RH a isenção é por permissão, formato `perm:`, e nunca no próprio pedido); links do formulário de árbitros só do próprio bucket | à mão |
 | 9 | `overlay/30_remover_acesso_total.sql` | apaga as policies `acesso_total_*` e a tabela morta `_backup_usuario_modulos_old` | à mão |
 | 10 | `rls/35_policies_geradas.sql` | policies por módulo, **falha fechada** | **gerado** de `rls/mapa.csv` |
@@ -183,6 +183,9 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
   user agent); só carimbo não grava; outro bucket e gravação negada pela RLS não gravam; service role vira origem
   `sistema`; caminho com nome do servidor só pelo hash, caminho de uuid em claro, servidor dono do arquivo; nada de
   nome, `user_metadata` nem antes/depois na trilha; leitura só com `rh.auditoria.visualizar`; função fora da API;
+  extensão de lista fechada e Content-Type só `tipo/subtipo`; `log_audit` recusa `storage.*` e as duas RPCs tiram
+  `servidor_alvo_id`/`fonte` do cliente; coluna `alvos` (GIN) com `s:`/`f:` nas linhas do recorte; `fechar_folha` e
+  `reabrir_folha` no módulo `rh`;
 - inventário de campo: `fotos_vistoria_inventario` (INSERT só em nome próprio, UPDATE só do autor ou com
   `patrimonio.tramitar`, DELETE só com `patrimonio.tramitar`, campos de prova imutáveis), no bloco de
   cobertura adicional de `testar-rls.sql`;
@@ -190,12 +193,12 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
 - RPCs: injeção de SQL, `SECURITY DEFINER` sem checagem fora de lista revisada, privilégios padrão,
   campos que o autor não pode escolher nos formulários.
 
-Último resultado (2026-10-10, onda E2, migração `20261011000200`, PostgreSQL 16.15): replay de **267 migrações com 0
-falhas**; `validar-baseline.sh` com `EXIGIR_REPLAY=1` **APROVADO** — RLS com 0 falhas em 4534 checagens de UPDATE/DELETE
-(235 tabelas), schema idêntico ao replay (43742 linhas) e triggers de `storage.objects` idênticos. A migração aplicada
-duas vezes no replay, no baseline novo e no baseline anterior à E2: sem erro e sem índice, trigger, policy ou função a
-mais; o teste passa com 0 falhas no baseline anterior com a migração aplicada e reprova com 20 falhas sem ela (prova
-de vida). Antes, na E1 depois da revisão de segurança e de código: replay de
+Último resultado (2026-10-10, onda E2, migrações `20261011000200` e `20261011000300`, PostgreSQL 16.15): replay de
+**268 migrações com 0 falhas**; `validar-baseline.sh` com `EXIGIR_REPLAY=1` **APROVADO** — RLS com 0 falhas em 4534
+checagens de UPDATE/DELETE (235 tabelas), schema idêntico ao replay (43775 linhas) e triggers de `storage.objects`
+idênticos. As duas migrações aplicadas duas vezes no replay, no baseline novo e no baseline anterior à E2: sem erro e
+sem índice, trigger, policy, função ou coluna a mais; o teste passa com 0 falhas no baseline anterior com as migrações
+aplicadas e reprova com 34 falhas sem elas (prova de vida). Antes, na E1 depois da revisão de segurança e de código: replay de
 **266 migrações com 0 falhas** (com a main até a PR #80); `validar-baseline.sh` com `EXIGIR_REPLAY=1` **APROVADO** — RLS com 0 falhas em
 4534 checagens de UPDATE/DELETE (235 tabelas), só as 20 tabelas de catálogo com linhas e schema idêntico ao
 replay (43577 linhas). As migrações `20261011000000` e `20261011000100` aplicadas duas vezes no replay, no
@@ -317,10 +320,11 @@ Limites conhecidos:
   `SET LOCAL trilha.expurgo = 'autorizado'`; as FKs de autoria para `auth.users` que já existiam (quase todas sem
   `ON DELETE`) passam a barrar a exclusão de quem lançou algo, agora que o banco sempre grava o autor
   (`delete-user` deve passar a desativar).
-- **Migração `20261011000200` (E2, em PR rascunho) × overlays.** Os índices de `audit_logs` e as funções
-  `trilha_storage`/`trilha_storage_chave` chegam pelo replay em `schema/`; os triggers `trilha_rh_storage_*` em
-  `storage.objects` estão no overlay `50` (o dump só leva `public`) e o REVOKE das funções no overlay `40`, com o mesmo
-  texto da migração. Limitação: sem o privilégio `TRIGGER` em `storage.objects` no banco de destino, a migração emite
+- **Migrações `20261011000200` e `20261011000300` (E2, em PR rascunho) × overlays.** Os índices de `audit_logs`, a
+  coluna gerada `alvos`, `registrar_evento` e as funções `trilha_storage`/`trilha_storage_chave` chegam pelo replay em
+  `schema/`; os triggers `trilha_rh_storage_*` em `storage.objects` estão no overlay `50` (o dump só leva `public`), o
+  REVOKE das funções no overlay `40` e `log_audit`, `fechar_folha` e `reabrir_folha` no overlay `18` (que sobrescreve o
+  schema), com o mesmo texto das migrações. Limitação: sem o privilégio `TRIGGER` em `storage.objects` no banco de destino, a migração emite
   `WARNING` e os arquivos ficam sem trilha (consulta pós-deploy em
   [`docs/BANCO_DE_DADOS.md`](../../docs/BANCO_DE_DADOS.md#consulta-da-trilha-e-arquivos-do-rh-no-storage--onda-e2-banco)).
 - **`servidores.situacao`** (anterior à B2): quem tem o módulo `rh` muda a situação de outro servidor, e isso

@@ -364,67 +364,122 @@ levantamento em [`planejamento/REVISAO_RH.md`](./planejamento/REVISAO_RH.md) §3
 
 ### Consulta da trilha e arquivos do RH no Storage — Onda E2 (banco)
 
-Migração `supabase/migrations/20261011000200_rh_trilha_consulta.sql`, **em PR rascunho** (sai da E1, PR #82).
-Idempotente, vale para o banco do baseline e para o só-migrações; spec
-[`2026-10-10-rh-trilha-tela-design.md`](./superpowers/specs/2026-10-10-rh-trilha-tela-design.md) (item 1). A tela, o
-hook e as chamadas a `registrar_evento` são do front (mesma spec).
+Migrações `supabase/migrations/20261011000200_rh_trilha_consulta.sql` (índices, trilha do Storage, `log_audit` e
+`registrar_evento`) e `supabase/migrations/20261011000300_rh_trilha_alvos_folha.sql` (coluna `alvos` e folha no
+módulo `rh`), **em PR rascunho** (saem da E1, PR #82). Idempotentes, valem para o banco do baseline e para o
+só-migrações; spec [`2026-10-10-rh-trilha-tela-design.md`](./superpowers/specs/2026-10-10-rh-trilha-tela-design.md)
+(item 1). A tela, o hook e as chamadas a `registrar_evento` são do front (mesma spec).
 
-- **Índices de `audit_logs`** para as consultas da tela, criados só se não houver um equivalente (btree válido, sem
-  `WHERE`, mesmas colunas na mesma ordem, qualquer nome e direção):
-  `idx_audit_logs_entidade_seq (entity_type, entity_id, sequencia DESC)` (histórico de um registro),
-  `idx_audit_logs_servidor_seq (servidor_id, sequencia DESC)` (o que um servidor lançou),
-  `idx_audit_logs_modulo_tempo (module_name, "timestamp" DESC, sequencia DESC)` e
-  `idx_audit_logs_usuario_tempo (user_id, "timestamp" DESC, sequencia DESC)` (módulo ou usuário num período). Saem os
-  três que viraram prefixo deles (`idx_audit_logs_entity`, `idx_audit_logs_module`, `idx_audit_logs_user`), só depois
-  de o substituto existir: toda linha da trilha atualiza todos os índices (ficam 8, eram 7). `user_id` continua
-  coberto para a FK de `auth.users`. **Ordene por `sequencia DESC` puro** (PostgREST: `order=sequencia.desc`, sem
-  `nullsfirst`/`nullslast` e sem desempate por `timestamp`): a coluna é `NOT NULL` e única (identity), e
-  `sequencia DESC NULLS LAST` (o `nullsFirst: false` do supabase-js) não casa com nenhum índice e força sort da tabela
-  inteira. Medição local (Postgres 16, 300 mil linhas sintéticas, `LIMIT 50`): com `sequencia DESC`, lista geral,
-  por registro, por servidor e por módulo + período em 0,04–0,11 ms pelos índices; com `NULLS LAST` e desempate por
-  `timestamp`, 1,6 ms por servidor e 32–46 ms na lista geral e por módulo (sort em paralelo da tabela, cresce com
-  ela).
+- **Índices de `audit_logs`**, todos na ordem da tela (`sequencia DESC`, paginação por cursor
+  `sequencia < último visto`), criados só se não houver um equivalente (btree válido, sem `WHERE`, mesmas colunas
+  na mesma ordem, qualquer nome e direção): `idx_audit_logs_entidade_seq (entity_type, entity_id, sequencia DESC)`
+  (histórico de um registro), `idx_audit_logs_servidor_seq (servidor_id, sequencia DESC)` (o que um servidor
+  lançou), `idx_audit_logs_modulo_seq (module_name, sequencia DESC)` (`/rh/auditoria`) e
+  `idx_audit_logs_usuario_seq (user_id, sequencia DESC)`; mais o GIN `idx_audit_logs_alvos` (abaixo). Saem os três
+  que viraram prefixo deles (`idx_audit_logs_entity`, `idx_audit_logs_module`, `idx_audit_logs_user`), só depois de
+  o substituto existir: toda linha da trilha atualiza todos os índices (ficam 9). `user_id` continua coberto para a
+  FK de `auth.users`. O período (`"timestamp"`) fica como filtro. **Ordene por `sequencia DESC` puro** (PostgREST:
+  `order=sequencia.desc`, sem `nullsfirst`/`nullslast`): a coluna é `NOT NULL` e única (identity), e
+  `NULLS LAST` não casa com nenhum índice (sort da tabela inteira: 32–46 ms com 300 mil linhas).
+- **Planos medidos** (Postgres 16, 300 mil linhas sintéticas: 50 usuários, 2000 servidores, 24 folhas,
+  `LIMIT 51`):
+
+  | Consulta | Índice | Tempo |
+  |---|---|---|
+  | módulo `rh` (1ª página e cursor no meio) | `idx_audit_logs_sequencia` (filtro de módulo) | 0,13 ms |
+  | módulo `rh` + período recente | `idx_audit_logs_sequencia` | 0,07 ms |
+  | módulo `rh` + período antigo (2 h, 3 dias atrás) | `idx_audit_logs_sequencia`, varrendo o que é mais novo | **171 ms** |
+  | usuário | `idx_audit_logs_usuario_seq` | 0,12 ms |
+  | usuário + período antigo | `idx_audit_logs_timestamp` + top-N sort | 2,6 ms |
+  | servidor responsável (sem e com período antigo) | `idx_audit_logs_servidor_seq` / `idx_audit_logs_timestamp` + sort | 0,08 / 1,7 ms |
+  | registro (sem e com período) | `idx_audit_logs_entidade_seq` | 0,04 / 0,01 ms |
+  | aba do servidor (`alvos`, sem e com período) | `idx_audit_logs_alvos` (bitmap) + top-N sort | 0,6 / 0,3 ms |
+  | aba da folha (`alvos`, cursor) | `idx_audit_logs_sequencia` | 1,9 ms |
+  | lista geral + período antigo | `idx_audit_logs_sequencia`, varrendo o que é mais novo | **124 ms** |
+
+  O planner não sabe que `sequencia` acompanha `"timestamp"`: com período **antigo** e sem cursor, lê de trás para
+  frente tudo o que é mais novo (cresce com a tabela). Saída barata, do lado do front: transformar o período em faixa
+  de `sequencia` antes da consulta (`select sequencia from audit_logs where "timestamp" >= <limite> order by
+  "timestamp" limit 1`, 0,06 ms pelo `idx_audit_logs_timestamp`, uma vez para o início e outra para o fim) e mandar
+  `sequencia=gte.<de>&sequencia=lt.<até>` junto com o filtro de período: 171 ms → **0,13 ms**. Use folga (por
+  exemplo 1 hora a mais nos dois lados): `"timestamp"` é o início da transação, então uma transação longa que cruza
+  o limite do período tem linhas fora da faixa estrita; com folga e o filtro de período mantido, o resultado é exato.
 - **`CREATE INDEX` comum, não `CONCURRENTLY`**: o CI aplica com `supabase db push`, que roda cada migração numa
-  transação, e `CREATE INDEX CONCURRENTLY` não roda dentro de transação. O índice comum segura trava `SHARE` em
-  `audit_logs` até o fim da migração: leituras seguem, mas toda gravação na trilha (todo lançamento auditado) espera.
-  Com a tabela pequena do banco novo, segundos. Se `audit_logs` estiver grande na hora do merge, crie os quatro
-  índices antes, à mão, com `CREATE INDEX CONCURRENTLY` e as mesmas colunas: a migração reconhece o equivalente e não
-  cria outro.
+  transação, e `CREATE INDEX CONCURRENTLY` não roda dentro de transação. Travas em `audit_logs` até o COMMIT da
+  migração: o `CREATE INDEX` pega `SHARE` (toda gravação na trilha, ou seja, todo lançamento auditado, espera), o
+  `DROP INDEX` dos índices antigos e o `ADD COLUMN alvos` (reescreve a tabela) pegam `ACCESS EXCLUSIVE` (também as
+  **leituras** da trilha esperam). Com a tabela pequena do banco novo, segundos. Se `audit_logs` estiver grande na
+  hora do merge, crie os índices antes, à mão, com `CREATE INDEX CONCURRENTLY` e as mesmas colunas, e apague os
+  antigos com `DROP INDEX CONCURRENTLY`: a migração reconhece o equivalente e só apaga o que ainda existir (a coluna
+  `alvos` continua exigindo a reescrita).
+- **Recorte da aba "Histórico de alterações"** — coluna gerada `audit_logs.alvos text[]` (`STORED`) com GIN
+  `idx_audit_logs_alvos`: `s:<servidor_id>` de `servidores.id` (`entity_type = 'servidores'`), de
+  `after_data`/`before_data` `->> 'servidor_id'`, de `metadata ->> 'servidor_id'` e de
+  `metadata ->> 'servidor_alvo_id'` **só** quando `metadata ->> 'fonte' = 'storage'`; `f:<folha_id>` de
+  `folhas_pagamento.id`, de `after_data`/`before_data` `->> 'folha_id'` e de `metadata ->> 'folha_id'`. Consulta:
+  `alvos=cs.{s:<id>}` (supabase-js: `.contains("alvos", ["s:<id>"])`), pela mesma RLS. Antes, um OR de cinco
+  expressões em jsonb sem índice varria a trilha (56–470 ms por página com 300 mil linhas; servidor sem linha,
+  ~400 ms). Alternativas medidas: 7 índices btree parciais por expressão (o planner seguiu varrendo pelo índice de
+  `sequencia` com os mesmos tempos, e cada INSERT na trilha ficou ~24% mais caro: mediana de 100 mil INSERTs 4862 ms
+  contra 3914 ms) e RPC `SECURITY INVOKER` (repetiria todos os filtros da tela e ainda dependeria de índice). Com a
+  coluna e o GIN: 0,5–1,5 ms por página do servidor, 0,05 ms sem linha, 10–27 ms na página 11 de uma folha com 3000
+  linhas, INSERT ~5,5% mais caro (4131 ms). A reescrita do `ADD COLUMN` não é UPDATE: os triggers da trilha imutável
+  não disparam e nenhuma linha muda de conteúdo.
+- **Folha no módulo `rh`** — `fechar_folha` e `reabrir_folha` gravavam `module_name = 'folha'`, que quem tem
+  `rh.auditoria.visualizar` não lê. Desde a `20261011000300` gravam `'rh'` (corpo idêntico, mesmos privilégios; mesmo
+  texto no overlay 18). As linhas antigas com `'folha'` **ficam como estão** (trilha imutável): só o papel admin as
+  lê, e a aba da folha as acha só se a consulta aceitar os dois módulos.
 - **Trilha dos arquivos do RH no Storage** — triggers `trilha_rh_storage_insert`, `trilha_rh_storage_update` e
   `trilha_rh_storage_delete` (`AFTER`, por linha, com `WHEN` nos buckets `frequencias` e `documentos-requerimento`:
   os outros buckets não pagam nada) em `storage.objects`, função `trilha_storage('rh')` (`SECURITY DEFINER`,
   `search_path` fixo, sem EXECUTE para a API). Cada gravação (`action = 'upload'`), troca ou movimentação
   (`'update'`, com `campos_alterados`) e exclusão (`'delete'`) vira uma linha em `audit_logs` com `module_name = 'rh'`,
-  `entity_type = 'storage.<bucket>'` e `entity_id` = id do objeto. Quem agiu vem de `trilha_contexto()` (E1): o
-  usuário do JWT que a Storage API repassa ao banco, servidor vinculado, origem (`sistema` para a service role),
-  papel, unidade, IP e user agent. UPDATE só de carimbo (`updated_at`, `last_accessed_at`) não grava, nem o que só
-  preenche `metadata` nula (conclusão do upload). Por ser `AFTER` e na mesma transação, gravação negada pela RLS ou
-  desfeita não deixa linha. Quem lê: as mesmas policies da E1 (admin; módulo `rh` com `rh.auditoria.visualizar`).
+  `entity_type = 'storage.<bucket>'`, `entity_id` = id do objeto e **`metadata.fonte = 'storage'`**. Quem agiu vem de
+  `trilha_contexto()` (E1): o usuário do JWT que a Storage API repassa ao banco, servidor vinculado, origem (`sistema`
+  para a service role), papel, unidade, IP e user agent. UPDATE só de carimbo (`updated_at`, `last_accessed_at`) não
+  grava, nem o que só preenche `metadata` nula (conclusão do upload). Por ser `AFTER` e na mesma transação, gravação
+  negada pela RLS ou desfeita não deixa linha. Quem lê: as mesmas policies da E1 (admin; módulo `rh` com
+  `rh.auditoria.visualizar`).
 - **Sem conteúdo e sem dado pessoal do caminho** — não há antes/depois. Em `metadata`: `chave`
   (`trilha_storage_chave(bucket, nome)`: bucket; o caminho **em claro só quando cada pasta é um uuid ou `AAAA-MM` e o
-  arquivo é `<uuid>[.ext]`**, como `documentos-requerimento` (`<servidor_id>/<documento_id>.<ext>`); nos outros casos
-  só `caminho_sha256`, porque o PDF de frequência leva matrícula e nome do servidor no nome do arquivo;
-  `periodo` quando a primeira pasta é `AAAA-MM`; `extensao`), `objeto_id`, `tamanho` e `tipo_conteudo` (do
-  `metadata` da Storage API), `operacao_storage` (GUC `storage.operation`, quando a Storage API informa),
+  arquivo é `<uuid>` com extensão de lista fechada** (`pdf`, `png`, `jpg`/`jpeg`, `webp`, `zip`, `doc`/`docx`,
+  `odt`, `xls`/`xlsx`, `csv`, sem diferença de caixa), como `documentos-requerimento`
+  (`<servidor_id>/<documento_id>.<ext>`); nos outros casos (inclusive `<uuid>.MariaSouza`) só `caminho_sha256`,
+  porque o PDF de frequência leva matrícula e nome do servidor no nome do arquivo; `periodo` quando a primeira pasta
+  é `AAAA-MM`; `extensao` só da lista), `objeto_id`, `tamanho` (do `metadata` da Storage API), `tipo_conteudo` (vem
+  do Content-Type do cliente: só entra no formato `tipo/subtipo`, `^[a-z0-9.+-]{1,50}/[a-z0-9.+-]{1,50}$` depois de
+  minúsculas, senão nada), `operacao_storage` (GUC `storage.operation`, quando a Storage API informa),
   `servidor_alvo_id` (o servidor dono do arquivo quando dá para saber sem ler o arquivo: linha de
   `frequencia_arquivos` com o mesmo caminho, ou a pasta `<servidor_id>/`; o PDF recém-enviado ainda não tem essa
   linha) e, ao mover, `anterior` (a chave antiga). `user_metadata` (texto livre do cliente) não entra. Para achar o
   arquivo de frequência de uma linha: `encode(sha256(convert_to(arquivo_path, 'UTF8')), 'hex')` em
   `frequencia_arquivos` = `metadata->'chave'->>'caminho_sha256'`.
+- **O cliente não forja linha de arquivo** — `log_audit` recusa `entity_type` que comece por `storage.` (sem
+  diferença de caixa ou espaços; `22023`), e `log_audit` e `registrar_evento` tiram `servidor_alvo_id` (além de
+  `fonte` e das chaves de trigger, como na E1) dos metadados vindos do cliente; cada uma grava a própria `fonte`
+  (`log_audit`, `registrar_evento`). Então `metadata.fonte = 'storage'` e `servidor_alvo_id` só existem nas linhas do
+  trigger. Mesma assinatura e privilégios; `log_audit` com o mesmo texto no overlay 18.
 - **Privilégio em `storage.objects` (limitação)** — a tabela é da plataforma (no Supabase, dono
   `supabase_storage_admin`). Criar trigger exige o privilégio `TRIGGER` nela; o `postgres` que aplica as migrações
   deve tê-lo, porque já cria as policies `st_*` (B3, overlay/50), o que exige ser dono da tabela ou membro do dono.
   Não foi conferido no banco da VPS (nada é aplicado em remoto por agente). Se o banco de destino negar, a
   migração **não falha**: emite `WARNING 'trilha do Storage do RH NÃO ligada ...'`, os índices entram e os arquivos
-  ficam sem trilha no banco (resta o registro pelo front, de melhor esforço). Conferir depois do deploy:
-  `select tgname from pg_trigger where tgrelid = 'storage.objects'::regclass and tgname like 'trilha_rh_storage_%'`
-  (esperado: 3 linhas). Atualização da Storage API não apaga trigger de usuário, mas confira depois de trocar a
-  versão do Storage. Validado no shim (dono `postgres`) e simulado com dono `supabase_storage_admin`: com `TRIGGER`
-  (direto ou herdado) cria e reaplica; sem ele, só o `WARNING`.
-- **No baseline** a função chega por `schema/`, os triggers pelo `overlay/50_storage.sql` e o REVOKE pelo
-  `overlay/40_privilegios.sql` (mesmo texto da migração). O guard `scripts/check-autoria-rh.mjs` reprova o overlay sem
-  os três triggers (ou com um deles desligado) e o schema sem `trilha_storage()`; o `validar-baseline.sh` compara
-  também os triggers de `storage.objects` com o replay.
+  ficam sem trilha no banco. Sobra só a trilha das tabelas `frequencia_arquivos` e
+  `documentos_requerimento_servidor` (quem registrou ou alterou a linha que aponta para o arquivo); troca e exclusão
+  feitas direto no bucket ficam sem registro. O job "Migrações do banco" (`.github/workflows/migracoes-banco.yml`)
+  confere depois de aplicar e **fica vermelho** se não houver os 3 triggers `trilha_rh_storage_*` ligados; a mesma
+  consulta à mão:
+  `select tgname from pg_trigger where tgrelid = 'storage.objects'::regclass and tgname like 'trilha_rh_storage_%'`.
+  Atualização da Storage API não apaga trigger de usuário, mas confira depois de trocar a versão do Storage. Validado
+  no shim (dono `postgres`) e simulado com dono `supabase_storage_admin`: com `TRIGGER` (direto ou herdado) cria e
+  reaplica; sem ele, só o `WARNING`.
+- **Edge Function `download-frequencia`** — grava o download do pacote na trilha do RH antes de entregar a URL e
+  não a entrega se a gravação falhar ([EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md)).
+- **No baseline** as funções e a coluna chegam por `schema/`, os triggers pelo `overlay/50_storage.sql`, o REVOKE
+  pelo `overlay/40_privilegios.sql` e `log_audit`, `fechar_folha` e `reabrir_folha` pelo `overlay/18_funcoes_rpc.sql`
+  (mesmo texto das migrações). O guard `scripts/check-autoria-rh.mjs` reprova o overlay sem os três triggers (ou com
+  um deles desligado) e o schema sem `trilha_storage()`; o `validar-baseline.sh` compara também os triggers de
+  `storage.objects` com o replay.
 - **Fora**: o bucket `documentos` (workflow e RH) continua sem trilha; leitura (download por URL assinada) não passa
   pelo banco e é registrada pelo front com `registrar_evento`.
 
