@@ -140,6 +140,10 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
 - O baseline cria **10 buckets** (`overlay/50_storage.sql`, apurado em 2026-10-09). Buckets públicos
   ainda entregam o arquivo a quem tem a URL; fechar exige bucket privado + URL assinada no front. O
   `inventario-evidencias` (fotos da vistoria de inventário) já nasce privado e o front lê por URL assinada.
+  Os buckets do RH `frequencias` e `documentos-requerimento` e o `documentos` também são privados; desde a B3
+  (migração `supabase/migrations/20261010180000_onda_b_rh_storage.sql`, em PR rascunho) o documento assinado do
+  servidor abre por URL assinada, mas portarias, atos e cedência ainda gravam link público (`getPublicUrl`) do
+  bucket `documentos`, que num bucket privado não abre (pendência; ver [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#arquivos-do-rh-e-download-de-frequência-onda-b--b3)).
 - `fotos_vistoria_inventario` é da classe `preservar` do mapa de RLS: as policies vêm da migração
   `20261009160000` pelo replay, não do gerador ([detalhe](../supabase/baseline/README.md)).
 - A migração `20260110184920` e o histórico git contêm 74 nomes de servidores (CPF placeholder); o baseline não

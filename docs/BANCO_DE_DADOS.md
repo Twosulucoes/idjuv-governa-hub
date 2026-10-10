@@ -22,10 +22,11 @@ muda em relação ao estado das migrações:
   `;proprio`, `;pai=<tabela>.<fk>` e `;filho=<tabela>.<fk>` acrescentam a leitura do próprio servidor, direta,
   pela tabela pai ou por uma tabela filha com `servidor_id`); escrita (INSERT/UPDATE/DELETE) exige o módulo
   **e** a permissão granular do `extra` (`escrita=<código>`), via `can_access_module` + `has_permission_code`.
-  Hoje são 22 tabelas (apurado em 2026-10-10): as 10 da folha (`financeiro.folha.processar` para operar,
+  Hoje são 25 tabelas (apurado em 2026-10-10): as 10 da folha (`financeiro.folha.processar` para operar,
   `financeiro.folha.configurar` para rubricas, parâmetros e tabelas de INSS/IRRF) — detalhe em
-  [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#folha-rls-por-permissão-onda-b--b1) — e 12 do RH na B2 (férias,
-  licenças, viagens, frequência; seção "RH — frequência e ponto" abaixo). A B2 acrescentou ao gerador lista de
+  [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#folha-rls-por-permissão-onda-b--b1) —, 12 do RH na B2 (férias,
+  licenças, viagens, frequência; seção "RH — frequência e ponto" abaixo) e 3 na B3 (`frequencia_pacotes`,
+  `frequencia_arquivos`, `documentos_requerimento_servidor`; mesma seção). A B2 acrescentou ao gerador lista de
   códigos (`escrita=a|b`) e os sufixos `;excluir=`, `;insere_proprio`, `;sem_autoaprovacao`, `;coluna=` e
   `;posse=usuario`; a correção de contornos levou `escrita=` à classe `catalogo` e `sem_autoaprovacao` à
   `proprio_leitura` (formato no [README do baseline](../supabase/baseline/README.md)). `scripts/db/testar-rls.sql`
@@ -49,11 +50,14 @@ muda em relação ao estado das migrações:
   `authenticated` mantém os privilégios padrão de tabela (menos `TRUNCATE`/`TRIGGER`, e sem escrita em
   `audit_logs`), limitados pela RLS. As exceções são as funções `SECURITY DEFINER` de apoio listadas no teste.
 - **Formulários e pedidos.** Quem não gere o módulo não escolhe `status`, aprovação nem autoria (nos pedidos
-  de abono, ajuste e justificativa do RH, desde a B2: quem não tem a permissão, ou pede para si); os links
+  de abono, ajuste e justificativa do RH, desde a B2, e no pedido de documento do servidor, desde a B3: quem
+  não tem a permissão, ou pede para si); os links
   do formulário de árbitros só podem apontar para o bucket `arbitros-docs`.
 - **Fechamento de folha** só por quem pode (trigger em `folhas_pagamento`), e o bloqueio automático por
   `servidores.situacao` nunca reativa administrador nem conta bloqueada à mão.
 - **Storage** por módulo; anônimo só envia arquivo (imagem/PDF até 5 MB) nas pastas do formulário de árbitros.
+  Desde a B3, `frequencias` e `documentos-requerimento` gravam só com o módulo `rh` **e** o código do catálogo, e
+  o servidor lê o próprio arquivo (seção "RH — frequência e ponto").
 - Corrige `handle_new_user` (cadastro no Auth falhava) e as funções de folha que dependiam de funções removidas.
 - Sementes só de catálogo/parâmetros: sem servidores, usuários ou auditoria.
 
@@ -87,7 +91,7 @@ mudança de schema continua por migração nova (e regeneração do baseline). T
 
 Segurança do RH — Onda B / B2 (migração `supabase/migrations/20261010090000_onda_b_rh_permissoes.sql`,
 mesclada na PR #69 em 2026-10-10, e a correção de contornos
-`supabase/migrations/20261010100000_onda_b_rh_contornos.sql`, **em PR rascunho**; as duas idempotentes, valem
+`supabase/migrations/20261010100000_onda_b_rh_contornos.sql`, mesclada na PR #71; as duas idempotentes, valem
 para o banco do baseline e para o só-migrações; dependem da S0 `20261010080000` e da B1). Regra por tabela e
 quem perde acesso em
 [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#férias-licenças-viagens-e-frequência-rls-por-permissão-onda-b--b2).
@@ -151,14 +155,48 @@ Os itens marcados "(contornos)" são da segunda migração.
   aprovação no INSERT) só quem tem o módulo **e** um dos códigos, e mesmo assim não na própria linha (posse
   por `servidor_id` ou pela tabela pai, conferida por `eh_meu_servidor`; com `:usuario`, `servidor_id`
   comparado a `auth.uid()`). Usado em `solicitacoes_abono`, `justificativas_ponto` e
-  `solicitacoes_ajuste_ponto` (`:usuario`), sempre com `rh.aprovar|rh.frequencia.lancar`;
-  `documentos_requerimento_servidor` segue no formato de módulo. A migração cria a função e os triggers no
+  `solicitacoes_ajuste_ponto` (`:usuario`), sempre com `rh.aprovar|rh.frequencia.lancar`; desde a B3, também
+  em `documentos_requerimento_servidor`, com `perm:rh:rh.servidores.editar`. A migração cria a função e os triggers no
   só-migrações, onde não existiam; o overlay 20 tem o mesmo texto. EXECUTE só para `authenticated` e
   `service_role`.
 - **`fn_atualizar_situacao_servidor`** sem EXECUTE para PUBLIC, `anon` e `authenticated` (só os triggers a
   chamam), como no overlay 40.
 - Pendente, anterior à B2: quem tem o módulo `rh` muda `servidores.situacao` de outro servidor, o que bloqueia
   o perfil vinculado.
+
+Arquivos do RH — Onda B / B3 (migração `supabase/migrations/20261010180000_onda_b_rh_storage.sql`, **em PR
+rascunho**; idempotente, vale para o banco do baseline e para o só-migrações; no baseline o mesmo texto está nos
+overlays 10, 20, 40 e 50 e em `rls/mapa.csv`). Regra por bucket e tabela, quem perde acesso e a conferência
+pós-deploy em
+[RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#arquivos-do-rh-e-download-de-frequência-onda-b--b3).
+
+- **Policies** de `frequencia_pacotes`, `frequencia_arquivos` e `documentos_requerimento_servidor` na classe
+  `permissao` (SQL copiado do gerador; as `acesso_total_*` e os nomes antigos saem). Extra no mapa:
+  `escrita=rh.frequencia.lancar|rh.frequencia.criar|rh.frequencia.editar` nas duas de frequência (com `;proprio`
+  em `frequencia_arquivos`) e `escrita=rh.servidores.editar;proprio;insere_proprio` no pedido de documento. `anon`
+  perde todo privilégio nas três e `authenticated` perde TRUNCATE/TRIGGER/REFERENCES.
+- **Função `eh_meu_arquivo_frequencia(text)`** (`sql`, `STABLE`, `SECURITY DEFINER`, `search_path` fixo, EXECUTE
+  só para `authenticated`; mesmo texto no overlay 10): verdadeira se há linha em `frequencia_arquivos` com
+  `arquivo_path` igual ao nome do objeto e `servidor_id = meu_servidor_id()`. Usada na leitura do bucket
+  `frequencias`.
+- **Função `eh_minha_pasta_servidor(text)`** (`plpgsql`, mesmos atributos): verdadeira se a primeira pasta do
+  caminho tem formato de uuid (conferido antes do cast; fora do padrão dá `false`, sem erro) e é
+  `meu_servidor_id()`. Usada na leitura do bucket `documentos-requerimento`.
+- As duas exigem perfil ativo (`is_active_user()`) e nunca devolvem NULL.
+- **CHECK `frequencia_pacotes_arquivo_path_seguro` e `frequencia_arquivos_arquivo_path_seguro`** (`NOT VALID`:
+  não reprova linha antiga, vale para toda linha nova ou alterada): `arquivo_path` nulo ou caminho relativo não
+  vazio, sem `/` inicial, sem segmento `.` ou `..` e sem `%`, `\`, `?` ou `#`. A Edge Function
+  `download-frequencia` confere a mesma regra antes de assinar.
+- **Índice** `idx_frequencia_arquivos_arquivo_path` em `frequencia_arquivos(arquivo_path)`, para a busca da
+  policy de leitura do bucket.
+- **`forcar_campos_iniciais`** em `documentos_requerimento_servidor` passa ao formato
+  `perm:rh:rh.servidores.editar`: quem não tem o módulo e o código, ou pede o próprio documento, grava
+  `status = pendente`, `arquivo_assinado_url`, `data_upload_assinado` e `modelo_url` nulos e `created_by` =
+  `auth.uid()`.
+- **Storage**: policies `st_frequencias_*`, `st_documentos-requerimento_*` e `st_documentos_*`; os três buckets
+  com `public = false`; `documentos-requerimento` com 10 MB e `application/pdf`, `image/jpeg`, `image/png`,
+  `image/webp`. No fim, a migração emite `WARNING` (não erro) para cada outra policy de `storage.objects` que
+  ainda valha para esses buckets.
 
 ### Folha de pagamento
 `folhas_pagamento`, `folha_historico_status`, `fichas_financeiras`,

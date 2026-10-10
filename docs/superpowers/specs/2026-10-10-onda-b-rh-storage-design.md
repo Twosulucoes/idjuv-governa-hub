@@ -29,7 +29,7 @@ sobre a `main` (depois das PRs #69, #71, #58 e #59). Premissas valem até o usu�
    exige o módulo **e** um código que o catálogo já tem. Nenhum código novo.
    - `frequencias` e as tabelas `frequencia_pacotes`/`frequencia_arquivos`: gravar com
      `rh.frequencia.lancar|criar|editar` (os códigos da `frequencia_mensal` na B2). O servidor lê o PDF
-     dele (cruzando `frequencia_arquivos.arquivo_path` com `eh_meu_servidor`). Sem "nunca na própria":
+     dele (cruzando `frequencia_arquivos.arquivo_path` com `meu_servidor_id()`, o mesmo dono do `;proprio`). Sem "nunca na própria":
      o lote da unidade inclui o próprio RH, e o arquivo é gerado, não decidido.
    - `documentos-requerimento`: gravar com `rh.servidores.editar`; o servidor lê a pasta dele
      (`<servidor_id>/…`). O servidor **não** envia arquivo (não há tela para isso).
@@ -50,10 +50,11 @@ sobre a `main` (depois das PRs #69, #71, #58 e #59). Premissas valem até o usu�
 
 ## O que muda
 
-1. Migração `supabase/migrations/20261010110000_onda_b_rh_storage.sql`:
+1. Migração `supabase/migrations/20261010180000_onda_b_rh_storage.sql`:
    - funções `eh_meu_arquivo_frequencia(text)` e `eh_minha_pasta_servidor(text)`: `plpgsql`/`sql`
      `STABLE SECURITY DEFINER`, `search_path` fixo, `EXECUTE` só para `authenticated`; a segunda valida o
-     formato de uuid antes do cast;
+     formato de uuid antes do cast; as duas comparam com `meu_servidor_id()` (vínculo do perfil, como a RLS
+     das tabelas) e exigem perfil ativo (`is_active_user()`);
    - remove as policies antigas dos três buckets (nomes das migrações e `st_*`) e cria
      `st_<bucket>_{select,insert,update,delete}` conforme as premissas 2 e 3;
    - limite e tipos do bucket `documentos-requerimento`;
@@ -72,8 +73,13 @@ sobre a `main` (depois das PRs #69, #71, #58 e #59). Premissas valem até o usu�
 ## Fora de escopo
 
 - Dono e permissões do bucket `documentos`; links públicos de portarias (`NovaPortariaSimplificada`,
-  `RegistrarAssinaturaDialog`, `RegistrarPublicacaoDialog`), `GestaoDocumentosPage` e cedência.
+  `RegistrarAssinaturaDialog`, `RegistrarPublicacaoDialog`), `GestaoDocumentosPage` e cedência
+  (`DocumentosCedenciaUpload`).
 - O ZIP do pacote de frequência, que nunca é gravado (o download fica sem arquivo até isso existir).
 - Nome do servidor no caminho do PDF de frequência.
 - Buckets de outros módulos (patrimônio, ASCOM, árbitros, transparência).
 - Restringir CORS das Edge Functions à origem do tenant.
+- Mover objeto entre buckets por UPDATE: as policies permissivas de storage se combinam por OR também no
+  WITH CHECK, então quem grava em dois buckets consegue mudar o `bucket_id` de um objeto (sem leitura nova).
+- Policies de `storage.objects` criadas fora das migrações no banco ao vivo: a migração não as remove, só
+  emite `WARNING`; o operador confere com a consulta pós-deploy de `docs/RBAC_PERMISSOES.md` (subseção B3).
