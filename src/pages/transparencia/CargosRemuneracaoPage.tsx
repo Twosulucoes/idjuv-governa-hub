@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/select";
 import { DataTable, KpiCard, type ColunaTabela } from "@/components/design-system";
 import { useIdentidade } from "@/core/tenant";
+import { useTransparenciaCargos, type VagaCargoPublico } from "@/hooks/useTransparenciaCargos";
+import { exportarParaCSV } from "@/export/exportCSV";
 import {
   Download,
   Users,
@@ -21,27 +23,48 @@ import {
   Calendar
 } from "lucide-react";
 
+// Uma linha por vaga, montada a partir da RPC pública (só campos públicos pela LAI)
 type Cargo = {
-  id: number;
+  id: string;
   codigo: string;
   cargo: string;
   valor_unitario: number;
   valor_unitario_formatado: string;
   diretoria: string;
+  diretoria_tipo: string | null;
   unidade_setor: string;
   vinculo: string;
   nome_ocupante: string;
-  indicacao: string;
-  local_trabalho: string;
-  observacoes: string;
 };
 
-type CargosData = {
-  ultima_atualizacao: string;
-  fonte: string;
-  total_cargos: number;
-  cargos: Cargo[];
-};
+const formatarMoeda = (valor: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
+
+const SEM_UNIDADE = "Sem unidade definida";
+
+function paraLinha(v: VagaCargoPublico): Cargo {
+  const valor = Number(v.vencimento ?? 0);
+  return {
+    id: `${v.cargo_id}-${v.unidade_id ?? "sem-unidade"}-${v.vaga}`,
+    codigo: v.simbolo?.trim() || "—",
+    cargo: v.cargo,
+    valor_unitario: valor,
+    valor_unitario_formatado: v.vencimento == null ? "—" : formatarMoeda(valor),
+    diretoria: v.diretoria ?? SEM_UNIDADE,
+    diretoria_tipo: v.diretoria_tipo,
+    unidade_setor: v.unidade ?? SEM_UNIDADE,
+    vinculo: v.unidade_superior ?? "—",
+    nome_ocupante: v.ocupante ?? "",
+  };
+}
+
+// Cores dos selos de diretoria: a presidência (tipo vindo do banco) usa a primária; as demais
+// recebem as cores na ordem alfabética, sem siglas fixas no código.
+const CORES_DIRETORIA = [
+  "bg-info/10 text-info border-info/30",
+  "bg-success/10 text-success border-success/30",
+  "bg-warning/10 text-warning border-warning/30",
+];
 
 const ITEMS_PER_PAGE = 15;
 
@@ -75,84 +98,90 @@ const COLUNAS_BASE: ColunaTabela<Cargo>[] = [
 ];
 
 export default function CargosRemuneracaoPage() {
-  const [data, setData] = useState<CargosData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: vagas, isLoading: loading, isError } = useTransparenciaCargos();
   const [filterDiretoria, setFilterDiretoria] = useState<string>("all");
   const [filterCodigo, setFilterCodigo] = useState<string>("all");
   const [filterVinculo, setFilterVinculo] = useState<string>("all");
   const { sigla } = useIdentidade();
 
-  useEffect(() => {
-    fetch("/data/cargos.json")
-      .then((res) => res.json())
-      .then((json) => {
-        setData(json);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Erro ao carregar dados:", err);
-        setLoading(false);
-      });
-  }, []);
+  const cargos = useMemo(() => (vagas ?? []).map(paraLinha), [vagas]);
 
-  const diretorias = useMemo(() => {
-    if (!data) return [];
-    return [...new Set(data.cargos.map((c) => c.diretoria))].sort();
-  }, [data]);
+  const diretorias = useMemo(() => [...new Set(cargos.map((c) => c.diretoria))].sort(), [cargos]);
 
-  const codigos = useMemo(() => {
-    if (!data) return [];
-    return [...new Set(data.cargos.map((c) => c.codigo))].sort();
-  }, [data]);
+  const codigos = useMemo(() => [...new Set(cargos.map((c) => c.codigo))].sort(), [cargos]);
 
-  const vinculos = useMemo(() => {
-    if (!data) return [];
-    return [...new Set(data.cargos.map((c) => c.vinculo))].sort();
-  }, [data]);
+  const vinculos = useMemo(() => [...new Set(cargos.map((c) => c.vinculo))].sort(), [cargos]);
+
+  // Rodapé: lei(s) de criação dos cargos e data da última alteração do quadro, ambas do banco
+  const fonte = useMemo(() => {
+    const leis = new Set<string>();
+    for (const v of vagas ?? []) {
+      if (!v.lei_criacao_numero) continue;
+      const data = v.lei_criacao_data
+        ? `, de ${new Date(`${v.lei_criacao_data}T00:00:00`).toLocaleDateString("pt-BR")}`
+        : "";
+      leis.add(`Lei nº ${v.lei_criacao_numero}${data}`);
+    }
+    return [...leis].sort().join("; ");
+  }, [vagas]);
+
+  const ultimaAtualizacao = useMemo(() => {
+    const datas = (vagas ?? []).map((v) => v.atualizado_em).filter((d): d is string => !!d).sort();
+    return datas.length ? datas[datas.length - 1] : null;
+  }, [vagas]);
 
   // Busca e ordenação ficam com a DataTable; aqui só os filtros por campo.
   const filteredCargos = useMemo(() => {
-    if (!data) return [];
-    return data.cargos.filter((cargo) => {
+    return cargos.filter((cargo) => {
       const matchesDiretoria = filterDiretoria === "all" || cargo.diretoria === filterDiretoria;
       const matchesCodigo = filterCodigo === "all" || cargo.codigo === filterCodigo;
       const matchesVinculo = filterVinculo === "all" || cargo.vinculo === filterVinculo;
       return matchesDiretoria && matchesCodigo && matchesVinculo;
     });
-  }, [data, filterDiretoria, filterCodigo, filterVinculo]);
+  }, [cargos, filterDiretoria, filterCodigo, filterVinculo]);
 
+  // CSV gerado no navegador com as mesmas colunas públicas da tabela (respeita os filtros)
   const handleExportCSV = () => {
-    window.open("/data/cargos.csv", "_blank");
+    exportarParaCSV(
+      filteredCargos.map((c) => ({
+        codigo: c.codigo,
+        cargo: c.cargo,
+        valor_unitario: c.valor_unitario.toFixed(2),
+        diretoria: c.diretoria,
+        unidade_setor: c.unidade_setor,
+        vinculo: c.vinculo,
+        nome_ocupante: c.nome_ocupante,
+      })),
+      "cargos-e-remuneracao"
+    );
   };
 
   const stats = useMemo(() => {
-    if (!data) return { total: 0, ocupados: 0, vagos: 0, valorTotal: 0 };
-    
-    const ocupados = data.cargos.filter((c) => c.nome_ocupante).length;
-    const valorTotal = data.cargos.reduce((sum, c) => sum + c.valor_unitario, 0);
-    
+    const ocupados = cargos.filter((c) => c.nome_ocupante).length;
+    const valorTotal = cargos.reduce((sum, c) => sum + c.valor_unitario, 0);
+
     return {
-      total: data.total_cargos,
+      total: cargos.length,
       ocupados,
-      vagos: data.total_cargos - ocupados,
+      vagos: cargos.length - ocupados,
       valorTotal,
     };
-  }, [data]);
+  }, [cargos]);
 
-  const getDiretoriaColor = (diretoria: string) => {
-    switch (diretoria) {
-      case "Presidência":
-        return "bg-primary/10 text-primary border-primary/30";
-      case "DIRAF":
-        return "bg-info/10 text-info border-info/30";
-      case "DIESP":
-        return "bg-success/10 text-success border-success/30";
-      case "DIJUV":
-        return "bg-warning/10 text-warning border-warning/30";
-      default:
-        return "bg-muted text-muted-foreground";
+  const coresPorDiretoria = useMemo(() => {
+    const mapa = new Map<string, string>();
+    const tipoPorDiretoria = new Map(cargos.map((c) => [c.diretoria, c.diretoria_tipo]));
+    let i = 0;
+    for (const d of diretorias) {
+      const tipo = tipoPorDiretoria.get(d);
+      if (tipo === "presidencia") mapa.set(d, "bg-primary/10 text-primary border-primary/30");
+      else if (tipo) mapa.set(d, CORES_DIRETORIA[i++ % CORES_DIRETORIA.length]);
     }
-  };
+    return mapa;
+  }, [cargos, diretorias]);
+
+  const getDiretoriaColor = (diretoria: string) =>
+    coresPorDiretoria.get(diretoria) ?? "bg-muted text-muted-foreground";
 
   const colunas: ColunaTabela<Cargo>[] = [
     ...COLUNAS_BASE,
@@ -226,17 +255,14 @@ export default function CargosRemuneracaoPage() {
             <KpiCard rotulo="Vagos" valor={stats.vagos} icone={Users} carregando={loading} />
             <KpiCard
               rotulo="Valor total mensal"
-              valor={new Intl.NumberFormat("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-              }).format(stats.valorTotal)}
+              valor={formatarMoeda(stats.valorTotal)}
               icone={DollarSign}
               carregando={loading}
             />
           </div>
 
           <div className="mb-4 flex justify-end">
-            <Button variant="outline" onClick={handleExportCSV}>
+            <Button variant="outline" onClick={handleExportCSV} disabled={filteredCargos.length === 0}>
               <Download className="w-4 h-4 mr-2" aria-hidden="true" />
               Exportar CSV
             </Button>
@@ -249,7 +275,7 @@ export default function CargosRemuneracaoPage() {
             colunas={colunas}
             chaveLinha={(c) => String(c.id)}
             carregando={loading}
-            erro={!loading && !data ? "Os dados de cargos não estão disponíveis agora." : null}
+            erro={isError ? "Os dados de cargos não estão disponíveis agora." : null}
             tamanhoPagina={ITEMS_PER_PAGE}
             busca={{ placeholder: "Buscar por cargo, unidade, nome…" }}
             filtros={
@@ -302,11 +328,11 @@ export default function CargosRemuneracaoPage() {
           <div className="mt-8 flex flex-col sm:flex-row gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4" aria-hidden="true" />
-              <span>Última atualização: {data?.ultima_atualizacao ? new Date(data.ultima_atualizacao).toLocaleDateString("pt-BR") : "-"}</span>
+              <span>Última atualização: {ultimaAtualizacao ? new Date(ultimaAtualizacao).toLocaleDateString("pt-BR") : "-"}</span>
             </div>
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4" aria-hidden="true" />
-              <span>Fonte: {data?.fonte}</span>
+              <span>Fonte: {fonte || "-"}</span>
             </div>
           </div>
         </div>
