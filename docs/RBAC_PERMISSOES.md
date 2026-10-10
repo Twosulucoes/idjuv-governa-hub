@@ -70,6 +70,30 @@ Consequência no front para quem não tem o **papel** admin: nomes de outros usu
 vazios, e telas de gestão de usuários/permissões abertas por permissão `admin.*` concedida via módulo
 não listam nem gravam papéis e módulos de terceiros.
 
+A migração `supabase/migrations/20261010170000_onda0_permissoes_urgente.sql` (Onda 0 da revisão de
+permissões de 10/10/2026) fecha o restante do mesmo tipo de furo nesse banco:
+
+- `module_permissions_catalog` e `module_settings`: usuário ativo lê; só o papel admin escreve. Antes
+  qualquer logado renomeava um código do catálogo e, pelo `ON UPDATE CASCADE` de `role_permissions`,
+  dava ao próprio papel a permissão que quisesse. `module_access_scopes` só admin; `user_org_units`
+  como `user_roles`.
+- `fn_gerar_numero_financeiro` aceita só a lista fechada de tipos (havia injeção de SQL executável sem
+  login).
+- `usuario_eh_super_admin`, `is_active_user()`, `has_role`, `has_module`, `can_access_module(app_module)`,
+  `usuario_tem_permissao` e `usuario_tem_permissao_financeira` deixam de responder "sim" a qualquer
+  logado e seguem papel/módulo/`has_permission_code`. `is_admin_user` e `has_permission_code` ainda
+  **não** exigem perfil ativo nesse banco (o baseline exige).
+- `gestores_escolares`, `escolas_jer` (escrita), `cadastro_arbitros` e `cadastro_arbitros_modalidades`:
+  gestão só com o módulo dono; o público só insere (gestores com status `aguardando`, pelas RPCs
+  `registrar_gestor_publico` e `consultar_gestor_por_cpf`). `gestores_escolares_historico` vira trilha:
+  o módulo lê, ninguém escreve por API.
+- `anon` executa só as RPCs dos formulários públicos (`registrar_denuncia_publica`, `obter_dado_oficial`,
+  `arbitro_cpf_cadastrado`, `obter_protocolo_arbitro`, `consultar_gestor_por_cpf`,
+  `registrar_gestor_publico`, `gerar_codigo_pre_cadastro`); `authenticated` mantém o que tinha. Função
+  nova criada pelo `postgres` nasce sem EXECUTE para `anon`.
+
+As demais ~190 tabelas com `acesso_total_*` nesse banco continuam abertas a qualquer logado (Onda 1).
+
 ## Fluxo em tempo de execução
 
 1. Login via Supabase Auth → `onAuthStateChange` no `AuthContext`.
