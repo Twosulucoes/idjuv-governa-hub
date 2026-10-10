@@ -51,6 +51,25 @@ tabelas acima têm FK para ele.
 > migração e `user_permissions` é concedida via SQL — uma tela para ambas é
 > trabalho em aberto.
 
+### Identidade no banco só de migrações
+
+Num banco montado só por `supabase/migrations/` (sem o baseline), `profiles`, `user_roles` e
+`user_modules` tinham as policies `acesso_total_*` (`auth.uid() IS NOT NULL`), que somadas por OR
+anulavam as de administrador: qualquer logado se dava o papel `admin`, ganhava módulos, trocava o
+próprio `servidor_id`/`is_active` e lia todos os perfis. A migração
+`supabase/migrations/20261010080000_s0_identidade_policies.sql` deixa as três tabelas como no baseline
+(`supabase/baseline/overlay/12_protecao_profiles.sql` e classe `proprio_user` do mapa de RLS):
+
+- `profiles`: cada um lê e edita a própria linha (só `full_name`, `avatar_url`,
+  `requires_password_change`); identidade, vínculo e bloqueio só o papel admin muda (trigger
+  `profiles_proteger_colunas`); INSERT e DELETE só admin; admin lê todos.
+- `user_roles` e `user_modules`: usuário ativo lê as próprias linhas; só o papel admin escreve.
+
+Consequência no front para quem não tem o **papel** admin: nomes de outros usuários vindos de
+`profiles` (autor de importação, aprovador, responsável no organograma, nomes na auditoria) chegam
+vazios, e telas de gestão de usuários/permissões abertas por permissão `admin.*` concedida via módulo
+não listam nem gravam papéis e módulos de terceiros.
+
 ## Fluxo em tempo de execução
 
 1. Login via Supabase Auth → `onAuthStateChange` no `AuthContext`.
