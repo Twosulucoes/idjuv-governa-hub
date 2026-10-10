@@ -20,7 +20,7 @@ import {
   checkPageBreak,
 } from './pdfTemplate';
 
-interface FrequenciaServidor {
+export interface FrequenciaServidor {
   servidor_id: string;
   servidor_nome: string;
   servidor_matricula?: string;
@@ -53,6 +53,8 @@ interface RelatorioFrequenciaGeralData {
   servidores: FrequenciaServidor[];
   dataGeracao: string;
   filtroUnidade?: string;
+  /** Agrupa por `servidor_unidade` com subtotal (servidores, faltas, média de presença). */
+  agruparPorUnidade?: boolean;
 }
 
 interface RelatorioFrequenciaIndividualData {
@@ -122,8 +124,48 @@ export const generateRelatorioFrequenciaGeral = async (data: RelatorioFrequencia
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   
-  data.servidores.forEach((s, index) => {
+  const SEM_UNIDADE = 'Sem unidade';
+  const chaveUnidade = (s: FrequenciaServidor) => s.servidor_unidade || SEM_UNIDADE;
+  // Com agrupamento, ordena por unidade (e nome) para os blocos ficarem contíguos.
+  const servidoresOrdenados = data.agruparPorUnidade
+    ? [...data.servidores].sort((a, b) =>
+        chaveUnidade(a).localeCompare(chaveUnidade(b), 'pt-BR') ||
+        a.servidor_nome.localeCompare(b.servidor_nome, 'pt-BR'))
+    : data.servidores;
+
+  const subtotalUnidade = (unidade: string, itens: FrequenciaServidor[]) => {
     y = checkPageBreak(doc, y, 30);
+    const faltas = itens.reduce((acc, s) => acc + s.faltas, 0);
+    const media = itens.length > 0 ? itens.reduce((acc, s) => acc + s.percentual_presenca, 0) / itens.length : 0;
+    setColor(doc, CORES.fundoClaro, 'fill');
+    doc.rect(PAGINA.margemEsquerda, y - 4, contentWidth, 6, 'F');
+    setColor(doc, CORES.textoEscuro);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.text(`Subtotal ${unidade}: ${itens.length} servidor${itens.length === 1 ? '' : 'es'} | Faltas: ${faltas} | Média de presença: ${media.toFixed(1)}%`, PAGINA.margemEsquerda + 2, y);
+    doc.setFont('helvetica', 'normal');
+    y += 8;
+  };
+
+  let unidadeAtual: string | null = null;
+  let itensUnidade: FrequenciaServidor[] = [];
+
+  servidoresOrdenados.forEach((s, index) => {
+    y = checkPageBreak(doc, y, 30);
+
+    if (data.agruparPorUnidade && chaveUnidade(s) !== unidadeAtual) {
+      if (unidadeAtual !== null) subtotalUnidade(unidadeAtual, itensUnidade);
+      unidadeAtual = chaveUnidade(s);
+      itensUnidade = [];
+      setColor(doc, CORES.primaria);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text(unidadeAtual, PAGINA.margemEsquerda + 2, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      y += 6;
+    }
+    if (data.agruparPorUnidade) itensUnidade.push(s);
     
     if (index % 2 === 0) {
       setColor(doc, { r: 250, g: 250, b: 250 }, 'fill');
@@ -163,6 +205,8 @@ export const generateRelatorioFrequenciaGeral = async (data: RelatorioFrequencia
     
     y += 5.5;
   });
+
+  if (data.agruparPorUnidade && unidadeAtual !== null) subtotalUnidade(unidadeAtual, itensUnidade);
   
   // Resumo
   y += 8;

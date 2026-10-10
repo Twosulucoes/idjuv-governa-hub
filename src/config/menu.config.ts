@@ -98,6 +98,7 @@ export type PermissaoInstitucional =
   | 'rh.tramitar'
   | 'rh.aprovar'
   | 'rh.frequencia.lancar'
+  | 'rh.relatorios.visualizar'
   | 'rh.self'
   // Orçamento
   | 'orcamento.visualizar'
@@ -453,7 +454,7 @@ export const menuConfig: MenuSection[] = [
         label: "Relatórios",
         route: "/rh/relatorios",
         icon: BarChart3,
-        permission: "rh.visualizar",
+        permission: "rh.relatorios.visualizar",
       },
       {
         id: "meus-dados",

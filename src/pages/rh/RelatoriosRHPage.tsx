@@ -40,6 +40,10 @@ import { ExportacaoServidoresCard } from "@/components/rh/ExportacaoServidoresCa
 import { RelatorioServidoresDiretoriaCard } from "@/components/rh/RelatorioServidoresDiretoriaCard";
 import { RelatorioSegundoVinculoCard } from "@/components/rh/RelatorioSegundoVinculoCard";
 import { RelatorioContatosEstrategicosCard } from "@/components/rh/RelatorioContatosEstrategicosCard";
+import { RelatorioFeriasCard } from "@/components/rh/relatorios/RelatorioFeriasCard";
+import { RelatorioLicencasCard } from "@/components/rh/relatorios/RelatorioLicencasCard";
+import { RelatorioFrequenciaCard } from "@/components/rh/relatorios/RelatorioFrequenciaCard";
+import { RelatorioViagensCard } from "@/components/rh/relatorios/RelatorioViagensCard";
 
 const NATUREZA_LABELS: Record<string, string> = {
   comissionado: 'Cargos Comissionados',
@@ -860,7 +864,7 @@ export default function RelatoriosRHPage() {
             <div>
               <h1 className="text-3xl font-bold text-foreground">Relatórios de RH</h1>
               <p className="text-muted-foreground">
-                Gere relatórios em PDF do quadro de servidores
+                Gere relatórios em PDF e planilha do quadro de servidores, afastamentos, frequência e viagens
               </p>
             </div>
           </div>
@@ -1184,6 +1188,24 @@ export default function RelatoriosRHPage() {
             {/* Relatório de Segundo Vínculo */}
             <RelatorioSegundoVinculoCard />
           </div>
+
+          {/* Relatórios gerenciais: afastamentos, frequência e viagens (Onda C, item 15a) */}
+          <section className="mt-10" aria-labelledby="relatorios-afastamentos-titulo">
+            <div className="mb-4">
+              <h2 id="relatorios-afastamentos-titulo" className="text-xl font-semibold text-foreground">
+                Afastamentos, frequência e viagens
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Filtre por período, unidade e status; exporte em PDF ou XLSX. Servidores identificados por nome e matrícula.
+              </p>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2">
+              <RelatorioFeriasCard />
+              <RelatorioLicencasCard />
+              <RelatorioFrequenciaCard />
+              <RelatorioViagensCard />
+            </div>
+          </section>
 
           {/* Summary Cards */}
           <div className="mt-8 grid gap-4 md:grid-cols-4">
