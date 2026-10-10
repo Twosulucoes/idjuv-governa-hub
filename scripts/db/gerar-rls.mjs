@@ -12,11 +12,16 @@
  *   modulo           SELECT/INSERT/UPDATE/DELETE exigem can_access_module(auth.uid(), <módulo>)
  *                    (vários módulos separados por | = OU). can_access_module já exige perfil
  *                    ativo e dá passagem ao papel admin.
- *   catalogo         SELECT para qualquer usuário ativo (is_active_user()); escrita por módulo.
+ *   catalogo         SELECT para qualquer usuário ativo (is_active_user()); escrita por módulo. Extra opcional
+ *                    `escrita=<código>[|<código>...]`: a escrita exige o módulo E um dos códigos (como a classe
+ *                    permissao; o papel admin passa pelos dois). Ex.: tipos_abono (rh.frequencia.configurar).
  *   proprio_leitura  módulo OU o próprio servidor (servidor_id = meu_servidor_id()) lê; escrita por módulo.
  *                    extra opcional (sufixos separados por ;, em qualquer ordem, cada um no máximo uma vez):
  *                    `coluna=<col>` = coluna de posse quando não é servidor_id (em servidores é `id`);
- *                    `excluir=<código>|admin` = DELETE só com o módulo E o código (ou só o papel admin).
+ *                    `excluir=<código>|admin` = DELETE só com o módulo E o código (ou só o papel admin);
+ *                    `sem_autoaprovacao` = INSERT/UPDATE/DELETE pelo módulo exigem ainda que a linha NÃO seja do usuário
+ *                    logado: (is_admin_user(auth.uid()) OR NOT eh_meu_servidor(<col>)) — ex.: em servidores, quem tem o
+ *                    módulo edita qualquer ficha menos a própria (e não troca o próprio CPF para escapar da checagem).
  *   proprio          idem, e o próprio servidor também pode INSERIR (pedidos/requerimentos).
  *   proprio_filho    como proprio_leitura, mas a posse vem da tabela pai: extra=pai=<tabela>.<fk>;
  *                    com `;insere` o servidor também pode INSERIR registros ligados a pai seu.
@@ -198,21 +203,37 @@ for (const r of dados) {
       politica("rls_select", "SELECT", M, null);
       escritaPorModulo();
       break;
-    case "catalogo":
+    case "catalogo": {
       politica("rls_select", "SELECT", "public.is_active_user()", null);
-      escritaPorModulo();
+      if (extra === "") { escritaPorModulo(); break; }
+      // escrita=<c1>[|<c2>...]: a escrita exige o módulo E um dos códigos (como a classe permissao)
+      const me = /^escrita=([^;]+)$/.exec(extra);
+      const cods = me ? me[1].split("|") : [];
+      if (!me || cods.some((c) => !RE_CODIGO.test(c)) || new Set(cods).size !== cods.length) {
+        erros.push(`${t}: extra de catalogo deve ser vazio ou escrita=<código>[|<código>...]`);
+        break;
+      }
+      const hpc = (c) => `public.has_permission_code(auth.uid(), ${q(c)})`;
+      const PC = cods.length === 1 ? `${M} AND ${hpc(cods[0])}` : `${M} AND (${cods.map(hpc).join(" OR ")})`;
+      politica("rls_insert", "INSERT", null, PC);
+      politica("rls_update", "UPDATE", PC, PC);
+      politica("rls_delete", "DELETE", PC, null);
       break;
+    }
     case "proprio_leitura": {
       // extra vazio = forma de sempre (servidor_id; DELETE por módulo)
-      const op = extra === "" ? {} : lerSufixos(t, extra.split(";"), ["coluna", "excluir"]);
+      const op = extra === "" ? {} : lerSufixos(t, extra.split(";"), ["coluna", "excluir", "sem_autoaprovacao"]);
       if (!op) break;
       const col = op.coluna || "servidor_id";
+      // sem_autoaprovacao: quem escreve pelo módulo não escreve a linha que é sua (o admin passa)
+      const NM = op.sem_autoaprovacao ? ` AND (public.is_admin_user(auth.uid()) OR NOT public.eh_meu_servidor(${col}))` : "";
+      const ME = op.sem_autoaprovacao ? `${M}${NM}` : M;
       politica("rls_select", "SELECT", `${M} OR ${col} = public.meu_servidor_id()`, null);
-      politica("rls_insert", "INSERT", null, M);
-      politica("rls_update", "UPDATE", M, M);
+      politica("rls_insert", "INSERT", null, ME);
+      politica("rls_update", "UPDATE", ME, ME);
       if (op.excluir === "admin") politica("rls_delete", "DELETE", "public.is_admin_user(auth.uid())", null);
-      else if (op.excluir) politica("rls_delete", "DELETE", `${M} AND public.has_permission_code(auth.uid(), ${q(op.excluir)})`, null);
-      else politica("rls_delete", "DELETE", M, null);
+      else if (op.excluir) politica("rls_delete", "DELETE", `${M} AND public.has_permission_code(auth.uid(), ${q(op.excluir)})${NM}`, null);
+      else politica("rls_delete", "DELETE", ME, null);
       break;
     }
     case "proprio":

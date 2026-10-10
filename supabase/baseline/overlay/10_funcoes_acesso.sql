@@ -102,23 +102,35 @@ $$;
 -- Este servidor é do usuário logado? Base de ";sem_autoaprovacao" (rls/mapa.csv) e da isenção por permissão de
 -- forcar_campos_iniciais (overlay 20): ninguém decide sobre o próprio pedido. Verdadeira quando _servidor_id =
 -- meu_servidor_id() ou, se o perfil não tem vínculo (meu_servidor_id() nulo), quando o CPF do perfil é o do
--- servidor (só os dígitos; CPF nulo ou vazio nunca casa): o aprovador sem vínculo que é servidor não aprova o
--- próprio pedido. Nunca devolve NULL. Mesmo texto na migração 20261010090000_onda_b_rh_permissoes.sql.
+-- servidor: só os dígitos, completados com zeros à esquerda até 11 (CPF gravado sem o zero inicial casa); CPF nulo
+-- ou sem dígitos nunca casa. O aprovador sem vínculo que é servidor não aprova o próprio pedido. Nunca devolve
+-- NULL; meu_servidor_id() é lido uma vez só. Mesmo texto na migração 20261010100000_onda_b_rh_contornos.sql
+-- (a primeira versão, em SQL, veio na 20261010090000).
 -- EXECUTE só para authenticated (as policies a chamam como o usuário; a service role não passa por RLS).
 CREATE OR REPLACE FUNCTION public.eh_meu_servidor(_servidor_id uuid)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT CASE
-    WHEN _servidor_id IS NULL OR auth.uid() IS NULL THEN false
-    WHEN public.meu_servidor_id() IS NOT NULL THEN _servidor_id = public.meu_servidor_id()
-    ELSE EXISTS (
-      SELECT 1
-      FROM public.profiles p
-      JOIN public.servidores s ON s.id = _servidor_id
-      WHERE p.id = auth.uid()
-        AND nullif(regexp_replace(coalesce(p.cpf, ''), '[^0-9]', '', 'g'), '')
-            = regexp_replace(coalesce(s.cpf, ''), '[^0-9]', '', 'g')
-    )
-  END;
+RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_meu uuid;
+  v_cpf text;
+BEGIN
+  IF _servidor_id IS NULL OR auth.uid() IS NULL THEN
+    RETURN false;
+  END IF;
+  v_meu := public.meu_servidor_id();
+  IF v_meu IS NOT NULL THEN
+    RETURN _servidor_id = v_meu;
+  END IF;
+  SELECT regexp_replace(coalesce(p.cpf, ''), '[^0-9]', '', 'g') INTO v_cpf
+    FROM public.profiles p WHERE p.id = auth.uid();
+  IF coalesce(v_cpf, '') = '' THEN
+    RETURN false;
+  END IF;
+  RETURN EXISTS (
+    SELECT 1 FROM public.servidores s
+     WHERE s.id = _servidor_id
+       AND regexp_replace(coalesce(s.cpf, ''), '[^0-9]', '', 'g') <> ''
+       AND lpad(regexp_replace(s.cpf, '[^0-9]', '', 'g'), 11, '0') = lpad(v_cpf, 11, '0'));
+END;
 $$;
 REVOKE EXECUTE ON FUNCTION public.eh_meu_servidor(uuid) FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.eh_meu_servidor(uuid) TO authenticated;

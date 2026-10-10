@@ -27,7 +27,8 @@ muda em relação ao estado das migrações:
   [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#folha-rls-por-permissão-onda-b--b1) — e 12 do RH na B2 (férias,
   licenças, viagens, frequência; seção "RH — frequência e ponto" abaixo). A B2 acrescentou ao gerador lista de
   códigos (`escrita=a|b`) e os sufixos `;excluir=`, `;insere_proprio`, `;sem_autoaprovacao`, `;coluna=` e
-  `;posse=usuario` (formato no [README do baseline](../supabase/baseline/README.md)). `scripts/db/testar-rls.sql`
+  `;posse=usuario`; a correção de contornos levou `escrita=` à classe `catalogo` e `sem_autoaprovacao` à
+  `proprio_leitura` (formato no [README do baseline](../supabase/baseline/README.md)). `scripts/db/testar-rls.sql`
   cobre a classe com uma persona por código (módulo + código em `user_modules.permissions`) e uma persona
   com a permissão avulsa sem o módulo (não lê nem escreve).
 - **Perfil ativo é pré-condição.** `is_admin_user`, `has_permission_code` e `meu_servidor_id` passam a
@@ -84,10 +85,13 @@ mudança de schema continua por migração nova (e regeneração do baseline). T
 `config_assinatura_frequencia`, `config_fechamento_frequencia`,
 `config_jornada_padrao`, `config_compensacao`, `config_incidencias`.
 
-Segurança do RH — Onda B / B2 (**migração `supabase/migrations/20261010090000_onda_b_rh_permissoes.sql`, na
-PR da B2, ainda não aplicada em remoto**; idempotente, vale para o banco do baseline e para o só-migrações;
-depende da S0 `20261010080000` e da B1). Regra por tabela e quem perde acesso em
+Segurança do RH — Onda B / B2 (migração `supabase/migrations/20261010090000_onda_b_rh_permissoes.sql`,
+mesclada na PR #69 em 2026-10-10, e a correção de contornos
+`supabase/migrations/20261010100000_onda_b_rh_contornos.sql`, **em PR rascunho**; as duas idempotentes, valem
+para o banco do baseline e para o só-migrações; dependem da S0 `20261010080000` e da B1). Regra por tabela e
+quem perde acesso em
 [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#férias-licenças-viagens-e-frequência-rls-por-permissão-onda-b--b2).
+Os itens marcados "(contornos)" são da segunda migração.
 
 - **Policies** de 16 tabelas do RH (as `acesso_total_*`, `rh_module_*` e `vinculos_*` saem): 12 na classe
   `permissao` — gravar exige o módulo `rh` **e** um código do catálogo (`ferias_servidor`,
@@ -97,6 +101,11 @@ depende da S0 `20261010080000` e da B1). Regra por tabela e quem perde acesso em
   `lotacoes` em `proprio_leitura` (o servidor lê a própria linha por `meu_servidor_id()`; em `servidores`
   a posse é a coluna `id` e o DELETE exige `rh.servidores.excluir`); `cargos` em `catalogo`. `anon` perde
   todo privilégio nas 16 tabelas e `authenticated` perde TRUNCATE/TRIGGER/REFERENCES.
+- **(contornos)** `tipos_abono`: classe `catalogo` com `escrita=rh.frequencia.configurar` (qualquer usuário
+  ativo lê; gravar exige o módulo `rh` e o código), porque `exige_aprovacao_rh` decide se a chefia encerra o
+  fluxo do abono. `servidores`: `proprio_leitura` com `sem_autoaprovacao` — quem tem o módulo grava qualquer
+  ficha menos a própria (`NOT eh_meu_servidor(id)`, também no DELETE); admin passa.
+  `solicitacoes_ajuste_ponto`: DELETE só com `rh.frequencia.lancar`.
 - **Posse por usuário.** Em `banco_horas` e `solicitacoes_ajuste_ponto` a coluna `servidor_id` tem FK para
   `profiles(id)`, não para `servidores`: a posse é comparada com `auth.uid()` (sufixo `;posse=usuario`), e
   `lancamentos_banco_horas` herda a regra pelo banco de horas pai.
@@ -107,21 +116,32 @@ depende da S0 `20261010080000` e da B1). Regra por tabela e quem perde acesso em
 - **Função `eh_meu_servidor(uuid)`** (`SECURITY DEFINER`, `STABLE`, `search_path` fixo, EXECUTE só para
   `authenticated`; mesmo texto no overlay 10): verdadeira se o id é `meu_servidor_id()` ou, quando o perfil
   não tem vínculo, se os dígitos do CPF do perfil batem com os do servidor (CPF vazio nunca casa). Nunca
-  devolve NULL. É a condição "não é sua" das policies e da isenção de `forcar_campos_iniciais`.
-- **Exclusão** de abono, fechamento e justificativa só com `rh.frequencia.lancar`.
+  devolve NULL. É a condição "não é sua" das policies e da isenção de `forcar_campos_iniciais`. Nos
+  contornos passa a plpgsql: lê `meu_servidor_id()` uma vez só e compara os CPFs com `lpad(dígitos, 11, '0')`
+  (CPF gravado sem o zero inicial casa).
+- **Exclusão** de abono, fechamento, justificativa e (contornos) ajuste de ponto só com
+  `rh.frequencia.lancar`.
 - **Trigger `trg_validar_etapa_frequencia`** (função `validar_etapa_frequencia()`, `SECURITY DEFINER`,
   `search_path` fixo, sem EXECUTE para PUBLIC/`anon`/`authenticated`), BEFORE INSERT, UPDATE e DELETE em
-  `solicitacoes_abono` e `frequencia_fechamento`:
-  - abono, sem `rh.frequencia.lancar`: `servidor_id` e `tipo_abono_id` nunca mudam; datas, horas,
-    justificativa, `documento_url`, `motivo_rejeicao` e `created_by` só enquanto pendente; a chefia
-    (`rh.aprovar`) só decide a partir de `pendente`, para `aprovado_chefia`, `rejeitado` ou `aprovado` (este
-    só se o tipo de abono da linha antes do comando dispensa o RH);
+  `solicitacoes_abono` e `frequencia_fechamento` e, nos contornos, também em `justificativas_ponto` e
+  `solicitacoes_ajuste_ponto`:
+  - abono: `created_by` = `auth.uid()` no INSERT (também para quem tem a permissão) e imutável depois
+    (contornos); sem `rh.frequencia.lancar`, servidor, tipo, datas, horas, justificativa e `documento_url`
+    nunca mudam, nem em pendente (contornos; antes, só fora de pendente), `motivo_rejeicao` só ao rejeitar um
+    pendente e `aprovado_chefia_*` só junto com a decisão sobre um pendente; a chefia (`rh.aprovar`) só
+    decide a partir de `pendente`, para `aprovado_chefia`, `rejeitado` ou `aprovado` (este só se o tipo de
+    abono da linha antes do comando dispensa o RH);
   - fechamento: `servidor_id`, `ano` e `mes` imutáveis; `assinado_servidor*` só pelo dono; linha
     consolidada travada sem `rh.frequencia.lancar`; validar exige `rh.aprovar`; reabrir e consolidar,
     `rh.frequencia.lancar`;
+  - (contornos) justificativa e ajuste: sem `rh.frequencia.lancar`, o texto do pedido não muda; a decisão
+    só com `rh.aprovar`, de `pendente` para `aprovada` ou `rejeitada`; `aprovador_id`, `data_aprovacao` e
+    `observacao_aprovador` só junto com essa decisão;
   - DELETE exige `rh.frequencia.lancar`;
-  - autoria: quando um par `<etapa>_por`/`<etapa>_em` muda para valor não nulo, o banco grava
-    `_por = auth.uid()` e `_em = now()` (o valor do cliente é ignorado).
+  - autoria: a etapa que acontece no comando grava o seu par (`<etapa>_por`/`<etapa>_em`, ou
+    `aprovador_id`/`data_aprovacao`) com `auth.uid()` e `now()`, mesmo que o cliente não o envie (contornos);
+    enquanto a etapa vale (status ou flag ativos), o par não pode ser apagado (contornos); fora disso, o par
+    que muda para valor não nulo também é gravado pelo banco. O valor do cliente é ignorado.
 
   O papel admin, a service role e funções internas passam (o teste é o GUC `role`). Recusa com `42501`. O
   nome começa com `trg_v` para rodar depois de `trg_forcar_campos_iniciais`. Limitação: o servidor ainda
@@ -137,6 +157,8 @@ depende da S0 `20261010080000` e da B1). Regra por tabela e quem perde acesso em
   `service_role`.
 - **`fn_atualizar_situacao_servidor`** sem EXECUTE para PUBLIC, `anon` e `authenticated` (só os triggers a
   chamam), como no overlay 40.
+- Pendente, anterior à B2: quem tem o módulo `rh` muda `servidores.situacao` de outro servidor, o que bloqueia
+  o perfil vinculado.
 
 ### Folha de pagamento
 `folhas_pagamento`, `folha_historico_status`, `fichas_financeiras`,
@@ -147,8 +169,8 @@ depende da S0 `20261010080000` e da B1). Regra por tabela e quem perde acesso em
 `bancos_cnab`, `remessas_bancarias`, `retornos_bancarios`,
 `itens_retorno_bancario`, `eventos_esocial`.
 
-Segurança da folha (**migração `supabase/migrations/20261010070000_onda_b_folha_rls_permissao.sql`, em PR,
-ainda não aplicada em remoto**; idempotente, vale tanto para o banco do baseline quanto para o produzido só
+Segurança da folha (migração `supabase/migrations/20261010070000_onda_b_folha_rls_permissao.sql`, mesclada
+na PR #63; idempotente, vale tanto para o banco do baseline quanto para o produzido só
 pelas migrações):
 
 - Policies por permissão nas 10 tabelas da folha (classe `permissao`, acima) e remoção das `acesso_total_*`

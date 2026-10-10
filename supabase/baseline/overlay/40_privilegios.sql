@@ -82,6 +82,10 @@ DO $$ BEGIN
   IF to_regprocedure('public.validar_etapa_frequencia()') IS NOT NULL THEN
     REVOKE EXECUTE ON FUNCTION public.validar_etapa_frequencia() FROM authenticated;
   END IF;
+  -- trigger que protege servidores.cpf (migração 20261010100000), mesma guarda por existência
+  IF to_regprocedure('public.servidores_proteger_cpf()') IS NOT NULL THEN
+    REVOKE EXECUTE ON FUNCTION public.servidores_proteger_cpf() FROM authenticated;
+  END IF;
 END $$;
 REVOKE EXECUTE ON FUNCTION public.config_envio_servidor(text) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.config_envio_servidor(text) TO service_role;

@@ -2364,21 +2364,31 @@ $$;
 --
 
 CREATE FUNCTION public.eh_meu_servidor(_servidor_id uuid) RETURNS boolean
-    LANGUAGE sql STABLE SECURITY DEFINER
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-  SELECT CASE
-    WHEN _servidor_id IS NULL OR auth.uid() IS NULL THEN false
-    WHEN public.meu_servidor_id() IS NOT NULL THEN _servidor_id = public.meu_servidor_id()
-    ELSE EXISTS (
-      SELECT 1
-      FROM public.profiles p
-      JOIN public.servidores s ON s.id = _servidor_id
-      WHERE p.id = auth.uid()
-        AND nullif(regexp_replace(coalesce(p.cpf, ''), '[^0-9]', '', 'g'), '')
-            = regexp_replace(coalesce(s.cpf, ''), '[^0-9]', '', 'g')
-    )
-  END;
+DECLARE
+  v_meu uuid;
+  v_cpf text;
+BEGIN
+  IF _servidor_id IS NULL OR auth.uid() IS NULL THEN
+    RETURN false;
+  END IF;
+  v_meu := public.meu_servidor_id();
+  IF v_meu IS NOT NULL THEN
+    RETURN _servidor_id = v_meu;
+  END IF;
+  SELECT regexp_replace(coalesce(p.cpf, ''), '[^0-9]', '', 'g') INTO v_cpf
+    FROM public.profiles p WHERE p.id = auth.uid();
+  IF coalesce(v_cpf, '') = '' THEN
+    RETURN false;
+  END IF;
+  RETURN EXISTS (
+    SELECT 1 FROM public.servidores s
+     WHERE s.id = _servidor_id
+       AND regexp_replace(coalesce(s.cpf, ''), '[^0-9]', '', 'g') <> ''
+       AND lpad(regexp_replace(s.cpf, '[^0-9]', '', 'g'), 11, '0') = lpad(v_cpf, 11, '0'));
+END;
 $$;
 
 
@@ -6923,6 +6933,27 @@ $$;
 
 
 --
+-- Name: servidores_proteger_cpf(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.servidores_proteger_cpf() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF coalesce(current_setting('role', true), 'none') IN ('anon', 'authenticated')
+     AND NOT public.is_admin_user(auth.uid())
+     AND lpad(regexp_replace(coalesce(NEW.cpf, ''), '[^0-9]', '', 'g'), 11, '0')
+         IS DISTINCT FROM lpad(regexp_replace(coalesce(OLD.cpf, ''), '[^0-9]', '', 'g'), 11, '0') THEN
+    RAISE EXCEPTION 'Ficha do servidor: o CPF só é alterado pelo papel admin (ele identifica o servidor nas aprovações)'
+      USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: set_reuniao_created_by(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -7313,10 +7344,22 @@ DECLARE
   ov jsonb := '{}'::jsonb;
   st_antes text;
   st_depois text;
+  mudou_status boolean;
   mudou_chefia boolean;
   mudou_rh boolean;
+  pela_chefia boolean;
   dispensa_rh boolean;
-  pares text[];
+  dados text[];
+  col text;
+  -- pares de autoria: coluna _por, coluna _em, forçar agora (a etapa acontece neste comando), etapa ativa
+  -- (enquanto vale, o par não é apagado)
+  p_por text[] := '{}';
+  p_em text[] := '{}';
+  p_forca boolean[] := '{}';
+  p_ativo boolean[] := '{}';
+  -- fora da etapa ativa: true = o par fica como estava (a etapa aconteceu e o pedido terminou depois, ex.: a chefia
+  -- aprovou e o RH rejeitou), false = o par vai a NULL (não sugere uma aprovação que não houve)
+  p_hist boolean[] := '{}';
   i int;
 BEGIN
   IF coalesce(current_setting('role', true), 'none') NOT IN ('anon', 'authenticated')
@@ -7329,7 +7372,11 @@ BEGIN
   IF TG_OP = 'DELETE' THEN
     IF NOT v_rh THEN
       RAISE EXCEPTION 'Etapa do RH: excluir % exige a permissão rh.frequencia.lancar',
-        CASE TG_TABLE_NAME WHEN 'solicitacoes_abono' THEN 'a solicitação de abono' ELSE 'o fechamento da frequência' END
+        CASE TG_TABLE_NAME
+          WHEN 'solicitacoes_abono' THEN 'a solicitação de abono'
+          WHEN 'frequencia_fechamento' THEN 'o fechamento da frequência'
+          WHEN 'justificativas_ponto' THEN 'a justificativa de ponto'
+          ELSE 'a solicitação de ajuste de ponto' END
         USING ERRCODE = '42501';
     END IF;
     RETURN OLD;
@@ -7340,29 +7387,53 @@ BEGIN
   o := CASE WHEN TG_OP = 'INSERT' THEN '{}'::jsonb ELSE to_jsonb(OLD) END;
 
   IF TG_TABLE_NAME = 'solicitacoes_abono' THEN
+    IF n ->> 'status' IS NULL THEN
+      RAISE EXCEPTION 'Abono: o status não pode ser nulo' USING ERRCODE = '42501';
+    END IF;
     st_antes := coalesce(o ->> 'status', 'pendente');
-    st_depois := coalesce(n ->> 'status', 'pendente');
+    st_depois := n ->> 'status';
+    mudou_status := st_depois IS DISTINCT FROM st_antes;
+    -- status legado (CHECK do banco): nenhuma tela grava; fica fora da autoria, então ninguém transiciona para ele
+    IF mudou_status AND st_depois = 'aprovado_rh' THEN
+      RAISE EXCEPTION 'Abono: o status legado aprovado_rh não é mais usado (o RH aprova com aprovado)' USING ERRCODE = '42501';
+    END IF;
+    -- sem RH, o pedido nasce na etapa inicial: status pendente (decidido é recusado) e campos de decisão nulos
+    IF TG_OP = 'INSERT' AND NOT v_rh THEN
+      IF st_depois <> 'pendente' THEN
+        RAISE EXCEPTION 'Etapa do RH: só quem tem rh.frequencia.lancar registra o abono já decidido (status %); a chefia decide depois, sobre o pendente', st_depois
+          USING ERRCODE = '42501';
+      END IF;
+      ov := ov || jsonb_build_object('motivo_rejeicao', NULL);
+    END IF;
     mudou_chefia := (n ->> 'aprovado_chefia_por') IS DISTINCT FROM (o ->> 'aprovado_chefia_por')
                  OR (n ->> 'aprovado_chefia_em') IS DISTINCT FROM (o ->> 'aprovado_chefia_em');
     mudou_rh := (n ->> 'aprovado_rh_por') IS DISTINCT FROM (o ->> 'aprovado_rh_por')
              OR (n ->> 'aprovado_rh_em') IS DISTINCT FROM (o ->> 'aprovado_rh_em');
 
-    -- dados do pedido: sem RH, dono e tipo nunca mudam; o resto só enquanto pendente
+    -- autor do pedido: quem insere (mesmo isento em forcar_campos_iniciais); não muda depois
+    IF TG_OP = 'INSERT' THEN
+      ov := ov || jsonb_build_object('created_by', v_uid);
+    ELSIF (n ->> 'created_by') IS DISTINCT FROM (o ->> 'created_by') THEN
+      RAISE EXCEPTION 'Abono: o autor do pedido (created_by) não muda' USING ERRCODE = '42501';
+    END IF;
+
+    -- dados do pedido: sem RH, nada muda (a chefia decide, não edita); o motivo da rejeição só entra junto com a
+    -- rejeição de um pendente; a aprovação da chefia só junto com a decisão sobre um pendente
     IF TG_OP = 'UPDATE' AND NOT v_rh THEN
-      IF (n ->> 'servidor_id') IS DISTINCT FROM (o ->> 'servidor_id')
-         OR (n ->> 'tipo_abono_id') IS DISTINCT FROM (o ->> 'tipo_abono_id') THEN
-        RAISE EXCEPTION 'Etapa do RH: trocar o servidor ou o tipo do abono exige a permissão rh.frequencia.lancar'
+      FOREACH col IN ARRAY ARRAY['servidor_id', 'tipo_abono_id', 'data_inicio', 'data_fim', 'hora_inicio', 'hora_fim',
+                                 'justificativa', 'documento_url'] LOOP
+        IF (n ->> col) IS DISTINCT FROM (o ->> col) THEN
+          RAISE EXCEPTION 'Etapa do RH: alterar os dados do abono (%) exige a permissão rh.frequencia.lancar (a chefia decide, não edita)', col
+            USING ERRCODE = '42501';
+        END IF;
+      END LOOP;
+      IF (n ->> 'motivo_rejeicao') IS DISTINCT FROM (o ->> 'motivo_rejeicao')
+         AND NOT (st_antes = 'pendente' AND st_depois = 'rejeitado') THEN
+        RAISE EXCEPTION 'Etapa do RH: o motivo da rejeição só é registrado ao rejeitar um abono pendente (status %); fora disso exige a permissão rh.frequencia.lancar', st_antes
           USING ERRCODE = '42501';
       END IF;
-      IF st_antes <> 'pendente' AND EXISTS (
-           SELECT 1 FROM unnest(ARRAY['data_inicio', 'data_fim', 'hora_inicio', 'hora_fim', 'justificativa',
-                                      'documento_url', 'motivo_rejeicao', 'created_by']) AS c(col)
-           WHERE (n ->> c.col) IS DISTINCT FROM (o ->> c.col)) THEN
-        RAISE EXCEPTION 'Etapa do RH: alterar o abono que já saiu de pendente (status %) exige a permissão rh.frequencia.lancar', st_antes
-          USING ERRCODE = '42501';
-      END IF;
-      IF mudou_chefia AND st_antes <> 'pendente' THEN
-        RAISE EXCEPTION 'Etapa do RH: alterar a aprovação da chefia de um abono que já saiu de pendente (status %) exige a permissão rh.frequencia.lancar', st_antes
+      IF mudou_chefia AND (st_antes <> 'pendente' OR NOT mudou_status) THEN
+        RAISE EXCEPTION 'Etapa do RH: a aprovação da chefia só é registrada junto com a decisão sobre um abono pendente (status %); fora disso exige a permissão rh.frequencia.lancar', st_antes
           USING ERRCODE = '42501';
       END IF;
     END IF;
@@ -7374,7 +7445,7 @@ BEGIN
       RAISE EXCEPTION 'Etapa do RH: registrar a aprovação do RH exige a permissão rh.frequencia.lancar' USING ERRCODE = '42501';
     END IF;
 
-    IF st_depois IS DISTINCT FROM st_antes THEN
+    IF mudou_status THEN
       IF st_depois = 'aprovado_chefia' AND NOT v_chefia THEN
         RAISE EXCEPTION 'Etapa da chefia: aprovar o abono pela chefia exige a permissão rh.aprovar' USING ERRCODE = '42501';
       END IF;
@@ -7402,7 +7473,16 @@ BEGIN
         END IF;
       END IF;
     END IF;
-    pares := ARRAY['aprovado_chefia_por', 'aprovado_chefia_em', 'aprovado_rh_por', 'aprovado_rh_em'];
+    -- ir para `aprovado` pela chefia (encerra o fluxo; quem tem as duas permissões e só registra a chefia) grava o par
+    -- da chefia; pelo RH, o par do RH. A rejeição não tem coluna de autoria no abono.
+    pela_chefia := NOT v_rh OR (mudou_chefia AND NOT mudou_rh);
+    p_por := ARRAY['aprovado_chefia_por', 'aprovado_rh_por'];
+    p_em := ARRAY['aprovado_chefia_em', 'aprovado_rh_em'];
+    p_forca := ARRAY[mudou_status AND (st_depois = 'aprovado_chefia' OR (st_depois = 'aprovado' AND pela_chefia)),
+                     mudou_status AND st_depois = 'aprovado' AND NOT pela_chefia];
+    p_ativo := ARRAY[st_depois IN ('aprovado_chefia', 'aprovado'), st_depois = 'aprovado'];
+    -- (aprovado_rh: linhas legadas mantêm o que tinham)
+    p_hist := ARRAY[st_depois IN ('rejeitado', 'cancelado', 'aprovado_rh'), st_depois IN ('rejeitado', 'cancelado', 'aprovado_rh')];
 
   ELSIF TG_TABLE_NAME = 'frequencia_fechamento' THEN
     IF TG_OP = 'UPDATE'
@@ -7443,16 +7523,83 @@ BEGIN
        AND NOT v_rh THEN
       RAISE EXCEPTION 'Etapa do RH: consolidar ou reabrir a frequência exige a permissão rh.frequencia.lancar' USING ERRCODE = '42501';
     END IF;
-    pares := ARRAY['validado_chefia_por', 'validado_chefia_em', 'consolidado_rh_por', 'consolidado_rh_em',
-                   'reaberto_por', 'reaberto_em'];
+    -- a flag que vira true grava o seu par; enquanto ela vale, o par não é apagado
+    FOREACH col IN ARRAY ARRAY['validado_chefia', 'consolidado_rh', 'reaberto'] LOOP
+      p_por := p_por || (col || '_por');
+      p_em := p_em || (col || '_em');
+      p_forca := p_forca || (coalesce((n ->> col)::boolean, false) AND NOT coalesce((o ->> col)::boolean, false));
+      p_ativo := p_ativo || coalesce((n ->> col)::boolean, false);
+      -- a reabertura que já aconteceu continua registrada depois da reconsolidação (reaberto volta a false)
+      p_hist := p_hist || (col = 'reaberto');
+    END LOOP;
+
+  ELSE
+    -- justificativas_ponto e solicitacoes_ajuste_ponto: uma etapa só (chefia ou RH decidem; status_solicitacao)
+    IF n ->> 'status' IS NULL THEN
+      RAISE EXCEPTION 'Pedido de ponto: o status não pode ser nulo' USING ERRCODE = '42501';
+    END IF;
+    st_antes := coalesce(o ->> 'status', 'pendente');
+    st_depois := n ->> 'status';
+    mudou_status := st_depois IS DISTINCT FROM st_antes;
+    -- sem RH, o pedido nasce na etapa inicial: status pendente (decidido é recusado) e campos de decisão nulos
+    IF TG_OP = 'INSERT' AND NOT v_rh THEN
+      IF st_depois <> 'pendente' THEN
+        RAISE EXCEPTION 'Etapa do RH: só quem tem rh.frequencia.lancar registra o pedido já decidido (status %); a chefia decide depois, sobre o pendente', st_depois
+          USING ERRCODE = '42501';
+      END IF;
+      ov := ov || jsonb_build_object('observacao_aprovador', NULL);
+    END IF;
+    dados := CASE TG_TABLE_NAME
+      WHEN 'justificativas_ponto' THEN ARRAY['registro_ponto_id', 'tipo', 'descricao', 'arquivo_url']
+      ELSE ARRAY['servidor_id', 'registro_ponto_id', 'data_ocorrido', 'tipo_ajuste', 'campo_ajuste', 'horario_atual',
+                 'horario_correto', 'motivo', 'comprovante_url'] END;
+    IF TG_OP = 'UPDATE' AND NOT v_rh THEN
+      FOREACH col IN ARRAY dados LOOP
+        IF (n ->> col) IS DISTINCT FROM (o ->> col) THEN
+          RAISE EXCEPTION 'Etapa do RH: alterar o texto do pedido (%) exige a permissão rh.frequencia.lancar (a chefia decide, não edita)', col
+            USING ERRCODE = '42501';
+        END IF;
+      END LOOP;
+      IF ((n ->> 'observacao_aprovador') IS DISTINCT FROM (o ->> 'observacao_aprovador')
+          OR (n ->> 'aprovador_id') IS DISTINCT FROM (o ->> 'aprovador_id')
+          OR (n ->> 'data_aprovacao') IS DISTINCT FROM (o ->> 'data_aprovacao'))
+         AND NOT (st_antes = 'pendente' AND mudou_status) THEN
+        RAISE EXCEPTION 'Etapa do RH: a decisão só é registrada junto com a mudança de status de um pedido pendente (status %); fora disso exige a permissão rh.frequencia.lancar', st_antes
+          USING ERRCODE = '42501';
+      END IF;
+    END IF;
+    IF mudou_status AND NOT v_rh THEN
+      IF NOT v_chefia OR st_antes <> 'pendente' OR st_depois NOT IN ('aprovada', 'rejeitada') THEN
+        RAISE EXCEPTION 'Etapa do RH: mudar o status do pedido de % para % exige a permissão rh.frequencia.lancar (a chefia só aprova ou rejeita o pendente)', st_antes, st_depois
+          USING ERRCODE = '42501';
+      END IF;
+    END IF;
+    p_por := ARRAY['aprovador_id'];
+    p_em := ARRAY['data_aprovacao'];
+    p_forca := ARRAY[mudou_status AND st_depois IN ('aprovada', 'rejeitada')];
+    p_ativo := ARRAY[st_depois IN ('aprovada', 'rejeitada')];
+    p_hist := ARRAY[st_depois = 'cancelada'];
   END IF;
 
-  -- autoria: o par <etapa>_por/_em que muda para um valor não nulo é de quem age, agora
-  FOR i IN 1 .. coalesce(array_length(pares, 1), 0) / 2 LOOP
-    IF ((n ->> pares[2 * i - 1]) IS DISTINCT FROM (o ->> pares[2 * i - 1])
-        OR (n ->> pares[2 * i]) IS DISTINCT FROM (o ->> pares[2 * i]))
-       AND ((n ->> pares[2 * i - 1]) IS NOT NULL OR (n ->> pares[2 * i]) IS NOT NULL) THEN
-      ov := ov || jsonb_build_object(pares[2 * i - 1], v_uid, pares[2 * i], now());
+  -- autoria: o par da etapa que acontece neste comando é de quem age, agora. Enquanto a etapa vale, o par não é
+  -- apagado (nem em parte) e, se mudar para um valor não nulo, também é de quem age, agora. Fora da etapa ativa, o
+  -- par fica como estava (p_hist: a etapa aconteceu e o pedido terminou depois) ou vai a NULL.
+  FOR i IN 1 .. coalesce(array_length(p_por, 1), 0) LOOP
+    IF p_forca[i] THEN
+      ov := ov || jsonb_build_object(p_por[i], v_uid, p_em[i], now());
+    ELSIF p_ativo[i] THEN
+      IF ((o ->> p_por[i]) IS NOT NULL AND (n ->> p_por[i]) IS NULL)
+         OR ((o ->> p_em[i]) IS NOT NULL AND (n ->> p_em[i]) IS NULL) THEN
+        RAISE EXCEPTION 'Autoria: o registro da etapa (%, %) não é apagado enquanto ela vale', p_por[i], p_em[i]
+          USING ERRCODE = '42501';
+      ELSIF ((n ->> p_por[i]) IS DISTINCT FROM (o ->> p_por[i]) OR (n ->> p_em[i]) IS DISTINCT FROM (o ->> p_em[i]))
+            AND ((n ->> p_por[i]) IS NOT NULL OR (n ->> p_em[i]) IS NOT NULL) THEN
+        ov := ov || jsonb_build_object(p_por[i], v_uid, p_em[i], now());
+      END IF;
+    ELSIF p_hist[i] THEN
+      ov := ov || jsonb_build_object(p_por[i], o -> p_por[i], p_em[i], o -> p_em[i]);
+    ELSE
+      ov := ov || jsonb_build_object(p_por[i], NULL, p_em[i], NULL);
     END IF;
   END LOOP;
   IF ov <> '{}'::jsonb THEN

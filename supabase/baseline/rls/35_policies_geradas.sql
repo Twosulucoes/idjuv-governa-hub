@@ -3327,14 +3327,14 @@ CREATE POLICY "rls_select" ON public.servidores FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')) OR id = public.meu_servidor_id());
 DROP POLICY IF EXISTS "rls_insert" ON public.servidores;
 CREATE POLICY "rls_insert" ON public.servidores FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND (public.is_admin_user(auth.uid()) OR NOT public.eh_meu_servidor(id)));
 DROP POLICY IF EXISTS "rls_update" ON public.servidores;
 CREATE POLICY "rls_update" ON public.servidores FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND (public.is_admin_user(auth.uid()) OR NOT public.eh_meu_servidor(id)))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND (public.is_admin_user(auth.uid()) OR NOT public.eh_meu_servidor(id)));
 DROP POLICY IF EXISTS "rls_delete" ON public.servidores;
 CREATE POLICY "rls_delete" ON public.servidores FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.servidores.excluir'));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.servidores.excluir') AND (public.is_admin_user(auth.uid()) OR NOT public.eh_meu_servidor(id)));
 
 -- solicitacoes_abono  [permissao: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.solicitacoes_abono;
@@ -3364,7 +3364,7 @@ CREATE POLICY "rls_update" ON public.solicitacoes_ajuste_ponto FOR UPDATE TO aut
   WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND (public.has_permission_code(auth.uid(), 'rh.aprovar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar')) AND (public.is_admin_user(auth.uid()) OR servidor_id IS DISTINCT FROM auth.uid()));
 DROP POLICY IF EXISTS "rls_delete" ON public.solicitacoes_ajuste_ponto;
 CREATE POLICY "rls_delete" ON public.solicitacoes_ajuste_ponto FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')) AND (public.has_permission_code(auth.uid(), 'rh.aprovar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar')) AND (public.is_admin_user(auth.uid()) OR servidor_id IS DISTINCT FROM auth.uid()));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar') AND (public.is_admin_user(auth.uid()) OR servidor_id IS DISTINCT FROM auth.uid()));
 
 -- solicitacoes_sic  [modulo: transparencia]
 DROP POLICY IF EXISTS "rls_select" ON public.solicitacoes_sic;
@@ -3432,14 +3432,14 @@ CREATE POLICY "rls_select" ON public.tipos_abono FOR SELECT TO authenticated
   USING (public.is_active_user());
 DROP POLICY IF EXISTS "rls_insert" ON public.tipos_abono;
 CREATE POLICY "rls_insert" ON public.tipos_abono FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.frequencia.configurar'));
 DROP POLICY IF EXISTS "rls_update" ON public.tipos_abono;
 CREATE POLICY "rls_update" ON public.tipos_abono FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.frequencia.configurar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.frequencia.configurar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.tipos_abono;
 CREATE POLICY "rls_delete" ON public.tipos_abono FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')));
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.frequencia.configurar'));
 
 -- unidades_locais  [modulo: patrimonio | patrimonio_mobile]
 DROP POLICY IF EXISTS "pat_module_delete" ON public.unidades_locais;
