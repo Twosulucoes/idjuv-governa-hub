@@ -2,6 +2,7 @@
  * Relatórios gerenciais de RH em PDF: férias (por unidade), licenças/afastamentos (por tipo)
  * e viagens/diárias (por unidade, paisagem). Usa o template institucional (`pdfTemplate`);
  * identidade via `getTenantSnapshot()`. Regras e rótulos em `relatoriosRHRegras`.
+ * Os helpers de tabela exportados aqui são reaproveitados por `pdfRelatoriosFolha.ts`.
  *
  * LGPD: imprime nome e matrícula; nenhum CPF ou dado de saúde chega a estes geradores.
  */
@@ -12,7 +13,6 @@ import {
   generateInstitutionalHeader,
   generateInstitutionalFooter,
   addPageNumbers,
-  addTableHeader,
   CORES,
   PAGINA,
   getPageDimensions,
@@ -44,12 +44,35 @@ import {
   type LinhaViagemRelatorio,
 } from './relatoriosRHRegras';
 
-interface Coluna {
+/** Coluna da tabela; `align: 'right'` alinha célula, total e cabeçalho à direita (valores em R$). */
+export interface Coluna {
   header: string;
   width: number;
+  align?: 'left' | 'right';
 }
 
 const ALTURA_LINHA = 5;
+
+/** Posição x do texto da célula conforme o alinhamento da coluna. */
+const xCelula = (x: number, col: Coluna): { x: number; align: 'left' | 'right' } =>
+  col.align === 'right' ? { x: x + col.width - 2, align: 'right' } : { x, align: 'left' };
+
+/** Cabeçalho da tabela (mesmo visual de `addTableHeader`), respeitando `align` da coluna. */
+export const addCabecalhoTabela = (doc: jsPDF, colunas: Coluna[], y: number): number => {
+  const { contentWidth } = getPageDimensions(doc);
+  setColor(doc, CORES.primaria, 'fill');
+  doc.rect(PAGINA.margemEsquerda, y - 4, contentWidth, 7, 'F');
+  setColor(doc, CORES.textoBranco);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  let x = PAGINA.margemEsquerda + 2;
+  colunas.forEach((col) => {
+    const pos = xCelula(x, col);
+    doc.text(col.header, pos.x, y, { align: pos.align });
+    x += col.width;
+  });
+  return y + 5;
+};
 
 /** Corta o texto pela largura real da coluna (em mm), com reticência. */
 const caberNaColuna = (doc: jsPDF, texto: string, largura: number): string => {
@@ -61,7 +84,7 @@ const caberNaColuna = (doc: jsPDF, texto: string, largura: number): string => {
 };
 
 /** Linha da tabela (fonte 7pt, zebrada) truncando cada célula pela largura medida. */
-const addLinhaTabela = (doc: jsPDF, valores: string[], colunas: Coluna[], y: number, alternado: boolean): number => {
+export const addLinhaTabela = (doc: jsPDF, valores: string[], colunas: Coluna[], y: number, alternado: boolean): number => {
   const { contentWidth } = getPageDimensions(doc);
   if (alternado) {
     setColor(doc, CORES.fundoClaro, 'fill');
@@ -72,24 +95,25 @@ const addLinhaTabela = (doc: jsPDF, valores: string[], colunas: Coluna[], y: num
   doc.setFontSize(7);
   let x = PAGINA.margemEsquerda + 2;
   colunas.forEach((col, idx) => {
-    doc.text(caberNaColuna(doc, valores[idx] || '-', col.width), x, y);
+    const pos = xCelula(x, col);
+    doc.text(caberNaColuna(doc, valores[idx] || '-', col.width), pos.x, y, { align: pos.align });
     x += col.width;
   });
   return y + ALTURA_LINHA;
 };
 
 /** Quebra de página que repete o cabeçalho da tabela quando uma página nova é aberta. */
-const quebrarComCabecalho = (doc: jsPDF, y: number, colunas: Coluna[], espaco = 30): number => {
+export const quebrarComCabecalho = (doc: jsPDF, y: number, colunas: Coluna[], espaco = 30): number => {
   const paginasAntes = doc.getNumberOfPages();
   let novoY = checkPageBreak(doc, y, espaco);
   if (doc.getNumberOfPages() > paginasAntes) {
-    novoY = addTableHeader(doc, colunas, novoY);
+    novoY = addCabecalhoTabela(doc, colunas, novoY);
   }
   return novoY;
 };
 
 /** Título do grupo (unidade, tipo…) em destaque, com contagem à direita. */
-const addTituloGrupo = (doc: jsPDF, titulo: string, contagem: string, y: number): number => {
+export const addTituloGrupo = (doc: jsPDF, titulo: string, contagem: string, y: number): number => {
   const { width, contentWidth } = getPageDimensions(doc);
   setColor(doc, CORES.fundoClaro, 'fill');
   doc.rect(PAGINA.margemEsquerda, y - 4, contentWidth, 6, 'F');
@@ -105,7 +129,7 @@ const addTituloGrupo = (doc: jsPDF, titulo: string, contagem: string, y: number)
 };
 
 /** Linha de subtotal/total: fundo cinza, negrito, valores alinhados às colunas informadas. */
-const addLinhaTotal = (
+export const addLinhaTotal = (
   doc: jsPDF,
   rotulo: string,
   valores: Record<number, string>,
@@ -122,7 +146,10 @@ const addLinhaTotal = (
   let x = PAGINA.margemEsquerda + 2;
   doc.text(rotulo, x, y);
   colunas.forEach((col, idx) => {
-    if (valores[idx] !== undefined) doc.text(valores[idx], x, y);
+    if (valores[idx] !== undefined) {
+      const pos = xCelula(x, col);
+      doc.text(valores[idx], pos.x, y, { align: pos.align });
+    }
     x += col.width;
   });
   doc.setFont('helvetica', 'normal');
@@ -143,7 +170,7 @@ const addResumoFiltros = (doc: jsPDF, filtros: FiltrosImpressao, totalRegistros:
 };
 
 /** Rodapé em todas as páginas (não só na última), numeração e download. */
-const finalizar = (doc: jsPDF, tipo: string) => {
+export const finalizar = (doc: jsPDF, tipo: string) => {
   const sistema = `Sistema de Gestão de RH - ${getTenantSnapshot().identidade.sigla}`;
   for (let i = 1; i <= doc.getNumberOfPages(); i++) {
     doc.setPage(i);
@@ -181,7 +208,7 @@ export const gerarRelatorioFerias = async (linhas: LinhaFeriasRelatorio[], filtr
   }, logos);
 
   y = addResumoFiltros(doc, filtros, linhas.length, y);
-  y = addTableHeader(doc, COLUNAS_FERIAS, y);
+  y = addCabecalhoTabela(doc, COLUNAS_FERIAS, y);
 
   const grupos = agruparPor(linhas, (l) => nomeUnidade(l.servidor));
   grupos.forEach((grupo) => {
@@ -242,7 +269,7 @@ export const gerarRelatorioLicencas = async (linhas: LinhaLicencaRelatorio[], fi
   }, logos);
 
   y = addResumoFiltros(doc, filtros, linhas.length, y);
-  y = addTableHeader(doc, COLUNAS_LICENCAS, y);
+  y = addCabecalhoTabela(doc, COLUNAS_LICENCAS, y);
 
   const grupos = agruparPor(linhas, (l) => rotuloTipoAfastamento(l));
   grupos.forEach((grupo) => {
@@ -304,7 +331,7 @@ export const gerarRelatorioViagens = async (linhas: LinhaViagemRelatorio[], filt
   }, logos);
 
   y = addResumoFiltros(doc, filtros, linhas.length, y);
-  y = addTableHeader(doc, COLUNAS_VIAGENS, y);
+  y = addCabecalhoTabela(doc, COLUNAS_VIAGENS, y);
 
   const diarias = (v: LinhaViagemRelatorio) => (v.tipo_onus === 'sem_onus' ? 0 : Number(v.quantidade_diarias) || 0);
 

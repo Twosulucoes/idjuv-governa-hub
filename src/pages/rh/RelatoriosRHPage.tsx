@@ -44,6 +44,8 @@ import { RelatorioFeriasCard } from "@/components/rh/relatorios/RelatorioFeriasC
 import { RelatorioLicencasCard } from "@/components/rh/relatorios/RelatorioLicencasCard";
 import { RelatorioFrequenciaCard } from "@/components/rh/relatorios/RelatorioFrequenciaCard";
 import { RelatorioViagensCard } from "@/components/rh/relatorios/RelatorioViagensCard";
+import { RelatorioFolhaCard } from "@/components/rh/relatorios/RelatorioFolhaCard";
+import { useAuth } from "@/contexts/AuthContext";
 
 const NATUREZA_LABELS: Record<string, string> = {
   comissionado: 'Cargos Comissionados',
@@ -61,6 +63,9 @@ export default function RelatoriosRHPage() {
   const [selectedTipoPortaria, setSelectedTipoPortaria] = useState<string>("all");
   const [selectedStatusPortaria, setSelectedStatusPortaria] = useState<string>("all");
   const [loadingReport, setLoadingReport] = useState<string | null>(null);
+  // Folha: mesmo gate das rotas /folha (ROUTE_PERMISSIONS); a RLS continua sendo a fronteira real.
+  const { isSuperAdmin, hasAnyPermission } = useAuth();
+  const podeVerFolha = isSuperAdmin || hasAnyPermission(["financeiro.folha.visualizar"]);
 
   // Fetch unidades com hierarquia completa
   const { data: unidades = [] } = useQuery({
@@ -1189,14 +1194,14 @@ export default function RelatoriosRHPage() {
             <RelatorioSegundoVinculoCard />
           </div>
 
-          {/* Relatórios gerenciais: afastamentos, frequência e viagens (Onda C, item 15a) */}
+          {/* Relatórios gerenciais: afastamentos, frequência, viagens (15a) e folha (15b) */}
           <section className="mt-10" aria-labelledby="relatorios-afastamentos-titulo">
             <div className="mb-4">
               <h2 id="relatorios-afastamentos-titulo" className="text-xl font-semibold text-foreground">
-                Afastamentos, frequência e viagens
+                Afastamentos, frequência, viagens e folha
               </h2>
               <p className="text-sm text-muted-foreground">
-                Filtre por período, unidade e status; exporte em PDF ou XLSX. Servidores identificados por nome e matrícula.
+                Filtre por período, unidade e status; exporte em PDF ou XLSX. Servidores identificados por nome e matrícula; folha só em agregados.
               </p>
             </div>
             <div className="grid gap-6 md:grid-cols-2">
@@ -1204,6 +1209,7 @@ export default function RelatoriosRHPage() {
               <RelatorioLicencasCard />
               <RelatorioFrequenciaCard />
               <RelatorioViagensCard />
+              {podeVerFolha && <RelatorioFolhaCard />}
             </div>
           </section>
 

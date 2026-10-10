@@ -1,11 +1,11 @@
 /**
- * Camada de dados dos relatórios gerenciais de RH (férias, licenças e viagens).
- * Queries próprias, separadas de `useFerias`/`useViagens`, com filtros aplicados no banco
- * (período por sobreposição, status, ônus) e unidade via `!inner` no embed do servidor.
- * Regras puras em `@/lib/relatoriosRHRegras`.
+ * Camada de dados dos relatórios gerenciais de RH (férias, licenças, viagens e folha).
+ * Queries próprias, separadas de `useFerias`/`useViagens`/`useFolhaPagamento`, com filtros
+ * aplicados no banco (período por sobreposição, status, ônus) e unidade via `!inner` no embed
+ * do servidor. Regras puras em `@/lib/relatoriosRHRegras` e `@/lib/relatoriosFolhaRegras`.
  *
  * LGPD: colunas explícitas (nunca `*`); nada de CPF, CID/CRM/médico, documento
- * comprobatório, observações ou dados bancários.
+ * comprobatório, observações ou dados bancários. Folha só em agregados (sem servidor).
  */
 
 import { useMemo } from "react";
@@ -23,7 +23,9 @@ import {
   type LinhaLicencaRelatorio,
   type LinhaViagemRelatorio,
 } from "@/lib/relatoriosRHRegras";
+import type { FichaAgregavel, FolhaResumo, ItemAgregavel } from "@/lib/relatoriosFolhaRegras";
 
+export type { FichaAgregavel, FolhaResumo, ItemAgregavel };
 export type { FiltroPeriodoUnidade, FiltroViagens, LinhaFeriasRelatorio, LinhaLicencaRelatorio, LinhaViagemRelatorio };
 
 /** Tamanho pedido por página (o servidor pode devolver menos se `max-rows` for menor). */
@@ -190,4 +192,74 @@ export function useNomeUnidadeSelecionada(unidadeId: string | undefined): string
     const u = unidades.find((x) => x.id === unidadeId);
     return u ? rotuloUnidade(u) : undefined;
   }, [unidadeId, unidades]);
+}
+
+// ============================================
+// FOLHA DE PAGAMENTO (só agregados, sem servidor)
+// ============================================
+
+const SELECT_FOLHAS = `
+  id, competencia_ano, competencia_mes, tipo_folha, status, quantidade_servidores,
+  total_bruto, total_descontos, total_liquido, total_inss_servidor, total_inss_patronal,
+  total_irrf, total_encargos_patronais
+`;
+
+/** Ano plausível para competência (evita consulta com valor vazio/NaN do select). */
+const anoValido = (ano: number | undefined): ano is number =>
+  Number.isInteger(ano) && (ano as number) >= 2000 && (ano as number) <= 2100;
+
+/**
+ * Folhas do ano (todas, inclusive prévias/rascunho, com o status visível), por mês e tipo.
+ * Query própria: `useFolhasPagamento` usa `select('*')`.
+ */
+export function useFolhasDoAno(ano: number | undefined) {
+  return useQuery({
+    queryKey: ["relatorio-folha-folhas", ano ?? null],
+    enabled: anoValido(ano),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("folhas_pagamento")
+        .select(SELECT_FOLHAS)
+        .eq("competencia_ano", ano as number)
+        .order("competencia_mes")
+        .order("tipo_folha")
+        .order("id");
+      if (error) throw error;
+      return (data ?? []) as FolhaResumo[];
+    },
+  });
+}
+
+/** Fichas de uma folha só com as colunas agregáveis por unidade (sem nome, CPF, banco, PIS). */
+export function useFichasDaFolhaAgregadas(folhaId: string | undefined) {
+  return useQuery({
+    queryKey: ["relatorio-folha-fichas", folhaId ?? null],
+    enabled: !!folhaId,
+    queryFn: () =>
+      buscarTodasPaginas<FichaAgregavel>((de, ate) =>
+        supabase
+          .from("fichas_financeiras")
+          .select("unidade_id, unidade_nome, total_proventos, total_descontos, valor_liquido, valor_inss, valor_irrf")
+          .eq("folha_id", folhaId as string)
+          .order("id")
+          .range(de, ate),
+      ),
+  });
+}
+
+/** Itens (rubricas lançadas) de todas as fichas da folha, via `!inner` na ficha. */
+export function useItensDaFolha(folhaId: string | undefined) {
+  return useQuery({
+    queryKey: ["relatorio-folha-itens", folhaId ?? null],
+    enabled: !!folhaId,
+    queryFn: () =>
+      buscarTodasPaginas<ItemAgregavel>((de, ate) =>
+        supabase
+          .from("itens_ficha_financeira")
+          .select("tipo, descricao, rubrica_id, valor, ficha:fichas_financeiras!inner(folha_id)")
+          .eq("ficha.folha_id", folhaId as string)
+          .order("id")
+          .range(de, ate),
+      ),
+  });
 }

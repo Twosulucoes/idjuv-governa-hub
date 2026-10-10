@@ -107,7 +107,9 @@ Premissas adicionais:
    `rh`, e a de `fichas`/`itens` o módulo `rh` ou a própria ficha). Sem permissão nova no catálogo.
 4. **LGPD**: selects com colunas explícitas; nada de `cpf`, `banco_*`, `pis_pasep`, `servidor_nome` nos
    agregados. Folhas em `rascunho` entram no resumo do ano com o status visível (o gestor precisa vê-las);
-   por unidade/rubrica só de folhas `processada`, `fechada` ou `paga` (lista do `Select` filtra).
+   por unidade/rubrica só de folhas `aberta`, `fechada` ou `reaberta` (o enum `status_folha` é
+   `aberta | previa | processando | fechada | reaberta`, e `processar_folha` deixa a folha em `aberta`); a lista
+   do `Select` filtra.
 5. Hooks compartilhados de folha não mudam; o card reaproveita `FiltroSelect`, `BotoesExportar` e
    `PreviaRegistros` da 15a; regras puras novas vão para `relatoriosRHRegras.ts` (ou `relatoriosFolhaRegras.ts`
    se passar de ~150 linhas); PDFs em `src/lib/pdfRelatoriosFolha.ts` com os mesmos helpers.
