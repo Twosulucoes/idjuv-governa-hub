@@ -90,6 +90,14 @@ Contratos → Financeiro → Folha → RH (depois do PR #35) → Admin → demai
   tipográfica (`text-h3` e `text-lg` se substituem) e `CardTitle` passou a `text-h3` (antes
   `text-xl sm:text-2xl`, que vencia qualquer tamanho passado por `className` no desktop).
   Formulários (corpo do cadastro simplificado e diálogos) ficam para a etapa de formulários.
+- **Financeiro**: painéis (`/financeiro` e o painel de orçamento, com execução em `ChartCard` e
+  tabela alternativa), orçamento, alterações orçamentárias, solicitações, empenhos, sub-empenhos,
+  liquidações, pagamentos, restos a pagar, adiantamentos, contas bancárias e relatórios com
+  `PageHeader`, `KpiCard`, `DataTable` e `StatusBadge`. Correções de passagem: filtro "Todos" de
+  restos a pagar (mandava `all` para a consulta) e filtro de adiantamentos (opções fora do enum).
+  QDD fica com o fio de importação. Pendências: `/financeiro` está registrada duas vezes no
+  `App.tsx` (o painel de orçamento não é alcançável); botões sem ação (nova dotação, novo
+  adiantamento, nova conta, atualizar saldos, "ver" de liquidações/adiantamentos/contas).
 
 ## Fase 5 — Portal público e PWA
 

@@ -1,20 +1,10 @@
-import { useState } from "react";
 import { ModuleLayout } from "@/components/layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Search, Plus, Building2, Eye, RefreshCw } from "lucide-react";
+import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela } from "@/components/design-system";
+import { Plus, Building2, Eye, RefreshCw, CheckCircle2, Wallet } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { useContasBancarias } from "@/hooks/useFinanceiro";
+import type { ContaBancaria } from "@/types/financeiro";
 
 const tipoContaLabels: Record<string, string> = {
   corrente: "Corrente",
@@ -23,142 +13,115 @@ const tipoContaLabels: Record<string, string> = {
   vinculada: "Vinculada",
 };
 
-export default function ContasBancariasPage() {
-  const [searchTerm, setSearchTerm] = useState("");
-  
-  const { data: contas, isLoading } = useContasBancarias();
+const colunas: ColunaTabela<ContaBancaria>[] = [
+  {
+    id: "nome",
+    cabecalho: "Nome",
+    celula: (conta) => <span className="font-medium">{conta.nome_conta}</span>,
+    ordenarPor: (conta) => conta.nome_conta,
+    buscarPor: (conta) => conta.nome_conta,
+    mobile: "titulo",
+  },
+  {
+    id: "banco",
+    cabecalho: "Banco",
+    celula: (conta) => conta.banco_nome,
+    ordenarPor: (conta) => conta.banco_nome,
+    buscarPor: (conta) => conta.banco_nome,
+  },
+  {
+    id: "agencia",
+    cabecalho: "Agência",
+    celula: (conta) => conta.agencia,
+    ordenarPor: (conta) => conta.agencia,
+  },
+  {
+    id: "conta",
+    cabecalho: "Conta",
+    celula: (conta) => conta.conta,
+    ordenarPor: (conta) => conta.conta,
+    buscarPor: (conta) => conta.conta,
+  },
+  {
+    id: "tipo",
+    cabecalho: "Tipo",
+    celula: (conta) => tipoContaLabels[conta.tipo] || conta.tipo,
+    ordenarPor: (conta) => tipoContaLabels[conta.tipo] || conta.tipo,
+  },
+  {
+    id: "saldo",
+    cabecalho: "Saldo",
+    celula: (conta) => <span className="font-mono tabular-nums">{formatCurrency(conta.saldo_atual)}</span>,
+    ordenarPor: (conta) => Number(conta.saldo_atual || 0),
+    alinhamento: "direita",
+  },
+  {
+    id: "status",
+    cabecalho: "Situação",
+    celula: (conta) => (
+      <StatusBadge tom={conta.ativo ? "sucesso" : "neutro"}>{conta.ativo ? "Ativa" : "Inativa"}</StatusBadge>
+    ),
+    ordenarPor: (conta) => conta.ativo,
+  },
+];
 
-  const filteredContas = contas?.filter((conta) => {
-    return (
-      conta.nome_conta?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      conta.banco_nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      conta.conta?.includes(searchTerm)
-    );
-  });
+export default function ContasBancariasPage() {
+  const { data: contas, isLoading, isError, refetch } = useContasBancarias();
 
   const saldoTotal = contas?.reduce((acc, conta) => acc + (conta.saldo_atual || 0), 0) || 0;
 
   return (
     <ModuleLayout module="financeiro">
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Contas Bancárias</h1>
-          <p className="text-muted-foreground">
-            Gestão de contas e saldos bancários
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
-            <RefreshCw className="h-4 w-4" />
-            Atualizar Saldos
-          </Button>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Nova Conta
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        migalhas={[{ rotulo: "Financeiro", href: "/financeiro" }, { rotulo: "Contas bancárias" }]}
+        titulo="Contas bancárias"
+        descricao="Gestão de contas e saldos bancários"
+        acoes={
+          <>
+            <Button variant="outline">
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              Atualizar saldos
+            </Button>
+            <Button>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Nova conta
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Total de Contas</p>
-            <p className="text-2xl font-bold">{contas?.length || 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Contas Ativas</p>
-            <p className="text-2xl font-bold">
-              {contas?.filter((c) => c.ativo).length || 0}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="bg-primary/5">
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Saldo Total</p>
-            <p className="text-2xl font-bold text-primary">
-              {formatCurrency(saldoTotal)}
-            </p>
-          </CardContent>
-        </Card>
+        <KpiCard rotulo="Total de contas" valor={contas?.length || 0} icone={Building2} carregando={isLoading} />
+        <KpiCard
+          rotulo="Contas ativas"
+          valor={contas?.filter((c) => c.ativo).length || 0}
+          icone={CheckCircle2}
+          carregando={isLoading}
+        />
+        <KpiCard rotulo="Saldo total" valor={formatCurrency(saldoTotal)} icone={Wallet} carregando={isLoading} />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Contas Cadastradas
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nome, banco ou número..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-
-          {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Carregando contas bancárias...
-            </div>
-          ) : filteredContas?.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nenhuma conta encontrada
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Banco</TableHead>
-                    <TableHead>Agência</TableHead>
-                    <TableHead>Conta</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead className="text-right">Saldo</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredContas?.map((conta) => (
-                    <TableRow key={conta.id}>
-                      <TableCell className="font-medium">{conta.nome_conta}</TableCell>
-                      <TableCell>{conta.banco_nome}</TableCell>
-                      <TableCell>{conta.agencia}</TableCell>
-                      <TableCell>{conta.conta}</TableCell>
-                      <TableCell>
-                        {tipoContaLabels[conta.tipo] || conta.tipo}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatCurrency(conta.saldo_atual)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={conta.ativo ? "default" : "secondary"}>
-                          {conta.ativo ? "Ativa" : "Inativa"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <DataTable
+        rotulo="Contas cadastradas"
+        dados={contas ?? []}
+        colunas={colunas}
+        chaveLinha={(conta) => conta.id}
+        carregando={isLoading}
+        erro={isError ? "Não foi possível carregar as contas bancárias." : null}
+        aoTentarNovamente={() => refetch()}
+        busca={{ placeholder: "Buscar por nome, banco ou número…" }}
+        vazio={{
+          icone: Building2,
+          titulo: "Nenhuma conta encontrada",
+          descricao: "Cadastre uma conta bancária para começar.",
+        }}
+        acoesLinha={(conta) => (
+          <Button variant="ghost" size="icon" aria-label={`Ver conta ${conta.nome_conta}`}>
+            <Eye className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        )}
+      />
     </div>
     </ModuleLayout>
   );

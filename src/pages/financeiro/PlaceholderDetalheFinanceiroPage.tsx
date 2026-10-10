@@ -1,13 +1,15 @@
 /**
  * PÁGINA PLACEHOLDER PARA DETALHES DO FINANCEIRO
  * Usada quando a página de detalhe ainda não foi implementada
+ * Padrões do design system: PageHeader, EmptyState.
  */
 
 import { Link, useParams, useLocation } from "react-router-dom";
-import { ArrowLeft, Construction } from "lucide-react";
+import { Construction } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { EmptyState, PageHeader } from "@/components/design-system";
 
 export default function PlaceholderDetalheFinanceiroPage() {
   const { id } = useParams<{ id: string }>();
@@ -17,46 +19,51 @@ export default function PlaceholderDetalheFinanceiroPage() {
   const path = location.pathname;
   let tipo = "Registro";
   let voltar = "/financeiro";
+  let listagem: string | null = null;
 
   if (path.includes("/solicitacoes")) {
     tipo = "Solicitação";
     voltar = "/financeiro/solicitacoes";
+    listagem = "Solicitações de despesa";
   } else if (path.includes("/empenhos")) {
     tipo = "Empenho";
     voltar = "/financeiro/empenhos";
+    listagem = "Empenhos";
   } else if (path.includes("/pagamentos")) {
     tipo = "Pagamento";
     voltar = "/financeiro/pagamentos";
+    listagem = "Pagamentos";
   } else if (path.includes("/liquidacoes")) {
     tipo = "Liquidação";
     voltar = "/financeiro/liquidacoes";
+    listagem = "Liquidações";
   }
 
   return (
     <ModuleLayout module="financeiro">
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center gap-2 text-sm mb-6 text-muted-foreground">
-          <Link to="/financeiro" className="hover:underline">Financeiro</Link>
-          <span>/</span>
-          <span>{tipo}</span>
-        </div>
-        
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[
+            { rotulo: "Financeiro", href: "/financeiro" },
+            ...(listagem ? [{ rotulo: listagem, href: voltar }] : []),
+            { rotulo: tipo },
+          ]}
+          titulo={`Detalhe: ${tipo.toLowerCase()}`}
+          descricao={<span className="font-mono">ID: {id}</span>}
+        />
+
         <Card>
-          <CardContent className="py-12 text-center">
-            <Construction className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-            <CardTitle className="mb-2">Página em Construção</CardTitle>
-            <CardDescription className="max-w-md mx-auto">
-              A visualização detalhada de {tipo.toLowerCase()} está sendo desenvolvida. 
-              Em breve você poderá visualizar todas as informações aqui.
-            </CardDescription>
-            <p className="text-sm font-mono text-muted-foreground mt-4">ID: {id}</p>
-            <Button asChild className="mt-6">
-              <Link to={voltar}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Voltar para Listagem
-              </Link>
-            </Button>
-          </CardContent>
+          <EmptyState
+            icone={Construction}
+            titulo="Página em construção"
+            descricao={`A visualização detalhada de ${tipo.toLowerCase()} está sendo desenvolvida. Em breve você poderá visualizar todas as informações aqui.`}
+            acao={
+              <Button asChild>
+                <Link to={voltar}>Voltar para a listagem</Link>
+              </Button>
+            }
+            className="py-12"
+          />
         </Card>
       </div>
     </ModuleLayout>
