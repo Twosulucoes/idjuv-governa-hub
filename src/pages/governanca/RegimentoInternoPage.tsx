@@ -1,37 +1,33 @@
 import { ModuleLayout } from "@/components/layout/ModuleLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { PageHeader, StatusBadge } from "@/components/design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { FileText, Scale, BookOpen, Users, Building2, Briefcase, Shield, AlertTriangle } from "lucide-react";
+import { FileText, BookOpen, Users, Building2, Briefcase, Shield, AlertTriangle } from "lucide-react";
+import { useIdentidade } from "@/core/tenant";
 
 const RegimentoInternoPage = () => {
+  const { sigla } = useIdentidade();
   return (
     <ModuleLayout module="governanca">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <Badge variant="outline" className="mb-4">
-            <Scale className="w-3 h-3 mr-1" />
-            Governança
-          </Badge>
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Regimento Interno
-          </h1>
-          <p className="text-muted-foreground">
-            Normas de organização e funcionamento do IDJUV
-          </p>
-        </div>
+      <div className="space-y-6">
+        <PageHeader
+          migalhas={[{ rotulo: "Governança", href: "/governanca" }, { rotulo: "Regimento interno" }]}
+          titulo="Regimento interno"
+          descricao={`Normas de organização e funcionamento do ${sigla}`}
+          status={<StatusBadge tom="pendente">Minuta em aprovação</StatusBadge>}
+        />
 
-        <Card className="mb-6">
+        <Card>
           <CardHeader className="bg-primary/5">
             <CardTitle className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-primary" />
+              <BookOpen className="w-5 h-5 text-primary" aria-hidden="true" />
               Regimento Interno do IDJUV
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <p className="text-blue-800 text-sm">
+            <div className="bg-info/10 border border-info/30 rounded-lg p-4 mb-6">
+              <p className="text-foreground text-sm">
                 <strong>Status:</strong> Minuta em fase de aprovação pela Presidência e posterior publicação no DOE.
               </p>
             </div>
@@ -50,7 +46,7 @@ const RegimentoInternoPage = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <Building2 className="w-5 h-5" />
+                      <Building2 className="w-5 h-5" aria-hidden="true" />
                       Título I – Da Natureza, Finalidade e Competência
                     </CardTitle>
                   </CardHeader>
@@ -104,7 +100,7 @@ const RegimentoInternoPage = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <Users className="w-5 h-5" />
+                      <Users className="w-5 h-5" aria-hidden="true" />
                       Título II – Da Estrutura Organizacional
                     </CardTitle>
                   </CardHeader>
@@ -234,7 +230,7 @@ const RegimentoInternoPage = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <Briefcase className="w-5 h-5" />
+                      <Briefcase className="w-5 h-5" aria-hidden="true" />
                       Título III – Dos Cargos e Funções
                     </CardTitle>
                   </CardHeader>
@@ -294,7 +290,7 @@ const RegimentoInternoPage = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <FileText className="w-5 h-5" />
+                      <FileText className="w-5 h-5" aria-hidden="true" />
                       Título IV – Dos Atos Administrativos
                     </CardTitle>
                   </CardHeader>
@@ -341,7 +337,7 @@ const RegimentoInternoPage = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <Shield className="w-5 h-5" />
+                      <Shield className="w-5 h-5" aria-hidden="true" />
                       Título V – Do Regime Disciplinar
                     </CardTitle>
                   </CardHeader>
@@ -393,7 +389,7 @@ const RegimentoInternoPage = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5" />
+                      <AlertTriangle className="w-5 h-5" aria-hidden="true" />
                       Título VI – Das Disposições Finais
                     </CardTitle>
                   </CardHeader>

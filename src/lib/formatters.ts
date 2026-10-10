@@ -171,6 +171,27 @@ export const isValidCPF = (cpf: string): boolean => {
   return true;
 };
 
+export const isValidCNPJ = (cnpj: string): boolean => {
+  const digits = cnpj.replace(/\D/g, '');
+
+  if (digits.length !== 14) return false;
+
+  // Verificar se todos os dígitos são iguais
+  if (/^(\d)\1+$/.test(digits)) return false;
+
+  const calcularDigito = (base: string, pesos: number[]) => {
+    const soma = pesos.reduce((acc, peso, i) => acc + parseInt(base[i]) * peso, 0);
+    const resto = soma % 11;
+    return resto < 2 ? 0 : 11 - resto;
+  };
+
+  const d1 = calcularDigito(digits.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  if (d1 !== parseInt(digits[12])) return false;
+
+  const d2 = calcularDigito(digits.slice(0, 13), [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return d2 === parseInt(digits[13]);
+};
+
 export const isValidCEP = (cep: string): boolean => {
   const digits = cep.replace(/\D/g, '');
   return digits.length === 8;
