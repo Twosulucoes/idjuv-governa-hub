@@ -102,9 +102,15 @@ Premissas adicionais:
      fichas, valor) — proventos e descontos em blocos, com subtotal e total; itens lidos com
      `ficha:fichas_financeiras!inner(folha_id)` e `.eq("ficha.folha_id", id)`, paginados.
    Cada relatório sai em PDF e XLSX.
-3. **Gate no front**: o card só aparece com `hasAnyPermission(["financeiro.folha.visualizar"])` ou super admin
-   (o catálogo dá `rh.relatorios.visualizar` ao papel `user`; a RLS de `folhas_pagamento` exige o módulo
-   `rh`, e a de `fichas`/`itens` o módulo `rh` ou a própria ficha). Sem permissão nova no catálogo.
+3. **Gate no front (UX, não controle de acesso)**: o card só aparece com
+   `hasAnyPermission(["financeiro.folha.visualizar"])` ou super admin, o mesmo gate das rotas `/folha*`. O
+   catálogo concede essa permissão a admin, manager **e user** (`02_dados_catalogo.sql:524,691,836`), então
+   na prática ela só bloqueia perfis customizados. A fronteira real é a RLS: `folhas_pagamento` exige o módulo
+   `rh`, e `fichas`/`itens` o módulo `rh` ou a própria ficha; quem já tem o módulo vê a ficha nominal em
+   `/folha/:id`, e o agregado revela estritamente menos. Amarrar a RLS de folha à permissão e proteger as
+   rotas `/folha*` fica para a Onda B (item 8). Sem permissão nova no catálogo. Se um dia o relatório for
+   aberto a perfil que não vê fichas nominais, agrupar unidades com menos de 3 fichas (k-anonimato) em
+   `agregarFichasPorUnidade`.
 4. **LGPD**: selects com colunas explícitas; nada de `cpf`, `banco_*`, `pis_pasep`, `servidor_nome` nos
    agregados. Folhas em `rascunho` entram no resumo do ano com o status visível (o gestor precisa vê-las);
    por unidade/rubrica só de folhas `aberta`, `fechada` ou `reaberta` (o enum `status_folha` é

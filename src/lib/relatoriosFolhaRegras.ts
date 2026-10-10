@@ -45,7 +45,6 @@ export interface FichaAgregavel {
 export interface ItemAgregavel {
   tipo: string;
   descricao: string;
-  rubrica_id: string | null;
   valor: number | null;
 }
 
@@ -77,7 +76,8 @@ export interface BlocoRubricas {
 
 export interface TotaisFolhas {
   folhas: number;
-  servidores: number;
+  /** Soma de `quantidade_servidores` das folhas (fichas), não servidores distintos. */
+  fichas: number;
   bruto: number;
   descontos: number;
   liquido: number;
@@ -115,8 +115,10 @@ export const TIPOS_RUBRICA_ORDEM: Array<{ tipo: string; rotulo: string }> = [
  */
 const STATUS_COM_DETALHE = new Set(["aberta", "fechada", "reaberta"]);
 
-export function folhaPermiteDetalhe(status: string | null | undefined): boolean {
-  return !!status && STATUS_COM_DETALHE.has(status);
+export function folhaPermiteDetalhe(status: string | null | undefined, quantidadeServidores?: number | null): boolean {
+  if (!status || !STATUS_COM_DETALHE.has(status)) return false;
+  // `aberta` é o DEFAULT da coluna: uma folha criada por outro caminho pode estar sem fichas.
+  return quantidadeServidores === undefined || (Number(quantidadeServidores) || 0) > 0;
 }
 
 /** "MM/AAAA". */
@@ -142,13 +144,24 @@ export function descreverFolha(f: Pick<FolhaResumo, "competencia_ano" | "compete
 // ============================================
 
 /**
- * Fichas somadas por `unidade_nome` (servidores = fichas da unidade). Ordem alfabética
+ * Nome da unidade gravado na ficha. `processar_folha_pagamento` grava
+ * `COALESCE(sigla,'') || ' - ' || COALESCE(nome,'')`, então servidor sem lotação vira " - " e sigla
+ * nula vira "- Nome": o separador solto é removido e, sem `unidade_id` nem nome, é "Sem unidade".
+ */
+export function nomeUnidadeFicha(f: Pick<FichaAgregavel, "unidade_id" | "unidade_nome">): string {
+  const nome = (f.unidade_nome ?? "").replace(/^\s*-\s*/, "").replace(/\s*-\s*$/, "").trim();
+  if (!nome) return SEM_UNIDADE;
+  return f.unidade_id == null && nome === "-" ? SEM_UNIDADE : nome;
+}
+
+/**
+ * Fichas somadas por unidade (servidores = fichas da unidade). Ordem alfabética
  * (pt-BR), com "Sem unidade" por último.
  */
 export function agregarFichasPorUnidade(fichas: FichaAgregavel[]): AgregadoUnidade[] {
   const mapa = new Map<string, AgregadoUnidade>();
   for (const f of fichas) {
-    const unidade = f.unidade_nome?.trim() || SEM_UNIDADE;
+    const unidade = nomeUnidadeFicha(f);
     let a = mapa.get(unidade);
     if (!a) {
       a = { unidade, servidores: 0, proventos: 0, descontos: 0, liquido: 0, inss: 0, irrf: 0 };
@@ -179,14 +192,14 @@ export function agregarFichasPorUnidade(fichas: FichaAgregavel[]): AgregadoUnida
 }
 
 /**
- * Itens somados por `tipo` + `descricao`, em blocos por tipo (proventos, depois descontos;
- * tipos fora da ordem conhecida vão ao fim). Dentro do bloco, maior valor primeiro.
+ * Itens somados por `tipo` + `descricao`, em blocos por tipo (proventos, depois descontos; o
+ * CHECK da tabela só admite esses dois). Dentro do bloco, maior valor primeiro.
  * Só devolve blocos com itens.
  */
 export function agregarItensPorRubrica(itens: ItemAgregavel[]): BlocoRubricas[] {
   const mapa = new Map<string, AgregadoRubrica>();
   for (const i of itens) {
-    const tipo = i.tipo || "-";
+    const tipo = i.tipo;
     const descricao = i.descricao?.trim() || "(sem descrição)";
     const k = `${tipo}\u0000${descricao}`;
     let a = mapa.get(k);
@@ -198,11 +211,8 @@ export function agregarItensPorRubrica(itens: ItemAgregavel[]): BlocoRubricas[] 
     a.valor += Number(i.valor) || 0;
   }
   const todos = [...mapa.values()].map((a) => ({ ...a, valor: arredondar2(a.valor) }));
-  const tiposConhecidos = TIPOS_RUBRICA_ORDEM.map((t) => t.tipo);
-  const outrosTipos = [...new Set(todos.map((a) => a.tipo))].filter((t) => !tiposConhecidos.includes(t)).sort();
-  const ordem = [...TIPOS_RUBRICA_ORDEM, ...outrosTipos.map((t) => ({ tipo: t, rotulo: t }))];
 
-  return ordem
+  return TIPOS_RUBRICA_ORDEM
     .map(({ tipo, rotulo }) => {
       const doTipo = todos
         .filter((a) => a.tipo === tipo)
@@ -212,11 +222,21 @@ export function agregarItensPorRubrica(itens: ItemAgregavel[]): BlocoRubricas[] 
     .filter((b) => b.itens.length > 0);
 }
 
-/** Totais do conjunto de folhas (resumo do ano). */
+/** Líquido do relatório por rubrica: subtotal de proventos menos o de descontos. */
+export function liquidoBlocos(blocos: BlocoRubricas[]): number {
+  const proventos = blocos.find((b) => b.tipo === "provento")?.subtotal ?? 0;
+  const descontos = blocos.find((b) => b.tipo === "desconto")?.subtotal ?? 0;
+  return arredondar2(proventos - descontos);
+}
+
+/**
+ * Totais do conjunto de folhas (resumo do ano). `fichas` soma `quantidade_servidores` das folhas
+ * (um servidor conta em cada folha do ano), por isso não é "servidores".
+ */
 export function totalizarFolhas(folhas: FolhaResumo[]): TotaisFolhas {
   return {
     folhas: folhas.length,
-    servidores: somar(folhas, (f) => f.quantidade_servidores),
+    fichas: somar(folhas, (f) => f.quantidade_servidores),
     bruto: arredondar2(somar(folhas, (f) => f.total_bruto)),
     descontos: arredondar2(somar(folhas, (f) => f.total_descontos)),
     liquido: arredondar2(somar(folhas, (f) => f.total_liquido)),

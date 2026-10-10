@@ -153,6 +153,14 @@ não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos 
   CPF, CID/CRM/médico, documento comprobatório, observações de licença nem dados bancários
   (`src/hooks/useRelatoriosRH.ts`, colunas explícitas). Os PDFs antigos de `pdfRelatoriosRH.ts`
   continuam imprimindo CPF — dívida registrada, fora desta entrega.
+- O card "Folha de pagamento" (`RelatorioFolhaCard.tsx`) só é renderizado com
+  `financeiro.folha.visualizar` ou super admin (`RelatoriosRHPage.tsx`, mesmo gate das rotas
+  `/folha*` em `ROUTE_PERMISSIONS`; o catálogo concede essa permissão a admin, manager e user, então
+  na prática só perfis customizados ficam de fora). É UX: a fronteira é a RLS de `folhas_pagamento` (SELECT a quem
+  tem o módulo `rh`) e de `fichas_financeiras`/`itens_ficha_financeira` (módulo `rh` ou a própria
+  ficha), em `35_policies_geradas.sql`. Nenhuma permissão nova no catálogo. Os três relatórios são
+  agregados (sem nome, CPF, PIS ou dados bancários); o relatório nominal de folha ficou fora até
+  decisão do usuário, pois exigiria gate próprio e `log_audit` como no contracheque.
 
 ### Importação de dados
 

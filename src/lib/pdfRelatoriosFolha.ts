@@ -36,6 +36,8 @@ import {
   type AgregadoUnidade,
   type BlocoRubricas,
   type FolhaResumo,
+  folhaPermiteDetalhe,
+  liquidoBlocos,
 } from './relatoriosFolhaRegras';
 
 /** Linha abaixo do cabeçalho: filtro aplicado à esquerda, contagem à direita. */
@@ -85,7 +87,7 @@ export const gerarResumoFolhasAno = async (folhas: FolhaResumo[], ano: number): 
     fundoEscuro: true,
   }, logos);
 
-  y = addLinhaFiltro(doc, `Ano: ${ano} | Todas as folhas do exercício, inclusive prévias (status indicado)`, plural(folhas.length, 'folha', 'folhas'), y);
+  y = addLinhaFiltro(doc, `Ano: ${ano} | Todas as folhas do exercício, inclusive prévias (status indicado); o total soma só as processadas`, plural(folhas.length, 'folha', 'folhas'), y);
   y = addCabecalhoTabela(doc, COLUNAS_RESUMO, y);
 
   folhas.forEach((f, idx) => {
@@ -105,10 +107,10 @@ export const gerarResumoFolhasAno = async (folhas: FolhaResumo[], ano: number): 
     ], COLUNAS_RESUMO, y, idx % 2 === 1);
   });
 
-  const t = totalizarFolhas(folhas);
+  // Prévias e folhas em processamento não entram no total (simulação ou parcial).
+  const t = totalizarFolhas(folhas.filter((f) => folhaPermiteDetalhe(f.status)));
   y = quebrarComCabecalho(doc, y, COLUNAS_RESUMO);
-  addLinhaTotal(doc, `Total do ano: ${plural(t.folhas, 'folha', 'folhas')}`, {
-    3: String(t.servidores),
+  addLinhaTotal(doc, `Total do ano (${plural(t.folhas, 'folha processada', 'folhas processadas')})`, {
     4: formatCurrency(t.bruto),
     5: formatCurrency(t.descontos),
     6: formatCurrency(t.liquido),
@@ -127,8 +129,8 @@ export const gerarResumoFolhasAno = async (folhas: FolhaResumo[], ano: number): 
 
 // Larguras somam 170 mm (retrato: 210 − margens de 20 mm).
 const COLUNAS_UNIDADE: Coluna[] = [
-  { header: 'Unidade', width: 44 },
-  { header: 'Servidores', width: 14, align: 'right' },
+  { header: 'Unidade', width: 42 },
+  { header: 'Servidores', width: 16, align: 'right' },
   { header: 'Proventos', width: 24, align: 'right' },
   { header: 'Descontos', width: 24, align: 'right' },
   { header: 'Líquido', width: 24, align: 'right' },
@@ -219,11 +221,9 @@ export const gerarFolhaPorRubrica = async (blocos: BlocoRubricas[], folha: Folha
     y = addLinhaTotal(doc, `Subtotal de ${bloco.rotulo.toLowerCase()}`, { 3: formatCurrency(bloco.subtotal) }, COLUNAS_RUBRICA, y);
   });
 
-  const proventos = blocos.find((b) => b.tipo === 'provento')?.subtotal ?? 0;
-  const descontos = blocos.find((b) => b.tipo === 'desconto')?.subtotal ?? 0;
   y = quebrarComCabecalho(doc, y, COLUNAS_RUBRICA);
   addLinhaTotal(doc, 'Líquido (proventos - descontos)', {
-    3: formatCurrency(Math.round((proventos - descontos) * 100) / 100),
+    3: formatCurrency(liquidoBlocos(blocos)),
   }, COLUNAS_RUBRICA, y, true);
 
   finalizar(doc, `folha-rubrica-${rotuloCompetencia(folha.competencia_ano, folha.competencia_mes).replace('/', '-')}`);

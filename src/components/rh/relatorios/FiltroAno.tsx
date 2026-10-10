@@ -1,3 +1,4 @@
+// Não usa `FiltroSelect`: aqui não há opção "Todos" e o valor é numérico.
 import { useId } from "react";
 import { Label } from "@/components/ui/label";
 import {

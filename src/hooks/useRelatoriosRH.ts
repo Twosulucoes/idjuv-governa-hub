@@ -256,7 +256,7 @@ export function useItensDaFolha(folhaId: string | undefined) {
       buscarTodasPaginas<ItemAgregavel>((de, ate) =>
         supabase
           .from("itens_ficha_financeira")
-          .select("tipo, descricao, rubrica_id, valor, ficha:fichas_financeiras!inner(folha_id)")
+          .select("tipo, descricao, valor, ficha:fichas_financeiras!inner(folha_id)")
           .eq("ficha.folha_id", folhaId as string)
           .order("id")
           .range(de, ate),

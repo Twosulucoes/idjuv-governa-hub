@@ -50,8 +50,8 @@ O maior módulo. Páginas em `src/pages/rh/` (~20), além de `folha/` e `curricu
   e solicitações de abono do servidor logado, com formulário para abrir uma nova).
 - **Relatórios** (`RelatoriosRHPage`, `/rh/relatorios`): PDFs de quadro de pessoal e portarias
   (por diretoria, por vínculo, histórico funcional, vagas por cargo, servidores com portaria,
-  situação e agrupamento por portaria) e a seção "Afastamentos, frequência e viagens" com
-  quatro cards (`src/components/rh/relatorios/`), cada um com filtros, prévia "N registros" e
+  situação e agrupamento por portaria) e a seção "Afastamentos, frequência, viagens e folha" com
+  cinco cards (`src/components/rh/relatorios/`), cada um com filtros, prévia "N registros" e
   exportação em **PDF e XLSX**: **Férias** (período, unidade, status; por unidade com subtotal de
   dias), **Licenças e afastamentos** (período, unidade, status; por tipo com subtotal de dias),
   **Frequência** (competência ano/mês, unidade, opção de agrupar por unidade no PDF; só
@@ -62,7 +62,16 @@ O maior módulo. Páginas em `src/pages/rh/` (~20), além de `folha/` e `curricu
   regras puras em `src/lib/relatoriosRHRegras.ts`, PDFs em `src/lib/pdfRelatoriosAfastamentos.ts`
   e `src/lib/pdfRelatorioFrequencia.ts`. LGPD: servidor identificado por nome e matrícula; sem
   CPF, CID/CRM/médico, documento comprobatório, observações de licença ou dados bancários.
-  Relatórios de folha (por competência, unidade e rubrica) ainda não existem (PR 15b).
+  O quinto card, **Folha de pagamento** (`RelatorioFolhaCard.tsx`), aparece só para quem tem
+  `financeiro.folha.visualizar` ou é super admin e traz três relatórios agregados: **resumo do
+  ano** (uma linha por folha de `folhas_pagamento`: competência, tipo, status, servidores, bruto,
+  descontos, líquido, INSS servidor/patronal, IRRF, encargos, com total do ano), **por unidade**
+  (fichas de uma folha somadas por `unidade_nome`) e **por rubrica** (itens de uma folha somados
+  por tipo e descrição, em blocos de proventos e descontos com subtotal). Só folhas `aberta`,
+  `fechada` ou `reaberta` podem ser detalhadas (`folhaPermiteDetalhe`). Dados em
+  `useFolhasDoAno`, `useFichasDaFolhaAgregadas` e `useItensDaFolha` (`useRelatoriosRH.ts`), regras
+  em `src/lib/relatoriosFolhaRegras.ts`, PDFs em `src/lib/pdfRelatoriosFolha.ts`. Sem nome de
+  servidor, CPF, PIS ou dados bancários; o relatório nominal de folha ficou fora (decisão pendente).
 - **Apoio**: `ModelosDocumentosPage`, `ExportacaoPlanilhaPage`.
 - **Folha** (`src/pages/folha/`): `GestaoFolhaPagamentoPage`, `ConfiguracaoFolhaPage`,
   `FolhaDetalhePage`, `FolhaBloqueadaPage`. Inclui cálculo (INSS/IRRF), rubricas,

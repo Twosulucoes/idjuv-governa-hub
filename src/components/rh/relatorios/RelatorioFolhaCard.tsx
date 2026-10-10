@@ -23,6 +23,7 @@ import {
   linhasRubricasParaPlanilha,
   totalizarFolhas,
   totalizarUnidades,
+  liquidoBlocos,
 } from "@/lib/relatoriosFolhaRegras";
 import { formatCurrency } from "@/lib/pdfTemplate";
 import { exportarParaExcel as exportarPlanilhaXlsx } from "@/export/exportExcel";
@@ -54,7 +55,7 @@ export function RelatorioFolhaCard() {
   const detalhe = tipo !== "resumo";
 
   // Só folhas já processadas podem ser detalhadas; a seleção some se o ano mudar.
-  const folhasDetalhaveis = useMemo(() => folhas.filter((f) => folhaPermiteDetalhe(f.status)), [folhas]);
+  const folhasDetalhaveis = useMemo(() => folhas.filter((f) => folhaPermiteDetalhe(f.status, f.quantidade_servidores)), [folhas]);
   const folhaSelecionada = folhasDetalhaveis.find((f) => f.id === folhaId);
   const folhaAtiva = detalhe ? folhaSelecionada?.id : undefined;
 
@@ -70,11 +71,10 @@ export function RelatorioFolhaCard() {
     tipo === "resumo" ? ["folha", "folhas"] : tipo === "unidade" ? ["unidade", "unidades"] : ["rubrica", "rubricas"];
   const liquido =
     tipo === "resumo"
-      ? totalizarFolhas(folhas).liquido
+      ? totalizarFolhas(folhas.filter((f) => folhaPermiteDetalhe(f.status))).liquido
       : tipo === "unidade"
         ? totalizarUnidades(agregadosUnidade).liquido
-        : (blocosRubrica.find((b) => b.tipo === "provento")?.subtotal ?? 0) -
-          (blocosRubrica.find((b) => b.tipo === "desconto")?.subtotal ?? 0);
+        : liquidoBlocos(blocosRubrica);
 
   const aguardandoFolha = detalhe && !folhaSelecionada;
   const bloqueado = aguardandoFolha || consulta.isLoading || consulta.isError || total === 0;
@@ -154,7 +154,7 @@ export function RelatorioFolhaCard() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">Só folhas abertas (processadas), fechadas ou reabertas podem ser detalhadas.</p>
+            <p className="text-xs text-muted-foreground">Só folhas abertas (processadas), fechadas ou reabertas, com fichas, podem ser detalhadas.</p>
           </div>
         )}
 
@@ -168,6 +168,8 @@ export function RelatorioFolhaCard() {
               total={total}
               substantivo={substantivo}
               detalhe={<>líquido {formatCurrency(liquido)}</>}
+              tituloVazio={tipo === "resumo" ? "Nenhuma folha no ano" : "Folha sem fichas processadas"}
+              descricaoVazio={tipo === "resumo" ? "Escolha outro ano." : "Processe a folha ou escolha outra."}
             />
           )}
         </div>
