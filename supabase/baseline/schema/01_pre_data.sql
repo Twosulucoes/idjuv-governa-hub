@@ -1630,6 +1630,42 @@ CREATE TYPE public.vinculo_funcional AS ENUM (
 
 
 --
+-- Name: alcanca_modulos_alvo(public.app_module[]); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.alcanca_modulos_alvo(_modulos public.app_module[]) RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT COALESCE(cardinality(_modulos), 0) = 0
+      OR EXISTS (
+           SELECT 1 FROM unnest(_modulos) AS m
+           WHERE public.can_access_module(auth.uid(), m::text)
+         );
+$$;
+
+
+--
+-- Name: aniversariantes_do_mes(integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.aniversariantes_do_mes(p_mes integer) RETURNS TABLE(nome text, dia integer)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT COALESCE(NULLIF(btrim(s.nome_social), ''), s.nome_completo)::text AS nome,
+         EXTRACT(DAY FROM s.data_nascimento)::integer AS dia
+  FROM public.servidores s
+  WHERE public.perfil_ativo_atual()
+    AND p_mes BETWEEN 1 AND 12
+    AND s.situacao IN ('ativo', 'afastado', 'cedido', 'licenca', 'ferias')
+    AND s.data_nascimento IS NOT NULL
+    AND EXTRACT(MONTH FROM s.data_nascimento) = p_mes
+  ORDER BY 2, 1;
+$$;
+
+
+--
 -- Name: arbitro_cpf_cadastrado(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1829,14 +1865,14 @@ CREATE FUNCTION public.bloquear_alteracao_ficha_fechada() RETURNS trigger
     SET search_path TO 'public'
     AS $$
 BEGIN
-  -- Verificar se a folha está fechada
-  IF public.folha_esta_bloqueada(NEW.folha_id) THEN
+  -- Verificar se a folha (de destino OU de origem) está fechada
+  IF public.folha_esta_bloqueada(NEW.folha_id) OR public.folha_esta_bloqueada(OLD.folha_id) THEN
     -- Permitir apenas para super_admin
     IF NOT public.usuario_eh_admin(auth.uid()) THEN
-      RAISE EXCEPTION 'Folha fechada: não é possível alterar fichas financeiras';
+      RAISE EXCEPTION 'Folha fechada: não é possível alterar fichas financeiras' USING ERRCODE = '42501';
     END IF;
   END IF;
-  
+
   RETURN NEW;
 END;
 $$;
@@ -1852,18 +1888,24 @@ CREATE FUNCTION public.bloquear_alteracao_item_ficha_fechada() RETURNS trigger
     AS $$
 DECLARE
   v_folha_id UUID;
+  v_folha_origem_id UUID;
 BEGIN
-  -- Buscar folha_id via ficha
+  -- Buscar folha_id via ficha (destino no UPDATE, a própria no DELETE)
   SELECT folha_id INTO v_folha_id
   FROM public.fichas_financeiras
   WHERE id = COALESCE(NEW.ficha_id, OLD.ficha_id);
-  
-  IF public.folha_esta_bloqueada(v_folha_id) THEN
+
+  -- No UPDATE que troca a ficha, a folha da ficha de ORIGEM também conta
+  IF TG_OP = 'UPDATE' AND NEW.ficha_id IS DISTINCT FROM OLD.ficha_id THEN
+    SELECT folha_id INTO v_folha_origem_id FROM public.fichas_financeiras WHERE id = OLD.ficha_id;
+  END IF;
+
+  IF public.folha_esta_bloqueada(v_folha_id) OR public.folha_esta_bloqueada(v_folha_origem_id) THEN
     IF NOT public.usuario_eh_admin(auth.uid()) THEN
-      RAISE EXCEPTION 'Folha fechada: não é possível alterar itens de fichas financeiras';
+      RAISE EXCEPTION 'Folha fechada: não é possível alterar itens de fichas financeiras' USING ERRCODE = '42501';
     END IF;
   END IF;
-  
+
   RETURN COALESCE(NEW, OLD);
 END;
 $$;
@@ -1885,6 +1927,44 @@ BEGIN
   END IF;
   
   RETURN OLD;
+END;
+$$;
+
+
+--
+-- Name: bloquear_insercao_ficha_fechada(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.bloquear_insercao_ficha_fechada() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF public.folha_esta_bloqueada(NEW.folha_id) AND NOT public.usuario_eh_admin(auth.uid()) THEN
+    RAISE EXCEPTION 'Folha fechada: não é possível incluir fichas financeiras' USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: bloquear_insercao_item_ficha_fechada(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.bloquear_insercao_item_ficha_fechada() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_folha_id uuid;
+BEGIN
+  -- a folha vem pela ficha
+  SELECT folha_id INTO v_folha_id FROM public.fichas_financeiras WHERE id = NEW.ficha_id;
+  IF public.folha_esta_bloqueada(v_folha_id) AND NOT public.usuario_eh_admin(auth.uid()) THEN
+    RAISE EXCEPTION 'Folha fechada: não é possível incluir itens de fichas financeiras' USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
 END;
 $$;
 
@@ -2077,7 +2157,7 @@ CREATE FUNCTION public.can_access_module(_module public.app_module) RETURNS bool
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-  SELECT auth.uid() IS NOT NULL;
+  SELECT public.can_access_module(auth.uid(), _module::text);
 $$;
 
 
@@ -2166,6 +2246,30 @@ CREATE FUNCTION public.can_view_indicacao(_user_id uuid) RETURNS boolean
     WHERE user_id = _user_id
     AND role IN ('admin', 'ti_admin', 'presidencia')
   )
+$$;
+
+
+--
+-- Name: config_envio_servidor(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.config_envio_servidor(p_canal text) RETURNS jsonb
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_cfg public.config_envio%ROWTYPE;
+  v_segredo text;
+BEGIN
+  SELECT * INTO v_cfg FROM public.config_envio WHERE canal = p_canal;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  IF v_cfg.segredo_id IS NOT NULL THEN
+    SELECT d.decrypted_secret INTO v_segredo FROM vault.decrypted_secrets d WHERE d.id = v_cfg.segredo_id;
+  END IF;
+  RETURN (to_jsonb(v_cfg) - 'segredo_id') || jsonb_build_object('segredo', v_segredo);
+END;
 $$;
 
 
@@ -2378,12 +2482,62 @@ BEGIN
   INSERT INTO public.audit_logs (
     action, entity_type, entity_id, module_name, description, user_id
   ) VALUES (
-    'update', 'folhas_pagamento', p_folha_id::text, 'folha',
+    'update', 'folhas_pagamento', p_folha_id, 'folha',
     format('Folha %s/%s fechada. Justificativa: %s', v_folha.competencia_mes, v_folha.competencia_ano, COALESCE(p_justificativa, 'Sem justificativa')),
     v_user_id
   );
   
   RETURN jsonb_build_object('success', true, 'message', 'Folha fechada com sucesso');
+END;
+$$;
+
+
+--
+-- Name: fixar_autoria_aviso(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fixar_autoria_aviso() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    NEW.created_by := auth.uid();
+    NEW.created_at := now();
+  ELSE
+    NEW.created_by := OLD.created_by;
+    NEW.created_at := OLD.created_at;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fixar_autoria_config_envio(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fixar_autoria_config_envio() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  NEW.updated_by := auth.uid();
+  NEW.updated_at := now();
+  IF TG_OP = 'INSERT' THEN
+    NEW.created_at := now();
+  ELSE
+    NEW.created_at := OLD.created_at;
+    IF NEW.provedor IS DISTINCT FROM OLD.provedor
+       OR NEW.smtp_host IS DISTINCT FROM OLD.smtp_host
+       OR NEW.smtp_porta IS DISTINCT FROM OLD.smtp_porta
+       OR NEW.smtp_seguranca IS DISTINCT FROM OLD.smtp_seguranca
+       OR NEW.smtp_usuario IS DISTINCT FROM OLD.smtp_usuario THEN
+      NEW.segredo_id := NULL;
+      NEW.segredo_atualizado_em := NULL;
+    END IF;
+  END IF;
+  RETURN NEW;
 END;
 $$;
 
@@ -4086,6 +4240,45 @@ $$;
 
 
 --
+-- Name: folhas_proteger_exclusao(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.folhas_proteger_exclusao() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF OLD.status = 'fechada' AND NOT public.usuario_eh_admin(auth.uid()) THEN
+    RAISE EXCEPTION 'Folha fechada: não é possível excluir a folha' USING ERRCODE = '42501';
+  END IF;
+  RETURN OLD;
+END;
+$$;
+
+
+--
+-- Name: folhas_proteger_fechamento(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.folhas_proteger_fechamento() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF current_user IN ('authenticated', 'anon') AND NEW.status IS DISTINCT FROM OLD.status THEN
+    IF NEW.status = 'fechada' AND NOT public.usuario_pode_fechar_folha(auth.uid()) THEN
+      RAISE EXCEPTION 'Sem permissão para fechar a folha' USING ERRCODE = '42501';
+    END IF;
+    IF (NEW.status = 'reaberta' OR OLD.status = 'fechada') AND NOT public.usuario_pode_reabrir_folha(auth.uid()) THEN
+      RAISE EXCEPTION 'Apenas administradores reabrem folhas' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: generate_codigo_instituicao(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -4969,7 +5162,7 @@ CREATE FUNCTION public.has_module(_module public.app_module) RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-  SELECT auth.uid() IS NOT NULL;
+  SELECT public.has_module(auth.uid(), _module::text);
 $$;
 
 
@@ -5014,13 +5207,12 @@ CREATE FUNCTION public.has_permission_code(_user_id uuid, _permission text) RETU
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-  SELECT
-    -- super admin passa por cima
-    EXISTS (
-      SELECT 1 FROM public.user_roles
-      WHERE user_id = _user_id AND role = 'admin'
-    )
-    OR _permission = ANY (public.get_user_permission_codes(_user_id));
+  SELECT COALESCE((SELECT p.is_active FROM public.profiles p WHERE p.id = _user_id), false)
+     AND (
+       -- super admin passa por cima
+       EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = _user_id AND role = 'admin')
+       OR _permission = ANY (public.get_user_permission_codes(_user_id))
+     );
 $$;
 
 
@@ -5032,8 +5224,328 @@ CREATE FUNCTION public.has_role(_role public.app_role) RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-  SELECT auth.uid() IS NOT NULL;
+  SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = _role);
 $$;
+
+
+--
+-- Name: importar_qdd_fiplan(integer, jsonb, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.importar_qdd_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean DEFAULT true) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_linha jsonb;
+  v_val jsonb;
+  v_idx integer := -1;
+  v_nat text; v_fonte text; v_prog text; v_paoe text; v_paoe_desc text;
+  v_codigo text;
+  v_codigos text[] := '{}';
+  v_prog_id uuid; v_acao_id uuid; v_nat_id uuid; v_fonte_id uuid;
+  v_existente public.fin_dotacoes%ROWTYPE;
+  v_achou boolean;
+  v_novo jsonb;
+  v_mudancas jsonb;
+  v_dotacao_id uuid;
+  v_ids uuid[] := '{}';
+  v_paoes text[] := '{}';
+  v_resultado jsonb := '[]'::jsonb;
+  v_ins integer := 0; v_upd integer := 0; v_igual integer := 0;
+  v_cri_prog text[] := '{}'; v_cri_acao text[] := '{}';
+  v_cri_nat text[] := '{}'; v_cri_fonte text[] := '{}';
+  v_ausentes text[];
+  v_resumo jsonb;
+  v_import_id uuid;
+BEGIN
+  p_simular := COALESCE(p_simular, true);
+
+  -- COALESCE: um NULL em qualquer checagem nega (NOT NULL não dispararia o RAISE).
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'orcamento.importar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para importar o QDD (orcamento.importar).' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_exercicio IS NULL OR p_exercicio NOT BETWEEN 2000 AND 2100 THEN
+    RAISE EXCEPTION 'Exercício inválido: %', p_exercicio USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_typeof(p_linhas) IS DISTINCT FROM 'array'
+     OR jsonb_array_length(p_linhas) NOT BETWEEN 1 AND 5000 THEN
+    RAISE EXCEPTION 'Envie de 1 a 5000 dotações.' USING ERRCODE = '22023';
+  END IF;
+  IF NOT p_simular AND (
+       char_length(COALESCE(p_arquivo->>'nome', '')) NOT BETWEEN 1 AND 255
+       OR COALESCE(p_arquivo->>'sha256', '') !~ '^[0-9a-f]{64}$'
+       OR COALESCE(p_arquivo->>'tamanho', '') !~ '^\d{1,15}$') THEN
+    RAISE EXCEPTION 'Dados do arquivo inválidos.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Uma importação de QDD por exercício de cada vez.
+  PERFORM pg_advisory_xact_lock(hashtext('importar_qdd_fiplan'), p_exercicio);
+
+  FOR v_linha IN SELECT value FROM jsonb_array_elements(p_linhas) LOOP
+    v_idx := v_idx + 1;
+    v_val := COALESCE(v_linha->'valores', '{}'::jsonb);
+    v_nat := v_linha->>'natureza';
+    v_fonte := v_linha->>'fonte';
+    v_prog := v_linha->>'programa_codigo';
+    v_paoe := v_linha->>'paoe_codigo';
+
+    IF COALESCE(v_nat, '') !~ '^\d{8}$'
+       OR COALESCE(v_fonte, '') !~ '^\d\.\d{3}$'
+       OR COALESCE(v_linha->>'cod_acomp', '') !~ '^\d{4}$'
+       OR COALESCE(v_linha->>'funcao', '') !~ '^\d{1,2}$'
+       OR COALESCE(v_linha->>'subfuncao', '') !~ '^\d{1,3}$'
+       OR COALESCE(v_prog, '') !~ '^\d{1,4}$'
+       OR COALESCE(v_paoe, '') !~ '^\d{1,4}$'
+       OR COALESCE(v_linha->>'regional', '') !~ '^\d{1,4}$'
+       OR COALESCE(v_linha->>'idu', '') !~ '^[^.[:space:][:cntrl:]]{1,6}$'
+       OR COALESCE(v_linha->>'tro', '') !~ '^[^.[:space:][:cntrl:]]{0,10}$'
+       OR char_length(COALESCE(v_linha->>'programa_nome', '')) > 255
+       OR char_length(COALESCE(v_linha->>'paoe_nome', '')) > 255 THEN
+      RAISE EXCEPTION 'Linha %: classificação fora do padrão do QDD.', v_idx + 1 USING ERRCODE = '22023';
+    END IF;
+    IF EXISTS (
+      SELECT 1 FROM jsonb_each(v_val) e
+      WHERE jsonb_typeof(e.value) <> 'number' OR abs((e.value)::text::numeric) >= 1e13
+    ) THEN
+      RAISE EXCEPTION 'Linha %: valor inválido.', v_idx + 1 USING ERRCODE = '22023';
+    END IF;
+
+    v_codigo := concat_ws('.', v_linha->>'funcao', v_linha->>'subfuncao', v_prog, v_paoe,
+                          v_linha->>'regional', v_nat, v_fonte, v_linha->>'cod_acomp', v_linha->>'idu');
+    IF v_codigo = ANY (v_codigos) THEN
+      RAISE EXCEPTION 'Linha %: dotação % repetida no arquivo.', v_idx + 1, v_codigo USING ERRCODE = '22023';
+    END IF;
+    v_codigos := v_codigos || v_codigo;
+    v_paoe_desc := v_paoe || ' - ' || COALESCE(NULLIF(v_linha->>'paoe_nome', ''), 'PAOE ' || v_paoe);
+    IF NOT v_paoe = ANY (v_paoes) THEN v_paoes := v_paoes || v_paoe; END IF;
+
+    -- Programa
+    SELECT id INTO v_prog_id FROM public.fin_programas_orcamentarios
+     WHERE exercicio = p_exercicio AND ltrim(codigo, '0') = ltrim(v_prog, '0')
+     ORDER BY (codigo = v_prog) DESC LIMIT 1;
+    IF v_prog_id IS NULL THEN
+      IF NOT v_prog = ANY (v_cri_prog) THEN v_cri_prog := v_cri_prog || v_prog; END IF;
+      IF NOT p_simular THEN
+        INSERT INTO public.fin_programas_orcamentarios (codigo, nome, exercicio)
+        VALUES (v_prog, COALESCE(NULLIF(v_linha->>'programa_nome', ''), 'Programa ' || v_prog), p_exercicio)
+        RETURNING id INTO v_prog_id;
+      END IF;
+    END IF;
+
+    -- Ação (PAOE)
+    v_acao_id := NULL;
+    IF v_prog_id IS NOT NULL THEN
+      SELECT id INTO v_acao_id FROM public.fin_acoes_orcamentarias
+       WHERE programa_id = v_prog_id AND ltrim(codigo, '0') = ltrim(v_paoe, '0')
+       ORDER BY (codigo = v_paoe) DESC, ativo DESC NULLS LAST, created_at LIMIT 1;
+    END IF;
+    IF v_acao_id IS NULL THEN
+      IF NOT v_paoe_desc = ANY (v_cri_acao) THEN v_cri_acao := v_cri_acao || v_paoe_desc; END IF;
+      IF NOT p_simular THEN
+        INSERT INTO public.fin_acoes_orcamentarias (programa_id, codigo, nome)
+        VALUES (v_prog_id, v_paoe, COALESCE(NULLIF(v_linha->>'paoe_nome', ''), 'PAOE ' || v_paoe))
+        RETURNING id INTO v_acao_id;
+      END IF;
+    END IF;
+
+    -- Natureza: 8 dígitos do FIPLAN ou o elemento (6 dígitos) quando o subelemento é 00
+    SELECT id INTO v_nat_id FROM public.fin_naturezas_despesa
+     WHERE regexp_replace(codigo, '\D', '', 'g') = v_nat
+        OR (substr(v_nat, 7, 2) = '00' AND regexp_replace(codigo, '\D', '', 'g') = substr(v_nat, 1, 6))
+     ORDER BY (regexp_replace(codigo, '\D', '', 'g') = v_nat) DESC, ativo DESC NULLS LAST
+     LIMIT 1;
+    IF v_nat_id IS NULL THEN
+      DECLARE
+        v_nat_cod text := concat_ws('.', substr(v_nat, 1, 1), substr(v_nat, 2, 1), substr(v_nat, 3, 2),
+                                    substr(v_nat, 5, 2), NULLIF(substr(v_nat, 7, 2), '00'));
+      BEGIN
+        IF NOT v_nat_cod = ANY (v_cri_nat) THEN v_cri_nat := v_cri_nat || v_nat_cod; END IF;
+        IF NOT p_simular THEN
+          INSERT INTO public.fin_naturezas_despesa
+            (codigo, nome, categoria_economica, grupo_natureza, modalidade_aplicacao, elemento, subelemento)
+          VALUES (v_nat_cod, 'Natureza ' || v_nat_cod || ' (importada do QDD, revisar descrição)',
+                  substr(v_nat, 1, 1), substr(v_nat, 2, 1), substr(v_nat, 3, 2), substr(v_nat, 5, 2), substr(v_nat, 7, 2))
+          RETURNING id INTO v_nat_id;
+        END IF;
+      END;
+    END IF;
+
+    -- Fonte: compara só os dígitos (1.500 = 1500)
+    SELECT id INTO v_fonte_id FROM public.fin_fontes_recurso
+     WHERE regexp_replace(codigo, '\D', '', 'g') = replace(v_fonte, '.', '')
+     ORDER BY ativo DESC NULLS LAST LIMIT 1;
+    IF v_fonte_id IS NULL THEN
+      IF NOT v_fonte = ANY (v_cri_fonte) THEN v_cri_fonte := v_cri_fonte || v_fonte; END IF;
+      IF NOT p_simular THEN
+        INSERT INTO public.fin_fontes_recurso (codigo, nome)
+        VALUES (v_fonte, 'Fonte ' || v_fonte || ' (importada do QDD, revisar descrição)')
+        RETURNING id INTO v_fonte_id;
+      END IF;
+    END IF;
+
+    -- Dotação existente: chave nova; senão, a do importador antigo de planilha
+    SELECT * INTO v_existente FROM public.fin_dotacoes
+     WHERE exercicio = p_exercicio AND codigo_dotacao = v_codigo;
+    v_achou := FOUND;
+    IF NOT v_achou THEN
+      SELECT * INTO v_existente FROM public.fin_dotacoes
+       WHERE exercicio = p_exercicio
+         AND codigo_dotacao IN (v_nat || '.' || v_fonte || '.' || (v_linha->>'idu'),
+                                v_nat || '.' || replace(v_fonte, '.', '') || '.' || (v_linha->>'idu'))
+         AND split_part(COALESCE(paoe, ''), ' ', 1) = v_paoe
+         AND NOT (id = ANY (v_ids))
+       LIMIT 1;
+      v_achou := FOUND;
+    END IF;
+
+    v_novo := jsonb_build_object(
+      'valor_inicial',       COALESCE((v_val->>'inicial')::numeric, 0),
+      'valor_suplementado',  COALESCE((v_val->>'suplementado')::numeric, 0),
+      'valor_reduzido',      COALESCE((v_val->>'anulado')::numeric, 0),
+      'valor_bloqueado',     COALESCE((v_val->>'bloqueado')::numeric, 0),
+      'valor_reserva',       COALESCE((v_val->>'reserva')::numeric, 0),
+      'valor_ped',           COALESCE((v_val->>'ped')::numeric, 0),
+      'valor_empenhado',     COALESCE((v_val->>'empenhado')::numeric, 0),
+      'valor_liquidado',     COALESCE((v_val->>'liquidado')::numeric, 0),
+      'valor_em_liquidacao', COALESCE((v_val->>'em_liquidacao')::numeric, 0),
+      'valor_pago',          COALESCE((v_val->>'pago')::numeric, 0),
+      'valor_restos_pagar',  COALESCE((v_val->>'restos')::numeric, 0),
+      'paoe',                v_paoe_desc,
+      'regional',            v_linha->>'regional',
+      'cod_acompanhamento',  v_linha->>'cod_acomp',
+      'idu',                 v_linha->>'idu',
+      'tro',                 v_linha->>'tro',
+      'ativo',               true
+    )
+    -- Vínculos só entram na comparação quando já existem (na simulação, os que seriam
+    -- criados aparecem em "criados").
+    || jsonb_strip_nulls(jsonb_build_object(
+      'programa_id',         v_prog_id,
+      'acao_id',             v_acao_id,
+      'natureza_despesa_id', v_nat_id,
+      'fonte_recurso_id',    v_fonte_id
+    ));
+
+    IF NOT v_achou THEN
+      v_ins := v_ins + 1;
+      v_dotacao_id := NULL;
+      IF NOT p_simular THEN
+        INSERT INTO public.fin_dotacoes (
+          exercicio, codigo_dotacao, programa_id, acao_id, natureza_despesa_id, fonte_recurso_id,
+          paoe, regional, cod_acompanhamento, idu, tro,
+          valor_inicial, valor_suplementado, valor_reduzido, valor_bloqueado, valor_reserva, valor_ped,
+          valor_empenhado, valor_liquidado, valor_em_liquidacao, valor_pago, valor_restos_pagar,
+          ativo, created_by
+        ) VALUES (
+          p_exercicio, v_codigo, v_prog_id, v_acao_id, v_nat_id, v_fonte_id,
+          v_paoe_desc, v_linha->>'regional', v_linha->>'cod_acomp', v_linha->>'idu', v_linha->>'tro',
+          (v_novo->>'valor_inicial')::numeric, (v_novo->>'valor_suplementado')::numeric,
+          (v_novo->>'valor_reduzido')::numeric, (v_novo->>'valor_bloqueado')::numeric,
+          (v_novo->>'valor_reserva')::numeric, (v_novo->>'valor_ped')::numeric,
+          (v_novo->>'valor_empenhado')::numeric, (v_novo->>'valor_liquidado')::numeric,
+          (v_novo->>'valor_em_liquidacao')::numeric, (v_novo->>'valor_pago')::numeric,
+          (v_novo->>'valor_restos_pagar')::numeric,
+          true, v_uid
+        ) RETURNING id INTO v_dotacao_id;
+        v_ids := v_ids || v_dotacao_id;
+      END IF;
+      v_resultado := v_resultado || jsonb_build_object('indice', v_idx, 'acao', 'inserir');
+    ELSE
+      v_ids := v_ids || v_existente.id;
+      SELECT COALESCE(jsonb_object_agg(k, jsonb_build_array(to_jsonb(v_existente) -> k, v_novo -> k)), '{}'::jsonb)
+        INTO v_mudancas
+        FROM jsonb_object_keys(v_novo) AS k
+       WHERE (to_jsonb(v_existente) -> k) IS DISTINCT FROM (v_novo -> k);
+      IF v_existente.codigo_dotacao <> v_codigo THEN
+        v_mudancas := v_mudancas || jsonb_build_object('codigo_dotacao',
+                        jsonb_build_array(v_existente.codigo_dotacao, v_codigo));
+      END IF;
+
+      IF v_mudancas = '{}'::jsonb THEN
+        v_igual := v_igual + 1;
+        v_resultado := v_resultado || jsonb_build_object('indice', v_idx, 'acao', 'sem_alteracao');
+      ELSE
+        v_upd := v_upd + 1;
+        v_resultado := v_resultado || jsonb_build_object('indice', v_idx, 'acao', 'atualizar', 'mudancas', v_mudancas);
+      END IF;
+
+      IF NOT p_simular AND v_mudancas <> '{}'::jsonb THEN
+        UPDATE public.fin_dotacoes SET
+          codigo_dotacao      = v_codigo,
+          programa_id         = COALESCE(v_prog_id, programa_id),
+          acao_id             = COALESCE(v_acao_id, acao_id),
+          natureza_despesa_id = COALESCE(v_nat_id, natureza_despesa_id),
+          fonte_recurso_id    = COALESCE(v_fonte_id, fonte_recurso_id),
+          paoe                = v_paoe_desc,
+          regional            = v_linha->>'regional',
+          cod_acompanhamento  = v_linha->>'cod_acomp',
+          idu                 = v_linha->>'idu',
+          tro                 = v_linha->>'tro',
+          valor_inicial       = (v_novo->>'valor_inicial')::numeric,
+          valor_suplementado  = (v_novo->>'valor_suplementado')::numeric,
+          valor_reduzido      = (v_novo->>'valor_reduzido')::numeric,
+          valor_bloqueado     = (v_novo->>'valor_bloqueado')::numeric,
+          valor_reserva       = (v_novo->>'valor_reserva')::numeric,
+          valor_ped           = (v_novo->>'valor_ped')::numeric,
+          valor_empenhado     = (v_novo->>'valor_empenhado')::numeric,
+          valor_liquidado     = (v_novo->>'valor_liquidado')::numeric,
+          valor_em_liquidacao = (v_novo->>'valor_em_liquidacao')::numeric,
+          valor_pago          = (v_novo->>'valor_pago')::numeric,
+          valor_restos_pagar  = (v_novo->>'valor_restos_pagar')::numeric,
+          ativo               = true,
+          updated_at          = now()
+        WHERE id = v_existente.id;
+      END IF;
+    END IF;
+  END LOOP;
+
+  -- Dotações ativas dos mesmos PAOEs que não vieram no arquivo: só avisadas, nunca apagadas.
+  SELECT array_agg(d.codigo_dotacao ORDER BY d.codigo_dotacao) INTO v_ausentes
+    FROM public.fin_dotacoes d
+   WHERE d.exercicio = p_exercicio
+     AND d.ativo
+     AND split_part(COALESCE(d.paoe, ''), ' ', 1) = ANY (v_paoes)
+     AND NOT (d.id = ANY (v_ids));
+
+  v_resumo := jsonb_build_object(
+    'totais', jsonb_build_object('inserir', v_ins, 'atualizar', v_upd, 'sem_alteracao', v_igual),
+    'criados', jsonb_strip_nulls(jsonb_build_object(
+      'Programas', CASE WHEN cardinality(v_cri_prog) > 0 THEN to_jsonb(v_cri_prog) END,
+      'Ações (PAOE)', CASE WHEN cardinality(v_cri_acao) > 0 THEN to_jsonb(v_cri_acao) END,
+      'Naturezas de despesa', CASE WHEN cardinality(v_cri_nat) > 0 THEN to_jsonb(v_cri_nat) END,
+      'Fontes de recurso', CASE WHEN cardinality(v_cri_fonte) > 0 THEN to_jsonb(v_cri_fonte) END)),
+    'ausentes', to_jsonb(COALESCE(v_ausentes, '{}'::text[]))
+  );
+
+  IF NOT p_simular THEN
+    INSERT INTO public.importacoes
+      (tipo, modulo, arquivo_nome, arquivo_sha256, arquivo_tamanho, exercicio, resumo, detalhes, created_by)
+    VALUES
+      ('qdd_fiplan', 'financeiro', p_arquivo->>'nome', p_arquivo->>'sha256', (p_arquivo->>'tamanho')::bigint,
+       p_exercicio, v_resumo, v_resultado, v_uid)
+    RETURNING id INTO v_import_id;
+  END IF;
+
+  RETURN v_resumo || jsonb_build_object(
+    'simulacao', p_simular,
+    'importacao_id', v_import_id,
+    'linhas', v_resultado
+  );
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION importar_qdd_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.importar_qdd_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa o QDD exportado do FIPLAN para fin_dotacoes (p_simular = true só calcula as mudanças). Exige orcamento.importar.';
 
 
 --
@@ -5044,7 +5556,7 @@ CREATE FUNCTION public.is_active_user() RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-  SELECT auth.uid() IS NOT NULL;
+  SELECT COALESCE((SELECT is_active FROM public.profiles WHERE id = auth.uid()), false);
 $$;
 
 
@@ -5056,7 +5568,7 @@ CREATE FUNCTION public.is_active_user(p_user_id uuid) RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-  SELECT COALESCE(is_active, true) FROM public.profiles WHERE id = p_user_id;
+  SELECT COALESCE((SELECT is_active FROM public.profiles WHERE id = p_user_id), false);
 $$;
 
 
@@ -5068,10 +5580,7 @@ CREATE FUNCTION public.is_admin_atual() RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.user_roles
-    WHERE user_id = auth.uid() AND role = 'admin'
-  );
+  SELECT public.is_admin_user(auth.uid());
 $$;
 
 
@@ -5083,7 +5592,12 @@ CREATE FUNCTION public.is_admin_user(_user_id uuid DEFAULT auth.uid()) RETURNS b
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-  SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = _user_id AND role = 'admin');
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.user_roles ur
+    JOIN public.profiles p ON p.id = ur.user_id
+    WHERE ur.user_id = _user_id AND ur.role = 'admin' AND p.is_active
+  );
 $$;
 
 
@@ -5274,6 +5788,18 @@ $$;
 
 
 --
+-- Name: meu_servidor_id(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.meu_servidor_id() RETURNS uuid
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT servidor_id FROM public.profiles WHERE id = auth.uid() AND is_active;
+$$;
+
+
+--
 -- Name: numerar_despacho(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -5446,6 +5972,58 @@ $$;
 
 
 --
+-- Name: perfil_ativo_atual(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.perfil_ativo_atual() RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT COALESCE((SELECT p.is_active FROM public.profiles p WHERE p.id = auth.uid()), false);
+$$;
+
+
+--
+-- Name: pode_configurar_envios(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pode_configurar_envios() RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT public.perfil_ativo_atual()
+     AND public.has_permission_code(auth.uid(), 'admin.envios.configurar');
+$$;
+
+
+--
+-- Name: pode_gerenciar_avisos(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pode_gerenciar_avisos() RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT public.perfil_ativo_atual()
+     AND public.has_permission_code(auth.uid(), 'avisos.gerenciar');
+$$;
+
+
+--
+-- Name: pode_ver_envios(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pode_ver_envios() RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT public.perfil_ativo_atual()
+     AND (public.has_permission_code(auth.uid(), 'admin.envios')
+          OR public.has_permission_code(auth.uid(), 'admin.envios.configurar'));
+$$;
+
+
+--
 -- Name: processar_folha_pagamento(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -5472,6 +6050,12 @@ DECLARE
   v_total_com_provimento INTEGER := 0;
   v_total_sem_vencimento INTEGER := 0;
 BEGIN
+  -- Guarda (migração 20261010070000): só quem tem a permissão de processar a folha (ou o papel admin,
+  -- via has_permission_code) executa. 42501 = insufficient_privilege, mesmo código das policies.
+  IF NOT public.has_permission_code(auth.uid(), 'financeiro.folha.processar') THEN
+    RAISE EXCEPTION 'Sem permissão para processar a folha' USING ERRCODE = '42501';
+  END IF;
+
   -- Buscar folha
   SELECT * INTO v_folha FROM folhas_pagamento WHERE id = p_folha_id;
   
@@ -5661,7 +6245,13 @@ BEGIN
     'erros', v_errors
   );
   
-EXCEPTION WHEN OTHERS THEN
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    -- Guarda de permissão (início do corpo): propaga o 42501. Sem esta cláusula o handler abaixo engolia
+    -- a exceção e, como SECURITY DEFINER, "revertia" a folha para 'aberta' — inclusive uma folha fechada —
+    -- a pedido de quem NÃO tem permissão.
+    RAISE;
+  WHEN OTHERS THEN
   -- Em caso de erro, reverter status
   UPDATE folhas_pagamento SET status = 'aberta', updated_at = now() WHERE id = p_folha_id;
   
@@ -5670,6 +6260,35 @@ EXCEPTION WHEN OTHERS THEN
     'erro', SQLERRM,
     'servidores_processados', v_count
   );
+END;
+$$;
+
+
+--
+-- Name: profiles_proteger_colunas(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.profiles_proteger_colunas() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF current_user IN ('authenticated', 'anon') AND NOT public.is_admin_user(auth.uid()) THEN
+    IF NEW.id IS DISTINCT FROM OLD.id
+       OR NEW.email IS DISTINCT FROM OLD.email
+       OR NEW.is_active IS DISTINCT FROM OLD.is_active
+       OR NEW.blocked_at IS DISTINCT FROM OLD.blocked_at
+       OR NEW.blocked_reason IS DISTINCT FROM OLD.blocked_reason
+       OR NEW.servidor_id IS DISTINCT FROM OLD.servidor_id
+       OR NEW.tipo_usuario IS DISTINCT FROM OLD.tipo_usuario
+       OR NEW.restringir_modulos IS DISTINCT FROM OLD.restringir_modulos
+       OR NEW.cpf IS DISTINCT FROM OLD.cpf
+    THEN
+      RAISE EXCEPTION 'Somente administradores alteram identidade, vínculo e bloqueio do perfil'
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  RETURN NEW;
 END;
 $$;
 
@@ -5780,7 +6399,7 @@ BEGIN
   INSERT INTO public.audit_logs (
     action, entity_type, entity_id, module_name, description, user_id
   ) VALUES (
-    'update', 'folhas_pagamento', p_folha_id::text, 'folha',
+    'update', 'folhas_pagamento', p_folha_id, 'folha',
     format('Folha %s/%s REABERTA por super_admin. Justificativa: %s', v_folha.competencia_mes, v_folha.competencia_ano, p_justificativa),
     v_user_id
   );
@@ -6129,49 +6748,89 @@ CREATE FUNCTION public.registrar_transicao_folha() RETURNS trigger
 DECLARE
   v_user_nome TEXT;
 BEGIN
-  -- Buscar nome do usuário
-  SELECT nome INTO v_user_nome FROM public.profiles WHERE id = auth.uid();
-  
-  -- Registrar transição apenas se status mudou
+  SELECT full_name INTO v_user_nome FROM public.profiles WHERE id = auth.uid();
+
   IF OLD.status IS DISTINCT FROM NEW.status THEN
     INSERT INTO public.folha_historico_status (
-      folha_id,
-      status_anterior,
-      status_novo,
-      usuario_id,
-      usuario_nome,
-      justificativa
+      folha_id, status_anterior, status_novo, usuario_id, usuario_nome, justificativa
     ) VALUES (
-      NEW.id,
-      OLD.status,
-      NEW.status,
-      auth.uid(),
-      v_user_nome,
-      CASE 
+      NEW.id, OLD.status, NEW.status, auth.uid(), v_user_nome,
+      CASE
         WHEN NEW.status = 'fechada' THEN NEW.justificativa_fechamento
         WHEN NEW.status = 'reaberta' THEN NEW.justificativa_reabertura
         ELSE NULL
       END
     );
-    
-    -- Atualizar campos de controle
+
     IF NEW.status = 'fechada' AND OLD.status != 'fechada' THEN
       NEW.fechado_por := COALESCE(NEW.fechado_por, auth.uid());
       NEW.fechado_em := COALESCE(NEW.fechado_em, now());
     END IF;
-    
+
     IF NEW.status = 'processando' AND OLD.status = 'aberta' THEN
       NEW.conferido_por := COALESCE(NEW.conferido_por, auth.uid());
       NEW.conferido_em := COALESCE(NEW.conferido_em, now());
     END IF;
-    
+
     IF NEW.status = 'reaberta' THEN
       NEW.reaberto_por := COALESCE(NEW.reaberto_por, auth.uid());
       NEW.reaberto_em := COALESCE(NEW.reaberto_em, now());
     END IF;
   END IF;
-  
+
   RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: salvar_segredo_envio(text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.salvar_segredo_envio(p_canal text, p_segredo text) RETURNS timestamp with time zone
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_id uuid;
+  v_nome text;
+  v_agora timestamptz := now();
+BEGIN
+  IF NOT public.pode_configurar_envios() THEN
+    RAISE EXCEPTION 'Sem permissão para configurar envios' USING ERRCODE = '42501';
+  END IF;
+  IF p_canal NOT IN ('email', 'whatsapp') THEN
+    RAISE EXCEPTION 'Canal inválido' USING ERRCODE = '22023';
+  END IF;
+  IF p_segredo IS NULL OR char_length(btrim(p_segredo)) = 0 OR char_length(p_segredo) > 4096 THEN
+    RAISE EXCEPTION 'Credencial vazia ou longa demais' USING ERRCODE = '22023';
+  END IF;
+
+  -- Exige a configuração salva antes: trocar o provedor depois apagaria a credencial (trigger acima).
+  SELECT segredo_id INTO v_id FROM public.config_envio
+   WHERE canal = p_canal AND provedor IS NOT NULL
+   FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Salve a configuração do canal antes de gravar a credencial' USING ERRCODE = '22023';
+  END IF;
+  v_nome := 'config_envio_' || p_canal;
+
+  -- linha recriada mas segredo antigo ainda no Vault: reaproveita pelo nome (que é único)
+  IF v_id IS NULL THEN
+    SELECT s.id INTO v_id FROM vault.secrets s WHERE s.name = v_nome;
+  END IF;
+
+  IF v_id IS NULL THEN
+    v_id := vault.create_secret(p_segredo, v_nome, 'Credencial de envio (' || p_canal || ')');
+  ELSE
+    PERFORM vault.update_secret(v_id, p_segredo);
+  END IF;
+
+  UPDATE public.config_envio
+     SET segredo_id = v_id, segredo_atualizado_em = v_agora
+   WHERE canal = p_canal;
+
+  RETURN v_agora;
 END;
 $$;
 
@@ -6421,6 +7080,18 @@ $$;
 
 
 --
+-- Name: usuario_eh_admin(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.usuario_eh_admin(check_user_id uuid DEFAULT NULL::uuid) RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT public.is_admin_user(COALESCE(check_user_id, auth.uid()));
+$$;
+
+
+--
 -- Name: usuario_eh_super_admin(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -6428,7 +7099,7 @@ CREATE FUNCTION public.usuario_eh_super_admin(check_user_id uuid DEFAULT NULL::u
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-  SELECT auth.uid() IS NOT NULL;
+  SELECT public.is_admin_user(COALESCE(check_user_id, auth.uid()));
 $$;
 
 
@@ -6519,37 +7190,10 @@ $$;
 --
 
 CREATE FUNCTION public.usuario_tem_permissao(_user_id uuid, _codigo_funcao text) RETURNS boolean
-    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-DECLARE
-  _tem_permissao BOOLEAN := false;
-  _perfil RECORD;
-BEGIN
-  FOR _perfil IN 
-    SELECT up.perfil_id 
-    FROM usuario_perfis up
-    WHERE up.user_id = _user_id 
-      AND up.ativo = true
-      AND (up.data_fim IS NULL OR up.data_fim >= CURRENT_DATE)
-  LOOP
-    SELECT EXISTS (
-      SELECT 1 
-      FROM perfil_funcoes pf
-      JOIN funcoes_sistema fs ON fs.id = pf.funcao_id
-      WHERE pf.perfil_id = _perfil.perfil_id
-        AND fs.codigo = _codigo_funcao
-        AND pf.concedido = true
-        AND fs.ativo = true
-    ) INTO _tem_permissao;
-    
-    IF _tem_permissao THEN
-      RETURN true;
-    END IF;
-  END LOOP;
-  
-  RETURN false;
-END;
+  SELECT public.has_permission_code(_user_id, _codigo_funcao);
 $$;
 
 
@@ -6558,29 +7202,10 @@ $$;
 --
 
 CREATE FUNCTION public.usuario_tem_permissao_financeira(p_user_id uuid, p_permissao character varying) RETURNS boolean
-    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-BEGIN
-  -- Super admin tem acesso total
-  IF public.usuario_eh_super_admin(p_user_id) THEN
-    RETURN TRUE;
-  END IF;
-  
-  -- Verificar permissão específica via RBAC
-  RETURN EXISTS (
-    SELECT 1 
-    FROM public.usuario_perfis up
-    JOIN public.perfil_funcoes pf ON up.perfil_id = pf.perfil_id
-    JOIN public.funcoes_sistema f ON pf.funcao_id = f.id
-    WHERE up.user_id = p_user_id
-      AND up.ativo = true
-      AND (up.data_fim IS NULL OR up.data_fim >= CURRENT_DATE)
-      AND pf.concedido = true
-      AND f.codigo = p_permissao
-      AND f.ativo = true
-  );
-END;
+  SELECT public.has_permission_code(p_user_id, p_permissao::text);
 $$;
 
 
@@ -7151,6 +7776,60 @@ CREATE TABLE public.avaliacoes_risco (
 --
 
 COMMENT ON TABLE public.avaliacoes_risco IS 'Histórico de avaliações periódicas dos riscos';
+
+
+--
+-- Name: avisos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.avisos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    titulo text NOT NULL,
+    conteudo text NOT NULL,
+    prioridade text DEFAULT 'normal'::text NOT NULL,
+    destaque boolean DEFAULT false NOT NULL,
+    publico text DEFAULT 'todos'::text NOT NULL,
+    modulos_alvo public.app_module[] DEFAULT '{}'::public.app_module[] NOT NULL,
+    inicio_em timestamp with time zone DEFAULT now() NOT NULL,
+    expira_em timestamp with time zone,
+    link text,
+    ativo boolean DEFAULT true NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT avisos_conteudo_check CHECK ((char_length(conteudo) <= 5000)),
+    CONSTRAINT avisos_link_check CHECK (((link IS NULL) OR ((char_length(link) <= 500) AND (link ~ '^(/$|/[^/\\]|https://[^/\\])'::text) AND (link !~ '[[:space:][:cntrl:]]'::text)))),
+    CONSTRAINT avisos_prioridade_check CHECK ((prioridade = ANY (ARRAY['baixa'::text, 'normal'::text, 'alta'::text, 'urgente'::text]))),
+    CONSTRAINT avisos_publico_check CHECK ((publico = ANY (ARRAY['todos'::text, 'modulos'::text]))),
+    CONSTRAINT avisos_publico_ck CHECK (((publico = 'todos'::text) OR (cardinality(modulos_alvo) > 0))),
+    CONSTRAINT avisos_titulo_check CHECK (((char_length(btrim(titulo)) >= 3) AND (char_length(btrim(titulo)) <= 200))),
+    CONSTRAINT avisos_validade_ck CHECK (((expira_em IS NULL) OR (expira_em > inicio_em)))
+);
+
+
+--
+-- Name: TABLE avisos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.avisos IS 'Mural de avisos internos (prioridade, destaque, validade, público por módulo).';
+
+
+--
+-- Name: avisos_leituras; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.avisos_leituras (
+    aviso_id uuid NOT NULL,
+    user_id uuid DEFAULT auth.uid() NOT NULL,
+    lido_em timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE avisos_leituras; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.avisos_leituras IS 'Confirmação de leitura de avisos por usuário.';
 
 
 --
@@ -8049,6 +8728,60 @@ CREATE TABLE public.config_compensacao (
 --
 
 COMMENT ON TABLE public.config_compensacao IS 'Regras de compensação de horas e banco de horas';
+
+
+--
+-- Name: config_envio; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.config_envio (
+    canal text NOT NULL,
+    ativo boolean DEFAULT false NOT NULL,
+    provedor text,
+    remetente_nome text,
+    remetente_email text,
+    responder_para text,
+    smtp_host text,
+    smtp_porta integer,
+    smtp_seguranca text,
+    smtp_usuario text,
+    marca_nome text,
+    marca_logo_url text,
+    marca_cor text,
+    rodape text,
+    wa_phone_number_id text,
+    wa_business_account_id text,
+    wa_templates jsonb DEFAULT '{}'::jsonb NOT NULL,
+    segredo_id uuid,
+    segredo_atualizado_em timestamp with time zone,
+    updated_by uuid DEFAULT auth.uid(),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT config_envio_canal_check CHECK ((canal = ANY (ARRAY['email'::text, 'whatsapp'::text]))),
+    CONSTRAINT config_envio_marca_cor_check CHECK (((marca_cor IS NULL) OR (marca_cor ~ '^#[0-9A-Fa-f]{6}$'::text))),
+    CONSTRAINT config_envio_marca_logo_url_check CHECK (((marca_logo_url IS NULL) OR ((char_length(marca_logo_url) <= 500) AND (marca_logo_url ~ '^https://[^[:space:]"''<>]+$'::text)))),
+    CONSTRAINT config_envio_marca_nome_check CHECK (((marca_nome IS NULL) OR (char_length(marca_nome) <= 200))),
+    CONSTRAINT config_envio_provedor_check CHECK ((provedor = ANY (ARRAY['smtp'::text, 'resend'::text, 'meta_cloud'::text]))),
+    CONSTRAINT config_envio_provedor_ck CHECK (((provedor IS NULL) OR ((canal = 'email'::text) AND (provedor = ANY (ARRAY['smtp'::text, 'resend'::text]))) OR ((canal = 'whatsapp'::text) AND (provedor = 'meta_cloud'::text)))),
+    CONSTRAINT config_envio_remetente_email_check CHECK (((remetente_email IS NULL) OR (remetente_email ~* '^[^@[:space:]<>]+@[^@[:space:]<>]+\.[^@[:space:]<>]+$'::text))),
+    CONSTRAINT config_envio_remetente_nome_check CHECK (((remetente_nome IS NULL) OR (char_length(remetente_nome) <= 120))),
+    CONSTRAINT config_envio_responder_para_check CHECK (((responder_para IS NULL) OR (responder_para ~* '^[^@[:space:]<>]+@[^@[:space:]<>]+\.[^@[:space:]<>]+$'::text))),
+    CONSTRAINT config_envio_rodape_check CHECK (((rodape IS NULL) OR (char_length(rodape) <= 500))),
+    CONSTRAINT config_envio_smtp_host_check CHECK (((smtp_host IS NULL) OR (smtp_host ~ '^[A-Za-z0-9.-]{1,253}$'::text))),
+    CONSTRAINT config_envio_smtp_porta_check CHECK (((smtp_porta IS NULL) OR (smtp_porta = ANY (ARRAY[25, 465, 587, 2525])))),
+    CONSTRAINT config_envio_smtp_seguranca_check CHECK (((smtp_seguranca IS NULL) OR (smtp_seguranca = ANY (ARRAY['ssl'::text, 'starttls'::text])))),
+    CONSTRAINT config_envio_smtp_usuario_check CHECK (((smtp_usuario IS NULL) OR (char_length(smtp_usuario) <= 255))),
+    CONSTRAINT config_envio_wa_business_account_id_check CHECK (((wa_business_account_id IS NULL) OR (wa_business_account_id ~ '^[0-9]{5,30}$'::text))),
+    CONSTRAINT config_envio_wa_phone_number_id_check CHECK (((wa_phone_number_id IS NULL) OR (wa_phone_number_id ~ '^[0-9]{5,30}$'::text))),
+    CONSTRAINT config_envio_wa_templates_check CHECK ((jsonb_typeof(wa_templates) = 'object'::text))
+);
+
+
+--
+-- Name: TABLE config_envio; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.config_envio IS 'Configuração de envio por canal (e-mail/WhatsApp) da instância. Credenciais ficam no Vault (segredo_id).';
 
 
 --
@@ -9008,6 +9741,37 @@ CREATE TABLE public.dados_oficiais (
 
 
 --
+-- Name: datas_importantes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.datas_importantes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    titulo text NOT NULL,
+    descricao text,
+    data date NOT NULL,
+    data_fim date,
+    tipo text DEFAULT 'evento'::text NOT NULL,
+    recorrente_anual boolean DEFAULT false NOT NULL,
+    modulos_alvo public.app_module[] DEFAULT '{}'::public.app_module[] NOT NULL,
+    ativo boolean DEFAULT true NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT datas_importantes_descricao_check CHECK (((descricao IS NULL) OR (char_length(descricao) <= 2000))),
+    CONSTRAINT datas_importantes_periodo_ck CHECK (((data_fim IS NULL) OR (data_fim >= data))),
+    CONSTRAINT datas_importantes_tipo_check CHECK ((tipo = ANY (ARRAY['prazo'::text, 'evento'::text, 'reuniao'::text, 'comemorativa'::text, 'outro'::text]))),
+    CONSTRAINT datas_importantes_titulo_check CHECK (((char_length(btrim(titulo)) >= 3) AND (char_length(btrim(titulo)) <= 200)))
+);
+
+
+--
+-- Name: TABLE datas_importantes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.datas_importantes IS 'Prazos, eventos e datas institucionais. Feriados ficam em dias_nao_uteis. modulos_alvo vazio = todos.';
+
+
+--
 -- Name: debitos_tecnicos; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -9637,6 +10401,35 @@ CREATE TABLE public.encaminhamentos (
 --
 
 COMMENT ON TABLE public.encaminhamentos IS 'Tramitação e encaminhamentos de documentos/processos';
+
+
+--
+-- Name: envios_log; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.envios_log (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    criado_em timestamp with time zone DEFAULT now() NOT NULL,
+    canal text NOT NULL,
+    provedor text NOT NULL,
+    destinatario text NOT NULL,
+    assunto text,
+    origem_modulo text NOT NULL,
+    origem_id uuid,
+    status text NOT NULL,
+    erro text,
+    id_externo text,
+    disparado_por uuid,
+    CONSTRAINT envios_log_canal_check CHECK ((canal = ANY (ARRAY['email'::text, 'whatsapp'::text]))),
+    CONSTRAINT envios_log_status_check CHECK ((status = ANY (ARRAY['enviado'::text, 'falhou'::text])))
+);
+
+
+--
+-- Name: TABLE envios_log; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.envios_log IS 'Trilha de disparos de e-mail/WhatsApp (sem corpo da mensagem). Gravada só pelas Edge Functions (service role).';
 
 
 --
@@ -11340,6 +12133,36 @@ CREATE TABLE public.horarios_jornada (
     entrada2 time without time zone,
     saida2 time without time zone
 );
+
+
+--
+-- Name: importacoes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.importacoes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tipo text NOT NULL,
+    modulo public.app_module NOT NULL,
+    arquivo_nome text NOT NULL,
+    arquivo_sha256 text NOT NULL,
+    arquivo_tamanho bigint NOT NULL,
+    exercicio integer,
+    resumo jsonb DEFAULT '{}'::jsonb NOT NULL,
+    detalhes jsonb DEFAULT '[]'::jsonb NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT importacoes_arquivo_nome_check CHECK (((char_length(arquivo_nome) >= 1) AND (char_length(arquivo_nome) <= 255))),
+    CONSTRAINT importacoes_arquivo_sha256_check CHECK ((arquivo_sha256 ~ '^[0-9a-f]{64}$'::text)),
+    CONSTRAINT importacoes_arquivo_tamanho_check CHECK ((arquivo_tamanho >= 0)),
+    CONSTRAINT importacoes_tipo_check CHECK ((tipo ~ '^[a-z0-9_]{3,50}$'::text))
+);
+
+
+--
+-- Name: TABLE importacoes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.importacoes IS 'Log das importações de dados aplicadas (tipo do importador, arquivo, hash, resumo e mudanças). Escrita só pelas RPCs de importação. Nome e hash do arquivo são informados pelo navegador: servem para conferência, não como prova.';
 
 
 --

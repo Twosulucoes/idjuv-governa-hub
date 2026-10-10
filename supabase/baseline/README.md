@@ -53,19 +53,20 @@ INSERT não dispara auditoria e as FKs são validadas depois, contra os dados se
 ## Modelo de RLS (`rls/mapa.csv`)
 
 O mapa tabela → classe/módulo é a **fonte da verdade** e deve ser lido por quem conhece o negócio.
-Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`):
+Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas em 2026-10-10, 243 tabelas):
 
 | Classe | Tabelas | Regra |
 |---|---|---|
-| `modulo` | 180 | módulo(s) do mapa leem e escrevem; admin (papel) também |
+| `modulo` | 172 | módulo(s) do mapa leem e escrevem; admin (papel) também |
+| `permissao` | 10 | módulo lê (com `;proprio`/`;pai=` o servidor lê o seu, como `proprio_leitura`/`proprio_filho`; com `;filho=<tabela>.<fk>` lê a linha que tem uma filha sua — a folha em que tem ficha); **escreve só quem tem o módulo E a permissão granular** do `extra` (`escrita=<código>`, via `can_access_module` + `has_permission_code`; admin passa). Hoje: as 10 tabelas da folha — `financeiro.folha.processar` (folhas, fichas, itens, consignações, dependentes IRRF, lançamentos) e `financeiro.folha.configurar` (rubricas, parâmetros, tabelas INSS/IRRF); migração `supabase/migrations/20261010070000_onda_b_folha_rls_permissao.sql` carrega o mesmo SQL |
 | `trilha` | 9 | módulo lê; **ninguém escreve por API** (auditoria e históricos gravados por trigger) |
-| `proprio_leitura` / `proprio` / `proprio_filho` | 12 / 3 / 3 | módulo + o próprio servidor lê; em `proprio*` o servidor também cria o próprio pedido (status/aprovação forçados pelo overlay 20) |
+| `proprio_leitura` / `proprio` / `proprio_filho` | 11 / 3 / 2 | módulo + o próprio servidor lê; em `proprio*` o servidor também cria o próprio pedido (status/aprovação forçados pelo overlay 20) |
 | `catalogo` | 6 | qualquer usuário ativo lê; escrita por módulo |
 | `catalogo_admin` | 5 | qualquer usuário ativo lê (o app lê no login); só o papel admin escreve |
 | `proprio_user` | 4 | cada usuário lê as suas linhas (`user_roles`, `user_modules`, `user_permissions`, `user_org_units`); só admin escreve |
 | `admin` / `admin_leitura` | 8 / 1 | só o papel admin (a segunda: lê, ninguém escreve — `audit_logs`) |
 | `publico_admin` | 3 | `anon` e logados leem (portal público); só admin escreve |
-| `preservar` | 7 | `denuncias` e `profiles`: policies próprias (`has_permission_code`; overlay 12); `fotos_vistoria_inventario`: policies da migração `20261009160000`, que chegam pelo replay em `schema/03_post_data.sql`; `avisos`, `avisos_leituras`, `datas_importantes` e `importacoes`: policies da própria migração (entram no schema na próxima regeneração do baseline) |
+| `preservar` | 9 | `denuncias` e `profiles`: policies próprias (`has_permission_code`; overlay 12); `fotos_vistoria_inventario`, `avisos`, `avisos_leituras`, `datas_importantes`, `importacoes`, `config_envio` e `envios_log`: policies das próprias migrações, que chegam pelo replay em `schema/03_post_data.sql` (as notas do `mapa.csv` ainda dizem "próxima regeneração"; o schema foi regenerado em 2026-10-10 e já as contém) |
 
 - Toda tabela de `public` precisa de uma linha no mapa e de RLS ligado: o teste de RLS reprova
   tabela fora do mapa (o gerador não enxerga o banco; o teste sim). Tabela nova só passa depois
@@ -90,6 +91,12 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
 
 - por tabela: `SELECT`, `INSERT`, `UPDATE` e `DELETE` para admin, admin bloqueado, sem módulo, inativo,
   servidores (ativo e bloqueado), cada módulo do mapa e um módulo alheio; `anon` conforme a coluna `anon`;
+  na classe `permissao`, mais uma persona por código exigido (`perm_<código>`: módulo + código em
+  `user_modules.permissions`) e uma com a permissão avulsa sem o módulo (`perm_avulsa_<código>`) — só a
+  primeira e o admin escrevem; o módulo sem o código lê e não altera; a avulsa não lê nem altera;
+- folha: `processar_folha_pagamento` deve ser executável por `authenticated` **e** ter guarda
+  `has_permission_code` no corpo (não por `anon`); UPDATE direto de `status` em `folhas_pagamento` barrado
+  mesmo para quem processa; INSERT de ficha/item em folha fechada recusado (`42501`), exceto para admin;
 - a cobertura é exigida: tabela sem linha semente, fora do mapa ou sem RLS é **falha**;
 - storage: 10 buckets × 25 personas, upload anônimo só nas pastas do formulário, limite do bucket;
   `inventario-evidencias` (privado, 10 MB) só deixa sobrescrever ou apagar quem tem `patrimonio.tramitar`;
@@ -143,9 +150,11 @@ Decisões de negócio (o baseline escolheu o mais restritivo que mantém o app f
   `acesso_processo_sigiloso`; a migração de 20/02 apagou essas policies. No baseline, qualquer usuário do
   módulo `workflow` lê todos os processos, inclusive os sigilosos, e o bucket `documentos` não respeita
   sigilo. Falta uma classe `sigilo_processo` no gerador.
-- **Módulo `rh` amplo demais para saúde e folha.** `licencas_afastamentos` (CID), `pensoes_alimenticias`,
-  `consignacoes`, `remessas_bancarias` e `fichas_financeiras` abrem a qualquer usuário com o módulo `rh`
-  (só `denuncias` usa permissão granular). Separar por `has_permission_code` exige confirmar com o RH.
+- **Módulo `rh` amplo demais para saúde e folha.** A escrita na folha (`consignacoes`, `fichas_financeiras` e
+  as outras 8 tabelas da classe `permissao`) já exige `financeiro.folha.processar|configurar`; a **leitura**
+  continua para qualquer usuário com o módulo `rh`, e `licencas_afastamentos` (CID), `pensoes_alimenticias` e
+  `remessas_bancarias` seguem abertas, para ler e escrever, a quem tem o módulo. Separar por
+  `has_permission_code` (Onda B2 do RH) exige confirmar com o RH.
 - **`role_permissions` dá permissões `admin.*` ao papel `user`.** Quem tem o módulo `admin` passa a ter
   `admin.usuarios`. As Edge Functions `admin-create-user`, `admin-reset-password` e `delete-user` agora exigem o
   **papel** admin (`is_admin_user`), porque `admin-create-user` devolvia o UUID de qualquer e-mail e reativava o
@@ -168,8 +177,16 @@ Limites conhecidos:
 - Funções novas nascem executáveis por `authenticated` (padrão do Supabase). O teste de RLS falha se aparecer
   uma `SECURITY DEFINER` sem checagem fora da lista revisada, mas a migração nova precisa fazer o `REVOKE` certo
   (skill `migracao-segura-idjuv`).
-- `processar_folha_pagamento` e `fn_atualizar_situacao_servidor` ficam sem EXECUTE para `authenticated` (a folha
-  está bloqueada — débito técnico DT-2026-001); ao ativá-la, reabra com guarda `can_access_module` no corpo.
+- `fn_atualizar_situacao_servidor` fica sem EXECUTE para `authenticated`. `processar_folha_pagamento` saiu dessa
+  lista na migração `20261010070000`: ganhou guarda `has_permission_code('financeiro.folha.processar')` no corpo e
+  EXECUTE para `authenticated` (o botão Processar chama a RPC); `anon` continua sem.
+- **Migração `20261010070000` × overlays.** A migração recria, com o texto dos overlays `10` (funções de acesso) e
+  `18` (parte da folha: `registrar_transicao_folha`, `folhas_proteger_fechamento`, `fechar_folha`, `reabrir_folha`),
+  as funções-base — no banco do baseline é no-op, no replay corrige. Os overlays continuam no baseline (são
+  idempotentes). O schema foi regenerado em 2026-10-10 com essa migração no replay: `schema/01_pre_data.sql` e
+  `schema/03_post_data.sql` já trazem a guarda da RPC, os triggers `trg_bloquear_insercao_*`, o índice
+  `itens_ficha_financeira_ficha_referencia_desconto_uidx`, os triggers de auditoria da folha e o catálogo com
+  `financeiro.folha.*` em `module_code = 'rh'`.
 - Tabelas com fluxo de aprovação por RPC e UPDATE livre para o módulo: `folhas_pagamento` foi protegida (só quem
   pode fechar/reabrir muda o status), mas `conteudo_rascunho` (comunicação) ainda deixa o módulo marcar
   `status = 'publicado'` sem passar por `promover_rascunho`. Revise outras tabelas com `status` de aprovação.

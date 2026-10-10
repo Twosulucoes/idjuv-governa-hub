@@ -182,6 +182,22 @@ ALTER TABLE ONLY public.avaliacoes_risco
 
 
 --
+-- Name: avisos_leituras avisos_leituras_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.avisos_leituras
+    ADD CONSTRAINT avisos_leituras_pkey PRIMARY KEY (aviso_id, user_id);
+
+
+--
+-- Name: avisos avisos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.avisos
+    ADD CONSTRAINT avisos_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: backup_config backup_config_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -582,6 +598,14 @@ ALTER TABLE ONLY public.config_compensacao
 
 
 --
+-- Name: config_envio config_envio_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.config_envio
+    ADD CONSTRAINT config_envio_pkey PRIMARY KEY (canal);
+
+
+--
 -- Name: config_fechamento_folha config_fechamento_folha_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -910,6 +934,14 @@ ALTER TABLE ONLY public.dados_oficiais
 
 
 --
+-- Name: datas_importantes datas_importantes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.datas_importantes
+    ADD CONSTRAINT datas_importantes_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: debitos_tecnicos debitos_tecnicos_codigo_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1115,6 +1147,14 @@ ALTER TABLE ONLY public.encaminhamentos
 
 ALTER TABLE ONLY public.encaminhamentos
     ADD CONSTRAINT encaminhamentos_tipo_origem_origem_id_numero_sequencial_key UNIQUE (tipo_origem, origem_id, numero_sequencial);
+
+
+--
+-- Name: envios_log envios_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.envios_log
+    ADD CONSTRAINT envios_log_pkey PRIMARY KEY (id);
 
 
 --
@@ -1803,6 +1843,14 @@ ALTER TABLE ONLY public.horarios_jornada
 
 ALTER TABLE ONLY public.horarios_jornada
     ADD CONSTRAINT horarios_jornada_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: importacoes importacoes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.importacoes
+    ADD CONSTRAINT importacoes_pkey PRIMARY KEY (id);
 
 
 --
@@ -3126,6 +3174,20 @@ CREATE INDEX idx_audit_logs_user ON public.audit_logs USING btree (user_id);
 
 
 --
+-- Name: idx_avisos_leituras_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_avisos_leituras_user ON public.avisos_leituras USING btree (user_id);
+
+
+--
+-- Name: idx_avisos_vigentes; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_avisos_vigentes ON public.avisos USING btree (inicio_em DESC) WHERE ativo;
+
+
+--
 -- Name: idx_backup_history_started_at; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3777,6 +3839,13 @@ CREATE INDEX idx_dados_oficiais_chave ON public.dados_oficiais USING btree (chav
 
 
 --
+-- Name: idx_datas_importantes_data; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_datas_importantes_data ON public.datas_importantes USING btree (data) WHERE ativo;
+
+
+--
 -- Name: idx_debitos_tecnicos_modulo; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4075,6 +4144,20 @@ CREATE INDEX idx_encaminhamentos_destino ON public.encaminhamentos USING btree (
 --
 
 CREATE INDEX idx_encaminhamentos_origem ON public.encaminhamentos USING btree (tipo_origem, origem_id);
+
+
+--
+-- Name: idx_envios_log_criado_em; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_envios_log_criado_em ON public.envios_log USING btree (criado_em DESC);
+
+
+--
+-- Name: idx_envios_log_origem; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_envios_log_origem ON public.envios_log USING btree (origem_modulo, origem_id);
 
 
 --
@@ -4922,6 +5005,20 @@ CREATE INDEX idx_historico_servidor ON public.historico_funcional USING btree (s
 --
 
 CREATE INDEX idx_historico_tipo ON public.historico_funcional USING btree (tipo);
+
+
+--
+-- Name: idx_importacoes_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_importacoes_hash ON public.importacoes USING btree (arquivo_sha256);
+
+
+--
+-- Name: idx_importacoes_tipo_data; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_importacoes_tipo_data ON public.importacoes USING btree (tipo, created_at DESC);
 
 
 --
@@ -6024,6 +6121,13 @@ CREATE INDEX idx_vinc_serv_tipo ON public.vinculos_servidor USING btree (tipo);
 
 
 --
+-- Name: itens_ficha_financeira_ficha_referencia_desconto_uidx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX itens_ficha_financeira_ficha_referencia_desconto_uidx ON public.itens_ficha_financeira USING btree (ficha_id, lower(referencia)) WHERE (((tipo)::text = 'desconto'::text) AND (referencia IS NOT NULL));
+
+
+--
 -- Name: acoes audit_acoes; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6063,6 +6167,13 @@ CREATE TRIGGER audit_bens AFTER INSERT OR DELETE OR UPDATE ON public.bens_patrim
 --
 
 CREATE TRIGGER audit_checklists_conformidade AFTER INSERT OR DELETE OR UPDATE ON public.checklists_conformidade FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
+
+
+--
+-- Name: consignacoes audit_consignacoes; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_consignacoes AFTER INSERT OR DELETE OR UPDATE ON public.consignacoes FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
 
 
 --
@@ -6136,6 +6247,13 @@ CREATE TRIGGER audit_ferias_servidor AFTER INSERT OR DELETE OR UPDATE ON public.
 
 
 --
+-- Name: folhas_pagamento audit_folhas_pagamento; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_folhas_pagamento AFTER INSERT OR DELETE OR UPDATE ON public.folhas_pagamento FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
 -- Name: frequencia_mensal audit_frequencia_mensal; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6154,6 +6272,13 @@ CREATE TRIGGER audit_historico_funcional AFTER INSERT OR DELETE OR UPDATE ON pub
 --
 
 CREATE TRIGGER audit_itens_checklist AFTER INSERT OR DELETE OR UPDATE ON public.itens_checklist FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
+
+
+--
+-- Name: itens_ficha_financeira audit_itens_ficha_financeira; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_itens_ficha_financeira AFTER INSERT OR DELETE OR UPDATE ON public.itens_ficha_financeira FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
 
 
 --
@@ -6325,6 +6450,13 @@ CREATE TRIGGER audit_viagens_diarias AFTER INSERT OR DELETE OR UPDATE ON public.
 
 
 --
+-- Name: folhas_pagamento folhas_proteger_fechamento; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER folhas_proteger_fechamento BEFORE UPDATE ON public.folhas_pagamento FOR EACH ROW EXECUTE FUNCTION public.folhas_proteger_fechamento();
+
+
+--
 -- Name: acoes handle_acoes_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6413,6 +6545,13 @@ CREATE TRIGGER handle_updated_at BEFORE UPDATE ON public.processos_administrativ
 --
 
 CREATE TRIGGER log_alteracao_pagina_trigger AFTER UPDATE ON public.config_paginas_publicas FOR EACH ROW EXECUTE FUNCTION public.log_alteracao_pagina();
+
+
+--
+-- Name: profiles profiles_proteger_colunas; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER profiles_proteger_colunas BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.profiles_proteger_colunas();
 
 
 --
@@ -6857,6 +6996,20 @@ CREATE TRIGGER trg_audit_publicacoes_legais AFTER INSERT OR DELETE OR UPDATE ON 
 
 
 --
+-- Name: avisos trg_avisos_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_avisos_autoria BEFORE INSERT OR UPDATE ON public.avisos FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria_aviso();
+
+
+--
+-- Name: avisos trg_avisos_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_avisos_updated_at BEFORE UPDATE ON public.avisos FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
 -- Name: fin_adiantamentos trg_bloquear_adiantamento; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6885,6 +7038,20 @@ CREATE TRIGGER trg_bloquear_exclusao_ficha_fechada BEFORE DELETE ON public.ficha
 
 
 --
+-- Name: fichas_financeiras trg_bloquear_insercao_ficha_fechada; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_bloquear_insercao_ficha_fechada BEFORE INSERT ON public.fichas_financeiras FOR EACH ROW EXECUTE FUNCTION public.bloquear_insercao_ficha_fechada();
+
+
+--
+-- Name: itens_ficha_financeira trg_bloquear_insercao_item_ficha_fechada; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_bloquear_insercao_item_ficha_fechada BEFORE INSERT ON public.itens_ficha_financeira FOR EACH ROW EXECUTE FUNCTION public.bloquear_insercao_item_ficha_fechada();
+
+
+--
 -- Name: campanhas_inventario_unidades trg_campanhas_inventario_unidades_autoria; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6903,6 +7070,13 @@ CREATE TRIGGER trg_campanhas_inventario_unidades_updated_at BEFORE UPDATE ON pub
 --
 
 CREATE TRIGGER trg_cessao_atualiza_situacao AFTER INSERT OR UPDATE ON public.cessoes FOR EACH ROW EXECUTE FUNCTION public.trigger_cessao_atualiza_situacao();
+
+
+--
+-- Name: config_envio trg_config_envio_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_config_envio_autoria BEFORE INSERT OR UPDATE ON public.config_envio FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria_config_envio();
 
 
 --
@@ -6931,6 +7105,20 @@ CREATE TRIGGER trg_config_tipos_ato_updated_at BEFORE UPDATE ON public.config_ti
 --
 
 CREATE TRIGGER trg_config_tipos_servidor_updated_at BEFORE UPDATE ON public.config_tipos_servidor FOR EACH ROW EXECUTE FUNCTION public.fn_update_timestamp_parametros();
+
+
+--
+-- Name: datas_importantes trg_datas_importantes_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_datas_importantes_autoria BEFORE INSERT OR UPDATE ON public.datas_importantes FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria_aviso();
+
+
+--
+-- Name: datas_importantes trg_datas_importantes_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_datas_importantes_updated_at BEFORE UPDATE ON public.datas_importantes FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
@@ -6966,6 +7154,13 @@ CREATE TRIGGER trg_encerrar_vinculo_anterior AFTER INSERT OR UPDATE ON public.vi
 --
 
 CREATE TRIGGER trg_ferias_atualiza_situacao AFTER INSERT OR UPDATE ON public.ferias_servidor FOR EACH ROW EXECUTE FUNCTION public.trigger_ferias_atualiza_situacao();
+
+
+--
+-- Name: folhas_pagamento trg_folhas_proteger_exclusao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_folhas_proteger_exclusao BEFORE DELETE ON public.folhas_pagamento FOR EACH ROW EXECUTE FUNCTION public.folhas_proteger_exclusao();
 
 
 --
@@ -8221,6 +8416,30 @@ ALTER TABLE ONLY public.avaliacoes_risco
 
 
 --
+-- Name: avisos avisos_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.avisos
+    ADD CONSTRAINT avisos_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: avisos_leituras avisos_leituras_aviso_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.avisos_leituras
+    ADD CONSTRAINT avisos_leituras_aviso_id_fkey FOREIGN KEY (aviso_id) REFERENCES public.avisos(id) ON DELETE CASCADE;
+
+
+--
+-- Name: avisos_leituras avisos_leituras_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.avisos_leituras
+    ADD CONSTRAINT avisos_leituras_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: backup_history backup_history_triggered_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -8634,6 +8853,14 @@ ALTER TABLE ONLY public.config_compensacao
 
 ALTER TABLE ONLY public.config_compensacao
     ADD CONSTRAINT config_compensacao_unidade_id_fkey FOREIGN KEY (unidade_id) REFERENCES public.estrutura_organizacional(id);
+
+
+--
+-- Name: config_envio config_envio_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.config_envio
+    ADD CONSTRAINT config_envio_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 
 
 --
@@ -9261,6 +9488,14 @@ ALTER TABLE ONLY public.dados_oficiais
 
 
 --
+-- Name: datas_importantes datas_importantes_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.datas_importantes
+    ADD CONSTRAINT datas_importantes_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+
+--
 -- Name: decisoes_administrativas decisoes_administrativas_autoridade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9706,6 +9941,14 @@ ALTER TABLE ONLY public.encaminhamentos
 
 ALTER TABLE ONLY public.encaminhamentos
     ADD CONSTRAINT encaminhamentos_unidade_destino_id_fkey FOREIGN KEY (unidade_destino_id) REFERENCES public.estrutura_organizacional(id);
+
+
+--
+-- Name: envios_log envios_log_disparado_por_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.envios_log
+    ADD CONSTRAINT envios_log_disparado_por_fkey FOREIGN KEY (disparado_por) REFERENCES auth.users(id) ON DELETE SET NULL;
 
 
 --
@@ -11018,6 +11261,14 @@ ALTER TABLE ONLY public.historico_patrimonio
 
 ALTER TABLE ONLY public.horarios_jornada
     ADD CONSTRAINT horarios_jornada_configuracao_id_fkey FOREIGN KEY (configuracao_id) REFERENCES public.configuracao_jornada(id) ON DELETE CASCADE;
+
+
+--
+-- Name: importacoes importacoes_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.importacoes
+    ADD CONSTRAINT importacoes_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 
 
 --
@@ -13279,13 +13530,6 @@ CREATE POLICY acesso_total_delete ON public.configuracao_jornada FOR DELETE TO a
 
 
 --
--- Name: consignacoes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.consignacoes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: contas_autarquia acesso_total_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -13367,13 +13611,6 @@ CREATE POLICY acesso_total_delete ON public.demandas_ascom_comentarios FOR DELET
 --
 
 CREATE POLICY acesso_total_delete ON public.demandas_ascom_entregaveis FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: dependentes_irrf acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.dependentes_irrf FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -13521,13 +13758,6 @@ CREATE POLICY acesso_total_delete ON public.feriados FOR DELETE TO authenticated
 --
 
 CREATE POLICY acesso_total_delete ON public.ferias_servidor FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fichas_financeiras acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fichas_financeiras FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -13727,13 +13957,6 @@ CREATE POLICY acesso_total_delete ON public.folha_historico_status FOR DELETE TO
 
 
 --
--- Name: folhas_pagamento acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.folhas_pagamento FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: frequencia_arquivos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -13853,13 +14076,6 @@ CREATE POLICY acesso_total_delete ON public.itens_contrato FOR DELETE TO authent
 
 
 --
--- Name: itens_ficha_financeira acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.itens_ficha_financeira FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: itens_processo_licitatorio acesso_total_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -13885,13 +14101,6 @@ CREATE POLICY acesso_total_delete ON public.justificativas_ponto FOR DELETE TO a
 --
 
 CREATE POLICY acesso_total_delete ON public.lancamentos_banco_horas FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: lancamentos_folha acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.lancamentos_folha FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -14021,13 +14230,6 @@ CREATE POLICY acesso_total_delete ON public.ocorrencias_servidor FOR DELETE TO a
 
 
 --
--- Name: parametros_folha acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.parametros_folha FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: pareceres_tecnicos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -14102,13 +14304,6 @@ CREATE POLICY acesso_total_delete ON public.pre_cadastros FOR DELETE TO authenti
 --
 
 CREATE POLICY acesso_total_delete ON public.processos_administrativos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: profiles acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.profiles FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -14217,13 +14412,6 @@ CREATE POLICY acesso_total_delete ON public.riscos_institucionais FOR DELETE TO 
 
 
 --
--- Name: rubricas acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.rubricas FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: rubricas_historico acesso_total_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -14273,20 +14461,6 @@ CREATE POLICY acesso_total_delete ON public.solicitacoes_sic FOR DELETE TO authe
 
 
 --
--- Name: tabela_inss acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.tabela_inss FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: tabela_irrf acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.tabela_irrf FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: termos_cessao acesso_total_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -14301,24 +14475,10 @@ CREATE POLICY acesso_total_delete ON public.tipos_abono FOR DELETE TO authentica
 
 
 --
--- Name: user_modules acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.user_modules FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: user_org_units acesso_total_delete; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY acesso_total_delete ON public.user_org_units FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: user_roles acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.user_roles FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -14686,13 +14846,6 @@ CREATE POLICY acesso_total_insert ON public.configuracao_jornada FOR INSERT TO a
 
 
 --
--- Name: consignacoes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.consignacoes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: contas_autarquia acesso_total_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -14774,13 +14927,6 @@ CREATE POLICY acesso_total_insert ON public.demandas_ascom_comentarios FOR INSER
 --
 
 CREATE POLICY acesso_total_insert ON public.demandas_ascom_entregaveis FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: dependentes_irrf acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.dependentes_irrf FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -14928,13 +15074,6 @@ CREATE POLICY acesso_total_insert ON public.feriados FOR INSERT TO authenticated
 --
 
 CREATE POLICY acesso_total_insert ON public.ferias_servidor FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fichas_financeiras acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fichas_financeiras FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -15134,13 +15273,6 @@ CREATE POLICY acesso_total_insert ON public.folha_historico_status FOR INSERT TO
 
 
 --
--- Name: folhas_pagamento acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.folhas_pagamento FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: frequencia_arquivos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -15253,13 +15385,6 @@ CREATE POLICY acesso_total_insert ON public.itens_contrato FOR INSERT TO authent
 
 
 --
--- Name: itens_ficha_financeira acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.itens_ficha_financeira FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: itens_processo_licitatorio acesso_total_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -15285,13 +15410,6 @@ CREATE POLICY acesso_total_insert ON public.justificativas_ponto FOR INSERT TO a
 --
 
 CREATE POLICY acesso_total_insert ON public.lancamentos_banco_horas FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: lancamentos_folha acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.lancamentos_folha FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -15421,13 +15539,6 @@ CREATE POLICY acesso_total_insert ON public.ocorrencias_servidor FOR INSERT TO a
 
 
 --
--- Name: parametros_folha acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.parametros_folha FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: pareceres_tecnicos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -15502,13 +15613,6 @@ CREATE POLICY acesso_total_insert ON public.pre_cadastros FOR INSERT TO authenti
 --
 
 CREATE POLICY acesso_total_insert ON public.processos_administrativos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: profiles acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.profiles FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -15617,13 +15721,6 @@ CREATE POLICY acesso_total_insert ON public.riscos_institucionais FOR INSERT TO 
 
 
 --
--- Name: rubricas acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.rubricas FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: rubricas_historico acesso_total_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -15673,20 +15770,6 @@ CREATE POLICY acesso_total_insert ON public.solicitacoes_sic FOR INSERT TO authe
 
 
 --
--- Name: tabela_inss acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.tabela_inss FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: tabela_irrf acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.tabela_irrf FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: termos_cessao acesso_total_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -15701,24 +15784,10 @@ CREATE POLICY acesso_total_insert ON public.tipos_abono FOR INSERT TO authentica
 
 
 --
--- Name: user_modules acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.user_modules FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: user_org_units acesso_total_insert; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY acesso_total_insert ON public.user_org_units FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: user_roles acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.user_roles FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -16079,13 +16148,6 @@ CREATE POLICY acesso_total_select ON public.configuracao_jornada FOR SELECT TO a
 
 
 --
--- Name: consignacoes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.consignacoes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: contas_autarquia acesso_total_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -16167,13 +16229,6 @@ CREATE POLICY acesso_total_select ON public.demandas_ascom_comentarios FOR SELEC
 --
 
 CREATE POLICY acesso_total_select ON public.demandas_ascom_entregaveis FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: dependentes_irrf acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.dependentes_irrf FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -16314,13 +16369,6 @@ CREATE POLICY acesso_total_select ON public.feriados FOR SELECT TO authenticated
 --
 
 CREATE POLICY acesso_total_select ON public.ferias_servidor FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fichas_financeiras acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fichas_financeiras FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -16520,13 +16568,6 @@ CREATE POLICY acesso_total_select ON public.folha_historico_status FOR SELECT TO
 
 
 --
--- Name: folhas_pagamento acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.folhas_pagamento FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: frequencia_arquivos acesso_total_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -16639,13 +16680,6 @@ CREATE POLICY acesso_total_select ON public.itens_contrato FOR SELECT TO authent
 
 
 --
--- Name: itens_ficha_financeira acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.itens_ficha_financeira FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: itens_processo_licitatorio acesso_total_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -16671,13 +16705,6 @@ CREATE POLICY acesso_total_select ON public.justificativas_ponto FOR SELECT TO a
 --
 
 CREATE POLICY acesso_total_select ON public.lancamentos_banco_horas FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: lancamentos_folha acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.lancamentos_folha FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -16807,13 +16834,6 @@ CREATE POLICY acesso_total_select ON public.ocorrencias_servidor FOR SELECT TO a
 
 
 --
--- Name: parametros_folha acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.parametros_folha FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: pareceres_tecnicos acesso_total_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -16888,13 +16908,6 @@ CREATE POLICY acesso_total_select ON public.pre_cadastros FOR SELECT TO authenti
 --
 
 CREATE POLICY acesso_total_select ON public.processos_administrativos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: profiles acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.profiles FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -17003,13 +17016,6 @@ CREATE POLICY acesso_total_select ON public.riscos_institucionais FOR SELECT TO 
 
 
 --
--- Name: rubricas acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.rubricas FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: rubricas_historico acesso_total_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -17059,20 +17065,6 @@ CREATE POLICY acesso_total_select ON public.solicitacoes_sic FOR SELECT TO authe
 
 
 --
--- Name: tabela_inss acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.tabela_inss FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: tabela_irrf acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.tabela_irrf FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: termos_cessao acesso_total_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -17087,24 +17079,10 @@ CREATE POLICY acesso_total_select ON public.tipos_abono FOR SELECT TO authentica
 
 
 --
--- Name: user_modules acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.user_modules FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: user_org_units acesso_total_select; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY acesso_total_select ON public.user_org_units FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: user_roles acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.user_roles FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -17472,13 +17450,6 @@ CREATE POLICY acesso_total_update ON public.configuracao_jornada FOR UPDATE TO a
 
 
 --
--- Name: consignacoes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.consignacoes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: contas_autarquia acesso_total_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -17560,13 +17531,6 @@ CREATE POLICY acesso_total_update ON public.demandas_ascom_comentarios FOR UPDAT
 --
 
 CREATE POLICY acesso_total_update ON public.demandas_ascom_entregaveis FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: dependentes_irrf acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.dependentes_irrf FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -17714,13 +17678,6 @@ CREATE POLICY acesso_total_update ON public.feriados FOR UPDATE TO authenticated
 --
 
 CREATE POLICY acesso_total_update ON public.ferias_servidor FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fichas_financeiras acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fichas_financeiras FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -17920,13 +17877,6 @@ CREATE POLICY acesso_total_update ON public.folha_historico_status FOR UPDATE TO
 
 
 --
--- Name: folhas_pagamento acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.folhas_pagamento FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: frequencia_arquivos acesso_total_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -18046,13 +17996,6 @@ CREATE POLICY acesso_total_update ON public.itens_contrato FOR UPDATE TO authent
 
 
 --
--- Name: itens_ficha_financeira acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.itens_ficha_financeira FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: itens_processo_licitatorio acesso_total_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -18078,13 +18021,6 @@ CREATE POLICY acesso_total_update ON public.justificativas_ponto FOR UPDATE TO a
 --
 
 CREATE POLICY acesso_total_update ON public.lancamentos_banco_horas FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: lancamentos_folha acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.lancamentos_folha FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -18214,13 +18150,6 @@ CREATE POLICY acesso_total_update ON public.ocorrencias_servidor FOR UPDATE TO a
 
 
 --
--- Name: parametros_folha acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.parametros_folha FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: pareceres_tecnicos acesso_total_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -18295,13 +18224,6 @@ CREATE POLICY acesso_total_update ON public.pre_cadastros FOR UPDATE TO authenti
 --
 
 CREATE POLICY acesso_total_update ON public.processos_administrativos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: profiles acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.profiles FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -18410,13 +18332,6 @@ CREATE POLICY acesso_total_update ON public.riscos_institucionais FOR UPDATE TO 
 
 
 --
--- Name: rubricas acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.rubricas FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: rubricas_historico acesso_total_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -18466,20 +18381,6 @@ CREATE POLICY acesso_total_update ON public.solicitacoes_sic FOR UPDATE TO authe
 
 
 --
--- Name: tabela_inss acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.tabela_inss FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: tabela_irrf acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.tabela_irrf FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: termos_cessao acesso_total_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -18494,24 +18395,10 @@ CREATE POLICY acesso_total_update ON public.tipos_abono FOR UPDATE TO authentica
 
 
 --
--- Name: user_modules acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.user_modules FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: user_org_units acesso_total_update; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY acesso_total_update ON public.user_org_units FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: user_roles acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.user_roles FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -18766,6 +18653,69 @@ ALTER TABLE public.avaliacoes_controle ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.avaliacoes_risco ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: avisos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.avisos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: avisos avisos_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY avisos_delete ON public.avisos FOR DELETE TO authenticated USING (( SELECT public.pode_gerenciar_avisos() AS pode_gerenciar_avisos));
+
+
+--
+-- Name: avisos avisos_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY avisos_insert ON public.avisos FOR INSERT TO authenticated WITH CHECK (( SELECT public.pode_gerenciar_avisos() AS pode_gerenciar_avisos));
+
+
+--
+-- Name: avisos_leituras; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.avisos_leituras ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: avisos_leituras avisos_leituras_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY avisos_leituras_delete ON public.avisos_leituras FOR DELETE TO authenticated USING ((user_id = ( SELECT auth.uid() AS uid)));
+
+
+--
+-- Name: avisos_leituras avisos_leituras_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY avisos_leituras_insert ON public.avisos_leituras FOR INSERT TO authenticated WITH CHECK (((user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND (EXISTS ( SELECT 1
+   FROM public.avisos a
+  WHERE (a.id = avisos_leituras.aviso_id)))));
+
+
+--
+-- Name: avisos_leituras avisos_leituras_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY avisos_leituras_select ON public.avisos_leituras FOR SELECT TO authenticated USING (((user_id = ( SELECT auth.uid() AS uid)) OR ( SELECT public.pode_gerenciar_avisos() AS pode_gerenciar_avisos)));
+
+
+--
+-- Name: avisos avisos_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY avisos_select ON public.avisos FOR SELECT TO authenticated USING ((( SELECT public.pode_gerenciar_avisos() AS pode_gerenciar_avisos) OR (( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND ativo AND (inicio_em <= now()) AND ((expira_em IS NULL) OR (expira_em > now())) AND ((publico = 'todos'::text) OR public.alcanca_modulos_alvo(modulos_alvo)))));
+
+
+--
+-- Name: avisos avisos_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY avisos_update ON public.avisos FOR UPDATE TO authenticated USING (( SELECT public.pode_gerenciar_avisos() AS pode_gerenciar_avisos)) WITH CHECK (( SELECT public.pode_gerenciar_avisos() AS pode_gerenciar_avisos));
+
 
 --
 -- Name: backup_config; Type: ROW SECURITY; Schema: public; Owner: -
@@ -19169,6 +19119,33 @@ ALTER TABLE public.config_autarquia ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.config_compensacao ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: config_envio; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.config_envio ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: config_envio config_envio_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY config_envio_insert ON public.config_envio FOR INSERT TO authenticated WITH CHECK (( SELECT public.pode_configurar_envios() AS pode_configurar_envios));
+
+
+--
+-- Name: config_envio config_envio_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY config_envio_select ON public.config_envio FOR SELECT TO authenticated USING (( SELECT public.pode_ver_envios() AS pode_ver_envios));
+
+
+--
+-- Name: config_envio config_envio_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY config_envio_update ON public.config_envio FOR UPDATE TO authenticated USING (( SELECT public.pode_configurar_envios() AS pode_configurar_envios)) WITH CHECK (( SELECT public.pode_configurar_envios() AS pode_configurar_envios));
+
+
+--
 -- Name: config_fechamento_folha; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -19331,6 +19308,40 @@ ALTER TABLE public.creditos_adicionais ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.dados_oficiais ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: datas_importantes; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.datas_importantes ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: datas_importantes datas_importantes_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY datas_importantes_delete ON public.datas_importantes FOR DELETE TO authenticated USING (( SELECT public.pode_gerenciar_avisos() AS pode_gerenciar_avisos));
+
+
+--
+-- Name: datas_importantes datas_importantes_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY datas_importantes_insert ON public.datas_importantes FOR INSERT TO authenticated WITH CHECK (( SELECT public.pode_gerenciar_avisos() AS pode_gerenciar_avisos));
+
+
+--
+-- Name: datas_importantes datas_importantes_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY datas_importantes_select ON public.datas_importantes FOR SELECT TO authenticated USING ((( SELECT public.pode_gerenciar_avisos() AS pode_gerenciar_avisos) OR (( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND ativo AND public.alcanca_modulos_alvo(modulos_alvo))));
+
+
+--
+-- Name: datas_importantes datas_importantes_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY datas_importantes_update ON public.datas_importantes FOR UPDATE TO authenticated USING (( SELECT public.pode_gerenciar_avisos() AS pode_gerenciar_avisos)) WITH CHECK (( SELECT public.pode_gerenciar_avisos() AS pode_gerenciar_avisos));
+
+
+--
 -- Name: debitos_tecnicos; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -19343,13 +19354,6 @@ ALTER TABLE public.debitos_tecnicos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.decisoes_administrativas ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: profiles del_profiles_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY del_profiles_admin ON public.profiles FOR DELETE TO authenticated USING (public.is_admin_atual());
-
-
---
 -- Name: role_permissions del_role_permissions_admin; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -19357,24 +19361,10 @@ CREATE POLICY del_role_permissions_admin ON public.role_permissions FOR DELETE T
 
 
 --
--- Name: user_modules del_user_modules_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY del_user_modules_admin ON public.user_modules FOR DELETE TO authenticated USING (public.is_admin_atual());
-
-
---
 -- Name: user_permissions del_user_permissions_admin; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY del_user_permissions_admin ON public.user_permissions FOR DELETE TO authenticated USING (public.is_admin_atual());
-
-
---
--- Name: user_roles del_user_roles_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY del_user_roles_admin ON public.user_roles FOR DELETE TO authenticated USING (public.is_admin_atual());
 
 
 --
@@ -19478,6 +19468,19 @@ ALTER TABLE public.empenhos ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.encaminhamentos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: envios_log; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.envios_log ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: envios_log envios_log_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY envios_log_select ON public.envios_log FOR SELECT TO authenticated USING (( SELECT public.pode_ver_envios() AS pode_ver_envios));
+
 
 --
 -- Name: escolas_jer; Type: ROW SECURITY; Schema: public; Owner: -
@@ -19912,10 +19915,16 @@ ALTER TABLE public.historico_patrimonio ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.horarios_jornada ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: profiles ins_profiles_admin; Type: POLICY; Schema: public; Owner: -
+-- Name: importacoes; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
-CREATE POLICY ins_profiles_admin ON public.profiles FOR INSERT TO authenticated WITH CHECK (public.is_admin_atual());
+ALTER TABLE public.importacoes ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: importacoes importacoes_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY importacoes_select ON public.importacoes FOR SELECT TO authenticated USING ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND public.can_access_module(auth.uid(), (modulo)::text)));
 
 
 --
@@ -19926,24 +19935,10 @@ CREATE POLICY ins_role_permissions_admin ON public.role_permissions FOR INSERT T
 
 
 --
--- Name: user_modules ins_user_modules_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY ins_user_modules_admin ON public.user_modules FOR INSERT TO authenticated WITH CHECK (public.is_admin_atual());
-
-
---
 -- Name: user_permissions ins_user_permissions_admin; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY ins_user_permissions_admin ON public.user_permissions FOR INSERT TO authenticated WITH CHECK (public.is_admin_atual());
-
-
---
--- Name: user_roles ins_user_roles_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY ins_user_roles_admin ON public.user_roles FOR INSERT TO authenticated WITH CHECK (public.is_admin_atual());
 
 
 --
@@ -20465,24 +20460,31 @@ ALTER TABLE public.processos_licitatorios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: profiles profiles_insert_system; Type: POLICY; Schema: public; Owner: -
+-- Name: profiles profiles_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY profiles_insert_system ON public.profiles FOR INSERT TO authenticated WITH CHECK (((id = auth.uid()) OR public.is_admin_user(auth.uid())));
-
-
---
--- Name: profiles profiles_select_own; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY profiles_select_own ON public.profiles FOR SELECT TO authenticated USING (((id = auth.uid()) OR public.is_admin_user(auth.uid())));
+CREATE POLICY profiles_delete ON public.profiles FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
 
 
 --
--- Name: profiles profiles_update_own; Type: POLICY; Schema: public; Owner: -
+-- Name: profiles profiles_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY profiles_update_own ON public.profiles FOR UPDATE TO authenticated USING (((id = auth.uid()) OR public.is_admin_user(auth.uid()))) WITH CHECK (((id = auth.uid()) OR public.is_admin_user(auth.uid())));
+CREATE POLICY profiles_insert ON public.profiles FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: profiles profiles_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY profiles_select ON public.profiles FOR SELECT TO authenticated USING (((id = auth.uid()) OR public.is_admin_user(auth.uid())));
+
+
+--
+-- Name: profiles profiles_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY profiles_update ON public.profiles FOR UPDATE TO authenticated USING (((id = auth.uid()) OR public.is_admin_user(auth.uid()))) WITH CHECK (((id = auth.uid()) OR public.is_admin_user(auth.uid())));
 
 
 --
@@ -20723,10 +20725,94 @@ CREATE POLICY rls_delete ON public.campanhas_inventario_unidades FOR DELETE TO a
 
 
 --
+-- Name: consignacoes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.consignacoes FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: dependentes_irrf rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.dependentes_irrf FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: fichas_financeiras rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fichas_financeiras FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: folhas_pagamento rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.folhas_pagamento FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
 -- Name: fotos_vistoria_inventario rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_delete ON public.fotos_vistoria_inventario FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'patrimonio.tramitar'::text));
+
+
+--
+-- Name: itens_ficha_financeira rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.itens_ficha_financeira FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: lancamentos_folha rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.lancamentos_folha FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: parametros_folha rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.parametros_folha FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: rubricas rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.rubricas FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: tabela_inss rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.tabela_inss FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: tabela_irrf rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.tabela_irrf FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: user_modules rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.user_modules FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: user_roles rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.user_roles FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
 
 
 --
@@ -20737,10 +20823,94 @@ CREATE POLICY rls_insert ON public.campanhas_inventario_unidades FOR INSERT TO a
 
 
 --
+-- Name: consignacoes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.consignacoes FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: dependentes_irrf rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.dependentes_irrf FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: fichas_financeiras rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fichas_financeiras FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: folhas_pagamento rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.folhas_pagamento FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
 -- Name: fotos_vistoria_inventario rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_insert ON public.fotos_vistoria_inventario FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)) AND (usuario_id = auth.uid())));
+
+
+--
+-- Name: itens_ficha_financeira rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.itens_ficha_financeira FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: lancamentos_folha rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.lancamentos_folha FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: parametros_folha rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.parametros_folha FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: rubricas rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.rubricas FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: tabela_inss rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.tabela_inss FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: tabela_irrf rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.tabela_irrf FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: user_modules rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.user_modules FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: user_roles rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.user_roles FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
 
 
 --
@@ -20751,10 +20921,98 @@ CREATE POLICY rls_select ON public.campanhas_inventario_unidades FOR SELECT TO a
 
 
 --
+-- Name: consignacoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.consignacoes FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: dependentes_irrf rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.dependentes_irrf FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: fichas_financeiras rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fichas_financeiras FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
+-- Name: folhas_pagamento rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.folhas_pagamento FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (EXISTS ( SELECT 1
+   FROM public.fichas_financeiras f
+  WHERE ((f.folha_id = folhas_pagamento.id) AND (f.servidor_id = public.meu_servidor_id()))))));
+
+
+--
 -- Name: fotos_vistoria_inventario rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_select ON public.fotos_vistoria_inventario FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: itens_ficha_financeira rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.itens_ficha_financeira FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (EXISTS ( SELECT 1
+   FROM public.fichas_financeiras p
+  WHERE ((p.id = itens_ficha_financeira.ficha_id) AND (p.servidor_id = public.meu_servidor_id()))))));
+
+
+--
+-- Name: lancamentos_folha rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.lancamentos_folha FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: parametros_folha rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.parametros_folha FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: rubricas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.rubricas FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: tabela_inss rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.tabela_inss FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: tabela_irrf rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.tabela_irrf FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: user_modules rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.user_modules FOR SELECT TO authenticated USING ((public.is_admin_user(auth.uid()) OR ((user_id = auth.uid()) AND public.is_active_user())));
+
+
+--
+-- Name: user_roles rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.user_roles FOR SELECT TO authenticated USING ((public.is_admin_user(auth.uid()) OR ((user_id = auth.uid()) AND public.is_active_user())));
 
 
 --
@@ -20765,10 +21023,94 @@ CREATE POLICY rls_update ON public.campanhas_inventario_unidades FOR UPDATE TO a
 
 
 --
+-- Name: consignacoes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.consignacoes FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: dependentes_irrf rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.dependentes_irrf FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: fichas_financeiras rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fichas_financeiras FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: folhas_pagamento rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.folhas_pagamento FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
 -- Name: fotos_vistoria_inventario rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_update ON public.fotos_vistoria_inventario FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)) AND ((usuario_id = auth.uid()) OR public.has_permission_code(auth.uid(), 'patrimonio.tramitar'::text)))) WITH CHECK (((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)) AND ((usuario_id = auth.uid()) OR public.has_permission_code(auth.uid(), 'patrimonio.tramitar'::text))));
+
+
+--
+-- Name: itens_ficha_financeira rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.itens_ficha_financeira FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: lancamentos_folha rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.lancamentos_folha FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: parametros_folha rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.parametros_folha FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: rubricas rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.rubricas FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: tabela_inss rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.tabela_inss FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: tabela_irrf rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.tabela_irrf FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: user_modules rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.user_modules FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: user_roles rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.user_roles FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
 
 
 --
@@ -20797,13 +21139,6 @@ CREATE POLICY sel_denuncias_gerenciar ON public.denuncias FOR SELECT TO authenti
 
 
 --
--- Name: profiles sel_profiles_own_or_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY sel_profiles_own_or_admin ON public.profiles FOR SELECT TO authenticated USING (((id = auth.uid()) OR public.is_admin_atual()));
-
-
---
 -- Name: role_permissions sel_role_permissions_authenticated; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20811,24 +21146,10 @@ CREATE POLICY sel_role_permissions_authenticated ON public.role_permissions FOR 
 
 
 --
--- Name: user_modules sel_user_modules_own_or_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY sel_user_modules_own_or_admin ON public.user_modules FOR SELECT TO authenticated USING (((user_id = auth.uid()) OR public.is_admin_atual()));
-
-
---
 -- Name: user_permissions sel_user_permissions_own_or_admin; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY sel_user_permissions_own_or_admin ON public.user_permissions FOR SELECT TO authenticated USING (((user_id = auth.uid()) OR public.is_admin_atual()));
-
-
---
--- Name: user_roles sel_user_roles_own_or_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY sel_user_roles_own_or_admin ON public.user_roles FOR SELECT TO authenticated USING (((user_id = auth.uid()) OR public.is_admin_atual()));
 
 
 --
@@ -20911,24 +21232,10 @@ CREATE POLICY upd_denuncias_gerenciar ON public.denuncias FOR UPDATE TO authenti
 
 
 --
--- Name: profiles upd_profiles_own_or_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY upd_profiles_own_or_admin ON public.profiles FOR UPDATE TO authenticated USING (((id = auth.uid()) OR public.is_admin_atual())) WITH CHECK (((id = auth.uid()) OR public.is_admin_atual()));
-
-
---
 -- Name: role_permissions upd_role_permissions_admin; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY upd_role_permissions_admin ON public.role_permissions FOR UPDATE TO authenticated USING (public.is_admin_atual()) WITH CHECK (public.is_admin_atual());
-
-
---
--- Name: user_modules upd_user_modules_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY upd_user_modules_admin ON public.user_modules FOR UPDATE TO authenticated USING (public.is_admin_atual()) WITH CHECK (public.is_admin_atual());
 
 
 --
@@ -20939,45 +21246,10 @@ CREATE POLICY upd_user_permissions_admin ON public.user_permissions FOR UPDATE T
 
 
 --
--- Name: user_roles upd_user_roles_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY upd_user_roles_admin ON public.user_roles FOR UPDATE TO authenticated USING (public.is_admin_atual()) WITH CHECK (public.is_admin_atual());
-
-
---
 -- Name: user_modules; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
 ALTER TABLE public.user_modules ENABLE ROW LEVEL SECURITY;
-
---
--- Name: user_modules user_modules_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY user_modules_delete ON public.user_modules FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
--- Name: user_modules user_modules_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY user_modules_insert ON public.user_modules FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
-
-
---
--- Name: user_modules user_modules_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY user_modules_select ON public.user_modules FOR SELECT TO authenticated USING (((user_id = auth.uid()) OR public.is_admin_user(auth.uid())));
-
-
---
--- Name: user_modules user_modules_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY user_modules_update ON public.user_modules FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid()));
-
 
 --
 -- Name: user_org_units; Type: ROW SECURITY; Schema: public; Owner: -
@@ -20996,34 +21268,6 @@ ALTER TABLE public.user_permissions ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
-
---
--- Name: user_roles user_roles_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY user_roles_delete ON public.user_roles FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
--- Name: user_roles user_roles_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY user_roles_insert ON public.user_roles FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
-
-
---
--- Name: user_roles user_roles_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY user_roles_select ON public.user_roles FOR SELECT TO authenticated USING (((user_id = auth.uid()) OR public.is_admin_user(auth.uid())));
-
-
---
--- Name: user_roles user_roles_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY user_roles_update ON public.user_roles FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid()));
-
 
 --
 -- Name: viagens_diarias; Type: ROW SECURITY; Schema: public; Owner: -
