@@ -642,6 +642,31 @@ Fora da B3: dono e permissões do bucket `documentos` e os links públicos de po
 até isso existir); o nome do servidor no caminho do PDF de frequência; buckets de outros módulos; CORS das
 Edge Functions por origem (`download-frequencia` segue com `*`, porque só aceita `Authorization: Bearer`).
 
+### Trilha de auditoria do RH (Onda E1)
+
+Migração `supabase/migrations/20261011000000_rh_autoria_trilha.sql` (spec `superpowers/specs/2026-10-10-rh-trilha-auditoria-design.md`).
+Detalhes de autoria, máscara e imutabilidade em
+[`BANCO_DE_DADOS.md`](./BANCO_DE_DADOS.md#trilha-de-auditoria-e-servidor-responsável-do-rh--onda-e1).
+
+- **Permissão nova:** `rh.auditoria.visualizar` ("Visualizar Trilha de Auditoria do RH", categoria
+  `Auditoria`, módulo `rh`), no catálogo `module_permissions_catalog`. **Nenhum papel a recebe por padrão:** o
+  gestor concede no cadastro de usuários.
+- **Policy nova em `audit_logs`** (`audit_logs_rh_auditoria_select`, SELECT para `authenticated`): lê as linhas
+  com `module_name = 'rh'` quem tem o módulo `rh` (`can_access_module`) **e** `rh.auditoria.visualizar`
+  (`has_permission_code`). A permissão avulsa, sem o módulo, não lê nada; quem tem só o módulo também não. A
+  policy `admin_only_select` continua: o papel admin lê a trilha inteira, de todos os módulos.
+- **Escrita:** ninguém grava em `audit_logs` pela API. Gravam os triggers (`fn_audit_trigger`), `log_audit` e a
+  RPC `registrar_evento` (só `authenticated` com perfil ativo; ações `view`, `export` e `download`, entidades
+  do RH numa lista fechada). UPDATE, DELETE e TRUNCATE são recusados por trigger até para o dono da tabela.
+- **Trilha do módulo `admin`:** mudanças em `profiles` (vínculo com servidor, ativo/bloqueado, tipo de
+  usuário, CPF, e-mail, restrição de módulos), `user_permissions`, `user_org_units` e
+  `audit_colunas_sensiveis` vão para `audit_logs` com `module_name = 'admin'`. Só o papel admin lê essas linhas.
+- `fechar_folha` e `reabrir_folha` continuam gravando com `module_name = 'folha'`: essas linhas não aparecem
+  para quem tem só `rh.auditoria.visualizar`.
+
+Ainda não existe tela para a trilha (onda E2). A rota, quando vier, deve exigir o módulo `rh` e
+`rh.auditoria.visualizar` no `ProtectedRoute`/`ROUTE_PERMISSIONS`, igual à policy.
+
 ### Folha: edição da ficha
 
 - No detalhe da folha (`/folha/:id` → `FichaFinanceiraDialog`), incluir/editar/excluir itens da
