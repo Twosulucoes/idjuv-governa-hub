@@ -581,6 +581,14 @@ export interface FeriasServidor {
 }
 
 export type StatusFeriasServidor = NonNullable<FeriasServidor['status']>;
+/** Status de licenças/afastamentos (coluna texto livre; valores usados pela tela e pelos relatórios). */
+export const LICENCA_STATUS_LABELS: Record<string, string> = {
+  ativa: 'Ativa',
+  encerrada: 'Encerrada',
+  prorrogada: 'Prorrogada',
+  cancelada: 'Cancelada',
+};
+
 export const FERIAS_STATUS_LABELS: Record<StatusFeriasServidor, string> = {
   programada: 'Programada',
   em_gozo: 'Em Gozo',

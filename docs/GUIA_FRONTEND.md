@@ -66,8 +66,15 @@ de chamar `supabase` direto dentro da página.
 
 - **PDF** (`pdf*.ts`, ~40): base em `pdfTemplate.ts`/`pdfLogos.ts`/`pdfGenerator.ts`.
   Exemplos: `pdfContracheque`, `pdfFrequenciaMensalGenerator`, `pdfPortarias`,
-  `pdfOrganograma`, `pdfRelatorioFederacoes`, `pdfRelatoriosRH`, blocos de unidade
-  em `pdf/`.
+  `pdfOrganograma`, `pdfRelatorioFederacoes`, `pdfRelatoriosRH`,
+  `pdfRelatoriosAfastamentos` (férias, licenças, viagens), blocos de unidade em `pdf/`.
+- **Relatórios gerenciais de RH** (exemplo de separação hook / regras / PDF / UI):
+  `src/hooks/useRelatoriosRH.ts` (queries com colunas explícitas, filtro de período por
+  sobreposição no banco, paginação), `src/lib/relatoriosRHRegras.ts` (regras puras, sem
+  DOM nem Supabase: agrupamento, somas, validação de período, linhas para planilha),
+  `src/lib/relatoriosFolhaRegras.ts` (mesmo padrão para a folha: agregação por unidade e
+  rubrica, totais, `folhaPermiteDetalhe`), `src/lib/pdfRelatoriosAfastamentos.ts`,
+  `src/lib/pdfRelatoriosFolha.ts` e os cards/filtros em `src/components/rh/relatorios/`.
 - **Word**: `wordPortarias.ts` (docx).
 - **Planilhas**: `exportarPlanilha.ts`, `exportarFederacoes.ts`, e `src/export/`.
 - **Fiscal/folha**: `cnabGenerator.ts` (CNAB240), `esocialGenerator.ts` +

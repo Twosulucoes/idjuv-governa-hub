@@ -100,6 +100,7 @@ export type PermissaoInstitucional =
   | 'rh.frequencia.lancar'
   | 'rh.frequencia.configurar'
   | 'rh.viagens.visualizar'
+  | 'rh.relatorios.visualizar'
   | 'rh.self'
   // Folha (módulo rh; códigos do catálogo, ver docs/RBAC_PERMISSOES.md)
   | 'financeiro.folha.visualizar'
@@ -459,7 +460,7 @@ export const menuConfig: MenuSection[] = [
         label: "Relatórios",
         route: "/rh/relatorios",
         icon: BarChart3,
-        permission: "rh.visualizar",
+        permission: "rh.relatorios.visualizar",
       },
       {
         id: "meus-dados",

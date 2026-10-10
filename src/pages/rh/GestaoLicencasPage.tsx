@@ -74,15 +74,11 @@ import {
   TipoLicenca,
   AFASTAMENTO_LABELS,
   LICENCA_LABELS,
+  LICENCA_STATUS_LABELS,
 } from '@/types/rh';
 
 // Status labels and colors
-const STATUS_LABELS: Record<string, string> = {
-  ativa: 'Ativa',
-  encerrada: 'Encerrada',
-  prorrogada: 'Prorrogada',
-  cancelada: 'Cancelada',
-};
+const STATUS_LABELS = LICENCA_STATUS_LABELS;
 
 const STATUS_COLORS: Record<string, string> = {
   ativa: 'bg-warning/20 text-warning border-warning/30',

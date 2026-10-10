@@ -541,6 +541,32 @@ SELECT has_function_privilege('authenticated', 'public.eh_meu_servidor(uuid)', '
   `RAISE` dos triggers (P0001) é repassado; os demais viram mensagem fixa com o código, sem nome de
   tabela/constraint nem o `DETAIL` do Postgres (que em CHECK traz a linha inteira, com dados pessoais).
 
+### Relatórios de RH (`/rh/relatorios`)
+
+- A rota exige `rh.relatorios.visualizar` (`App.tsx`, `ROUTE_PERMISSIONS`) e o item "Relatórios" do
+  menu do RH pede a mesma permissão (antes pedia `rh.visualizar`, o que mostrava o link a quem a rota
+  recusava). O catálogo concede `rh.relatorios.visualizar` aos papéis `admin`, `manager` e `user`
+  (`supabase/baseline/schema/02_dados_catalogo.sql`), então na prática quem tem o módulo `rh` acessa.
+- Não há permissão por relatório. A RLS de `ferias_servidor`, `licencas_afastamentos` e
+  `frequencia_mensal` libera SELECT a quem tem o módulo `rh` (ou à própria linha); `viagens_diarias`,
+  a quem tem `rh` ou `financeiro` (`supabase/baseline/rls/35_policies_geradas.sql`). Os relatórios
+  de férias, licenças, frequência e viagens só leem essas tabelas, sem RPC nem view nova, portanto
+  não expõem nada além do que `/rh/ferias`, `/rh/licencas`, `/rh/frequencia` e `/rh/viagens` já
+  mostram. A B2 (PR #69) passou a escrita dessas tabelas para permissão; a leitura continua pelo
+  módulo.
+- LGPD: os quatro relatórios novos identificam o servidor por nome e matrícula e não selecionam
+  CPF, CID/CRM/médico, documento comprobatório, observações de licença nem dados bancários
+  (`src/hooks/useRelatoriosRH.ts`, colunas explícitas). Os PDFs antigos de `pdfRelatoriosRH.ts`
+  continuam imprimindo CPF — dívida registrada, fora desta entrega.
+- O card "Folha de pagamento" (`RelatorioFolhaCard.tsx`) só é renderizado com
+  `financeiro.folha.visualizar` ou super admin (`RelatoriosRHPage.tsx`, mesmo gate das rotas
+  `/folha*` em `ROUTE_PERMISSIONS`; o catálogo concede essa permissão a admin, manager e user, então
+  na prática só perfis customizados ficam de fora). É UX: a fronteira é a RLS de `folhas_pagamento` (SELECT a quem
+  tem o módulo `rh`) e de `fichas_financeiras`/`itens_ficha_financeira` (módulo `rh` ou a própria
+  ficha), em `35_policies_geradas.sql`. Nenhuma permissão nova no catálogo. Os três relatórios são
+  agregados (sem nome, CPF, PIS ou dados bancários); o relatório nominal de folha ficou fora até
+  decisão do usuário, pois exigiria gate próprio e `log_audit` como no contracheque.
+
 ### Viagens: edição, cancelamento e exclusão
 
 - `/rh/viagens` (`GestaoViagensPage`) exige `rh.viagens.visualizar` na rota e no item de menu.
