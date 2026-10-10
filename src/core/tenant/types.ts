@@ -8,7 +8,6 @@
  */
 
 import type { Modulo } from '@/shared/config/modules.config';
-import type { Database } from '@/integrations/supabase/types';
 
 /** Valor de token de cor no formato aceito por `hsl(var(--token))`: "210 65% 25%" */
 export type TokenHSL = string;
@@ -194,8 +193,12 @@ export type Vertical = 'esporte' | 'cultura' | 'educacao' | 'saude' | 'generico'
  */
 export type FaixaDestino = 'intermunicipal' | 'interestadual' | 'internacional';
 
-/** Categoria de cargo (`cargos.categoria`, enum `categoria_cargo` do banco). */
-export type CategoriaCargo = Database['public']['Enums']['categoria_cargo'];
+/**
+ * Categoria de cargo (`cargos.categoria`, enum `categoria_cargo` do banco). União literal
+ * para o perfil do tenant não depender dos tipos gerados; `CATEGORIA_CARGO_LABELS` em
+ * `src/types/rh.ts` confere em compilação que ela acompanha o enum.
+ */
+export type CategoriaCargo = 'efetivo' | 'comissionado' | 'funcao_gratificada' | 'temporario' | 'estagiario';
 
 /**
  * Linha da tabela de diárias: valor por faixa de destino para um conjunto de

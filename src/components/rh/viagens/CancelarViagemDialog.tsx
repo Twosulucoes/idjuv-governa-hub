@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { formatarDataViagem } from "@/hooks/useViagens";
+import { descreverDestino } from "@/lib/diariasRegras";
 import type { ViagemDiariaComServidor } from "@/types/rh";
 
 interface CancelarViagemDialogProps {
@@ -49,7 +50,7 @@ export function CancelarViagemDialog({ viagem, onOpenChange, onConfirmar, penden
             {viagem && (
               <>
                 Viagem de <strong>{viagem.servidor?.nome_completo || "servidor"}</strong> para{" "}
-                {viagem.destino_cidade}/{viagem.destino_uf}, de {formatarDataViagem(viagem.data_saida)} a{" "}
+                {descreverDestino(viagem)}, de {formatarDataViagem(viagem.data_saida)} a{" "}
                 {formatarDataViagem(viagem.data_retorno)}. O registro é mantido como cancelado e o motivo fica nas
                 observações.
               </>
@@ -67,7 +68,10 @@ export function CancelarViagemDialog({ viagem, onOpenChange, onConfirmar, penden
             placeholder="Ex.: evento adiado pelo organizador"
             disabled={pendente}
           />
-          {!motivoValido && <p className="text-xs text-muted-foreground">Informe o motivo para confirmar.</p>}
+          <p className="text-xs text-muted-foreground">
+            {motivoValido ? "" : "Informe o motivo para confirmar. "}
+            Não registre dados de saúde ou outros dados pessoais do servidor: o motivo fica nas observações e na auditoria.
+          </p>
         </div>
 
         <AlertDialogFooter>

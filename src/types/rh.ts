@@ -517,6 +517,28 @@ export type ViagemDiariaInput = Omit<
   'id' | 'created_at' | 'created_by' | 'updated_at'
 >;
 
+/**
+ * Payload da edição pelo formulário: status e etapas/SEI do workflow DIRAF só mudam pelos
+ * hooks próprios (`useAtualizarStatusViagem`, `useAtualizarWorkflowDiraf`). Só o tipo fecha
+ * isso — a RLS continua por módulo.
+ */
+export type ViagemDiariaEdicao = Omit<
+  ViagemDiariaInput,
+  'status' | 'numero_sei_diarias' | 'workflow_diraf_solicitado_em' | 'workflow_diraf_concluido_em' | 'workflow_diraf_observacoes'
+>;
+
+/**
+ * Rótulos por categoria de cargo. Tipado pelo enum gerado e conferido contra a união do
+ * tenant: se o banco ganhar/perder uma categoria, o typecheck acusa aqui.
+ */
+export const CATEGORIA_CARGO_LABELS: Record<Database['public']['Enums']['categoria_cargo'], string> = {
+  efetivo: 'Efetivo',
+  comissionado: 'Comissionado',
+  funcao_gratificada: 'Função gratificada',
+  temporario: 'Temporário',
+  estagiario: 'Estagiário',
+} satisfies Record<CategoriaCargo, string>;
+
 /** Cargo do servidor usado para localizar a linha da tabela de diárias. */
 export interface CargoParaDiaria {
   categoria: CategoriaCargo;

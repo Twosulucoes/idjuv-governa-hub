@@ -37,12 +37,20 @@ import {
   classificarDestino,
   contarPernoites,
   ehBrasil,
+  onusBloqueado,
   validarPeriodo,
   valorDiariaPorTabela,
   valoresBloqueados,
   type CampoViagem,
 } from "@/lib/diariasRegras";
-import { TIPO_ONUS_LABELS, type ServidorParaViagem, type TipoOnus, type ViagemDiariaComServidor, type ViagemDiariaInput } from "@/types/rh";
+import {
+  TIPO_ONUS_LABELS,
+  type ServidorParaViagem,
+  type TipoOnus,
+  type ViagemDiariaComServidor,
+  type ViagemDiariaEdicao,
+  type ViagemDiariaInput,
+} from "@/types/rh";
 
 const UFS = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
@@ -64,7 +72,7 @@ const schema = z
     portaria_numero: z.string().optional(),
     portaria_data: z.string().optional(),
     meio_transporte: z.string().optional(),
-    quantidade_diarias: z.coerce.number().min(0, "Não pode ser negativo"),
+    quantidade_diarias: z.coerce.number().min(0, "Não pode ser negativo").multipleOf(0.5, "Use múltiplos de 0,5"),
     valor_diaria: z.coerce.number().min(0, "Não pode ser negativo"),
     ajuste_manual: z.boolean(),
     observacoes: z.string().optional(),
@@ -116,6 +124,8 @@ export function ViagemFormDialog({ open, onOpenChange, servidores, viagem }: Via
   const editaveis = editando ? camposEditaveisPorStatus(viagem.status) : TODOS_CAMPOS_VIAGEM;
   const bloqueiaTudo = editando && editaveis.length === 0;
   const valoresTravados = editando && valoresBloqueados(viagem);
+  // Processo DIRAF já aberto (SEI ou etapa além de pendente): o ônus não muda mais.
+  const onusTravado = editando && onusBloqueado(viagem);
   const bloqueado = (campo: CampoViagem) => bloqueiaTudo || !editaveis.includes(campo);
 
   const tenant = useTenant();
@@ -149,49 +159,70 @@ export function ViagemFormDialog({ open, onOpenChange, servidores, viagem }: Via
   }, [servidores, viagem]);
 
   // Sugestão da tabela: faixa de destino + cargo do servidor → valor; datas → quantidade.
-  const servidor = opcoesServidores.find((s) => s.id === servidorId);
-  const faixa = classificarDestino(destinoUf, destinoPais, ufSede);
-  const cargo = servidor?.cargo ? { categoria: servidor.cargo.categoria, nivelHierarquico: servidor.cargo.nivel_hierarquico } : null;
-  const valorTabela = valorDiariaPorTabela(tabela, cargo, faixa);
-  const quantidadeCalculada = calcularQuantidadeDiarias(dataSaida, dataRetorno, { tipoOnus, meiaDiariaNoRetorno });
+  const sugerir = (v: Pick<ViagemFormValues, "servidor_id" | "tipo_onus" | "data_saida" | "data_retorno" | "destino_uf" | "destino_pais">) => {
+    const serv = opcoesServidores.find((s) => s.id === v.servidor_id);
+    const faixaDestino = classificarDestino(v.destino_uf, v.destino_pais, ufSede);
+    return {
+      faixa: faixaDestino,
+      valorTabela: valorDiariaPorTabela(tabela, serv?.cargo, faixaDestino),
+      quantidade: calcularQuantidadeDiarias(v.data_saida, v.data_retorno, { tipoOnus: v.tipo_onus, meiaDiariaNoRetorno }),
+    };
+  };
+  const sugestao = sugerir({ servidor_id: servidorId, tipo_onus: tipoOnus, data_saida: dataSaida, data_retorno: dataRetorno, destino_uf: destinoUf, destino_pais: destinoPais });
+  const { faixa, valorTabela, quantidade: quantidadeCalculada } = sugestao;
   const pernoites = contarPernoites(dataSaida, dataRetorno);
   const semLinhaTabela = !semOnus && !!servidorId && valorTabela === null;
   const camposLivres = ajusteManual || semLinhaTabela;
   const total = calcularTotalDiarias(quantidade, valorDiaria);
 
-  // Chave dos campos que alimentam a sugestão; só recalcula quando ela muda
-  // DEPOIS de abrir (ao abrir, mantém o que está gravado).
-  const chaveSugestao = `${servidorId}|${tipoOnus}|${dataSaida}|${dataRetorno}|${destinoUf}|${destinoPais}`;
+  // Chave dos campos que alimentam a sugestão. O recálculo só acontece quando ela muda DEPOIS
+  // de abrir: ao abrir, o que está gravado é mantido. A comparação usa `form.getValues()`
+  // (síncrono, já reflete o `reset` do efeito de abertura) e não os `watch` do render, que
+  // ainda trazem o estado anterior no commit em que o diálogo abre.
+  const chaveDe = (v: Pick<ViagemFormValues, "servidor_id" | "tipo_onus" | "data_saida" | "data_retorno" | "destino_uf" | "destino_pais">) =>
+    `${v.servidor_id}|${v.tipo_onus}|${v.data_saida}|${v.data_retorno}|${v.destino_uf}|${v.destino_pais}`;
+  const chaveSugestao = chaveDe({ servidor_id: servidorId, tipo_onus: tipoOnus, data_saida: dataSaida, data_retorno: dataRetorno, destino_uf: destinoUf, destino_pais: destinoPais });
   const chaveAplicada = useRef(chaveSugestao);
 
   // Preenche o formulário ao abrir (criar ou editar).
   useEffect(() => {
     if (!open) return;
-    form.reset(
-      viagem
-        ? {
-            servidor_id: viagem.servidor_id,
-            tipo_onus: viagem.tipo_onus,
-            data_saida: viagem.data_saida,
-            data_retorno: viagem.data_retorno,
-            destino_cidade: viagem.destino_cidade,
-            destino_uf: viagem.destino_uf === UF_EXTERIOR ? "" : viagem.destino_uf,
-            destino_pais: viagem.destino_pais || "Brasil",
-            finalidade: viagem.finalidade,
-            justificativa: viagem.justificativa ?? "",
-            portaria_numero: viagem.portaria_numero ?? "",
-            portaria_data: viagem.portaria_data ?? "",
-            meio_transporte: viagem.meio_transporte ?? "",
-            quantidade_diarias: viagem.quantidade_diarias ?? 0,
-            valor_diaria: viagem.valor_diaria ?? 0,
-            ajuste_manual: false,
-            observacoes: viagem.observacoes ?? "",
-          }
-        : VALORES_VAZIOS,
-    );
-    chaveAplicada.current = viagem
-      ? `${viagem.servidor_id}|${viagem.tipo_onus}|${viagem.data_saida}|${viagem.data_retorno}|${viagem.destino_uf === UF_EXTERIOR ? "" : viagem.destino_uf}|${viagem.destino_pais || "Brasil"}`
-      : `|com_onus||||Brasil`;
+    let valores: ViagemFormValues = VALORES_VAZIOS;
+    if (viagem) {
+      const base = {
+        servidor_id: viagem.servidor_id,
+        tipo_onus: viagem.tipo_onus,
+        data_saida: viagem.data_saida,
+        data_retorno: viagem.data_retorno,
+        destino_uf: viagem.destino_uf === UF_EXTERIOR ? "" : viagem.destino_uf,
+        destino_pais: viagem.destino_pais || "Brasil",
+      };
+      // Valores gravados diferentes da sugestão = ajuste manual feito antes: reabre com o
+      // checkbox ligado, para a edição não os substituir pela tabela sem justificativa.
+      const s = sugerir(base);
+      const qtd = viagem.quantidade_diarias ?? 0;
+      const val = viagem.valor_diaria ?? 0;
+      const ajustado =
+        viagem.tipo_onus === "com_onus" &&
+        ((s.quantidade !== null && qtd !== s.quantidade) || (s.valorTabela !== null && val !== s.valorTabela));
+      valores = {
+        ...base,
+        destino_cidade: viagem.destino_cidade,
+        finalidade: viagem.finalidade,
+        justificativa: viagem.justificativa ?? "",
+        portaria_numero: viagem.portaria_numero ?? "",
+        portaria_data: viagem.portaria_data ?? "",
+        meio_transporte: viagem.meio_transporte ?? "",
+        quantidade_diarias: qtd,
+        valor_diaria: val,
+        ajuste_manual: ajustado,
+        observacoes: viagem.observacoes ?? "",
+      };
+    }
+    form.reset(valores);
+    chaveAplicada.current = chaveDe(valores);
+    // `sugerir`/`chaveDe` só leem props/estado já representados em `viagem` e `open`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, viagem, form]);
 
   // Aplica a sugestão (quantidade pela regra, valor pela tabela) aos campos.
@@ -206,15 +237,23 @@ export function ViagemFormDialog({ open, onOpenChange, servidores, viagem }: Via
   };
 
   // Recalcula quando servidor/datas/destino/ônus mudam (fora do ajuste manual e dos valores travados).
+  // `chaveSugestao` é só o gatilho; a comparação é com os valores atuais do formulário.
   useEffect(() => {
-    if (!open || chaveAplicada.current === chaveSugestao) return;
-    chaveAplicada.current = chaveSugestao;
+    if (!open) return;
+    const atual = chaveDe(form.getValues());
+    if (chaveAplicada.current === atual) return;
+    chaveAplicada.current = atual;
     if (valoresTravados) return;
     if (ajusteManual && !semOnus) return;
     aplicarSugestao();
-    // `aplicarSugestao` lê os mesmos valores já representados em `chaveSugestao`.
+    // `aplicarSugestao`/`chaveDe` leem os mesmos valores já representados em `chaveSugestao`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, chaveSugestao, ajusteManual, semOnus, valoresTravados]);
+
+  // Destino no exterior: a UF não se aplica (gravada como "EX" ao salvar).
+  useEffect(() => {
+    if (open && exterior && destinoUf) form.setValue("destino_uf", "", { shouldDirty: true });
+  }, [open, exterior, destinoUf, form]);
 
   const quantidadeValorDesabilitados =
     semOnus || valoresTravados || bloqueado("quantidade_diarias") || bloqueado("valor_diaria") || !camposLivres;
@@ -244,7 +283,7 @@ export function ViagemFormDialog({ open, onOpenChange, servidores, viagem }: Via
     try {
       if (editando) {
         // Só os campos liberados pelo status vão para o banco.
-        const parcial: Partial<ViagemDiariaInput> = {};
+        const parcial: Partial<ViagemDiariaEdicao> = {};
         for (const campo of editaveis) {
           if (campo in input) {
             (parcial as Record<string, unknown>)[campo] = (input as Record<string, unknown>)[campo];
@@ -338,7 +377,7 @@ export function ViagemFormDialog({ open, onOpenChange, servidores, viagem }: Via
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {(Object.keys(TIPO_ONUS_LABELS) as TipoOnus[]).map((valor) => {
                       const selecionado = field.value === valor;
-                      const desabilitado = bloqueado("tipo_onus") || valoresTravados;
+                      const desabilitado = bloqueado("tipo_onus") || valoresTravados || onusTravado;
                       return (
                         <button
                           key={valor}
@@ -358,9 +397,11 @@ export function ViagemFormDialog({ open, onOpenChange, servidores, viagem }: Via
                       );
                     })}
                   </div>
-                  {valoresTravados && (
+                  {valoresTravados ? (
                     <FormDescription>Workflow DIRAF concluído: ônus, quantidade e valor não podem mais ser alterados.</FormDescription>
-                  )}
+                  ) : onusTravado ? (
+                    <FormDescription>Processo DIRAF já aberto (SEI/etapa em curso): o ônus não pode mais ser alterado.</FormDescription>
+                  ) : null}
                   <FormMessage />
                 </FormItem>
               )}

@@ -36,9 +36,12 @@ diária calculada por tabela`.
    `cancelada` só a partir de `solicitada`/`autorizada`; `concluida` e `cancelada` são finais. Hoje o `Select`
    da linha aceita qualquer transição — passa a desabilitar as inválidas (como férias).
 6. **Campos editáveis por status** (`camposEditaveisPorStatus`): `solicitada` → todos; `autorizada` → todos
-   menos servidor; `em_andamento` → portaria, meio de transporte, relatório e observações; `concluida`/
-   `cancelada` → nenhum. Com `workflow_diraf_status = 'concluido'` (processo SEI aberto) quantidade/valor
-   ficam bloqueados em qualquer status.
+   menos servidor; `em_andamento` → portaria, meio de transporte e observações (relatório/prestação de
+   contas não tem campos na tela — fica para o item de prestação de contas); `concluida`/`cancelada` →
+   nenhum. Com `workflow_diraf_status = 'concluido'` (processo SEI aberto) quantidade/valor ficam
+   bloqueados em qualquer status; com nº de SEI ou etapa DIRAF além de `pendente`, o ônus não muda mais.
+   Ao reabrir uma viagem cujos quantidade/valor gravados diferem da sugestão, "ajuste manual" já vem
+   ligado (os valores não são substituídos pela tabela sem justificativa).
 7. **"Excluir" = cancelar.** Registro de diária é contábil (a migração 20260131041251 negava DELETE por isso).
    Cancelar exige motivo, gravado em `observacoes` com prefixo "Cancelada em dd/mm/aaaa: ..." (não há coluna
    própria). **Exclusão física** só para super admin, com status `solicitada`, sem `numero_sei_diarias` e sem
@@ -88,8 +91,16 @@ diária calculada por tabela`.
 - Tabela de diárias no banco (`tabela_diarias` com RLS, catálogo, `rls/mapa.csv`) e tela de manutenção
   pelo RH (Opção B) — depende da decisão no card e dos valores da IN.
 - Policies de `viagens_diarias` por permissão granular e DELETE restrito (hoje por módulo `rh|financeiro`;
-  `mapa.csv:242` já pede revisão); CHECKs em `tipo_onus`, `workflow_diraf_status`, `data_retorno >= data_saida`;
-  coluna `motivo_cancelamento`/`cancelada_em`.
+  `mapa.csv:242` já pede revisão; a migração 20260131041251 já tinha `usuario_tem_permissao('rh.viagens.editar')`
+  e `DELETE USING (false)`); `created_by DEFAULT auth.uid()`; coluna `motivo_cancelamento`/`cancelada_em`;
+  trigger `BEFORE UPDATE` com as transições de `statusPermitidos` e bloqueio de quantidade/valor com
+  `workflow_diraf_status = 'concluido'`.
+- CHECKs que o banco não tem (revisão de segurança): `tipo_onus IN ('com_onus','sem_onus')`;
+  `workflow_diraf_status IS NULL OR IN ('pendente','solicitado','em_andamento','concluido')`;
+  `data_retorno >= data_saida`; `quantidade_diarias >= 0` em múltiplos de 0,5; `valor_diaria >= 0` e
+  `valor_total >= 0` (ou `valor_total` como coluna `GENERATED ALWAYS AS`); `sem_onus` ⇒ quantidade, valor e
+  workflow nulos; `destino_uf ~ '^[A-Z]{2}$'` com `'EX'` para exterior; `workflow_diraf_status = 'concluido'`
+  ⇒ `numero_sei_diarias IS NOT NULL`.
 - Unificar `src/modules/rh/pages/formularios/OrdemMissaoPage.tsx` com `src/pages/formularios/` e tirar o
   literal "IN de Diárias do IDJUV" de `pdfGenerator.ts:331` (hardcode já inventariado).
 - Relatório de viagens (item 15).

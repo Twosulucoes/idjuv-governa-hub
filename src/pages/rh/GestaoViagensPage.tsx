@@ -68,8 +68,9 @@ import { ViagemFormDialog } from "@/components/rh/viagens/ViagemFormDialog";
 import { CancelarViagemDialog } from "@/components/rh/viagens/CancelarViagemDialog";
 import {
   STATUS_VIAGEM,
-  camposEditaveisPorStatus,
+  descreverDestino,
   podeCancelar,
+  podeEditarRegistro,
   podeExcluir,
   statusPermitidos,
 } from "@/lib/diariasRegras";
@@ -81,12 +82,9 @@ import {
   type WorkflowDirafStatus,
 } from "@/types/rh";
 
-const WORKFLOW_DIRAF_STATUS: { value: WorkflowDirafStatus; label: string; color: string }[] = [
-  { value: 'pendente', label: WORKFLOW_DIRAF_LABELS.pendente, color: 'bg-muted text-muted-foreground' },
-  { value: 'solicitado', label: WORKFLOW_DIRAF_LABELS.solicitado, color: 'bg-warning/20 text-warning' },
-  { value: 'em_andamento', label: WORKFLOW_DIRAF_LABELS.em_andamento, color: 'bg-info/20 text-info' },
-  { value: 'concluido', label: WORKFLOW_DIRAF_LABELS.concluido, color: 'bg-success/20 text-success' },
-];
+const WORKFLOW_DIRAF_STATUS: { value: WorkflowDirafStatus; label: string }[] = (
+  Object.keys(WORKFLOW_DIRAF_LABELS) as WorkflowDirafStatus[]
+).map((value) => ({ value, label: WORKFLOW_DIRAF_LABELS[value] }));
 
 interface WorkflowFormData {
   status: WorkflowDirafStatus;
@@ -338,7 +336,7 @@ export default function GestaoViagensPage() {
                   </TableRow>
                 ) : (
                   filteredViagens.map((viagem) => {
-                    const editavel = podeEditar && camposEditaveisPorStatus(viagem.status).length > 0;
+                    const editavel = podeEditarRegistro(viagem.status);
                     const cancelavel = podeEditar && podeCancelar(viagem);
                     const excluivel = podeExcluir(viagem, isSuperAdmin);
                     const permitidos = statusPermitidos(viagem.status);
@@ -348,9 +346,7 @@ export default function GestaoViagensPage() {
                       <TableCell>
                         <p className="font-medium">{viagem.servidor?.nome_completo || '-'}</p>
                       </TableCell>
-                      <TableCell>
-                        {viagem.destino_cidade}/{viagem.destino_uf}
-                      </TableCell>
+                      <TableCell>{descreverDestino(viagem)}</TableCell>
                       <TableCell>
                         <div className="text-sm">
                           <p>{formatDate(viagem.data_saida)}</p>
@@ -421,19 +417,23 @@ export default function GestaoViagensPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title={editavel ? "Editar" : "Edição não permitida neste status"}
-                            disabled={!editavel}
-                            onClick={() => abrirEdicao(viagem)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
                           {podeEditar && (
                             <Button
                               variant="ghost"
                               size="icon"
+                              aria-label="Editar viagem"
+                              title={editavel ? "Editar" : "Edição não permitida neste status"}
+                              disabled={!editavel}
+                              onClick={() => abrirEdicao(viagem)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {podeEditar && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Cancelar viagem"
                               title={cancelavel ? "Cancelar viagem" : "Só viagens solicitadas ou autorizadas podem ser canceladas"}
                               disabled={!cancelavel}
                               onClick={() => setViagemParaCancelar(viagem)}
@@ -445,6 +445,7 @@ export default function GestaoViagensPage() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              aria-label="Excluir viagem definitivamente"
                               title="Excluir definitivamente"
                               onClick={() => setViagemParaExcluir(viagem)}
                             >
@@ -489,7 +490,7 @@ export default function GestaoViagensPage() {
                   {viagemParaExcluir && (
                     <>
                       Viagem de <strong>{viagemParaExcluir.servidor?.nome_completo}</strong> para{" "}
-                      {viagemParaExcluir.destino_cidade}/{viagemParaExcluir.destino_uf}, de{" "}
+                      {descreverDestino(viagemParaExcluir)}, de{" "}
                       {formatDate(viagemParaExcluir.data_saida)} a {formatDate(viagemParaExcluir.data_retorno)}, será
                       removida definitivamente. Prefira cancelar o registro para manter o histórico.
                     </>
@@ -528,7 +529,7 @@ export default function GestaoViagensPage() {
                   {/* Info da viagem */}
                   <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
                     <p><strong>Servidor:</strong> {selectedViagem.servidor?.nome_completo}</p>
-                    <p><strong>Destino:</strong> {selectedViagem.destino_cidade}/{selectedViagem.destino_uf}</p>
+                    <p><strong>Destino:</strong> {descreverDestino(selectedViagem)}</p>
                     <p><strong>Período:</strong> {formatDate(selectedViagem.data_saida)} a {formatDate(selectedViagem.data_retorno)}</p>
                     <p><strong>Diárias:</strong> {selectedViagem.quantidade_diarias || '-'} × {formatCurrency(selectedViagem.valor_diaria)} = <strong>{formatCurrency(selectedViagem.valor_total)}</strong></p>
                   </div>

@@ -155,6 +155,15 @@ não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos 
   (`usuario_tem_permissao('rh.viagens.editar')`), DELETE restrito (a migração histórica
   20260131041251 negava DELETE por ser registro contábil), CHECKs acima e coluna
   `motivo_cancelamento` — ver `superpowers/specs/2026-10-10-viagens-diarias-design.md`.
+- Pela API, quem tem o módulo também consegue inserir direto em `concluida`, alterar `created_by`
+  (coluna nullable, sem default `auth.uid()`; nenhum hook a preenche) e sobrescrever o motivo de
+  cancelamento em `observacoes`. Usuário com módulo `financeiro` sem `rh` escreve em
+  `viagens_diarias` mas não lê `servidores`/`cargos`. A trilha fica só em `audit_logs`
+  (`audit_viagens_diarias`, before/after completos, `user_id = auth.uid()`), legível apenas por
+  admin. A migração 20260131041251 já tinha policies por `usuario_tem_permissao('rh.viagens.editar')`
+  e `DELETE USING (false)` e pode servir de base, acrescentando `created_by DEFAULT auth.uid()`,
+  DELETE só para super admin em `solicitada` sem SEI/portaria (espelho de `podeExcluir`) e trigger
+  `BEFORE UPDATE` com as transições de `statusPermitidos` e o bloqueio de valores com DIRAF concluído.
 - A tabela de valores de diária fica no perfil do tenant (`rh.diarias`, ver `WHITE_LABEL.md`),
   portanto vai no bundle do front; são valores públicos (ato normativo de diárias), sem dado
   pessoal.

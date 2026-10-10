@@ -10,8 +10,14 @@
  */
 
 import { format } from "date-fns";
-import type { CategoriaCargo, FaixaDestino, TabelaDiariasConfig } from "@/core/tenant";
-import { VIAGEM_STATUS_LABELS, type StatusViagemDiaria, type TipoOnus, type ViagemDiaria } from "@/types/rh";
+import type { FaixaDestino, TabelaDiariasConfig } from "@/core/tenant";
+import {
+  VIAGEM_STATUS_LABELS,
+  type CargoParaDiaria,
+  type StatusViagemDiaria,
+  type TipoOnus,
+  type ViagemDiaria,
+} from "@/types/rh";
 
 /** Opções de status, na ordem do fluxo, com rótulo (fonte: `VIAGEM_STATUS_LABELS`). */
 export const STATUS_VIAGEM: { value: StatusViagemDiaria; label: string }[] = (
@@ -33,7 +39,7 @@ const MS_POR_DIA = 86_400_000;
 function normalizar(texto?: string | null): string {
   return (texto ?? "")
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLowerCase();
 }
@@ -118,12 +124,6 @@ export function calcularQuantidadeDiarias(
   return meiaDiariaNoRetorno ? pernoites + 0.5 : pernoites;
 }
 
-/** Cargo do servidor nos termos usados pela tabela de diárias. */
-export interface CargoParaTabela {
-  categoria: CategoriaCargo;
-  nivelHierarquico?: number | null;
-}
-
 /**
  * Valor unitário da diária: primeira linha da tabela cujas `categorias` incluem a
  * categoria do cargo e cujo intervalo de nível (quando informado) contém o nível
@@ -131,11 +131,11 @@ export interface CargoParaTabela {
  */
 export function valorDiariaPorTabela(
   tabela: TabelaDiariasConfig | null | undefined,
-  cargo: CargoParaTabela | null | undefined,
+  cargo: CargoParaDiaria | null | undefined,
   faixa: FaixaDestino,
 ): number | null {
   if (!tabela || !cargo) return null;
-  const nivel = cargo.nivelHierarquico ?? null;
+  const nivel = cargo.nivel_hierarquico ?? null;
   const linha = tabela.linhas.find((l) => {
     if (!l.categorias.includes(cargo.categoria)) return false;
     if (l.nivelMinimo != null && (nivel === null || nivel < l.nivelMinimo)) return false;
@@ -189,8 +189,6 @@ export type CampoViagem =
   | "meio_transporte"
   | "quantidade_diarias"
   | "valor_diaria"
-  | "relatorio_apresentado"
-  | "relatorio_data"
   | "observacoes";
 
 export const TODOS_CAMPOS_VIAGEM: CampoViagem[] = [
@@ -208,24 +206,16 @@ export const TODOS_CAMPOS_VIAGEM: CampoViagem[] = [
   "meio_transporte",
   "quantidade_diarias",
   "valor_diaria",
-  "relatorio_apresentado",
-  "relatorio_data",
   "observacoes",
 ];
 
-const CAMPOS_EM_ANDAMENTO: CampoViagem[] = [
-  "portaria_numero",
-  "portaria_data",
-  "meio_transporte",
-  "relatorio_apresentado",
-  "relatorio_data",
-  "observacoes",
-];
+const CAMPOS_EM_ANDAMENTO: CampoViagem[] = ["portaria_numero", "portaria_data", "meio_transporte", "observacoes"];
 
 /**
  * Campos editáveis em cada status: `solicitada` (ou sem status) → todos;
  * `autorizada` → todos menos o servidor; `em_andamento` → portaria, meio de
- * transporte, relatório e observações; `concluida`/`cancelada` → nenhum.
+ * transporte e observações; `concluida`/`cancelada` → nenhum. (Relatório/prestação
+ * de contas ainda não tem tela — fica para o item de prestação de contas.)
  */
 export function camposEditaveisPorStatus(status?: string | null): CampoViagem[] {
   if (!status || status === "solicitada") return TODOS_CAMPOS_VIAGEM;
@@ -237,6 +227,21 @@ export function camposEditaveisPorStatus(status?: string | null): CampoViagem[] 
 /** Há algo a editar neste status? */
 export function podeEditarRegistro(status?: string | null): boolean {
   return camposEditaveisPorStatus(status).length > 0;
+}
+
+/**
+ * Ônus não pode mais mudar depois que a DIRAF abriu o processo (nº do SEI ou etapa
+ * além de `pendente`): trocar para `sem_onus` deixaria SEI/etapas órfãos.
+ */
+export function onusBloqueado(viagem: Pick<ViagemDiaria, "numero_sei_diarias" | "workflow_diraf_status">): boolean {
+  if (viagem.numero_sei_diarias?.trim()) return true;
+  return !!viagem.workflow_diraf_status && viagem.workflow_diraf_status !== "pendente";
+}
+
+/** "Cidade/UF" ou, no exterior (`destino_uf = "EX"`), "Cidade, País". */
+export function descreverDestino(v: Pick<ViagemDiaria, "destino_cidade" | "destino_uf" | "destino_pais">): string {
+  if (v.destino_uf === UF_EXTERIOR) return `${v.destino_cidade}, ${v.destino_pais?.trim() || "exterior"}`;
+  return `${v.destino_cidade}/${v.destino_uf}`;
 }
 
 /**

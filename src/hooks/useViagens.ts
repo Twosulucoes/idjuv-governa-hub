@@ -19,6 +19,7 @@ import type {
   StatusViagemDiaria,
   ViagemDiaria,
   ViagemDiariaComServidor,
+  ViagemDiariaEdicao,
   ViagemDiariaInput,
   WorkflowDirafStatus,
 } from "@/types/rh";
@@ -102,7 +103,7 @@ export function useCriarViagem() {
 export function useAtualizarViagem() {
   const invalidar = useInvalidarViagens();
   return useMutation({
-    mutationFn: async ({ id, ...input }: Partial<ViagemDiariaInput> & { id: string }) => {
+    mutationFn: async ({ id, ...input }: Partial<ViagemDiariaEdicao> & { id: string }) => {
       const resultado = await supabase.from("viagens_diarias").update(input).eq("id", id).select("id, servidor_id");
       return exigirLinhaAfetada(resultado, "alterar");
     },
