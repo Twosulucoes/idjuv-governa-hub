@@ -518,7 +518,7 @@ BEGIN
 END;
 $$;
 
--- I6) Portal da Transparência (migração 20261010200000): execução orçamentária, licitações e patrimônio.
+-- I6) Portal da Transparência (migração 20261010200100): execução orçamentária, licitações e patrimônio.
 --     As tabelas continuam fechadas para anon; estas RPCs devolvem só os campos das telas públicas, com o
 --     filtro de LGPD no servidor. GRANT para anon em overlay/40_privilegios.sql.
 -- 1) Execução orçamentária: totais por exercício

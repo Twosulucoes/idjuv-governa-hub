@@ -394,7 +394,7 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
 - **LAI / transparência**: `calcular_prazo_lai`, `consultar_protocolo_sic`,
   `list_public_tables`.
 - **Portal da Transparência (públicas, `anon` executa)** — migração
-  `supabase/migrations/20261010200000_transparencia_rpcs_publicas.sql` (ainda não aplicada em remoto).
+  `supabase/migrations/20261010200100_transparencia_rpcs_publicas.sql` (ainda não aplicada em remoto).
   `SECURITY DEFINER` + `STABLE`, `search_path` fixo; as tabelas continuam fechadas para `anon`, a função devolve só
   os campos da tela e aplica a LGPD no servidor:
   - `transparencia_execucao_orcamentaria()` — totais de `dotacoes_orcamentarias` por exercício (inicial, atual,
