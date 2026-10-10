@@ -16,13 +16,20 @@
 --                    linha em que tem uma filha sua, ex.: a folha da própria ficha); escreve só quem tem módulo E o
 --                    código do extra (persona perm_<código>: módulo + user_modules.permissions); o módulo sem a
 --                    permissão e a permissão avulsa sem módulo (perm_avulsa_<código>, só user_permissions) NÃO
---                    escrevem; admin tudo; sem módulo não lê; anon nada
+--                    escrevem; admin tudo; sem módulo não lê; anon nada. Com lista (escrita=a|b|c) há uma persona por
+--                    código e CADA uma sozinha escreve; ;excluir=<código>|admin: só esse código (ou só o admin) apaga;
+--                    ;insere_proprio: o servidor sem módulo insere o próprio pedido e não o de outro;
+--                    ;sem_autoaprovacao: a persona com a permissão e dona da linha A só altera/apaga a linha B, e só
+--                    insere para si pelo caminho da posse (;insere_proprio)
+--   proprio_leitura  ;coluna=<col>: posse por outra coluna (servidores: id); ;excluir=<código>: DELETE só com o código
 --   fechada          ninguém lê (nem admin)
 --   preservar        profiles e denuncias: testes próprios no bloco "cobertura adicional"
 --   UPDATE/DELETE    por tabela e persona (SET col = DEFAULT, sem WHERE: mede só a policy de UPDATE)
 --   storage          SELECT/INSERT/UPDATE/DELETE por bucket e persona; upload anônimo só nas pastas do formulário
 --   identidade/RPCs  auto-ativação, servidor_id alheio, injeção de SQL, SECURITY DEFINER sem checagem, privilégios
 --                    padrão, campos que o autor não escolhe, links do formulário, fechamento de folha, views
+--   RH (B2)          campos iniciais isentos por permissão (e nunca no próprio pedido); etapas do abono e do
+--                    fechamento (trigger validar_etapa_frequencia: chefia rh.aprovar, RH rh.frequencia.lancar)
 --   global           anon só nas exceções; nenhuma policy acesso_total; funções-stub não existem
 --
 -- Cobertura é exigida: tabela sem linha semente, fora do mapa ou sem RLS é FALHA. As tabelas temporárias do teste
@@ -256,13 +263,31 @@ INSERT INTO persona VALUES
   ('srv_inativo',   'a0000000-0000-0000-0000-000000000007');   -- servidor A, perfil bloqueado
 INSERT INTO persona SELECT 'mod_' || e.enumlabel, md5('mod_' || e.enumlabel)::uuid
 FROM pg_enum e JOIN pg_type ty ON ty.oid = e.enumtypid WHERE ty.typname = 'app_module';
--- classe permissao: uma persona por código exigido no extra (escrita=<código>...), com o(s) módulo(s) das
--- tabelas que o exigem E o código em user_modules.permissions (a forma mais barata de conceder permissão)
+-- Leitura do extra (sufixos ;chave[=valor] em qualquer ordem; ver o cabeçalho de scripts/db/gerar-rls.mjs)
+-- códigos de escrita (classe permissao: escrita=a|b|c); NULL nas outras classes
+CREATE FUNCTION pg_temp.codigos_escrita(classe text, extra text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE WHEN classe = 'permissao' THEN string_to_array((regexp_match(extra, '^escrita=([^;]+)'))[1], '|') END
+$$;
+-- ;excluir=<código>|admin (permissao e proprio_leitura); NULL se não há
+CREATE FUNCTION pg_temp.excluir_de(classe text, extra text) RETURNS text LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE WHEN classe IN ('permissao', 'proprio_leitura') THEN (regexp_match(extra, '(^|;)excluir=([^;]+)'))[2] END
+$$;
+-- true quando o extra traz o sufixo sem valor (ex.: proprio, insere_proprio, sem_autoaprovacao)
+CREATE FUNCTION pg_temp.tem_sufixo(extra text, sufixo text) RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
+  SELECT sufixo = ANY (string_to_array(extra, ';'))
+$$;
+
+-- classe permissao: uma persona por código exigido no extra (cada código da lista escrita=a|b|c e o de ;excluir=),
+-- com o(s) módulo(s) das tabelas que o exigem E o código em user_modules.permissions (a forma mais barata de
+-- conceder permissão). proprio_leitura com ;excluir=<código> também ganha a persona do código.
 CREATE TEMP TABLE persona_perm (nome text PRIMARY KEY, codigo text, modulos text[]);
 INSERT INTO persona_perm
 SELECT 'perm_' || codigo, codigo, array_agg(DISTINCT modulo)
-FROM (SELECT (regexp_match(extra, '^escrita=([^;]+)'))[1] AS codigo, unnest(string_to_array(modulos, '|')) AS modulo
-      FROM mapa WHERE classe = 'permissao') x
+FROM (SELECT c.codigo, unnest(string_to_array(m.modulos, '|')) AS modulo
+      FROM mapa m
+      CROSS JOIN LATERAL unnest(coalesce(pg_temp.codigos_escrita(m.classe, m.extra), '{}'::text[])
+                                || coalesce(ARRAY[nullif(pg_temp.excluir_de(m.classe, m.extra), 'admin')], '{}'::text[])) AS c(codigo)
+      WHERE c.codigo IS NOT NULL) x
 GROUP BY codigo;
 INSERT INTO persona SELECT nome, md5(nome)::uuid FROM persona_perm;
 -- e uma persona só com a permissão AVULSA (user_permissions), sem módulo: não pode escrever nem ler
@@ -301,16 +326,25 @@ END $$;
 -- Posse própria: {pai, fk} para proprio_filho (extra=pai=...) e permissao (extra=escrita=...;pai=...); NULL se não há.
 CREATE FUNCTION pg_temp.pai_de(classe text, extra text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
   SELECT CASE WHEN classe = 'proprio_filho' THEN regexp_match(extra, '^pai=([a-z0-9_]+)\.([a-z0-9_]+)')
-              WHEN classe = 'permissao' THEN regexp_match(extra, ';pai=([a-z0-9_]+)\.([a-z0-9_]+)$') END
+              WHEN classe = 'permissao' THEN regexp_match(extra, ';pai=([a-z0-9_]+)\.([a-z0-9_]+)(;|$)') END
 $$;
 -- Posse derivada: {filha, fk} para permissao (extra=escrita=...;filho=<filha>.<fk>): o servidor lê a linha
 -- referenciada por uma filha sua (filha.servidor_id); NULL se não há.
 CREATE FUNCTION pg_temp.filho_de(classe text, extra text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
-  SELECT CASE WHEN classe = 'permissao' THEN regexp_match(extra, ';filho=([a-z0-9_]+)\.([a-z0-9_]+)$') END
+  SELECT CASE WHEN classe = 'permissao' THEN regexp_match(extra, ';filho=([a-z0-9_]+)\.([a-z0-9_]+)(;|$)') END
 $$;
--- true quando o próprio servidor lê pela coluna servidor_id (proprio_leitura, proprio, permissao;proprio)
+-- true quando o próprio servidor lê por uma coluna da linha (proprio_leitura, proprio, permissao;proprio)
 CREATE FUNCTION pg_temp.proprio_de(classe text, extra text) RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
-  SELECT classe IN ('proprio_leitura', 'proprio') OR (classe = 'permissao' AND extra ~ ';proprio$')
+  SELECT classe IN ('proprio_leitura', 'proprio') OR (classe = 'permissao' AND pg_temp.tem_sufixo(extra, 'proprio'))
+$$;
+-- coluna de posse de proprio_de (;coluna=<col>; padrão servidor_id)
+CREATE FUNCTION pg_temp.coluna_posse(extra text) RETURNS text LANGUAGE sql IMMUTABLE AS $$
+  SELECT coalesce((regexp_match(extra, '(^|;)coluna=([a-z0-9_]+)'))[2], 'servidor_id')
+$$;
+-- true quando o servidor também INSERE a linha sua (proprio; proprio_filho;insere; permissao;insere_proprio)
+CREATE FUNCTION pg_temp.insere_proprio_de(classe text, extra text) RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
+  SELECT classe = 'proprio' OR (classe = 'proprio_filho' AND pg_temp.tem_sufixo(extra, 'insere'))
+      OR (classe = 'permissao' AND pg_temp.tem_sufixo(extra, 'insere_proprio'))
 $$;
 
 DO $$
@@ -346,8 +380,8 @@ BEGIN
     dupla := pg_temp.proprio_de(m.classe, m.extra) OR pg_temp.pai_de(m.classe, m.extra) IS NOT NULL
              OR pg_temp.filho_de(m.classe, m.extra) IS NOT NULL OR m.classe = 'proprio_user';
     IF pg_temp.proprio_de(m.classe, m.extra) THEN
-      ida := pg_temp.seed_row(m.tabela, jsonb_build_object('servidor_id', sa));
-      idb := pg_temp.seed_row(m.tabela, jsonb_build_object('servidor_id', sb));
+      ida := pg_temp.seed_row(m.tabela, jsonb_build_object(pg_temp.coluna_posse(m.extra), sa));
+      idb := pg_temp.seed_row(m.tabela, jsonb_build_object(pg_temp.coluna_posse(m.extra), sb));
     ELSIF pg_temp.pai_de(m.classe, m.extra) IS NOT NULL THEN
       cx := pg_temp.pai_de(m.classe, m.extra); pai := cx[1]; fk := cx[2];
       SELECT id_a, id_b INTO pida, pidb FROM semeado WHERE tabela = pai;
@@ -383,14 +417,14 @@ DECLARE
   u_b uuid := (SELECT uid FROM persona WHERE nome='srv_b');
   sa text := 'b0000000-0000-0000-0000-00000000000a'; sb text := 'b0000000-0000-0000-0000-00000000000b';
   pai text; fk text; cx text[]; pida text; pidb text; u_mod uuid; coluna text; u_perm uuid; u_avulsa uuid; codigo text; insere boolean;
+  codigos text[]; outro_sv text;
   total int := 0;
 BEGIN
   FOR m IN SELECT * FROM mapa WHERE classe NOT IN ('preservar') ORDER BY tabela LOOP
     total := total + 1;
     mods := string_to_array(nullif(m.modulos, ''), '|');
-    codigo := (regexp_match(m.extra, '^escrita=([^;]+)'))[1];
-    u_perm := (SELECT uid FROM persona WHERE nome = 'perm_' || codigo);
-    u_avulsa := (SELECT uid FROM persona WHERE nome = 'perm_avulsa_' || codigo);
+    codigos := pg_temp.codigos_escrita(m.classe, m.extra);
+    codigo := array_to_string(codigos, '|');
     SELECT ok INTO ok_seed FROM semeado WHERE tabela = m.tabela;
     IF NOT coalesce(ok_seed, false) THEN PERFORM pg_temp.falha('sem linha de teste (cobertura incompleta; ajuste seed_ov): ' || m.tabela || ' [' || m.classe || '] ' || coalesce((SELECT msg FROM seed_erro WHERE tabela = m.tabela LIMIT 1), '')); END IF;
 
@@ -469,9 +503,14 @@ BEGIN
     -- módulo E código (perm_<código>) ou o papel admin; a permissão avulsa sem módulo (perm_avulsa_<código>) não
     -- escreve nem lê. A leitura própria (;proprio / ;pai / ;filho) é testada nos blocos de posse abaixo.
     IF m.classe = 'permissao' THEN
-      IF codigo IS NULL OR u_perm IS NULL OR u_avulsa IS NULL THEN
+      IF codigos IS NULL OR array_length(codigos, 1) IS NULL THEN
         PERFORM pg_temp.falha(m.tabela || ': extra da classe permissao sem escrita=<código> (' || m.extra || ')');
-      ELSE
+      END IF;
+      -- lista escrita=a|b|c: CADA código sozinho (com o módulo) escreve
+      FOREACH codigo IN ARRAY coalesce(codigos, '{}') LOOP
+        u_perm := (SELECT uid FROM persona WHERE nome = 'perm_' || codigo);
+        u_avulsa := (SELECT uid FROM persona WHERE nome = 'perm_avulsa_' || codigo);
+        IF u_perm IS NULL OR u_avulsa IS NULL THEN PERFORM pg_temp.falha(m.tabela || ': sem persona para o código ' || codigo); CONTINUE; END IF;
         IF coalesce(ok_seed, false) AND pg_temp.sel(u_perm, 'authenticated', m.tabela) < 1 THEN
           PERFORM pg_temp.falha(m.tabela || ': quem tem ' || codigo || ' não enxerga a linha');
         END IF;
@@ -484,7 +523,26 @@ BEGIN
         IF coalesce(ok_seed, false) AND pg_temp.sel(u_avulsa, 'authenticated', m.tabela) > 0 THEN
           PERFORM pg_temp.falha(m.tabela || ': permissão avulsa ' || codigo || ' SEM o módulo enxerga linhas');
         END IF;
-      END IF;
+        -- ;sem_autoaprovacao: dono da linha A (profiles.servidor_id = A), com a permissão, não insere para si pelo
+        -- caminho da permissão (só pelo da posse, com ;insere_proprio) e insere para o outro servidor
+        IF pg_temp.tem_sufixo(m.extra, 'sem_autoaprovacao') AND coalesce(ok_seed, false) THEN
+          UPDATE public.profiles SET servidor_id = sa::uuid WHERE id = u_perm;
+          IF pg_temp.proprio_de(m.classe, m.extra) THEN
+            coluna := pg_temp.coluna_posse(m.extra); r := quote_literal(sa); outro_sv := quote_literal(sb);
+          ELSE
+            cx := pg_temp.pai_de(m.classe, m.extra); coluna := cx[2];
+            SELECT quote_literal(id_a), quote_literal(id_b) INTO r, outro_sv FROM semeado WHERE tabela = cx[1];
+          END IF;
+          IF (pg_temp.ins(u_perm, 'authenticated', m.tabela, coluna, r) = 'negado') = pg_temp.insere_proprio_de(m.classe, m.extra) THEN
+            PERFORM pg_temp.falha(m.tabela || ': dono da linha com ' || codigo || CASE WHEN pg_temp.insere_proprio_de(m.classe, m.extra)
+              THEN ' não insere o próprio pedido (caminho da posse)' ELSE ' insere linha para si mesmo (sem_autoaprovacao)' END);
+          END IF;
+          IF pg_temp.ins(u_perm, 'authenticated', m.tabela, coluna, outro_sv) = 'negado' THEN
+            PERFORM pg_temp.falha(m.tabela || ': dono da linha A com ' || codigo || ' não insere linha do OUTRO servidor');
+          END IF;
+          UPDATE public.profiles SET servidor_id = NULL WHERE id = u_perm;
+        END IF;
+      END LOOP;
       IF pg_temp.ins(u_admin, 'authenticated', m.tabela) = 'negado' THEN PERFORM pg_temp.falha(m.tabela || ': papel admin não consegue INSERT'); END IF;
       IF pg_temp.ins((SELECT uid FROM persona WHERE nome='admin_inativo'), 'authenticated', m.tabela) <> 'negado' THEN PERFORM pg_temp.falha(m.tabela || ': admin BLOQUEADO consegue INSERT'); END IF;
     END IF;
@@ -541,18 +599,19 @@ BEGIN
       IF pg_temp.sel((SELECT uid FROM persona WHERE nome='mod_' || mods[1]), 'authenticated', m.tabela) <> 2 THEN
         PERFORM pg_temp.falha(m.tabela || ': módulo deveria ver as 2 linhas');
       END IF;
-      IF m.classe <> 'proprio' AND pg_temp.ins(u_a, 'authenticated', m.tabela, 'servidor_id', quote_literal(sa)) <> 'negado' THEN
+      coluna := pg_temp.coluna_posse(m.extra);
+      IF NOT pg_temp.insere_proprio_de(m.classe, m.extra) AND pg_temp.ins(u_a, 'authenticated', m.tabela, coluna, quote_literal(sa)) <> 'negado' THEN
         PERFORM pg_temp.falha(m.tabela || ': servidor consegue escrever em tabela só-leitura própria');
       END IF;
-      IF m.classe = 'proprio' THEN
-        IF pg_temp.ins(u_a, 'authenticated', m.tabela, 'servidor_id', quote_literal(sa)) = 'negado' THEN PERFORM pg_temp.falha(m.tabela || ': srv_a não consegue criar pedido para si'); END IF;
-        IF pg_temp.ins(u_a, 'authenticated', m.tabela, 'servidor_id', quote_literal(sb)) <> 'negado' THEN PERFORM pg_temp.falha(m.tabela || ': srv_a consegue criar pedido em nome de OUTRO servidor'); END IF;
+      IF pg_temp.insere_proprio_de(m.classe, m.extra) THEN
+        IF pg_temp.ins(u_a, 'authenticated', m.tabela, coluna, quote_literal(sa)) = 'negado' THEN PERFORM pg_temp.falha(m.tabela || ': srv_a não consegue criar pedido para si'); END IF;
+        IF pg_temp.ins(u_a, 'authenticated', m.tabela, coluna, quote_literal(sb)) <> 'negado' THEN PERFORM pg_temp.falha(m.tabela || ': srv_a consegue criar pedido em nome de OUTRO servidor'); END IF;
       END IF;
     END IF;
     -- posse pela tabela pai (proprio_filho, permissao;pai=)
     IF pg_temp.pai_de(m.classe, m.extra) IS NOT NULL AND coalesce(ok_seed, false) THEN
       cx := pg_temp.pai_de(m.classe, m.extra); pai := cx[1]; fk := cx[2];
-      insere := m.classe = 'proprio_filho' AND m.extra ~ ';insere$';
+      insere := pg_temp.insere_proprio_de(m.classe, m.extra);
       SELECT id_a, id_b INTO pida, pidb FROM semeado WHERE tabela = pai;
       IF pg_temp.sel(u_a, 'authenticated', m.tabela) <> 1 THEN PERFORM pg_temp.falha(m.tabela || ': srv_a deveria ver exatamente 1 linha (a sua)'); END IF;
       IF pg_temp.sel(u_b, 'authenticated', m.tabela) <> 1 THEN PERFORM pg_temp.falha(m.tabela || ': srv_b deveria ver exatamente 1 linha (a sua)'); END IF;
@@ -584,26 +643,37 @@ END $$;
 -- ---------------------------------------------------------------- UPDATE e DELETE por tabela
 -- Quem escreve: admin e o(s) módulo(s) do mapa. `trilha` ninguém; `admin`, `catalogo_admin` e
 -- `proprio_user` só o papel admin. O servidor dono de uma linha (proprio_*) NÃO altera nem apaga.
+-- permissao: cada código da lista escrita=; ;excluir=<código>|admin muda só o DELETE (também em proprio_leitura).
+-- ;sem_autoaprovacao: a persona com a permissão e dona da linha A só alcança a linha B.
 DO $$
 DECLARE
-  m record; mods text[]; pers record; autorizado boolean; n int; op text; outro text; checagens int := 0; perm text; avulsa text;
+  m record; mods text[]; pers record; autorizado boolean; n int; op text; outro text; checagens int := 0;
+  perms text[]; avulsas text[]; excl text; perm_excl text; tem_mod boolean; codigo text; u_perm uuid;
+  sa uuid := 'b0000000-0000-0000-0000-00000000000a';
 BEGIN
   FOR m IN SELECT * FROM mapa WHERE classe NOT IN ('preservar', 'fechada') AND tabela IN (SELECT tabela FROM semeado WHERE ok) ORDER BY tabela LOOP
     mods := coalesce(string_to_array(nullif(m.modulos, ''), '|'), ARRAY[]::text[]);
     outro := (SELECT x FROM unnest(ARRAY['financeiro','rh','compras','patrimonio']) x WHERE x <> ALL (mods) LIMIT 1);
-    perm := CASE WHEN m.classe = 'permissao' THEN 'perm_' || (regexp_match(m.extra, '^escrita=([^;]+)'))[1] END;
-    avulsa := CASE WHEN m.classe = 'permissao' THEN 'perm_avulsa_' || (regexp_match(m.extra, '^escrita=([^;]+)'))[1] END;
+    perms := coalesce((SELECT array_agg('perm_' || c) FROM unnest(pg_temp.codigos_escrita(m.classe, m.extra)) c), '{}');
+    avulsas := coalesce((SELECT array_agg('perm_avulsa_' || c) FROM unnest(pg_temp.codigos_escrita(m.classe, m.extra)) c), '{}');
+    excl := pg_temp.excluir_de(m.classe, m.extra);
+    perm_excl := CASE WHEN excl <> 'admin' THEN 'perm_' || excl END;
     FOR pers IN SELECT * FROM persona
                 WHERE nome IN ('admin','admin_inativo','nenhum','inativo','srv_a','srv_inativo','mod_admin','mod_' || outro)
                    OR nome = ANY (SELECT 'mod_' || x FROM unnest(mods) x)
-                   OR nome IN (perm, avulsa) LOOP
-      autorizado := CASE
-        WHEN m.classe IN ('trilha', 'admin_leitura') THEN false
-        WHEN m.classe IN ('admin', 'catalogo_admin', 'proprio_user', 'publico_admin') THEN pers.nome = 'admin'
-        WHEN m.classe = 'permissao' THEN pers.nome = 'admin' OR pers.nome = perm   -- módulo sozinho e permissão avulsa NÃO alteram nem apagam
-        ELSE pers.nome = 'admin' OR (pers.nome LIKE 'mod_%' AND substr(pers.nome, 5) = ANY (mods))
-      END;
+                   OR nome = ANY (perms) OR nome = ANY (avulsas) OR nome = perm_excl LOOP
+      -- persona com algum módulo da tabela (mod_<m> ou perm_<código> cujo módulo é da tabela)
+      tem_mod := (pers.nome LIKE 'mod_%' AND substr(pers.nome, 5) = ANY (mods))
+                 OR EXISTS (SELECT 1 FROM persona_perm pp WHERE pp.nome = pers.nome AND pp.modulos && mods);
       FOREACH op IN ARRAY ARRAY['UPDATE', 'DELETE'] LOOP
+        autorizado := CASE
+          WHEN m.classe IN ('trilha', 'admin_leitura') THEN false
+          WHEN m.classe IN ('admin', 'catalogo_admin', 'proprio_user', 'publico_admin') THEN pers.nome = 'admin'
+          WHEN op = 'DELETE' AND excl = 'admin' THEN pers.nome = 'admin'
+          WHEN op = 'DELETE' AND excl IS NOT NULL THEN pers.nome = 'admin' OR pers.nome = perm_excl
+          WHEN m.classe = 'permissao' THEN pers.nome = 'admin' OR pers.nome = ANY (perms)   -- módulo sozinho e permissão avulsa NÃO alteram nem apagam
+          ELSE pers.nome = 'admin' OR tem_mod
+        END;
         n := CASE op WHEN 'UPDATE' THEN pg_temp.upd(pers.uid, 'authenticated', m.tabela) ELSE pg_temp.del(pers.uid, 'authenticated', m.tabela) END;
         checagens := checagens + 1;
         IF n = -2 THEN
@@ -615,6 +685,21 @@ BEGIN
         END IF;
       END LOOP;
     END LOOP;
+    -- ;sem_autoaprovacao: com a permissão e dono da linha A, só a linha B (do outro servidor) é alcançada
+    IF pg_temp.tem_sufixo(m.extra, 'sem_autoaprovacao') THEN
+      FOREACH codigo IN ARRAY pg_temp.codigos_escrita(m.classe, m.extra) LOOP
+        u_perm := (SELECT uid FROM persona WHERE nome = 'perm_' || codigo);
+        UPDATE public.profiles SET servidor_id = sa WHERE id = u_perm;
+        n := pg_temp.upd(u_perm, 'authenticated', m.tabela);
+        IF n <> 1 THEN PERFORM pg_temp.falha(format('%s: dono da linha A com %s altera %s linha(s) (esperado 1: só a do outro servidor)', m.tabela, codigo, n)); END IF;
+        IF excl IS NULL THEN
+          n := pg_temp.del(u_perm, 'authenticated', m.tabela);
+          IF n <> 1 THEN PERFORM pg_temp.falha(format('%s: dono da linha A com %s apaga %s linha(s) (esperado 1: só a do outro servidor)', m.tabela, codigo, n)); END IF;
+        END IF;
+        UPDATE public.profiles SET servidor_id = NULL WHERE id = u_perm;
+        checagens := checagens + 2;
+      END LOOP;
+    END IF;
     -- anon nunca altera nem apaga
     IF pg_temp.upd(NULL, 'anon', m.tabela) > 0 OR pg_temp.del(NULL, 'anon', m.tabela) > 0 THEN
       PERFORM pg_temp.falha(m.tabela || ': anon consegue UPDATE/DELETE');
@@ -901,7 +986,9 @@ BEGIN
   END LOOP;
 
   -- eSocial devolve o servidor ao RH e NADA a quem não tem módulo (a RLS de servidores vale)
-  INSERT INTO public.servidores (id, nome_completo, cpf) VALUES (sa::uuid, 'Servidor Alheio Teste', '00000000000') ON CONFLICT DO NOTHING;
+  -- (servidores é proprio_leitura;coluna=id: a semente já criou a linha com id = sa; aqui só ganha o nome procurado)
+  INSERT INTO public.servidores (id, nome_completo, cpf) VALUES (sa::uuid, 'Servidor Alheio Teste', '00000000000')
+    ON CONFLICT (id) DO UPDATE SET nome_completo = EXCLUDED.nome_completo;
   PERFORM set_config('request.jwt.claims', json_build_object('sub', u_nenhum, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
   BEGIN r := public.fn_gerar_esocial_s2200(sa::uuid)::text; EXCEPTION WHEN OTHERS THEN r := 'erro'; END;
@@ -950,9 +1037,10 @@ BEGIN
   ELSIF (SELECT status || coalesce(aprovado_rh_por::text, '') || coalesce(aprovado_rh_em::text, '') FROM public.solicitacoes_abono WHERE id = 'd1000000-0000-0000-0000-000000000004') <> 'pendente' THEN
     PERFORM pg_temp.falha('solicitacoes_abono: servidor se autoaprovou');
   END IF;
-  r := pg_temp.insere_como(u_rh, 'authenticated', 'solicitacoes_abono', jsonb_build_object('id', 'd1000000-0000-0000-0000-000000000005', 'servidor_id', sa, 'tipo_abono_id', v_tipo, 'status', 'aprovado'));
+  -- o RH lança abono já aprovado: módulo rh E rh.frequencia.lancar (B2; o módulo sozinho não escreve mais)
+  r := pg_temp.insere_como((SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar'), 'authenticated', 'solicitacoes_abono', jsonb_build_object('id', 'd1000000-0000-0000-0000-000000000005', 'servidor_id', sa, 'tipo_abono_id', v_tipo, 'status', 'aprovado'));
   IF r <> 'ok' OR (SELECT status FROM public.solicitacoes_abono WHERE id = 'd1000000-0000-0000-0000-000000000005') <> 'aprovado' THEN
-    PERFORM pg_temp.falha('solicitacoes_abono: o RH não consegue lançar abono já aprovado (' || r || ')');
+    PERFORM pg_temp.falha('solicitacoes_abono: o RH (rh.frequencia.lancar) não consegue lançar abono já aprovado (' || r || ')');
   END IF;
 END $$;
 
@@ -1331,6 +1419,166 @@ BEGIN
   END LOOP;
   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.campanhas_inventario_unidades'::regclass AND NOT tgisinternal AND tgenabled <> 'D') THEN
     PERFORM pg_temp.falha('campanhas_inventario_unidades: falta o trigger de updated_at/updated_by');
+  END IF;
+END $$;
+
+-- ---------------------------------------------------------------- RH: permissões e etapas (Onda B / B2) (TRIGGERS LIGADOS)
+-- Migração 20261010090000_onda_b_rh_permissoes.sql (e overlay/20 no baseline):
+--   * forcar_campos_iniciais com isenção por PERMISSÃO (perm:rh:rh.aprovar|rh.frequencia.lancar): quem tem o módulo
+--     sem a permissão e quem tem a permissão mas é o dono do pedido gravam o pedido zerado (status pendente,
+--     aprovadores nulos); quem tem módulo E permissão grava já decidido para OUTRO servidor;
+--   * validar_etapa_frequencia: cada etapa do abono e do fechamento exige a sua permissão (42501 com a etapa).
+DO $$
+DECLARE
+  u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
+  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');                      -- módulo rh, sem permissão
+  u_ch uuid := (SELECT uid FROM persona WHERE nome='perm_rh.aprovar');             -- chefia: módulo rh + rh.aprovar
+  u_rhp uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');  -- RH: módulo rh + rh.frequencia.lancar
+  sa text := 'b0000000-0000-0000-0000-00000000000a';
+  sb text := 'b0000000-0000-0000-0000-00000000000b';
+  ponto_a text := (SELECT id_a FROM semeado WHERE tabela = 'registros_ponto');   -- registro de ponto do servidor A
+  ponto_b text := (SELECT id_b FROM semeado WHERE tabela = 'registros_ponto');   -- registro de ponto do servidor B
+  tipo_rh uuid; tipo_chefia uuid; r text; t text; x record;
+  ab_pend uuid := 'd2000000-0000-0000-0000-000000000001';      -- pendente, tipo que exige o RH
+  ab_pend2 uuid := 'd2000000-0000-0000-0000-000000000002';     -- pendente, tipo que dispensa o RH
+  ab_chefia uuid := 'd2000000-0000-0000-0000-000000000003';    -- já aprovado pela chefia (etapa do RH)
+  ff_novo uuid := 'd2000000-0000-0000-0000-000000000011';      -- fechamento sem validação
+  ff_cons uuid := 'd2000000-0000-0000-0000-000000000012';      -- fechamento validado e consolidado
+  chefia_ok text := 'status = ''aprovado_chefia'', aprovado_chefia_por = auth.uid(), aprovado_chefia_em = now()';
+  rh_ok text := 'status = ''aprovado'', aprovado_rh_por = auth.uid(), aprovado_rh_em = now()';
+  encerra text := 'status = ''aprovado'', aprovado_chefia_por = auth.uid(), aprovado_chefia_em = now()';
+  rejeita text := 'status = ''rejeitado'', motivo_rejeicao = ''motivo de teste''';
+  validar text := 'validado_chefia = true, validado_chefia_por = auth.uid(), validado_chefia_em = now()';
+  consolidar text := 'consolidado_rh = true, consolidado_rh_por = auth.uid(), consolidado_rh_em = now(), reaberto = false';
+  reabrir text := 'reaberto = true, reaberto_por = auth.uid(), reaberto_em = now(), justificativa_reabertura = ''teste'', validado_chefia = false, validado_chefia_por = NULL, validado_chefia_em = NULL, consolidado_rh = false, consolidado_rh_por = NULL, consolidado_rh_em = NULL';
+BEGIN
+  tipo_rh := pg_temp.seed_row('tipos_abono', '{"exige_aprovacao_rh": true}'::jsonb)::uuid;
+  tipo_chefia := pg_temp.seed_row('tipos_abono', '{"exige_aprovacao_rh": false}'::jsonb)::uuid;
+
+  -- ===== campos iniciais por permissão (forcar_campos_iniciais, formato perm:)
+  -- módulo rh SEM permissão, ligado ao servidor B: insere o próprio pedido (caminho da posse), mas não decide
+  UPDATE public.profiles SET servidor_id = sb::uuid WHERE id = u_rh;
+  r := pg_temp.insere_como(u_rh, 'authenticated', 'solicitacoes_abono', jsonb_build_object('id', 'd2000000-0000-0000-0000-000000000021', 'servidor_id', sb, 'tipo_abono_id', tipo_rh, 'status', 'aprovado', 'aprovado_rh_por', u_admin::text, 'aprovado_rh_em', now()::text));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('solicitacoes_abono: módulo rh sem permissão não pede abono para si (' || r || ')');
+  ELSIF (SELECT status || coalesce(aprovado_rh_por::text, '') FROM public.solicitacoes_abono WHERE id = 'd2000000-0000-0000-0000-000000000021') <> 'pendente' THEN
+    PERFORM pg_temp.falha('solicitacoes_abono: módulo rh sem permissão grava o próprio pedido já aprovado (campos iniciais isentos só pelo módulo)');
+  END IF;
+  r := pg_temp.insere_como(u_rh, 'authenticated', 'solicitacoes_abono', jsonb_build_object('servidor_id', sa, 'tipo_abono_id', tipo_rh));
+  IF r = 'ok' THEN PERFORM pg_temp.falha('solicitacoes_abono: módulo rh sem permissão insere pedido de OUTRO servidor'); END IF;
+  UPDATE public.profiles SET servidor_id = NULL WHERE id = u_rh;
+  -- RH com a permissão, ligado ao servidor B: o próprio pedido entra zerado; o de outro servidor entra decidido
+  UPDATE public.profiles SET servidor_id = sb::uuid WHERE id = u_rhp;
+  r := pg_temp.insere_como(u_rhp, 'authenticated', 'solicitacoes_abono', jsonb_build_object('id', 'd2000000-0000-0000-0000-000000000022', 'servidor_id', sb, 'tipo_abono_id', tipo_rh, 'status', 'aprovado', 'aprovado_rh_por', u_rhp::text, 'aprovado_rh_em', now()::text));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('solicitacoes_abono: RH não pede abono para si (' || r || ')');
+  ELSIF (SELECT status || coalesce(aprovado_rh_por::text, '') FROM public.solicitacoes_abono WHERE id = 'd2000000-0000-0000-0000-000000000022') <> 'pendente' THEN
+    PERFORM pg_temp.falha('solicitacoes_abono: RH grava o PRÓPRIO pedido já aprovado (autoaprovação no INSERT)');
+  END IF;
+  r := pg_temp.insere_como(u_rhp, 'authenticated', 'solicitacoes_abono', jsonb_build_object('id', 'd2000000-0000-0000-0000-000000000023', 'servidor_id', sa, 'tipo_abono_id', tipo_rh, 'status', 'aprovado', 'aprovado_rh_por', u_rhp::text, 'aprovado_rh_em', now()::text));
+  IF r <> 'ok' OR (SELECT status FROM public.solicitacoes_abono WHERE id = 'd2000000-0000-0000-0000-000000000023') <> 'aprovado' THEN
+    PERFORM pg_temp.falha('solicitacoes_abono: RH não lança abono já aprovado para outro servidor (' || r || ')');
+  END IF;
+  UPDATE public.profiles SET servidor_id = NULL WHERE id = u_rhp;
+  -- justificativa (posse pelo registro de ponto): chefia dona do ponto B grava zerada; no ponto A, decidida
+  UPDATE public.profiles SET servidor_id = sb::uuid WHERE id = u_ch;
+  r := pg_temp.insere_como(u_ch, 'authenticated', 'justificativas_ponto', jsonb_build_object('id', 'd2000000-0000-0000-0000-000000000031', 'registro_ponto_id', ponto_b, 'status', 'aprovada', 'aprovador_id', u_ch::text));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('justificativas_ponto: chefia não justifica o próprio ponto (' || r || ')');
+  ELSIF (SELECT status::text || coalesce(aprovador_id::text, '') FROM public.justificativas_ponto WHERE id = 'd2000000-0000-0000-0000-000000000031') <> 'pendente' THEN
+    PERFORM pg_temp.falha('justificativas_ponto: chefia grava a justificativa do PRÓPRIO ponto já aprovada');
+  END IF;
+  r := pg_temp.insere_como(u_ch, 'authenticated', 'justificativas_ponto', jsonb_build_object('id', 'd2000000-0000-0000-0000-000000000032', 'registro_ponto_id', ponto_a, 'status', 'aprovada', 'aprovador_id', u_ch::text));
+  IF r <> 'ok' OR (SELECT status::text FROM public.justificativas_ponto WHERE id = 'd2000000-0000-0000-0000-000000000032') <> 'aprovada' THEN
+    PERFORM pg_temp.falha('justificativas_ponto: chefia não registra justificativa decidida no ponto de OUTRO servidor (' || r || ')');
+  END IF;
+  UPDATE public.profiles SET servidor_id = NULL WHERE id = u_ch;
+  FOREACH t IN ARRAY ARRAY['solicitacoes_abono', 'justificativas_ponto', 'solicitacoes_ajuste_ponto'] LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = ('public.' || t)::regclass AND tgname = 'trg_forcar_campos_iniciais'
+                   AND NOT tgisinternal AND encode(tgargs, 'escape') LIKE 'perm:rh:%') THEN
+      PERFORM pg_temp.falha(t || ': trg_forcar_campos_iniciais não isenta por permissão (perm:rh:...)');
+    END IF;
+  END LOOP;
+
+  -- ===== etapas do abono (validar_etapa_frequencia)
+  INSERT INTO public.solicitacoes_abono (id, servidor_id, tipo_abono_id, data_inicio, data_fim, justificativa, status) VALUES
+    (ab_pend, sa::uuid, tipo_rh, current_date, current_date, 'teste', 'pendente'),
+    (ab_pend2, sa::uuid, tipo_chefia, current_date, current_date, 'teste', 'pendente'),
+    (ab_chefia, sa::uuid, tipo_rh, current_date, current_date, 'teste', 'aprovado_chefia');
+  FOR x IN SELECT * FROM (VALUES
+      -- quem, linha, SET, esperado (ok:1 ou prefixo do erro)
+      ('chefia', ab_pend, chefia_ok, 'ok:1'),
+      ('rh', ab_pend, chefia_ok, 'erro:42501:Etapa da chefia'),
+      ('chefia', ab_chefia, rh_ok, 'erro:42501:Etapa do RH'),
+      ('rh', ab_chefia, rh_ok, 'ok:1'),
+      ('chefia', ab_chefia, 'aprovado_rh_por = auth.uid()', 'erro:42501:Etapa do RH'),
+      ('rh', ab_pend, 'aprovado_chefia_por = auth.uid()', 'erro:42501:Etapa da chefia'),
+      ('chefia', ab_pend2, encerra, 'ok:1'),                         -- tipo dispensa o RH: a chefia encerra
+      ('chefia', ab_pend, encerra, 'erro:42501:Etapa do RH'),        -- tipo exige o RH: a chefia não encerra
+      ('chefia', ab_pend, rejeita, 'ok:1'),
+      ('rh', ab_pend, rejeita, 'ok:1'),
+      ('chefia', ab_chefia, rejeita, 'erro:42501:Etapa do RH'),      -- rejeitar na etapa do RH
+      ('rh', ab_chefia, rejeita, 'ok:1'),
+      ('chefia', ab_pend, 'status = ''cancelado''', 'erro:42501:Etapa do RH'),
+      ('admin', ab_pend, rh_ok, 'ok:1')
+    ) AS v(quem, linha, sets, esperado) LOOP
+    r := pg_temp.sql_como(CASE x.quem WHEN 'chefia' THEN u_ch WHEN 'rh' THEN u_rhp ELSE u_admin END, 'authenticated',
+                          format('UPDATE public.solicitacoes_abono SET %s WHERE id = %L', x.sets, x.linha));
+    IF r NOT LIKE x.esperado || '%' THEN
+      PERFORM pg_temp.falha(format('solicitacoes_abono: %s com SET %s deu %s (esperado %s)', x.quem, x.sets, r, x.esperado));
+    END IF;
+  END LOOP;
+  -- INSERT já decidido na etapa do RH por quem só tem rh.aprovar (a isenção do forcar vale, a etapa não)
+  r := pg_temp.sql_como(u_ch, 'authenticated', format('INSERT INTO public.solicitacoes_abono (servidor_id, tipo_abono_id, data_inicio, data_fim, justificativa, status, aprovado_rh_por, aprovado_rh_em) VALUES (%L, %L, current_date, current_date, ''x'', ''aprovado'', auth.uid(), now())', sa, tipo_rh));
+  IF r NOT LIKE 'erro:42501:Etapa do RH%' THEN PERFORM pg_temp.falha('solicitacoes_abono: quem só tem rh.aprovar insere abono já aprovado pelo RH (' || r || ')'); END IF;
+  -- DELETE é do RH
+  r := pg_temp.sql_como(u_ch, 'authenticated', format('DELETE FROM public.solicitacoes_abono WHERE id = %L', ab_pend));
+  IF r NOT LIKE 'erro:42501:Etapa do RH%' THEN PERFORM pg_temp.falha('solicitacoes_abono: quem só tem rh.aprovar apaga abono (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rhp, 'authenticated', format('DELETE FROM public.solicitacoes_abono WHERE id = %L', ab_pend));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('solicitacoes_abono: RH não apaga abono de outro servidor (' || r || ')'); END IF;
+
+  -- ===== etapas do fechamento da frequência
+  INSERT INTO public.frequencia_fechamento (id, servidor_id, ano, mes) VALUES (ff_novo, sa::uuid, 2031, 1);
+  INSERT INTO public.frequencia_fechamento (id, servidor_id, ano, mes, validado_chefia, validado_chefia_por, validado_chefia_em, consolidado_rh, consolidado_rh_por, consolidado_rh_em)
+    VALUES (ff_cons, sa::uuid, 2031, 2, true, u_ch, now(), true, u_rhp, now());
+  FOR x IN SELECT * FROM (VALUES
+      ('chefia', ff_novo, validar, 'ok:1'),
+      ('rh', ff_novo, validar, 'erro:42501:Etapa da chefia'),
+      ('chefia', ff_novo, consolidar, 'erro:42501:Etapa do RH'),
+      ('rh', ff_novo, consolidar, 'ok:1'),
+      ('rh', ff_cons, reabrir, 'ok:1'),
+      ('chefia', ff_cons, reabrir, 'erro:42501:Etapa do RH'),
+      ('chefia', ff_cons, 'validado_chefia = false', 'erro:42501:Etapa do RH'),
+      ('admin', ff_novo, consolidar, 'ok:1')
+    ) AS v(quem, linha, sets, esperado) LOOP
+    r := pg_temp.sql_como(CASE x.quem WHEN 'chefia' THEN u_ch WHEN 'rh' THEN u_rhp ELSE u_admin END, 'authenticated',
+                          format('UPDATE public.frequencia_fechamento SET %s WHERE id = %L', x.sets, x.linha));
+    IF r NOT LIKE x.esperado || '%' THEN
+      PERFORM pg_temp.falha(format('frequencia_fechamento: %s com SET %s deu %s (esperado %s)', x.quem, left(x.sets, 40), r, x.esperado));
+    END IF;
+  END LOOP;
+  -- upsert do front (validar/consolidar): a linha nova não nasce consolidada por quem só valida
+  r := pg_temp.sql_como(u_ch, 'authenticated', format('INSERT INTO public.frequencia_fechamento (servidor_id, ano, mes, consolidado_rh, consolidado_rh_por, consolidado_rh_em) VALUES (%L, 2031, 3, true, auth.uid(), now())', sa));
+  IF r NOT LIKE 'erro:42501:Etapa do RH%' THEN PERFORM pg_temp.falha('frequencia_fechamento: quem só tem rh.aprovar insere fechamento já consolidado (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ch, 'authenticated', format('INSERT INTO public.frequencia_fechamento (servidor_id, ano, mes, validado_chefia, validado_chefia_por, validado_chefia_em) VALUES (%L, 2031, 4, true, auth.uid(), now()) ON CONFLICT (servidor_id, ano, mes) DO UPDATE SET validado_chefia = EXCLUDED.validado_chefia, validado_chefia_por = EXCLUDED.validado_chefia_por, validado_chefia_em = EXCLUDED.validado_chefia_em', sa));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('frequencia_fechamento: chefia não valida por upsert (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rhp, 'authenticated', format('INSERT INTO public.frequencia_fechamento (servidor_id, ano, mes, consolidado_rh, consolidado_rh_por, consolidado_rh_em, reaberto) VALUES (%L, 2031, 2, true, auth.uid(), now(), false) ON CONFLICT (servidor_id, ano, mes) DO UPDATE SET consolidado_rh = EXCLUDED.consolidado_rh, consolidado_rh_por = EXCLUDED.consolidado_rh_por, consolidado_rh_em = EXCLUDED.consolidado_rh_em, reaberto = EXCLUDED.reaberto', sa));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('frequencia_fechamento: RH não consolida por upsert (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ch, 'authenticated', format('DELETE FROM public.frequencia_fechamento WHERE id = %L', ff_cons));
+  IF r NOT LIKE 'erro:42501:Etapa do RH%' THEN PERFORM pg_temp.falha('frequencia_fechamento: quem só tem rh.aprovar apaga o fechamento (' || r || ')'); END IF;
+  -- dono da linha não decide sobre a própria (sem_autoaprovacao, com triggers ligados): a RLS nem alcança a linha
+  UPDATE public.profiles SET servidor_id = sa::uuid WHERE id = u_ch;
+  r := pg_temp.sql_como(u_ch, 'authenticated', format('UPDATE public.frequencia_fechamento SET %s WHERE id = %L', validar, ff_novo));
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('frequencia_fechamento: chefia valida a PRÓPRIA frequência (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ch, 'authenticated', format('UPDATE public.solicitacoes_abono SET %s WHERE id = %L', chefia_ok, ab_pend2));
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('solicitacoes_abono: chefia aprova o PRÓPRIO abono (' || r || ')'); END IF;
+  UPDATE public.profiles SET servidor_id = NULL WHERE id = u_ch;
+
+  FOREACH t IN ARRAY ARRAY['solicitacoes_abono', 'frequencia_fechamento'] LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = ('public.' || t)::regclass AND tgname = 'trg_validar_etapa_frequencia' AND NOT tgisinternal AND tgenabled <> 'D') THEN
+      PERFORM pg_temp.falha(t || ': falta o trigger trg_validar_etapa_frequencia');
+    END IF;
+  END LOOP;
+  IF to_regprocedure('public.validar_etapa_frequencia()') IS NOT NULL
+     AND has_function_privilege('authenticated', 'public.validar_etapa_frequencia()', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('validar_etapa_frequencia: executável por authenticated (função de trigger)');
   END IF;
 END $$;
 
