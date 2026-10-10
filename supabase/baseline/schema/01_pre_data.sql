@@ -4279,6 +4279,63 @@ $$;
 
 
 --
+-- Name: forcar_campos_iniciais(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.forcar_campos_iniciais() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  ov jsonb := '{}'::jsonb;
+  kv text;
+  i int;
+  isento boolean;
+  partes text[];
+  ref text[];
+  posse uuid;
+BEGIN
+  IF coalesce(current_setting('role', true), 'none') NOT IN ('anon', 'authenticated') THEN
+    RETURN NEW;
+  END IF;
+  IF TG_ARGV[0] LIKE 'perm:%' THEN
+    partes := string_to_array(TG_ARGV[0], ':');
+    isento := public.can_access_module(auth.uid(), partes[2])
+      AND EXISTS (SELECT 1 FROM unnest(string_to_array(partes[3], '|')) AS c(codigo)
+                  WHERE public.has_permission_code(auth.uid(), c.codigo));
+    IF isento AND NOT public.is_admin_user(auth.uid()) THEN
+      IF partes[4] IS NOT NULL THEN
+        ref := string_to_array(partes[4], '.');
+        EXECUTE format('SELECT servidor_id FROM public.%I WHERE id = $1', ref[1])
+          INTO posse USING (to_jsonb(NEW) ->> ref[2])::uuid;
+      ELSE
+        posse := (to_jsonb(NEW) ->> 'servidor_id')::uuid;
+      END IF;
+      IF posse IS NOT NULL AND posse = public.meu_servidor_id() THEN
+        isento := false;
+      END IF;
+    END IF;
+  ELSE
+    isento := public.can_access_module(auth.uid(), TG_ARGV[0]);
+  END IF;
+  IF NOT isento THEN
+    FOR i IN 1 .. TG_NARGS - 1 LOOP
+      kv := TG_ARGV[i];
+      IF to_jsonb(NEW) ? split_part(kv, '=', 1) THEN
+        ov := ov || jsonb_build_object(
+          split_part(kv, '=', 1),
+          CASE split_part(kv, '=', 2) WHEN 'NULL' THEN NULL WHEN '@uid' THEN auth.uid()::text ELSE split_part(kv, '=', 2) END
+        );
+      END IF;
+    END LOOP;
+    NEW := jsonb_populate_record(NEW, to_jsonb(NEW) || ov);
+  END IF;
+  RETURN NEW;
+END;
+$_$;
+
+
+--
 -- Name: generate_codigo_instituicao(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -6265,6 +6322,35 @@ $$;
 
 
 --
+-- Name: profiles_proteger_colunas(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.profiles_proteger_colunas() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF current_user IN ('authenticated', 'anon') AND NOT public.is_admin_user(auth.uid()) THEN
+    IF NEW.id IS DISTINCT FROM OLD.id
+       OR NEW.email IS DISTINCT FROM OLD.email
+       OR NEW.is_active IS DISTINCT FROM OLD.is_active
+       OR NEW.blocked_at IS DISTINCT FROM OLD.blocked_at
+       OR NEW.blocked_reason IS DISTINCT FROM OLD.blocked_reason
+       OR NEW.servidor_id IS DISTINCT FROM OLD.servidor_id
+       OR NEW.tipo_usuario IS DISTINCT FROM OLD.tipo_usuario
+       OR NEW.restringir_modulos IS DISTINCT FROM OLD.restringir_modulos
+       OR NEW.cpf IS DISTINCT FROM OLD.cpf
+    THEN
+      RAISE EXCEPTION 'Somente administradores alteram identidade, vínculo e bloqueio do perfil'
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: promover_rascunho(uuid, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -7177,6 +7263,111 @@ CREATE FUNCTION public.usuario_tem_permissao_financeira(p_user_id uuid, p_permis
     SET search_path TO 'public'
     AS $$
   SELECT public.has_permission_code(p_user_id, p_permissao::text);
+$$;
+
+
+--
+-- Name: validar_etapa_frequencia(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.validar_etapa_frequencia() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_chefia boolean;
+  v_rh boolean;
+  o jsonb;
+  n jsonb;
+  st_antes text;
+  st_depois text;
+  mudou_chefia boolean;
+  mudou_rh boolean;
+  dispensa_rh boolean;
+BEGIN
+  IF coalesce(current_setting('role', true), 'none') NOT IN ('anon', 'authenticated')
+     OR public.is_admin_user(v_uid) THEN
+    RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+  END IF;
+  v_chefia := public.has_permission_code(v_uid, 'rh.aprovar');
+  v_rh := public.has_permission_code(v_uid, 'rh.frequencia.lancar');
+
+  IF TG_OP = 'DELETE' THEN
+    IF NOT v_rh THEN
+      RAISE EXCEPTION 'Etapa do RH: excluir % exige a permissão rh.frequencia.lancar',
+        CASE TG_TABLE_NAME WHEN 'solicitacoes_abono' THEN 'a solicitação de abono' ELSE 'o fechamento da frequência' END
+        USING ERRCODE = '42501';
+    END IF;
+    RETURN OLD;
+  END IF;
+
+  n := to_jsonb(NEW);
+  o := CASE WHEN TG_OP = 'INSERT' THEN '{}'::jsonb ELSE to_jsonb(OLD) END;
+
+  IF TG_TABLE_NAME = 'solicitacoes_abono' THEN
+    st_antes := coalesce(o ->> 'status', 'pendente');
+    st_depois := coalesce(n ->> 'status', 'pendente');
+    mudou_chefia := (n ->> 'aprovado_chefia_por') IS DISTINCT FROM (o ->> 'aprovado_chefia_por')
+                 OR (n ->> 'aprovado_chefia_em') IS DISTINCT FROM (o ->> 'aprovado_chefia_em');
+    mudou_rh := (n ->> 'aprovado_rh_por') IS DISTINCT FROM (o ->> 'aprovado_rh_por')
+             OR (n ->> 'aprovado_rh_em') IS DISTINCT FROM (o ->> 'aprovado_rh_em');
+    IF mudou_chefia AND NOT v_chefia THEN
+      RAISE EXCEPTION 'Etapa da chefia: registrar a aprovação da chefia exige a permissão rh.aprovar' USING ERRCODE = '42501';
+    END IF;
+    IF mudou_rh AND NOT v_rh THEN
+      RAISE EXCEPTION 'Etapa do RH: registrar a aprovação do RH exige a permissão rh.frequencia.lancar' USING ERRCODE = '42501';
+    END IF;
+    IF st_depois IS DISTINCT FROM st_antes THEN
+      IF st_depois = 'aprovado_chefia' THEN
+        IF NOT v_chefia THEN
+          RAISE EXCEPTION 'Etapa da chefia: aprovar o abono pela chefia exige a permissão rh.aprovar' USING ERRCODE = '42501';
+        END IF;
+      ELSIF st_depois = 'aprovado' THEN
+        IF NOT v_rh THEN
+          SELECT ta.exige_aprovacao_rh IS FALSE INTO dispensa_rh
+            FROM public.tipos_abono ta WHERE ta.id = (n ->> 'tipo_abono_id')::uuid;
+          IF NOT (v_chefia AND mudou_chefia AND st_antes = 'pendente' AND coalesce(dispensa_rh, false)) THEN
+            RAISE EXCEPTION 'Etapa do RH: aprovar o abono exige a permissão rh.frequencia.lancar (a chefia só encerra o fluxo quando o tipo de abono dispensa o RH)'
+              USING ERRCODE = '42501';
+          END IF;
+        END IF;
+      ELSIF st_depois = 'rejeitado' AND st_antes = 'pendente' THEN
+        IF NOT (v_chefia OR v_rh) THEN
+          RAISE EXCEPTION 'Etapa da chefia: rejeitar o abono exige a permissão rh.aprovar ou rh.frequencia.lancar' USING ERRCODE = '42501';
+        END IF;
+      ELSIF NOT v_rh THEN
+        RAISE EXCEPTION 'Etapa do RH: mudar o status do abono de % para % exige a permissão rh.frequencia.lancar', st_antes, st_depois
+          USING ERRCODE = '42501';
+      END IF;
+    END IF;
+
+  ELSIF TG_TABLE_NAME = 'frequencia_fechamento' THEN
+    IF coalesce((n ->> 'validado_chefia')::boolean, false) IS DISTINCT FROM coalesce((o ->> 'validado_chefia')::boolean, false)
+       OR (n ->> 'validado_chefia_por') IS DISTINCT FROM (o ->> 'validado_chefia_por')
+       OR (n ->> 'validado_chefia_em') IS DISTINCT FROM (o ->> 'validado_chefia_em') THEN
+      IF coalesce((n ->> 'validado_chefia')::boolean, false) THEN
+        IF NOT v_chefia THEN
+          RAISE EXCEPTION 'Etapa da chefia: validar a frequência exige a permissão rh.aprovar' USING ERRCODE = '42501';
+        END IF;
+      ELSIF NOT v_rh THEN
+        RAISE EXCEPTION 'Etapa do RH: desfazer a validação da chefia (reabertura) exige a permissão rh.frequencia.lancar' USING ERRCODE = '42501';
+      END IF;
+    END IF;
+    IF (coalesce((n ->> 'consolidado_rh')::boolean, false) IS DISTINCT FROM coalesce((o ->> 'consolidado_rh')::boolean, false)
+        OR (n ->> 'consolidado_rh_por') IS DISTINCT FROM (o ->> 'consolidado_rh_por')
+        OR (n ->> 'consolidado_rh_em') IS DISTINCT FROM (o ->> 'consolidado_rh_em')
+        OR coalesce((n ->> 'reaberto')::boolean, false) IS DISTINCT FROM coalesce((o ->> 'reaberto')::boolean, false)
+        OR (n ->> 'reaberto_por') IS DISTINCT FROM (o ->> 'reaberto_por')
+        OR (n ->> 'reaberto_em') IS DISTINCT FROM (o ->> 'reaberto_em')
+        OR (n ->> 'justificativa_reabertura') IS DISTINCT FROM (o ->> 'justificativa_reabertura'))
+       AND NOT v_rh THEN
+      RAISE EXCEPTION 'Etapa do RH: consolidar ou reabrir a frequência exige a permissão rh.frequencia.lancar' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
 $$;
 
 
