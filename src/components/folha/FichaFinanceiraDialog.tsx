@@ -6,10 +6,26 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, FileText, DollarSign, Calculator, Printer, User, Building, CreditCard } from "lucide-react";
-import { useFichaFinanceiraDetalhe, useItensFichaFinanceira } from "@/hooks/useFolhaPagamento";
-import { MESES, TIPO_RUBRICA_LABELS, type TipoRubrica } from "@/types/folha";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Loader2, FileText, DollarSign, Calculator, Printer, User, Building, CreditCard, Info, Lock, Pencil, Plus, Trash2 } from "lucide-react";
+import { useDeleteItemFicha, useFichaFinanceiraDetalhe, useItensFichaFinanceira } from "@/hooks/useFolhaPagamento";
+import { useAuth } from "@/contexts/AuthContext";
+import { motivoBloqueioEdicao, podeEditarFicha } from "@/lib/folhaFichaRegras";
+import { MESES, type ItemFichaFinanceira } from "@/types/folha";
 import { generateContracheque } from "@/lib/pdfContracheque";
+import { ItemFichaFormDialog } from "./ItemFichaFormDialog";
+import { ConsignacoesFichaTab } from "./ConsignacoesFichaTab";
+import { DependentesIRRFFichaTab } from "./DependentesIRRFFichaTab";
 
 interface FichaFinanceiraDialogProps {
   open: boolean;
@@ -19,9 +35,40 @@ interface FichaFinanceiraDialogProps {
 
 export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFinanceiraDialogProps) {
   const [gerando, setGerando] = useState(false);
+  const [itemFormAberto, setItemFormAberto] = useState(false);
+  const [itemEmEdicao, setItemEmEdicao] = useState<ItemFichaFinanceira | null>(null);
+  const [itemExcluindo, setItemExcluindo] = useState<ItemFichaFinanceira | null>(null);
   
   const { data: ficha, isLoading: loadingFicha } = useFichaFinanceiraDetalhe(fichaId);
   const { data: itens, isLoading: loadingItens } = useItensFichaFinanceira(fichaId);
+  const { hasPermission } = useAuth();
+  const excluirItem = useDeleteItemFicha();
+
+  // Edição só com a folha em previa/aberta/reaberta e permissão financeiro.folha.processar
+  // (checada só no front — a RLS libera escrita a quem tem o módulo rh; ver docs/RBAC_PERMISSOES.md).
+  const statusFolha = ficha?.folha?.status ?? null;
+  const temPermissao = hasPermission("financeiro.folha.processar");
+  const podeEditar = podeEditarFicha(statusFolha, temPermissao);
+  const motivoBloqueio = motivoBloqueioEdicao(statusFolha, temPermissao);
+
+  const abrirNovoItem = () => {
+    setItemEmEdicao(null);
+    setItemFormAberto(true);
+  };
+  const abrirEdicaoItem = (item: ItemFichaFinanceira) => {
+    setItemEmEdicao(item);
+    setItemFormAberto(true);
+  };
+  const confirmarExclusao = async () => {
+    if (!itemExcluindo) return;
+    try {
+      await excluirItem.mutateAsync({ id: itemExcluindo.id, fichaId });
+    } catch {
+      // Toast de erro já emitido pelo hook (descreverErroBanco).
+    } finally {
+      setItemExcluindo(null);
+    }
+  };
 
   const formatCurrency = (value: number | null | undefined) => {
     return (value ?? 0).toLocaleString("pt-BR", {
@@ -119,9 +166,11 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
   }
 
   const competencia = `${MESES[(ficha.competencia_mes || 1) - 1]}/${ficha.competencia_ano || new Date().getFullYear()}`;
+  // O CHECK da tabela só admite provento|desconto — não há itens informativos/encargo.
   const proventos = itens?.filter(i => i.tipo === 'provento') || [];
   const descontos = itens?.filter(i => i.tipo === 'desconto') || [];
-  const informativos = itens?.filter(i => i.tipo === 'informativo' || i.tipo === 'encargo') || [];
+  const competenciaAno = ficha.competencia_ano || ficha.folha?.competencia_ano || new Date().getFullYear();
+  const competenciaMes = ficha.competencia_mes || ficha.folha?.competencia_mes || 1;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -131,16 +180,24 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
             <FileText className="h-5 w-5" />
             Ficha Financeira - {competencia}
           </DialogTitle>
-          <DialogDescription>
-            {ficha.servidor?.nome_completo} • Matrícula: {ficha.servidor?.matricula}
+          <DialogDescription className="flex flex-wrap items-center gap-2">
+            <span>{ficha.servidor?.nome_completo} • Matrícula: {ficha.servidor?.matricula}</span>
+            {!podeEditar && (
+              <Badge variant="outline" className="gap-1" title={motivoBloqueio ?? undefined}>
+                <Lock className="h-3 w-3" />
+                Somente leitura
+              </Badge>
+            )}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="resumo" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="resumo">Resumo</TabsTrigger>
             <TabsTrigger value="detalhes">Rubricas</TabsTrigger>
             <TabsTrigger value="tributos">Tributos</TabsTrigger>
+            <TabsTrigger value="consignacoes">Consignações</TabsTrigger>
+            <TabsTrigger value="dependentes">Dependentes</TabsTrigger>
           </TabsList>
 
           {/* Tab Resumo */}
@@ -267,6 +324,25 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
 
           {/* Tab Detalhes/Rubricas */}
           <TabsContent value="detalhes" className="space-y-4">
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                INSS e IRRF só são recalculados no processamento da folha. Incluir, editar ou excluir itens aqui
+                recalcula apenas proventos, descontos e líquido da ficha e da folha; o reprocessamento apaga os
+                itens lançados manualmente.
+                {motivoBloqueio && <span className="block mt-1 text-muted-foreground">{motivoBloqueio}</span>}
+              </AlertDescription>
+            </Alert>
+
+            {podeEditar && (
+              <div className="flex justify-end">
+                <Button size="sm" onClick={abrirNovoItem}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Incluir item
+                </Button>
+              </div>
+            )}
+
             {loadingItens ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -288,6 +364,7 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
                             <TableHead>Descrição</TableHead>
                             <TableHead className="text-center">Referência</TableHead>
                             <TableHead className="text-right">Valor</TableHead>
+                            {podeEditar && <TableHead className="w-24 text-center">Ações</TableHead>}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -296,6 +373,18 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
                               <TableCell>{item.descricao}</TableCell>
                               <TableCell className="text-center">{item.referencia || '-'}</TableCell>
                               <TableCell className="text-right font-mono">{formatCurrency(Number(item.valor))}</TableCell>
+                              {podeEditar && (
+                                <TableCell className="text-center">
+                                  <div className="flex items-center justify-center gap-1">
+                                    <Button variant="ghost" size="icon" title="Editar item" onClick={() => abrirEdicaoItem(item)}>
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" title="Excluir item" onClick={() => setItemExcluindo(item)}>
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              )}
                             </TableRow>
                           ))}
                         </TableBody>
@@ -319,6 +408,7 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
                             <TableHead>Descrição</TableHead>
                             <TableHead className="text-center">Referência</TableHead>
                             <TableHead className="text-right">Valor</TableHead>
+                            {podeEditar && <TableHead className="w-24 text-center">Ações</TableHead>}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -327,6 +417,18 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
                               <TableCell>{item.descricao}</TableCell>
                               <TableCell className="text-center">{item.referencia || '-'}</TableCell>
                               <TableCell className="text-right font-mono text-red-600">{formatCurrency(Number(item.valor))}</TableCell>
+                              {podeEditar && (
+                                <TableCell className="text-center">
+                                  <div className="flex items-center justify-center gap-1">
+                                    <Button variant="ghost" size="icon" title="Editar item" onClick={() => abrirEdicaoItem(item)}>
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" title="Excluir item" onClick={() => setItemExcluindo(item)}>
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              )}
                             </TableRow>
                           ))}
                         </TableBody>
@@ -334,38 +436,39 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
                     )}
                   </CardContent>
                 </Card>
-
-                {/* Informativos */}
-                {informativos.length > 0 && (
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm text-muted-foreground">Informativos ({informativos.length})</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Descrição</TableHead>
-                            <TableHead className="text-center">Tipo</TableHead>
-                            <TableHead className="text-right">Valor</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {informativos.map((item) => (
-                            <TableRow key={item.id}>
-                              <TableCell>{item.descricao}</TableCell>
-                              <TableCell className="text-center">
-                                <Badge variant="outline">{item.tipo}</Badge>
-                              </TableCell>
-                              <TableCell className="text-right font-mono">{formatCurrency(Number(item.valor))}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                )}
               </>
+            )}
+          </TabsContent>
+
+          {/* Tab Consignações */}
+          <TabsContent value="consignacoes">
+            {ficha.servidor_id ? (
+              <ConsignacoesFichaTab
+                fichaId={ficha.id}
+                servidorId={ficha.servidor_id}
+                valorLiquido={ficha.valor_liquido}
+                competenciaAno={competenciaAno}
+                competenciaMes={competenciaMes}
+                itens={itens ?? []}
+                podeEditar={podeEditar}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground py-6 text-center">Ficha sem servidor vinculado.</p>
+            )}
+          </TabsContent>
+
+          {/* Tab Dependentes IRRF */}
+          <TabsContent value="dependentes">
+            {ficha.servidor_id ? (
+              <DependentesIRRFFichaTab
+                servidorId={ficha.servidor_id}
+                competenciaAno={competenciaAno}
+                competenciaMes={competenciaMes}
+                quantidadeNaFicha={ficha.quantidade_dependentes}
+                podeEditar={podeEditar}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground py-6 text-center">Ficha sem servidor vinculado.</p>
             )}
           </TabsContent>
 
@@ -460,6 +563,35 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
             </Card>
           </TabsContent>
         </Tabs>
+
+        {podeEditar && (
+          <ItemFichaFormDialog open={itemFormAberto} onOpenChange={setItemFormAberto} fichaId={fichaId} item={itemEmEdicao} />
+        )}
+
+        <AlertDialog open={!!itemExcluindo} onOpenChange={(aberto) => !aberto && !excluirItem.isPending && setItemExcluindo(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir item da ficha</AlertDialogTitle>
+              <AlertDialogDescription>
+                Excluir "{itemExcluindo?.descricao}" ({formatCurrency(Number(itemExcluindo?.valor))})? Os totais da ficha e da
+                folha serão recalculados; INSS/IRRF não mudam.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={excluirItem.isPending}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  void confirmarExclusao();
+                }}
+                disabled={excluirItem.isPending}
+              >
+                {excluirItem.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );

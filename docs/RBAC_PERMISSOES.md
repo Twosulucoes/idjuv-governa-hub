@@ -136,6 +136,26 @@ não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos 
   Mesma dívida de `/rh/meus-dados`: policy de leitura da própria linha em `servidores` e
   alinhamento `profiles.servidor_id` ↔ `servidores.user_id` (migração de RLS).
 
+### Folha: edição da ficha
+
+- No detalhe da folha (`/folha/:id` → `FichaFinanceiraDialog`), incluir/editar/excluir itens da
+  ficha, cadastrar/suspender/quitar/lançar consignações e manter dependentes IRRF exige
+  `financeiro.folha.processar` (catálogo do módulo `financeiro`; admin passa por cima) **e** folha em
+  `previa`, `aberta` ou `reaberta` (`podeEditarFicha`, `src/lib/folhaFichaRegras.ts`). Sem isso os
+  botões não aparecem e o diálogo marca "Somente leitura". A rota `/folha/:id` continua
+  `<ProtectedRoute>` sem permissão (mudar guard de rota aguarda confirmação).
+- **Essa barreira existe só no front.** A RLS de `itens_ficha_financeira`, `fichas_financeiras`,
+  `folhas_pagamento`, `consignacoes` e `dependentes_irrf` libera escrita a qualquer usuário com o
+  módulo `rh` (`can_access_module('rh')`), sem checar `financeiro.folha.processar`. No banco, os
+  triggers `trg_bloquear_alteracao_item_ficha_fechada`/`trg_bloquear_alteracao_ficha_fechada` barram
+  UPDATE/DELETE com a folha `fechada`, mas **não INSERT** em `itens_ficha_financeira`; a tela é a
+  única barreira contra inserir item em folha fechada. O recálculo de totais (ficha → folha) é feito
+  pelo cliente em três comandos, não atômico. Pendências para a migração 13b (Onda B): trigger
+  BEFORE INSERT e RPC `recalcular_ficha_financeira` (M2), policies por permissão (M4), auditoria (M5)
+  — ver `superpowers/specs/2026-10-09-folha-detalhe-edicao-design.md`.
+- Erros do banco (RLS 42501, trigger P0001, CHECK 23514, "0 linhas" PGRST116) chegam ao usuário em
+  toast legível via `descreverErroBanco`; nada é engolido.
+
 ### Importação de dados
 
 Cada importador declara a sua permissão (`src/lib/importacao/registro.ts`) e a RPC dele confere a
