@@ -24,6 +24,10 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 > as `acesso_total_*` dessas tabelas deixavam qualquer logado se dar o papel `admin` (provado num replay).
 > A migração `20261010080000_s0_identidade_policies.sql` aplica nelas o mesmo desenho do baseline (overlay 12 e
 > classe `proprio_user`), com os mesmos privilégios do overlay 40; num banco do baseline ela é no-op.
+> A `20261010170000_onda0_permissoes_urgente.sql` faz o mesmo com o catálogo de permissões
+> (`module_permissions_catalog`, `module_settings`, `module_access_scopes`, `user_org_units`), a injeção em
+> `fn_gerar_numero_financeiro`, os stubs de acesso do overlay 10, `gestores_escolares`/`escolas_jer`,
+> `cadastro_arbitros(+_modalidades)` e o EXECUTE de `anon` (lista de RPCs públicas do overlay 40).
 
 ## Conteúdo e ordem de aplicação (`aplicar.sh`, uma única transação)
 
