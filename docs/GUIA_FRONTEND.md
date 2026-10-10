@@ -51,6 +51,7 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `useCalendarioComunicacao`, `useDemandasAscom`.
 - **Admin/segurança**: `useAdminUsuarios`, `useUsuarios`, `usePermissions`,
   `usePermissoesUsuario`, `useRBAC`, `useApprovalRequests`, `useAuditLog`,
+  `useTrilhaAuditoria` (trilha de auditoria e `useRegistrarEvento`; ver abaixo),
   `useBackupOffsite`, `useDatabaseSchema`, `useModuleSettings`,
   `useConfigPaginasPublicas`, `useFormFieldConfig`.
 - **Organização**: `useOrganograma`, `useInstituicoes`, `useAgrupamentoUnidades`,
@@ -142,6 +143,37 @@ Estrutura genérica para trazer dados de arquivos de outros sistemas, sempre em 
 que confere a permissão, valida cada linha, devolve o formato de `ResultadoBanco` e, ao aplicar, insere em
 `importacoes`; (2) `importadores/<algo>.ts` implementando `Importador`; (3) incluir em `registro.ts`.
 Erro de leitura bloqueia a importação; aviso só informa.
+
+## Trilha de auditoria no front (onda E2)
+
+Spec: [`superpowers/specs/2026-10-10-rh-trilha-tela-design.md`](./superpowers/specs/2026-10-10-rh-trilha-tela-design.md).
+O banco grava quem fez cada lançamento (onda E1); o front consulta a trilha e registra o que não é gravação.
+
+- **Hook** `src/hooks/useTrilhaAuditoria.ts` (as colunas novas de `audit_logs` e a RPC `registrar_evento` ainda não
+  estão em `types.ts`: consulta com `supabase as unknown as SupabaseClient`, tipos no próprio hook):
+  - `useTrilhaAuditoria(filtros, pagina)`: lista paginada **no servidor** (`range`, uma página por vez, sem
+    `before_data`/`after_data`), ordem `sequencia` desc; filtros por período, módulo, ação, origem, tabela, ID do
+    registro, usuário, servidor responsável (nome/matrícula ou ID) e recorte de ficha (`escopo` servidor ou folha);
+  - `useDetalheTrilha(id)` + `calcularDiff`: a linha completa ao abrir, diff campo a campo (valores já mascarados pelo
+    banco);
+  - `useRegistrarEvento()`: `registrarAntes(evento)` para exportação, impressão e arquivo — espera o banco e, se
+    falhar, mostra o erro e devolve `false` (quem chama **não entrega** o arquivo); `registrarSemBloquear(evento)` para
+    visualização. Ações e entidades seguem as listas fechadas da RPC (tipos `AcaoEvento`/`EntidadeEvento`). Metadados
+    sem dado pessoal (filtros, formato, quantidade, IDs); `servidor_id`/`folha_id` nos metadados ligam o evento às
+    abas de histórico.
+- **Componentes** em `src/components/auditoria/`: `TrilhaAuditoria` (filtros, tabela, paginação, diálogo de detalhe e
+  CSV registrado antes do download, com célula protegida contra fórmula), `DetalheTrilhaDialog` e
+  `HistoricoAlteracoesTab` (aba na ficha do servidor e no detalhe da folha). Descrição e metadados são texto: nada
+  vira HTML.
+- **Páginas:** `/admin/auditoria` (todos os módulos) e `/rh/auditoria` (mesmo componente, travado no módulo `rh`).
+- **Onde `registrar_evento` está ligado:** contracheque (`useLogAcessoContracheque`, que trocou `log_audit` pela
+  RPC; impressão individual e em lote em `/rh/contracheques`, `/rh/meu-contracheque`, detalhe da folha e ficha
+  financeira), XML do eSocial (baixar e copiar), arquivo CNAB (registrado antes de gravar a remessa e baixar),
+  planilhas (`/rh/exportar`, `ExportacaoServidoresCard`, cards de `src/components/rh/relatorios/*`, aniversariantes),
+  PDFs do RH (relatórios de `/rh/relatorios` e cards avulsos, pendências cadastrais, frequência individual, em lote e
+  geral, pacote de frequência, fichas e declarações do servidor, memorando de designação) e o CSV da trilha.
+  Visualização sem bloquear: ficha do servidor, ficha financeira, contracheque na consulta, pré-visualização da
+  frequência e documentos abertos na ficha.
 
 ## Padrões de UI
 

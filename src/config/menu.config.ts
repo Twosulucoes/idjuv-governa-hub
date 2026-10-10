@@ -61,6 +61,7 @@ import {
   FolderOpen,
   Download,
   Gavel,
+  History,
   type LucideIcon,
   Bell,
   Mail,
@@ -101,6 +102,7 @@ export type PermissaoInstitucional =
   | 'rh.frequencia.configurar'
   | 'rh.viagens.visualizar'
   | 'rh.relatorios.visualizar'
+  | 'rh.auditoria.visualizar'
   | 'rh.self'
   // Folha (módulo rh; códigos do catálogo, ver docs/RBAC_PERMISSOES.md)
   | 'financeiro.folha.visualizar'
@@ -461,6 +463,14 @@ export const menuConfig: MenuSection[] = [
         route: "/rh/relatorios",
         icon: BarChart3,
         permission: "rh.relatorios.visualizar",
+      },
+      {
+        id: "auditoria-rh",
+        label: "Trilha de Auditoria",
+        labelShort: "Auditoria",
+        route: "/rh/auditoria",
+        icon: History,
+        permission: "rh.auditoria.visualizar",
       },
       {
         id: "meus-dados",

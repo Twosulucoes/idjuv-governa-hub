@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Wallet } from "lucide-react";
 import { toast } from "sonner";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { useFolhasDoAno, useFichasDaFolhaAgregadas, useItensDaFolha } from "@/hooks/useRelatoriosRH";
 import { gerarResumoFolhasAno, gerarFolhaPorUnidade, gerarFolhaPorRubrica } from "@/lib/pdfRelatoriosFolha";
 import {
@@ -49,6 +50,7 @@ export function RelatorioFolhaCard() {
   const [tipo, setTipo] = useState<TipoRelatorioFolha>("resumo");
   const [folhaId, setFolhaId] = useState<string | undefined>();
   const [gerando, setGerando] = useState<FormatoExportacao | null>(null);
+  const { registrarAntes } = useRegistrarEvento();
 
   const folhasQuery = useFolhasDoAno(ano);
   const folhas = useMemo(() => folhasQuery.data ?? [], [folhasQuery.data]);
@@ -83,6 +85,20 @@ export function RelatorioFolhaCard() {
     if (bloqueado) return;
     setGerando(formato);
     try {
+      // Trilha: relatório registrado antes de gerar o arquivo (sem registro, sem arquivo)
+      const ok = await registrarAntes({
+        acao: formato === "pdf" ? "download" : "export",
+        entidade: "relatorio_rh",
+        descricao: `Relatório de folha (${formato.toUpperCase()}, ${total} registros)`,
+        metadados: {
+          relatorio: "folha",
+          formato,
+          quantidade: total,
+          filtros: { tipo, ano, folha_id: folhaId ?? null },
+          ...(folhaId ? { folha_id: folhaId } : {}),
+        },
+      });
+      if (!ok) return;
       if (tipo === "resumo") {
         if (formato === "pdf") await gerarResumoFolhasAno(folhas, ano);
         else exportarPlanilhaXlsx(folhas.map(linhaFolhaParaPlanilha), `relatorio-folha-resumo-${ano}`, "Folhas");

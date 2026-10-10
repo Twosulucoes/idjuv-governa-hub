@@ -54,6 +54,7 @@ import {
   generateDeclaracaoBensModelo
 } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { 
   UFS,
   ESTADOS_CIVIS,
@@ -292,6 +293,16 @@ export default function ServidorFormPage() {
   const queryClient = useQueryClient();
   const { user, isSuperAdmin, hasAnyPermission } = useAuth();
   const isEditing = !!id;
+  const { registrarAntes } = useRegistrarEvento();
+  // Trilha: documento preenchido com dados do servidor é registrado antes de gerar (sem registro, sem arquivo)
+  const registrarDocumentoServidor = (documento: string, descricao: string) =>
+    registrarAntes({
+      acao: "download",
+      entidade: "servidores",
+      entidadeId: id,
+      descricao,
+      metadados: { documento, formato: "pdf" },
+    });
   const isAdmin = isSuperAdmin || hasAnyPermission(['admin', 'rh.servidores.editar']);
 
   const [formData, setFormData] = useState<FormData>(initialFormData);
@@ -700,7 +711,8 @@ export default function ServidorFormPage() {
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuLabel>Documentos Preenchidos</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={() => {
+                    <DropdownMenuItem onClick={async () => {
+                      if (!(await registrarDocumentoServidor("ficha_cadastral", "Ficha cadastral impressa"))) return;
                       generateFichaCadastral({
                         ...servidor,
                       });
@@ -708,7 +720,8 @@ export default function ServidorFormPage() {
                       <FileText className="h-4 w-4 mr-2" />
                       Ficha Cadastral Completa
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => {
+                    <DropdownMenuItem onClick={async () => {
+                      if (!(await registrarDocumentoServidor("declaracao_acumulacao", "Declaração de acumulação impressa"))) return;
                       generateDeclaracaoAcumulacao({
                         nome_completo: servidor.nome_completo,
                         cpf: servidor.cpf,
@@ -721,7 +734,8 @@ export default function ServidorFormPage() {
                       <FileText className="h-4 w-4 mr-2" />
                       Declaração de Acumulação
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => {
+                    <DropdownMenuItem onClick={async () => {
+                      if (!(await registrarDocumentoServidor("declaracao_bens", "Declaração de bens impressa"))) return;
                       generateDeclaracaoBens({
                         nome_completo: servidor.nome_completo,
                         cpf: servidor.cpf,
@@ -733,7 +747,8 @@ export default function ServidorFormPage() {
                       <FileText className="h-4 w-4 mr-2" />
                       Declaração de Bens
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => {
+                    <DropdownMenuItem onClick={async () => {
+                      if (!(await registrarDocumentoServidor("declaracao_residencia", "Declaração de residência impressa"))) return;
                       generateDeclaracaoResidencia({
                         nome_completo: servidor.nome_completo,
                         cpf: servidor.cpf,

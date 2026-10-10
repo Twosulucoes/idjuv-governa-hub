@@ -47,6 +47,7 @@ import { formatCPF } from "@/lib/formatters";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { gerarPdfRelatorioPendenciasServidores } from "@/lib/pdfRelatorioPendenciasServidores";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 
 // Interface para pendência
 interface PendenciaItem {
@@ -196,6 +197,7 @@ function verificarPendencias(servidor: ServidorCompleto): PendenciaItem[] {
 export default function DiagnosticoPendenciasServidoresPage() {
   const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = useState("elegibilidade");
+  const { registrarAntes } = useRegistrarEvento();
   const [filtroIncompleto, setFiltroIncompleto] = useState<FiltroIncompleto>("todos");
 
   // Buscar servidores ativos com todos os dados necessários
@@ -394,13 +396,21 @@ export default function DiagnosticoPendenciasServidoresPage() {
     navigate(`/rh/servidores/${servidorId}`);
   };
 
-  const handleImprimir = () => {
+  const handleImprimir = async () => {
     const filtroTexto = {
       todos: "Todos os servidores",
       incompletos: "Qualquer pendência",
       elegiveis: "Elegíveis para folha",
       completos: "Cadastro completo",
     }[filtroIncompleto];
+    // Trilha: registrado antes de gerar o PDF (sem registro, sem arquivo)
+    const ok = await registrarAntes({
+      acao: "download",
+      entidade: "relatorio_rh",
+      descricao: "Relatório de pendências cadastrais dos servidores",
+      metadados: { relatorio: "pendencias_servidores", formato: "pdf", filtro: filtroIncompleto, quantidade: analiseFiltrada.length },
+    });
+    if (!ok) return;
     gerarPdfRelatorioPendenciasServidores(analiseFiltrada, stats, filtroTexto);
   };
 

@@ -44,6 +44,7 @@ import {
   generateDeclaracaoBensModelo,
 } from "@/lib/pdfModelos";
 import { abrirArquivoPrivado, abrirUrlExterna } from "@/lib/storageArquivos";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 
 // Tipos de documento disponíveis para requerimento
 const TIPOS_REQUERIMENTO = [
@@ -76,6 +77,8 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
   // a RLS exige o módulo rh e rh.servidores.editar (Onda B / B3)
   const podeEditar = isAdmin && hasPermission("rh.servidores.editar");
   const queryClient = useQueryClient();
+  // Trilha: abrir documento do servidor é visualização (registra sem bloquear e sem perder a nova aba)
+  const { registrarSemBloquear } = useRegistrarEvento();
   const [showNovoDialog, setShowNovoDialog] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
@@ -203,7 +206,14 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
   };
 
   // Abre o documento assinado por URL assinada (aceita caminho ou URL pública antiga)
-  const abrirDocumentoAssinado = (valor: string | null) => {
+  const abrirDocumentoAssinado = (valor: string | null, docId: string) => {
+    registrarSemBloquear({
+      acao: "view",
+      entidade: "documentos_requerimento_servidor",
+      entidadeId: docId,
+      descricao: "Documento assinado do servidor aberto",
+      metadados: { servidor_id: servidorId },
+    });
     abrirArquivoPrivado("documentos-requerimento", valor).catch((err: Error) =>
       toast.error(err.message),
     );
@@ -269,6 +279,13 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
                         className="h-8 w-8"
                         onClick={() => {
                           try {
+                            registrarSemBloquear({
+                              acao: "view",
+                              entidade: "documentos",
+                              entidadeId: doc.id,
+                              descricao: "Documento expedido aberto na ficha do servidor",
+                              metadados: { servidor_id: servidorId },
+                            });
                             abrirUrlExterna(doc.arquivo_assinado_url || doc.arquivo_url);
                           } catch (err) {
                             toast.error((err as Error).message);
@@ -363,7 +380,7 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
                           size="icon"
                           className="h-8 w-8"
                           title="Ver documento assinado"
-                          onClick={() => abrirDocumentoAssinado(doc.arquivo_assinado_url)}
+                          onClick={() => abrirDocumentoAssinado(doc.arquivo_assinado_url, doc.id)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>

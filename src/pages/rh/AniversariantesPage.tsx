@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -48,6 +49,7 @@ interface Aniversariante {
 export default function AniversariantesPage() {
   const [mesAtual, setMesAtual] = useState(new Date().getMonth());
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const { registrarAntes } = useRegistrarEvento();
 
   const { data: servidores, isLoading } = useQuery({
     queryKey: ["aniversariantes"],
@@ -174,7 +176,15 @@ export default function AniversariantesPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const exportarLista = () => {
+  const exportarLista = async () => {
+    // Trilha: registrado antes de gerar o arquivo (sem registro, sem arquivo)
+    const ok = await registrarAntes({
+      acao: "export",
+      entidade: "exportacao_rh",
+      descricao: `Lista de aniversariantes exportada (${aniversariantesDoMes.length} registros)`,
+      metadados: { tela: "/rh/aniversariantes", formato: "txt", mes: mesAtual + 1, quantidade: aniversariantesDoMes.length },
+    });
+    if (!ok) return;
     const texto = aniversariantesDoMes
       .map((a) => `${a.dia}/${mesAtual + 1} - ${a.nome_social || a.nome_completo}${a.email ? ` (${a.email})` : ""}`)
       .join("\n");

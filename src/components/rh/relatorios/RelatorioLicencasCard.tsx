@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { HeartPulse } from "lucide-react";
 import { toast } from "sonner";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { useLicencasRelatorio, useNomeUnidadeSelecionada } from "@/hooks/useRelatoriosRH";
 import { gerarRelatorioLicencas } from "@/lib/pdfRelatoriosAfastamentos";
 import { LICENCA_STATUS_LABELS } from "@/types/rh";
@@ -28,6 +29,7 @@ export function RelatorioLicencasCard() {
   const [unidadeId, setUnidadeId] = useState<string | undefined>();
   const [status, setStatus] = useState<string | undefined>();
   const [gerando, setGerando] = useState<FormatoExportacao | null>(null);
+  const { registrarAntes } = useRegistrarEvento();
 
   const filtros = { inicio: periodo.inicio, fim: periodo.fim, unidadeId, status };
   const valido = periodoValido(periodo.inicio, periodo.fim);
@@ -38,6 +40,19 @@ export function RelatorioLicencasCard() {
     if (linhas.length === 0) return;
     setGerando(formato);
     try {
+      // Trilha: relatório registrado antes de gerar o arquivo (sem registro, sem arquivo)
+      const ok = await registrarAntes({
+        acao: formato === "pdf" ? "download" : "export",
+        entidade: "relatorio_rh",
+        descricao: `Relatório de licenças (${formato.toUpperCase()}, ${linhas.length} registros)`,
+        metadados: {
+          relatorio: "licencas",
+          formato,
+          quantidade: linhas.length,
+          filtros: { inicio: periodo.inicio, fim: periodo.fim, unidade_id: unidadeId ?? null, status: status ?? null },
+        },
+      });
+      if (!ok) return;
       if (formato === "pdf") {
         await gerarRelatorioLicencas(linhas, {
           inicio: periodo.inicio,

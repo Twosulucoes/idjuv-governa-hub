@@ -5,7 +5,7 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+import { registrarEvento } from '@/hooks/useTrilhaAuditoria';
 
 // Tipos de retorno
 interface FichaFinanceiraComServidor {
@@ -185,29 +185,47 @@ export function useContrachequeDetalhe(fichaId?: string) {
   });
 }
 
-// Hook para registrar log de acesso ao contracheque
+// Hook para registrar acesso ao contracheque na trilha do RH (RPC registrar_evento, onda E2).
+// visualizar = view; imprimir = download. Quem não tem o módulo rh só registra o próprio contracheque
+// (a RPC confere a ficha). Para imprimir, use mutateAsync ANTES de gerar o PDF: se o registro falhar,
+// a promessa rejeita e o arquivo não deve ser entregue. Para visualizar, mutate (sem bloquear a tela).
 export function useLogAcessoContracheque() {
   return useMutation({
     mutationFn: async ({ fichaId, acao }: { fichaId: string; acao: 'visualizar' | 'imprimir' }) => {
-      // Registrar no audit_logs pela RPC: o INSERT direto foi removido e o user_id vem de
-      // auth.uid() no servidor (o conteúdo do log continua informado pelo cliente).
-      const { error } = await supabase.rpc('log_audit', {
-        _action: 'view',
-        _entity_type: 'contracheque',
-        _entity_id: fichaId,
-        _module_name: 'rh',
-        _description: acao === 'imprimir'
-          ? 'Contracheque impresso/baixado'
-          : 'Contracheque visualizado',
-        _metadata: { acao },
+      await registrarEvento({
+        acao: acao === 'imprimir' ? 'download' : 'view',
+        entidade: 'contracheque',
+        entidadeId: fichaId,
+        descricao: acao === 'imprimir' ? 'Contracheque impresso/baixado' : 'Contracheque visualizado',
+        metadados: { acao, formato: acao === 'imprimir' ? 'pdf' : 'tela' },
       });
-      
-      if (error) {
-        console.warn('Não foi possível registrar log de acesso:', error);
-      }
     },
     onError: (error) => {
-      console.warn('Erro ao registrar log de acesso:', error);
+      console.warn('Não foi possível registrar o acesso ao contracheque:', error);
+    },
+  });
+}
+
+/** Lote de contracheques (RH): um registro na trilha antes de gerar o PDF; lança se falhar. */
+export async function registrarLoteContracheques(params: {
+  quantidade: number;
+  competenciaAno: number;
+  competenciaMes: number;
+  fichaIds: string[];
+}) {
+  await registrarEvento({
+    acao: 'download',
+    entidade: 'contracheque',
+    descricao: `Contracheques em lote impressos/baixados (${params.quantidade})`,
+    metadados: {
+      lote: true,
+      formato: 'pdf',
+      quantidade: params.quantidade,
+      competencia_ano: params.competenciaAno,
+      competencia_mes: params.competenciaMes,
+      // até 80 ids cabem no limite de 4000 caracteres dos metadados
+      ficha_ids: params.fichaIds.slice(0, 80),
+      ficha_ids_cortado: params.fichaIds.length > 80,
     },
   });
 }

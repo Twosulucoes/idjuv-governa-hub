@@ -131,6 +131,7 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionCode | PermissionCode[]
   '/rh/modelos': 'rh.modelos.visualizar',
   '/rh/exportacao': 'rh.exportar',
   '/rh/pendencias': 'rh.servidores.visualizar',
+  '/rh/auditoria': 'rh.auditoria.visualizar',
   
   // ============================================
   // GOVERNANÇA
@@ -293,6 +294,7 @@ export const MODULE_PERMISSIONS = {
     'rh.lotacoes.gerenciar',
     'rh.relatorios.visualizar',
     'rh.exportar',
+    'rh.auditoria.visualizar',
     'rh.modelos.visualizar',
     'rh.modelos.criar',
     'rh.modelos.editar',

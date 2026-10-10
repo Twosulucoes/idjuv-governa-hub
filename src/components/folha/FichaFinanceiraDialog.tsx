@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { motivoBloqueioEdicao, podeEditarFicha } from "@/lib/folhaFichaRegras";
 import { MESES, type ItemFichaFinanceira } from "@/types/folha";
 import { generateContracheque } from "@/lib/pdfContracheque";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { ItemFichaFormDialog } from "./ItemFichaFormDialog";
 import { ConsignacoesFichaTab } from "./ConsignacoesFichaTab";
 import { DependentesIRRFFichaTab } from "./DependentesIRRFFichaTab";
@@ -43,6 +44,21 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
   const { data: itens, isLoading: loadingItens } = useItensFichaFinanceira(fichaId);
   const { hasPermission } = useAuth();
   const excluirItem = useDeleteItemFicha();
+  const { registrarAntes, registrarSemBloquear } = useRegistrarEvento();
+
+  // Trilha: visualização da ficha financeira (sem bloquear), uma vez por ficha aberta
+  const vistaRegistrada = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open || !ficha?.id || vistaRegistrada.current === ficha.id) return;
+    vistaRegistrada.current = ficha.id;
+    registrarSemBloquear({
+      acao: "view",
+      entidade: "fichas_financeiras",
+      entidadeId: ficha.id,
+      descricao: "Ficha financeira visualizada",
+      metadados: { folha_id: ficha.folha_id ?? null, servidor_id: ficha.servidor_id ?? null },
+    });
+  }, [open, ficha?.id, ficha?.folha_id, ficha?.servidor_id, registrarSemBloquear]);
 
   // Edição só com a folha em previa/aberta/reaberta e permissão financeiro.folha.processar
   // (checada só no front — a RLS libera escrita a quem tem o módulo rh; ver docs/RBAC_PERMISSOES.md).
@@ -82,6 +98,15 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
     
     setGerando(true);
     try {
+      // Trilha: impressão registrada antes de gerar (sem registro, sem arquivo)
+      const ok = await registrarAntes({
+        acao: "download",
+        entidade: "contracheque",
+        entidadeId: ficha.id,
+        descricao: "Contracheque impresso/baixado (ficha financeira)",
+        metadados: { folha_id: ficha.folha_id ?? null, servidor_id: ficha.servidor_id ?? null, formato: "pdf" },
+      });
+      if (!ok) return;
       const competenciaAno = ficha.competencia_ano || new Date().getFullYear();
       const competenciaMes = ficha.competencia_mes || 1;
       const competencia = `${MESES[competenciaMes - 1]}/${competenciaAno}`;

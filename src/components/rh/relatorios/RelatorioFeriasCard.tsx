@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CalendarDays } from "lucide-react";
 import { toast } from "sonner";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { FERIAS_STATUS_LABELS } from "@/types/rh";
 import { useFeriasRelatorio, useNomeUnidadeSelecionada } from "@/hooks/useRelatoriosRH";
 import { gerarRelatorioFerias } from "@/lib/pdfRelatoriosAfastamentos";
@@ -21,6 +22,7 @@ export function RelatorioFeriasCard() {
   const [unidadeId, setUnidadeId] = useState<string | undefined>();
   const [status, setStatus] = useState<string | undefined>();
   const [gerando, setGerando] = useState<FormatoExportacao | null>(null);
+  const { registrarAntes } = useRegistrarEvento();
 
   const filtros = { inicio: periodo.inicio, fim: periodo.fim, unidadeId, status };
   const valido = periodoValido(periodo.inicio, periodo.fim);
@@ -31,6 +33,19 @@ export function RelatorioFeriasCard() {
     if (linhas.length === 0) return;
     setGerando(formato);
     try {
+      // Trilha: relatório registrado antes de gerar o arquivo (sem registro, sem arquivo)
+      const ok = await registrarAntes({
+        acao: formato === "pdf" ? "download" : "export",
+        entidade: "relatorio_rh",
+        descricao: `Relatório de férias (${formato.toUpperCase()}, ${linhas.length} registros)`,
+        metadados: {
+          relatorio: "ferias",
+          formato,
+          quantidade: linhas.length,
+          filtros: { inicio: periodo.inicio, fim: periodo.fim, unidade_id: unidadeId ?? null, status: status ?? null },
+        },
+      });
+      if (!ok) return;
       if (formato === "pdf") {
         await gerarRelatorioFerias(linhas, {
           inicio: periodo.inicio,

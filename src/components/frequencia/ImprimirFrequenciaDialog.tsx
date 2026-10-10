@@ -45,6 +45,7 @@ import { useUploadFrequencia } from "@/hooks/useFrequenciaPacotes";
 import type { FrequenciaServidorResumo } from "@/hooks/useFrequencia";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGerarFrequenciaPDF } from "@/hooks/useGerarFrequenciaPDF";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 
 interface ImprimirFrequenciaDialogProps {
   open: boolean;
@@ -96,6 +97,15 @@ export function ImprimirFrequenciaDialog({
   const { data: frequenciaMensal } = useFrequenciaMensal(servidor?.servidor_id, ano, mes);
   const uploadFrequencia = useUploadFrequencia();
   const { gerarPDF } = useGerarFrequenciaPDF();
+  const { registrarAntes, registrarSemBloquear } = useRegistrarEvento();
+  // Trilha: folha de frequência do servidor (servidor_id nos metadados liga o evento à ficha dele)
+  const eventoFrequencia = (acao: 'view' | 'download') => ({
+    acao,
+    entidade: 'frequencia_mensal' as const,
+    entidadeId: frequenciaMensal?.id ?? null,
+    descricao: `Folha de frequência ${String(mes).padStart(2, '0')}/${ano} (${tipo}) ${acao === 'view' ? 'pré-visualizada' : 'impressa/baixada'}`,
+    metadados: { servidor_id: servidor?.servidor_id ?? null, ano, mes, tipo, formato: 'pdf' },
+  });
   const { validarDados } = useValidacaoFrequencia(servidor, tipo);
 
   const cargaHorariaDiaria =
@@ -215,6 +225,7 @@ export function ImprimirFrequenciaDialog({
       
       setPreviewUrl(url);
       atualizarProgresso(5, 5);
+      registrarSemBloquear(eventoFrequencia('view'));
       
       toast.success('Pré-visualização gerada!');
       setEstadoGeracao('ocioso');
@@ -312,6 +323,9 @@ export function ImprimirFrequenciaDialog({
       setEstadoGeracao('gerando');
       const { doc, nomeArquivo } = await generateFrequenciaMensalPDF(pdfData);
       atualizarProgresso(5, 6);
+
+      // Trilha: registrado antes de entregar o PDF (sem registro, sem arquivo)
+      if (!(await registrarAntes(eventoFrequencia('download')))) return;
       
       // Salvar localmente
       doc.save(nomeArquivo);

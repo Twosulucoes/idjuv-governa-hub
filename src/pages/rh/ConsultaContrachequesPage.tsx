@@ -29,10 +29,11 @@ import {
   CreditCard,
   Printer,
 } from 'lucide-react';
-import { useContrachequesRH, useContrachequeDetalhe, useLogAcessoContracheque, type FichaFinanceiraComServidor } from '@/hooks/useContracheque';
+import { useContrachequesRH, useContrachequeDetalhe, useLogAcessoContracheque, registrarLoteContracheques, type FichaFinanceiraComServidor } from '@/hooks/useContracheque';
 import { generateContracheque, generateContrachequeEmLote } from '@/lib/pdfContracheque';
 import { MESES } from '@/types/folha';
 import { toast } from 'sonner';
+import { MSG_FALHA_REGISTRO } from '@/hooks/useTrilhaAuditoria';
 
 export default function ConsultaContrachequesPage() {
   const anoAtual = new Date().getFullYear();
@@ -77,6 +78,13 @@ export default function ConsultaContrachequesPage() {
   const handleGerarPDF = async (ficha: FichaFinanceiraComServidor) => {
     setGerando(ficha.id);
     try {
+      // Trilha: impressão registrada antes de gerar o PDF (sem registro, sem arquivo)
+      try {
+        await logAcesso.mutateAsync({ fichaId: ficha.id, acao: 'imprimir' });
+      } catch {
+        toast.error(MSG_FALHA_REGISTRO);
+        return;
+      }
       const competencia = `${MESES[ficha.competencia_mes - 1]}/${ficha.competencia_ano}`;
       
       await generateContracheque({
@@ -105,7 +113,6 @@ export default function ConsultaContrachequesPage() {
         competenciaMes: ficha.competencia_mes,
       });
       
-      logAcesso.mutate({ fichaId: ficha.id, acao: 'imprimir' });
       toast.success('Contracheque gerado!');
     } catch (error) {
       console.error('Erro ao gerar contracheque:', error);
@@ -123,6 +130,20 @@ export default function ConsultaContrachequesPage() {
       const mes = mesFiltro === 'todos' ? 1 : Number(mesFiltro);
       const ano = anoFiltro === 'todos' ? anoAtual : Number(anoFiltro);
       const competencia = `${MESES[mes - 1]}/${ano}`;
+
+      // Trilha: lote registrado antes de gerar o PDF (sem registro, sem arquivo)
+      try {
+        await registrarLoteContracheques({
+          quantidade: contrachequesFiltered.length,
+          competenciaAno: ano,
+          competenciaMes: mes,
+          fichaIds: contrachequesFiltered.map(f => f.id),
+        });
+      } catch (erroRegistro) {
+        console.error('registrar_evento (lote de contracheques) falhou:', erroRegistro);
+        toast.error(MSG_FALHA_REGISTRO);
+        return;
+      }
       
       const fichasParaLote = contrachequesFiltered.map(f => ({
         id: f.id,

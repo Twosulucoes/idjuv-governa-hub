@@ -25,6 +25,7 @@ import { useMeusContracheques, useServidorLogado, useLogAcessoContracheque } fro
 import { generateContracheque } from '@/lib/pdfContracheque';
 import { MESES } from '@/types/folha';
 import { toast } from 'sonner';
+import { MSG_FALHA_REGISTRO } from '@/hooks/useTrilhaAuditoria';
 
 export default function MeuContrachequePage() {
   const [anoFiltro, setAnoFiltro] = useState<string>('todos');
@@ -52,6 +53,13 @@ export default function MeuContrachequePage() {
   const handleGerarPDF = async (ficha: typeof contracheques[0]) => {
     setGerando(ficha.id);
     try {
+      // Trilha: impressão registrada antes de gerar o PDF (sem registro, sem arquivo)
+      try {
+        await logAcesso.mutateAsync({ fichaId: ficha.id, acao: 'imprimir' });
+      } catch {
+        toast.error(MSG_FALHA_REGISTRO);
+        return;
+      }
       const competencia = `${MESES[ficha.competencia_mes - 1]}/${ficha.competencia_ano}`;
       
       await generateContracheque({
@@ -79,9 +87,6 @@ export default function MeuContrachequePage() {
         competenciaAno: ficha.competencia_ano,
         competenciaMes: ficha.competencia_mes,
       });
-      
-      // Registrar log de impressão
-      logAcesso.mutate({ fichaId: ficha.id, acao: 'imprimir' });
       toast.success('Contracheque gerado com sucesso!');
     } catch (error) {
       console.error('Erro ao gerar contracheque:', error);
