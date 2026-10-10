@@ -8,6 +8,7 @@
  */
 
 import type { Modulo } from '@/shared/config/modules.config';
+import type { Database } from '@/integrations/supabase/types';
 
 /** Valor de token de cor no formato aceito por `hsl(var(--token))`: "210 65% 25%" */
 export type TokenHSL = string;
@@ -186,6 +187,54 @@ export interface TenantFeatures {
 /** Ramo de atuação — decide quais módulos verticais fazem sentido. */
 export type Vertical = 'esporte' | 'cultura' | 'educacao' | 'saude' | 'generico';
 
+/**
+ * Faixa de destino de uma viagem a serviço, derivada de UF/país do destino e
+ * da UF da sede do órgão (`endereco.uf`) por `classificarDestino` em
+ * `@/lib/diariasRegras`.
+ */
+export type FaixaDestino = 'intermunicipal' | 'interestadual' | 'internacional';
+
+/** Categoria de cargo (`cargos.categoria`, enum `categoria_cargo` do banco). */
+export type CategoriaCargo = Database['public']['Enums']['categoria_cargo'];
+
+/**
+ * Linha da tabela de diárias: valor por faixa de destino para um conjunto de
+ * categorias de cargo (`cargos.categoria`), opcionalmente restrito a uma faixa
+ * de `cargos.nivel_hierarquico`. A primeira linha que casar com o cargo vale.
+ */
+export interface LinhaTabelaDiarias {
+  /** Rótulo livre para leitura humana (ex.: "Dirigentes", "Nível superior"). */
+  descricao?: string;
+  /** Categorias de cargo (`categoria_cargo`) cobertas pela linha. */
+  categorias: CategoriaCargo[];
+  /** Nível hierárquico mínimo (inclusivo); ausente = sem piso. */
+  nivelMinimo?: number;
+  /** Nível hierárquico máximo (inclusivo); ausente = sem teto. */
+  nivelMaximo?: number;
+  /** Valor unitário da diária (R$) por faixa de destino. */
+  valores: Record<FaixaDestino, number>;
+}
+
+/**
+ * Tabela de valores de diária do órgão (base legal: ato normativo de diárias
+ * da instituição). Fica no perfil do tenant porque os valores são de cada
+ * cliente; vazia, o formulário de viagens aceita quantidade e valor manuais.
+ */
+export interface TabelaDiariasConfig {
+  /** Referência ao ato que fixou os valores (ex.: "IN nº 1/2026"). */
+  vigencia?: string;
+  regras?: {
+    /** Conta meia diária no dia do retorno (padrão: `true`). */
+    meiaDiariaNoRetorno?: boolean;
+  };
+  linhas: LinhaTabelaDiarias[];
+}
+
+/** Parâmetros de RH que variam por instituição. */
+export interface TenantRH {
+  diarias?: TabelaDiariasConfig;
+}
+
 export interface TenantConfig {
   slug: string;
   identidade: TenantIdentidade;
@@ -195,6 +244,8 @@ export interface TenantConfig {
   contato?: TenantContato;
   legal?: TenantLegal;
   integracoes?: TenantIntegracoes;
+  /** Parâmetros de RH (tabela de diárias etc.). */
+  rh?: TenantRH;
   /** Módulos contratados. Subconjunto de MODULES_CONFIG. */
   modulos: Modulo[];
   verticais: Vertical[];

@@ -98,6 +98,7 @@ export type PermissaoInstitucional =
   | 'rh.tramitar'
   | 'rh.aprovar'
   | 'rh.frequencia.lancar'
+  | 'rh.viagens.visualizar'
   | 'rh.self'
   // Orçamento
   | 'orcamento.visualizar'
@@ -360,7 +361,7 @@ export const menuConfig: MenuSection[] = [
         label: "Viagens",
         route: "/rh/viagens",
         icon: Plane,
-        permission: "rh.visualizar",
+        permission: "rh.viagens.visualizar",
       },
       {
         id: "folha-pagamento",

@@ -270,6 +270,8 @@ export const MODULE_PERMISSIONS = {
     'rh.frequencia.visualizar',
     'rh.frequencia.lancar',
     'rh.viagens.visualizar',
+    'rh.viagens.criar',
+    'rh.viagens.editar',
     'rh.viagens.gerenciar',
     'rh.lotacoes.visualizar',
     'rh.lotacoes.gerenciar',
