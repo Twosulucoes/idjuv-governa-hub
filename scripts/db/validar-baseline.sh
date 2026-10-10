@@ -99,8 +99,10 @@ echo "== 5. schema igual ao do replay + overlays"
 if [[ -z "$REPLAY" ]]; then
   if [[ "${EXIGIR_REPLAY:-}" == "1" ]]; then erro "PG_REPLAY não informado (EXIGIR_REPLAY=1)"
   else echo "  PULADO: defina PG_REPLAY=<banco deixado por validar-migracoes.sh> para comparar com o replay"; fi
-elif [[ "$(psql_s -d postgres -At -c "select 1 from pg_database where datname = '$REPLAY'" 2>/dev/null)" == "1" && "$(psql_s -d "$REPLAY" -At -c "select count(*) from pg_policies where schemaname = 'public' and policyname ilike 'acesso_total%'" 2>/dev/null)" == "0" ]]; then
-  erro "PG_REPLAY=$REPLAY não parece o replay das migrações (não tem as policies acesso_total_*; já recebeu o baseline ou um overlay?)"
+# Marca do replay: a tabela morta _backup_usuario_modulos_old (criada pelas migrações; o overlay/30 a apaga). Antes era
+# "tem policy acesso_total_*", mas desde a onda 1 (20261010200000) e a B3 (20261010210000) o replay não tem mais nenhuma.
+elif [[ "$(psql_s -d postgres -At -c "select 1 from pg_database where datname = '$REPLAY'" 2>/dev/null)" == "1" && "$(psql_s -d "$REPLAY" -At -c "select to_regclass('public._backup_usuario_modulos_old') is not null" 2>/dev/null)" != "t" ]]; then
+  erro "PG_REPLAY=$REPLAY não parece o replay das migrações (não tem a tabela _backup_usuario_modulos_old; já recebeu o baseline ou o overlay/30?)"
 elif ! psql_s -d postgres -At -c "select 1 from pg_database where datname = '$REPLAY'" | grep -q 1; then
   erro "PG_REPLAY=$REPLAY não existe"
 else

@@ -28,6 +28,8 @@
 --   preservar        profiles e denuncias: testes próprios no bloco "cobertura adicional"
 --   UPDATE/DELETE    por tabela e persona (SET col = DEFAULT, sem WHERE: mede só a policy de UPDATE)
 --   storage          SELECT/INSERT/UPDATE/DELETE por bucket e persona; upload anônimo só nas pastas do formulário
+--                    arquivos do RH (B3): frequencias e documentos-requerimento gravam só com módulo E código; o
+--                    servidor lê o próprio PDF/a própria pasta e não a de outro; documentos só por módulo
 --   identidade/RPCs  auto-ativação, servidor_id alheio, injeção de SQL, SECURITY DEFINER sem checagem, privilégios
 --                    padrão, campos que o autor não escolhe, links do formulário, fechamento de folha, views
 --   RH (B2)          campos iniciais isentos por permissão (e nunca no próprio pedido); etapas do abono e do
@@ -893,19 +895,23 @@ BEGIN
   RETURN res;
 END $$;
 
-CREATE TEMP TABLE bucket_modulos (bucket text, modulos text[]);
+-- codigos: NULL = o módulo lê e grava; com códigos (B3, migração 20261010210000), o módulo só LÊ e gravar exige o
+-- módulo E um dos códigos (as personas perm_* e o dono do arquivo são testados no bloco "RH: storage (B3)").
+CREATE TEMP TABLE bucket_modulos (bucket text, modulos text[], codigos text[]);
 INSERT INTO bucket_modulos VALUES
-  ('arbitros-docs', ARRAY['arbitros']), ('ascom-demandas', ARRAY['comunicacao']),
-  ('documentos', ARRAY['workflow','rh']), ('documentos-requerimento', ARRAY['rh']),
-  ('frequencias', ARRAY['rh']), ('inventario-evidencias', ARRAY['patrimonio','patrimonio_mobile']),
-  ('inventario-fotos', ARRAY['patrimonio','patrimonio_mobile']),
-  ('patrimonio-docs', ARRAY['patrimonio','patrimonio_mobile']), ('patrimonio-fotos', ARRAY['patrimonio','patrimonio_mobile']),
-  ('transparencia-publicacoes', ARRAY['transparencia']);
+  ('arbitros-docs', ARRAY['arbitros'], NULL), ('ascom-demandas', ARRAY['comunicacao'], NULL),
+  ('documentos', ARRAY['workflow','rh'], NULL),
+  ('documentos-requerimento', ARRAY['rh'], ARRAY['rh.servidores.editar']),
+  ('frequencias', ARRAY['rh'], ARRAY['rh.frequencia.lancar','rh.frequencia.criar','rh.frequencia.editar']),
+  ('inventario-evidencias', ARRAY['patrimonio','patrimonio_mobile'], NULL),
+  ('inventario-fotos', ARRAY['patrimonio','patrimonio_mobile'], NULL),
+  ('patrimonio-docs', ARRAY['patrimonio','patrimonio_mobile'], NULL), ('patrimonio-fotos', ARRAY['patrimonio','patrimonio_mobile'], NULL),
+  ('transparencia-publicacoes', ARRAY['transparencia'], NULL);
 
 INSERT INTO storage.objects (bucket_id, name) SELECT bucket, 'semente.bin' FROM bucket_modulos;
 
 DO $$
-DECLARE b record; p record; esperado int; n int; r text; permitido boolean;
+DECLARE b record; p record; esperado int; n int; r text; permitido boolean; grava boolean;
         u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
         u_anon uuid := '00000000-0000-0000-0000-000000000000';
 BEGIN
@@ -919,11 +925,13 @@ BEGIN
   FOR b IN SELECT * FROM bucket_modulos LOOP
     FOR p IN SELECT * FROM persona WHERE nome NOT LIKE 'perm_%' LOOP   -- perm_* têm módulo: o storage é coberto por mod_*
       permitido := p.nome = 'admin' OR (p.nome LIKE 'mod_%' AND substr(p.nome, 5) = ANY (b.modulos));
+      -- bucket com códigos: o módulo sozinho não grava (só o admin, entre as personas deste laço)
+      grava := permitido AND (b.codigos IS NULL OR p.nome = 'admin');
       esperado := CASE WHEN permitido THEN 1 ELSE 0 END;
       n := pg_temp.sel_obj(p.uid, 'authenticated', b.bucket);
       IF n <> esperado THEN PERFORM pg_temp.falha(format('storage %s: %s vê %s objeto(s), esperado %s', b.bucket, p.nome, n, esperado)); END IF;
       r := pg_temp.ins_obj(p.uid, 'authenticated', b.bucket);
-      IF (r = 'passou') <> permitido THEN PERFORM pg_temp.falha(format('storage %s: %s INSERT = %s, esperado %s', b.bucket, p.nome, r, CASE WHEN permitido THEN 'passou' ELSE 'negado' END)); END IF;
+      IF (r = 'passou') <> grava THEN PERFORM pg_temp.falha(format('storage %s: %s INSERT = %s, esperado %s', b.bucket, p.nome, r, CASE WHEN grava THEN 'passou' ELSE 'negado' END)); END IF;
     END LOOP;
     n := pg_temp.sel_obj(u_anon, 'anon', b.bucket);
     IF n > 0 THEN PERFORM pg_temp.falha(format('storage %s: anon lista %s objeto(s)', b.bucket, n)); END IF;
@@ -1355,6 +1363,8 @@ BEGIN
       -- evidências do inventário: sobrescrever/apagar exige patrimonio.tramitar (o módulo sozinho não basta;
       -- o caso positivo está no bloco "inventário de campo")
       IF b.bucket = 'inventario-evidencias' THEN permitido := p.nome = 'admin'; END IF;
+      -- arquivos do RH (B3): sobrescrever/apagar exige o código, como o INSERT (caso positivo no bloco "RH: storage")
+      IF b.codigos IS NOT NULL THEN permitido := p.nome = 'admin'; END IF;
       FOREACH op IN ARRAY ARRAY['UPDATE', 'DELETE'] LOOP
         n := pg_temp.mut_obj(p.uid, 'authenticated', b.bucket, op);
         IF permitido AND n < 1 THEN PERFORM pg_temp.falha(format('storage %s: %s deveria conseguir %s (afetou %s)', b.bucket, p.nome, op, n)); END IF;
@@ -2015,6 +2025,217 @@ BEGIN
      AND has_function_privilege('authenticated', 'public.validar_etapa_frequencia()', 'EXECUTE') THEN
     PERFORM pg_temp.falha('validar_etapa_frequencia: executável por authenticated (função de trigger)');
   END IF;
+END $$;
+
+-- ---------------------------------------------------------------- RH: storage (Onda B / B3) (TRIGGERS LIGADOS)
+-- Migração 20261010210000_onda_b_rh_storage.sql (e overlays 10/40/50 no baseline):
+--   * frequencias: o módulo rh lê; gravar (INSERT/UPDATE/DELETE) exige o módulo E rh.frequencia.lancar|criar|editar; o
+--     servidor sem módulo lê o PDF dele (linha de frequencia_arquivos com arquivo_path = nome e servidor_id dele) e não
+--     o de outro; perfil bloqueado não lê;
+--   * documentos-requerimento: o módulo rh lê; gravar exige o módulo E rh.servidores.editar; o servidor lê a pasta dele
+--     (<servidor_id>/...) e não a de outro nem grava nela; pasta fora do formato uuid dá false (sem erro);
+--   * documentos: ninguém sem o módulo (workflow ou rh) lê ou grava, nem com objeto na pasta do próprio servidor;
+--   * funções eh_meu_arquivo_frequencia/eh_minha_pasta_servidor: só authenticated executa; limite do bucket
+--     documentos-requerimento; nenhuma outra policy de storage.objects cita os três buckets.
+-- Os objetos e linhas criados aqui ficam na cópia descartável do banco (os blocos anteriores já rodaram).
+DO $$
+DECLARE
+  sa text := 'b0000000-0000-0000-0000-00000000000a'; sb text := 'b0000000-0000-0000-0000-00000000000b';
+  u_a uuid := (SELECT uid FROM persona WHERE nome='srv_a');
+  u_b uuid := (SELECT uid FROM persona WHERE nome='srv_b');
+  u_ai uuid := (SELECT uid FROM persona WHERE nome='srv_inativo');
+  u_nenhum uuid := (SELECT uid FROM persona WHERE nome='nenhum');
+  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
+  u_ed uuid := (SELECT uid FROM persona WHERE nome='perm_rh.servidores.editar');   -- módulo rh + rh.servidores.editar
+  r text; n int; c text; p record; f text;
+BEGIN
+  -- funções e privilégios (sem as funções, o resto do bloco não tem como passar)
+  FOREACH f IN ARRAY ARRAY['public.eh_meu_arquivo_frequencia(text)', 'public.eh_minha_pasta_servidor(text)'] LOOP
+    IF to_regprocedure(f) IS NULL THEN
+      PERFORM pg_temp.falha('storage do RH: função ' || f || ' não existe');
+    ELSE
+      IF NOT has_function_privilege('authenticated', f, 'EXECUTE') THEN PERFORM pg_temp.falha(f || ': authenticated não executa (as policies a chamam)'); END IF;
+      IF has_function_privilege('anon', f, 'EXECUTE') THEN PERFORM pg_temp.falha(f || ': executável por anon'); END IF;
+      IF has_function_privilege('service_role', f, 'EXECUTE') THEN PERFORM pg_temp.falha(f || ': executável pela service_role (não precisa)'); END IF;
+      IF NOT (SELECT prosecdef AND coalesce(proconfig::text, '') ~ 'search_path' FROM pg_proc WHERE oid = to_regprocedure(f)) THEN PERFORM pg_temp.falha(f || ': sem SECURITY DEFINER ou sem search_path fixo'); END IF;
+    END IF;
+  END LOOP;
+  IF to_regprocedure('public.eh_minha_pasta_servidor(text)') IS NOT NULL THEN
+    FOREACH c IN ARRAY ARRAY['nao-uuid/a.pdf', 'a.pdf', '', sa || '.pdf', '../' || sa || '/a.pdf'] LOOP
+      r := pg_temp.valor_como(u_a, 'authenticated', format('SELECT public.eh_minha_pasta_servidor(%L)::text', c));
+      IF r IS DISTINCT FROM 'false' THEN PERFORM pg_temp.falha(format('eh_minha_pasta_servidor(%L) = %s (esperado false, sem erro)', c, coalesce(r, 'NULL'))); END IF;
+    END LOOP;
+    r := pg_temp.valor_como(u_a, 'authenticated', 'SELECT public.eh_minha_pasta_servidor(NULL)::text');
+    IF r IS DISTINCT FROM 'false' THEN PERFORM pg_temp.falha('eh_minha_pasta_servidor(NULL) = ' || coalesce(r, 'NULL') || ' (esperado false)'); END IF;
+  END IF;
+  IF to_regprocedure('public.eh_meu_arquivo_frequencia(text)') IS NOT NULL THEN
+    r := pg_temp.valor_como(u_a, 'authenticated', 'SELECT public.eh_meu_arquivo_frequencia(NULL)::text');
+    IF r IS DISTINCT FROM 'false' THEN PERFORM pg_temp.falha('eh_meu_arquivo_frequencia(NULL) = ' || coalesce(r, 'NULL') || ' (esperado false)'); END IF;
+  END IF;
+
+  -- bucket documentos-requerimento: privado, 10 MB, PDF e imagem
+  IF (SELECT public OR file_size_limit IS DISTINCT FROM 10485760
+             OR allowed_mime_types IS DISTINCT FROM ARRAY['application/pdf','image/jpeg','image/png','image/webp']
+        FROM storage.buckets WHERE id = 'documentos-requerimento') IS NOT FALSE THEN
+    PERFORM pg_temp.falha('storage documentos-requerimento: bucket público ou sem o limite de 10 MB / tipos PDF e imagem');
+  END IF;
+  -- só as st_* valem para estes buckets (policies permissivas são OR: uma antiga sobrando anularia a regra); policy
+  -- sem filtro de bucket_id vale para todos e também conta
+  FOR p IN SELECT policyname FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects'
+             AND policyname !~ '^st_(frequencias|documentos|documentos-requerimento)_(select|insert|update|delete)$'
+             AND (coalesce(qual, '') || ' ' || coalesce(with_check, '')) ~ ('bucket_id = (''(frequencias|documentos|documentos-requerimento)''|ANY \(ARRAY\[[^]]*''(frequencias|documentos|documentos-requerimento)'')'
+                  || '|^((?!bucket_id).)*$') LOOP
+    PERFORM pg_temp.falha('storage: a policy "' || p.policyname || '" também vale para os arquivos do RH');
+  END LOOP;
+
+  -- vínculos da semeadura (srv_a e srv_inativo -> A, srv_b -> B): nenhum bloco anterior os muda; se mudar, o bloco
+  -- mediria outra coisa
+  IF u_ed IS NULL THEN RAISE EXCEPTION 'falta a persona perm_rh.servidores.editar (mapa.csv)'; END IF;
+  IF (SELECT servidor_id FROM public.profiles WHERE id = u_a) IS DISTINCT FROM sa::uuid
+     OR (SELECT servidor_id FROM public.profiles WHERE id = u_ai) IS DISTINCT FROM sa::uuid
+     OR (SELECT servidor_id FROM public.profiles WHERE id = u_b) IS DISTINCT FROM sb::uuid THEN
+    RAISE EXCEPTION 'storage do RH: vínculo de srv_a/srv_inativo/srv_b diferente da semeadura';
+  END IF;
+
+  -- semente (como superusuário, sem triggers/FKs): PDFs de frequência de A, de B e um sem servidor; documentos nas
+  -- pastas de A e de B e fora do padrão.
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.frequencia_arquivos (periodo, ano, mes, servidor_id, tipo, arquivo_path, arquivo_nome) VALUES
+    ('2026-01', 2026, 1, sa::uuid, 'individual', 'b3/' || sa || '/2026-01.pdf', 'a.pdf'),
+    ('2026-01', 2026, 1, sb::uuid, 'individual', 'b3/' || sb || '/2026-01.pdf', 'b.pdf'),
+    ('2026-01', 2026, 1, NULL,     'individual', 'b3/sem-servidor/2026-01.pdf', 'x.pdf');
+  INSERT INTO storage.objects (bucket_id, name) VALUES
+    ('frequencias', 'b3/' || sa || '/2026-01.pdf'), ('frequencias', 'b3/' || sb || '/2026-01.pdf'),
+    ('frequencias', 'b3/sem-servidor/2026-01.pdf'), ('frequencias', 'b3/' || sa || '/sem-linha.pdf'),
+    ('documentos-requerimento', sa || '/doc-a.pdf'), ('documentos-requerimento', sb || '/doc-b.pdf'),
+    ('documentos-requerimento', 'nao-uuid/doc.pdf'),
+    ('documentos', sa || '/ato-a.pdf');
+  SET LOCAL session_replication_role = origin;
+
+  -- ===== frequencias: o dono lê o próprio PDF (só ele), outro servidor não; bloqueado e sem vínculo não
+  r := pg_temp.valor_como(u_a, 'authenticated', 'SELECT string_agg(name, '','' ORDER BY name) FROM storage.objects WHERE bucket_id = ''frequencias''');
+  IF r IS DISTINCT FROM 'b3/' || sa || '/2026-01.pdf' THEN PERFORM pg_temp.falha('storage frequencias: srv_a deveria ler só o próprio PDF; leu ' || coalesce(r, 'nada')); END IF;
+  r := pg_temp.valor_como(u_b, 'authenticated', 'SELECT string_agg(name, '','' ORDER BY name) FROM storage.objects WHERE bucket_id = ''frequencias''');
+  IF r IS DISTINCT FROM 'b3/' || sb || '/2026-01.pdf' THEN PERFORM pg_temp.falha('storage frequencias: srv_b deveria ler só o próprio PDF; leu ' || coalesce(r, 'nada')); END IF;
+  FOR p IN SELECT * FROM persona WHERE nome IN ('srv_inativo', 'nenhum', 'inativo', 'admin_inativo', 'mod_financeiro') LOOP
+    n := pg_temp.sel_obj(p.uid, 'authenticated', 'frequencias');
+    IF n <> 0 THEN PERFORM pg_temp.falha(format('storage frequencias: %s lê %s objeto(s) (esperado 0)', p.nome, n)); END IF;
+  END LOOP;
+  -- o dono não grava nem apaga (nem o próprio PDF)
+  IF pg_temp.ins_obj(u_a, 'authenticated', 'frequencias', 'b3/' || sa || '/novo.pdf') <> 'negado' THEN PERFORM pg_temp.falha('storage frequencias: srv_a grava na própria pasta'); END IF;
+  r := pg_temp.sql_como(u_a, 'authenticated', 'DELETE FROM storage.objects WHERE bucket_id = ''frequencias''');
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('storage frequencias: srv_a apaga (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_a, 'authenticated', 'UPDATE storage.objects SET name = name WHERE bucket_id = ''frequencias''');
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('storage frequencias: srv_a sobrescreve (' || r || ')'); END IF;
+  -- o módulo rh lê tudo (5 objetos: semente + 4) e não grava; cada código grava; a permissão avulsa não lê nem grava
+  n := pg_temp.sel_obj(u_rh, 'authenticated', 'frequencias');
+  IF n <> 5 THEN PERFORM pg_temp.falha('storage frequencias: mod_rh lê ' || n || ' objeto(s) (esperado 5)'); END IF;
+  IF pg_temp.ins_obj(u_rh, 'authenticated', 'frequencias') <> 'negado' THEN PERFORM pg_temp.falha('storage frequencias: mod_rh (sem código) grava'); END IF;
+  FOREACH c IN ARRAY ARRAY['rh.frequencia.lancar', 'rh.frequencia.criar', 'rh.frequencia.editar'] LOOP
+    SELECT * INTO p FROM persona WHERE nome = 'perm_' || c;
+    IF NOT FOUND THEN PERFORM pg_temp.falha('storage frequencias: falta a persona perm_' || c); CONTINUE; END IF;
+    IF pg_temp.ins_obj(p.uid, 'authenticated', 'frequencias') <> 'passou' THEN PERFORM pg_temp.falha('storage frequencias: perm_' || c || ' não grava'); END IF;
+    IF pg_temp.mut_obj(p.uid, 'authenticated', 'frequencias', 'UPDATE') < 1 THEN PERFORM pg_temp.falha('storage frequencias: perm_' || c || ' não sobrescreve'); END IF;
+    IF pg_temp.mut_obj(p.uid, 'authenticated', 'frequencias', 'DELETE') < 1 THEN PERFORM pg_temp.falha('storage frequencias: perm_' || c || ' não apaga'); END IF;
+    SELECT * INTO p FROM persona WHERE nome = 'perm_avulsa_' || c;
+    IF NOT FOUND THEN RAISE EXCEPTION 'falta a persona perm_avulsa_%', c; END IF;
+    IF pg_temp.sel_obj(p.uid, 'authenticated', 'frequencias') <> 0 THEN PERFORM pg_temp.falha('storage frequencias: perm_avulsa_' || c || ' (sem módulo) lê'); END IF;
+    IF pg_temp.ins_obj(p.uid, 'authenticated', 'frequencias') <> 'negado' THEN PERFORM pg_temp.falha('storage frequencias: perm_avulsa_' || c || ' (sem módulo) grava'); END IF;
+  END LOOP;
+  IF pg_temp.ins_obj(u_ed, 'authenticated', 'frequencias') <> 'negado' THEN PERFORM pg_temp.falha('storage frequencias: rh.servidores.editar (código de outro bucket) grava'); END IF;
+  -- tabelas: o dono lê a linha do próprio PDF (;proprio), não a de outro; mod_rh não escreve; o código escreve
+  r := pg_temp.valor_como(u_a, 'authenticated', 'SELECT string_agg(arquivo_path, '','' ORDER BY arquivo_path) FROM public.frequencia_arquivos WHERE arquivo_path LIKE ''b3/%''');
+  IF r IS DISTINCT FROM 'b3/' || sa || '/2026-01.pdf' THEN PERFORM pg_temp.falha('frequencia_arquivos: srv_a deveria ler só a própria linha; leu ' || coalesce(r, 'nada')); END IF;
+  IF pg_temp.sel(u_a, 'authenticated', 'frequencia_pacotes') <> 0 THEN PERFORM pg_temp.falha('frequencia_pacotes: servidor sem módulo lê pacotes (link_download)'); END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', 'UPDATE public.frequencia_arquivos SET arquivo_nome = arquivo_nome');
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('frequencia_arquivos: mod_rh (sem código) altera (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', 'UPDATE public.frequencia_pacotes SET arquivo_path = arquivo_path');
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('frequencia_pacotes: mod_rh (sem código) troca arquivo_path (' || r || ')'); END IF;
+  r := pg_temp.sql_como((SELECT uid FROM persona WHERE nome = 'perm_rh.frequencia.lancar'), 'authenticated', 'UPDATE public.frequencia_arquivos SET arquivo_nome = arquivo_nome WHERE arquivo_path LIKE ''b3/%''');
+  IF r <> 'ok:3' THEN PERFORM pg_temp.falha('frequencia_arquivos: perm_rh.frequencia.lancar não altera (' || r || ')'); END IF;
+  -- arquivo_path seguro (CHECK *_arquivo_path_seguro): caminho relativo sem ./.., %, \, ?, # nem caractere de controle
+  -- (o parser de URL apaga tab/LF/CR: '.<tab>./' viraria '../'); vale até para quem grava
+  FOREACH c IN ARRAY ARRAY['../x.pdf', 'b3/../x.pdf', './x.pdf', 'b3/.', '/abs.pdf', '', 'b3/%2e%2e/x.pdf', 'b3\x.pdf', 'b3/x.pdf?y', 'b3/x.pdf#y',
+                           E'.\t./x.pdf', E'.\t./.\t./frequencias/x/empty', E'.\n./x.pdf', E'.\r./x.pdf', E'b3/x\u007f.pdf'] LOOP
+    r := pg_temp.sql_como((SELECT uid FROM persona WHERE nome = 'perm_rh.frequencia.lancar'), 'authenticated',
+           format('UPDATE public.frequencia_arquivos SET arquivo_path = %L WHERE arquivo_path = %L', c, 'b3/' || sa || '/2026-01.pdf'));
+    IF r NOT LIKE 'erro:23514%' THEN PERFORM pg_temp.falha(format('frequencia_arquivos: arquivo_path %L aceito (%s)', c, r)); END IF;
+    r := pg_temp.sql_como(u_admin, 'authenticated', format('UPDATE public.frequencia_pacotes SET arquivo_path = %L', c));
+    IF r NOT LIKE 'erro:23514%' AND r <> 'ok:0' THEN PERFORM pg_temp.falha(format('frequencia_pacotes: arquivo_path %L aceito (%s)', c, r)); END IF;
+  END LOOP;
+  r := pg_temp.sql_como(u_admin, 'authenticated', 'UPDATE public.frequencia_pacotes SET arquivo_path = NULL');
+  IF r NOT LIKE 'ok:%' THEN PERFORM pg_temp.falha('frequencia_pacotes: arquivo_path NULL recusado (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_admin, 'authenticated', 'UPDATE public.frequencia_pacotes SET arquivo_path = ''2026-01/unidade/pacote..v2.zip''');
+  IF r NOT LIKE 'ok:%' THEN PERFORM pg_temp.falha('frequencia_pacotes: caminho válido recusado (' || r || ')'); END IF;
+  IF (SELECT count(*) FROM public.frequencia_pacotes) = 0 THEN PERFORM pg_temp.falha('frequencia_pacotes: sem linha para testar o CHECK de arquivo_path'); END IF;
+  IF to_regclass('public.idx_frequencia_arquivos_arquivo_path') IS NULL THEN PERFORM pg_temp.falha('frequencia_arquivos: falta o índice em arquivo_path'); END IF;
+  IF EXISTS (SELECT 1 FROM storage.buckets WHERE id IN ('frequencias', 'documentos-requerimento', 'documentos') AND public) THEN
+    PERFORM pg_temp.falha('storage: bucket do RH público');
+  END IF;
+
+  -- ===== documentos-requerimento: o servidor lê a própria pasta, não a de outro; não grava
+  r := pg_temp.valor_como(u_a, 'authenticated', 'SELECT string_agg(name, '','' ORDER BY name) FROM storage.objects WHERE bucket_id = ''documentos-requerimento''');
+  IF r IS DISTINCT FROM sa || '/doc-a.pdf' THEN PERFORM pg_temp.falha('storage documentos-requerimento: srv_a deveria ler só a própria pasta; leu ' || coalesce(r, 'nada')); END IF;
+  r := pg_temp.valor_como(u_b, 'authenticated', 'SELECT string_agg(name, '','' ORDER BY name) FROM storage.objects WHERE bucket_id = ''documentos-requerimento''');
+  IF r IS DISTINCT FROM sb || '/doc-b.pdf' THEN PERFORM pg_temp.falha('storage documentos-requerimento: srv_b deveria ler só a própria pasta; leu ' || coalesce(r, 'nada')); END IF;
+  FOR p IN SELECT * FROM persona WHERE nome IN ('srv_inativo', 'nenhum', 'inativo', 'admin_inativo', 'mod_workflow') LOOP
+    n := pg_temp.sel_obj(p.uid, 'authenticated', 'documentos-requerimento');
+    IF n <> 0 THEN PERFORM pg_temp.falha(format('storage documentos-requerimento: %s lê %s objeto(s) (esperado 0)', p.nome, n)); END IF;
+  END LOOP;
+  IF pg_temp.ins_obj(u_a, 'authenticated', 'documentos-requerimento', sa || '/meu.pdf') <> 'negado' THEN PERFORM pg_temp.falha('storage documentos-requerimento: srv_a envia arquivo na própria pasta'); END IF;
+  r := pg_temp.sql_como(u_a, 'authenticated', 'DELETE FROM storage.objects WHERE bucket_id = ''documentos-requerimento''');
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('storage documentos-requerimento: srv_a apaga (' || r || ')'); END IF;
+  -- o módulo lê tudo (4: semente + 3) e não grava; rh.servidores.editar grava; o código da frequência não
+  n := pg_temp.sel_obj(u_rh, 'authenticated', 'documentos-requerimento');
+  IF n <> 4 THEN PERFORM pg_temp.falha('storage documentos-requerimento: mod_rh lê ' || n || ' objeto(s) (esperado 4)'); END IF;
+  IF pg_temp.ins_obj(u_rh, 'authenticated', 'documentos-requerimento') <> 'negado' THEN PERFORM pg_temp.falha('storage documentos-requerimento: mod_rh (sem código) grava'); END IF;
+  IF pg_temp.ins_obj(u_ed, 'authenticated', 'documentos-requerimento', sb || '/novo.pdf') <> 'passou' THEN PERFORM pg_temp.falha('storage documentos-requerimento: módulo + rh.servidores.editar não grava'); END IF;
+  IF pg_temp.mut_obj(u_ed, 'authenticated', 'documentos-requerimento', 'UPDATE') < 1 THEN PERFORM pg_temp.falha('storage documentos-requerimento: módulo + rh.servidores.editar não sobrescreve'); END IF;
+  IF pg_temp.mut_obj(u_ed, 'authenticated', 'documentos-requerimento', 'DELETE') < 1 THEN PERFORM pg_temp.falha('storage documentos-requerimento: módulo + rh.servidores.editar não apaga'); END IF;
+  IF pg_temp.ins_obj((SELECT uid FROM persona WHERE nome = 'perm_rh.frequencia.lancar'), 'authenticated', 'documentos-requerimento') <> 'negado' THEN
+    PERFORM pg_temp.falha('storage documentos-requerimento: rh.frequencia.lancar (código de outro bucket) grava');
+  END IF;
+
+  -- ===== documentos_requerimento_servidor (classe permissao;proprio;insere_proprio + forcar_campos_iniciais perm:)
+  -- o servidor sem módulo cria o próprio pedido, mas nasce pendente e sem arquivo assinado, data de envio ou modelo
+  r := pg_temp.valor_desfeito_como(u_a, 'authenticated', format('INSERT INTO public.documentos_requerimento_servidor (servidor_id, tipo_documento, titulo, status, arquivo_assinado_url, data_upload_assinado, modelo_url) VALUES (%L, ''declaracao'', ''t'', ''arquivado'', ''https://forjado/x.pdf'', now(), ''https://forjado/m.pdf'') RETURNING status || ''|'' || coalesce(arquivo_assinado_url, ''NULO'') || ''|'' || coalesce(data_upload_assinado::text, ''NULO'') || ''|'' || coalesce(modelo_url, ''NULO'')', sa));
+  IF r IS DISTINCT FROM 'pendente|NULO|NULO|NULO' THEN PERFORM pg_temp.falha('documentos_requerimento_servidor: o servidor cria o próprio pedido com campos do RH (' || coalesce(r, 'NULL') || ')'); END IF;
+  r := pg_temp.sql_como(u_a, 'authenticated', format('INSERT INTO public.documentos_requerimento_servidor (servidor_id, tipo_documento, titulo) VALUES (%L, ''declaracao'', ''t'')', sb));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('documentos_requerimento_servidor: o servidor cria pedido de OUTRO servidor (' || r || ')'); END IF;
+  -- semente: um pedido de A e um de B (superusuário)
+  INSERT INTO public.documentos_requerimento_servidor (servidor_id, tipo_documento, titulo, observacoes) VALUES
+    (sa::uuid, 'declaracao', 'b3-a', 'b3'), (sb::uuid, 'declaracao', 'b3-b', 'b3');
+  r := pg_temp.valor_como(u_a, 'authenticated', 'SELECT string_agg(titulo, '','' ORDER BY titulo) FROM public.documentos_requerimento_servidor WHERE observacoes = ''b3''');
+  IF r IS DISTINCT FROM 'b3-a' THEN PERFORM pg_temp.falha('documentos_requerimento_servidor: srv_a deveria ler só o próprio pedido; leu ' || coalesce(r, 'nada')); END IF;
+  r := pg_temp.sql_como(u_a, 'authenticated', 'UPDATE public.documentos_requerimento_servidor SET arquivo_assinado_url = ''https://forjado/x.pdf''');
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('documentos_requerimento_servidor: o servidor grava arquivo_assinado_url (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', 'UPDATE public.documentos_requerimento_servidor SET arquivo_assinado_url = ''x'' WHERE observacoes = ''b3''');
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('documentos_requerimento_servidor: mod_rh sem rh.servidores.editar altera (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', format('INSERT INTO public.documentos_requerimento_servidor (servidor_id, tipo_documento, titulo) VALUES (%L, ''declaracao'', ''t'')', sb));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('documentos_requerimento_servidor: mod_rh sem rh.servidores.editar cria pedido de outro (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', 'UPDATE public.documentos_requerimento_servidor SET arquivo_assinado_url = ''x'' WHERE observacoes = ''b3''');
+  IF r <> 'ok:2' THEN PERFORM pg_temp.falha('documentos_requerimento_servidor: módulo + rh.servidores.editar não altera (' || r || ')'); END IF;
+  -- quem tem o código cria o pedido de outro servidor já com o arquivo (isento no trigger)
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format('INSERT INTO public.documentos_requerimento_servidor (servidor_id, tipo_documento, titulo, status, arquivo_assinado_url) VALUES (%L, ''declaracao'', ''t'', ''recebido'', ''%s/d.pdf'') RETURNING status || ''|'' || coalesce(arquivo_assinado_url, ''NULO'')', sb, sb));
+  IF r IS DISTINCT FROM 'recebido|' || sb || '/d.pdf' THEN PERFORM pg_temp.falha('documentos_requerimento_servidor: RH com rh.servidores.editar não registra o pedido recebido (' || coalesce(r, 'NULL') || ')'); END IF;
+
+  -- ===== documentos: sem o módulo, nem a pasta do próprio servidor abre
+  FOR p IN SELECT * FROM persona WHERE nome IN ('srv_a', 'nenhum', 'srv_inativo', 'admin_inativo', 'perm_avulsa_rh.frequencia.lancar') LOOP
+    n := pg_temp.sel_obj(p.uid, 'authenticated', 'documentos');
+    IF n <> 0 THEN PERFORM pg_temp.falha(format('storage documentos: %s lê %s objeto(s) sem o módulo', p.nome, n)); END IF;
+    IF pg_temp.ins_obj(p.uid, 'authenticated', 'documentos', sa || '/x.pdf') <> 'negado' THEN PERFORM pg_temp.falha('storage documentos: ' || p.nome || ' grava sem o módulo'); END IF;
+    IF pg_temp.mut_obj(p.uid, 'authenticated', 'documentos', 'UPDATE') > 0 OR pg_temp.mut_obj(p.uid, 'authenticated', 'documentos', 'DELETE') > 0 THEN
+      PERFORM pg_temp.falha('storage documentos: ' || p.nome || ' altera/apaga sem o módulo');
+    END IF;
+  END LOOP;
+  IF pg_temp.sel_obj(u_rh, 'authenticated', 'documentos') <> 2 OR pg_temp.sel_obj((SELECT uid FROM persona WHERE nome = 'mod_workflow'), 'authenticated', 'documentos') <> 2 THEN
+    PERFORM pg_temp.falha('storage documentos: mod_rh/mod_workflow não leem os 2 objetos');
+  END IF;
+  IF pg_temp.sel_obj(u_admin, 'authenticated', 'frequencias') <> 5 OR pg_temp.sel_obj(u_admin, 'authenticated', 'documentos-requerimento') <> 4 THEN
+    PERFORM pg_temp.falha('storage do RH: o admin não lê todos os objetos');
+  END IF;
+  PERFORM pg_temp.nota('storage do RH (B3): frequencias, documentos-requerimento e documentos por permissão e por dono verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

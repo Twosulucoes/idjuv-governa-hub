@@ -82,6 +82,19 @@ de chamar `supabase` direto dentro da página.
   IRRF, consignações), `frequenciaCalculoService.ts`.
 - **Utils**: `formatters.ts` (máscaras), `utils.ts` (`cn`, helpers),
   `matriculaUtils.ts`, `statusColors.ts`, `supabase.ts`/`supabaseClient.ts`.
+- **Arquivos em bucket privado**: `src/lib/storageArquivos.ts`. Use ao gravar ou abrir arquivo de bucket
+  privado do Storage: o banco guarda o **caminho** dentro do bucket (não a URL pública) e a leitura é por URL
+  assinada de curta duração.
+  - `abrirArquivoPrivado(bucket, valor)`: abre em nova aba por URL assinada (60 s por padrão,
+    `validadeSegundos` muda). A aba abre ainda no clique, para não ser barrada pelo bloqueador de pop-up. Em
+    erro lança `Error` com mensagem em português pronta para toast, sem detalhe do servidor.
+  - `caminhoNoBucket(bucket, valor)`: devolve o caminho a partir de um caminho ou de uma URL antiga do Storage
+    (`/object/public|sign/<bucket>/...`), o que mantém abrindo os links gravados antes, sem migração de dados.
+    Devolve `null` para URL de outro bucket ou caminho inseguro (`.`/`..`, `/` inicial, `\`, `%`, `?`, `#`).
+  - `abrirUrlExterna(valor)`: abre um link já gravado só se for `http(s)` (barra `javascript:` e afins). Para
+    links que ainda não passaram para caminho + URL assinada (hoje, os documentos expedidos da tabela
+    `documentos` na mesma aba).
+  - Primeiro uso: `DocumentosServidorTab` (bucket `documentos-requerimento`, Onda B / B3).
 - **Inventário de campo**: `src/lib/filaFotosOffline.ts` (IndexedDB sem dependência,
   banco `inventario-campo`, store `fotos-pendentes`; também comprime a imagem e
   calcula o SHA-256) e `src/lib/kml.ts` (lê KML no navegador com `DOMParser` e devolve

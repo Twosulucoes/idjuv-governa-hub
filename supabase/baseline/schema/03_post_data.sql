@@ -1678,6 +1678,14 @@ ALTER TABLE ONLY public.fotos_vistoria_inventario
 
 
 --
+-- Name: frequencia_arquivos frequencia_arquivos_arquivo_path_seguro; Type: CHECK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.frequencia_arquivos
+    ADD CONSTRAINT frequencia_arquivos_arquivo_path_seguro CHECK (((arquivo_path IS NULL) OR ((arquivo_path <> ''::text) AND (arquivo_path !~ '^/'::text) AND (arquivo_path !~ '[%\\?#]'::text) AND (arquivo_path !~ '(^|/)\.\.?(/|$)'::text) AND (arquivo_path !~ '[[:cntrl:]]'::text)))) NOT VALID;
+
+
+--
 -- Name: frequencia_arquivos frequencia_arquivos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1723,6 +1731,14 @@ ALTER TABLE ONLY public.frequencia_mensal
 
 ALTER TABLE ONLY public.frequencia_mensal
     ADD CONSTRAINT frequencia_mensal_servidor_id_mes_ano_key UNIQUE (servidor_id, mes, ano);
+
+
+--
+-- Name: frequencia_pacotes frequencia_pacotes_arquivo_path_seguro; Type: CHECK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.frequencia_pacotes
+    ADD CONSTRAINT frequencia_pacotes_arquivo_path_seguro CHECK (((arquivo_path IS NULL) OR ((arquivo_path <> ''::text) AND (arquivo_path !~ '^/'::text) AND (arquivo_path !~ '[%\\?#]'::text) AND (arquivo_path !~ '(^|/)\.\.?(/|$)'::text) AND (arquivo_path !~ '[[:cntrl:]]'::text)))) NOT VALID;
 
 
 --
@@ -4777,6 +4793,13 @@ CREATE INDEX idx_fotos_vistoria_inventario_capturada_em ON public.fotos_vistoria
 
 
 --
+-- Name: idx_frequencia_arquivos_arquivo_path; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_frequencia_arquivos_arquivo_path ON public.frequencia_arquivos USING btree (arquivo_path);
+
+
+--
 -- Name: idx_frequencia_arquivos_periodo; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7167,7 +7190,7 @@ CREATE TRIGGER trg_folhas_proteger_exclusao BEFORE DELETE ON public.folhas_pagam
 -- Name: documentos_requerimento_servidor trg_forcar_campos_iniciais; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_forcar_campos_iniciais BEFORE INSERT ON public.documentos_requerimento_servidor FOR EACH ROW EXECUTE FUNCTION public.forcar_campos_iniciais('rh', 'status=pendente', 'created_by=@uid');
+CREATE TRIGGER trg_forcar_campos_iniciais BEFORE INSERT ON public.documentos_requerimento_servidor FOR EACH ROW EXECUTE FUNCTION public.forcar_campos_iniciais('perm:rh:rh.servidores.editar', 'status=pendente', 'arquivo_assinado_url=NULL', 'data_upload_assinado=NULL', 'modelo_url=NULL', 'created_by=@uid');
 
 
 --
@@ -13135,38 +13158,6 @@ ALTER TABLE ONLY public.vinculos_servidor
 
 
 --
--- Name: cadastro_arbitros_modalidades Admin pode atualizar modalidades; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Admin pode atualizar modalidades" ON public.cadastro_arbitros_modalidades FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
-
-
---
--- Name: cadastro_arbitros_modalidades Admin pode deletar modalidades; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Admin pode deletar modalidades" ON public.cadastro_arbitros_modalidades FOR DELETE TO authenticated USING (true);
-
-
---
--- Name: gestores_escolares_historico Admin pode ver todo histórico; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Admin pode ver todo histórico" ON public.gestores_escolares_historico FOR SELECT TO authenticated USING ((public.usuario_tem_permissao(auth.uid(), 'educacao.gestores.visualizar'::text) OR public.usuario_eh_super_admin(auth.uid())));
-
-
---
--- Name: config_paginas_publicas Apenas admins podem alterar config paginas; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Apenas admins podem alterar config paginas" ON public.config_paginas_publicas USING ((EXISTS ( SELECT 1
-   FROM public.user_roles
-  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::public.app_role))))) WITH CHECK ((EXISTS ( SELECT 1
-   FROM public.user_roles
-  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::public.app_role)))));
-
-
---
 -- Name: links_uteis Apenas admins podem alterar links uteis; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -13186,13 +13177,6 @@ CREATE POLICY "Apenas admins podem alterar menu publico" ON public.config_menu_p
   WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::public.app_role))))) WITH CHECK ((EXISTS ( SELECT 1
    FROM public.user_roles
   WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::public.app_role)))));
-
-
---
--- Name: config_paginas_publicas Leitura publica do status das paginas; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Leitura publica do status das paginas" ON public.config_paginas_publicas FOR SELECT TO anon, authenticated USING (true);
 
 
 --
@@ -13243,4906 +13227,6 @@ ALTER TABLE public._backup_usuario_modulos_old ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.acesso_processo_sigiloso ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: _backup_usuario_modulos_old acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public._backup_usuario_modulos_old FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: acesso_processo_sigiloso acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.acesso_processo_sigiloso FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: acoes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.acoes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: agrupamento_unidade_vinculo acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.agrupamento_unidade_vinculo FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: approval_delegations acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.approval_delegations FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: approval_requests acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.approval_requests FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: audit_log_licitacoes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.audit_log_licitacoes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: avaliacoes_controle acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.avaliacoes_controle FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: avaliacoes_risco acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.avaliacoes_risco FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: bancos_cnab acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.bancos_cnab FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: calendario_federacao acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.calendario_federacao FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: campanhas_inventario acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.campanhas_inventario FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cargo_unidade_compatibilidade acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.cargo_unidade_compatibilidade FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: categorias_material acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.categorias_material FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: categorias_noticias_eventos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.categorias_noticias_eventos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: centros_custo acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.centros_custo FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cessoes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.cessoes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: checklists_conformidade acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.checklists_conformidade FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_banners acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.cms_banners FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_categorias acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.cms_categorias FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_conteudos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.cms_conteudos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_galeria_fotos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.cms_galeria_fotos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_galerias acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.cms_galerias FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_media acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.cms_media FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: coletas_inventario acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.coletas_inventario FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: composicao_cargos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.composicao_cargos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: conciliacoes_inventario acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.conciliacoes_inventario FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_agrupamento_unidades acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_agrupamento_unidades FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_assinatura_frequencia acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_assinatura_frequencia FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_assinatura_reuniao acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_assinatura_reuniao FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_autarquia acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_autarquia FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_compensacao acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_compensacao FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_fechamento_folha acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_fechamento_folha FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_incidencias acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_incidencias FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_institucional acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_institucional FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_jornada_padrao acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_jornada_padrao FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_motivos_desligamento acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_motivos_desligamento FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_paginas_historico acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_paginas_historico FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_paginas_publicas acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_paginas_publicas FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_parametros_meta acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_parametros_meta FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_parametros_valores acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_parametros_valores FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_regras_calculo acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_regras_calculo FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_rubricas acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_rubricas FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_situacoes_funcionais acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_situacoes_funcionais FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_tipos_ato acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_tipos_ato FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_tipos_onus acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_tipos_onus FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_tipos_rubrica acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_tipos_rubrica FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_tipos_servidor acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.config_tipos_servidor FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: configuracao_jornada acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.configuracao_jornada FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: contas_autarquia acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.contas_autarquia FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: contatos_eventos_esportivos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.contatos_eventos_esportivos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: conteudo_rascunho acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.conteudo_rascunho FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: controles_internos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.controles_internos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: creditos_adicionais acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.creditos_adicionais FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: dados_oficiais acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.dados_oficiais FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: debitos_tecnicos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.debitos_tecnicos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: decisoes_administrativas acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.decisoes_administrativas FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: demandas_ascom acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.demandas_ascom FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: demandas_ascom_anexos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.demandas_ascom_anexos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: demandas_ascom_comentarios acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.demandas_ascom_comentarios FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: demandas_ascom_entregaveis acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.demandas_ascom_entregaveis FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: designacoes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.designacoes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: despachos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.despachos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: dias_nao_uteis acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.dias_nao_uteis FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.documentos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos_cedencia acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.documentos_cedencia FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos_preparatorios_licitacao acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.documentos_preparatorios_licitacao FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos_processo acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.documentos_processo FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos_requerimento_servidor acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.documentos_requerimento_servidor FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: encaminhamentos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.encaminhamentos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: escolas_jer acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.escolas_jer FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: estoque acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.estoque FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: estrutura_organizacional acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.estrutura_organizacional FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: eventos_esocial acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.eventos_esocial FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: evidencias_controle acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.evidencias_controle FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: exportacoes_folha acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.exportacoes_folha FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: federacao_arbitros acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.federacao_arbitros FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: federacao_espacos_cedidos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.federacao_espacos_cedidos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: federacao_parcerias acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.federacao_parcerias FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: federacoes_esportivas acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.federacoes_esportivas FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: feriados acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.feriados FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_acoes_orcamentarias acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_acoes_orcamentarias FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_adiantamento_itens acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_adiantamento_itens FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_adiantamentos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_adiantamentos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_alteracoes_orcamentarias acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_alteracoes_orcamentarias FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_audit_log acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_audit_log FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_checklist_ci acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_checklist_ci FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_contas_bancarias acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_contas_bancarias FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_documentos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_documentos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_dotacoes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_dotacoes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_empenho_anulacoes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_empenho_anulacoes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_empenhos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_empenhos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_extrato_transacoes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_extrato_transacoes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_extratos_bancarios acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_extratos_bancarios FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_fechamentos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_fechamentos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_fontes_recurso acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_fontes_recurso FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_lancamentos_contabeis acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_lancamentos_contabeis FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_liquidacoes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_liquidacoes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_naturezas_despesa acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_naturezas_despesa FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_pagamentos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_pagamentos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_parametros acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_parametros FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_plano_contas acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_plano_contas FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_programas_orcamentarios acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_programas_orcamentarios FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_receitas acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_receitas FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_restos_pagar acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_restos_pagar FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_solicitacao_itens acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_solicitacao_itens FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_solicitacoes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_solicitacoes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_sub_empenhos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.fin_sub_empenhos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: folha_historico_status acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.folha_historico_status FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: frequencia_arquivos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.frequencia_arquivos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: frequencia_pacotes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.frequencia_pacotes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: galeria_eventos_esportivos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.galeria_eventos_esportivos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: gestores_escolares acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.gestores_escolares FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: gestores_escolares_historico acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.gestores_escolares_historico FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_conteudo_oficial acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.historico_conteudo_oficial FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_convites_reuniao acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.historico_convites_reuniao FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_funcional acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.historico_funcional FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_lai acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.historico_lai FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_patrimonio acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.historico_patrimonio FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: horarios_jornada acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.horarios_jornada FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: instituicoes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.instituicoes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_ata_registro_preco acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.itens_ata_registro_preco FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_checklist acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.itens_checklist FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_contrato acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.itens_contrato FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_processo_licitatorio acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.itens_processo_licitatorio FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_retorno_bancario acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.itens_retorno_bancario FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: liquidacoes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.liquidacoes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: manutencoes_patrimonio acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.manutencoes_patrimonio FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: matriz_raci_atribuicoes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.matriz_raci_atribuicoes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: matriz_raci_papeis acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.matriz_raci_papeis FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: matriz_raci_processos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.matriz_raci_processos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: memorandos_lotacao acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.memorandos_lotacao FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: modelos_mensagem_reuniao acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.modelos_mensagem_reuniao FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_access_scopes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.module_access_scopes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_permissions_catalog acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.module_permissions_catalog FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_settings acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.module_settings FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: movimentacoes_bem acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.movimentacoes_bem FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: movimentacoes_estoque acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.movimentacoes_estoque FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: movimentacoes_processo acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.movimentacoes_processo FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: nomeacoes_chefe_unidade acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.nomeacoes_chefe_unidade FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: noticias_eventos_esportivos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.noticias_eventos_esportivos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: ocorrencias_patrimonio acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.ocorrencias_patrimonio FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: ocorrencias_servidor acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.ocorrencias_servidor FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: pareceres_tecnicos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.pareceres_tecnicos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: participantes_reuniao acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.participantes_reuniao FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: patrimonio_unidade acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.patrimonio_unidade FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: pensoes_alimenticias acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.pensoes_alimenticias FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: planos_tratamento_risco acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.planos_tratamento_risco FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: portal_diretoria acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.portal_diretoria FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: portarias_servidor acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.portarias_servidor FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: prazos_lai acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.prazos_lai FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: prazos_processo acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.prazos_processo FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: pre_cadastros acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.pre_cadastros FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: processos_administrativos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.processos_administrativos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: programas acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.programas FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: propostas_licitacao acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.propostas_licitacao FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: provimentos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.provimentos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: publicacoes_lai acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.publicacoes_lai FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: publicacoes_legais acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.publicacoes_legais FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: recursos_lai acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.recursos_lai FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: regimes_trabalho acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.regimes_trabalho FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: remessas_bancarias acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.remessas_bancarias FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: requisicao_itens acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.requisicao_itens FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: requisicoes_material acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.requisicoes_material FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: respostas_checklist acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.respostas_checklist FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: retornos_bancarios acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.retornos_bancarios FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: reunioes acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.reunioes FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: riscos_institucionais acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.riscos_institucionais FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: rubricas_historico acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.rubricas_historico FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: servidor_regime acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.servidor_regime FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: servidor_tag_vinculos acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.servidor_tag_vinculos FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: servidor_tags acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.servidor_tags FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: solicitacoes_sic acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.solicitacoes_sic FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: termos_cessao acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.termos_cessao FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: user_org_units acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.user_org_units FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: vinculos_funcionais acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.vinculos_funcionais FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: _backup_usuario_modulos_old acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public._backup_usuario_modulos_old FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: acesso_processo_sigiloso acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.acesso_processo_sigiloso FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: acoes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.acoes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: agrupamento_unidade_vinculo acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.agrupamento_unidade_vinculo FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: approval_delegations acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.approval_delegations FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: approval_requests acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.approval_requests FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: audit_log_licitacoes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.audit_log_licitacoes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: avaliacoes_controle acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.avaliacoes_controle FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: avaliacoes_risco acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.avaliacoes_risco FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: bancos_cnab acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.bancos_cnab FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: calendario_federacao acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.calendario_federacao FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: campanhas_inventario acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.campanhas_inventario FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cargo_unidade_compatibilidade acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.cargo_unidade_compatibilidade FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: categorias_material acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.categorias_material FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: categorias_noticias_eventos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.categorias_noticias_eventos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: centros_custo acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.centros_custo FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cessoes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.cessoes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: checklists_conformidade acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.checklists_conformidade FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_banners acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.cms_banners FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_categorias acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.cms_categorias FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_conteudos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.cms_conteudos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_galeria_fotos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.cms_galeria_fotos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_galerias acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.cms_galerias FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_media acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.cms_media FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: coletas_inventario acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.coletas_inventario FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: composicao_cargos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.composicao_cargos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: conciliacoes_inventario acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.conciliacoes_inventario FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_agrupamento_unidades acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_agrupamento_unidades FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_assinatura_frequencia acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_assinatura_frequencia FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_assinatura_reuniao acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_assinatura_reuniao FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_autarquia acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_autarquia FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_compensacao acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_compensacao FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_fechamento_folha acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_fechamento_folha FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_incidencias acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_incidencias FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_institucional acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_institucional FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_jornada_padrao acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_jornada_padrao FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_motivos_desligamento acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_motivos_desligamento FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_paginas_historico acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_paginas_historico FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_paginas_publicas acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_paginas_publicas FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_parametros_meta acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_parametros_meta FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_parametros_valores acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_parametros_valores FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_regras_calculo acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_regras_calculo FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_rubricas acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_rubricas FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_situacoes_funcionais acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_situacoes_funcionais FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_tipos_ato acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_tipos_ato FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_tipos_onus acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_tipos_onus FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_tipos_rubrica acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_tipos_rubrica FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_tipos_servidor acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.config_tipos_servidor FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: configuracao_jornada acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.configuracao_jornada FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: contas_autarquia acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.contas_autarquia FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: contatos_eventos_esportivos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.contatos_eventos_esportivos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: conteudo_rascunho acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.conteudo_rascunho FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: controles_internos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.controles_internos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: creditos_adicionais acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.creditos_adicionais FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: dados_oficiais acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.dados_oficiais FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: debitos_tecnicos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.debitos_tecnicos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: decisoes_administrativas acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.decisoes_administrativas FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: demandas_ascom acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.demandas_ascom FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: demandas_ascom_anexos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.demandas_ascom_anexos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: demandas_ascom_comentarios acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.demandas_ascom_comentarios FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: demandas_ascom_entregaveis acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.demandas_ascom_entregaveis FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: designacoes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.designacoes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: despachos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.despachos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: dias_nao_uteis acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.dias_nao_uteis FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.documentos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos_cedencia acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.documentos_cedencia FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos_preparatorios_licitacao acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.documentos_preparatorios_licitacao FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos_processo acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.documentos_processo FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos_requerimento_servidor acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.documentos_requerimento_servidor FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: encaminhamentos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.encaminhamentos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: escolas_jer acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.escolas_jer FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: estoque acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.estoque FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: estrutura_organizacional acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.estrutura_organizacional FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: eventos_esocial acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.eventos_esocial FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: evidencias_controle acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.evidencias_controle FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: exportacoes_folha acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.exportacoes_folha FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: federacao_arbitros acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.federacao_arbitros FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: federacao_espacos_cedidos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.federacao_espacos_cedidos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: federacao_parcerias acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.federacao_parcerias FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: federacoes_esportivas acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.federacoes_esportivas FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: feriados acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.feriados FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_acoes_orcamentarias acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_acoes_orcamentarias FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_adiantamento_itens acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_adiantamento_itens FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_adiantamentos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_adiantamentos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_alteracoes_orcamentarias acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_alteracoes_orcamentarias FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_audit_log acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_audit_log FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_checklist_ci acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_checklist_ci FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_contas_bancarias acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_contas_bancarias FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_documentos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_documentos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_dotacoes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_dotacoes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_empenho_anulacoes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_empenho_anulacoes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_empenhos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_empenhos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_extrato_transacoes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_extrato_transacoes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_extratos_bancarios acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_extratos_bancarios FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_fechamentos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_fechamentos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_fontes_recurso acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_fontes_recurso FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_lancamentos_contabeis acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_lancamentos_contabeis FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_liquidacoes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_liquidacoes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_naturezas_despesa acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_naturezas_despesa FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_pagamentos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_pagamentos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_parametros acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_parametros FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_plano_contas acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_plano_contas FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_programas_orcamentarios acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_programas_orcamentarios FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_receitas acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_receitas FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_restos_pagar acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_restos_pagar FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_solicitacao_itens acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_solicitacao_itens FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_solicitacoes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_solicitacoes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_sub_empenhos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.fin_sub_empenhos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: folha_historico_status acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.folha_historico_status FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: frequencia_arquivos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.frequencia_arquivos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: frequencia_pacotes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.frequencia_pacotes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: galeria_eventos_esportivos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.galeria_eventos_esportivos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: gestores_escolares_historico acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.gestores_escolares_historico FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_conteudo_oficial acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.historico_conteudo_oficial FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_convites_reuniao acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.historico_convites_reuniao FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_funcional acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.historico_funcional FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_lai acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.historico_lai FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_patrimonio acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.historico_patrimonio FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: horarios_jornada acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.horarios_jornada FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: instituicoes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.instituicoes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_ata_registro_preco acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.itens_ata_registro_preco FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_checklist acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.itens_checklist FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_contrato acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.itens_contrato FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_processo_licitatorio acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.itens_processo_licitatorio FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_retorno_bancario acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.itens_retorno_bancario FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: liquidacoes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.liquidacoes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: manutencoes_patrimonio acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.manutencoes_patrimonio FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: matriz_raci_atribuicoes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.matriz_raci_atribuicoes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: matriz_raci_papeis acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.matriz_raci_papeis FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: matriz_raci_processos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.matriz_raci_processos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: memorandos_lotacao acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.memorandos_lotacao FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: modelos_mensagem_reuniao acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.modelos_mensagem_reuniao FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_access_scopes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.module_access_scopes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_permissions_catalog acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.module_permissions_catalog FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_settings acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.module_settings FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: movimentacoes_bem acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.movimentacoes_bem FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: movimentacoes_estoque acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.movimentacoes_estoque FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: movimentacoes_processo acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.movimentacoes_processo FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: nomeacoes_chefe_unidade acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.nomeacoes_chefe_unidade FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: noticias_eventos_esportivos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.noticias_eventos_esportivos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: ocorrencias_patrimonio acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.ocorrencias_patrimonio FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: ocorrencias_servidor acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.ocorrencias_servidor FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: pareceres_tecnicos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.pareceres_tecnicos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: participantes_reuniao acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.participantes_reuniao FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: patrimonio_unidade acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.patrimonio_unidade FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: pensoes_alimenticias acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.pensoes_alimenticias FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: planos_tratamento_risco acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.planos_tratamento_risco FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: portal_diretoria acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.portal_diretoria FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: portarias_servidor acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.portarias_servidor FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: prazos_lai acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.prazos_lai FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: prazos_processo acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.prazos_processo FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: pre_cadastros acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.pre_cadastros FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: processos_administrativos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.processos_administrativos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: programas acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.programas FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: propostas_licitacao acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.propostas_licitacao FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: provimentos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.provimentos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: publicacoes_lai acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.publicacoes_lai FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: publicacoes_legais acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.publicacoes_legais FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: recursos_lai acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.recursos_lai FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: regimes_trabalho acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.regimes_trabalho FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: remessas_bancarias acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.remessas_bancarias FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: requisicao_itens acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.requisicao_itens FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: requisicoes_material acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.requisicoes_material FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: respostas_checklist acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.respostas_checklist FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: retornos_bancarios acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.retornos_bancarios FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: reunioes acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.reunioes FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: riscos_institucionais acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.riscos_institucionais FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: rubricas_historico acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.rubricas_historico FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: servidor_regime acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.servidor_regime FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: servidor_tag_vinculos acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.servidor_tag_vinculos FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: servidor_tags acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.servidor_tags FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: solicitacoes_sic acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.solicitacoes_sic FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: termos_cessao acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.termos_cessao FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: user_org_units acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.user_org_units FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: vinculos_funcionais acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.vinculos_funcionais FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: _backup_usuario_modulos_old acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public._backup_usuario_modulos_old FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: acesso_processo_sigiloso acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.acesso_processo_sigiloso FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: acoes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.acoes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: agrupamento_unidade_vinculo acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.agrupamento_unidade_vinculo FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: approval_delegations acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.approval_delegations FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: approval_requests acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.approval_requests FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: audit_log_licitacoes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.audit_log_licitacoes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: avaliacoes_controle acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.avaliacoes_controle FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: avaliacoes_risco acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.avaliacoes_risco FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: bancos_cnab acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.bancos_cnab FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: calendario_federacao acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.calendario_federacao FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: campanhas_inventario acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.campanhas_inventario FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cargo_unidade_compatibilidade acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.cargo_unidade_compatibilidade FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: categorias_material acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.categorias_material FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: categorias_noticias_eventos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.categorias_noticias_eventos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: centros_custo acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.centros_custo FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cessoes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.cessoes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: checklists_conformidade acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.checklists_conformidade FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_banners acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.cms_banners FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_categorias acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.cms_categorias FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_conteudos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.cms_conteudos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_galeria_fotos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.cms_galeria_fotos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_galerias acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.cms_galerias FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_media acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.cms_media FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: coletas_inventario acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.coletas_inventario FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: composicao_cargos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.composicao_cargos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: conciliacoes_inventario acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.conciliacoes_inventario FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_agrupamento_unidades acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_agrupamento_unidades FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_assinatura_frequencia acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_assinatura_frequencia FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_assinatura_reuniao acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_assinatura_reuniao FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_autarquia acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_autarquia FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_compensacao acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_compensacao FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_fechamento_folha acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_fechamento_folha FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_incidencias acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_incidencias FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_institucional acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_institucional FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_jornada_padrao acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_jornada_padrao FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_motivos_desligamento acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_motivos_desligamento FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_paginas_historico acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_paginas_historico FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_parametros_meta acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_parametros_meta FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_parametros_valores acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_parametros_valores FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_regras_calculo acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_regras_calculo FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_rubricas acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_rubricas FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_situacoes_funcionais acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_situacoes_funcionais FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_tipos_ato acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_tipos_ato FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_tipos_onus acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_tipos_onus FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_tipos_rubrica acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_tipos_rubrica FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_tipos_servidor acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.config_tipos_servidor FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: configuracao_jornada acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.configuracao_jornada FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: contas_autarquia acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.contas_autarquia FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: contatos_eventos_esportivos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.contatos_eventos_esportivos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: conteudo_rascunho acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.conteudo_rascunho FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: controles_internos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.controles_internos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: creditos_adicionais acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.creditos_adicionais FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: dados_oficiais acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.dados_oficiais FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: debitos_tecnicos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.debitos_tecnicos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: decisoes_administrativas acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.decisoes_administrativas FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: demandas_ascom acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.demandas_ascom FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: demandas_ascom_anexos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.demandas_ascom_anexos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: demandas_ascom_comentarios acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.demandas_ascom_comentarios FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: demandas_ascom_entregaveis acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.demandas_ascom_entregaveis FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: designacoes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.designacoes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: despachos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.despachos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: dias_nao_uteis acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.dias_nao_uteis FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.documentos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos_cedencia acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.documentos_cedencia FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos_preparatorios_licitacao acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.documentos_preparatorios_licitacao FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos_processo acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.documentos_processo FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos_requerimento_servidor acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.documentos_requerimento_servidor FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: encaminhamentos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.encaminhamentos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: estoque acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.estoque FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: estrutura_organizacional acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.estrutura_organizacional FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: eventos_esocial acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.eventos_esocial FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: evidencias_controle acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.evidencias_controle FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: exportacoes_folha acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.exportacoes_folha FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: federacao_arbitros acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.federacao_arbitros FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: federacao_espacos_cedidos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.federacao_espacos_cedidos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: federacao_parcerias acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.federacao_parcerias FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: federacoes_esportivas acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.federacoes_esportivas FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: feriados acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.feriados FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_acoes_orcamentarias acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_acoes_orcamentarias FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_adiantamento_itens acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_adiantamento_itens FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_adiantamentos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_adiantamentos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_alteracoes_orcamentarias acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_alteracoes_orcamentarias FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_audit_log acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_audit_log FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_checklist_ci acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_checklist_ci FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_contas_bancarias acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_contas_bancarias FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_documentos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_documentos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_dotacoes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_dotacoes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_empenho_anulacoes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_empenho_anulacoes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_empenhos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_empenhos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_extrato_transacoes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_extrato_transacoes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_extratos_bancarios acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_extratos_bancarios FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_fechamentos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_fechamentos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_fontes_recurso acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_fontes_recurso FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_lancamentos_contabeis acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_lancamentos_contabeis FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_liquidacoes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_liquidacoes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_naturezas_despesa acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_naturezas_despesa FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_pagamentos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_pagamentos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_parametros acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_parametros FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_plano_contas acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_plano_contas FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_programas_orcamentarios acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_programas_orcamentarios FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_receitas acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_receitas FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_restos_pagar acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_restos_pagar FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_solicitacao_itens acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_solicitacao_itens FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_solicitacoes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_solicitacoes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_sub_empenhos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.fin_sub_empenhos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: folha_historico_status acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.folha_historico_status FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: frequencia_arquivos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.frequencia_arquivos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: frequencia_pacotes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.frequencia_pacotes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: galeria_eventos_esportivos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.galeria_eventos_esportivos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: gestores_escolares_historico acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.gestores_escolares_historico FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_conteudo_oficial acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.historico_conteudo_oficial FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_convites_reuniao acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.historico_convites_reuniao FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_funcional acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.historico_funcional FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_lai acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.historico_lai FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_patrimonio acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.historico_patrimonio FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: horarios_jornada acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.horarios_jornada FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: instituicoes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.instituicoes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_ata_registro_preco acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.itens_ata_registro_preco FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_checklist acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.itens_checklist FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_contrato acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.itens_contrato FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_processo_licitatorio acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.itens_processo_licitatorio FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_retorno_bancario acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.itens_retorno_bancario FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: liquidacoes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.liquidacoes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: manutencoes_patrimonio acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.manutencoes_patrimonio FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: matriz_raci_atribuicoes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.matriz_raci_atribuicoes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: matriz_raci_papeis acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.matriz_raci_papeis FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: matriz_raci_processos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.matriz_raci_processos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: memorandos_lotacao acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.memorandos_lotacao FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: modelos_mensagem_reuniao acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.modelos_mensagem_reuniao FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_access_scopes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.module_access_scopes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_permissions_catalog acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.module_permissions_catalog FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_settings acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.module_settings FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: movimentacoes_bem acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.movimentacoes_bem FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: movimentacoes_estoque acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.movimentacoes_estoque FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: movimentacoes_processo acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.movimentacoes_processo FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: nomeacoes_chefe_unidade acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.nomeacoes_chefe_unidade FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: noticias_eventos_esportivos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.noticias_eventos_esportivos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: ocorrencias_patrimonio acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.ocorrencias_patrimonio FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: ocorrencias_servidor acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.ocorrencias_servidor FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: pareceres_tecnicos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.pareceres_tecnicos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: participantes_reuniao acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.participantes_reuniao FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: patrimonio_unidade acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.patrimonio_unidade FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: pensoes_alimenticias acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.pensoes_alimenticias FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: planos_tratamento_risco acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.planos_tratamento_risco FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: portal_diretoria acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.portal_diretoria FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: portarias_servidor acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.portarias_servidor FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: prazos_lai acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.prazos_lai FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: prazos_processo acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.prazos_processo FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: pre_cadastros acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.pre_cadastros FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: processos_administrativos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.processos_administrativos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: programas acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.programas FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: propostas_licitacao acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.propostas_licitacao FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: provimentos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.provimentos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: publicacoes_lai acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.publicacoes_lai FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: publicacoes_legais acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.publicacoes_legais FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: recursos_lai acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.recursos_lai FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: regimes_trabalho acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.regimes_trabalho FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: remessas_bancarias acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.remessas_bancarias FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: requisicao_itens acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.requisicao_itens FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: requisicoes_material acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.requisicoes_material FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: respostas_checklist acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.respostas_checklist FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: retornos_bancarios acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.retornos_bancarios FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: reunioes acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.reunioes FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: riscos_institucionais acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.riscos_institucionais FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: rubricas_historico acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.rubricas_historico FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: servidor_regime acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.servidor_regime FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: servidor_tag_vinculos acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.servidor_tag_vinculos FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: servidor_tags acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.servidor_tags FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: solicitacoes_sic acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.solicitacoes_sic FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: termos_cessao acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.termos_cessao FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: user_org_units acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.user_org_units FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: vinculos_funcionais acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.vinculos_funcionais FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: _backup_usuario_modulos_old acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public._backup_usuario_modulos_old FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: acesso_processo_sigiloso acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.acesso_processo_sigiloso FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: acoes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.acoes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: agrupamento_unidade_vinculo acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.agrupamento_unidade_vinculo FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: approval_delegations acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.approval_delegations FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: approval_requests acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.approval_requests FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: audit_log_licitacoes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.audit_log_licitacoes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: avaliacoes_controle acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.avaliacoes_controle FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: avaliacoes_risco acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.avaliacoes_risco FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: bancos_cnab acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.bancos_cnab FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: calendario_federacao acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.calendario_federacao FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: campanhas_inventario acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.campanhas_inventario FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cargo_unidade_compatibilidade acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.cargo_unidade_compatibilidade FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: categorias_material acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.categorias_material FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: categorias_noticias_eventos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.categorias_noticias_eventos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: centros_custo acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.centros_custo FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cessoes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.cessoes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: checklists_conformidade acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.checklists_conformidade FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_banners acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.cms_banners FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_categorias acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.cms_categorias FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_conteudos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.cms_conteudos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_galeria_fotos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.cms_galeria_fotos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_galerias acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.cms_galerias FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: cms_media acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.cms_media FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: coletas_inventario acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.coletas_inventario FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: composicao_cargos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.composicao_cargos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: conciliacoes_inventario acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.conciliacoes_inventario FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_agrupamento_unidades acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_agrupamento_unidades FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_assinatura_frequencia acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_assinatura_frequencia FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_assinatura_reuniao acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_assinatura_reuniao FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_autarquia acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_autarquia FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_compensacao acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_compensacao FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_fechamento_folha acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_fechamento_folha FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_incidencias acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_incidencias FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_institucional acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_institucional FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_jornada_padrao acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_jornada_padrao FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_motivos_desligamento acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_motivos_desligamento FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_paginas_historico acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_paginas_historico FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_paginas_publicas acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_paginas_publicas FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_parametros_meta acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_parametros_meta FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_parametros_valores acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_parametros_valores FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_regras_calculo acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_regras_calculo FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_rubricas acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_rubricas FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_situacoes_funcionais acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_situacoes_funcionais FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_tipos_ato acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_tipos_ato FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_tipos_onus acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_tipos_onus FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_tipos_rubrica acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_tipos_rubrica FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: config_tipos_servidor acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.config_tipos_servidor FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: configuracao_jornada acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.configuracao_jornada FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: contas_autarquia acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.contas_autarquia FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: contatos_eventos_esportivos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.contatos_eventos_esportivos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: conteudo_rascunho acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.conteudo_rascunho FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: controles_internos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.controles_internos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: creditos_adicionais acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.creditos_adicionais FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: dados_oficiais acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.dados_oficiais FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: debitos_tecnicos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.debitos_tecnicos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: decisoes_administrativas acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.decisoes_administrativas FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: demandas_ascom acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.demandas_ascom FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: demandas_ascom_anexos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.demandas_ascom_anexos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: demandas_ascom_comentarios acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.demandas_ascom_comentarios FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: demandas_ascom_entregaveis acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.demandas_ascom_entregaveis FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: designacoes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.designacoes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: despachos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.despachos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: dias_nao_uteis acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.dias_nao_uteis FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.documentos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos_cedencia acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.documentos_cedencia FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos_preparatorios_licitacao acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.documentos_preparatorios_licitacao FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos_processo acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.documentos_processo FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: documentos_requerimento_servidor acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.documentos_requerimento_servidor FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: encaminhamentos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.encaminhamentos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: escolas_jer acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.escolas_jer FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: estoque acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.estoque FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: estrutura_organizacional acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.estrutura_organizacional FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: eventos_esocial acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.eventos_esocial FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: evidencias_controle acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.evidencias_controle FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: exportacoes_folha acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.exportacoes_folha FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: federacao_arbitros acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.federacao_arbitros FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: federacao_espacos_cedidos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.federacao_espacos_cedidos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: federacao_parcerias acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.federacao_parcerias FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: federacoes_esportivas acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.federacoes_esportivas FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: feriados acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.feriados FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_acoes_orcamentarias acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_acoes_orcamentarias FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_adiantamento_itens acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_adiantamento_itens FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_adiantamentos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_adiantamentos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_alteracoes_orcamentarias acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_alteracoes_orcamentarias FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_audit_log acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_audit_log FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_checklist_ci acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_checklist_ci FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_contas_bancarias acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_contas_bancarias FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_documentos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_documentos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_dotacoes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_dotacoes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_empenho_anulacoes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_empenho_anulacoes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_empenhos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_empenhos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_extrato_transacoes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_extrato_transacoes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_extratos_bancarios acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_extratos_bancarios FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_fechamentos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_fechamentos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_fontes_recurso acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_fontes_recurso FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_lancamentos_contabeis acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_lancamentos_contabeis FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_liquidacoes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_liquidacoes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_naturezas_despesa acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_naturezas_despesa FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_pagamentos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_pagamentos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_parametros acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_parametros FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_plano_contas acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_plano_contas FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_programas_orcamentarios acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_programas_orcamentarios FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_receitas acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_receitas FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_restos_pagar acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_restos_pagar FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_solicitacao_itens acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_solicitacao_itens FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_solicitacoes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_solicitacoes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: fin_sub_empenhos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.fin_sub_empenhos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: folha_historico_status acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.folha_historico_status FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: frequencia_arquivos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.frequencia_arquivos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: frequencia_pacotes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.frequencia_pacotes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: galeria_eventos_esportivos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.galeria_eventos_esportivos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: gestores_escolares acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.gestores_escolares FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: gestores_escolares_historico acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.gestores_escolares_historico FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_conteudo_oficial acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.historico_conteudo_oficial FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_convites_reuniao acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.historico_convites_reuniao FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_funcional acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.historico_funcional FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_lai acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.historico_lai FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: historico_patrimonio acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.historico_patrimonio FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: horarios_jornada acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.horarios_jornada FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: instituicoes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.instituicoes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_ata_registro_preco acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.itens_ata_registro_preco FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_checklist acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.itens_checklist FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_contrato acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.itens_contrato FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_processo_licitatorio acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.itens_processo_licitatorio FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: itens_retorno_bancario acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.itens_retorno_bancario FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: liquidacoes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.liquidacoes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: manutencoes_patrimonio acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.manutencoes_patrimonio FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: matriz_raci_atribuicoes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.matriz_raci_atribuicoes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: matriz_raci_papeis acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.matriz_raci_papeis FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: matriz_raci_processos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.matriz_raci_processos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: memorandos_lotacao acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.memorandos_lotacao FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: modelos_mensagem_reuniao acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.modelos_mensagem_reuniao FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_access_scopes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.module_access_scopes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_permissions_catalog acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.module_permissions_catalog FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: module_settings acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.module_settings FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: movimentacoes_bem acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.movimentacoes_bem FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: movimentacoes_estoque acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.movimentacoes_estoque FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: movimentacoes_processo acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.movimentacoes_processo FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: nomeacoes_chefe_unidade acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.nomeacoes_chefe_unidade FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: noticias_eventos_esportivos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.noticias_eventos_esportivos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: ocorrencias_patrimonio acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.ocorrencias_patrimonio FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: ocorrencias_servidor acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.ocorrencias_servidor FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: pareceres_tecnicos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.pareceres_tecnicos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: participantes_reuniao acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.participantes_reuniao FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: patrimonio_unidade acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.patrimonio_unidade FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: pensoes_alimenticias acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.pensoes_alimenticias FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: planos_tratamento_risco acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.planos_tratamento_risco FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: portal_diretoria acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.portal_diretoria FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: portarias_servidor acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.portarias_servidor FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: prazos_lai acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.prazos_lai FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: prazos_processo acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.prazos_processo FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: pre_cadastros acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.pre_cadastros FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: processos_administrativos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.processos_administrativos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: programas acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.programas FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: propostas_licitacao acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.propostas_licitacao FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: provimentos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.provimentos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: publicacoes_lai acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.publicacoes_lai FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: publicacoes_legais acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.publicacoes_legais FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: recursos_lai acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.recursos_lai FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: regimes_trabalho acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.regimes_trabalho FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: remessas_bancarias acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.remessas_bancarias FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: requisicao_itens acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.requisicao_itens FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: requisicoes_material acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.requisicoes_material FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: respostas_checklist acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.respostas_checklist FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: retornos_bancarios acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.retornos_bancarios FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: reunioes acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.reunioes FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: riscos_institucionais acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.riscos_institucionais FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: rubricas_historico acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.rubricas_historico FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: servidor_regime acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.servidor_regime FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: servidor_tag_vinculos acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.servidor_tag_vinculos FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: servidor_tags acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.servidor_tags FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: solicitacoes_sic acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.solicitacoes_sic FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: termos_cessao acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.termos_cessao FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: user_org_units acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.user_org_units FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: vinculos_funcionais acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.vinculos_funcionais FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: acoes; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -18159,13 +13243,6 @@ ALTER TABLE public.adicionais_tempo_servico ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.aditivos_contrato ENABLE ROW LEVEL SECURITY;
-
---
--- Name: gestores_escolares admin_delete_gestores; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_delete_gestores ON public.gestores_escolares FOR DELETE USING ((auth.uid() IS NOT NULL));
-
 
 --
 -- Name: backup_config admin_only_delete; Type: POLICY; Schema: public; Owner: -
@@ -18266,13 +13343,6 @@ CREATE POLICY admin_read_form_config ON public.form_field_config FOR SELECT TO a
 
 
 --
--- Name: gestores_escolares admin_update_gestores; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_update_gestores ON public.gestores_escolares FOR UPDATE USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: form_field_config admin_write_form_config; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -18317,13 +13387,6 @@ ALTER TABLE public.approval_delegations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.approval_requests ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: cadastro_arbitros_modalidades arbitros_modalidades_select_authenticated; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY arbitros_modalidades_select_authenticated ON public.cadastro_arbitros_modalidades FOR SELECT TO authenticated USING (true);
-
-
---
 -- Name: atas_registro_preco; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -18346,27 +13409,6 @@ ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY audit_logs_insert_owner ON public.audit_logs FOR INSERT TO postgres WITH CHECK (true);
-
-
---
--- Name: cadastro_arbitros authenticated_delete_arbitros; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY authenticated_delete_arbitros ON public.cadastro_arbitros FOR DELETE TO authenticated USING (true);
-
-
---
--- Name: cadastro_arbitros authenticated_read_arbitros; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY authenticated_read_arbitros ON public.cadastro_arbitros FOR SELECT TO authenticated USING (true);
-
-
---
--- Name: cadastro_arbitros authenticated_update_arbitros; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY authenticated_update_arbitros ON public.cadastro_arbitros FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 
 
 --
@@ -19672,7 +14714,7 @@ CREATE POLICY ins_user_permissions_admin ON public.user_permissions FOR INSERT T
 -- Name: gestores_escolares insercao_publica_gestores; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY insercao_publica_gestores ON public.gestores_escolares FOR INSERT WITH CHECK (true);
+CREATE POLICY insercao_publica_gestores ON public.gestores_escolares FOR INSERT TO anon, authenticated WITH CHECK ((status = 'aguardando'::text));
 
 
 --
@@ -19752,20 +14794,6 @@ ALTER TABLE public.lancamentos_folha ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY leitura_publica_escolas ON public.escolas_jer FOR SELECT USING (true);
-
-
---
--- Name: gestores_escolares leitura_publica_gestores; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY leitura_publica_gestores ON public.gestores_escolares FOR SELECT USING (true);
-
-
---
--- Name: config_paginas_publicas leitura_publica_status_paginas; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY leitura_publica_status_paginas ON public.config_paginas_publicas FOR SELECT TO anon, authenticated USING (true);
 
 
 --
@@ -20333,10 +15361,94 @@ CREATE POLICY rh_module_write ON public.adicionais_tempo_servico FOR INSERT TO a
 ALTER TABLE public.riscos_institucionais ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: acesso_processo_sigiloso rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.acesso_processo_sigiloso FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: acoes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.acoes FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'programas'::text));
+
+
+--
+-- Name: agrupamento_unidade_vinculo rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.agrupamento_unidade_vinculo FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: approval_delegations rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.approval_delegations FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: approval_requests rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.approval_requests FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: avaliacoes_controle rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.avaliacoes_controle FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'integridade'::text)));
+
+
+--
+-- Name: avaliacoes_risco rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.avaliacoes_risco FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
 -- Name: banco_horas rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_delete ON public.banco_horas FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) AND (public.is_admin_user(auth.uid()) OR (servidor_id IS DISTINCT FROM auth.uid()))));
+
+
+--
+-- Name: bancos_cnab rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.bancos_cnab FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: cadastro_arbitros rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.cadastro_arbitros FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'arbitros'::text));
+
+
+--
+-- Name: cadastro_arbitros_modalidades rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.cadastro_arbitros_modalidades FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'arbitros'::text));
+
+
+--
+-- Name: calendario_federacao rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.calendario_federacao FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text) OR public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text)));
+
+
+--
+-- Name: campanhas_inventario rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.campanhas_inventario FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
 
 
 --
@@ -20347,10 +15459,157 @@ CREATE POLICY rls_delete ON public.campanhas_inventario_unidades FOR DELETE TO a
 
 
 --
+-- Name: cargo_unidade_compatibilidade rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.cargo_unidade_compatibilidade FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
 -- Name: cargos rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_delete ON public.cargos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: categorias_material rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.categorias_material FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: categorias_noticias_eventos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.categorias_noticias_eventos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: centros_custo rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.centros_custo FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: cessoes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.cessoes FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: checklists_conformidade rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.checklists_conformidade FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: cms_banners rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.cms_banners FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_categorias rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.cms_categorias FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_conteudos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.cms_conteudos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_galeria_fotos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.cms_galeria_fotos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_galerias rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.cms_galerias FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_media rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.cms_media FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: coletas_inventario rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.coletas_inventario FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: composicao_cargos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.composicao_cargos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'governanca'::text)));
+
+
+--
+-- Name: conciliacoes_inventario rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.conciliacoes_inventario FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: config_agrupamento_unidades rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_agrupamento_unidades FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_assinatura_frequencia rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_assinatura_frequencia FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_assinatura_reuniao rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_assinatura_reuniao FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: config_autarquia rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_autarquia FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)));
+
+
+--
+-- Name: config_compensacao rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_compensacao FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_fechamento_folha rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_fechamento_folha FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -20361,6 +15620,118 @@ CREATE POLICY rls_delete ON public.config_fechamento_frequencia FOR DELETE TO au
 
 
 --
+-- Name: config_incidencias rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_incidencias FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_institucional rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_institucional FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)));
+
+
+--
+-- Name: config_jornada_padrao rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_jornada_padrao FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_motivos_desligamento rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_motivos_desligamento FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_paginas_historico rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_paginas_historico FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: config_paginas_publicas rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_paginas_publicas FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: config_parametros_meta rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_parametros_meta FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: config_parametros_valores rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_parametros_valores FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: config_regras_calculo rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_regras_calculo FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_rubricas rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_rubricas FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_situacoes_funcionais rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_situacoes_funcionais FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_tipos_ato rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_tipos_ato FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_tipos_onus rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_tipos_onus FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_tipos_rubrica rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_tipos_rubrica FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_tipos_servidor rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_tipos_servidor FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: configuracao_jornada rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.configuracao_jornada FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
 -- Name: consignacoes rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20368,10 +15739,234 @@ CREATE POLICY rls_delete ON public.consignacoes FOR DELETE TO authenticated USIN
 
 
 --
+-- Name: contas_autarquia rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.contas_autarquia FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) OR public.can_access_module(auth.uid(), 'rh'::text)));
+
+
+--
+-- Name: contatos_eventos_esportivos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.contatos_eventos_esportivos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: conteudo_rascunho rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.conteudo_rascunho FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: controles_internos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.controles_internos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'integridade'::text)));
+
+
+--
+-- Name: creditos_adicionais rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.creditos_adicionais FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: dados_oficiais rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.dados_oficiais FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: debitos_tecnicos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.debitos_tecnicos FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: decisoes_administrativas rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.decisoes_administrativas FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: demandas_ascom rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.demandas_ascom FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: demandas_ascom_anexos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.demandas_ascom_anexos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: demandas_ascom_comentarios rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.demandas_ascom_comentarios FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: demandas_ascom_entregaveis rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.demandas_ascom_entregaveis FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
 -- Name: dependentes_irrf rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_delete ON public.dependentes_irrf FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: designacoes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.designacoes FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: despachos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.despachos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: dias_nao_uteis rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.dias_nao_uteis FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: documentos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.documentos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: documentos_cedencia rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.documentos_cedencia FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
+
+
+--
+-- Name: documentos_preparatorios_licitacao rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.documentos_preparatorios_licitacao FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: documentos_processo rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.documentos_processo FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: documentos_requerimento_servidor rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.documentos_requerimento_servidor FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.servidores.editar'::text)));
+
+
+--
+-- Name: encaminhamentos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.encaminhamentos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: escolas_jer rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.escolas_jer FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
+
+
+--
+-- Name: estoque rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.estoque FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: estrutura_organizacional rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.estrutura_organizacional FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'organizacoes'::text));
+
+
+--
+-- Name: eventos_esocial rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.eventos_esocial FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: evidencias_controle rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.evidencias_controle FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: exportacoes_folha rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.exportacoes_folha FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: federacao_arbitros rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.federacao_arbitros FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text)));
+
+
+--
+-- Name: federacao_espacos_cedidos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.federacao_espacos_cedidos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text)));
+
+
+--
+-- Name: federacao_parcerias rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.federacao_parcerias FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text)));
+
+
+--
+-- Name: federacoes_esportivas rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.federacoes_esportivas FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text) OR public.can_access_module(auth.uid(), 'patrimonio'::text)));
+
+
+--
+-- Name: feriados rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.feriados FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -20389,6 +15984,188 @@ CREATE POLICY rls_delete ON public.fichas_financeiras FOR DELETE TO authenticate
 
 
 --
+-- Name: fin_acoes_orcamentarias rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_acoes_orcamentarias FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_adiantamento_itens rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_adiantamento_itens FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_adiantamentos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_adiantamentos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_alteracoes_orcamentarias rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_alteracoes_orcamentarias FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_checklist_ci rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_checklist_ci FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_contas_bancarias rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_contas_bancarias FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_documentos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_documentos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_dotacoes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_dotacoes FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_empenho_anulacoes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_empenho_anulacoes FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_empenhos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_empenhos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_extrato_transacoes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_extrato_transacoes FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_extratos_bancarios rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_extratos_bancarios FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_fechamentos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_fechamentos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_fontes_recurso rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_fontes_recurso FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_lancamentos_contabeis rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_lancamentos_contabeis FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_liquidacoes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_liquidacoes FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_naturezas_despesa rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_naturezas_despesa FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_pagamentos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_pagamentos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_parametros rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_parametros FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_plano_contas rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_plano_contas FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_programas_orcamentarios rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_programas_orcamentarios FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_receitas rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_receitas FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_restos_pagar rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_restos_pagar FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_solicitacao_itens rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_solicitacao_itens FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_solicitacoes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_solicitacoes FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_sub_empenhos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_sub_empenhos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
 -- Name: folhas_pagamento rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20400,6 +16177,13 @@ CREATE POLICY rls_delete ON public.folhas_pagamento FOR DELETE TO authenticated 
 --
 
 CREATE POLICY rls_delete ON public.fotos_vistoria_inventario FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'patrimonio.tramitar'::text));
+
+
+--
+-- Name: frequencia_arquivos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.frequencia_arquivos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
 
 
 --
@@ -20417,10 +16201,87 @@ CREATE POLICY rls_delete ON public.frequencia_mensal FOR DELETE TO authenticated
 
 
 --
+-- Name: frequencia_pacotes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.frequencia_pacotes FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
+
+
+--
+-- Name: galeria_eventos_esportivos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.galeria_eventos_esportivos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text)));
+
+
+--
+-- Name: gestores_escolares rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.gestores_escolares FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
+
+
+--
+-- Name: historico_funcional rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.historico_funcional FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text)));
+
+
+--
+-- Name: horarios_jornada rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.horarios_jornada FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: instituicoes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.instituicoes FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'organizacoes'::text) OR public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text)));
+
+
+--
+-- Name: itens_ata_registro_preco rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.itens_ata_registro_preco FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: itens_checklist rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.itens_checklist FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: itens_contrato rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.itens_contrato FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
 -- Name: itens_ficha_financeira rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_delete ON public.itens_ficha_financeira FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: itens_processo_licitatorio rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.itens_processo_licitatorio FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: itens_retorno_bancario rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.itens_retorno_bancario FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -20456,10 +16317,129 @@ CREATE POLICY rls_delete ON public.licencas_afastamentos FOR DELETE TO authentic
 
 
 --
+-- Name: liquidacoes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.liquidacoes FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
 -- Name: lotacoes rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_delete ON public.lotacoes FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: manutencoes_patrimonio rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.manutencoes_patrimonio FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: matriz_raci_atribuicoes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.matriz_raci_atribuicoes FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: matriz_raci_papeis rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.matriz_raci_papeis FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: matriz_raci_processos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.matriz_raci_processos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: memorandos_lotacao rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.memorandos_lotacao FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: modelos_mensagem_reuniao rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.modelos_mensagem_reuniao FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: module_access_scopes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.module_access_scopes FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: module_permissions_catalog rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.module_permissions_catalog FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: module_settings rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.module_settings FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: movimentacoes_bem rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.movimentacoes_bem FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: movimentacoes_estoque rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.movimentacoes_estoque FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: movimentacoes_processo rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.movimentacoes_processo FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: nomeacoes_chefe_unidade rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.nomeacoes_chefe_unidade FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'patrimonio'::text)));
+
+
+--
+-- Name: noticias_eventos_esportivos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.noticias_eventos_esportivos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text)));
+
+
+--
+-- Name: ocorrencias_patrimonio rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.ocorrencias_patrimonio FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: ocorrencias_servidor rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.ocorrencias_servidor FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -20470,6 +16450,132 @@ CREATE POLICY rls_delete ON public.parametros_folha FOR DELETE TO authenticated 
 
 
 --
+-- Name: pareceres_tecnicos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.pareceres_tecnicos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: participantes_reuniao rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.participantes_reuniao FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: patrimonio_unidade rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.patrimonio_unidade FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: pensoes_alimenticias rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.pensoes_alimenticias FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: planos_tratamento_risco rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.planos_tratamento_risco FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: portal_diretoria rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.portal_diretoria FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: portarias_servidor rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.portarias_servidor FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: prazos_lai rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.prazos_lai FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
+-- Name: prazos_processo rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.prazos_processo FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: pre_cadastros rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.pre_cadastros FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text)));
+
+
+--
+-- Name: processos_administrativos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.processos_administrativos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: programas rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.programas FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'programas'::text));
+
+
+--
+-- Name: propostas_licitacao rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.propostas_licitacao FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: provimentos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.provimentos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text)));
+
+
+--
+-- Name: publicacoes_lai rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.publicacoes_lai FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
+-- Name: publicacoes_legais rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.publicacoes_legais FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
+-- Name: recursos_lai rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.recursos_lai FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
+-- Name: regimes_trabalho rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.regimes_trabalho FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
 -- Name: registros_ponto rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20477,10 +16583,80 @@ CREATE POLICY rls_delete ON public.registros_ponto FOR DELETE TO authenticated U
 
 
 --
+-- Name: remessas_bancarias rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.remessas_bancarias FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: requisicao_itens rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.requisicao_itens FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: requisicoes_material rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.requisicoes_material FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: respostas_checklist rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.respostas_checklist FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: retornos_bancarios rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.retornos_bancarios FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: reunioes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.reunioes FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: riscos_institucionais rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.riscos_institucionais FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'integridade'::text)));
+
+
+--
 -- Name: rubricas rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_delete ON public.rubricas FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: servidor_regime rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.servidor_regime FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: servidor_tag_vinculos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.servidor_tag_vinculos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: servidor_tags rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.servidor_tags FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -20505,6 +16681,13 @@ CREATE POLICY rls_delete ON public.solicitacoes_ajuste_ponto FOR DELETE TO authe
 
 
 --
+-- Name: solicitacoes_sic rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.solicitacoes_sic FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
 -- Name: tabela_inss rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20516,6 +16699,13 @@ CREATE POLICY rls_delete ON public.tabela_inss FOR DELETE TO authenticated USING
 --
 
 CREATE POLICY rls_delete ON public.tabela_irrf FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: termos_cessao rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.termos_cessao FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -20533,6 +16723,13 @@ CREATE POLICY rls_delete ON public.user_modules FOR DELETE TO authenticated USIN
 
 
 --
+-- Name: user_org_units rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.user_org_units FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
 -- Name: user_roles rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20547,10 +16744,66 @@ CREATE POLICY rls_delete ON public.viagens_diarias FOR DELETE TO authenticated U
 
 
 --
+-- Name: vinculos_funcionais rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.vinculos_funcionais FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
 -- Name: vinculos_servidor rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_delete ON public.vinculos_servidor FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: acesso_processo_sigiloso rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.acesso_processo_sigiloso FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: acoes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.acoes FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'programas'::text));
+
+
+--
+-- Name: agrupamento_unidade_vinculo rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.agrupamento_unidade_vinculo FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: approval_delegations rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.approval_delegations FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: approval_requests rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.approval_requests FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: avaliacoes_controle rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.avaliacoes_controle FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'integridade'::text)));
+
+
+--
+-- Name: avaliacoes_risco rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.avaliacoes_risco FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
 
 
 --
@@ -20561,10 +16814,52 @@ CREATE POLICY rls_insert ON public.banco_horas FOR INSERT TO authenticated WITH 
 
 
 --
+-- Name: bancos_cnab rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.bancos_cnab FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: cadastro_arbitros rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.cadastro_arbitros FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'arbitros'::text));
+
+
+--
+-- Name: cadastro_arbitros_modalidades rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.cadastro_arbitros_modalidades FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'arbitros'::text));
+
+
+--
+-- Name: calendario_federacao rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.calendario_federacao FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text) OR public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text)));
+
+
+--
+-- Name: campanhas_inventario rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.campanhas_inventario FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: campanhas_inventario_unidades rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_insert ON public.campanhas_inventario_unidades FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: cargo_unidade_compatibilidade rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.cargo_unidade_compatibilidade FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -20575,10 +16870,262 @@ CREATE POLICY rls_insert ON public.cargos FOR INSERT TO authenticated WITH CHECK
 
 
 --
+-- Name: categorias_material rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.categorias_material FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: categorias_noticias_eventos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.categorias_noticias_eventos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: centros_custo rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.centros_custo FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: cessoes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.cessoes FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: checklists_conformidade rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.checklists_conformidade FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: cms_banners rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.cms_banners FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_categorias rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.cms_categorias FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_conteudos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.cms_conteudos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_galeria_fotos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.cms_galeria_fotos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_galerias rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.cms_galerias FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_media rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.cms_media FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: coletas_inventario rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.coletas_inventario FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: composicao_cargos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.composicao_cargos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'governanca'::text)));
+
+
+--
+-- Name: conciliacoes_inventario rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.conciliacoes_inventario FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: config_agrupamento_unidades rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_agrupamento_unidades FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_assinatura_frequencia rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_assinatura_frequencia FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_assinatura_reuniao rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_assinatura_reuniao FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: config_autarquia rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_autarquia FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)));
+
+
+--
+-- Name: config_compensacao rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_compensacao FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_fechamento_folha rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_fechamento_folha FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
 -- Name: config_fechamento_frequencia rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_insert ON public.config_fechamento_frequencia FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.configurar'::text)));
+
+
+--
+-- Name: config_incidencias rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_incidencias FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_institucional rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_institucional FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)));
+
+
+--
+-- Name: config_jornada_padrao rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_jornada_padrao FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_motivos_desligamento rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_motivos_desligamento FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_paginas_historico rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_paginas_historico FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: config_paginas_publicas rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_paginas_publicas FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: config_parametros_meta rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_parametros_meta FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: config_parametros_valores rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_parametros_valores FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: config_regras_calculo rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_regras_calculo FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_rubricas rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_rubricas FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_situacoes_funcionais rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_situacoes_funcionais FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_tipos_ato rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_tipos_ato FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_tipos_onus rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_tipos_onus FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_tipos_rubrica rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_tipos_rubrica FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_tipos_servidor rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_tipos_servidor FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: configuracao_jornada rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.configuracao_jornada FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -20589,10 +17136,234 @@ CREATE POLICY rls_insert ON public.consignacoes FOR INSERT TO authenticated WITH
 
 
 --
+-- Name: contas_autarquia rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.contas_autarquia FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro'::text) OR public.can_access_module(auth.uid(), 'rh'::text)));
+
+
+--
+-- Name: contatos_eventos_esportivos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.contatos_eventos_esportivos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: conteudo_rascunho rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.conteudo_rascunho FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: controles_internos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.controles_internos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'integridade'::text)));
+
+
+--
+-- Name: creditos_adicionais rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.creditos_adicionais FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: dados_oficiais rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.dados_oficiais FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: debitos_tecnicos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.debitos_tecnicos FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: decisoes_administrativas rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.decisoes_administrativas FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: demandas_ascom rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.demandas_ascom FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: demandas_ascom_anexos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.demandas_ascom_anexos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: demandas_ascom_comentarios rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.demandas_ascom_comentarios FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: demandas_ascom_entregaveis rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.demandas_ascom_entregaveis FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
 -- Name: dependentes_irrf rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_insert ON public.dependentes_irrf FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: designacoes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.designacoes FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: despachos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.despachos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: dias_nao_uteis rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.dias_nao_uteis FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: documentos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.documentos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: documentos_cedencia rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.documentos_cedencia FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
+
+
+--
+-- Name: documentos_preparatorios_licitacao rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.documentos_preparatorios_licitacao FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: documentos_processo rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.documentos_processo FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: documentos_requerimento_servidor rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.documentos_requerimento_servidor FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.servidores.editar'::text)) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
+-- Name: encaminhamentos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.encaminhamentos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: escolas_jer rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.escolas_jer FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
+
+
+--
+-- Name: estoque rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.estoque FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: estrutura_organizacional rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.estrutura_organizacional FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'organizacoes'::text));
+
+
+--
+-- Name: eventos_esocial rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.eventos_esocial FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: evidencias_controle rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.evidencias_controle FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: exportacoes_folha rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.exportacoes_folha FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: federacao_arbitros rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.federacao_arbitros FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text)));
+
+
+--
+-- Name: federacao_espacos_cedidos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.federacao_espacos_cedidos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text)));
+
+
+--
+-- Name: federacao_parcerias rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.federacao_parcerias FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text)));
+
+
+--
+-- Name: federacoes_esportivas rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.federacoes_esportivas FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text) OR public.can_access_module(auth.uid(), 'patrimonio'::text)));
+
+
+--
+-- Name: feriados rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.feriados FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -20610,6 +17381,188 @@ CREATE POLICY rls_insert ON public.fichas_financeiras FOR INSERT TO authenticate
 
 
 --
+-- Name: fin_acoes_orcamentarias rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_acoes_orcamentarias FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_adiantamento_itens rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_adiantamento_itens FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_adiantamentos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_adiantamentos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_alteracoes_orcamentarias rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_alteracoes_orcamentarias FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_checklist_ci rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_checklist_ci FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_contas_bancarias rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_contas_bancarias FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_documentos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_documentos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_dotacoes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_dotacoes FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_empenho_anulacoes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_empenho_anulacoes FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_empenhos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_empenhos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_extrato_transacoes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_extrato_transacoes FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_extratos_bancarios rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_extratos_bancarios FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_fechamentos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_fechamentos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_fontes_recurso rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_fontes_recurso FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_lancamentos_contabeis rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_lancamentos_contabeis FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_liquidacoes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_liquidacoes FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_naturezas_despesa rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_naturezas_despesa FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_pagamentos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_pagamentos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_parametros rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_parametros FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_plano_contas rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_plano_contas FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_programas_orcamentarios rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_programas_orcamentarios FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_receitas rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_receitas FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_restos_pagar rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_restos_pagar FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_solicitacao_itens rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_solicitacao_itens FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_solicitacoes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_solicitacoes FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_sub_empenhos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_sub_empenhos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
 -- Name: folhas_pagamento rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20621,6 +17574,13 @@ CREATE POLICY rls_insert ON public.folhas_pagamento FOR INSERT TO authenticated 
 --
 
 CREATE POLICY rls_insert ON public.fotos_vistoria_inventario FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)) AND (usuario_id = auth.uid())));
+
+
+--
+-- Name: frequencia_arquivos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.frequencia_arquivos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
 
 
 --
@@ -20638,10 +17598,87 @@ CREATE POLICY rls_insert ON public.frequencia_mensal FOR INSERT TO authenticated
 
 
 --
+-- Name: frequencia_pacotes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.frequencia_pacotes FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
+
+
+--
+-- Name: galeria_eventos_esportivos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.galeria_eventos_esportivos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text)));
+
+
+--
+-- Name: gestores_escolares rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.gestores_escolares FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
+
+
+--
+-- Name: historico_funcional rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.historico_funcional FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text)));
+
+
+--
+-- Name: horarios_jornada rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.horarios_jornada FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: instituicoes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.instituicoes FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'organizacoes'::text) OR public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text)));
+
+
+--
+-- Name: itens_ata_registro_preco rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.itens_ata_registro_preco FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: itens_checklist rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.itens_checklist FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: itens_contrato rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.itens_contrato FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
 -- Name: itens_ficha_financeira rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_insert ON public.itens_ficha_financeira FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: itens_processo_licitatorio rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.itens_processo_licitatorio FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: itens_retorno_bancario rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.itens_retorno_bancario FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -20679,10 +17716,129 @@ CREATE POLICY rls_insert ON public.licencas_afastamentos FOR INSERT TO authentic
 
 
 --
+-- Name: liquidacoes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.liquidacoes FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
 -- Name: lotacoes rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_insert ON public.lotacoes FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: manutencoes_patrimonio rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.manutencoes_patrimonio FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: matriz_raci_atribuicoes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.matriz_raci_atribuicoes FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: matriz_raci_papeis rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.matriz_raci_papeis FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: matriz_raci_processos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.matriz_raci_processos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: memorandos_lotacao rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.memorandos_lotacao FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: modelos_mensagem_reuniao rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.modelos_mensagem_reuniao FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: module_access_scopes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.module_access_scopes FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: module_permissions_catalog rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.module_permissions_catalog FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: module_settings rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.module_settings FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: movimentacoes_bem rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.movimentacoes_bem FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: movimentacoes_estoque rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.movimentacoes_estoque FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: movimentacoes_processo rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.movimentacoes_processo FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: nomeacoes_chefe_unidade rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.nomeacoes_chefe_unidade FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'patrimonio'::text)));
+
+
+--
+-- Name: noticias_eventos_esportivos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.noticias_eventos_esportivos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text)));
+
+
+--
+-- Name: ocorrencias_patrimonio rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.ocorrencias_patrimonio FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: ocorrencias_servidor rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.ocorrencias_servidor FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -20693,6 +17849,132 @@ CREATE POLICY rls_insert ON public.parametros_folha FOR INSERT TO authenticated 
 
 
 --
+-- Name: pareceres_tecnicos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.pareceres_tecnicos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: participantes_reuniao rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.participantes_reuniao FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: patrimonio_unidade rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.patrimonio_unidade FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: pensoes_alimenticias rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.pensoes_alimenticias FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: planos_tratamento_risco rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.planos_tratamento_risco FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: portal_diretoria rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.portal_diretoria FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: portarias_servidor rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.portarias_servidor FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: prazos_lai rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.prazos_lai FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
+-- Name: prazos_processo rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.prazos_processo FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: pre_cadastros rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.pre_cadastros FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text)));
+
+
+--
+-- Name: processos_administrativos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.processos_administrativos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: programas rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.programas FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'programas'::text));
+
+
+--
+-- Name: propostas_licitacao rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.propostas_licitacao FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: provimentos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.provimentos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text)));
+
+
+--
+-- Name: publicacoes_lai rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.publicacoes_lai FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
+-- Name: publicacoes_legais rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.publicacoes_legais FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
+-- Name: recursos_lai rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.recursos_lai FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
+-- Name: regimes_trabalho rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.regimes_trabalho FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
 -- Name: registros_ponto rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20700,10 +17982,80 @@ CREATE POLICY rls_insert ON public.registros_ponto FOR INSERT TO authenticated W
 
 
 --
+-- Name: remessas_bancarias rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.remessas_bancarias FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: requisicao_itens rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.requisicao_itens FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: requisicoes_material rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.requisicoes_material FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: respostas_checklist rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.respostas_checklist FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: retornos_bancarios rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.retornos_bancarios FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: reunioes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.reunioes FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: riscos_institucionais rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.riscos_institucionais FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'integridade'::text)));
+
+
+--
 -- Name: rubricas rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_insert ON public.rubricas FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: servidor_regime rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.servidor_regime FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: servidor_tag_vinculos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.servidor_tag_vinculos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: servidor_tags rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.servidor_tags FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -20728,6 +18080,13 @@ CREATE POLICY rls_insert ON public.solicitacoes_ajuste_ponto FOR INSERT TO authe
 
 
 --
+-- Name: solicitacoes_sic rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.solicitacoes_sic FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
 -- Name: tabela_inss rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20739,6 +18098,13 @@ CREATE POLICY rls_insert ON public.tabela_inss FOR INSERT TO authenticated WITH 
 --
 
 CREATE POLICY rls_insert ON public.tabela_irrf FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: termos_cessao rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.termos_cessao FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -20756,6 +18122,13 @@ CREATE POLICY rls_insert ON public.user_modules FOR INSERT TO authenticated WITH
 
 
 --
+-- Name: user_org_units rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.user_org_units FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
 -- Name: user_roles rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20770,10 +18143,73 @@ CREATE POLICY rls_insert ON public.viagens_diarias FOR INSERT TO authenticated W
 
 
 --
+-- Name: vinculos_funcionais rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.vinculos_funcionais FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
 -- Name: vinculos_servidor rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_insert ON public.vinculos_servidor FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: acesso_processo_sigiloso rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.acesso_processo_sigiloso FOR SELECT TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: acoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.acoes FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'programas'::text));
+
+
+--
+-- Name: agrupamento_unidade_vinculo rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.agrupamento_unidade_vinculo FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: approval_delegations rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.approval_delegations FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: approval_requests rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.approval_requests FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: audit_log_licitacoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.audit_log_licitacoes FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: avaliacoes_controle rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.avaliacoes_controle FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'integridade'::text)));
+
+
+--
+-- Name: avaliacoes_risco rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.avaliacoes_risco FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
 
 
 --
@@ -20784,10 +18220,52 @@ CREATE POLICY rls_select ON public.banco_horas FOR SELECT TO authenticated USING
 
 
 --
+-- Name: bancos_cnab rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.bancos_cnab FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: cadastro_arbitros rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.cadastro_arbitros FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'arbitros'::text));
+
+
+--
+-- Name: cadastro_arbitros_modalidades rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.cadastro_arbitros_modalidades FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'arbitros'::text));
+
+
+--
+-- Name: calendario_federacao rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.calendario_federacao FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text) OR public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text)));
+
+
+--
+-- Name: campanhas_inventario rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.campanhas_inventario FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: campanhas_inventario_unidades rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_select ON public.campanhas_inventario_unidades FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: cargo_unidade_compatibilidade rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.cargo_unidade_compatibilidade FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -20798,10 +18276,262 @@ CREATE POLICY rls_select ON public.cargos FOR SELECT TO authenticated USING (pub
 
 
 --
+-- Name: categorias_material rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.categorias_material FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: categorias_noticias_eventos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.categorias_noticias_eventos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: centros_custo rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.centros_custo FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: cessoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.cessoes FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: checklists_conformidade rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.checklists_conformidade FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: cms_banners rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.cms_banners FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_categorias rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.cms_categorias FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_conteudos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.cms_conteudos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_galeria_fotos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.cms_galeria_fotos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_galerias rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.cms_galerias FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_media rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.cms_media FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: coletas_inventario rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.coletas_inventario FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: composicao_cargos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.composicao_cargos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'governanca'::text)));
+
+
+--
+-- Name: conciliacoes_inventario rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.conciliacoes_inventario FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: config_agrupamento_unidades rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_agrupamento_unidades FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_assinatura_frequencia rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_assinatura_frequencia FOR SELECT TO authenticated USING (public.is_active_user());
+
+
+--
+-- Name: config_assinatura_reuniao rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_assinatura_reuniao FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: config_autarquia rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_autarquia FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)));
+
+
+--
+-- Name: config_compensacao rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_compensacao FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_fechamento_folha rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_fechamento_folha FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
 -- Name: config_fechamento_frequencia rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_select ON public.config_fechamento_frequencia FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_incidencias rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_incidencias FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_institucional rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_institucional FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)));
+
+
+--
+-- Name: config_jornada_padrao rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_jornada_padrao FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_motivos_desligamento rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_motivos_desligamento FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_paginas_historico rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_paginas_historico FOR SELECT TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: config_paginas_publicas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_paginas_publicas FOR SELECT TO anon, authenticated USING (true);
+
+
+--
+-- Name: config_parametros_meta rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_parametros_meta FOR SELECT TO authenticated USING (public.is_active_user());
+
+
+--
+-- Name: config_parametros_valores rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_parametros_valores FOR SELECT TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: config_regras_calculo rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_regras_calculo FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_rubricas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_rubricas FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_situacoes_funcionais rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_situacoes_funcionais FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_tipos_ato rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_tipos_ato FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_tipos_onus rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_tipos_onus FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_tipos_rubrica rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_tipos_rubrica FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_tipos_servidor rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_tipos_servidor FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: configuracao_jornada rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.configuracao_jornada FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -20812,10 +18542,234 @@ CREATE POLICY rls_select ON public.consignacoes FOR SELECT TO authenticated USIN
 
 
 --
+-- Name: contas_autarquia rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.contas_autarquia FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) OR public.can_access_module(auth.uid(), 'rh'::text)));
+
+
+--
+-- Name: contatos_eventos_esportivos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.contatos_eventos_esportivos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: conteudo_rascunho rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.conteudo_rascunho FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: controles_internos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.controles_internos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'integridade'::text)));
+
+
+--
+-- Name: creditos_adicionais rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.creditos_adicionais FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: dados_oficiais rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.dados_oficiais FOR SELECT TO authenticated USING (public.is_active_user());
+
+
+--
+-- Name: debitos_tecnicos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.debitos_tecnicos FOR SELECT TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: decisoes_administrativas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.decisoes_administrativas FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: demandas_ascom rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.demandas_ascom FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: demandas_ascom_anexos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.demandas_ascom_anexos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: demandas_ascom_comentarios rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.demandas_ascom_comentarios FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: demandas_ascom_entregaveis rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.demandas_ascom_entregaveis FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
 -- Name: dependentes_irrf rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_select ON public.dependentes_irrf FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: designacoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.designacoes FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
+-- Name: despachos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.despachos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: dias_nao_uteis rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.dias_nao_uteis FOR SELECT TO authenticated USING (public.is_active_user());
+
+
+--
+-- Name: documentos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.documentos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: documentos_cedencia rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.documentos_cedencia FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
+
+
+--
+-- Name: documentos_preparatorios_licitacao rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.documentos_preparatorios_licitacao FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: documentos_processo rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.documentos_processo FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: documentos_requerimento_servidor rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.documentos_requerimento_servidor FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
+-- Name: encaminhamentos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.encaminhamentos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: escolas_jer rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.escolas_jer FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
+
+
+--
+-- Name: estoque rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.estoque FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: estrutura_organizacional rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.estrutura_organizacional FOR SELECT TO authenticated USING (public.is_active_user());
+
+
+--
+-- Name: eventos_esocial rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.eventos_esocial FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: evidencias_controle rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.evidencias_controle FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: exportacoes_folha rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.exportacoes_folha FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: federacao_arbitros rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.federacao_arbitros FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text)));
+
+
+--
+-- Name: federacao_espacos_cedidos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.federacao_espacos_cedidos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text)));
+
+
+--
+-- Name: federacao_parcerias rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.federacao_parcerias FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text)));
+
+
+--
+-- Name: federacoes_esportivas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.federacoes_esportivas FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text) OR public.can_access_module(auth.uid(), 'patrimonio'::text)));
+
+
+--
+-- Name: feriados rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.feriados FOR SELECT TO authenticated USING (public.is_active_user());
 
 
 --
@@ -20830,6 +18784,202 @@ CREATE POLICY rls_select ON public.ferias_servidor FOR SELECT TO authenticated U
 --
 
 CREATE POLICY rls_select ON public.fichas_financeiras FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
+-- Name: fin_acoes_orcamentarias rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_acoes_orcamentarias FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_adiantamento_itens rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_adiantamento_itens FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_adiantamentos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_adiantamentos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_alteracoes_orcamentarias rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_alteracoes_orcamentarias FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_audit_log rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_audit_log FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_checklist_ci rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_checklist_ci FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_contas_bancarias rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_contas_bancarias FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_documentos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_documentos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_dotacoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_dotacoes FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_empenho_anulacoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_empenho_anulacoes FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_empenhos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_empenhos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_extrato_transacoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_extrato_transacoes FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_extratos_bancarios rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_extratos_bancarios FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_fechamentos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_fechamentos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_fontes_recurso rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_fontes_recurso FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_lancamentos_contabeis rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_lancamentos_contabeis FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_liquidacoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_liquidacoes FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_naturezas_despesa rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_naturezas_despesa FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_pagamentos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_pagamentos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_parametros rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_parametros FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_plano_contas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_plano_contas FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_programas_orcamentarios rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_programas_orcamentarios FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_receitas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_receitas FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_restos_pagar rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_restos_pagar FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_solicitacao_itens rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_solicitacao_itens FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_solicitacoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_solicitacoes FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_sub_empenhos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_sub_empenhos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: folha_historico_status rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.folha_historico_status FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -20849,6 +18999,13 @@ CREATE POLICY rls_select ON public.fotos_vistoria_inventario FOR SELECT TO authe
 
 
 --
+-- Name: frequencia_arquivos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.frequencia_arquivos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
 -- Name: frequencia_fechamento rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20863,12 +19020,124 @@ CREATE POLICY rls_select ON public.frequencia_mensal FOR SELECT TO authenticated
 
 
 --
+-- Name: frequencia_pacotes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.frequencia_pacotes FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: galeria_eventos_esportivos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.galeria_eventos_esportivos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text)));
+
+
+--
+-- Name: gestores_escolares rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.gestores_escolares FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
+
+
+--
+-- Name: gestores_escolares_historico rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.gestores_escolares_historico FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
+
+
+--
+-- Name: historico_conteudo_oficial rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.historico_conteudo_oficial FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: historico_convites_reuniao rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.historico_convites_reuniao FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'gabinete'::text));
+
+
+--
+-- Name: historico_funcional rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.historico_funcional FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
+-- Name: historico_lai rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.historico_lai FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
+-- Name: historico_patrimonio rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.historico_patrimonio FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: horarios_jornada rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.horarios_jornada FOR SELECT TO authenticated USING (public.is_active_user());
+
+
+--
+-- Name: instituicoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.instituicoes FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'organizacoes'::text) OR public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text)));
+
+
+--
+-- Name: itens_ata_registro_preco rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.itens_ata_registro_preco FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: itens_checklist rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.itens_checklist FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: itens_contrato rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.itens_contrato FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
 -- Name: itens_ficha_financeira rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_select ON public.itens_ficha_financeira FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (EXISTS ( SELECT 1
    FROM public.fichas_financeiras p
   WHERE ((p.id = itens_ficha_financeira.ficha_id) AND (p.servidor_id = public.meu_servidor_id()))))));
+
+
+--
+-- Name: itens_processo_licitatorio rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.itens_processo_licitatorio FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: itens_retorno_bancario rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.itens_retorno_bancario FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -20904,10 +19173,129 @@ CREATE POLICY rls_select ON public.licencas_afastamentos FOR SELECT TO authentic
 
 
 --
+-- Name: liquidacoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.liquidacoes FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
 -- Name: lotacoes rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_select ON public.lotacoes FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
+-- Name: manutencoes_patrimonio rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.manutencoes_patrimonio FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: matriz_raci_atribuicoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.matriz_raci_atribuicoes FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: matriz_raci_papeis rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.matriz_raci_papeis FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: matriz_raci_processos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.matriz_raci_processos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: memorandos_lotacao rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.memorandos_lotacao FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: modelos_mensagem_reuniao rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.modelos_mensagem_reuniao FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: module_access_scopes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.module_access_scopes FOR SELECT TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: module_permissions_catalog rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.module_permissions_catalog FOR SELECT TO authenticated USING (public.is_active_user());
+
+
+--
+-- Name: module_settings rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.module_settings FOR SELECT TO authenticated USING (public.is_active_user());
+
+
+--
+-- Name: movimentacoes_bem rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.movimentacoes_bem FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: movimentacoes_estoque rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.movimentacoes_estoque FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: movimentacoes_processo rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.movimentacoes_processo FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: nomeacoes_chefe_unidade rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.nomeacoes_chefe_unidade FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'patrimonio'::text)));
+
+
+--
+-- Name: noticias_eventos_esportivos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.noticias_eventos_esportivos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text)));
+
+
+--
+-- Name: ocorrencias_patrimonio rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.ocorrencias_patrimonio FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: ocorrencias_servidor rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.ocorrencias_servidor FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
 
 
 --
@@ -20918,6 +19306,132 @@ CREATE POLICY rls_select ON public.parametros_folha FOR SELECT TO authenticated 
 
 
 --
+-- Name: pareceres_tecnicos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.pareceres_tecnicos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: participantes_reuniao rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.participantes_reuniao FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: patrimonio_unidade rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.patrimonio_unidade FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: pensoes_alimenticias rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.pensoes_alimenticias FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: planos_tratamento_risco rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.planos_tratamento_risco FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: portal_diretoria rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.portal_diretoria FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: portarias_servidor rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.portarias_servidor FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
+-- Name: prazos_lai rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.prazos_lai FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
+-- Name: prazos_processo rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.prazos_processo FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: pre_cadastros rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.pre_cadastros FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text)));
+
+
+--
+-- Name: processos_administrativos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.processos_administrativos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: programas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.programas FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'programas'::text));
+
+
+--
+-- Name: propostas_licitacao rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.propostas_licitacao FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: provimentos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.provimentos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text)));
+
+
+--
+-- Name: publicacoes_lai rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.publicacoes_lai FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
+-- Name: publicacoes_legais rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.publicacoes_legais FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
+-- Name: recursos_lai rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.recursos_lai FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
+-- Name: regimes_trabalho rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.regimes_trabalho FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
 -- Name: registros_ponto rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20925,10 +19439,87 @@ CREATE POLICY rls_select ON public.registros_ponto FOR SELECT TO authenticated U
 
 
 --
+-- Name: remessas_bancarias rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.remessas_bancarias FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: requisicao_itens rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.requisicao_itens FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: requisicoes_material rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.requisicoes_material FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: respostas_checklist rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.respostas_checklist FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: retornos_bancarios rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.retornos_bancarios FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: reunioes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.reunioes FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: riscos_institucionais rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.riscos_institucionais FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'integridade'::text)));
+
+
+--
 -- Name: rubricas rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_select ON public.rubricas FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: rubricas_historico rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.rubricas_historico FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: servidor_regime rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.servidor_regime FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: servidor_tag_vinculos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.servidor_tag_vinculos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: servidor_tags rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.servidor_tags FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -20953,6 +19544,13 @@ CREATE POLICY rls_select ON public.solicitacoes_ajuste_ponto FOR SELECT TO authe
 
 
 --
+-- Name: solicitacoes_sic rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.solicitacoes_sic FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
 -- Name: tabela_inss rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20964,6 +19562,13 @@ CREATE POLICY rls_select ON public.tabela_inss FOR SELECT TO authenticated USING
 --
 
 CREATE POLICY rls_select ON public.tabela_irrf FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: termos_cessao rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.termos_cessao FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -20981,6 +19586,13 @@ CREATE POLICY rls_select ON public.user_modules FOR SELECT TO authenticated USIN
 
 
 --
+-- Name: user_org_units rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.user_org_units FOR SELECT TO authenticated USING ((public.is_admin_user(auth.uid()) OR ((user_id = auth.uid()) AND public.is_active_user())));
+
+
+--
 -- Name: user_roles rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20995,10 +19607,66 @@ CREATE POLICY rls_select ON public.viagens_diarias FOR SELECT TO authenticated U
 
 
 --
+-- Name: vinculos_funcionais rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.vinculos_funcionais FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
 -- Name: vinculos_servidor rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_select ON public.vinculos_servidor FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
+-- Name: acesso_processo_sigiloso rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.acesso_processo_sigiloso FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: acoes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.acoes FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'programas'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'programas'::text));
+
+
+--
+-- Name: agrupamento_unidade_vinculo rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.agrupamento_unidade_vinculo FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: approval_delegations rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.approval_delegations FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: approval_requests rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.approval_requests FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: avaliacoes_controle rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.avaliacoes_controle FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'integridade'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'integridade'::text)));
+
+
+--
+-- Name: avaliacoes_risco rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.avaliacoes_risco FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
 
 
 --
@@ -21009,10 +19677,52 @@ CREATE POLICY rls_update ON public.banco_horas FOR UPDATE TO authenticated USING
 
 
 --
+-- Name: bancos_cnab rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.bancos_cnab FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: cadastro_arbitros rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.cadastro_arbitros FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'arbitros'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'arbitros'::text));
+
+
+--
+-- Name: cadastro_arbitros_modalidades rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.cadastro_arbitros_modalidades FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'arbitros'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'arbitros'::text));
+
+
+--
+-- Name: calendario_federacao rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.calendario_federacao FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text) OR public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text) OR public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text)));
+
+
+--
+-- Name: campanhas_inventario rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.campanhas_inventario FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: campanhas_inventario_unidades rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_update ON public.campanhas_inventario_unidades FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: cargo_unidade_compatibilidade rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.cargo_unidade_compatibilidade FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -21023,10 +19733,262 @@ CREATE POLICY rls_update ON public.cargos FOR UPDATE TO authenticated USING (pub
 
 
 --
+-- Name: categorias_material rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.categorias_material FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: categorias_noticias_eventos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.categorias_noticias_eventos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: centros_custo rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.centros_custo FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: cessoes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.cessoes FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: checklists_conformidade rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.checklists_conformidade FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: cms_banners rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.cms_banners FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_categorias rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.cms_categorias FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_conteudos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.cms_conteudos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_galeria_fotos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.cms_galeria_fotos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_galerias rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.cms_galerias FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: cms_media rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.cms_media FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: coletas_inventario rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.coletas_inventario FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: composicao_cargos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.composicao_cargos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'governanca'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'governanca'::text)));
+
+
+--
+-- Name: conciliacoes_inventario rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.conciliacoes_inventario FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: config_agrupamento_unidades rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_agrupamento_unidades FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_assinatura_frequencia rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_assinatura_frequencia FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_assinatura_reuniao rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_assinatura_reuniao FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: config_autarquia rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_autarquia FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)));
+
+
+--
+-- Name: config_compensacao rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_compensacao FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_fechamento_folha rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_fechamento_folha FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
 -- Name: config_fechamento_frequencia rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_update ON public.config_fechamento_frequencia FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.configurar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.configurar'::text)));
+
+
+--
+-- Name: config_incidencias rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_incidencias FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_institucional rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_institucional FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)));
+
+
+--
+-- Name: config_jornada_padrao rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_jornada_padrao FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_motivos_desligamento rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_motivos_desligamento FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_paginas_historico rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_paginas_historico FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: config_paginas_publicas rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_paginas_publicas FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: config_parametros_meta rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_parametros_meta FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: config_parametros_valores rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_parametros_valores FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: config_regras_calculo rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_regras_calculo FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_rubricas rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_rubricas FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_situacoes_funcionais rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_situacoes_funcionais FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_tipos_ato rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_tipos_ato FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_tipos_onus rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_tipos_onus FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_tipos_rubrica rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_tipos_rubrica FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: config_tipos_servidor rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_tipos_servidor FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: configuracao_jornada rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.configuracao_jornada FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -21037,10 +19999,234 @@ CREATE POLICY rls_update ON public.consignacoes FOR UPDATE TO authenticated USIN
 
 
 --
+-- Name: contas_autarquia rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.contas_autarquia FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) OR public.can_access_module(auth.uid(), 'rh'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro'::text) OR public.can_access_module(auth.uid(), 'rh'::text)));
+
+
+--
+-- Name: contatos_eventos_esportivos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.contatos_eventos_esportivos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: conteudo_rascunho rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.conteudo_rascunho FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: controles_internos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.controles_internos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'integridade'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'integridade'::text)));
+
+
+--
+-- Name: creditos_adicionais rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.creditos_adicionais FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: dados_oficiais rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.dados_oficiais FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: debitos_tecnicos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.debitos_tecnicos FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: decisoes_administrativas rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.decisoes_administrativas FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: demandas_ascom rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.demandas_ascom FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: demandas_ascom_anexos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.demandas_ascom_anexos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: demandas_ascom_comentarios rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.demandas_ascom_comentarios FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: demandas_ascom_entregaveis rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.demandas_ascom_entregaveis FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
 -- Name: dependentes_irrf rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_update ON public.dependentes_irrf FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: designacoes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.designacoes FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: despachos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.despachos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: dias_nao_uteis rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.dias_nao_uteis FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: documentos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.documentos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'admin'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: documentos_cedencia rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.documentos_cedencia FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
+
+
+--
+-- Name: documentos_preparatorios_licitacao rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.documentos_preparatorios_licitacao FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: documentos_processo rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.documentos_processo FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: documentos_requerimento_servidor rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.documentos_requerimento_servidor FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.servidores.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.servidores.editar'::text)));
+
+
+--
+-- Name: encaminhamentos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.encaminhamentos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: escolas_jer rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.escolas_jer FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'gestores_escolares'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
+
+
+--
+-- Name: estoque rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.estoque FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: estrutura_organizacional rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.estrutura_organizacional FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'organizacoes'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'organizacoes'::text));
+
+
+--
+-- Name: eventos_esocial rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.eventos_esocial FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: evidencias_controle rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.evidencias_controle FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: exportacoes_folha rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.exportacoes_folha FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: federacao_arbitros rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.federacao_arbitros FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text)));
+
+
+--
+-- Name: federacao_espacos_cedidos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.federacao_espacos_cedidos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text)));
+
+
+--
+-- Name: federacao_parcerias rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.federacao_parcerias FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text)));
+
+
+--
+-- Name: federacoes_esportivas rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.federacoes_esportivas FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text) OR public.can_access_module(auth.uid(), 'patrimonio'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'federacoes'::text) OR public.can_access_module(auth.uid(), 'organizacoes'::text) OR public.can_access_module(auth.uid(), 'patrimonio'::text)));
+
+
+--
+-- Name: feriados rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.feriados FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -21058,6 +20244,188 @@ CREATE POLICY rls_update ON public.fichas_financeiras FOR UPDATE TO authenticate
 
 
 --
+-- Name: fin_acoes_orcamentarias rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_acoes_orcamentarias FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_adiantamento_itens rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_adiantamento_itens FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_adiantamentos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_adiantamentos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_alteracoes_orcamentarias rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_alteracoes_orcamentarias FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_checklist_ci rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_checklist_ci FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_contas_bancarias rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_contas_bancarias FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_documentos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_documentos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_dotacoes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_dotacoes FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_empenho_anulacoes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_empenho_anulacoes FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_empenhos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_empenhos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_extrato_transacoes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_extrato_transacoes FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_extratos_bancarios rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_extratos_bancarios FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_fechamentos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_fechamentos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_fontes_recurso rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_fontes_recurso FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_lancamentos_contabeis rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_lancamentos_contabeis FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_liquidacoes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_liquidacoes FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_naturezas_despesa rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_naturezas_despesa FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_pagamentos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_pagamentos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_parametros rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_parametros FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_plano_contas rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_plano_contas FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_programas_orcamentarios rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_programas_orcamentarios FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_receitas rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_receitas FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_restos_pagar rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_restos_pagar FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_solicitacao_itens rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_solicitacao_itens FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_solicitacoes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_solicitacoes FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_sub_empenhos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_sub_empenhos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
 -- Name: folhas_pagamento rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21069,6 +20437,13 @@ CREATE POLICY rls_update ON public.folhas_pagamento FOR UPDATE TO authenticated 
 --
 
 CREATE POLICY rls_update ON public.fotos_vistoria_inventario FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)) AND ((usuario_id = auth.uid()) OR public.has_permission_code(auth.uid(), 'patrimonio.tramitar'::text)))) WITH CHECK (((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)) AND ((usuario_id = auth.uid()) OR public.has_permission_code(auth.uid(), 'patrimonio.tramitar'::text))));
+
+
+--
+-- Name: frequencia_arquivos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.frequencia_arquivos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
 
 
 --
@@ -21086,10 +20461,87 @@ CREATE POLICY rls_update ON public.frequencia_mensal FOR UPDATE TO authenticated
 
 
 --
+-- Name: frequencia_pacotes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.frequencia_pacotes FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text))));
+
+
+--
+-- Name: galeria_eventos_esportivos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.galeria_eventos_esportivos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text)));
+
+
+--
+-- Name: gestores_escolares rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.gestores_escolares FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'gestores_escolares'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'gestores_escolares'::text));
+
+
+--
+-- Name: historico_funcional rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.historico_funcional FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text)));
+
+
+--
+-- Name: horarios_jornada rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.horarios_jornada FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: instituicoes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.instituicoes FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'organizacoes'::text) OR public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'organizacoes'::text) OR public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text)));
+
+
+--
+-- Name: itens_ata_registro_preco rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.itens_ata_registro_preco FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: itens_checklist rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.itens_checklist FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: itens_contrato rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.itens_contrato FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
 -- Name: itens_ficha_financeira rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_update ON public.itens_ficha_financeira FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: itens_processo_licitatorio rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.itens_processo_licitatorio FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: itens_retorno_bancario rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.itens_retorno_bancario FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -21129,10 +20581,129 @@ CREATE POLICY rls_update ON public.licencas_afastamentos FOR UPDATE TO authentic
 
 
 --
+-- Name: liquidacoes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.liquidacoes FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
 -- Name: lotacoes rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_update ON public.lotacoes FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: manutencoes_patrimonio rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.manutencoes_patrimonio FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: matriz_raci_atribuicoes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.matriz_raci_atribuicoes FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: matriz_raci_papeis rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.matriz_raci_papeis FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: matriz_raci_processos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.matriz_raci_processos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: memorandos_lotacao rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.memorandos_lotacao FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: modelos_mensagem_reuniao rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.modelos_mensagem_reuniao FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: module_access_scopes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.module_access_scopes FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: module_permissions_catalog rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.module_permissions_catalog FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: module_settings rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.module_settings FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: movimentacoes_bem rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.movimentacoes_bem FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: movimentacoes_estoque rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.movimentacoes_estoque FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: movimentacoes_processo rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.movimentacoes_processo FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: nomeacoes_chefe_unidade rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.nomeacoes_chefe_unidade FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'patrimonio'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'patrimonio'::text)));
+
+
+--
+-- Name: noticias_eventos_esportivos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.noticias_eventos_esportivos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'comunicacao'::text) OR public.can_access_module(auth.uid(), 'programas'::text)));
+
+
+--
+-- Name: ocorrencias_patrimonio rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.ocorrencias_patrimonio FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: ocorrencias_servidor rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.ocorrencias_servidor FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -21143,6 +20714,132 @@ CREATE POLICY rls_update ON public.parametros_folha FOR UPDATE TO authenticated 
 
 
 --
+-- Name: pareceres_tecnicos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.pareceres_tecnicos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: participantes_reuniao rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.participantes_reuniao FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: patrimonio_unidade rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.patrimonio_unidade FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: pensoes_alimenticias rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.pensoes_alimenticias FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: planos_tratamento_risco rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.planos_tratamento_risco FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: portal_diretoria rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.portal_diretoria FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: portarias_servidor rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.portarias_servidor FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: prazos_lai rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.prazos_lai FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'transparencia'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
+-- Name: prazos_processo rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.prazos_processo FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: pre_cadastros rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.pre_cadastros FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text)));
+
+
+--
+-- Name: processos_administrativos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.processos_administrativos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: programas rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.programas FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'programas'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'programas'::text));
+
+
+--
+-- Name: propostas_licitacao rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.propostas_licitacao FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: provimentos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.provimentos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text)));
+
+
+--
+-- Name: publicacoes_lai rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.publicacoes_lai FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'transparencia'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
+-- Name: publicacoes_legais rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.publicacoes_legais FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'transparencia'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
+-- Name: recursos_lai rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.recursos_lai FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'transparencia'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
+-- Name: regimes_trabalho rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.regimes_trabalho FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
 -- Name: registros_ponto rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21150,10 +20847,80 @@ CREATE POLICY rls_update ON public.registros_ponto FOR UPDATE TO authenticated U
 
 
 --
+-- Name: remessas_bancarias rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.remessas_bancarias FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: requisicao_itens rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.requisicao_itens FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: requisicoes_material rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.requisicoes_material FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
+-- Name: respostas_checklist rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.respostas_checklist FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: retornos_bancarios rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.retornos_bancarios FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: reunioes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.reunioes FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: riscos_institucionais rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.riscos_institucionais FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'integridade'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'governanca'::text) OR public.can_access_module(auth.uid(), 'integridade'::text)));
+
+
+--
 -- Name: rubricas rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_update ON public.rubricas FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: servidor_regime rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.servidor_regime FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: servidor_tag_vinculos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.servidor_tag_vinculos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: servidor_tags rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.servidor_tags FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -21178,6 +20945,13 @@ CREATE POLICY rls_update ON public.solicitacoes_ajuste_ponto FOR UPDATE TO authe
 
 
 --
+-- Name: solicitacoes_sic rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.solicitacoes_sic FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'transparencia'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'transparencia'::text));
+
+
+--
 -- Name: tabela_inss rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21189,6 +20963,13 @@ CREATE POLICY rls_update ON public.tabela_inss FOR UPDATE TO authenticated USING
 --
 
 CREATE POLICY rls_update ON public.tabela_irrf FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: termos_cessao rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.termos_cessao FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -21206,6 +20987,13 @@ CREATE POLICY rls_update ON public.user_modules FOR UPDATE TO authenticated USIN
 
 
 --
+-- Name: user_org_units rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.user_org_units FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
 -- Name: user_roles rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21217,6 +21005,13 @@ CREATE POLICY rls_update ON public.user_roles FOR UPDATE TO authenticated USING 
 --
 
 CREATE POLICY rls_update ON public.viagens_diarias FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)) AND (public.has_permission_code(auth.uid(), 'rh.viagens.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.viagens.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.viagens.gerenciar'::text) OR public.has_permission_code(auth.uid(), 'financeiro.diarias.gerenciar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id))))) WITH CHECK (((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)) AND (public.has_permission_code(auth.uid(), 'rh.viagens.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.viagens.editar'::text) OR public.has_permission_code(auth.uid(), 'rh.viagens.gerenciar'::text) OR public.has_permission_code(auth.uid(), 'financeiro.diarias.gerenciar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
+
+
+--
+-- Name: vinculos_funcionais rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.vinculos_funcionais FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --

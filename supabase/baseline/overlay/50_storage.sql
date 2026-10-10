@@ -39,7 +39,7 @@ INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
   ('arbitros-docs',             'arbitros-docs',             true,  5242880,  ARRAY['image/jpeg','image/png','image/webp','image/heic','image/heif','application/pdf']),
   ('ascom-demandas',            'ascom-demandas',            false, NULL,     NULL),
   ('documentos',                'documentos',                false, 52428800, ARRAY['application/pdf','image/jpeg','image/png','image/webp']),
-  ('documentos-requerimento',   'documentos-requerimento',   false, NULL,     NULL),
+  ('documentos-requerimento',   'documentos-requerimento',   false, 10485760, ARRAY['application/pdf','image/jpeg','image/png','image/webp']),
   ('frequencias',               'frequencias',               false, 52428800, ARRAY['application/pdf','application/zip','application/x-zip-compressed']),
   ('inventario-evidencias',     'inventario-evidencias',     false, 10485760, ARRAY['image/jpeg','image/webp']),
   ('inventario-fotos',          'inventario-fotos',          true,  5242880,  ARRAY['image/jpeg','image/png','image/webp']),
@@ -52,6 +52,7 @@ ON CONFLICT (id) DO UPDATE
       allowed_mime_types = EXCLUDED.allowed_mime_types;
 
 -- Policies: leitura e escrita por módulo (can_access_module já exige perfil ativo e dá passagem ao papel admin).
+-- frequencias e documentos-requerimento saíram do laço na B3 (policies próprias mais abaixo).
 DO $$
 DECLARE
   b record; mods text; cond text; cmd text;
@@ -60,8 +61,6 @@ BEGIN
     ('arbitros-docs',             ARRAY['arbitros']),
     ('ascom-demandas',            ARRAY['comunicacao']),
     ('documentos',                ARRAY['workflow','rh']),
-    ('documentos-requerimento',   ARRAY['rh']),
-    ('frequencias',               ARRAY['rh']),
     ('inventario-evidencias',     ARRAY['patrimonio','patrimonio_mobile']),
     ('inventario-fotos',          ARRAY['patrimonio','patrimonio_mobile']),
     ('patrimonio-docs',           ARRAY['patrimonio','patrimonio_mobile']),
@@ -92,6 +91,42 @@ CREATE POLICY "st_inventario-evidencias_update" ON storage.objects FOR UPDATE TO
 DROP POLICY IF EXISTS "st_inventario-evidencias_delete" ON storage.objects;
 CREATE POLICY "st_inventario-evidencias_delete" ON storage.objects FOR DELETE TO authenticated
   USING (bucket_id = 'inventario-evidencias' AND public.has_permission_code(auth.uid(), 'patrimonio.tramitar'));
+
+-- Arquivos do RH (Onda B / B3, migração 20261010210000_onda_b_rh_storage.sql, mesmo texto): ler continua pelo módulo
+-- rh, mais o dono do arquivo; gravar (INSERT/UPDATE/DELETE) exige o módulo E um código do catálogo, como as tabelas
+-- do RH na B2.
+--   frequencias ............... o servidor lê o PDF dele (eh_meu_arquivo_frequencia: arquivo_path em
+--                               frequencia_arquivos com servidor_id do usuário); gravar com rh.frequencia.lancar|criar|editar
+--   documentos-requerimento ... o servidor lê a pasta dele (eh_minha_pasta_servidor: <servidor_id>/...); gravar com
+--                               rh.servidores.editar (o servidor não envia arquivo)
+-- As duas funções estão no overlay/10 (EXECUTE só para authenticated, overlay/40).
+DROP POLICY IF EXISTS "st_frequencias_select" ON storage.objects;
+CREATE POLICY "st_frequencias_select" ON storage.objects FOR SELECT TO authenticated
+  USING (bucket_id = 'frequencias' AND (public.can_access_module(auth.uid(), 'rh') OR public.eh_meu_arquivo_frequencia(name)));
+DROP POLICY IF EXISTS "st_frequencias_insert" ON storage.objects;
+CREATE POLICY "st_frequencias_insert" ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'frequencias' AND (public.can_access_module(auth.uid(), 'rh') AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'))));
+DROP POLICY IF EXISTS "st_frequencias_update" ON storage.objects;
+CREATE POLICY "st_frequencias_update" ON storage.objects FOR UPDATE TO authenticated
+  USING (bucket_id = 'frequencias' AND (public.can_access_module(auth.uid(), 'rh') AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'))))
+  WITH CHECK (bucket_id = 'frequencias' AND (public.can_access_module(auth.uid(), 'rh') AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'))));
+DROP POLICY IF EXISTS "st_frequencias_delete" ON storage.objects;
+CREATE POLICY "st_frequencias_delete" ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'frequencias' AND (public.can_access_module(auth.uid(), 'rh') AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'))));
+
+DROP POLICY IF EXISTS "st_documentos-requerimento_select" ON storage.objects;
+CREATE POLICY "st_documentos-requerimento_select" ON storage.objects FOR SELECT TO authenticated
+  USING (bucket_id = 'documentos-requerimento' AND (public.can_access_module(auth.uid(), 'rh') OR public.eh_minha_pasta_servidor(name)));
+DROP POLICY IF EXISTS "st_documentos-requerimento_insert" ON storage.objects;
+CREATE POLICY "st_documentos-requerimento_insert" ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'documentos-requerimento' AND (public.can_access_module(auth.uid(), 'rh') AND public.has_permission_code(auth.uid(), 'rh.servidores.editar')));
+DROP POLICY IF EXISTS "st_documentos-requerimento_update" ON storage.objects;
+CREATE POLICY "st_documentos-requerimento_update" ON storage.objects FOR UPDATE TO authenticated
+  USING (bucket_id = 'documentos-requerimento' AND (public.can_access_module(auth.uid(), 'rh') AND public.has_permission_code(auth.uid(), 'rh.servidores.editar')))
+  WITH CHECK (bucket_id = 'documentos-requerimento' AND (public.can_access_module(auth.uid(), 'rh') AND public.has_permission_code(auth.uid(), 'rh.servidores.editar')));
+DROP POLICY IF EXISTS "st_documentos-requerimento_delete" ON storage.objects;
+CREATE POLICY "st_documentos-requerimento_delete" ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'documentos-requerimento' AND (public.can_access_module(auth.uid(), 'rh') AND public.has_permission_code(auth.uid(), 'rh.servidores.editar')));
 
 -- Formulário público de árbitros: upload de foto/documentos sem login (só INSERT; a leitura
 -- fica para o módulo arbitros acima). Só nas três pastas que o formulário usa; o bucket limita tamanho

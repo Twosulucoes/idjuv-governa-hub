@@ -17,7 +17,7 @@ São invocadas do front via `supabase.functions.invoke('<nome>', { body })`.
 | `delete-user` | Exclui usuário do Auth e dados associados. |
 | `enviar-convite-reuniao` | Envia convites de reunião aos participantes por e-mail ou WhatsApp (pelo núcleo `_shared/envio`). |
 | `enviar-notificacao` | Disparos pela configuração de envio da instância. Hoje só a ação `teste` (exige `admin.envios.configurar`). |
-| `download-frequencia` | Gera/serve arquivos de frequência para download. |
+| `download-frequencia` | Devolve URL assinada (1 h) do arquivo de um pacote de frequência do bucket privado `frequencias`, ou só os dados do pacote (`action=info`). Exige o módulo `rh` e `rh.frequencia.visualizar` (ver abaixo). |
 | `database-schema` | Inspeciona o schema do banco (apoia a tela `DatabaseSchemaPage`). |
 | `backup-offsite` | Executa/orquestra backup off-site (apoia `BackupOffsitePage`). |
 | `cpsi-ai-assistant` | Assistente de IA para o formulário CPSI (`CPSIPage`). |
@@ -65,6 +65,25 @@ por não poder excluir a si mesmo.
 
 `backup-offsite`: só o token **igual** à `SUPABASE_SERVICE_ROLE_KEY` vale como chamada de cron (antes decodificava o
 JWT sem validar a assinatura) e o usuário com papel precisa ter o perfil ativo.
+
+### Autorização do `download-frequencia` (Onda B / B3)
+
+A função lê `frequencia_pacotes` e assina URLs com a service role, então, desde a migração
+`supabase/migrations/20261010210000_onda_b_rh_storage.sql` (**em PR rascunho**):
+
+- exige `Authorization: Bearer` com token válido (`401` sem ele);
+- antes de qualquer leitura com a service role, confere no banco, com o id do usuário do token,
+  `can_access_module(rh)` e `has_permission_code(rh.frequencia.visualizar)` (o mesmo código da rota
+  `/rh/frequencia/pacotes`). As duas funções já exigem perfil ativo. Sem uma delas, ou com erro na checagem,
+  responde `403` genérico (falha fechada);
+- só assina caminho relativo seguro (sem `/` inicial, segmento `.` ou `..`, `%`, `\`, `?` ou `#`), a mesma regra do
+  CHECK de `arquivo_path` ([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md)); caminho inseguro responde `404` genérico;
+- o log identifica o usuário só pelo `user.id` (antes gravava o e-mail) e não leva token, link nem caminho.
+
+O CORS continua `Access-Control-Allow-Origin: *`: a função só aceita o token no cabeçalho `Authorization`, sem
+cookie. Restringir o CORS à origem do tenant é pendência. O ZIP do pacote nunca é gravado hoje, então o download
+fica sem arquivo até isso existir. Regras de acesso completas em
+[RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#arquivos-do-rh-e-download-de-frequência-onda-b--b3).
 
 ## Boas práticas ao mexer
 

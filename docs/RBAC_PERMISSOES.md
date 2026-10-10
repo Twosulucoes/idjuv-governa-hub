@@ -246,7 +246,8 @@ SELECT permission_code, module_code FROM module_permissions_catalog
 
 Fora desta entrega, com spec própria: férias, licenças, viagens e frequência por permissão,
 leitura da própria linha em `servidores` e autoatendimento (B2, subseção abaixo); storage
-`frequencias`/`documentos-requerimento`/`documentos` e a Edge Function `download-frequencia` (B3).
+`frequencias`/`documentos-requerimento`/`documentos` e a Edge Function `download-frequencia` (B3, subseção
+abaixo).
 Também pendentes: RPC de recálculo atômico da ficha e preservação dos itens manuais no reprocessamento
 (dependem da PR #56), quem fecha a folha, auditoria mascarada das tabelas com dado pessoal e a remoção de
 `src/hooks/useMotorFolha.ts` (motor de folha no cliente, sem uso por página).
@@ -255,7 +256,7 @@ Também pendentes: RPC de recálculo atômico da ficha e preservação dos itens
 
 Migração `supabase/migrations/20261010090000_onda_b_rh_permissoes.sql` (spec
 `docs/superpowers/specs/2026-10-10-onda-b-rh-permissoes-design.md`; mesclada na PR #69 em 2026-10-10), mais
-a correção de contornos `supabase/migrations/20261010100000_onda_b_rh_contornos.sql` (**em PR rascunho**;
+a correção de contornos `supabase/migrations/20261010100000_onda_b_rh_contornos.sql` (mesclada na PR #71;
 achados da segunda revisão de segurança). Depende da S0
 (`supabase/migrations/20261010080000_s0_identidade_policies.sql`, PR #67) e da B1 (PR #63). Sem a S0, no
 banco só de migrações, qualquer logado trocaria o próprio `profiles.servidor_id` e a leitura da "própria
@@ -401,7 +402,7 @@ Leitura não diminui: o servidor passa a ler a própria linha em `servidores`, `
 `lotacoes`, e qualquer usuário ativo lê `cargos`.
 
 Fora da B2: chefia sem o módulo `rh` validando a equipe; pedido de férias ou de viagem pelo servidor;
-subunidades na chefia; storage e `download-frequencia` (B3); `pensoes_alimenticias`,
+subunidades na chefia; storage e `download-frequencia` (B3, subseção abaixo); `pensoes_alimenticias`,
 `historico_funcional`, `portarias_servidor`, `designacoes`, `provimentos` e `cessoes` (seguem por módulo);
 máscara de CID em licenças. **Assinatura do servidor no fechamento**: o trigger já restringe
 `assinado_servidor*` ao dono, mas o servidor ainda não assina pela API, porque não há policy de UPDATE para
@@ -533,6 +534,113 @@ SELECT policyname FROM pg_policies WHERE tablename = 'tipos_abono' AND policynam
 SELECT has_function_privilege('authenticated', 'public.eh_meu_servidor(uuid)', 'EXECUTE'),  -- true
        has_function_privilege('anon',          'public.eh_meu_servidor(uuid)', 'EXECUTE');  -- false
 ```
+
+### Arquivos do RH e download de frequência (Onda B / B3)
+
+Migração `supabase/migrations/20261010210000_onda_b_rh_storage.sql` (spec
+`docs/superpowers/specs/2026-10-10-onda-b-rh-storage-design.md`; **em PR rascunho**). Vem depois da
+`supabase/migrations/20261010170000_onda0_permissoes_urgente.sql` e depende da B1 e da B2 (formato `perm:` de
+`forcar_campos_iniciais`). É idempotente e vale nos dois estados do banco: no baseline o mesmo texto está nos
+overlays 10, 20, 40 e 50 e em `rls/mapa.csv`; no só-migrações ela remove as policies antigas por nome. Mesmo
+critério da B2: **ler** continua pelo módulo `rh` (mais o dono do arquivo); **gravar** exige o módulo **e** um
+código que o catálogo já tem. Nenhum código novo. O papel admin passa em tudo.
+
+Storage (policies `st_<bucket>_{select,insert,update,delete}`; os três buckets ficam privados):
+
+| Bucket | Leitura | Gravação (INSERT/UPDATE/DELETE) |
+|---|---|---|
+| `frequencias` | módulo `rh` ou o servidor dono do PDF (`eh_meu_arquivo_frequencia`) | `rh` + `rh.frequencia.lancar\|criar\|editar` |
+| `documentos-requerimento` | módulo `rh` ou o servidor na própria pasta `<servidor_id>/` (`eh_minha_pasta_servidor`) | `rh` + `rh.servidores.editar` (o servidor não envia arquivo) |
+| `documentos` | módulo `workflow` ou `rh` | módulo `workflow` ou `rh` |
+
+- `documentos` só alinha o replay ao baseline: no só-migrações qualquer logado gravava e não havia policy de
+  SELECT. Dono do bucket e permissões finas ficam para depois (ver "Fora da B3").
+- `documentos-requerimento` passa a ter limite de 10 MB e aceitar PDF, JPEG, PNG e WebP.
+- As duas funções de dono (`SECURITY DEFINER`, `search_path` fixo, EXECUTE só para `authenticated`, exigem
+  perfil ativo) estão descritas em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
+
+Tabelas (as `acesso_total_*` saem das três; `anon` perde todo privilégio e `authenticated` perde
+TRUNCATE/TRIGGER/REFERENCES):
+
+| Tabela | Leitura | Gravação |
+|---|---|---|
+| `frequencia_pacotes` | `rh` | `rh` + `rh.frequencia.lancar\|criar\|editar` |
+| `frequencia_arquivos` | `rh` ou o próprio | `rh` + `rh.frequencia.lancar\|criar\|editar` |
+| `documentos_requerimento_servidor` | `rh` ou o próprio | INSERT: `rh` + `rh.servidores.editar`, ou o servidor no próprio pedido; UPDATE e DELETE: `rh` + `rh.servidores.editar` |
+
+- Sem a trava "nunca a própria" da B2: o lote da unidade inclui o próprio RH, e o arquivo é gerado, não
+  decidido.
+- Em `documentos_requerimento_servidor`, `forcar_campos_iniciais` isenta só quem tem o módulo **e**
+  `rh.servidores.editar`, e nunca no próprio pedido. Quem não está isento (inclusive o servidor que pede o
+  próprio documento) grava `status = pendente`, arquivo assinado, data do envio e link de modelo vazios e
+  `created_by` = o usuário logado. Antes, bastava o módulo `rh`.
+- `arquivo_path` de `frequencia_pacotes` e `frequencia_arquivos` só aceita caminho relativo sem `..`, `/`
+  inicial, `%`, `\`, `?` e `#` (CHECK `NOT VALID`; detalhe em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md)).
+
+Edge Function `download-frequencia`: antes de qualquer leitura com a service role, exige o módulo `rh` e
+`rh.frequencia.visualizar` (o mesmo da rota `/rh/frequencia/pacotes`), conferidos pelo banco com o id do
+usuário do token; as duas funções já exigem perfil ativo. Recusa caminho inseguro e não loga e-mail nem link
+([EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md)).
+
+Front:
+
+- `DocumentosServidorTab` (aba de `ServidorDetalhePage`): criar pedido, anexar o assinado e mudar o status
+  exigem `rh.servidores.editar` (além do `isAdmin` que a página passa). O anexo grava o caminho no bucket
+  (`<servidor_id>/<doc_id>.<ext>`), não a URL pública, e abre por URL assinada de 60 s; links antigos, gravados
+  como URL pública, são convertidos em caminho na leitura e continuam abrindo. Os documentos expedidos
+  (tabela `documentos`) abrem pelo link gravado, só se for `http(s)`. Utilitários em `src/lib/storageArquivos.ts`
+  ([GUIA_FRONTEND.md](./GUIA_FRONTEND.md)).
+- `useFrequenciaPacotes`: o upload do PDF de frequência não usa mais `upsert` (o caminho já leva carimbo de
+  tempo).
+
+**Quem perde acesso:**
+
+- quem tem o módulo `rh` sem `rh.frequencia.lancar|criar|editar` deixa de gravar PDFs no bucket
+  `frequencias` e linhas em `frequencia_pacotes`/`frequencia_arquivos`;
+- quem tem o módulo `rh` sem `rh.servidores.editar` deixa de criar pedido de documento para outro servidor, de
+  anexar o documento assinado e de mudar o status (tabela e bucket `documentos-requerimento`);
+- quem não tem o módulo `rh` e `rh.frequencia.visualizar`, ou está com o perfil inativo, recebe `403` de
+  `download-frequencia`;
+- no banco só de migrações, qualquer logado deixa de ler e gravar `frequencias` e
+  `documentos-requerimento`, de gravar em `documentos` sem o módulo `workflow` ou `rh` e de ler ou gravar as
+  três tabelas pelas `acesso_total_*`.
+
+O servidor ganha leitura do próprio PDF de frequência e da própria pasta em `documentos-requerimento`.
+
+Limitações conhecidas:
+
+- Policies permissivas de storage se combinam por OR, também no WITH CHECK do UPDATE: quem grava em dois
+  buckets (por exemplo, `frequencias` e `documentos`) pode mover um objeto entre eles por UPDATE. Isso não dá
+  leitura nova a ninguém.
+- Policies de `storage.objects` criadas fora das migrações no banco ao vivo (Studio, SQL à mão) não são
+  removidas: a migração só apaga os nomes conhecidos e emite `WARNING` com as que ainda valem para os três
+  buckets. Como policies permissivas somam, uma dessas anularia a regra acima.
+- O CHECK de `arquivo_path` é `NOT VALID`: linha antiga com caminho inseguro continua no banco (a Edge
+  Function recusa assinar).
+
+Conferência pós-deploy, pelo operador, no banco real (esperado: **0 linhas** nas duas consultas; qualquer
+linha na primeira é policy a revisar à mão):
+
+```sql
+SELECT policyname, cmd, roles, qual, with_check
+  FROM pg_policies
+ WHERE schemaname = 'storage' AND tablename = 'objects'
+   AND policyname !~ '^st_(frequencias|documentos|documentos-requerimento)_(select|insert|update|delete)$'
+   AND (coalesce(qual, '') || ' ' || coalesce(with_check, ''))
+       ~ ('bucket_id = (''(frequencias|documentos|documentos-requerimento)''|ANY \(ARRAY\[[^]]*''(frequencias|documentos|documentos-requerimento)'')'
+          || '|^((?!bucket_id).)*$')
+ ORDER BY policyname;
+
+SELECT tablename, policyname FROM pg_policies
+ WHERE policyname ILIKE 'acesso_total%'
+   AND tablename IN ('frequencia_pacotes', 'frequencia_arquivos', 'documentos_requerimento_servidor');
+```
+
+Fora da B3: dono e permissões do bucket `documentos` e os links públicos de portarias, atos e cedência
+(`NovaPortariaSimplificada`, `RegistrarAssinaturaDialog`, `RegistrarPublicacaoDialog`, `GestaoDocumentosPage`,
+`DocumentosCedenciaUpload`); o ZIP do pacote de frequência, que nunca é gravado (o download fica sem arquivo
+até isso existir); o nome do servidor no caminho do PDF de frequência; buckets de outros módulos; CORS das
+Edge Functions por origem (`download-frequencia` segue com `*`, porque só aceita `Authorization: Bearer`).
 
 ### Folha: edição da ficha
 

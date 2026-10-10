@@ -43,6 +43,7 @@ import {
   generateDeclaracaoAcumulacaoModelo,
   generateDeclaracaoBensModelo,
 } from "@/lib/pdfModelos";
+import { abrirArquivoPrivado, abrirUrlExterna } from "@/lib/storageArquivos";
 
 // Tipos de documento disponíveis para requerimento
 const TIPOS_REQUERIMENTO = [
@@ -70,7 +71,10 @@ interface Props {
 }
 
 export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Props) {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  // Criar pedido, anexar e mudar status gravam em documentos_requerimento_servidor e no bucket:
+  // a RLS exige o módulo rh e rh.servidores.editar (Onda B / B3)
+  const podeEditar = isAdmin && hasPermission("rh.servidores.editar");
   const queryClient = useQueryClient();
   const [showNovoDialog, setShowNovoDialog] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
@@ -142,19 +146,19 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
       const ext = file.name.split('.').pop();
       const path = `${servidorId}/${docId}.${ext}`;
       
+      // upsert: true de propósito — o caminho é fixo por requerimento, e reenviar substitui o
+      // arquivo (status devolvido a "pendente" ou nova tentativa após falha ao gravar a linha).
+      // A policy de UPDATE do bucket exige a mesma permissão do INSERT (rh.servidores.editar).
       const { error: uploadError } = await supabase.storage
         .from("documentos-requerimento")
         .upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from("documentos-requerimento")
-        .getPublicUrl(path);
-
+      // Bucket privado: grava o caminho no bucket; a leitura usa URL assinada
       const { error: updateError } = await supabase
         .from("documentos_requerimento_servidor")
         .update({
-          arquivo_assinado_url: urlData.publicUrl,
+          arquivo_assinado_url: path,
           data_upload_assinado: new Date().toISOString(),
           status: "recebido",
         })
@@ -171,7 +175,9 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
     },
     onError: (err: any) => {
       setUploading(false);
-      toast.error("Erro no upload: " + err.message);
+      // Storage nega pela policy (403/RLS): mensagem amigável em vez do texto do Postgres
+      const semPermissao = err?.statusCode === "403" || err?.status === 403 || /row-level security/i.test(err?.message ?? "");
+      toast.error(semPermissao ? "Você não tem permissão para enviar este documento." : "Erro no upload: " + err.message);
     },
   });
 
@@ -194,6 +200,13 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
     setTipoDoc("");
     setTituloDoc("");
     setDescricaoDoc("");
+  };
+
+  // Abre o documento assinado por URL assinada (aceita caminho ou URL pública antiga)
+  const abrirDocumentoAssinado = (valor: string | null) => {
+    abrirArquivoPrivado("documentos-requerimento", valor).catch((err: Error) =>
+      toast.error(err.message),
+    );
   };
 
   const handleBaixarModelo = (tipo: string) => {
@@ -254,7 +267,13 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => window.open(doc.arquivo_assinado_url || doc.arquivo_url, "_blank")}
+                        onClick={() => {
+                          try {
+                            abrirUrlExterna(doc.arquivo_assinado_url || doc.arquivo_url);
+                          } catch (err) {
+                            toast.error((err as Error).message);
+                          }
+                        }}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -279,7 +298,7 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
               Modelos para download e upload do documento assinado pelo servidor
             </p>
           </div>
-          {isAdmin && (
+          {podeEditar && (
             <Button onClick={() => setShowNovoDialog(true)} size="sm">
               <Plus className="h-4 w-4 mr-2" />
               Novo Requerimento
@@ -344,14 +363,14 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
                           size="icon"
                           className="h-8 w-8"
                           title="Ver documento assinado"
-                          onClick={() => window.open(doc.arquivo_assinado_url, "_blank")}
+                          onClick={() => abrirDocumentoAssinado(doc.arquivo_assinado_url)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
                       )}
                       
                       {/* Upload do assinado */}
-                      {isAdmin && doc.status === "pendente" && (
+                      {podeEditar && doc.status === "pendente" && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -366,7 +385,7 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
                       )}
 
                       {/* Mudar status */}
-                      {isAdmin && doc.status !== "arquivado" && doc.arquivo_assinado_url && (
+                      {podeEditar && doc.status !== "arquivado" && doc.arquivo_assinado_url && (
                         <Select
                           value={doc.status}
                           onValueChange={(val) => atualizarStatus.mutate({ docId: doc.id, status: val })}

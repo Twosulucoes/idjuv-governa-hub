@@ -2274,6 +2274,25 @@ $$;
 
 
 --
+-- Name: consultar_gestor_por_cpf(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.consultar_gestor_por_cpf(p_cpf text) RETURNS jsonb
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT jsonb_build_object(
+           'id', g.id, 'nome', g.nome, 'status', g.status,
+           'escola', jsonb_build_object('id', e.id, 'nome', e.nome))
+  FROM public.gestores_escolares g
+  LEFT JOIN public.escolas_jer e ON e.id = g.escola_id
+  WHERE length(regexp_replace(coalesce(p_cpf, ''), '\D', '', 'g')) = 11
+    AND regexp_replace(coalesce(g.cpf, ''), '\D', '', 'g') = regexp_replace(p_cpf, '\D', '', 'g')
+  LIMIT 1;
+$$;
+
+
+--
 -- Name: consultar_protocolo_sic(character varying, uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2360,6 +2379,25 @@ $$;
 
 
 --
+-- Name: eh_meu_arquivo_frequencia(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.eh_meu_arquivo_frequencia(_path text) RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT auth.uid() IS NOT NULL
+     AND _path IS NOT NULL
+     AND public.is_active_user()
+     AND EXISTS (
+       SELECT 1
+         FROM public.frequencia_arquivos fa
+        WHERE fa.arquivo_path = _path
+          AND fa.servidor_id = public.meu_servidor_id());
+$$;
+
+
+--
 -- Name: eh_meu_servidor(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2390,6 +2428,30 @@ BEGIN
        AND lpad(regexp_replace(s.cpf, '[^0-9]', '', 'g'), 11, '0') = lpad(v_cpf, 11, '0'));
 END;
 $$;
+
+
+--
+-- Name: eh_minha_pasta_servidor(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.eh_minha_pasta_servidor(_name text) RETURNS boolean
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_pasta text;
+BEGIN
+  IF _name IS NULL OR auth.uid() IS NULL OR NOT public.is_active_user() THEN
+    RETURN false;
+  END IF;
+  v_pasta := (storage.foldername(_name))[1];
+  IF v_pasta IS NULL
+     OR v_pasta !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+    RETURN false;
+  END IF;
+  RETURN coalesce(v_pasta::uuid = public.meu_servidor_id(), false);
+END;
+$_$;
 
 
 --
@@ -3749,30 +3811,33 @@ CREATE FUNCTION public.fn_gerar_numero_financeiro(p_tipo character varying, p_ex
     SET search_path TO 'public'
     AS $_$
 DECLARE
-  v_prefixo VARCHAR;
-  v_ultimo INTEGER;
-  v_numero VARCHAR;
+  v_prefixo text;
+  v_tabela  text;
+  v_ultimo  integer;
 BEGIN
-  v_prefixo := CASE p_tipo
-    WHEN 'solicitacao' THEN 'SOL'
-    WHEN 'empenho' THEN 'NE'
-    WHEN 'liquidacao' THEN 'NL'
-    WHEN 'pagamento' THEN 'OP'
-    WHEN 'receita' THEN 'REC'
-    WHEN 'adiantamento' THEN 'ADI'
-    WHEN 'alteracao' THEN 'ALT'
-    ELSE 'DOC'
-  END;
-  
-  -- Buscar último número do tipo/exercício
+  SELECT t.prefixo, t.tabela INTO v_prefixo, v_tabela
+  FROM (VALUES
+    ('solicitacao', 'SOL', 'fin_solicitacoes'),
+    ('empenho',     'NE',  'fin_empenhos'),
+    ('liquidacao',  'NL',  'fin_liquidacoes'),
+    ('pagamento',   'OP',  'fin_pagamentos'),
+    ('receita',     'REC', 'fin_receitas'),
+    ('adiantamento','ADI', 'fin_adiantamentos'),
+    ('alteracao',   'ALT', 'fin_alteracoes_orcamentarias')
+  ) AS t(tipo, prefixo, tabela)
+  WHERE t.tipo = p_tipo;
+
+  IF v_prefixo IS NULL THEN
+    RAISE EXCEPTION 'Tipo de documento financeiro inválido: %', left(coalesce(p_tipo, ''), 40)
+      USING ERRCODE = '22023';
+  END IF;
+
   EXECUTE format(
-    'SELECT COALESCE(MAX(NULLIF(regexp_replace(numero, ''^%s-'', ''''), '''')::INTEGER), 0) + 1 FROM fin_%ss WHERE exercicio = $1',
-    v_prefixo, p_tipo
+    'SELECT COALESCE(MAX(NULLIF(regexp_replace(numero, %L, %L), %L)::integer), 0) + 1 FROM public.%I WHERE exercicio = $1',
+    '^' || v_prefixo || '-', '', '', v_tabela
   ) INTO v_ultimo USING p_exercicio;
-  
-  v_numero := v_prefixo || '-' || LPAD(COALESCE(v_ultimo, 1)::TEXT, 6, '0');
-  
-  RETURN v_numero;
+
+  RETURN v_prefixo || '-' || LPAD(COALESCE(v_ultimo, 1)::text, 6, '0');
 END;
 $_$;
 
@@ -6571,6 +6636,28 @@ $$;
 
 
 --
+-- Name: registrar_gestor_publico(uuid, text, text, text, date, text, text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.registrar_gestor_publico(p_escola_id uuid, p_nome text, p_cpf text, p_rg text, p_data_nascimento date, p_email text, p_celular text, p_endereco text) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_id uuid;
+BEGIN
+  INSERT INTO public.gestores_escolares (escola_id, nome, cpf, rg, data_nascimento, email, celular, endereco, status)
+  VALUES (p_escola_id, p_nome, p_cpf, p_rg, p_data_nascimento, p_email, p_celular, p_endereco, 'aguardando')
+  RETURNING id INTO v_id;
+  RETURN (SELECT jsonb_build_object('id', g.id, 'nome', g.nome, 'status', g.status,
+                                    'escola', jsonb_build_object('id', e.id, 'nome', e.nome))
+          FROM public.gestores_escolares g LEFT JOIN public.escolas_jer e ON e.id = g.escola_id
+          WHERE g.id = v_id);
+END;
+$$;
+
+
+--
 -- Name: registrar_historico_demanda_ascom(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -6999,6 +7086,125 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+
+--
+-- Name: transparencia_execucao_orcamentaria(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.transparencia_execucao_orcamentaria() RETURNS TABLE(exercicio integer, valor_inicial numeric, valor_atual numeric, valor_empenhado numeric, valor_liquidado numeric, valor_pago numeric, quantidade_dotacoes bigint)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT d.exercicio,
+         coalesce(sum(d.valor_inicial), 0),
+         coalesce(sum(d.valor_atual), 0),
+         coalesce(sum(d.valor_empenhado), 0),
+         coalesce(sum(d.valor_liquidado), 0),
+         coalesce(sum(d.valor_pago), 0),
+         count(*)
+  FROM public.dotacoes_orcamentarias d
+  GROUP BY d.exercicio
+  ORDER BY d.exercicio DESC;
+$$;
+
+
+--
+-- Name: FUNCTION transparencia_execucao_orcamentaria(); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.transparencia_execucao_orcamentaria() IS 'Exceção pública intencional (LAI, transparência ativa): executável por anon. Expõe só totais de dotacoes_orcamentarias por exercício (valor_inicial, valor_atual, valor_empenhado, valor_liquidado, valor_pago, quantidade de dotações).';
+
+
+--
+-- Name: transparencia_licitacoes(integer, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.transparencia_licitacoes(p_ano integer DEFAULT NULL::integer, p_modalidade text DEFAULT NULL::text) RETURNS TABLE(id uuid, numero_processo text, ano integer, modalidade text, objeto text, fase_atual text, valor_estimado numeric, data_abertura date, data_homologacao date, unidade_requisitante text, vencedor_razao_social text, vencedor_cnpj_parcial text)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  WITH vencedores AS (
+    SELECT pr.processo_id, pr.fornecedor_id
+    FROM public.propostas_licitacao pr
+    WHERE pr.vencedora AND NOT coalesce(pr.desclassificada, false)
+    UNION
+    SELECT il.processo_id, il.vencedor_id
+    FROM public.itens_licitacao il
+    WHERE il.vencedor_id IS NOT NULL
+  )
+  SELECT p.id,
+         p.numero_processo::text,
+         p.ano,
+         p.modalidade::text,
+         p.objeto,
+         p.fase_atual::text,
+         p.valor_estimado,
+         p.data_abertura,
+         NULL::date,
+         eo.nome,
+         v.razao_social::text,
+         -- CNPJ mascarado como a tela fazia: 8 primeiros dígitos, ****, 2 últimos (nunca CPF)
+         CASE WHEN length(v.doc) = 14 THEN left(v.doc, 8) || '****' || substr(v.doc, 13) END
+  FROM public.processos_licitatorios p
+  LEFT JOIN public.estrutura_organizacional eo ON eo.id = p.unidade_requisitante_id
+  -- LGPD: só vencedor pessoa jurídica; se o único vencedor é pessoa física, nome e documento saem NULL
+  LEFT JOIN LATERAL (
+    SELECT f.razao_social, regexp_replace(f.cpf_cnpj, '\D', '', 'g') AS doc
+    FROM vencedores vc
+    JOIN public.fornecedores f ON f.id = vc.fornecedor_id
+    WHERE vc.processo_id = p.id AND f.tipo_pessoa = 'PJ'
+    ORDER BY f.razao_social
+    LIMIT 1
+  ) v ON p.fase_atual IN ('homologacao', 'adjudicacao', 'contratacao', 'encerrado')
+  -- Fase interna (antes da publicação do edital) não é pública: o valor estimado pode ser
+  -- sigiloso até o julgamento (Lei 14.133, art. 24). O vencedor só aparece após a homologação.
+  WHERE p.fase_atual NOT IN ('planejamento', 'elaboracao', 'edital')
+    AND (p_ano IS NULL OR p.ano = p_ano)
+    AND (p_modalidade IS NULL OR p.modalidade::text = p_modalidade)
+  ORDER BY p.ano DESC, p.numero_processo DESC;
+$$;
+
+
+--
+-- Name: FUNCTION transparencia_licitacoes(p_ano integer, p_modalidade text); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.transparencia_licitacoes(p_ano integer, p_modalidade text) IS 'Exceção pública intencional (LAI, transparência ativa): executável por anon. Expõe de processos_licitatorios id, numero_processo, ano, modalidade, objeto, fase_atual, valor_estimado, data_abertura, data_homologacao (NULL: a tabela não tem a coluna), nome da unidade requisitante e, do vencedor pessoa jurídica, razão social e CNPJ mascarado (8 dígitos + **** + 2). Processos na fase interna (planejamento, elaboração, edital) ou sem fase não aparecem (valor estimado pode ser sigiloso, Lei 14.133 art. 24); o vencedor só aparece a partir da homologação; vencedor pessoa física nunca é exposto: sem vencedor PJ, razão social e CNPJ saem NULL.';
+
+
+--
+-- Name: transparencia_patrimonio(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.transparencia_patrimonio() RETURNS TABLE(id uuid, numero_patrimonio text, descricao text, marca text, modelo text, situacao text, estado_conservacao text, valor_aquisicao numeric, data_aquisicao date, unidade_local_nome text, unidade_local_municipio text, unidade_organizacional_nome text)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT b.id,
+         b.numero_patrimonio::text,
+         b.descricao::text,
+         b.marca::text,
+         b.modelo::text,
+         b.situacao::text,
+         b.estado_conservacao::text,
+         b.valor_aquisicao,
+         b.data_aquisicao,
+         ul.nome_unidade,
+         ul.municipio,
+         eo.nome
+  FROM public.bens_patrimoniais b
+  LEFT JOIN public.unidades_locais ul ON ul.id = b.unidade_local_id
+  LEFT JOIN public.estrutura_organizacional eo ON eo.id = b.unidade_id
+  ORDER BY b.numero_patrimonio;
+$$;
+
+
+--
+-- Name: FUNCTION transparencia_patrimonio(); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.transparencia_patrimonio() IS 'Exceção pública intencional (LAI, transparência ativa): executável por anon. Expõe de bens_patrimoniais id, numero_patrimonio, descricao, marca, modelo, situacao, estado_conservacao, valor_aquisicao, data_aquisicao, nome e município da unidade local e nome da unidade organizacional. Nunca responsável nem dado pessoal.';
 
 
 --

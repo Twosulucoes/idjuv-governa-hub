@@ -39,7 +39,7 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 | 1 | `schema/01_pre_data.sql` | tipos, funções, tabelas, views | **gerado** (`scripts/db/gerar-baseline.sh`) |
 | 2 | `schema/02_dados_catalogo.sql` | 19 tabelas de catálogo/parâmetros (737 linhas) | **gerado** |
 | 3 | `schema/03_post_data.sql` | constraints, índices, triggers, RLS ligado, policies do replay | **gerado** |
-| 4 | `overlay/10_funcoes_acesso.sql` | `is_admin_user`, `is_admin_atual`, `has_permission_code`, `meu_servidor_id` exigem perfil **ativo**; fim dos stubs “acesso total”; alias `usuario_eh_admin`; `eh_meu_servidor(uuid)` (B2: "este servidor é o do usuário?", por vínculo ou, sem vínculo, por CPF) | à mão |
+| 4 | `overlay/10_funcoes_acesso.sql` | `is_admin_user`, `is_admin_atual`, `has_permission_code`, `meu_servidor_id` exigem perfil **ativo**; fim dos stubs “acesso total”; alias `usuario_eh_admin`; `eh_meu_servidor(uuid)` (B2: "este servidor é o do usuário?", por vínculo ou, sem vínculo, por CPF); `eh_meu_arquivo_frequencia(text)` e `eh_minha_pasta_servidor(text)` (B3: o objeto do storage é do servidor do usuário?) | à mão |
 | 5 | `overlay/12_protecao_profiles.sql` | trigger: quem não é admin não muda `is_active`, `servidor_id`, bloqueio, tipo, CPF, e-mail; policies de `profiles` sem duplicatas | à mão |
 | 6 | `overlay/15_novo_usuario.sql` | `handle_new_user` (antes quebrava o cadastro) + trigger em `auth.users` | à mão |
 | 7 | `overlay/18_funcoes_rpc.sql` | `fn_gerar_numero_financeiro` com lista fechada (injeção de SQL); RPCs de leitura com dado pessoal viram `SECURITY INVOKER`; `obter_parametro_*` não vazam valor individual; `sync_usuario_servidor_status` não reativa administrador; trigger de fechamento de folha; correção da auditoria de folha/parâmetros (`entity_id` uuid); `log_audit` recusa usuário inativo | à mão |
@@ -47,7 +47,7 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 | 9 | `overlay/30_remover_acesso_total.sql` | apaga as policies `acesso_total_*` e a tabela morta `_backup_usuario_modulos_old` | à mão |
 | 10 | `rls/35_policies_geradas.sql` | policies por módulo, **falha fechada** | **gerado** de `rls/mapa.csv` |
 | 11 | `overlay/40_privilegios.sql` | `anon` só com as exceções públicas; sem EXECUTE para PUBLIC em função nova; sem TRUNCATE/TRIGGER; `audit_logs` só-acréscimo; RPCs que escrevem fechadas | à mão |
-| 12 | `overlay/50_storage.sql` | buckets (com limite de tamanho/tipo no de árbitros e no privado `inventario-evidencias`) e policies de storage por módulo | à mão |
+| 12 | `overlay/50_storage.sql` | buckets (com limite de tamanho/tipo no de árbitros, no privado `inventario-evidencias` e, desde a B3, no privado `documentos-requerimento`) e policies de storage por módulo; `frequencias` e `documentos-requerimento` (B3) gravam com módulo e código e o servidor lê o próprio arquivo | à mão |
 | 13 | `overlay/60_realtime.sql` | publicação realtime (folha) | à mão |
 
 `lacunas/` guarda a migração que cobre as tabelas usadas e nunca criadas; ela só serve ao replay
@@ -64,10 +64,10 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas
 
 | Classe | Tabelas | Regra |
 |---|---|---|
-| `modulo` | 166 | módulo(s) do mapa leem e escrevem; admin (papel) também |
-| `permissao` | 22 | módulo lê (com `;proprio`/`;pai=` o servidor lê o seu, como `proprio_leitura`/`proprio_filho`; com `;filho=<tabela>.<fk>` lê a linha que tem uma filha sua — a folha em que tem ficha); **escreve só quem tem o módulo E a permissão granular** do `extra` (via `can_access_module` + `has_permission_code`; admin passa). Hoje: as 10 tabelas da folha (B1, `financeiro.folha.processar\|configurar`; migração `20261010070000_onda_b_folha_rls_permissao.sql`) e 12 do RH (B2: férias, licenças, viagens, ponto, frequência, abono, ajuste, justificativa, fechamento, configuração do fechamento, banco de horas e lançamentos; migração `20261010090000_onda_b_rh_permissoes.sql`). As migrações carregam o mesmo SQL gerado |
+| `modulo` | 164 | módulo(s) do mapa leem e escrevem; admin (papel) também |
+| `permissao` | 25 | módulo lê (com `;proprio`/`;pai=` o servidor lê o seu, como `proprio_leitura`/`proprio_filho`; com `;filho=<tabela>.<fk>` lê a linha que tem uma filha sua — a folha em que tem ficha); **escreve só quem tem o módulo E a permissão granular** do `extra` (via `can_access_module` + `has_permission_code`; admin passa). Hoje: as 10 tabelas da folha (B1, `financeiro.folha.processar\|configurar`; migração `20261010070000_onda_b_folha_rls_permissao.sql`) e 12 do RH (B2: férias, licenças, viagens, ponto, frequência, abono, ajuste, justificativa, fechamento, configuração do fechamento, banco de horas e lançamentos; migração `20261010090000_onda_b_rh_permissoes.sql`) e 3 do RH na B3 (`frequencia_pacotes`, `frequencia_arquivos` e `documentos_requerimento_servidor`; migração `20261010210000_onda_b_rh_storage.sql`). As migrações carregam o mesmo SQL gerado |
 | `trilha` | 9 | módulo lê; **ninguém escreve por API** (auditoria e históricos gravados por trigger) |
-| `proprio_leitura` / `proprio` / `proprio_filho` | 8 / 1 / 0 | módulo + o próprio servidor lê; em `proprio*` o servidor também cria o próprio pedido (status/aprovação forçados pelo overlay 20). Desde a B2, `servidores` (posse pela coluna `id`, DELETE com `rh.servidores.excluir`, e nos contornos `sem_autoaprovacao`: ninguém grava a própria ficha), `vinculos_servidor` e `lotacoes` estão aqui; as tabelas do RH que estavam em `proprio`/`proprio_filho` passaram a `permissao` |
+| `proprio_leitura` / `proprio` / `proprio_filho` | 8 / 0 / 0 | módulo + o próprio servidor lê; em `proprio*` o servidor também cria o próprio pedido (status/aprovação forçados pelo overlay 20). Desde a B2, `servidores` (posse pela coluna `id`, DELETE com `rh.servidores.excluir`, e nos contornos `sem_autoaprovacao`: ninguém grava a própria ficha), `vinculos_servidor` e `lotacoes` estão aqui; as tabelas do RH que estavam em `proprio`/`proprio_filho` passaram a `permissao` (a última, `documentos_requerimento_servidor`, na B3). As classes `proprio` e `proprio_filho` continuam no gerador, sem tabela |
 | `catalogo` | 7 | qualquer usuário ativo lê; escrita por módulo, ou com `escrita=<código>` também pelo código (`tipos_abono`: `rh.frequencia.configurar`, nos contornos). `cargos` entrou na B2 |
 | `catalogo_admin` | 5 | qualquer usuário ativo lê (o app lê no login); só o papel admin escreve |
 | `proprio_user` | 4 | cada usuário lê as suas linhas (`user_roles`, `user_modules`, `user_permissions`, `user_org_units`); só admin escreve |
@@ -157,6 +157,11 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
 - a cobertura é exigida: tabela sem linha semente, fora do mapa ou sem RLS é **falha**;
 - storage: 10 buckets × 25 personas, upload anônimo só nas pastas do formulário, limite do bucket;
   `inventario-evidencias` (privado, 10 MB) só deixa sobrescrever ou apagar quem tem `patrimonio.tramitar`;
+- storage do RH (B3, bloco "RH: storage" de `testar-rls.sql`): `frequencias` e `documentos-requerimento` gravam
+  só com o módulo e o código; o servidor sem módulo lê o próprio PDF e a própria pasta, não os de outro, e
+  perfil bloqueado não lê; pasta fora do formato uuid dá `false` sem erro; `documentos` só por módulo; as duas
+  funções de dono só executáveis por `authenticated`; limite do bucket `documentos-requerimento`; nenhuma outra
+  policy de `storage.objects` cita os três buckets;
 - inventário de campo: `fotos_vistoria_inventario` (INSERT só em nome próprio, UPDATE só do autor ou com
   `patrimonio.tramitar`, DELETE só com `patrimonio.tramitar`, campos de prova imutáveis), no bloco de
   cobertura adicional de `testar-rls.sql`;
@@ -225,6 +230,9 @@ Limites conhecidos:
 
 - Buckets públicos continuam servindo o arquivo por URL; fechar exige bucket privado + URL assinada no front.
   `inventario-evidencias` já é privado (leitura por URL assinada); `inventario-fotos` e `patrimonio-fotos` seguem públicos.
+  `documentos-requerimento` está resolvido desde a B3: privado, o front grava o caminho e abre por URL assinada
+  (`src/lib/storageArquivos.ts`). `documentos` é privado, mas portarias, atos e cedência ainda gravam link
+  público (`getPublicUrl`), que não abre: falta escolher o dono do bucket e trocar esses links (pendência).
 - Os RPCs públicos (`arbitro_cpf_cadastrado`, `registrar_denuncia_publica`, os INSERTs anônimos e o upload em
   `arbitros-docs`) não têm limite de taxa: aplique no proxy e use CAPTCHA no formulário. `arbitro_cpf_cadastrado`
   é um oráculo de existência de CPF.
@@ -255,10 +263,19 @@ Limites conhecidos:
   escrita; no replay cria as funções e os triggers que faltavam. Limitação conhecida: o servidor não assina o
   próprio fechamento pela API (o trigger restringe `assinado_servidor*` ao dono, mas não há policy de UPDATE
   para ele; a assinatura não tem tela).
-- **Migração `20261010100000` (contornos da B2, em PR rascunho) × overlays.** Não altera a `20261010090000`
+- **Migração `20261010100000` (contornos da B2, mesclada na PR #71) × overlays.** Não altera a `20261010090000`
   (já mesclada): recria `eh_meu_servidor` em plpgsql (mesmo texto do overlay `10`), as policies geradas de
   `tipos_abono`, `servidores` e `solicitacoes_ajuste_ponto` e `validar_etapa_frequencia`, agora também em
   `justificativas_ponto` e `solicitacoes_ajuste_ponto`.
+- **Migração `20261010210000` (B3, em PR rascunho) × overlays.** Carrega `eh_meu_arquivo_frequencia` e
+  `eh_minha_pasta_servidor` (mesmo texto do overlay `10`, privilégios do overlay `40`), o SQL gerado de
+  `frequencia_pacotes`, `frequencia_arquivos` e `documentos_requerimento_servidor`, o trigger de campos iniciais
+  do pedido (mesmo texto do overlay `20`) e as policies `st_*` dos três buckets (mesmo texto do overlay `50`).
+  No banco do baseline aperta a gravação e acrescenta a leitura do dono; no replay troca as policies abertas.
+  Limitações: policies permissivas de storage somam no WITH CHECK, então quem grava em dois buckets pode mover
+  objeto entre eles por UPDATE (sem leitura nova); policy de `storage.objects` criada fora das migrações no
+  banco ao vivo não é removida, a migração só emite `WARNING` (consulta pós-deploy em
+  [`docs/RBAC_PERMISSOES.md`](../../docs/RBAC_PERMISSOES.md#arquivos-do-rh-e-download-de-frequência-onda-b--b3)).
 - **`servidores.situacao`** (anterior à B2): quem tem o módulo `rh` muda a situação de outro servidor, e isso
   bloqueia o perfil vinculado. Sem correção ainda.
 - Tabelas com fluxo de aprovação por RPC e UPDATE livre para o módulo: `folhas_pagamento` foi protegida (só quem
@@ -268,8 +285,9 @@ Limites conhecidos:
   inexistente (`lancamentos_folha.folha_id`) e falha para todos; `fechar_folha`/`reabrir_folha` e
   `fn_audit_parametros` foram consertados (auditoria gravava texto em coluna uuid).
 - `backup-offsite`: só a própria service role key vale como "cron" e o perfil do usuário precisa estar ativo.
-  No self-hosted, confirme `FUNCTIONS_VERIFY_JWT=true` no `.env`; outras Edge Functions (`download-frequencia`,
-  `cpsi-ai-assistant`, `enviar-convite-reuniao`) aceitam qualquer sessão, sem checar módulo nem perfil ativo.
+  No self-hosted, confirme `FUNCTIONS_VERIFY_JWT=true` no `.env`; outras Edge Functions (`cpsi-ai-assistant`,
+  `enviar-convite-reuniao`) aceitam qualquer sessão, sem checar módulo nem perfil ativo. `download-frequencia`
+  exige o módulo `rh` e `rh.frequencia.visualizar` desde a B3 (`docs/EDGE_FUNCTIONS.md`).
 - `overlay/40_privilegios.sql` ajusta os privilégios padrão só do papel `postgres`; objetos criados pelo Studio
   self-hosted (que conecta como `supabase_admin`) herdam os padrões da plataforma (EXECUTE para anon e authenticated).
   Funções criadas por ali precisam de `REVOKE` explícito.
