@@ -18,15 +18,15 @@ export function DotsIndicator({
   className 
 }: DecorativeProps & { total?: number; active?: number }) {
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div aria-hidden="true" className={cn("flex items-center gap-2", className)}>
       {Array.from({ length: total }).map((_, i) => (
         <div
           key={i}
           className={cn(
             "w-2 h-2 rounded-full transition-colors",
             i === active 
-              ? "bg-zinc-900 dark:bg-zinc-100" 
-              : "bg-zinc-300 dark:bg-zinc-600"
+              ? "bg-foreground" 
+              : "bg-muted-foreground/40"
           )}
         />
       ))}
@@ -118,9 +118,9 @@ export function AthleteCircle({
   }[sport];
 
   return (
-    <div className={cn("relative", className)}>
-      <div className="w-full h-full rounded-full border-4 border-zinc-900 dark:border-zinc-100 bg-gradient-to-br from-zinc-100 to-zinc-200 dark:from-zinc-700 dark:to-zinc-800 absolute inset-0" />
-      <div className="absolute inset-3 text-zinc-900 dark:text-zinc-100 flex items-center justify-center">
+    <div aria-hidden="true" className={cn("relative", className)}>
+      <div className="w-full h-full rounded-full border-4 border-foreground bg-gradient-to-br from-muted/50 to-muted absolute inset-0" />
+      <div className="absolute inset-3 text-foreground flex items-center justify-center">
         <SportComponent className="w-4/5 h-4/5" />
       </div>
     </div>

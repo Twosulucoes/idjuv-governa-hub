@@ -1,5 +1,5 @@
 /**
- * Página pública de Cadastro de Árbitros - IDJuv
+ * Página pública de Cadastro de Árbitros
  * Formulário multi-step com suporte a múltiplas modalidades
  */
 
@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 import { CheckCircle2, ChevronLeft, ChevronRight, Loader2, Send, User, FileText, MapPin, Phone, Briefcase, Building2, Camera, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { SkipLink } from '@/components/design-system';
+import { useIdentidade } from '@/core/tenant';
 
 import { StepDadosPessoais } from './steps/StepDadosPessoais';
 import { StepDocumentos } from './steps/StepDocumentos';
@@ -91,6 +93,7 @@ function gerarUuid(): string {
 }
 
 export default function CadastroArbitroPage() {
+  const { sigla } = useIdentidade();
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<ArbitroFormData>(INITIAL_DATA);
   const [loading, setLoading] = useState(false);
@@ -226,17 +229,19 @@ export default function CadastroArbitroPage() {
   // Tela de sucesso
   if (protocolo) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-success/10 to-success/20">
+        <SkipLink />
+        <main id="conteudo" tabIndex={-1} className="min-h-screen flex items-center justify-center p-4 focus:outline-none">
         <Card className="max-w-md w-full text-center">
           <CardContent className="pt-8 pb-8 space-y-4">
-            <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto" />
-            <h2 className="text-2xl font-bold text-green-800">Cadastro Enviado!</h2>
+            <CheckCircle2 className="h-16 w-16 text-success mx-auto" aria-hidden="true" />
+            <h1 className="text-2xl font-bold text-success">Cadastro enviado!</h1>
             <p className="text-muted-foreground">Seu cadastro foi recebido com sucesso.</p>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="bg-success/10 border border-success/30 rounded-lg p-4">
               <p className="text-sm text-muted-foreground">Seu protocolo:</p>
-              <p className="text-2xl font-mono font-bold text-green-700">{protocolo}</p>
+              <p className="text-2xl font-mono font-bold text-success">{protocolo}</p>
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               Guarde este número para consultas futuras.
               {formData.modalidades.length > 1 && (
                 <span className="block mt-1">
@@ -245,27 +250,30 @@ export default function CadastroArbitroPage() {
               )}
             </p>
             <Button onClick={() => { setProtocolo(null); setFormData(INITIAL_DATA); setStep(0); }} variant="outline">
-              Novo Cadastro
+              Novo cadastro
             </Button>
           </CardContent>
         </Card>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-success/5">
+      <SkipLink />
       {/* Header */}
-      <div className="bg-white/80 backdrop-blur border-b sticky top-0 z-10">
+      <header className="bg-background/80 backdrop-blur border-b sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-4">
-          <h1 className="text-xl font-bold text-primary">Cadastro de Árbitros — IDJuv</h1>
-          <p className="text-sm text-muted-foreground">Preencha seus dados para se cadastrar como árbitro</p>
+          <h1 className="text-xl font-bold text-primary">Cadastro de árbitros — {sigla}</h1>
+          <p className="text-base text-muted-foreground">Preencha seus dados para se cadastrar como árbitro</p>
         </div>
-      </div>
+      </header>
 
+      <main id="conteudo" tabIndex={-1} className="focus:outline-none">
       {/* Progress */}
       <div className="max-w-3xl mx-auto px-4 pt-6">
-        <div className="flex items-center gap-1 overflow-x-auto pb-2">
+        <nav aria-label="Etapas do cadastro" className="flex items-center gap-1 overflow-x-auto pb-2">
           {STEPS.map((s, i) => {
             const Icon = s.icon;
             const isActive = i === step;
@@ -273,20 +281,24 @@ export default function CadastroArbitroPage() {
             return (
               <button
                 key={i}
+                type="button"
                 onClick={() => i < step && setStep(i)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all
+                aria-label={`Etapa ${i + 1}: ${s.label}${isDone ? ' (concluída)' : ''}`}
+                aria-current={isActive ? 'step' : undefined}
+                aria-disabled={!isDone && !isActive ? true : undefined}
+                className={`flex min-h-11 items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
                   ${isActive ? 'bg-primary text-primary-foreground shadow-md scale-105' : ''}
-                  ${isDone ? 'bg-green-100 text-green-700 cursor-pointer hover:bg-green-200' : ''}
+                  ${isDone ? 'bg-success/15 text-success cursor-pointer hover:bg-success/25' : ''}
                   ${!isActive && !isDone ? 'bg-muted text-muted-foreground' : ''}
                 `}
               >
-                <Icon className="h-3.5 w-3.5" />
+                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                 <span className="hidden sm:inline">{s.label}</span>
               </button>
             );
           })}
-        </div>
-        <p className="text-xs text-muted-foreground mt-2">Etapa {step + 1} de {STEPS.length}: <strong>{STEPS[step].label}</strong></p>
+        </nav>
+        <p className="text-sm text-muted-foreground mt-2" aria-live="polite">Etapa {step + 1} de {STEPS.length}: <strong>{STEPS[step].label}</strong></p>
       </div>
 
       {/* Form Content */}
@@ -308,21 +320,22 @@ export default function CadastroArbitroPage() {
         {/* Navigation */}
         <div className="flex justify-between mt-6 pb-8">
           <Button variant="outline" onClick={() => setStep(s => s - 1)} disabled={step === 0}>
-            <ChevronLeft className="h-4 w-4 mr-1" /> Voltar
+            <ChevronLeft className="h-4 w-4 mr-1" aria-hidden="true" /> Voltar
           </Button>
 
           {step < STEPS.length - 1 ? (
             <Button onClick={() => setStep(s => s + 1)} disabled={!canAdvance()}>
-              Próximo <ChevronRight className="h-4 w-4 ml-1" />
+              Próximo <ChevronRight className="h-4 w-4 ml-1" aria-hidden="true" />
             </Button>
           ) : (
-            <Button onClick={handleSubmit} disabled={loading} className="bg-green-600 hover:bg-green-700">
-              {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-              Enviar Cadastro
+            <Button onClick={handleSubmit} disabled={loading} className="bg-success text-success-foreground hover:bg-success/90">
+              {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4 mr-2" aria-hidden="true" />}
+              Enviar cadastro
             </Button>
           )}
         </div>
       </div>
+      </main>
     </div>
   );
 }

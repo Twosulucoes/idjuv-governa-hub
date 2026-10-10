@@ -59,6 +59,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { CameraCapture } from "@/components/mobile/CameraCapture";
 import { QRCodeScanner } from "@/components/mobile/QRCodeScanner";
 import { VistoriaUnidade } from "@/components/mobile/VistoriaUnidade";
+import { FaixaOffline } from "@/components/mobile/FaixaOffline";
 import { supabase } from "@/integrations/supabase/client";
 import {
   useCadastroBemSimplificado,
@@ -85,42 +86,42 @@ const OPERACOES = [
     titulo: "Novo Produto", 
     descricao: "Cadastrar bem recém-adquirido",
     icon: Plus,
-    cor: "bg-success"
+    cor: "bg-success text-success-foreground"
   },
   { 
     id: "cadastro_existente" as TipoOperacao, 
     titulo: "Bem Existente", 
     descricao: "Regularizar bem sem tombamento",
     icon: ClipboardList,
-    cor: "bg-primary"
+    cor: "bg-primary text-primary-foreground"
   },
   { 
     id: "coleta" as TipoOperacao, 
     titulo: "Coleta Inventário", 
     descricao: "Conferir bens em campanha",
     icon: QrCode,
-    cor: "bg-warning"
+    cor: "bg-warning text-warning-foreground"
   },
   { 
     id: "movimentacao" as TipoOperacao, 
     titulo: "Movimentação", 
     descricao: "Transferir bem entre unidades",
     icon: ArrowRightLeft,
-    cor: "bg-info"
+    cor: "bg-info text-info-foreground"
   },
   { 
     id: "baixa" as TipoOperacao, 
     titulo: "Baixa", 
     descricao: "Solicitar baixa de bem",
     icon: Trash2,
-    cor: "bg-destructive"
+    cor: "bg-destructive text-destructive-foreground"
   },
   { 
     id: "vistoria" as TipoOperacao, 
     titulo: "Vistoria de Unidade", 
     descricao: "Fotos georreferenciadas e situação da unidade",
     icon: MapPin,
-    cor: "bg-secondary"
+    cor: "bg-secondary text-secondary-foreground"
   },
 ];
 
@@ -143,11 +144,15 @@ const DICAS_DESCRICAO: Record<CategoriaBem, string> = {
 };
 
 const STATUS_COLETA = [
-  { value: "conferido", label: "Conferido", icon: CheckCircle2, color: "bg-success" },
-  { value: "divergente", label: "Divergente", icon: AlertTriangle, color: "bg-warning" },
-  { value: "nao_localizado", label: "Não Localizado", icon: X, color: "bg-destructive" },
-  { value: "sem_etiqueta", label: "Sem Etiqueta", icon: Package, color: "bg-muted" },
+  { value: "conferido", label: "Conferido", icon: CheckCircle2, color: "bg-success text-success-foreground" },
+  { value: "divergente", label: "Divergente", icon: AlertTriangle, color: "bg-warning text-warning-foreground" },
+  { value: "nao_localizado", label: "Não Localizado", icon: X, color: "bg-destructive text-destructive-foreground" },
+  { value: "sem_etiqueta", label: "Sem Etiqueta", icon: Package, color: "bg-muted text-muted-foreground" },
 ];
+
+// Texto da faixa offline: só a coleta funciona sem internet (fila em useColetaOffline)
+const MENSAGEM_OFFLINE =
+  "Sem conexão. As coletas ficam salvas no aparelho e são enviadas quando a internet voltar. Cadastro, movimentação e baixa precisam de internet.";
 
 const MOTIVOS_BAIXA = [
   { value: "inservivel", label: "Inservível" },
@@ -629,7 +634,7 @@ export default function PatrimonioMobileUnificadoPage() {
       <div className="min-h-screen bg-background flex flex-col">
         <header className="bg-primary text-primary-foreground p-4 flex items-center justify-between safe-area-inset-top">
           <div className="flex items-center gap-2">
-            <Package className="w-6 h-6" />
+            <Package className="w-6 h-6" aria-hidden="true" />
             <h1 className="font-semibold">Patrimônio Mobile</h1>
           </div>
           <div className="flex items-center gap-2">
@@ -639,24 +644,26 @@ export default function PatrimonioMobileUnificadoPage() {
               </Badge>
             )}
             {isOnline ? (
-              <Wifi className="w-5 h-5 text-primary-foreground/80" />
+              <Wifi className="w-5 h-5 text-primary-foreground/80" aria-hidden="true" />
             ) : (
-              <WifiOff className="w-5 h-5 text-destructive" />
+              <WifiOff className="w-5 h-5 text-primary-foreground" aria-hidden="true" />
             )}
           </div>
         </header>
+        <FaixaOffline online={isOnline} mensagem={MENSAGEM_OFFLINE} />
 
         <main className="flex-1 p-4 space-y-3">
-          <p className="text-center text-muted-foreground text-sm mb-4">
+          <p className="text-center text-muted-foreground text-base mb-4">
             Selecione a operação
           </p>
           
           {OPERACOES.map((op) => {
             const Icon = op.icon;
             return (
-              <Card 
+              <button
+                type="button"
                 key={op.id}
-                className="cursor-pointer hover:border-primary transition-colors"
+                className="w-full min-h-11 rounded-lg border bg-card text-card-foreground text-left shadow-sm hover:border-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 onClick={() => {
                   setOperacao(op.id);
                   if (op.id === "vistoria") {
@@ -675,26 +682,26 @@ export default function PatrimonioMobileUnificadoPage() {
                   }
                 }}
               >
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-full ${op.cor} flex items-center justify-center`}>
-                    <Icon className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium">{op.titulo}</p>
-                    <p className="text-sm text-muted-foreground">{op.descricao}</p>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                </CardContent>
-              </Card>
+                <span className="p-4 flex items-center gap-4">
+                  <span className={`w-12 h-12 rounded-full ${op.cor} flex items-center justify-center shrink-0`}>
+                    <Icon className="w-6 h-6" aria-hidden="true" />
+                  </span>
+                  <span className="flex-1">
+                    <span className="block font-medium">{op.titulo}</span>
+                    <span className="block text-sm text-muted-foreground">{op.descricao}</span>
+                  </span>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
+                </span>
+              </button>
             );
           })}
 
           {/* Link para operações em lote (desktop/tablet) */}
           <Card className="mt-4 border-dashed">
-            <Link to="/inventario/bens">
+            <Link to="/inventario/bens" className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                  <PackagePlus className="w-6 h-6 text-muted-foreground" />
+                  <PackagePlus className="w-6 h-6 text-muted-foreground" aria-hidden="true" />
                 </div>
                 <div className="flex-1">
                   <p className="font-medium">Cadastro em Lote</p>
@@ -712,7 +719,7 @@ export default function PatrimonioMobileUnificadoPage() {
                 <span className="text-sm">
                   Unidade: <strong>{unidadeNome}</strong>
                 </span>
-                <Button variant="link" size="sm" onClick={() => {
+                <Button variant="outline" className="min-h-11" onClick={() => {
                   setUnidadeLocalId("");
                   setUnidadeNome("");
                   localStorage.removeItem("patrimonio-mobile-unidade");
@@ -725,19 +732,23 @@ export default function PatrimonioMobileUnificadoPage() {
 
           {pendingCount > 0 && (
             <Alert>
-              <CloudOff className="h-4 w-4" />
-              <AlertDescription className="flex items-center justify-between">
-                <span className="text-sm">
-                  {pendingCount} coleta(s) pendente(s)
-                </span>
+              <CloudOff className="h-4 w-4" aria-hidden="true" />
+              <AlertDescription className="space-y-3">
+                <p className="text-base">
+                  {pendingCount} coleta(s) salva(s) no aparelho aguardando envio
+                </p>
                 {isOnline && (
                   <Button 
-                    variant="link" 
-                    size="sm" 
+                    className="w-full min-h-11"
                     onClick={syncColetas}
                     disabled={isSyncing}
                   >
-                    {isSyncing ? "Sincronizando..." : "Sincronizar"}
+                    {isSyncing ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4 mr-2" aria-hidden="true" />
+                    )}
+                    {isSyncing ? "Sincronizando..." : `Sincronizar ${pendingCount} pendente(s)`}
                   </Button>
                 )}
               </AlertDescription>
@@ -746,9 +757,9 @@ export default function PatrimonioMobileUnificadoPage() {
         </main>
 
         <footer className="p-4 border-t safe-area-inset-bottom">
-          <Button asChild variant="ghost" className="w-full">
+          <Button asChild variant="ghost" className="w-full min-h-11">
             <Link to="/admin">
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
               Voltar ao Sistema
             </Link>
           </Button>
@@ -768,13 +779,14 @@ export default function PatrimonioMobileUnificadoPage() {
             <Button 
               variant="ghost" 
               size="icon"
-              className="text-primary-foreground hover:bg-primary-foreground/20"
+              className="text-primary-foreground hover:bg-primary-foreground/20 min-h-11 min-w-11"
               onClick={voltarMenu}
+              aria-label="Voltar ao menu"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-5 h-5" aria-hidden="true" />
             </Button>
             <div>
-              <h1 className="font-semibold text-sm">
+              <h1 className="font-semibold text-base">
                 {isCampanha ? "Selecionar Campanha" : "Selecionar Unidade"}
               </h1>
               <p className="text-xs opacity-80">
@@ -783,6 +795,7 @@ export default function PatrimonioMobileUnificadoPage() {
             </div>
           </div>
         </header>
+        <FaixaOffline online={isOnline} mensagem={MENSAGEM_OFFLINE} />
 
         <main className="flex-1 overflow-auto p-4">
           {isCampanha ? (
@@ -795,27 +808,29 @@ export default function PatrimonioMobileUnificadoPage() {
                 </div>
               ) : (
                 campanhasAtivas.map((campanha) => (
-                  <Card 
+                  <button
+                    type="button"
                     key={campanha.id}
-                    className={`cursor-pointer transition-colors ${
+                    aria-pressed={campanhaId === campanha.id}
+                    className={`w-full min-h-11 rounded-lg border bg-card text-card-foreground text-left shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                       campanhaId === campanha.id 
                         ? "border-primary bg-primary/5" 
                         : "hover:border-muted-foreground/50"
                     }`}
                     onClick={() => setCampanhaId(campanha.id)}
                   >
-                    <CardContent className="p-4 flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{campanha.nome}</p>
-                        <p className="text-sm text-muted-foreground">
+                    <span className="p-4 flex items-center justify-between">
+                      <span>
+                        <span className="block font-medium">{campanha.nome}</span>
+                        <span className="block text-sm text-muted-foreground">
                           {campanha.total_conferidos || 0}/{campanha.total_bens_esperados || 0} bens
-                        </p>
-                      </div>
+                        </span>
+                      </span>
                       {campanhaId === campanha.id && (
-                        <CheckCircle2 className="w-5 h-5 text-primary" />
+                        <CheckCircle2 className="w-5 h-5 text-primary" aria-hidden="true" />
                       )}
-                    </CardContent>
-                  </Card>
+                    </span>
+                  </button>
                 ))
               )}
             </div>
@@ -824,34 +839,37 @@ export default function PatrimonioMobileUnificadoPage() {
             <div className="space-y-2">
               {loadingUnidades ? (
                 <div className="flex items-center justify-center p-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" aria-hidden="true" />
+                  <span className="sr-only">Carregando unidades...</span>
                 </div>
               ) : (
                 unidadesLocais.map((unidade) => (
-                  <Card 
+                  <button
+                    type="button"
                     key={unidade.id}
-                    className={`cursor-pointer transition-colors ${
+                    aria-pressed={unidadeLocalId === unidade.id}
+                    className={`w-full min-h-11 rounded-lg border bg-card text-card-foreground text-left shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                       unidadeLocalId === unidade.id 
                         ? "border-primary bg-primary/5" 
                         : "hover:border-muted-foreground/50"
                     }`}
                     onClick={() => handleSelectUnidade(unidade.id)}
                   >
-                    <CardContent className="p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Building2 className="w-5 h-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium text-sm">{unidade.nome_unidade}</p>
-                          <p className="text-xs text-muted-foreground">
+                    <span className="p-4 flex items-center justify-between">
+                      <span className="flex items-center gap-3">
+                        <Building2 className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
+                        <span>
+                          <span className="block font-medium">{unidade.nome_unidade}</span>
+                          <span className="block text-sm text-muted-foreground">
                             {unidade.codigo_unidade} • {unidade.municipio}
-                          </p>
-                        </div>
-                      </div>
+                          </span>
+                        </span>
+                      </span>
                       {unidadeLocalId === unidade.id && (
-                        <CheckCircle2 className="w-5 h-5 text-primary" />
+                        <CheckCircle2 className="w-5 h-5 text-primary" aria-hidden="true" />
                       )}
-                    </CardContent>
-                  </Card>
+                    </span>
+                  </button>
                 ))
               )}
             </div>
@@ -865,7 +883,7 @@ export default function PatrimonioMobileUnificadoPage() {
             onClick={() => setEtapa(isCampanha ? "scan" : "formulario")}
           >
             Continuar
-            <ChevronRight className="w-5 h-5 ml-2" />
+            <ChevronRight className="w-5 h-5 ml-2" aria-hidden="true" />
           </Button>
         </div>
       </div>
@@ -881,13 +899,14 @@ export default function PatrimonioMobileUnificadoPage() {
             <Button 
               variant="ghost" 
               size="icon"
-              className="text-primary-foreground hover:bg-primary-foreground/20"
+              className="text-primary-foreground hover:bg-primary-foreground/20 min-h-11 min-w-11"
               onClick={voltarMenu}
+              aria-label="Voltar ao menu"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-5 h-5" aria-hidden="true" />
             </Button>
             <div>
-              <h1 className="font-semibold text-sm">
+              <h1 className="font-semibold text-base">
                 {OPERACOES.find(o => o.id === operacao)?.titulo}
               </h1>
               <p className="text-xs opacity-80">
@@ -897,12 +916,13 @@ export default function PatrimonioMobileUnificadoPage() {
           </div>
           <div className="flex items-center gap-2">
             {isOnline ? (
-              <Wifi className="w-5 h-5 text-primary-foreground/80" />
+              <Wifi className="w-5 h-5 text-primary-foreground/80" aria-hidden="true" />
             ) : (
-              <WifiOff className="w-5 h-5 text-destructive" />
+              <WifiOff className="w-5 h-5 text-primary-foreground" aria-hidden="true" />
             )}
           </div>
         </header>
+        <FaixaOffline online={isOnline} mensagem={MENSAGEM_OFFLINE} />
 
         <div className="p-4 bg-muted/50 border-b">
           <form 
@@ -913,6 +933,7 @@ export default function PatrimonioMobileUnificadoPage() {
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Nº Patrimônio..."
+              aria-label="Número do patrimônio"
               className="flex-1 h-12 text-lg"
             />
             <Button 
@@ -920,8 +941,9 @@ export default function PatrimonioMobileUnificadoPage() {
               size="icon" 
               className="h-12 w-12"
               onClick={() => setScannerOpen(true)}
+              aria-label="Escanear QR Code"
             >
-              <QrCode className="w-6 h-6" />
+              <QrCode className="w-6 h-6" aria-hidden="true" />
             </Button>
           </form>
         </div>
@@ -942,9 +964,10 @@ export default function PatrimonioMobileUnificadoPage() {
                       className="p-3 rounded-lg bg-card border flex items-center gap-3"
                     >
                       <div className={`w-10 h-10 rounded-full ${status?.color} flex items-center justify-center`}>
-                        <StatusIcon className="w-5 h-5 text-white" />
+                        <StatusIcon className="w-5 h-5" aria-hidden="true" />
                       </div>
                       <div className="flex-1 min-w-0">
+                        <p className="sr-only">{status?.label ?? coleta.status_coleta}</p>
                         <p className="font-mono font-medium">
                           {(coleta as any).bem?.numero_patrimonio}
                         </p>
@@ -961,9 +984,9 @@ export default function PatrimonioMobileUnificadoPage() {
 
           {(operacao === "movimentacao" || operacao === "baixa") && (
             <div className="text-center py-12 text-muted-foreground">
-              <QrCode className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <QrCode className="w-16 h-16 mx-auto mb-4 opacity-50" aria-hidden="true" />
               <p className="font-medium">Escaneie o QR Code do bem</p>
-              <p className="text-sm">ou digite o número do patrimônio</p>
+              <p className="text-base">ou digite o número do patrimônio</p>
             </div>
           )}
         </main>
@@ -973,7 +996,7 @@ export default function PatrimonioMobileUnificadoPage() {
             className="w-full h-14 text-lg"
             onClick={() => setScannerOpen(true)}
           >
-            <QrCode className="w-6 h-6 mr-2" />
+            <QrCode className="w-6 h-6 mr-2" aria-hidden="true" />
             Escanear QR Code
           </Button>
         </div>
@@ -995,7 +1018,8 @@ export default function PatrimonioMobileUnificadoPage() {
           <Button 
             variant="ghost" 
             size="icon"
-            className="text-primary-foreground hover:bg-primary-foreground/20"
+            className="text-primary-foreground hover:bg-primary-foreground/20 min-h-11 min-w-11"
+            aria-label="Voltar"
             onClick={() => {
               if (operacao === "coleta" || operacao === "movimentacao" || operacao === "baixa") {
                 setEtapa("scan");
@@ -1005,10 +1029,10 @@ export default function PatrimonioMobileUnificadoPage() {
               }
             }}
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5" aria-hidden="true" />
           </Button>
           <div>
-            <h1 className="font-semibold text-sm">
+            <h1 className="font-semibold text-base">
               {OPERACOES.find(o => o.id === operacao)?.titulo}
             </h1>
             <p className="text-xs opacity-80">
@@ -1017,11 +1041,12 @@ export default function PatrimonioMobileUnificadoPage() {
           </div>
         </div>
         {isOnline ? (
-          <Wifi className="w-5 h-5 text-primary-foreground/80" />
+          <Wifi className="w-5 h-5 text-primary-foreground/80" aria-hidden="true" />
         ) : (
-          <WifiOff className="w-5 h-5 text-destructive" />
+          <WifiOff className="w-5 h-5 text-primary-foreground" aria-hidden="true" />
         )}
       </header>
+      <FaixaOffline online={isOnline} mensagem={MENSAGEM_OFFLINE} />
 
       <main className="flex-1 overflow-auto p-4 space-y-4 pb-24">
         {/* Dados do bem (se selecionado) */}
@@ -1125,14 +1150,15 @@ export default function PatrimonioMobileUnificadoPage() {
                       key={status.value}
                       type="button"
                       onClick={() => setStatusColeta(status.value)}
-                      className={`p-3 rounded-lg border-2 flex items-center gap-2 transition-colors ${
+                      aria-pressed={statusColeta === status.value}
+                      className={`min-h-11 p-3 rounded-lg border-2 flex items-center gap-2 transition-colors ${
                         statusColeta === status.value 
                           ? "border-primary bg-primary/10" 
                           : "border-border"
                       }`}
                     >
-                      <Icon className="w-5 h-5" />
-                      <span className="text-sm">{status.label}</span>
+                      <Icon className="w-5 h-5" aria-hidden="true" />
+                      <span className="text-base">{status.label}</span>
                     </button>
                   );
                 })}
@@ -1255,12 +1281,11 @@ export default function PatrimonioMobileUnificadoPage() {
               />
               <Button
                 variant="secondary"
-                size="sm"
-                className="absolute bottom-2 right-2"
+                className="absolute bottom-2 right-2 min-h-11"
                 onClick={() => setCameraOpen(true)}
               >
-                <Camera className="w-4 h-4 mr-1" />
-                Alterar
+                <Camera className="w-4 h-4 mr-1" aria-hidden="true" />
+                Tirar outra foto
               </Button>
             </div>
           ) : (
@@ -1271,8 +1296,8 @@ export default function PatrimonioMobileUnificadoPage() {
               onClick={() => setCameraOpen(true)}
             >
               <div className="flex flex-col items-center gap-2">
-                <Camera className="w-8 h-8 text-muted-foreground" />
-                <span>Tirar Foto (obrigatório)</span>
+                <Camera className="w-8 h-8 text-muted-foreground" aria-hidden="true" />
+                <span>Tirar foto (obrigatório)</span>
               </div>
             </Button>
           )}
@@ -1283,11 +1308,11 @@ export default function PatrimonioMobileUnificadoPage() {
           <Button 
             type="button" 
             variant="outline" 
-            className="flex-1"
+            className="flex-1 min-h-11"
             onClick={obterGPS}
           >
-            <MapPin className="w-4 h-4 mr-2" />
-            {gpsLocation ? "GPS ✓" : "Obter Localização"}
+            <MapPin className="w-4 h-4 mr-2" aria-hidden="true" />
+            {gpsLocation ? "Localização obtida" : "Obter localização"}
           </Button>
         </div>
       </main>
@@ -1349,13 +1374,13 @@ export default function PatrimonioMobileUnificadoPage() {
 
           <DialogFooter className="flex-col gap-2 sm:flex-col">
             {(operacao === "cadastro_novo" || operacao === "cadastro_existente") && (
-              <Button variant="outline" className="w-full" onClick={handlePrint}>
+              <Button variant="outline" className="w-full min-h-11" onClick={handlePrint}>
                 <Printer className="w-4 h-4 mr-2" />
                 Imprimir Etiqueta
               </Button>
             )}
             <Button 
-              className="w-full" 
+              className="w-full min-h-11" 
               onClick={() => {
                 setSuccessDialogOpen(false);
                 if (operacao === "coleta" || operacao === "movimentacao" || operacao === "baixa") {
@@ -1369,7 +1394,7 @@ export default function PatrimonioMobileUnificadoPage() {
                operacao === "movimentacao" || operacao === "baixa" ? "Continuar" :
                "Cadastrar Outro"}
             </Button>
-            <Button variant="ghost" className="w-full" onClick={voltarMenu}>
+            <Button variant="ghost" className="w-full min-h-11" onClick={voltarMenu}>
               <Home className="w-4 h-4 mr-2" />
               Menu Principal
             </Button>

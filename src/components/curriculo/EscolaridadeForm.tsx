@@ -17,7 +17,7 @@ export function EscolaridadeForm({ dados, onChange }: Props) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-primary">Escolaridade e Habilitação</h3>
+        <h2 className="text-lg font-semibold text-primary">Escolaridade e Habilitação</h2>
         <p className="text-sm text-muted-foreground">
           Informe sua formação acadêmica e habilitações profissionais.
         </p>
@@ -26,7 +26,7 @@ export function EscolaridadeForm({ dados, onChange }: Props) {
       <div className="grid gap-4">
         {/* Formação Acadêmica */}
         <div className="p-4 border rounded-lg space-y-4">
-          <h4 className="font-medium text-sm text-muted-foreground">Formação Acadêmica</h4>
+          <h3 className="font-medium text-sm text-muted-foreground">Formação Acadêmica</h3>
 
           <div className="grid gap-2">
             <Label htmlFor="escolaridade">Escolaridade *</Label>
@@ -87,7 +87,7 @@ export function EscolaridadeForm({ dados, onChange }: Props) {
 
         {/* Primeiro Emprego (SEGAD) */}
         <div className="p-4 border rounded-lg space-y-4">
-          <h4 className="font-medium text-sm text-muted-foreground">Primeiro Emprego</h4>
+          <h3 className="font-medium text-sm text-muted-foreground">Primeiro Emprego</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="ano_inicio_primeiro_emprego">Ano Início do Primeiro Emprego</Label>
@@ -117,7 +117,7 @@ export function EscolaridadeForm({ dados, onChange }: Props) {
         </div>
         {/* Registro Profissional */}
         <div className="p-4 border rounded-lg space-y-4">
-          <h4 className="font-medium text-sm text-muted-foreground">Registro em Conselho Profissional</h4>
+          <h3 className="font-medium text-sm text-muted-foreground">Registro em Conselho Profissional</h3>
           <p className="text-xs text-muted-foreground">
             Preencha se sua profissão exige registro em conselho (CREF, OAB, CRM, etc.)
           </p>
@@ -148,7 +148,7 @@ export function EscolaridadeForm({ dados, onChange }: Props) {
 
         {/* CNH */}
         <div className="p-4 border rounded-lg space-y-4">
-          <h4 className="font-medium text-sm text-muted-foreground">Carteira Nacional de Habilitação (CNH)</h4>
+          <h3 className="font-medium text-sm text-muted-foreground">Carteira Nacional de Habilitação (CNH)</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="grid gap-2">

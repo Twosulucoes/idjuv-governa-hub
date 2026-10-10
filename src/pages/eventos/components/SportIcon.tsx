@@ -31,6 +31,7 @@ export function SportIcon({ sport, className, size = "md" }: SportIconProps) {
   
   return (
     <div
+      aria-hidden="true"
       className={cn(
         "flex items-center justify-center flex-shrink-0",
         className
@@ -38,7 +39,7 @@ export function SportIcon({ sport, className, size = "md" }: SportIconProps) {
     >
       <IconComponent 
         size={sizeConfig.icon} 
-        className="text-zinc-800 dark:text-zinc-200"
+        className="text-foreground"
         strokeWidth={1.5}
       />
     </div>

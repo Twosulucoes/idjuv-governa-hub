@@ -58,7 +58,7 @@ export function DadosPessoaisForm({ dados, onChange, codigoAtual, onRecuperarPre
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-primary">Dados Pessoais</h3>
+        <h2 className="text-lg font-semibold text-primary">Dados Pessoais</h2>
         <p className="text-sm text-muted-foreground">
           Preencha seus dados pessoais básicos.
         </p>
@@ -428,7 +428,7 @@ export function DadosPessoaisForm({ dados, onChange, codigoAtual, onRecuperarPre
         {/* Dados de Estrangeiro */}
         {dados.nacionalidade && dados.nacionalidade.toLowerCase() !== "brasileira" && (
           <div className="p-4 border rounded-lg space-y-4">
-            <h4 className="font-medium text-sm text-muted-foreground">Dados de Estrangeiro</h4>
+            <h3 className="font-medium text-sm text-muted-foreground">Dados de Estrangeiro</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="estrangeiro_data_chegada">Data de Chegada no País</Label>

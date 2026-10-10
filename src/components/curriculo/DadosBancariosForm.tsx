@@ -44,7 +44,7 @@ export function DadosBancariosForm({ dados, onChange }: Props) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-primary">Dados Bancários</h3>
+        <h2 className="text-lg font-semibold text-primary">Dados Bancários</h2>
         <p className="text-sm text-muted-foreground">
           Informe os dados da conta para crédito de remuneração.
         </p>
@@ -111,7 +111,7 @@ export function DadosBancariosForm({ dados, onChange }: Props) {
         </div>
 
         <div className="p-4 bg-muted/50 rounded-lg">
-          <h4 className="font-medium text-sm mb-2">Informações Importantes</h4>
+          <h3 className="font-medium text-sm mb-2">Informações Importantes</h3>
           <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
             <li>A conta deve estar em seu nome (titular)</li>
             <li>Preferencialmente conta corrente</li>

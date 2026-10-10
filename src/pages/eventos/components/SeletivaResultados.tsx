@@ -16,6 +16,7 @@ interface AtletaSelecionado {
 interface ResultadoModalidade {
   modalidade: string;
   icon: string;
+  /** Faixa do cabeçalho: fundo + texto em par de tokens (contraste AA) */
   cor: string;
   masculino: AtletaSelecionado[];
   feminino: AtletaSelecionado[];
@@ -26,28 +27,28 @@ const resultados: ResultadoModalidade[] = [
   {
     modalidade: "HANDEBOL",
     icon: "🤾‍♂️",
-    cor: "from-blue-600 to-blue-800",
+    cor: "bg-primary text-primary-foreground",
     masculino: [],
     feminino: []
   },
   {
     modalidade: "BASQUETE",
     icon: "🏀",
-    cor: "from-orange-500 to-orange-700",
+    cor: "bg-accent text-accent-foreground",
     masculino: [],
     feminino: []
   },
   {
     modalidade: "VÔLEI",
     icon: "🏐",
-    cor: "from-purple-600 to-purple-800",
+    cor: "bg-secondary text-secondary-foreground",
     masculino: [],
     feminino: []
   },
   {
     modalidade: "FUTSAL",
     icon: "⚽",
-    cor: "from-green-600 to-green-800",
+    cor: "bg-foreground text-background",
     masculino: [],
     feminino: []
   }
@@ -65,12 +66,12 @@ function ResultadoCard({ resultado, index }: { resultado: ResultadoModalidade; i
       className="bg-card border border-border rounded-3xl overflow-hidden"
     >
       {/* Header */}
-      <div className={`bg-gradient-to-r ${resultado.cor} p-6 text-white`}>
+      <div className={`${resultado.cor} p-6`}>
         <div className="flex items-center gap-4">
-          <span className="text-4xl">{resultado.icon}</span>
+          <span className="text-4xl" aria-hidden="true">{resultado.icon}</span>
           <div>
             <h3 className="text-2xl font-black tracking-wide">{resultado.modalidade}</h3>
-            <p className="text-white/80 text-sm">Atletas Selecionados</p>
+            <p className="opacity-90 text-base">Atletas selecionados</p>
           </div>
         </div>
       </div>
@@ -82,15 +83,15 @@ function ResultadoCard({ resultado, index }: { resultado: ResultadoModalidade; i
             {/* Masculino */}
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
-                  <Users className="w-4 h-4 text-blue-600" />
+                <div aria-hidden="true" className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Users className="w-4 h-4 text-primary" />
                 </div>
                 <h4 className="font-bold text-foreground">Masculino</h4>
               </div>
               <ul className="space-y-2">
                 {resultado.masculino.map((atleta, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm">
-                    <Medal className="w-4 h-4 text-amber-500" />
+                  <li key={i} className="flex items-center gap-2 text-base">
+                    <Medal className="w-4 h-4 text-warning" aria-hidden="true" />
                     <span className="text-foreground">{atleta.nome}</span>
                     {atleta.escola && (
                       <span className="text-muted-foreground">- {atleta.escola}</span>
@@ -103,15 +104,15 @@ function ResultadoCard({ resultado, index }: { resultado: ResultadoModalidade; i
             {/* Feminino */}
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-full bg-pink-500/10 flex items-center justify-center">
-                  <Users className="w-4 h-4 text-pink-600" />
+                <div aria-hidden="true" className="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center">
+                  <Users className="w-4 h-4 text-secondary" />
                 </div>
                 <h4 className="font-bold text-foreground">Feminino</h4>
               </div>
               <ul className="space-y-2">
                 {resultado.feminino.map((atleta, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm">
-                    <Medal className="w-4 h-4 text-amber-500" />
+                  <li key={i} className="flex items-center gap-2 text-base">
+                    <Medal className="w-4 h-4 text-warning" aria-hidden="true" />
                     <span className="text-foreground">{atleta.nome}</span>
                     {atleta.escola && (
                       <span className="text-muted-foreground">- {atleta.escola}</span>
@@ -123,11 +124,11 @@ function ResultadoCard({ resultado, index }: { resultado: ResultadoModalidade; i
           </div>
         ) : (
           <div className="text-center py-8">
-            <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+            <div aria-hidden="true" className="w-14 h-14 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
               <Clock className="w-7 h-7 text-muted-foreground" />
             </div>
-            <h4 className="font-semibold text-foreground mb-2">Aguardando Seletiva</h4>
-            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+            <h4 className="font-semibold text-foreground mb-2">Aguardando seletiva</h4>
+            <p className="text-base text-muted-foreground max-w-xs mx-auto">
               Os resultados serão divulgados após a realização da seletiva. Participe e mostre seu talento!
             </p>
           </div>
@@ -149,8 +150,8 @@ export function SeletivaResultados() {
           viewport={{ once: true }}
           className="text-center mb-12"
         >
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 rounded-full text-sm font-medium text-amber-600 dark:text-amber-400 mb-4">
-            <Trophy className="w-4 h-4" />
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-warning/15 rounded-full text-sm font-medium text-warning mb-4">
+            <Trophy className="w-4 h-4" aria-hidden="true" />
             Selecionados
           </span>
           <h2 className="text-3xl md:text-5xl font-black text-foreground mb-4">
@@ -172,10 +173,10 @@ export function SeletivaResultados() {
             viewport={{ once: true }}
             className="mb-12 p-6 md:p-8 bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/20 rounded-3xl text-center"
           >
-            <div className="flex justify-center gap-2 mb-4">
-              <Star className="w-6 h-6 text-amber-500" />
-              <Star className="w-6 h-6 text-amber-500" />
-              <Star className="w-6 h-6 text-amber-500" />
+            <div aria-hidden="true" className="flex justify-center gap-2 mb-4">
+              <Star className="w-6 h-6 text-warning" />
+              <Star className="w-6 h-6 text-warning" />
+              <Star className="w-6 h-6 text-warning" />
             </div>
             <h3 className="text-xl md:text-2xl font-bold text-foreground mb-3">
               Seja um dos Selecionados!

@@ -11,7 +11,7 @@ import * as z from 'zod';
 import { CheckCircle, Loader2, ArrowRight, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -26,6 +26,8 @@ import { useEscolasJer } from '@/hooks/useEscolasJer';
 import { useGestoresEscolares } from '@/hooks/useGestoresEscolares';
 import { validarCPF, formatarCPF, formatarCelular } from '@/types/gestoresEscolares';
 import { HeaderPublico } from '@/components/cadastrogestores/HeaderPublico';
+import { SkipLink } from '@/components/design-system';
+import { useIdentidade } from '@/core/tenant';
 
 // Schema de validação
 const formSchema = z.object({
@@ -44,6 +46,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 export default function FormularioGestorPage() {
+  const { sigla } = useIdentidade();
   const [enviado, setEnviado] = useState(false);
   const [gestorCriado, setGestorCriado] = useState<{ nome: string; escola: string } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -113,26 +116,27 @@ export default function FormularioGestorPage() {
   if (enviado && gestorCriado) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
+        <SkipLink />
         <HeaderPublico />
 
-        <div className="container mx-auto px-4 py-12">
+        <main id="conteudo" tabIndex={-1} className="container mx-auto px-4 py-12 focus:outline-none">
           <Card className="max-w-lg mx-auto">
             <CardContent className="pt-8 text-center">
-              <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold mb-2">Pré-cadastro Realizado!</h2>
+              <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" aria-hidden="true" />
+              <h2 className="text-2xl font-bold mb-2">Pré-cadastro realizado!</h2>
               <p className="text-muted-foreground mb-6">
                 Seu pré-cadastro foi recebido com sucesso.
               </p>
 
               <div className="bg-muted p-4 rounded-lg mb-6 text-left">
-                <p className="text-sm"><strong>Gestor:</strong> {gestorCriado.nome}</p>
-                <p className="text-sm"><strong>Escola:</strong> {gestorCriado.escola}</p>
+                <p className="text-base"><strong>Gestor:</strong> {gestorCriado.nome}</p>
+                <p className="text-base"><strong>Escola:</strong> {gestorCriado.escola}</p>
               </div>
 
-              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 p-4 rounded-lg mb-6 text-left">
-                <h3 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">Próximos Passos:</h3>
-                <ol className="text-sm text-blue-700 dark:text-blue-300 space-y-1 list-decimal list-inside">
-                  <li>A equipe IDJuv irá cadastrar você no sistema CBDE</li>
+              <div className="bg-info/10 border border-info/30 p-4 rounded-lg mb-6 text-left">
+                <h3 className="font-semibold text-info mb-2">Próximos passos</h3>
+                <ol className="text-base text-foreground space-y-1 list-decimal list-inside">
+                  <li>A equipe {sigla} irá cadastrar você no sistema CBDE</li>
                   <li>Você receberá um email do CBDE com login e senha</li>
                   <li>A equipe entrará em contato para confirmar</li>
                   <li>Teste seu acesso ao sistema CBDE</li>
@@ -140,29 +144,30 @@ export default function FormularioGestorPage() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <Link to="/cadastrogestores/consulta">
-                  <Button variant="outline" className="w-full">
-                    <Search className="h-4 w-4 mr-2" />
-                    Consultar Status
-                  </Button>
-                </Link>
+                <Button variant="outline" className="w-full" asChild>
+                  <Link to="/cadastrogestores/consulta">
+                    <Search className="h-4 w-4 mr-2" aria-hidden="true" />
+                    Consultar situação
+                  </Link>
+                </Button>
               </div>
             </CardContent>
           </Card>
-        </div>
+        </main>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
+      <SkipLink />
       <HeaderPublico />
 
-      <div className="container mx-auto px-4 py-8">
+      <main id="conteudo" tabIndex={-1} className="container mx-auto px-4 py-8 focus:outline-none">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
-            <CardTitle>Pré-Cadastro de Gestor Escolar</CardTitle>
-            <CardDescription>
+            <h2 className="text-h3 leading-tight tracking-tight">Pré-cadastro de gestor escolar</h2>
+            <CardDescription className="text-base">
               Preencha os dados abaixo para realizar o pré-cadastro para os Jogos Escolares de Roraima.
               Após o envio, você receberá as credenciais de acesso ao sistema CBDE por email.
             </CardDescription>
@@ -180,10 +185,12 @@ export default function FormularioGestorPage() {
                       <FormItem className="flex flex-col">
                         <FormLabel>Escola *</FormLabel>
                         <div className="relative">
+                          <FormControl>
                           <button
                             type="button"
+                            aria-expanded={escolaAberta}
                             className={cn(
-                              'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background',
+                              'flex h-11 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background',
                               'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
                               !field.value && 'text-muted-foreground',
                               loadingEscolas && 'opacity-50 cursor-not-allowed'
@@ -196,14 +203,16 @@ export default function FormularioGestorPage() {
                                 ? `${escolaSelecionada.nome}${escolaSelecionada.municipio ? ` - ${escolaSelecionada.municipio}` : ''}`
                                 : 'Buscar escola...'}
                             </span>
-                            <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" aria-hidden="true" />
                           </button>
+                          </FormControl>
 
                           {escolaAberta && (
                             <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg">
                               <div className="p-2">
                                 <Input
                                   placeholder="Digite o nome da escola..."
+                                  aria-label="Buscar escola pelo nome"
                                   value={buscaEscola}
                                   onChange={(e) => setBuscaEscola(e.target.value)}
                                   autoFocus
@@ -218,8 +227,9 @@ export default function FormularioGestorPage() {
                                       <button
                                         key={escola.id}
                                         type="button"
+                                        aria-pressed={field.value === escola.id}
                                         className={cn(
-                                          'w-full text-left px-3 py-2 text-sm rounded-sm hover:bg-accent cursor-pointer',
+                                          'w-full min-h-11 text-left px-3 py-2 text-sm rounded-sm hover:bg-accent cursor-pointer',
                                           field.value === escola.id && 'bg-accent font-medium'
                                         )}
                                         onClick={() => {
@@ -378,7 +388,7 @@ export default function FormularioGestorPage() {
 
                 {/* Erro */}
                 {erro && (
-                  <div className="bg-destructive/10 border border-destructive/30 text-destructive p-3 rounded-md text-sm">
+                  <div role="alert" className="bg-destructive/10 border border-destructive/30 text-destructive p-3 rounded-md text-base">
                     {erro}
                   </div>
                 )}
@@ -391,15 +401,15 @@ export default function FormularioGestorPage() {
                     disabled={criarGestor.isPending}
                   >
                     {criarGestor.isPending ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
                     ) : (
-                      <ArrowRight className="h-4 w-4 mr-2" />
+                      <ArrowRight className="h-4 w-4 mr-2" aria-hidden="true" />
                     )}
-                    Enviar Pré-Cadastro
+                    Enviar pré-cadastro
                   </Button>
                 </div>
 
-                <p className="text-xs text-muted-foreground text-center">
+                <p className="text-sm text-muted-foreground text-center">
                   Já fez o pré-cadastro?{' '}
                   <Link 
                     to="/cadastrogestores/consulta" 
@@ -412,7 +422,7 @@ export default function FormularioGestorPage() {
             </Form>
           </CardContent>
         </Card>
-      </div>
+      </main>
     </div>
   );
 }

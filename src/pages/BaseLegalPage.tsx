@@ -1,17 +1,19 @@
 import { Link } from "react-router-dom";
 import { Scale, FileText, BookOpen, ArrowRight } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
 import { useDadosOficiais } from "@/hooks/useDadosOficiais";
+import { useIdentidade } from "@/core/tenant";
 
 export default function BaseLegalPage() {
   const { obterValor } = useDadosOficiais();
+  const { sigla } = useIdentidade();
 
   const documentos = [
     {
       titulo: "Lei de Criação",
       referencia: obterValor("lei_criacao"),
-      descricao: "Lei que institui o IDJUV e define sua natureza, finalidade e competências.",
+      descricao: `Lei que institui o ${sigla} e define sua natureza, finalidade e competências.`,
       href: "/governanca/lei-criacao",
       icon: BookOpen,
     },
@@ -29,19 +31,19 @@ export default function BaseLegalPage() {
       {/* Cabeçalho */}
       <section className="bg-primary text-primary-foreground py-12">
         <div className="container mx-auto px-4">
-          <div className="flex items-center gap-3 text-sm mb-4 opacity-80">
-            <Link to="/" className="hover:underline">Início</Link>
-            <span>/</span>
-            <span>Base Legal</span>
-          </div>
+          <nav aria-label="Trilha de navegação" className="flex items-center gap-3 text-sm mb-4 opacity-90">
+            <Link to="/" className="inline-flex min-h-11 items-center hover:underline">Início</Link>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Base legal</span>
+          </nav>
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-accent rounded-xl flex items-center justify-center">
+            <div className="w-16 h-16 bg-accent rounded-xl flex items-center justify-center" aria-hidden="true">
               <Scale className="w-8 h-8 text-accent-foreground" />
             </div>
             <div>
               <h1 className="font-serif text-3xl lg:text-4xl font-bold">Base Legal</h1>
-              <p className="opacity-90 mt-1">
-                Legislação que fundamenta a criação e o funcionamento do IDJUV
+              <p className="text-base opacity-90 mt-1">
+                Legislação que fundamenta a criação e o funcionamento do {sigla}
               </p>
             </div>
           </div>
@@ -53,28 +55,36 @@ export default function BaseLegalPage() {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto grid gap-6 md:grid-cols-2">
             {documentos.map((doc) => (
-              <Link key={doc.href} to={doc.href} className="group">
-                <Card className="h-full hover:shadow-lg transition-all hover:border-primary">
+              <Card
+                key={doc.href}
+                className="group relative h-full hover:shadow-lg transition-all hover:border-primary focus-within:ring-2 focus-within:ring-ring"
+              >
                   <CardHeader className="flex flex-row items-start gap-4">
-                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0" aria-hidden="true">
                       <doc.icon className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">{doc.titulo}</CardTitle>
+                      <h2 className="text-lg font-semibold leading-tight tracking-tight">
+                        <Link
+                          to={doc.href}
+                          className="focus-visible:outline-none after:absolute after:inset-0 after:content-['']"
+                        >
+                          {doc.titulo}
+                        </Link>
+                      </h2>
                       {doc.referencia && (
                         <CardDescription className="mt-1">{doc.referencia}</CardDescription>
                       )}
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-muted-foreground">{doc.descricao}</p>
-                    <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary">
+                    <p className="text-base text-muted-foreground">{doc.descricao}</p>
+                    <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary" aria-hidden="true">
                       Ver documento
                       <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                     </span>
                   </CardContent>
-                </Card>
-              </Link>
+              </Card>
             ))}
           </div>
         </div>

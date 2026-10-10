@@ -41,8 +41,8 @@ export default function HomeSimplesPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Button size="lg" variant="secondary" className="text-base px-8" asChild>
                   <Link to="/transparencia">
-                    <FileText className="mr-2 h-5 w-5" />
-                    Editais e Transparência
+                    <FileText className="mr-2 h-5 w-5" aria-hidden="true" />
+                    Editais e transparência
                   </Link>
                 </Button>
                 <Button
@@ -52,8 +52,8 @@ export default function HomeSimplesPage() {
                   asChild
                 >
                   <Link to="/auth">
-                    <Building2 className="mr-2 h-5 w-5" />
-                    Área Administrativa
+                    <Building2 className="mr-2 h-5 w-5" aria-hidden="true" />
+                    Área administrativa
                   </Link>
                 </Button>
               </div>
@@ -67,9 +67,9 @@ export default function HomeSimplesPage() {
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-4">
-              Quem Somos
+              Quem somos
             </h2>
-            <p className="text-muted-foreground leading-relaxed">
+            <p className="text-base text-muted-foreground leading-relaxed">
               {/* TODO (White Label — Fase 5): texto institucional editorial.
                   Vira conteúdo de CMS/banco, como as normas em governanca/. */}
               O IDJUV é responsável por desenvolver e executar políticas públicas
@@ -86,15 +86,15 @@ export default function HomeSimplesPage() {
           <div className="max-w-2xl mx-auto">
             <Card>
               <CardContent className="p-8 space-y-6">
-                <h2 className="text-xl font-bold text-foreground mb-2">Fale Conosco</h2>
+                <h2 className="text-xl font-bold text-foreground mb-2">Fale conosco</h2>
 
                 <div className="flex items-start gap-4">
                   <div className="p-3 rounded-full bg-primary/10">
-                    <MapPin className="h-5 w-5 text-primary" />
+                    <MapPin className="h-5 w-5 text-primary" aria-hidden="true" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground">Endereço</h3>
-                    <p className="text-muted-foreground text-sm">
+                    <p className="text-muted-foreground text-base">
                       {linhasEndereco.map((linha, i) => (
                         <span key={linha}>
                           {linha}
@@ -107,31 +107,31 @@ export default function HomeSimplesPage() {
 
                 <div className="flex items-start gap-4">
                   <div className="p-3 rounded-full bg-primary/10">
-                    <Phone className="h-5 w-5 text-primary" />
+                    <Phone className="h-5 w-5 text-primary" aria-hidden="true" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground">Telefone</h3>
-                    <p className="text-muted-foreground text-sm">{contato?.telefone}</p>
+                    <p className="text-muted-foreground text-base">{contato?.telefone}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-4">
                   <div className="p-3 rounded-full bg-primary/10">
-                    <Mail className="h-5 w-5 text-primary" />
+                    <Mail className="h-5 w-5 text-primary" aria-hidden="true" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground">E-mail</h3>
-                    <p className="text-muted-foreground text-sm">{contato?.email}</p>
+                    <p className="text-muted-foreground text-base">{contato?.email}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-4">
                   <div className="p-3 rounded-full bg-primary/10">
-                    <Clock className="h-5 w-5 text-primary" />
+                    <Clock className="h-5 w-5 text-primary" aria-hidden="true" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">Horário de Funcionamento</h3>
-                    <p className="text-muted-foreground text-sm">Segunda a Sexta: 8h às 14h</p>
+                    <h3 className="font-semibold text-foreground">Horário de funcionamento</h3>
+                    <p className="text-muted-foreground text-base">Segunda a Sexta: 8h às 14h</p>
                   </div>
                 </div>
 

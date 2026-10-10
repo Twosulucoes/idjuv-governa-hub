@@ -22,6 +22,7 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
+import { EmptyState, SkipLink } from "@/components/design-system";
 
 interface GaleriaPublica {
   id: string;
@@ -73,7 +74,9 @@ export default function GaleriasPublicasPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+    <SkipLink />
+    <main id="conteudo" tabIndex={-1} className="min-h-screen bg-background focus:outline-none">
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-primary/10 via-primary/5 to-background py-12 lg:py-20">
         <div className="container mx-auto px-4">
@@ -91,12 +94,14 @@ export default function GaleriasPublicasPage() {
             
             {/* Barra de busca */}
             <div className="max-w-md mx-auto relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
               <Input
+                type="search"
+                aria-label="Buscar galerias"
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 placeholder="Buscar galerias..."
-                className="pl-10"
+                className="h-11 pl-10 text-base"
               />
             </div>
           </motion.div>
@@ -119,10 +124,11 @@ export default function GaleriasPublicasPage() {
             ))}
           </div>
         ) : galeriasFiltradas.length === 0 ? (
-          <div className="text-center py-12">
-            <Images className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground text-lg">Nenhuma galeria encontrada</p>
-          </div>
+          <EmptyState
+            icone={Images}
+            titulo="Nenhuma galeria encontrada"
+            descricao={busca ? "Tente buscar por outro termo." : "Ainda não há galerias publicadas."}
+          />
         ) : (
           <motion.div
             variants={containerVariants}
@@ -138,16 +144,16 @@ export default function GaleriasPublicasPage() {
                       {galeria.imagem_capa_url ? (
                         <img
                           src={galeria.imagem_capa_url}
-                          alt={galeria.titulo}
+                          alt=""
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Camera className="h-12 w-12 text-muted-foreground" />
+                          <Camera className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
                         </div>
                       )}
                       {/* Overlay com ícone */}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div aria-hidden="true" className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <div className="bg-white/20 backdrop-blur-sm rounded-full p-4">
                           <ImageIcon className="h-8 w-8 text-white" />
                         </div>
@@ -159,17 +165,17 @@ export default function GaleriasPublicasPage() {
                       )}
                     </div>
                     <CardContent className="p-4">
-                      <h3 className="font-semibold text-lg line-clamp-2 group-hover:text-primary transition-colors">
+                      <h2 className="font-semibold text-lg line-clamp-2 group-hover:text-primary transition-colors">
                         {galeria.titulo}
-                      </h3>
+                      </h2>
                       {galeria.descricao && (
-                        <p className="text-muted-foreground text-sm line-clamp-2 mt-2">
+                        <p className="text-muted-foreground text-base line-clamp-2 mt-2">
                           {galeria.descricao}
                         </p>
                       )}
                       <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
+                          <Calendar className="h-3 w-3" aria-hidden="true" />
                           {format(new Date(galeria.data_publicacao || galeria.created_at), "dd/MM/yyyy", { locale: ptBR })}
                         </span>
                       </div>
@@ -181,6 +187,7 @@ export default function GaleriasPublicasPage() {
           </motion.div>
         )}
       </section>
-    </div>
+    </main>
+    </>
   );
 }

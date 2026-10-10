@@ -113,40 +113,42 @@ export function CameraCapture({ onCapture, onClose, isOpen }: CameraCaptureProps
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col">
+    <div className="dark fixed inset-0 z-50 bg-background text-foreground flex flex-col">
       {/* Header */}
-      <div className="p-4 flex items-center justify-between bg-black/50">
+      <div className="p-4 flex items-center justify-between bg-background/50">
         <Button 
           variant="ghost" 
           size="icon" 
-          className="text-white hover:bg-white/20"
+          className="min-h-11 min-w-11 text-foreground hover:bg-foreground/20 hover:text-foreground"
           onClick={handleClose}
+          aria-label="Fechar câmera"
         >
-          <X className="w-6 h-6" />
+          <X className="w-6 h-6" aria-hidden="true" />
         </Button>
-        <span className="text-white font-medium">
-          {capturedImage ? "Confirmar Foto" : "Tirar Foto"}
-        </span>
+        <h2 className="text-base font-medium">
+          {capturedImage ? "Confirmar foto" : "Tirar foto"}
+        </h2>
         {!capturedImage && (
           <Button 
             variant="ghost" 
             size="icon" 
-            className="text-white hover:bg-white/20"
+            className="min-h-11 min-w-11 text-foreground hover:bg-foreground/20 hover:text-foreground"
             onClick={toggleCamera}
+            aria-label="Trocar câmera"
           >
-            <SwitchCamera className="w-6 h-6" />
+            <SwitchCamera className="w-6 h-6" aria-hidden="true" />
           </Button>
         )}
-        {capturedImage && <div className="w-10" />}
+        {capturedImage && <div className="w-11" aria-hidden="true" />}
       </div>
 
       {/* Camera/Preview Area */}
       <div className="flex-1 flex items-center justify-center overflow-hidden">
         {error ? (
           <div className="text-center p-8">
-            <Camera className="w-16 h-16 mx-auto mb-4 text-white/50" />
-            <p className="text-white mb-4">{error}</p>
-            <Button onClick={startCamera} variant="secondary">
+            <Camera className="w-16 h-16 mx-auto mb-4 text-foreground/60" aria-hidden="true" />
+            <p role="alert" className="text-base mb-4">{error}</p>
+            <Button onClick={startCamera} variant="secondary" className="min-h-11">
               Tentar Novamente
             </Button>
           </div>
@@ -169,33 +171,36 @@ export function CameraCapture({ onCapture, onClose, isOpen }: CameraCaptureProps
       </div>
 
       {/* Controls */}
-      <div className="p-6 bg-black/50 flex items-center justify-center gap-8">
+      <div className="p-6 bg-background/50 flex items-center justify-center gap-8">
         {capturedImage ? (
           <>
             <Button 
               variant="outline" 
               size="lg"
-              className="rounded-full w-16 h-16 border-white text-white hover:bg-white/20"
+              className="rounded-full w-16 h-16 border-foreground bg-transparent text-foreground hover:bg-foreground/20 hover:text-foreground"
               onClick={retakePhoto}
+              aria-label="Tirar outra foto"
             >
-              <RotateCcw className="w-6 h-6" />
+              <RotateCcw className="w-6 h-6" aria-hidden="true" />
             </Button>
             <Button 
               size="lg"
-              className="rounded-full w-20 h-20 bg-success hover:bg-success/90"
+              className="rounded-full w-20 h-20 bg-success text-success-foreground hover:bg-success/90"
               onClick={confirmPhoto}
+              aria-label="Usar esta foto"
             >
-              <Check className="w-8 h-8" />
+              <Check className="w-8 h-8" aria-hidden="true" />
             </Button>
           </>
         ) : (
           <Button 
             size="lg"
-            className="rounded-full w-20 h-20 bg-white hover:bg-white/90"
+            className="rounded-full w-20 h-20 bg-foreground text-background hover:bg-foreground/90"
             onClick={capturePhoto}
             disabled={!isStreaming}
+            aria-label="Tirar foto"
           >
-            <Camera className="w-8 h-8 text-black" />
+            <Camera className="w-8 h-8" aria-hidden="true" />
           </Button>
         )}
       </div>

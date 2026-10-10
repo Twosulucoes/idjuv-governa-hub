@@ -87,25 +87,27 @@ export function QRCodeScanner({ onScan, onClose, isOpen }: QRCodeScannerProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black">
+    <div className="dark fixed inset-0 z-50 bg-background text-foreground">
       {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-10 p-4 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent">
+      <div className="absolute top-0 left-0 right-0 z-10 p-4 flex items-center justify-between bg-gradient-to-b from-background/80 to-transparent">
         <Button 
           variant="ghost" 
           size="icon" 
-          className="text-white hover:bg-white/20"
+          className="min-h-11 min-w-11 text-foreground hover:bg-foreground/20 hover:text-foreground"
           onClick={handleClose}
+          aria-label="Fechar leitor de QR Code"
         >
-          <X className="w-6 h-6" />
+          <X className="w-6 h-6" aria-hidden="true" />
         </Button>
-        <span className="text-white font-medium">Escanear QR Code</span>
+        <h2 className="text-base font-medium">Escanear QR Code</h2>
         <Button 
           variant="ghost" 
           size="icon" 
-          className="text-white hover:bg-white/20"
+          className="min-h-11 min-w-11 text-foreground hover:bg-foreground/20 hover:text-foreground"
           onClick={toggleCamera}
+          aria-label="Trocar câmera"
         >
-          <SwitchCamera className="w-6 h-6" />
+          <SwitchCamera className="w-6 h-6" aria-hidden="true" />
         </Button>
       </div>
 
@@ -113,9 +115,9 @@ export function QRCodeScanner({ onScan, onClose, isOpen }: QRCodeScannerProps) {
       <div className="h-full flex items-center justify-center">
         {error ? (
           <div className="text-center p-8">
-            <Camera className="w-16 h-16 mx-auto mb-4 text-white/50" />
-            <p className="text-white mb-4">{error}</p>
-            <Button onClick={startScanner} variant="secondary">
+            <Camera className="w-16 h-16 mx-auto mb-4 text-foreground/60" aria-hidden="true" />
+            <p role="alert" className="text-base mb-4">{error}</p>
+            <Button onClick={startScanner} variant="secondary" className="min-h-11">
               Tentar Novamente
             </Button>
           </div>
@@ -134,8 +136,8 @@ export function QRCodeScanner({ onScan, onClose, isOpen }: QRCodeScannerProps) {
       </div>
 
       {/* Instructions */}
-      <div className="absolute bottom-0 left-0 right-0 p-6 text-center bg-gradient-to-t from-black/70 to-transparent">
-        <p className="text-white/80 text-sm">
+      <div className="absolute bottom-0 left-0 right-0 p-6 text-center bg-gradient-to-t from-background/90 to-transparent">
+        <p className="text-base font-medium">
           Posicione o QR Code ou código de barras dentro da área de leitura
         </p>
       </div>

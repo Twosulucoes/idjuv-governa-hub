@@ -168,7 +168,7 @@ export function Header() {
                 <div className="logo-container-gov">
                   <LogoEntidadeSuperior variant="light" className="logo-gov w-auto" />
                 </div>
-                <div className="hidden sm:block h-5 w-px bg-primary-foreground/20 dark:bg-border" />
+                <div className="hidden sm:block h-5 w-px bg-primary-foreground/20 dark:bg-border" aria-hidden="true" />
                 <span className="hidden sm:block text-xs font-medium text-primary-foreground/90 dark:text-foreground/80">
                   {entidadeSuperior.nome}
                 </span>
@@ -180,20 +180,20 @@ export function Header() {
               variant="ghost"
               size="sm"
               onClick={toggleTheme}
-              className="h-8 w-8 p-0 text-primary-foreground dark:text-foreground hover:bg-primary-foreground/10 dark:hover:bg-muted rounded-full"
-              aria-label="Alternar tema"
+              className="h-11 w-11 p-0 text-primary-foreground dark:text-foreground hover:bg-primary-foreground/10 dark:hover:bg-muted rounded-full"
+              aria-label={mounted && resolvedTheme === "dark" ? "Usar tema claro" : "Usar tema escuro"}
             >
               {mounted && resolvedTheme === "dark" ? (
-                <Sun className="h-4 w-4" />
+                <Sun className="h-4 w-4" aria-hidden="true" />
               ) : (
-                <Moon className="h-4 w-4" />
+                <Moon className="h-4 w-4" aria-hidden="true" />
               )}
             </Button>
             
             {/* Link para Área Restrita + UserMenu se logado */}
             <Link 
               to={isAuthenticated ? "/sistema" : "/auth"} 
-              className="text-xs font-medium px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors"
+              className="inline-flex min-h-11 items-center text-sm font-medium px-4 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors"
             >
               {isAuthenticated ? "Sistema" : "Área Restrita"}
             </Link>
@@ -207,7 +207,7 @@ export function Header() {
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             {/* Logo do órgão — sem container, direta */}
-            <Link to="/" className="flex items-center group flex-shrink-0">
+            <Link to="/" className="flex min-h-11 items-center group flex-shrink-0">
               <Logo 
                 className="logo-header transition-transform group-hover:scale-[1.02]"
               />
@@ -220,8 +220,8 @@ export function Header() {
                   <NavigationMenuItem key={item.title}>
                     {item.items ? (
                       <>
-                        <NavigationMenuTrigger className="bg-transparent text-foreground/80 hover:text-foreground hover:bg-muted/50 data-[state=open]:bg-muted/50 h-9 px-3 text-sm font-medium">
-                          <item.icon className="w-4 h-4 mr-1.5 opacity-70" />
+                        <NavigationMenuTrigger className="bg-transparent text-foreground/80 hover:text-foreground hover:bg-muted/50 data-[state=open]:bg-muted/50 h-11 px-3 text-sm font-medium">
+                          <item.icon className="w-4 h-4 mr-1.5 opacity-70" aria-hidden="true" />
                           {item.title}
                         </NavigationMenuTrigger>
                         <NavigationMenuContent>
@@ -232,7 +232,7 @@ export function Header() {
                                   <Link
                                     to={subItem.href}
                                     className={cn(
-                                      "block select-none rounded-md px-3 py-2.5 leading-none no-underline outline-none transition-colors hover:bg-muted text-sm",
+                                      "flex min-h-11 items-center select-none rounded-md px-3 py-2.5 leading-none no-underline outline-none transition-colors hover:bg-muted text-sm",
                                       location.pathname === subItem.href && "bg-muted text-primary font-medium"
                                     )}
                                   >
@@ -249,11 +249,11 @@ export function Header() {
                         <Link
                           to={item.href}
                           className={cn(
-                            "flex items-center px-3 py-2 text-sm font-medium text-foreground/80 hover:text-foreground hover:bg-muted/50 rounded-md transition-colors",
+                            "flex min-h-11 items-center px-3 py-2 text-sm font-medium text-foreground/80 hover:text-foreground hover:bg-muted/50 rounded-md transition-colors",
                             location.pathname === item.href && "text-primary bg-muted/50"
                           )}
                         >
-                          <item.icon className="w-4 h-4 mr-1.5 opacity-70" />
+                          <item.icon className="w-4 h-4 mr-1.5 opacity-70" aria-hidden="true" />
                           {item.title}
                         </Link>
                       </NavigationMenuLink>
@@ -267,11 +267,11 @@ export function Header() {
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden h-10 w-10 text-foreground hover:bg-muted rounded-full flex-shrink-0"
+              className="lg:hidden h-11 w-11 text-foreground hover:bg-muted rounded-full flex-shrink-0"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"}
             >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {mobileMenuOpen ? <X className="w-5 h-5" aria-hidden="true" /> : <Menu className="w-5 h-5" aria-hidden="true" />}
             </Button>
           </div>
         </div>
@@ -282,7 +282,7 @@ export function Header() {
         <>
           {/* Backdrop */}
           <div 
-            className="lg:hidden fixed inset-0 bg-black/50 z-40 tap-highlight-none"
+            className="lg:hidden fixed inset-0 bg-foreground/50 z-40 tap-highlight-none"
             onClick={() => setMobileMenuOpen(false)}
             aria-hidden="true"
           />
@@ -295,16 +295,16 @@ export function Header() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-10 w-10 rounded-full touch-target"
+                className="h-11 w-11 rounded-full touch-target"
                 onClick={() => setMobileMenuOpen(false)}
                 aria-label="Fechar menu"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
               </Button>
             </div>
 
             {/* Conteúdo do menu com scroll */}
-            <nav className="flex-1 overflow-y-auto overscroll-contain scroll-container px-4 py-4">
+            <nav aria-label="Menu principal" className="flex-1 overflow-y-auto overscroll-contain scroll-container px-4 py-4">
               <div className="space-y-1">
                 {menuItemsVisiveis.map((item) => (
                   <div key={item.title} className="space-y-1">
@@ -316,9 +316,9 @@ export function Header() {
                       )}
                       onClick={() => !item.items && setMobileMenuOpen(false)}
                     >
-                      <item.icon className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
+                      <item.icon className="w-5 h-5 mr-3 text-primary flex-shrink-0" aria-hidden="true" />
                       <span className="font-medium text-base">{item.title}</span>
-                      {item.items && <ChevronDown className="w-4 h-4 ml-auto text-muted-foreground" />}
+                      {item.items && <ChevronDown className="w-4 h-4 ml-auto text-muted-foreground" aria-hidden="true" />}
                     </Link>
                     {item.items && (
                       <div className="ml-8 space-y-0.5 border-l-2 border-muted pl-4">
@@ -327,7 +327,7 @@ export function Header() {
                             key={subItem.href}
                             to={subItem.href}
                             className={cn(
-                              "block px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors touch-target-sm",
+                              "flex min-h-11 items-center px-4 py-3 text-base text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors",
                               location.pathname === subItem.href && "text-primary bg-muted font-medium"
                             )}
                             onClick={() => setMobileMenuOpen(false)}
@@ -347,7 +347,7 @@ export function Header() {
               {isAuthenticated ? (
                 <>
                   <div className="flex items-center gap-3 px-4 py-2 text-sm">
-                    <User className="h-4 w-4 text-primary" />
+                    <User className="h-4 w-4 text-primary" aria-hidden="true" />
                     <span className="font-medium truncate">{user?.fullName || user?.email}</span>
                   </div>
                   <Button
@@ -358,7 +358,7 @@ export function Header() {
                       setMobileMenuOpen(false);
                     }}
                   >
-                    <LogOut className="h-4 w-4 mr-2" />
+                    <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
                     Sair do Sistema
                   </Button>
                 </>

@@ -20,7 +20,7 @@ export function DeclaracaoEmergenciaForm({ dados, onChange }: Props) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-primary">Declarações e Contato de Emergência</h3>
+        <h2 className="text-lg font-semibold text-primary">Declarações e Contato de Emergência</h2>
         <p className="text-sm text-muted-foreground">
           Informe sobre acumulação de cargos e contato de emergência.
         </p>
@@ -29,7 +29,7 @@ export function DeclaracaoEmergenciaForm({ dados, onChange }: Props) {
       <div className="grid gap-6">
         {/* Acumulação de Cargos */}
         <div className="p-4 border rounded-lg space-y-4">
-          <h4 className="font-medium text-sm text-muted-foreground">Declaração de Acumulação de Cargos</h4>
+          <h3 className="font-medium text-sm text-muted-foreground">Declaração de Acumulação de Cargos</h3>
           <p className="text-xs text-muted-foreground">
             Art. 37, XVI da Constituição Federal - É vedada a acumulação remunerada de cargos públicos, exceto quando houver compatibilidade de horários.
           </p>
@@ -61,7 +61,7 @@ export function DeclaracaoEmergenciaForm({ dados, onChange }: Props) {
 
         {/* Indicação */}
         <div className="p-4 border rounded-lg space-y-4">
-          <h4 className="font-medium text-sm text-muted-foreground">Indicação</h4>
+          <h3 className="font-medium text-sm text-muted-foreground">Indicação</h3>
           <div className="grid gap-2">
             <Label htmlFor="indicacao">Indicado por (se aplicável)</Label>
             <Input
@@ -76,7 +76,7 @@ export function DeclaracaoEmergenciaForm({ dados, onChange }: Props) {
 
         {/* Contato de Emergência */}
         <div className="p-4 border rounded-lg space-y-4">
-          <h4 className="font-medium text-sm text-muted-foreground">Contato de Emergência</h4>
+          <h3 className="font-medium text-sm text-muted-foreground">Contato de Emergência</h3>
           <p className="text-xs text-muted-foreground">
             Informe uma pessoa para contato em caso de emergência.
           </p>

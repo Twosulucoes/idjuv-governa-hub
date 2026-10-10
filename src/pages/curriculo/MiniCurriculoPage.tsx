@@ -31,7 +31,8 @@ import { usePreCadastro } from "@/hooks/usePreCadastro";
 import { useFormFieldConfig } from "@/hooks/useFormFieldConfig";
 import { gerarPdfMiniCurriculo } from "@/lib/pdfMiniCurriculo";
 import type { PreCadastro } from "@/types/preCadastro";
-import { getMarcaAssets } from '@/core/tenant';
+import { getMarcaAssets, useIdentidade } from '@/core/tenant';
+import { SkipLink } from "@/components/design-system";
 
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
 const { logoLight: logoIdjuv } = getMarcaAssets();
@@ -75,6 +76,7 @@ export default function MiniCurriculoPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const { preCadastro, isLoading, criar, atualizar, enviar } = usePreCadastro(codigo);
+  const { nomeOficial, sigla } = useIdentidade();
   const { isSectionEnabled, isFieldEnabled, loading: configLoading } = useFormFieldConfig('pre_cadastro');
 
   // Filtrar steps com base na config
@@ -212,8 +214,9 @@ export default function MiniCurriculoPage() {
 
   if (isLoading || configLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center" role="status">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+        <h1 className="sr-only">Pré-cadastro de servidor: carregando…</h1>
       </div>
     );
   }
@@ -222,21 +225,20 @@ export default function MiniCurriculoPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
+      <SkipLink />
       {/* Header */}
       <header className="bg-primary text-primary-foreground py-4">
         <div className="container max-w-4xl mx-auto px-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src={logoIdjuv} alt="IDJuv" className="h-12 bg-white rounded p-1" />
+              <img src={logoIdjuv} alt={sigla} className="h-12 bg-background rounded p-1" />
               <div>
-                <h1 className="font-bold text-lg">Pré-Cadastro de Servidor</h1>
-                <p className="text-sm opacity-90">
-                  Instituto de Desporto, Juventude e Lazer
-                </p>
+                <h1 className="font-bold text-lg">Pré-cadastro de servidor</h1>
+                <p className="text-sm opacity-90">{nomeOficial}</p>
               </div>
             </div>
             {formData.codigo_acesso && (
-              <Badge variant="secondary" className="text-sm font-mono">
+              <Badge variant="secondary" className="text-sm font-mono" aria-label={`Código de acesso ${formData.codigo_acesso}`}>
                 {formData.codigo_acesso}
               </Badge>
             )}
@@ -244,7 +246,7 @@ export default function MiniCurriculoPage() {
         </div>
       </header>
 
-      <main className="container max-w-4xl mx-auto px-4 py-8">
+      <main id="conteudo" tabIndex={-1} className="container max-w-4xl mx-auto px-4 py-8 focus:outline-none">
         {/* Orientações e Documentos */}
         <OrientacoesDocumentosCard />
 
@@ -258,16 +260,18 @@ export default function MiniCurriculoPage() {
               {currentStep?.title}
             </span>
           </div>
-          <Progress value={progress} className="h-2" />
+          <Progress value={progress} className="h-2" aria-label={`Etapa ${currentStepIndex + 1} de ${activeSteps.length}`} />
         </div>
 
         {/* Step Indicators */}
-        <div className="hidden md:flex justify-between mb-8 overflow-x-auto">
+        <nav aria-label="Etapas do pré-cadastro" className="hidden md:flex justify-between mb-8 overflow-x-auto">
           {activeSteps.map((step, index) => (
             <button
               key={step.id}
+              type="button"
               onClick={() => setCurrentStepIndex(index)}
-              className={`flex flex-col items-center min-w-[80px] transition-colors ${
+              aria-current={index === currentStepIndex ? "step" : undefined}
+              className={`flex flex-col items-center min-w-[80px] min-h-11 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 index === currentStepIndex
                   ? "text-primary"
                   : index < currentStepIndex
@@ -289,7 +293,7 @@ export default function MiniCurriculoPage() {
               <span className="text-xs text-center">{step.title}</span>
             </button>
           ))}
-        </div>
+        </nav>
 
         {/* Form Content */}
         <Card className="mb-8">
@@ -304,22 +308,22 @@ export default function MiniCurriculoPage() {
               onClick={handlePrevious}
               disabled={currentStepIndex === 0}
             >
-              <ChevronLeft className="h-4 w-4 mr-1" />
+              <ChevronLeft className="h-4 w-4 mr-1" aria-hidden="true" />
               Anterior
             </Button>
 
             <Button variant="outline" onClick={handleSave} disabled={isSaving}>
               {isSaving ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" aria-hidden="true" />
               ) : (
-                <Save className="h-4 w-4 mr-1" />
+                <Save className="h-4 w-4 mr-1" aria-hidden="true" />
               )}
               Salvar
             </Button>
 
             {preCadastro?.id && (
-              <Button variant="outline" onClick={handleDownloadPdf}>
-                <FileDown className="h-4 w-4 mr-1" />
+              <Button variant="outline" onClick={handleDownloadPdf} aria-label="Baixar PDF do pré-cadastro">
+                <FileDown className="h-4 w-4 mr-1" aria-hidden="true" />
                 PDF
               </Button>
             )}
@@ -329,15 +333,15 @@ export default function MiniCurriculoPage() {
             {currentStepIndex < activeSteps.length - 1 ? (
               <Button onClick={handleNext}>
                 Próximo
-                <ChevronRight className="h-4 w-4 ml-1" />
+                <ChevronRight className="h-4 w-4 ml-1" aria-hidden="true" />
               </Button>
             ) : (
               <Button
                 onClick={handleSubmit}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-success text-success-foreground hover:bg-success/90"
               >
-                <Send className="h-4 w-4 mr-1" />
-                Enviar Pré-Cadastro
+                <Send className="h-4 w-4 mr-1" aria-hidden="true" />
+                Enviar pré-cadastro
               </Button>
             )}
           </div>

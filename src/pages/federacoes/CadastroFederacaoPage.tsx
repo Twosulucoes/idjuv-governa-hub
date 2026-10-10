@@ -8,7 +8,7 @@ import { CheckCircle, Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -19,7 +19,8 @@ import {
 } from '@/components/ui/form';
 import { FaixaBrasil } from '@/components/ui/FaixaBrasil';
 
-import { getMarcaAssets } from '@/core/tenant';
+import { getMarcaAssets, useIdentidade } from '@/core/tenant';
+import { SkipLink } from '@/components/design-system';
 
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
 const { logoLight: logoIdjuv } = getMarcaAssets();
@@ -73,6 +74,7 @@ const federacaoSchema = z.object({
 type FederacaoFormData = z.infer<typeof federacaoSchema>;
 
 export default function CadastroFederacaoPage() {
+  const { sigla } = useIdentidade();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -208,53 +210,56 @@ export default function CadastroFederacaoPage() {
   if (isSuccess) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
+        <SkipLink />
         <FaixaBrasil />
-        <div className="container max-w-lg mx-auto px-4 py-12">
+        <main id="conteudo" tabIndex={-1} className="container max-w-lg mx-auto px-4 py-12 focus:outline-none">
           <Card className="text-center">
             <CardContent className="pt-12 pb-8">
               <div className="flex justify-center mb-6">
-                <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
-                  <CheckCircle className="w-12 h-12 text-green-600" />
+                <div className="w-20 h-20 rounded-full bg-success/15 flex items-center justify-center">
+                  <CheckCircle className="w-12 h-12 text-success" aria-hidden="true" />
                 </div>
               </div>
-              <h2 className="text-2xl font-bold text-foreground mb-4">
+              <h1 className="text-2xl font-bold text-foreground mb-4">
                 Cadastro enviado com sucesso!
-              </h2>
+              </h1>
               <p className="text-muted-foreground mb-6">
-                Acompanhe as ações e comunicados do IDJuv pelo Instagram:
+                Acompanhe as ações e comunicados do {sigla} pelo Instagram:
               </p>
               <a 
                 href="https://www.instagram.com/idjuvroraima?igsh=Z3d3dmU0MTA3NHpi" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-semibold text-lg transition-colors"
+                className="inline-flex min-h-11 items-center gap-2 text-primary hover:text-primary/80 font-semibold text-lg transition-colors"
               >
                 @idjuvroraima
+                <span className="sr-only"> (abre em nova aba)</span>
               </a>
             </CardContent>
           </Card>
-        </div>
+        </main>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
+      <SkipLink />
       <FaixaBrasil />
       
-      <div className="container max-w-2xl mx-auto px-4 py-8">
+      <main id="conteudo" tabIndex={-1} className="container max-w-2xl mx-auto px-4 py-8 focus:outline-none">
         {/* Header */}
         <div className="text-center mb-8">
           <img 
             src={logoIdjuv} 
-            alt="IDJuv" 
+            alt={sigla}
             className="h-16 mx-auto mb-4"
           />
           <h1 className="text-2xl font-bold text-foreground mb-2">
             Cadastro de Federações Esportivas
           </h1>
           <p className="text-muted-foreground">
-            Preencha os dados para vincular sua federação ao IDJuv
+            Preencha os dados para vincular sua federação ao {sigla}
           </p>
         </div>
 
@@ -263,10 +268,10 @@ export default function CadastroFederacaoPage() {
             {/* Seção 1 - Dados da Federação */}
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">1</span>
+                <h2 className="text-h3 leading-tight tracking-tight text-lg flex items-center gap-2">
+                  <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold" aria-hidden="true">1</span>
                   Dados da Federação
-                </CardTitle>
+                </h2>
                 <CardDescription>Informações gerais da federação</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -491,10 +496,10 @@ export default function CadastroFederacaoPage() {
             {/* Seção 2 - Mandato */}
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">2</span>
+                <h2 className="text-h3 leading-tight tracking-tight text-lg flex items-center gap-2">
+                  <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold" aria-hidden="true">2</span>
                   Mandato da Diretoria
-                </CardTitle>
+                </h2>
                 <CardDescription>Período do mandato atual</CardDescription>
               </CardHeader>
               <CardContent>
@@ -533,10 +538,10 @@ export default function CadastroFederacaoPage() {
             {/* Seção 3 - Presidente */}
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">3</span>
+                <h2 className="text-h3 leading-tight tracking-tight text-lg flex items-center gap-2">
+                  <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold" aria-hidden="true">3</span>
                   Presidente da Federação
-                </CardTitle>
+                </h2>
                 <CardDescription>Dados do presidente atual</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -703,16 +708,16 @@ export default function CadastroFederacaoPage() {
             {/* Seção 4 - Outros Dirigentes */}
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">4</span>
+                <h2 className="text-h3 leading-tight tracking-tight text-lg flex items-center gap-2">
+                  <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold" aria-hidden="true">4</span>
                   Outros Dirigentes
-                </CardTitle>
+                </h2>
                 <CardDescription>Vice-presidente e diretor técnico</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Vice-Presidente */}
                 <div className="space-y-4">
-                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Vice-Presidente</h4>
+                  <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Vice-Presidente</h3>
                   
                   <FormField
                     control={form.control}
@@ -800,7 +805,7 @@ export default function CadastroFederacaoPage() {
 
                 {/* Diretor Técnico */}
                 <div className="space-y-4 pt-4 border-t">
-                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Diretor Técnico (opcional)</h4>
+                  <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Diretor Técnico (opcional)</h3>
                   
                   <FormField
                     control={form.control}
@@ -896,7 +901,7 @@ export default function CadastroFederacaoPage() {
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" aria-hidden="true" />
                   Enviando...
                 </>
               ) : (
@@ -904,12 +909,12 @@ export default function CadastroFederacaoPage() {
               )}
             </Button>
 
-            <p className="text-xs text-center text-muted-foreground">
+            <p className="text-sm text-center text-muted-foreground">
               * Campos obrigatórios
             </p>
           </form>
         </Form>
-      </div>
+      </main>
     </div>
   );
 }

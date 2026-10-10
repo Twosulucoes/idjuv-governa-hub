@@ -46,10 +46,10 @@ export function ChecklistForm({ dados, onChange }: Props) {
 
     return (
       <div className="space-y-3">
-        <h4 className="font-medium text-sm text-primary border-b pb-2">{titulo}</h4>
+        <h3 className="font-medium text-sm text-primary border-b pb-2">{titulo}</h3>
         <div className="space-y-2">
           {itensOrdenados.map((item) => (
-            <div key={item.key} className="flex items-center space-x-3">
+            <div key={item.key} className="flex min-h-11 items-center space-x-3">
               <Checkbox
                 id={item.key}
                 checked={!!dados[item.key as keyof PreCadastro]}
@@ -57,14 +57,14 @@ export function ChecklistForm({ dados, onChange }: Props) {
               />
               <Label
                 htmlFor={item.key}
-                className="text-sm font-normal cursor-pointer flex-1"
+                className="text-base font-normal cursor-pointer flex-1 py-2"
               >
                 {item.label}
               </Label>
               {dados[item.key as keyof PreCadastro] ? (
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
               ) : (
-                <Circle className="h-4 w-4 text-muted-foreground/30" />
+                <Circle className="h-4 w-4 text-muted-foreground/30" aria-hidden="true" />
               )}
             </div>
           ))}
@@ -76,8 +76,8 @@ export function ChecklistForm({ dados, onChange }: Props) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-primary">Checklist de Documentos</h3>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-lg font-semibold text-primary">Checklist de Documentos</h2>
+        <p className="text-base text-muted-foreground">
           Marque os documentos que você já possui ou providenciou.
         </p>
       </div>
@@ -90,7 +90,14 @@ export function ChecklistForm({ dados, onChange }: Props) {
             {marcados}/{total} documentos
           </Badge>
         </div>
-        <div className="w-full bg-muted rounded-full h-2.5">
+        <div
+          className="w-full bg-muted rounded-full h-2.5"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progresso}
+          aria-label="Progresso da documentação"
+        >
           <div
             className="bg-primary h-2.5 rounded-full transition-all"
             style={{ width: `${progresso}%` }}
@@ -112,8 +119,8 @@ export function ChecklistForm({ dados, onChange }: Props) {
         {renderSecao("Dados Bancários", DOCUMENTOS_CHECKLIST.bancarios)}
       </div>
 
-      <div className="p-4 border border-amber-200 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
-        <p className="text-sm text-amber-800 dark:text-amber-200">
+      <div className="p-4 border border-warning/40 bg-warning/15 rounded-lg">
+        <p className="text-base text-foreground">
           <strong>Importante:</strong> Você deverá apresentar os documentos originais ou cópias
           autenticadas no momento da admissão. Este checklist serve para acompanhamento.
         </p>

@@ -15,7 +15,7 @@ export function PrevidenciaForm({ dados, onChange }: Props) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-primary">Documentos Previdenciários</h3>
+        <h2 className="text-lg font-semibold text-primary">Documentos Previdenciários</h2>
         <p className="text-sm text-muted-foreground">
           Informe seu número de inscrição na Previdência Social.
         </p>
@@ -38,7 +38,7 @@ export function PrevidenciaForm({ dados, onChange }: Props) {
         </div>
 
         <div className="p-4 bg-muted/50 rounded-lg">
-          <h4 className="font-medium text-sm mb-2">Onde encontrar seu NIS/PIS/PASEP?</h4>
+          <h3 className="font-medium text-sm mb-2">Onde encontrar seu NIS/PIS/PASEP?</h3>
           <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
             <li>Carteira de Trabalho (CTPS)</li>
             <li>Extrato do FGTS</li>

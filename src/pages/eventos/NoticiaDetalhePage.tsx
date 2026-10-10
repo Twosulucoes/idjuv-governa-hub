@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ShareButtons } from "@/components/social/ShareButtons";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
+import { SkipLink } from "@/components/design-system";
 
 interface Noticia {
   id: string;
@@ -143,26 +144,31 @@ export default function NoticiaDetalhePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-zinc-900 flex items-center justify-center">
-        <div className="animate-pulse text-zinc-500">Carregando...</div>
-      </div>
+      <>
+      <SkipLink />
+      <main id="conteudo" tabIndex={-1} aria-busy="true" className="min-h-screen bg-background flex items-center justify-center focus:outline-none">
+        <h1 className="animate-pulse text-base font-normal text-muted-foreground">Carregando notícia...</h1>
+      </main>
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-900 transition-colors">
-      {/* Header com imagem */}
-      <div className="relative h-[40vh] md:h-[50vh] bg-zinc-900">
+    <>
+    <SkipLink />
+    <main id="conteudo" tabIndex={-1} className="min-h-screen bg-background transition-colors focus:outline-none">
+      {/* Header com imagem — classe "dark" fixa: faixa sempre escura sob a foto */}
+      <div className="dark relative h-[40vh] md:h-[50vh] bg-background text-foreground">
         {displayNoticia.imagem_destaque_url ? (
           <img
             src={displayNoticia.imagem_destaque_url}
-            alt={displayNoticia.titulo}
+            alt=""
             className="w-full h-full object-cover opacity-60"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-zinc-900" />
+          <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-muted to-background" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
         {/* Navegação */}
         <div className="absolute top-0 left-0 right-0 p-4 md:p-6">
@@ -170,9 +176,9 @@ export default function NoticiaDetalhePage() {
             <Button
               variant="ghost"
             onClick={() => navigate("/programas/selecoes")}
-              className="text-white hover:bg-white/10"
+              className="min-h-11 text-foreground hover:bg-foreground/10 hover:text-foreground"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
               Voltar
             </Button>
           </div>
@@ -186,14 +192,14 @@ export default function NoticiaDetalhePage() {
               animate={{ opacity: 1, y: 0 }}
             >
               {/* Badge Categoria */}
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full mb-4">
-                <Icon className="w-3.5 h-3.5 text-white" />
-                <span className="text-xs font-bold tracking-wider uppercase text-white">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-foreground/20 backdrop-blur-sm rounded-full mb-4">
+                <Icon className="w-3.5 h-3.5 text-foreground" aria-hidden="true" />
+                <span className="text-xs font-bold tracking-wider uppercase text-foreground">
                   {getCategoriaLabel(displayNoticia.categoria)}
                 </span>
               </div>
 
-              <h1 className="text-2xl md:text-4xl font-black tracking-wide uppercase text-white leading-tight">
+              <h1 className="text-2xl md:text-4xl font-black tracking-wide uppercase text-foreground leading-tight">
                 {displayNoticia.titulo}
               </h1>
             </motion.div>
@@ -208,19 +214,19 @@ export default function NoticiaDetalhePage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="flex flex-wrap items-center gap-4 mb-8 pb-8 border-b border-zinc-200 dark:border-zinc-700"
+          className="flex flex-wrap items-center gap-4 mb-8 pb-8 border-b border-border"
         >
-          <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-            <Calendar className="w-4 h-4" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Calendar className="w-4 h-4" aria-hidden="true" />
             {formatDate(displayNoticia.data_publicacao)}
           </div>
-          <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-            <Clock className="w-4 h-4" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Clock className="w-4 h-4" aria-hidden="true" />
             {formatTime(displayNoticia.data_publicacao)}
           </div>
           {displayNoticia.autor_nome && (
-            <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-              <User className="w-4 h-4" />
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <User className="w-4 h-4" aria-hidden="true" />
               {displayNoticia.autor_nome}
             </div>
           )}
@@ -229,7 +235,6 @@ export default function NoticiaDetalhePage() {
               url={shareUrl}
               title={displayNoticia.titulo}
               description={displayNoticia.resumo || ""}
-              size="sm"
             />
           </div>
         </motion.div>
@@ -240,7 +245,7 @@ export default function NoticiaDetalhePage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-lg md:text-xl text-zinc-600 dark:text-zinc-300 leading-relaxed mb-8 font-medium"
+            className="text-lg md:text-xl text-muted-foreground leading-relaxed mb-8 font-medium"
           >
             {displayNoticia.resumo}
           </motion.p>
@@ -254,8 +259,8 @@ export default function NoticiaDetalhePage() {
           className="prose prose-zinc dark:prose-invert max-w-none
             prose-headings:font-bold prose-headings:tracking-wide prose-headings:uppercase
             prose-h3:text-lg prose-h3:mt-8 prose-h3:mb-4
-            prose-p:text-zinc-600 dark:prose-p:text-zinc-300 prose-p:leading-relaxed
-            prose-li:text-zinc-600 dark:prose-li:text-zinc-300
+            prose-p:text-foreground/80 prose-p:leading-relaxed
+            prose-li:text-foreground/80
             prose-ul:my-4 prose-li:my-1"
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(displayNoticia.conteudo || "") }}
         />
@@ -266,7 +271,7 @@ export default function NoticiaDetalhePage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="text-center text-xs text-zinc-400 dark:text-zinc-500 mt-12 italic"
+            className="text-center text-sm text-muted-foreground mt-12 italic"
           >
             * Notícia de exemplo. O conteúdo real será exibido quando publicado via CMS.
           </motion.p>
@@ -277,18 +282,19 @@ export default function NoticiaDetalhePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="mt-12 pt-8 border-t border-zinc-200 dark:border-zinc-700"
+          className="mt-12 pt-8 border-t border-border"
         >
           <Button
             variant="outline"
             onClick={() => navigate("/programas/selecoes")}
-            className="rounded-full px-6 font-bold tracking-wide"
+            className="min-h-11 rounded-full px-6 font-bold tracking-wide"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar para Seletivas
+            <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
+            Voltar para seletivas
           </Button>
         </motion.div>
       </div>
-    </div>
+    </main>
+    </>
   );
 }

@@ -59,7 +59,7 @@ export function AptidoesForm({ dados, onChange }: Props) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-primary">Aptidões e Características</h3>
+        <h2 className="text-lg font-semibold text-primary">Aptidões e Características</h2>
         <p className="text-sm text-muted-foreground">
           Informe suas habilidades, idiomas e cursos complementares.
         </p>
@@ -68,7 +68,7 @@ export function AptidoesForm({ dados, onChange }: Props) {
       <div className="grid gap-6">
         {/* Habilidades */}
         <div className="p-4 border rounded-lg space-y-4">
-          <h4 className="font-medium text-sm text-muted-foreground">Habilidades e Competências</h4>
+          <h3 className="font-medium text-sm text-muted-foreground">Habilidades e Competências</h3>
 
           <div className="flex flex-wrap gap-2">
             {habilidades.map((hab) => (
@@ -128,7 +128,7 @@ export function AptidoesForm({ dados, onChange }: Props) {
 
         {/* Idiomas */}
         <div className="p-4 border rounded-lg space-y-4">
-          <h4 className="font-medium text-sm text-muted-foreground">Idiomas</h4>
+          <h3 className="font-medium text-sm text-muted-foreground">Idiomas</h3>
 
           {idiomas.length > 0 && (
             <div className="space-y-2">
@@ -193,7 +193,7 @@ export function AptidoesForm({ dados, onChange }: Props) {
 
         {/* Cursos Complementares */}
         <div className="p-4 border rounded-lg space-y-4">
-          <h4 className="font-medium text-sm text-muted-foreground">Cursos Complementares</h4>
+          <h3 className="font-medium text-sm text-muted-foreground">Cursos Complementares</h3>
 
           {cursos.length > 0 && (
             <div className="space-y-2">

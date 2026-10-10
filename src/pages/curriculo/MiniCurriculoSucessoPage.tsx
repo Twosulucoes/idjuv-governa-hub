@@ -4,13 +4,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Home, FileText, Copy } from "lucide-react";
 import { toast } from "sonner";
-import { getMarcaAssets } from '@/core/tenant';
+import { getMarcaAssets, useIdentidade } from '@/core/tenant';
+import { SkipLink } from "@/components/design-system";
 
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
 const { logoLight: logoIdjuv } = getMarcaAssets();
 
 export default function MiniCurriculoSucessoPage() {
   const location = useLocation();
+  const { nomeOficial, sigla } = useIdentidade();
   const codigo = location.state?.codigo || "PC-0000-0000";
 
   const copiarCodigo = () => {
@@ -20,37 +22,36 @@ export default function MiniCurriculoSucessoPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
+      <SkipLink />
       {/* Header */}
       <header className="bg-primary text-primary-foreground py-4">
         <div className="container max-w-4xl mx-auto px-4">
           <div className="flex items-center gap-3">
-            <img src={logoIdjuv} alt="IDJuv" className="h-12 bg-white rounded p-1" />
+            <img src={logoIdjuv} alt={sigla} className="h-12 bg-background rounded p-1" />
             <div>
-              <h1 className="font-bold text-lg">Pré-Cadastro de Servidor</h1>
-              <p className="text-sm opacity-90">
-                Instituto de Desporto, Juventude e Lazer
-              </p>
+              <p className="font-bold text-lg">Pré-cadastro de servidor</p>
+              <p className="text-sm opacity-90">{nomeOficial}</p>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="container max-w-2xl mx-auto px-4 py-16">
+      <main id="conteudo" tabIndex={-1} className="container max-w-2xl mx-auto px-4 py-16 focus:outline-none">
         <Card>
           <CardContent className="p-8 text-center space-y-6">
             <div className="flex justify-center">
-              <div className="p-4 bg-green-100 dark:bg-green-900/30 rounded-full">
-                <CheckCircle2 className="h-16 w-16 text-green-600" />
+              <div className="p-4 bg-success/15 rounded-full">
+                <CheckCircle2 className="h-16 w-16 text-success" aria-hidden="true" />
               </div>
             </div>
 
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold text-green-700 dark:text-green-400">
-                Pré-Cadastro Enviado com Sucesso!
+              <h1 className="text-2xl font-bold text-success">
+                Pré-cadastro enviado com sucesso!
               </h1>
               <p className="text-muted-foreground">
                 Seu formulário foi recebido e será analisado pela equipe de Recursos
-                Humanos do IDJUV.
+                Humanos do {sigla}.
               </p>
             </div>
 
@@ -63,18 +64,18 @@ export default function MiniCurriculoSucessoPage() {
                 >
                   {codigo}
                 </Badge>
-                <Button variant="ghost" size="icon" onClick={copiarCodigo}>
-                  <Copy className="h-4 w-4" />
+                <Button variant="ghost" size="icon" onClick={copiarCodigo} aria-label="Copiar código de acesso" className="size-11">
+                  <Copy className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Guarde este código para acompanhar ou editar seu cadastro.
               </p>
             </div>
 
             <div className="p-4 border rounded-lg text-left space-y-2">
-              <h3 className="font-medium">Próximos Passos:</h3>
-              <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+              <h2 className="font-medium">Próximos passos</h2>
+              <ol className="text-base text-muted-foreground space-y-1 list-decimal list-inside">
                 <li>Sua documentação será analisada pela equipe de RH</li>
                 <li>Você poderá ser contatado para apresentar documentos originais</li>
                 <li>Após aprovação, seu cadastro será convertido para servidor</li>
@@ -88,14 +89,14 @@ export default function MiniCurriculoSucessoPage() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
               <Button variant="outline" asChild>
                 <Link to={`/curriculo/${codigo}`}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Ver Meu Cadastro
+                  <FileText className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Ver meu cadastro
                 </Link>
               </Button>
               <Button asChild>
                 <Link to="/">
-                  <Home className="h-4 w-4 mr-2" />
-                  Página Inicial
+                  <Home className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Página inicial
                 </Link>
               </Button>
             </div>
@@ -107,8 +108,8 @@ export default function MiniCurriculoSucessoPage() {
       <footer className="border-t py-4 mt-auto">
         <div className="container max-w-4xl mx-auto px-4 text-center text-sm text-muted-foreground">
           <p>
-            Em caso de dúvidas, entre em contato com o setor de Recursos Humanos do
-            IDJUV.
+            Em caso de dúvidas, entre em contato com o setor de Recursos Humanos do{" "}
+            {sigla}.
           </p>
         </div>
       </footer>

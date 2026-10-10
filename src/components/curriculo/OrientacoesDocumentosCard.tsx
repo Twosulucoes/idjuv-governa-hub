@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -71,31 +71,36 @@ export function OrientacoesDocumentosCard() {
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mb-6">
       <Card className="border-primary/20">
-        <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <ClipboardList className="h-5 w-5 text-primary" />
-                Orientações e Documentos Necessários
-              </CardTitle>
-              {isOpen ? (
-                <ChevronUp className="h-5 w-5 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-5 w-5 text-muted-foreground" />
-              )}
-            </div>
-          </CardHeader>
-        </CollapsibleTrigger>
+        <CardHeader className="p-0 sm:p-0">
+          <h2 className="text-h3 leading-tight tracking-tight">
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex w-full min-h-11 items-center justify-between gap-2 rounded-lg p-4 text-left text-lg sm:p-6 hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="flex items-center gap-2">
+                  <ClipboardList className="h-5 w-5 text-primary" aria-hidden="true" />
+                  Orientações e documentos necessários
+                </span>
+                {isOpen ? (
+                  <ChevronUp className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+                )}
+              </button>
+            </CollapsibleTrigger>
+          </h2>
+        </CardHeader>
 
         <CollapsibleContent>
           <CardContent className="space-y-6">
             {/* Alerta Importante */}
-            <Alert variant="destructive" className="border-amber-500 bg-amber-50 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
-              <AlertTriangle className="h-5 w-5 text-amber-600" />
-              <AlertTitle className="text-amber-800 dark:text-amber-300">
-                Documentação Física Obrigatória
+            <Alert className="border-warning bg-warning/15 text-foreground [&>svg]:text-warning">
+              <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+              <AlertTitle className="text-warning">
+                Documentação física obrigatória
               </AlertTitle>
-              <AlertDescription className="text-amber-700 dark:text-amber-400">
+              <AlertDescription className="text-base text-foreground">
                 Além do preenchimento desta ficha online, você deverá apresentar{" "}
                 <strong>cópias físicas de todos os documentos</strong> no ato da
                 admissão, junto com as declarações devidamente assinadas.
@@ -105,10 +110,10 @@ export function OrientacoesDocumentosCard() {
             {/* Declarações para Download */}
             <div className="space-y-3">
               <h3 className="font-semibold flex items-center gap-2">
-                <FileText className="h-4 w-4 text-primary" />
+                <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
                 Declarações para Download
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base text-muted-foreground">
                 Baixe, imprima, preencha e assine as declarações abaixo:
               </p>
               <div className="grid sm:grid-cols-2 gap-3">
@@ -117,7 +122,7 @@ export function OrientacoesDocumentosCard() {
                   className="justify-start h-auto py-3 px-4"
                   onClick={handleDownloadNaoAcumulacao}
                 >
-                  <FileDown className="h-5 w-5 mr-3 text-primary shrink-0" />
+                  <FileDown className="h-5 w-5 mr-3 text-primary shrink-0" aria-hidden="true" />
                   <div className="text-left">
                     <div className="font-medium">Declaração de Não Acumulação de Cargos</div>
                     <div className="text-xs text-muted-foreground">
@@ -130,7 +135,7 @@ export function OrientacoesDocumentosCard() {
                   className="justify-start h-auto py-3 px-4"
                   onClick={handleDownloadBensValores}
                 >
-                  <FileDown className="h-5 w-5 mr-3 text-primary shrink-0" />
+                  <FileDown className="h-5 w-5 mr-3 text-primary shrink-0" aria-hidden="true" />
                   <div className="text-left">
                     <div className="font-medium">Declaração de Bens e Valores</div>
                     <div className="text-xs text-muted-foreground">
@@ -144,10 +149,10 @@ export function OrientacoesDocumentosCard() {
             {/* Links para Certidões */}
             <div className="space-y-3">
               <h3 className="font-semibold flex items-center gap-2">
-                <Link2 className="h-4 w-4 text-primary" />
+                <Link2 className="h-4 w-4 text-primary" aria-hidden="true" />
                 Emitir Certidões Online
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base text-muted-foreground">
                 Acesse os links abaixo para emitir suas certidões gratuitamente:
               </p>
               <div className="space-y-2">
@@ -159,10 +164,11 @@ export function OrientacoesDocumentosCard() {
                     rel="noopener noreferrer"
                     className="flex items-start gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors group"
                   >
-                    <ExternalLink className="h-5 w-5 text-primary mt-0.5 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                    <ExternalLink className="h-5 w-5 text-primary mt-0.5 shrink-0 group-hover:translate-x-0.5 transition-transform" aria-hidden="true" />
                     <div>
                       <div className="font-medium group-hover:text-primary transition-colors">
                         {certidao.nome}
+                        <span className="sr-only"> (abre em nova aba)</span>
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {certidao.orgao}
@@ -179,14 +185,14 @@ export function OrientacoesDocumentosCard() {
             {/* Lista de Documentos */}
             <div className="space-y-3">
               <h3 className="font-semibold flex items-center gap-2">
-                <ClipboardList className="h-4 w-4 text-primary" />
+                <ClipboardList className="h-4 w-4 text-primary" aria-hidden="true" />
                 Documentos para Apresentar na Admissão
               </h3>
               <div className="bg-muted/50 rounded-lg p-4">
-                <ul className="grid sm:grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                <ul className="grid sm:grid-cols-2 gap-x-4 gap-y-1.5 text-base">
                   {DOCUMENTOS_NECESSARIOS.map((doc, index) => (
                     <li key={index} className="flex items-start gap-2">
-                      <span className="text-primary font-bold">•</span>
+                      <span className="text-primary font-bold" aria-hidden="true">•</span>
                       <span>{doc}</span>
                     </li>
                   ))}

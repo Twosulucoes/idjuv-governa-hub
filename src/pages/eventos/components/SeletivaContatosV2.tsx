@@ -124,7 +124,8 @@ export function SeletivaContatosV2() {
   // Separar por tipo
   const sitesOficiais = displayContatos.filter(c => c.tipo === "site_oficial");
   const contatosDiretos = displayContatos.filter(c => c.tipo !== "site_oficial");
-  return <section className="py-16 px-4 bg-zinc-900 dark:bg-zinc-950 transition-colors">
+  // Classe "dark" fixa: faixa sempre escura, com os tokens do tema escuro
+  return <section className="dark py-16 px-4 bg-background text-foreground transition-colors">
       <div className="container mx-auto max-w-6xl">
         {/* Header */}
         <motion.div initial={{
@@ -136,16 +137,16 @@ export function SeletivaContatosV2() {
       }} viewport={{
         once: true
       }} className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-800 dark:bg-zinc-800 rounded-full mb-4">
-            <Globe className="w-4 h-4 text-zinc-300" />
-            <span className="text-xs font-bold tracking-[0.2em] uppercase text-zinc-300">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-muted rounded-full mb-4">
+            <Globe className="w-4 h-4 text-foreground/80" aria-hidden="true" />
+            <span className="text-xs font-bold tracking-[0.2em] uppercase text-foreground/80">
               Links & Contatos
             </span>
           </div>
-          <h2 className="text-3xl md:text-4xl font-black tracking-[0.15em] uppercase text-white mb-3">
+          <h2 className="text-3xl md:text-4xl font-black tracking-[0.15em] uppercase text-foreground mb-3">
             INFORMAÇÕES OFICIAIS
           </h2>
-          <p className="text-base tracking-[0.05em] text-zinc-400 max-w-2xl mx-auto">
+          <p className="text-base tracking-[0.05em] text-muted-foreground max-w-2xl mx-auto">
             Acesse os sites oficiais das competições e entre em contato com a coordenação
           </p>
         </motion.div>
@@ -162,7 +163,7 @@ export function SeletivaContatosV2() {
       }} className="grid md:grid-cols-2 gap-4 mb-8">
             {sitesOficiais.map((site, index) => {
           const Icon = getIcon(site.icone);
-          return <a key={site.id} href={site.valor} target="_blank" rel="noopener noreferrer" className="group">
+          return <a key={site.id} href={site.valor} target="_blank" rel="noopener noreferrer" className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <motion.div initial={{
               opacity: 0,
               x: index === 0 ? -20 : 20
@@ -173,17 +174,18 @@ export function SeletivaContatosV2() {
               once: true
             }} transition={{
               delay: index * 0.1
-            }} className="flex items-center gap-4 p-6 rounded-2xl bg-zinc-800/50 dark:bg-zinc-800/80 border border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800 transition-all">
-                    <div className="w-14 h-14 rounded-xl bg-zinc-700 flex items-center justify-center group-hover:bg-zinc-600 transition-colors">
-                      <Icon className="w-7 h-7 text-zinc-300 group-hover:text-white transition-colors" />
+            }} className="flex items-center gap-4 p-6 rounded-2xl bg-muted/60 border border-border hover:border-muted-foreground hover:bg-muted transition-all">
+                    <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center group-hover:bg-muted-foreground/30 transition-colors" aria-hidden="true">
+                      <Icon className="w-7 h-7 text-foreground/80 group-hover:text-foreground transition-colors" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-bold text-white tracking-wide">
+                      <h3 className="text-lg font-bold text-foreground tracking-wide">
                         {site.titulo}
+                        <span className="sr-only"> (abre em nova aba)</span>
                       </h3>
-                      {site.subtitulo && <p className="text-sm text-zinc-400">{site.subtitulo}</p>}
+                      {site.subtitulo && <p className="text-base text-muted-foreground">{site.subtitulo}</p>}
                     </div>
-                    <ExternalLink className="w-5 h-5 text-zinc-500 group-hover:text-white transition-colors" />
+                    <ExternalLink className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" aria-hidden="true" />
                   </motion.div>
                 </a>;
         })}
@@ -213,7 +215,7 @@ export function SeletivaContatosV2() {
             target: isLink(contato.valor) ? "_blank" : undefined,
             rel: isLink(contato.valor) ? "noopener noreferrer" : undefined
           } : {};
-          return <Wrapper key={contato.id} {...wrapperProps} className="group">
+          return <Wrapper key={contato.id} {...wrapperProps} className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <motion.div initial={{
               opacity: 0,
               y: 10
@@ -224,16 +226,16 @@ export function SeletivaContatosV2() {
               once: true
             }} transition={{
               delay: 0.2 + index * 0.1
-            }} className="flex items-center gap-4 p-5 rounded-xl bg-zinc-800/30 border border-zinc-700/50 hover:border-zinc-600 transition-all">
-                    <div className="w-12 h-12 rounded-lg bg-zinc-700/50 flex items-center justify-center">
-                      <Icon className="w-5 h-5 text-zinc-400" />
+            }} className="flex items-center gap-4 p-5 rounded-xl bg-muted/40 border border-border hover:border-muted-foreground transition-all">
+                    <div aria-hidden="true" className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
+                      <Icon className="w-5 h-5 text-muted-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-bold text-white tracking-wide">
+                      <h3 className="text-base font-bold text-foreground tracking-wide">
                         {contato.titulo}
-                      </h4>
-                      {contato.subtitulo && <p className="text-xs text-zinc-500 mt-0.5">{contato.subtitulo}</p>}
-                      <p className="text-sm text-zinc-300 mt-1 truncate group-hover:text-white transition-colors">
+                      </h3>
+                      {contato.subtitulo && <p className="text-sm text-muted-foreground mt-0.5">{contato.subtitulo}</p>}
+                      <p className="text-base text-foreground/80 mt-1 truncate group-hover:text-foreground transition-colors">
                         {contato.valor}
                       </p>
                     </div>
@@ -250,7 +252,7 @@ export function SeletivaContatosV2() {
       }} viewport={{
         once: true
       }} className="mt-12 text-center">
-          <p className="text-xs text-zinc-500 max-w-xl mx-auto">Os Jogos da Juventude são organizados pelo Comitê Olímpico do Brasil (COB).</p>
+          <p className="text-sm text-muted-foreground max-w-xl mx-auto">Os Jogos da Juventude são organizados pelo Comitê Olímpico do Brasil (COB).</p>
         </motion.div>
       </div>
     </section>;

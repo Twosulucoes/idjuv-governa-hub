@@ -8,7 +8,7 @@ import { Calendar, MapPin } from "lucide-react";
 import { DotsIndicator } from "./DecorativeElements";
 import { SportIcon } from "./SportIcon";
 import { Logo } from "@/components/ui/Logo";
-import { getMarcaAssets } from '@/core/tenant';
+import { getMarcaAssets, useIdentidade } from '@/core/tenant';
 
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
 const { entidadeSuperiorLight: logoGoverno } = getMarcaAssets();
@@ -38,13 +38,14 @@ export function ModalidadePoster({
   total,
   sport
 }: ModalidadePosterProps) {
+  const { nomeCurto } = useIdentidade();
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
       transition={{ delay: index * 0.1, duration: 0.4 }}
-      className="bg-zinc-100 dark:bg-zinc-800 rounded-2xl p-6 md:p-8 relative overflow-hidden border border-zinc-200 dark:border-zinc-700 hover:shadow-lg transition-all"
+      className="bg-muted rounded-2xl p-6 md:p-8 relative overflow-hidden border border-border hover:shadow-lg transition-all"
     >
       {/* Dots Indicator */}
       <div className="mb-6">
@@ -58,10 +59,10 @@ export function ModalidadePoster({
         
         {/* Título e Categoria */}
         <div className="flex-1">
-          <h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-[0.15em] uppercase text-zinc-900 dark:text-zinc-100 leading-tight">
+          <h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-[0.15em] uppercase text-foreground leading-tight">
             {modalidade}
           </h3>
-          <p className="text-sm md:text-base font-bold tracking-[0.1em] uppercase text-zinc-500 dark:text-zinc-400">
+          <p className="text-sm md:text-base font-bold tracking-[0.1em] uppercase text-muted-foreground">
             {categoria}
           </p>
         </div>
@@ -72,31 +73,31 @@ export function ModalidadePoster({
         {naipes.map((naipe) => (
           <div 
             key={naipe.naipe} 
-            className="bg-white dark:bg-zinc-900/50 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700"
+            className="bg-background rounded-xl p-4 border border-border"
           >
-            <h4 className="text-lg font-bold tracking-[0.15em] uppercase text-zinc-900 dark:text-zinc-100 mb-3 pb-2 border-b border-zinc-200 dark:border-zinc-700">
+            <h4 className="text-lg font-bold tracking-[0.15em] uppercase text-foreground mb-3 pb-2 border-b border-border">
               {naipe.naipe}
             </h4>
             
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center flex-shrink-0">
-                  <Calendar className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                  <Calendar className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
                 </div>
-                <span className="text-sm font-semibold tracking-wide uppercase text-zinc-700 dark:text-zinc-300">
+                <span className="text-base font-semibold tracking-wide uppercase text-foreground/80">
                   {naipe.data}, {naipe.horario}
                 </span>
               </div>
               
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center flex-shrink-0">
-                  <MapPin className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                  <MapPin className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold tracking-wide text-zinc-900 dark:text-zinc-100">
+                  <p className="text-base font-bold tracking-wide text-foreground">
                     {naipe.local}
                   </p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-500">
+                  <p className="text-sm text-muted-foreground">
                     {naipe.endereco}
                   </p>
                 </div>
@@ -107,9 +108,9 @@ export function ModalidadePoster({
       </div>
 
       {/* Footer simples */}
-      <div className="mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-        <p className="text-[10px] tracking-[0.15em] uppercase text-zinc-400 dark:text-zinc-500">
-          Diretoria de Esporte • IDJuv
+      <div className="mt-6 pt-4 border-t border-border">
+        <p className="text-xs tracking-[0.15em] uppercase text-muted-foreground">
+          Diretoria de Esporte • {nomeCurto}
         </p>
       </div>
     </motion.div>

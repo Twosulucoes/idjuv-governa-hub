@@ -22,7 +22,7 @@ export function DocumentosForm({ dados, onChange, fieldConfig }: Props) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-primary">Documentos Pessoais</h3>
+        <h2 className="text-lg font-semibold text-primary">Documentos Pessoais</h2>
         <p className="text-sm text-muted-foreground">
           Informe os dados dos seus documentos pessoais.
         </p>
@@ -32,7 +32,7 @@ export function DocumentosForm({ dados, onChange, fieldConfig }: Props) {
         {/* RG - sempre visível se habilitado */}
         {isEnabled('rg') && (
           <div className="p-4 border rounded-lg space-y-4">
-            <h4 className="font-medium text-sm text-muted-foreground">Documento de Identidade (RG)</h4>
+            <h3 className="font-medium text-sm text-muted-foreground">Documento de Identidade (RG)</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="grid gap-2">
@@ -111,7 +111,7 @@ export function DocumentosForm({ dados, onChange, fieldConfig }: Props) {
         {/* Título de Eleitor */}
         {isEnabled('titulo_eleitor') && (
           <div className="p-4 border rounded-lg space-y-4">
-            <h4 className="font-medium text-sm text-muted-foreground">Título de Eleitor</h4>
+            <h3 className="font-medium text-sm text-muted-foreground">Título de Eleitor</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="grid gap-2">
@@ -192,7 +192,7 @@ export function DocumentosForm({ dados, onChange, fieldConfig }: Props) {
         {/* Certificado de Reservista */}
         {isEnabled('certificado_reservista') && (
           <div className="p-4 border rounded-lg space-y-4">
-            <h4 className="font-medium text-sm text-muted-foreground">Certificado de Reservista</h4>
+            <h3 className="font-medium text-sm text-muted-foreground">Certificado de Reservista</h3>
             <p className="text-xs text-muted-foreground">
               Obrigatório para homens entre 18 e 45 anos
             </p>
@@ -269,7 +269,7 @@ export function DocumentosForm({ dados, onChange, fieldConfig }: Props) {
         {/* CTPS */}
         {isEnabled('ctps') && (
           <div className="p-4 border rounded-lg space-y-4">
-            <h4 className="font-medium text-sm text-muted-foreground">Carteira de Trabalho (CTPS)</h4>
+            <h3 className="font-medium text-sm text-muted-foreground">Carteira de Trabalho (CTPS)</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="grid gap-2">
