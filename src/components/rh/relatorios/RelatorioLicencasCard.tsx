@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { HeartPulse } from "lucide-react";
 import { toast } from "sonner";
 import { useLicencasRelatorio, useNomeUnidadeSelecionada } from "@/hooks/useRelatoriosRH";
 import { gerarRelatorioLicencas } from "@/lib/pdfRelatoriosAfastamentos";
+import { LICENCA_STATUS_LABELS } from "@/types/rh";
 import {
-  LICENCA_STATUS_LABELS,
   diasLicenca,
   linhaLicencaParaPlanilha,
   periodoValido,
@@ -20,6 +20,8 @@ import { FiltroSelect } from "./FiltroSelect";
 import { BotoesExportar, type FormatoExportacao } from "./BotoesExportar";
 import { PreviaRegistros } from "./PreviaRegistros";
 
+const rotuloDias = (n: number) => `${n} dia${n === 1 ? "" : "s"}`;
+
 /** Licenças e afastamentos vigentes no período, agrupados por tipo. Sem dados de saúde (LGPD). */
 export function RelatorioLicencasCard() {
   const [periodo, setPeriodo] = useState(periodoMesAtual);
@@ -31,10 +33,6 @@ export function RelatorioLicencasCard() {
   const valido = periodoValido(periodo.inicio, periodo.fim);
   const { data: linhas = [], isLoading, isError } = useLicencasRelatorio(filtros);
   const unidadeNome = useNomeUnidadeSelecionada(unidadeId);
-
-  useEffect(() => {
-    if (isError) toast.error("Não foi possível consultar as licenças do período.");
-  }, [isError]);
 
   const handleExportar = async (formato: FormatoExportacao) => {
     if (linhas.length === 0) return;
@@ -48,7 +46,7 @@ export function RelatorioLicencasCard() {
           statusLabel: status ? rotuloStatusLicenca(status) : undefined,
         });
       } else {
-        exportarPlanilhaXlsx(linhas.map(linhaLicencaParaPlanilha), "relatorio-licencas", "Licenças");
+        exportarPlanilhaXlsx(linhas.map((l) => linhaLicencaParaPlanilha(l, periodo.fim)), "relatorio-licencas", "Licenças");
       }
       toast.success("Relatório gerado com sucesso!");
     } catch (error) {
@@ -83,7 +81,7 @@ export function RelatorioLicencasCard() {
             carregando={isLoading}
             erro={isError}
             total={linhas.length}
-            detalhe={`${somar(linhas, diasLicenca)} dias`}
+            detalhe={rotuloDias(somar(linhas, (l) => diasLicenca(l, periodo.fim)))}
           />
         </div>
 

@@ -62,8 +62,8 @@ período aquisitivo é texto livre em `ferias_servidor`.
 | `/rh/servidores/novo`, `/:id/editar` | `rh/ServidorFormPage.tsx` | incompleta | Sem zod nem validação de CPF (`:573-576`); erro do insert em `vinculos_servidor` é engolido (`:536-547`); edição grava `cargo_atual_id`/`unidade_atual_id` direto, sem lotação/histórico (`:507-508`); rota de edição sem `requiredPermissions` (`App.tsx:800`) | M |
 | `/rh/ferias` | `rh/GestaoFeriasPage.tsx` | incompleta | Só cria e muda status (`:125`, `:154`); sem editar/excluir, saldo de 30 dias, sobreposição, parcelas, 1/3, portaria | M–G |
 | `/rh/frequencia` | `rh/GestaoFrequenciaPage.tsx` | incompleta | Só lança falta e imprime; o fluxo abono → chefia → RH → fechamento existe só em hooks sem tela (`hooks/useParametrizacoesFrequencia.ts:522+`); sem banco de horas, justificativa, ajuste de ponto | G |
-| `/rh/viagens` | `rh/GestaoViagensPage.tsx` | incompleta | Sem editar/excluir; valor da diária digitado à mão (`:164`); sem prestação de contas nem ordem de missão preenchida | M |
-| `/rh/relatorios` | `rh/RelatoriosRHPage.tsx` | incompleta | 7 PDFs só de cadastro/portarias; nada de férias, licenças, frequência, viagens, folha; 16 queries na página | M |
+| `/rh/viagens` | `rh/GestaoViagensPage.tsx` | ~~incompleta~~ → item 14 entregue (editar, cancelar, excluir, diária por tabela) | Restam prestação de contas e ordem de missão preenchida a partir da viagem | P |
+| `/rh/relatorios` | `rh/RelatoriosRHPage.tsx` | incompleta | 7 PDFs de cadastro/portarias + relatórios de férias, licenças, frequência e viagens com filtros e PDF/XLSX (item 15a, `components/rh/relatorios/`); falta folha (15b); frequência só de servidores ativos; 16 queries na página | M |
 | `/rh/portarias/pendencias` | `rh/PendenciasPortariasPage.tsx` | incompleta | Link `/gabinete/portarias?id=` (`:287`) ignora o `id` e exige o módulo `gabinete` | P |
 | `/rh/meu-contracheque` | `rh/MeuContrachequePage.tsx` | incompleta | `useMeusContracheques` não filtra status da folha (`hooks/useContracheque.ts:69-91`): servidor vê folha em rascunho | P |
 | Demais 15 | lotação, servidores, licenças, designações, pendências, modelos, exportar, config. frequência, aniversariantes, pacotes, contracheques, folha (lista e configuração), currículo | pronta | Ressalvas menores: rotas duplicadas (`/lotacoes` × `/rh/gestao-lotacao`), queries em página, `/rh/exportar` sem permissão, modelos de documento em branco e fixos no código | P |
@@ -103,10 +103,10 @@ dependem de acesso ao Supabase do IDJUV.
 **Onda C — completar os fluxos que já existem**
 10. ~~`/prompt ajuste --modulo rh ServidorForm com zod, validação de CPF/PIS e erro do vínculo tratado`~~ — entregue na PR #49 (mesclada em 2026-10-09)
 11. ~~`/prompt crud --modulo rh Férias completas: editar/excluir, saldo de 30 dias, sobreposição, parcelas, 1/3`~~ — entregue na PR #51 (mesclada em 2026-10-09); 1/3 na folha ficou de fora
-12. `/prompt tela --modulo rh Fluxo de frequência: abono, validação da chefia, consolidação do RH e fechamento, usando os hooks já existentes` — em revisão na PR #52
-13. `/prompt tela --modulo rh Detalhe da folha: editar itens da ficha, consignações e dependentes IRRF`
-14. `/prompt ajuste --modulo rh Viagens: editar/excluir e diária calculada por tabela`
-15. `/prompt relatorio --modulo rh Relatórios de férias, licenças, frequência, viagens e folha`
+12. ~~`/prompt tela --modulo rh Fluxo de frequência: abono, validação da chefia, consolidação do RH e fechamento, usando os hooks já existentes`~~ — entregue na PR #52 (mesclada em 2026-10-09); policies da chefia e assinatura do servidor ficaram para a Onda B
+13. `/prompt tela --modulo rh Detalhe da folha: editar itens da ficha, consignações e dependentes IRRF` — em revisão na PR #56 (13a, só front); 13b (migração) na Onda B
+14. ~~`/prompt ajuste --modulo rh Viagens: editar/excluir e diária calculada por tabela`~~ — entregue nesta branch (editar, cancelar com motivo, excluir restrito, diária contada pelas datas e valor pela tabela do tenant `rh.diarias`, vazia até os valores do ato normativo serem informados); policies por permissão, CHECKs e tabela de diárias no banco ficaram para a Onda B
+15. `/prompt relatorio --modulo rh Relatórios de férias, licenças, frequência, viagens e folha` — **15a** (férias, licenças, frequência, viagens) entregue na branch `claude/project-thread-9af5aq-c6-relatorios-rh` (spec `docs/superpowers/specs/2026-10-10-rh-relatorios-gerenciais-design.md`); **15b** (folha: por competência, unidade e rubrica) a fazer
 
 **Onda D — profissionalizar (ferramentas do mercado, pesquisa de 2026-10-09)**
 16. Testes de folha, frequência e CNAB com Vitest (open source) e monitoramento de erros com Sentry (plano grátis).

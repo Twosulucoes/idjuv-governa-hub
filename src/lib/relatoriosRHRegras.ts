@@ -13,8 +13,9 @@ import {
   VIAGEM_STATUS_LABELS,
   type TipoAfastamento,
   type TipoLicenca,
+  LICENCA_STATUS_LABELS,
 } from "@/types/rh";
-import type { FrequenciaServidorResumo } from "@/hooks/useFrequencia";
+import type { FrequenciaServidor } from "@/lib/pdfRelatorioFrequencia";
 
 // ============================================
 // TIPOS
@@ -107,18 +108,12 @@ export interface Grupo<T> {
 // LABELS LOCAIS
 // ============================================
 
+// TODO: trocar por `TIPO_ONUS_LABELS` e `calcularTotalDiarias` de `src/lib/diariasRegras.ts`
+// quando a PR #58 (viagens) for mesclada; aqui estão duplicados para a branch compilar sozinha.
 /** Rótulos de ônus da viagem (mesmos valores do CHECK da tabela). */
 export const ONUS_LABELS: Record<string, string> = {
   com_onus: "Com Ônus",
   sem_onus: "Sem Ônus",
-};
-
-/** Status de licenças/afastamentos (coluna texto livre; estes são os usados pela tela). */
-export const LICENCA_STATUS_LABELS: Record<string, string> = {
-  ativa: "Ativa",
-  encerrada: "Encerrada",
-  prorrogada: "Prorrogada",
-  cancelada: "Cancelada",
 };
 
 export const SEM_UNIDADE = "Sem unidade";
@@ -147,6 +142,11 @@ export function filtroSobreposicao(
   inicio: string,
   fim: string,
 ): { colunaInicio: string; ateFim: string; expressaoOr: string } {
+  // A data entra numa expressão textual do PostgREST: só passa o formato ISO estrito,
+  // para que a função seja segura mesmo se chamada sem `periodoValido` antes.
+  if (!periodoValido(inicio, fim)) {
+    throw new Error("Período inválido para o filtro de sobreposição");
+  }
   return {
     colunaInicio: colInicio,
     ateFim: fim,
@@ -257,10 +257,17 @@ export function rotuloOnus(tipoOnus: string | null | undefined): string {
   return (tipoOnus && ONUS_LABELS[tipoOnus]) || tipoOnus || "-";
 }
 
-/** Dias da licença: o campo gravado ou, na falta dele, os dias corridos do intervalo. */
-export function diasLicenca(l: Pick<LinhaLicencaRelatorio, "dias_afastamento" | "data_inicio" | "data_fim">): number {
+/**
+ * Dias da licença: o campo gravado ou, na falta dele, os dias corridos do intervalo.
+ * Licença em aberto (`data_fim` nula) conta até `fimPeriodo` (fim do período filtrado),
+ * para não entrar como zero no subtotal; sem `fimPeriodo`, conta 0.
+ */
+export function diasLicenca(
+  l: Pick<LinhaLicencaRelatorio, "dias_afastamento" | "data_inicio" | "data_fim">,
+  fimPeriodo?: string,
+): number {
   if (l.dias_afastamento != null) return Number(l.dias_afastamento) || 0;
-  return diasInclusivos(l.data_inicio, l.data_fim);
+  return diasInclusivos(l.data_inicio, l.data_fim ?? fimPeriodo ?? null);
 }
 
 /** Valor total da viagem: o gravado ou, se nulo (legado), quantidade × valor da diária. */
@@ -304,9 +311,12 @@ export function nomeArquivoRelatorio(tipo: string, data: Date = new Date()): str
 // ORDENAÇÃO
 // ============================================
 
-/** Ordena por unidade e, dentro dela, por nome do servidor (pt-BR). */
+/** Ordena por unidade (as sem unidade por último) e, dentro dela, por nome do servidor (pt-BR). */
 export function ordenarPorUnidadeENome<T extends { servidor: ServidorRelatorio | null }>(linhas: T[]): T[] {
   return [...linhas].sort((a, b) => {
+    const semA = !a.servidor?.unidade;
+    const semB = !b.servidor?.unidade;
+    if (semA !== semB) return semA ? 1 : -1;
     const u = nomeUnidade(a.servidor).localeCompare(nomeUnidade(b.servidor), "pt-BR");
     if (u !== 0) return u;
     return nomeServidor(a.servidor).localeCompare(nomeServidor(b.servidor), "pt-BR");
@@ -333,7 +343,7 @@ export function linhaFeriasParaPlanilha(l: LinhaFeriasRelatorio): Record<string,
   };
 }
 
-export function linhaLicencaParaPlanilha(l: LinhaLicencaRelatorio): Record<string, unknown> {
+export function linhaLicencaParaPlanilha(l: LinhaLicencaRelatorio, fimPeriodo?: string): Record<string, unknown> {
   return {
     Servidor: nomeServidor(l.servidor),
     Matrícula: matriculaServidor(l.servidor),
@@ -341,7 +351,7 @@ export function linhaLicencaParaPlanilha(l: LinhaLicencaRelatorio): Record<strin
     Tipo: rotuloTipoAfastamento(l),
     Início: formatarDataISO(l.data_inicio),
     Fim: l.data_fim ? formatarDataISO(l.data_fim) : "Em aberto",
-    Dias: diasLicenca(l),
+    Dias: diasLicenca(l, fimPeriodo),
     Status: rotuloStatusLicenca(l.status),
     Portaria: l.portaria_numero ?? "-",
     "Órgão de destino": l.orgao_destino ?? "-",
@@ -366,7 +376,7 @@ export function linhaViagemParaPlanilha(v: LinhaViagemRelatorio): Record<string,
 }
 
 /** Frequência consolidada da competência; sem CPF (LGPD). */
-export function linhaFrequenciaParaPlanilha(s: FrequenciaServidorResumo): Record<string, unknown> {
+export function linhaFrequenciaParaPlanilha(s: FrequenciaServidor): Record<string, unknown> {
   return {
     Servidor: s.servidor_nome,
     Matrícula: s.servidor_matricula ?? "-",

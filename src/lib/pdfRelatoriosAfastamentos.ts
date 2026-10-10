@@ -96,7 +96,8 @@ const addTituloGrupo = (doc: jsPDF, titulo: string, contagem: string, y: number)
   setColor(doc, CORES.primaria);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
-  doc.text(titulo.substring(0, 90), PAGINA.margemEsquerda + 2, y);
+  const larguraContagem = doc.getTextWidth(contagem) + 6;
+  doc.text(caberNaColuna(doc, titulo, contentWidth - larguraContagem - 2), PAGINA.margemEsquerda + 2, y);
   doc.setFont('helvetica', 'normal');
   setColor(doc, CORES.cinzaMedio);
   doc.text(contagem, width - PAGINA.margemDireita - 2, y, { align: 'right' });
@@ -130,13 +131,15 @@ const addLinhaTotal = (
 
 /** Linha de resumo abaixo do cabeçalho: filtros aplicados e total de registros. */
 const addResumoFiltros = (doc: jsPDF, filtros: FiltrosImpressao, totalRegistros: number, y: number): number => {
-  const { width } = getPageDimensions(doc);
+  const { width, contentWidth } = getPageDimensions(doc);
   setColor(doc, CORES.cinzaMedio);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text(descreverFiltros(filtros), PAGINA.margemEsquerda, y);
+  // Filtros quebram em linhas antes da área reservada à contagem, à direita.
+  const linhasFiltro = doc.splitTextToSize(descreverFiltros(filtros), contentWidth - 30) as string[];
+  doc.text(linhasFiltro, PAGINA.margemEsquerda, y);
   doc.text(`${totalRegistros} registro${totalRegistros === 1 ? '' : 's'}`, width - PAGINA.margemDireita, y, { align: 'right' });
-  return y + 8;
+  return y + 4 * Math.max(linhasFiltro.length - 1, 0) + 8;
 };
 
 /** Rodapé em todas as páginas (não só na última), numeração e download. */
@@ -156,9 +159,9 @@ const finalizar = (doc: jsPDF, tipo: string) => {
 
 // Larguras somam 170 mm (retrato: 210 − margens de 20 mm).
 const COLUNAS_FERIAS: Coluna[] = [
-  { header: 'Servidor', width: 44 },
+  { header: 'Servidor', width: 42 },
   { header: 'Matrícula', width: 14 },
-  { header: 'Per. aquisitivo', width: 30 },
+  { header: 'Per. aquisitivo', width: 32 },
   { header: 'Início', width: 15 },
   { header: 'Fim', width: 15 },
   { header: 'Dias', width: 8 },
@@ -254,19 +257,19 @@ export const gerarRelatorioLicencas = async (linhas: LinhaLicencaRelatorio[], fi
         nomeUnidade(l.servidor),
         formatarDataISO(l.data_inicio),
         l.data_fim ? formatarDataISO(l.data_fim) : 'Em aberto',
-        String(diasLicenca(l)),
+        String(diasLicenca(l, filtros.fim)),
         rotuloStatusLicenca(l.status),
         l.portaria_numero ?? '-',
       ], COLUNAS_LICENCAS, y, idx % 2 === 1);
     });
 
     y = quebrarComCabecalho(doc, y, COLUNAS_LICENCAS);
-    y = addLinhaTotal(doc, 'Subtotal do tipo', { 5: String(somar(grupo.itens, diasLicenca)) }, COLUNAS_LICENCAS, y);
+    y = addLinhaTotal(doc, 'Subtotal do tipo', { 5: String(somar(grupo.itens, (l) => diasLicenca(l, filtros.fim))) }, COLUNAS_LICENCAS, y);
   });
 
   y = quebrarComCabecalho(doc, y, COLUNAS_LICENCAS);
   addLinhaTotal(doc, `Total geral: ${linhas.length} registro${linhas.length === 1 ? '' : 's'}`, {
-    5: String(somar(linhas, diasLicenca)),
+    5: String(somar(linhas, (l) => diasLicenca(l, filtros.fim))),
   }, COLUNAS_LICENCAS, y, true);
 
   finalizar(doc, 'licencas');

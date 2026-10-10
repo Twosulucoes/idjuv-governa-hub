@@ -23,6 +23,7 @@ export function FiltroCompetencia({ ano, mes, onChange, anosAtras = 5 }: FiltroC
   const anoAtual = new Date().getFullYear();
   const anos = Array.from({ length: anosAtras }, (_, i) => anoAtual - i);
   if (!anos.includes(ano)) anos.push(ano);
+  anos.sort((a, b) => b - a);
 
   return (
     <div className="grid grid-cols-2 gap-3">

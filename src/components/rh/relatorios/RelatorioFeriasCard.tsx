@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CalendarDays } from "lucide-react";
 import { toast } from "sonner";
@@ -13,6 +13,8 @@ import { FiltroSelect } from "./FiltroSelect";
 import { BotoesExportar, type FormatoExportacao } from "./BotoesExportar";
 import { PreviaRegistros } from "./PreviaRegistros";
 
+const rotuloDias = (n: number) => `${n} dia${n === 1 ? "" : "s"}`;
+
 /** Férias que cruzam o período, agrupadas por unidade, em PDF ou XLSX. */
 export function RelatorioFeriasCard() {
   const [periodo, setPeriodo] = useState(periodoMesAtual);
@@ -24,10 +26,6 @@ export function RelatorioFeriasCard() {
   const valido = periodoValido(periodo.inicio, periodo.fim);
   const { data: linhas = [], isLoading, isError } = useFeriasRelatorio(filtros);
   const unidadeNome = useNomeUnidadeSelecionada(unidadeId);
-
-  useEffect(() => {
-    if (isError) toast.error("Não foi possível consultar as férias do período.");
-  }, [isError]);
 
   const handleExportar = async (formato: FormatoExportacao) => {
     if (linhas.length === 0) return;
@@ -76,7 +74,7 @@ export function RelatorioFeriasCard() {
             carregando={isLoading}
             erro={isError}
             total={linhas.length}
-            detalhe={`${somar(linhas, (l) => l.dias_gozados)} dias`}
+            detalhe={rotuloDias(somar(linhas, (l) => l.dias_gozados))}
           />
         </div>
 

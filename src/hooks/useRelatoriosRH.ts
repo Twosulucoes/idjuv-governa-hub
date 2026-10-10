@@ -26,7 +26,7 @@ import {
 
 export type { FiltroPeriodoUnidade, FiltroViagens, LinhaFeriasRelatorio, LinhaLicencaRelatorio, LinhaViagemRelatorio };
 
-/** Tamanho da página do PostgREST (limite padrão do servidor). */
+/** Tamanho pedido por página (o servidor pode devolver menos se `max-rows` for menor). */
 const PAGINA = 1000;
 
 /**
@@ -52,15 +52,19 @@ const chave = (f: FiltroPeriodoUnidade | FiltroViagens) => [
 /** Query construída com um offset de página (para `.range`). */
 type ConstrutorPagina = (de: number, ate: number) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>;
 
-/** Percorre todas as páginas de 1000 até vir uma página incompleta. */
+/**
+ * Percorre todas as páginas até vir uma vazia. Avança pelo que de fato veio (e não por
+ * `PAGINA`), para não pular linhas se o `max-rows` do servidor for menor que o pedido.
+ */
 async function buscarTodasPaginas<T>(construir: ConstrutorPagina): Promise<T[]> {
   const todas: T[] = [];
-  for (let de = 0; ; de += PAGINA) {
+  for (let de = 0; ; ) {
     const { data, error } = await construir(de, de + PAGINA - 1);
     if (error) throw error;
     const pagina = (data ?? []) as T[];
+    if (pagina.length === 0) break;
     todas.push(...pagina);
-    if (pagina.length < PAGINA) break;
+    de += pagina.length;
   }
   return todas;
 }
@@ -90,6 +94,7 @@ export function useFeriasRelatorio(filtros: FiltroPeriodoUnidade) {
           .lte(sobre.colunaInicio, sobre.ateFim)
           .or(sobre.expressaoOr)
           .order("data_inicio")
+          .order("id")
           .range(de, ate);
         if (filtros.status) q = q.eq("status", filtros.status);
         if (filtros.unidadeId) q = q.eq("servidor.unidade_atual_id", filtros.unidadeId);
@@ -125,6 +130,7 @@ export function useLicencasRelatorio(filtros: FiltroPeriodoUnidade) {
           .lte(sobre.colunaInicio, sobre.ateFim)
           .or(sobre.expressaoOr)
           .order("data_inicio")
+          .order("id")
           .range(de, ate);
         if (filtros.status) q = q.eq("status", filtros.status);
         if (filtros.unidadeId) q = q.eq("servidor.unidade_atual_id", filtros.unidadeId);
@@ -160,6 +166,7 @@ export function useViagensRelatorio(filtros: FiltroViagens) {
           .lte(sobre.colunaInicio, sobre.ateFim)
           .or(sobre.expressaoOr)
           .order("data_saida")
+          .order("id")
           .range(de, ate);
         if (filtros.status) q = q.eq("status", filtros.status);
         if (filtros.tipoOnus) q = q.eq("tipo_onus", filtros.tipoOnus);

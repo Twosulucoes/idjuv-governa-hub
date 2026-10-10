@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -19,9 +19,8 @@ import { PreviaRegistros } from "./PreviaRegistros";
  * com filtro de unidade no cliente e agrupamento opcional por unidade no PDF.
  */
 export function RelatorioFrequenciaCard() {
-  const hoje = new Date();
-  const [ano, setAno] = useState(hoje.getFullYear());
-  const [mes, setMes] = useState(hoje.getMonth() + 1);
+  const [ano, setAno] = useState(() => new Date().getFullYear());
+  const [mes, setMes] = useState(() => new Date().getMonth() + 1);
   const [unidadeId, setUnidadeId] = useState<string | undefined>();
   const [agruparPorUnidade, setAgruparPorUnidade] = useState(true);
   const [gerando, setGerando] = useState<FormatoExportacao | null>(null);
@@ -39,10 +38,6 @@ export function RelatorioFrequenciaCard() {
     [resumo, unidadeId],
   );
 
-  useEffect(() => {
-    if (isError) toast.error("Não foi possível consultar a frequência da competência.");
-  }, [isError]);
-
   const competencia = `${String(mes).padStart(2, "0")}/${ano}`;
 
   const handleExportar = async (formato: FormatoExportacao) => {
@@ -53,7 +48,7 @@ export function RelatorioFrequenciaCard() {
         await generateRelatorioFrequenciaGeral({
           competencia,
           servidores,
-          dataGeracao: hoje.toLocaleDateString("pt-BR"),
+          dataGeracao: new Date().toLocaleDateString("pt-BR"),
           filtroUnidade: unidadeNome,
           agruparPorUnidade,
         });

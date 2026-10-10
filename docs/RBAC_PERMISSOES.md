@@ -136,6 +136,24 @@ não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos 
   Mesma dívida de `/rh/meus-dados`: policy de leitura da própria linha em `servidores` e
   alinhamento `profiles.servidor_id` ↔ `servidores.user_id` (migração de RLS).
 
+### Relatórios de RH (`/rh/relatorios`)
+
+- A rota exige `rh.relatorios.visualizar` (`App.tsx`, `ROUTE_PERMISSIONS`) e o item "Relatórios" do
+  menu do RH pede a mesma permissão (antes pedia `rh.visualizar`, o que mostrava o link a quem a rota
+  recusava). O catálogo concede `rh.relatorios.visualizar` aos papéis `admin`, `manager` e `user`
+  (`supabase/baseline/schema/02_dados_catalogo.sql`), então na prática quem tem o módulo `rh` acessa.
+- Não há permissão por relatório. A RLS de `ferias_servidor`, `licencas_afastamentos` e
+  `frequencia_mensal` libera SELECT a quem tem o módulo `rh` (ou à própria linha); `viagens_diarias`,
+  a quem tem `rh` ou `financeiro` (`supabase/baseline/rls/35_policies_geradas.sql`). Os relatórios
+  de férias, licenças, frequência e viagens só leem essas tabelas, sem RPC nem view nova, portanto
+  não expõem nada além do que `/rh/ferias`, `/rh/licencas`, `/rh/frequencia` e `/rh/viagens` já
+  mostram. RLS granular por papel dentro do RH continua pendente (Onda B, item 8 de
+  `docs/planejamento/FINALIZACAO.md`).
+- LGPD: os quatro relatórios novos identificam o servidor por nome e matrícula e não selecionam
+  CPF, CID/CRM/médico, documento comprobatório, observações de licença nem dados bancários
+  (`src/hooks/useRelatoriosRH.ts`, colunas explícitas). Os PDFs antigos de `pdfRelatoriosRH.ts`
+  continuam imprimindo CPF — dívida registrada, fora desta entrega.
+
 ### Importação de dados
 
 Cada importador declara a sua permissão (`src/lib/importacao/registro.ts`) e a RPC dele confere a

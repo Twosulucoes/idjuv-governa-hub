@@ -18,7 +18,7 @@ Documento vivo, mantido pelo agente `documentador-idjuv`. Fluxo de trabalho: ver
   - confirmar os termos de uso da Esri World Imagery para uso institucional.
 
 ## Em planejamento
-- [ ] **RH — finalização em ondas A–E** — Onda A mesclada em 2026-10-09 (PRs #36, #37, #38, #40, #42, #43); Onda C: itens 10 e 11 mesclados (PRs #49, #51), item 12 na PR #52, itens 13–15 a fazer (A: 6 correções sem banco; B: segurança; C: completar fluxos; D: ferramentas; E: domínios novos) — ver [FINALIZACAO.md](./FINALIZACAO.md#recursos-humanos-rh--2026-10-09)
+- [ ] **RH — finalização em ondas A–E** — Onda A mesclada em 2026-10-09 (PRs #36, #37, #38, #40, #42, #43); Onda C: itens 10–12 mesclados (PRs #49, #51, #52), item 13 em revisão (PR #56), item 14 em PR (#58), item 15a em PR, 15b (folha) a fazer (A: 6 correções sem banco; B: segurança; C: completar fluxos; D: ferramentas; E: domínios novos) — ver [FINALIZACAO.md](./FINALIZACAO.md#recursos-humanos-rh--2026-10-09)
 - [ ] **Reformulação do design / Design System** (transversal) — spec [2026-10-09-design-system-design.md](../superpowers/specs/2026-10-09-design-system-design.md), plano [2026-10-09-design-system.md](../superpowers/plans/2026-10-09-design-system.md). Fases 0 (skill `ui-ux-pro-max` + spec) e 1 (tokens, contraste AA, IBM Plex Sans, guards no gate, vitrine `/admin/design-system`) e 2 (componentes `@/components/design-system`: PageHeader, DataTable, StatusBadge, EmptyState, KpiCard, ChartCard, FormSection, ErrorSummary) feitas; Fase 3 em andamento com o RH como piloto: shell acessível e painel/lista/ficha do servidor migrados; o formulário de servidor entra depois da Onda C do RH.
 
 ## Backlog

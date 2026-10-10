@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plane } from "lucide-react";
 import { toast } from "sonner";
@@ -35,10 +35,6 @@ export function RelatorioViagensCard() {
   const valido = periodoValido(periodo.inicio, periodo.fim);
   const { data: linhas = [], isLoading, isError } = useViagensRelatorio(filtros);
   const unidadeNome = useNomeUnidadeSelecionada(unidadeId);
-
-  useEffect(() => {
-    if (isError) toast.error("Não foi possível consultar as viagens do período.");
-  }, [isError]);
 
   const handleExportar = async (formato: FormatoExportacao) => {
     if (linhas.length === 0) return;

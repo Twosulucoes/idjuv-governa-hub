@@ -30,7 +30,8 @@ licenças, frequência, viagens e folha`.
      (fora de escopo).
    - **Licenças e afastamentos**: agrupado por `tipo_afastamento` (labels `AFASTAMENTO_LABELS`/`LICENCA_LABELS`
      de `src/types/rh.ts`) com subtotal de dias; colunas servidor, matrícula, unidade, tipo, início, fim, dias,
-     status, portaria.
+     status, portaria. Licença em aberto (sem `data_fim`) aparece como "Em aberto" e conta dias até o fim do
+     período filtrado, para não entrar como zero no subtotal.
    - **Frequência**: consolidado da competência, reaproveitando `generateRelatorioFrequenciaGeral` de
      `src/lib/pdfRelatorioFrequencia.ts` com novo parâmetro opcional `agruparPorUnidade` (subtotais por
      unidade); dados de `useFrequenciaResumo(ano, mes)`. Só servidores ativos (limitação do hook atual,
@@ -47,7 +48,7 @@ licenças, frequência, viagens e folha`.
    Viagens em paisagem (mais colunas).
 7. **Hooks compartilhados não mudam**: `useFerias`, `useViagens`, `useFrequencia` ficam como estão (usados por
    telas em andamento). Os relatórios ganham `src/hooks/useRelatoriosRH.ts` com queries próprias
-   (`enabled` só com filtros válidos, `.range()` em páginas de 1000 quando necessário).
+   (`enabled` só com filtros válidos, paginação por `.range()` avançando pelo que o servidor devolveu, ordenação com desempate por `id`). Servidores sem unidade ficam por último na ordenação.
 8. **Página aditiva**: `src/pages/rh/RelatoriosRHPage.tsx` só recebe uma seção nova ("Afastamentos, frequência
    e viagens") com os cards, abaixo do grid atual; os handlers antigos não são reformatados. Rota mantém
    `rh.relatorios.visualizar`; o item de menu passa de `rh.visualizar` para `rh.relatorios.visualizar`
@@ -80,5 +81,6 @@ licenças, frequência, viagens e folha`.
 ## Verificação
 
 `bash scripts/gate.sh` verde; script de asserções para `relatoriosRHRegras.ts` (agrupamento, somas, período,
-linhas de planilha); PDF gerado com dados de exemplo (script Node com jsPDF, sem DOM) e conferido; revisão
-`revisor-codigo-idjuv` + `revisor-seguranca-idjuv` (LGPD).
+linhas de planilha, rejeição de data fora do ISO no filtro) e PDF gerado com dados de exemplo (script Node com
+jsPDF, sem DOM) e conferido — os dois scripts ficam no rascunho da sessão, fora do repositório (o repo não tem
+suíte de testes); revisão `revisor-codigo-idjuv` + `revisor-seguranca-idjuv` (LGPD).
