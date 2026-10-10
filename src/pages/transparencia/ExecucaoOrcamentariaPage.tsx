@@ -28,20 +28,8 @@ export default function ExecucaoOrcamentariaPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('dotacoes_orcamentarias')
-        .select(`
-          id,
-          exercicio,
-          programa,
-          acao,
-          elemento_despesa,
-          fonte_recurso,
-          valor_inicial,
-          valor_atualizado,
-          valor_empenhado,
-          valor_liquidado,
-          valor_pago,
-          unidades_orcamentarias(nome)
-        `)
+        // Só os valores somados por exercício: a página mostra apenas totais
+        .select('exercicio, valor_inicial, valor_atual, valor_empenhado, valor_liquidado, valor_pago')
         .order('exercicio', { ascending: false });
       
       if (error) throw error;
@@ -50,10 +38,7 @@ export default function ExecucaoOrcamentariaPage() {
   });
 
   // Agregar por exercício (dados agregados, sem identificação pessoal)
-  // PENDÊNCIA: os tipos gerados não conhecem a coluna `acao` usada no select; conferir o
-  // schema de dotacoes_orcamentarias. A linha é tipada à mão, como antes (quando era `any`).
-  type LinhaDotacao = { exercicio: number } & Partial<Record<"valor_inicial" | "valor_atualizado" | "valor_empenhado" | "valor_liquidado" | "valor_pago", number | null>>;
-  const resumoPorAno = ((dotacoes || []) as unknown as LinhaDotacao[]).reduce((acc: Record<number, ResumoAno>, d) => {
+  const resumoPorAno = (dotacoes || []).reduce((acc: Record<number, ResumoAno>, d) => {
     const ano = d.exercicio;
     if (!acc[ano]) {
       acc[ano] = {
@@ -67,7 +52,7 @@ export default function ExecucaoOrcamentariaPage() {
       };
     }
     acc[ano].valor_inicial += d.valor_inicial || 0;
-    acc[ano].valor_atualizado += d.valor_atualizado || 0;
+    acc[ano].valor_atualizado += d.valor_atual || 0;
     acc[ano].valor_empenhado += d.valor_empenhado || 0;
     acc[ano].valor_liquidado += d.valor_liquidado || 0;
     acc[ano].valor_pago += d.valor_pago || 0;
