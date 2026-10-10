@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Pencil, Trophy } from 'lucide-react';
 import type { ArbitroFormData } from '../CadastroArbitroPage';
+import { ImagemArbitro } from '../ArquivoArbitro';
 
 interface Props {
   data: ArbitroFormData;
@@ -106,7 +107,7 @@ export function StepRevisao({ data, onEdit }: Props) {
         </div>
         <div className="flex items-center gap-4">
           {data.foto_url ? (
-            <img src={data.foto_url} alt="Foto" className="w-16 h-16 rounded-lg object-cover border" />
+            <ImagemArbitro referencia={data.foto_url} className="w-16 h-16 rounded-lg object-cover border" />
           ) : (
             <span className="text-sm text-muted-foreground">Nenhuma foto enviada</span>
           )}

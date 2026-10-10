@@ -649,3 +649,28 @@ COMMENT ON FUNCTION public.transparencia_licitacoes(integer, text) IS
   'Exceção pública intencional (LAI, transparência ativa): executável por anon. Expõe de processos_licitatorios id, numero_processo, ano, modalidade, objeto, fase_atual, valor_estimado, data_abertura, data_homologacao (NULL: a tabela não tem a coluna), nome da unidade requisitante e, do vencedor pessoa jurídica, razão social e CNPJ mascarado (8 dígitos + **** + 2). Processos na fase interna (planejamento, elaboração, edital) ou sem fase não aparecem (valor estimado pode ser sigiloso, Lei 14.133 art. 24); o vencedor só aparece a partir da homologação; vencedor pessoa física nunca é exposto: sem vencedor PJ, razão social e CNPJ saem NULL.';
 COMMENT ON FUNCTION public.transparencia_patrimonio() IS
   'Exceção pública intencional (LAI, transparência ativa): executável por anon. Expõe de bens_patrimoniais id, numero_patrimonio, descricao, marca, modelo, situacao, estado_conservacao, valor_aquisicao, data_aquisicao, nome e município da unidade local e nome da unidade organizacional. Nunca responsável nem dado pessoal.';
+
+-- Cota de uso por usuário das Edge Functions caras ou abusáveis (migração 20261010233100): conta e registra
+-- em audit_logs na mesma transação, sob lock por (tipo, usuário). Só a service role executa (40_privilegios).
+CREATE OR REPLACE FUNCTION public.consumir_cota_uso(
+  _usuario uuid, _tipo text, _quantidade integer, _limite integer, _modulo text, _descricao text
+) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  usado integer;
+BEGIN
+  IF _usuario IS NULL OR _tipo IS NULL OR coalesce(_quantidade, 0) < 1 OR coalesce(_limite, 0) < 1 THEN
+    RETURN false;
+  END IF;
+  PERFORM pg_advisory_xact_lock(hashtext('cota_uso:' || _tipo), hashtext(_usuario::text));
+  SELECT coalesce(sum(coalesce((metadata ->> 'quantidade')::integer, 1)), 0) INTO usado
+    FROM public.audit_logs
+   WHERE user_id = _usuario AND entity_type = _tipo AND "timestamp" >= now() - interval '1 hour';
+  IF usado + _quantidade > _limite THEN
+    RETURN false;
+  END IF;
+  INSERT INTO public.audit_logs (action, entity_type, user_id, module_name, description, metadata)
+  VALUES ('submit', _tipo, _usuario, _modulo, _descricao, jsonb_build_object('quantidade', _quantidade));
+  RETURN true;
+END;
+$$;

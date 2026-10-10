@@ -354,9 +354,11 @@ RG, e-mail, dados bancários, links de documentos). **A partir da migração
 pode **inserir**; a leitura é só para usuário autenticado. O formulário público usa
 as RPCs `arbitro_cpf_cadastrado(p_cpf)` (devolve apenas se o CPF já existe) e
 `obter_protocolo_arbitro(p_id)` (devolve só o protocolo do `id` gerado no
-navegador). O bucket `arbitros-docs` deixa de aceitar listagem anônima, mas
-**continua público**: quem tem a URL de um arquivo ainda o baixa (fechar isso
-exige bucket privado com URL assinada; pendência).
+navegador). O bucket `arbitros-docs` é **privado** desde a migração
+`supabase/migrations/20261010233000_onda2_arbitros_docs_privado.sql`: o formulário público só envia, e
+quem tem o módulo `arbitros` abre os arquivos por URL assinada de 10 minutos
+(`src/hooks/useArquivoArbitro.ts`). As tabelas continuam guardando o endereço no
+formato `/object/public/arbitros-docs/...`, só como referência ao caminho.
 
 ### Gestores escolares (JER)
 `gestores_escolares`, `gestores_escolares_historico`, `escolas_jer`.

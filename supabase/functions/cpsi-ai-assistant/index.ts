@@ -81,6 +81,49 @@ function translateGeminiStreamToOpenAI(geminiBody: ReadableStream<Uint8Array>): 
   });
 }
 
+// Limites de uso (a API do Gemini é cobrada por token): tamanho do pedido, tamanho da resposta e
+// chamadas por usuário por hora. A cota é consumida pela RPC consumir_cota_uso (conta e registra em
+// audit_logs, entity_type cpsi_ia, na mesma transação: pedidos em paralelo não passam juntos).
+const LIMITE_CHAMADAS_HORA = 30;
+const LIMITE_CAMPO = 10000; // caracteres por campo de texto (cabe o que a própria IA preenche)
+const LIMITE_TOTAL = 60000; // caracteres somando todos os campos do pedido
+const LIMITE_TOKENS_RESPOSTA = 16384; // inclui o raciocínio do modelo (thinkingBudget abaixo)
+const ORCAMENTO_RACIOCINIO = 2048;
+const ACOES = ["fill_all", "fill_field", "review"];
+const DOCUMENTOS = ["dfd", "etp", "tr"];
+
+function respostaJson(cors: Record<string, string>, status: number, corpo: unknown) {
+  return new Response(JSON.stringify(corpo), {
+    status,
+    headers: { ...cors, "Content-Type": "application/json" },
+  });
+}
+
+/** Mensagem de erro se o pedido passar dos limites de tamanho ou tiver ação/documento desconhecido. */
+function validarPedido(body: RequestBody): string | null {
+  if (!ACOES.includes(body?.action) || !DOCUMENTOS.includes(body?.documentType)) {
+    return "Pedido inválido";
+  }
+  const textos: unknown[] = [body.context, body.fieldName, body.fieldLabel, body.currentValue];
+  if (body.formData !== undefined) {
+    if (typeof body.formData !== "object" || body.formData === null || Array.isArray(body.formData)) {
+      return "Pedido inválido";
+    }
+    const entradas = Object.entries(body.formData);
+    if (entradas.length > 60) return "Pedido inválido";
+    for (const [k, v] of entradas) textos.push(k, v);
+  }
+  let total = 0;
+  for (const t of textos) {
+    if (t === undefined || t === null) continue;
+    if (typeof t !== "string") return "Pedido inválido";
+    if (t.length > LIMITE_CAMPO) return `Cada campo pode ter no máximo ${LIMITE_CAMPO} caracteres.`;
+    total += t.length;
+  }
+  if (total > LIMITE_TOTAL) return `O documento passa de ${LIMITE_TOTAL} caracteres; revise por partes.`;
+  return null;
+}
+
 interface RequestBody {
   action: "fill_all" | "fill_field" | "review";
   documentType: "dfd" | "etp" | "tr";
@@ -100,10 +143,8 @@ serve(async (req) => {
 
   try {
     // Esta função chama a API do Gemini (GEMINI_API_KEY, cobrada por uso) —
-    // exige sessão autenticada válida para evitar uso anônimo/abusivo de
-    // créditos. Qualquer usuário autenticado pode chamar (não é ação
-    // admin-only, é usada nos formulários de CPSI/compras), mas nunca sem
-    // sessão.
+    // exige sessão válida, o módulo compras (o CPSI é contratação) e respeita
+    // os limites de tamanho e de chamadas por hora definidos acima.
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
@@ -126,11 +167,41 @@ serve(async (req) => {
       });
     }
 
+    const { data: temModulo, error: moduloError } = await supabaseUser.rpc(
+      "can_access_module", { _user_id: caller.id, _module: "compras" }
+    );
+    if (moduloError) return respostaJson(cors, 500, { error: "Falha ao validar permissões" });
+    if (!temModulo) return respostaJson(cors, 403, { error: "Acesso negado. Requer o módulo de compras." });
+
+    const body: RequestBody = await req.json().catch(() => null);
+    const invalido = validarPedido(body as RequestBody);
+    if (invalido) return respostaJson(cors, 400, { error: invalido });
+
+    // Cota por usuário na última hora (service role: só ela executa consumir_cota_uso).
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+    const { data: dentroDaCota, error: cotaError } = await admin.rpc("consumir_cota_uso", {
+      _usuario: caller.id,
+      _tipo: "cpsi_ia",
+      _quantidade: 1,
+      _limite: LIMITE_CHAMADAS_HORA,
+      _modulo: "compras",
+      _descricao: `Assistente de IA do CPSI: ${body.action} (${body.documentType})`,
+    });
+    if (cotaError) return respostaJson(cors, 500, { error: "Falha ao verificar o limite de uso" });
+    if (!dentroDaCota) {
+      return respostaJson(cors, 429, {
+        error: `Limite de ${LIMITE_CHAMADAS_HORA} pedidos por hora ao assistente atingido. Tente mais tarde.`,
+      });
+    }
+
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY não configurada");
     const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash";
 
-    const body: RequestBody = await req.json();
     const { action, documentType, context, fieldName, fieldLabel, currentValue, formData } = body;
 
     let userPrompt = "";
@@ -266,6 +337,10 @@ Seja específico e cite artigos de lei quando pertinente.`;
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+        generationConfig: {
+          maxOutputTokens: LIMITE_TOKENS_RESPOSTA,
+          thinkingConfig: { thinkingBudget: ORCAMENTO_RACIOCINIO },
+        },
       }),
     });
 
@@ -294,6 +369,11 @@ Seja específico e cite artigos de lei quando pertinente.`;
     // For fill_all and fill_field, return the full response
     const data = await aiResponse.json();
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    if (data.candidates?.[0]?.finishReason === "MAX_TOKENS") {
+      return respostaJson(cors, 422, {
+        error: "A resposta da IA passou do tamanho máximo. Preencha por campos ou resuma a descrição.",
+      });
+    }
 
     if (action === "fill_all") {
       // Parse JSON from content
@@ -320,7 +400,8 @@ Seja específico e cite artigos de lei quando pertinente.`;
     });
   } catch (e) {
     console.error("cpsi-ai-assistant error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }), {
+    // Detalhe só no log: a mensagem interna não vai para o navegador.
+    return new Response(JSON.stringify({ error: "Erro ao processar o pedido de IA" }), {
       status: 500,
       headers: { ...cors, "Content-Type": "application/json" },
     });

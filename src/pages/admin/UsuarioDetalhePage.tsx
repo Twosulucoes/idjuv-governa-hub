@@ -64,6 +64,12 @@ export default function UsuarioDetalhePage() {
     await toggleModulo(usuario.id, modulo, temAtualmente);
   };
 
+  // Respostas 4xx da função chegam como FunctionsHttpError; a mensagem útil está no corpo.
+  const mensagemDaFuncao = async (error: Error) => {
+    const corpo = await (error as { context?: Response }).context?.json?.().catch(() => null);
+    return corpo?.error || error.message;
+  };
+
   const handleResetPassword = async () => {
     if (!usuario) return;
     setResetting(true);
@@ -71,7 +77,7 @@ export default function UsuarioDetalhePage() {
       const { data, error } = await supabase.functions.invoke('admin-reset-password', {
         body: { userId: usuario.id }
       });
-      if (error) { toast({ variant: 'destructive', title: 'Erro ao resetar senha', description: error.message }); return; }
+      if (error) { toast({ variant: 'destructive', title: 'Erro ao resetar senha', description: await mensagemDaFuncao(error) }); return; }
       if (data?.error) { toast({ variant: 'destructive', title: 'Erro', description: data.error }); return; }
       setTempPassword(data.senhaTemporaria);
       setResetDialogOpen(true);
@@ -96,7 +102,7 @@ export default function UsuarioDetalhePage() {
       const { data, error } = await supabase.functions.invoke('delete-user', {
         body: { userId: usuario.id }
       });
-      if (error) { toast({ variant: 'destructive', title: 'Erro ao excluir usuário', description: error.message }); return; }
+      if (error) { toast({ variant: 'destructive', title: 'Erro ao excluir usuário', description: await mensagemDaFuncao(error) }); return; }
       if (data?.error) { toast({ variant: 'destructive', title: 'Erro', description: data.error }); return; }
       toast({ title: 'Usuário excluído', description: `O usuário ${usuario.email} foi excluído permanentemente.` });
       navigate('/admin/usuarios');

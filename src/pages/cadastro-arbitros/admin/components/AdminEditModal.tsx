@@ -16,6 +16,8 @@ import { Loader2, Save, Plus, Trash2, Trophy, Upload, X, FileText } from "lucide
 import { MODALIDADES_ESPORTIVAS } from "../../modalidadesEsportivas";
 import { syncModalidades, type ModalidadeInput } from "../arbitrosAdminService";
 import type { ArbitroCadastro } from "../arbitrosAdminService";
+import { LinkArquivoArbitro } from "../../ArquivoArbitro";
+import { referenciaArquivoArbitro } from "@/hooks/useArquivoArbitro";
 
 interface Props {
   arbitro: ArbitroCadastro;
@@ -118,8 +120,7 @@ export function AdminEditModal({ arbitro, onClose, onSave, loading: externalLoad
         toast.error("Erro no upload: " + error.message);
         continue;
       }
-      const { data: urlData } = supabase.storage.from("arbitros-docs").getPublicUrl(path);
-      newUrls.push(urlData.publicUrl);
+      newUrls.push(referenciaArquivoArbitro(path));
     }
 
     updateModalidade(index, "documentos_urls", newUrls);
@@ -309,7 +310,7 @@ export function AdminEditModal({ arbitro, onClose, onSave, loading: externalLoad
                         {mod.documentos_urls.map((url, di) => (
                           <div key={di} className="flex items-center gap-2 bg-muted/50 rounded px-2 py-1 text-xs">
                             <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
-                            <a href={url} target="_blank" rel="noopener noreferrer" className="truncate flex-1 hover:underline">Doc {di + 1}</a>
+                            <LinkArquivoArbitro referencia={url} className="truncate flex-1 hover:underline">Doc {di + 1}</LinkArquivoArbitro>
                             <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => removeDoc(index, di)}>
                               <X className="h-3 w-3" />
                             </Button>

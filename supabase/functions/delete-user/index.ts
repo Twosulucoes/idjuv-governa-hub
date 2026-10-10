@@ -21,9 +21,6 @@ function corsHeaders(req: Request) {
   };
 }
 
-// Super admin protegido — não pode ser excluído (ver shared/config/protected-users)
-const PROTECTED_SUPER_ADMIN_ID = "b53e0eea-bf59-4de9-b71e-5d36d3c69bb8";
-
 serve(async (req) => {
   const cors = corsHeaders(req);
 
@@ -82,8 +79,27 @@ serve(async (req) => {
       throw new Error("Você não pode excluir sua própria conta");
     }
 
-    if (userId === PROTECTED_SUPER_ADMIN_ID) {
-      throw new Error("Este usuário é protegido e não pode ser excluído");
+    // Nenhum administrador é excluído por esta função (antes só um UUID fixo era protegido, e ele não
+    // existe num banco novo). Para excluir um admin, outro admin tira o papel antes, e isso fica na trilha.
+    const { data: alvoAdmin, error: alvoError } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .limit(1);
+
+    if (alvoError) {
+      throw new Error("Falha ao verificar o usuário");
+    }
+
+    if ((alvoAdmin ?? []).length > 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Administradores não podem ser excluídos. Remova o papel de administrador antes.",
+        }),
+        { status: 403, headers: { ...cors, "Content-Type": "application/json" } }
+      );
     }
 
     // Buscar dados do usuário antes de excluir (para log)

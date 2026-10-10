@@ -131,8 +131,9 @@ contrário é possível autorregistro via API.
 - `AuthPage` com rate-limiting/lockout, validação `zod` e sem cadastro público.
 - `admin-create-user`/`admin-reset-password` validam o chamador e normalizam
   e-mail; reset gera senha temporária e marca troca obrigatória.
-- `delete-user` registra `audit_logs`, impede auto-exclusão e protege o super
-  admin.
+- `delete-user` registra `audit_logs`, impede auto-exclusão e recusa excluir
+  qualquer administrador; `admin-reset-password` recusa outro administrador e
+  grava `audit_logs` (Onda 2, ver `docs/EDGE_FUNCTIONS.md`).
 
 ## Nota sobre o modelo de permissões (M1)
 

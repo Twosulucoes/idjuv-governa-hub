@@ -2208,6 +2208,7 @@ CREATE POLICY "rls_delete" ON public.gestores_escolares FOR DELETE TO authentica
   USING ((public.can_access_module(auth.uid(), 'gestores_escolares')));
 
 -- gestores_escolares_historico  [trilha: gestores_escolares]
+DROP POLICY IF EXISTS "Admin pode ver todo histórico" ON public.gestores_escolares_historico;
 DROP POLICY IF EXISTS "rls_select" ON public.gestores_escolares_historico;
 CREATE POLICY "rls_select" ON public.gestores_escolares_historico FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'gestores_escolares')));

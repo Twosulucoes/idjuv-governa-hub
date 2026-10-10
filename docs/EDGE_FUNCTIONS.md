@@ -59,9 +59,33 @@ As três exigem o **papel** `admin` (`is_admin_user`, que também exige perfil a
 `admin.usuarios`: o papel `user` recebe essa permissão quando tem o módulo `admin`, e com ela
 `admin-create-user` devolvia o UUID de qualquer e-mail (e reativava o perfil), `admin-reset-password` devolvia uma
 senha temporária e `delete-user` apagava a conta de qualquer não-administrador. A senha temporária sai de
-`crypto.getRandomValues`. `delete-user` continua protegendo o UUID fixo do super admin do cliente antigo
-(`PROTECTED_SUPER_ADMIN_ID`), que não existe num banco novo: o último administrador de um banco novo só é protegido
-por não poder excluir a si mesmo.
+`crypto.getRandomValues`. Desde a Onda 2 da revisão de permissões (10/10/2026), um administrador não redefine a
+senha de **outro** administrador (só a recuperação por e-mail, que chega ao dono) nem exclui um administrador
+(`delete-user` recusa qualquer alvo com o papel `admin`; para excluir, tira-se o papel antes, o que fica na
+trilha de `user_roles`). Todo reset de senha grava `audit_logs` (`password_reset`, quem fez e para quem, nunca a senha).
+`database-schema` também passou a exigir o papel `admin` (antes bastava `admin.usuarios`).
+
+### Assistente de IA (`cpsi-ai-assistant`)
+
+Exige sessão, o módulo `compras` e respeita limites: 10.000 caracteres por campo, 60.000 no pedido inteiro,
+16.384 tokens de resposta (com 2.048 de raciocínio) e 30 chamadas por usuário por hora. Resposta cortada pelo
+teto vira erro claro (422). Erros internos não vão para o navegador.
+
+### Convite de reunião (`enviar-convite-reuniao`)
+
+Só o criador da reunião ou um administrador envia. Limites contra uso como disparador de mensagens com a marca
+do órgão: 50 participantes por chamada, 200 convites por usuário por hora (reenvios contam), mensagem livre de
+até 2.000 caracteres e nenhum link (com esquema, `www.` ou domínio nu) no texto final de cada destinatário,
+no local, na pauta ou na assinatura além do link da própria reunião. CORS por `ALLOWED_ORIGINS`, como as
+demais. Pendente (modelo novo): o módulo `gabinete` ainda pode trocar o `created_by` de uma reunião pela API,
+e o link da reunião é livre (uma lista de domínios por instância fecharia isso).
+
+### Cota de uso (`consumir_cota_uso`)
+
+As duas funções acima usam a RPC `consumir_cota_uso(usuario, tipo, quantidade, limite, modulo, descricao)`
+(migração `supabase/migrations/20261010233100_onda2_cota_uso.sql`): conta o uso da última hora e registra em `audit_logs`
+(`entity_type` = tipo, `metadata.quantidade`) na mesma transação, sob lock por usuário, então pedidos em
+paralelo não furam o limite. Só a service role executa.
 
 `backup-offsite`: só o token **igual** à `SUPABASE_SERVICE_ROLE_KEY` vale como chamada de cron (antes decodificava o
 JWT sem validar a assinatura) e o usuário com papel precisa ter o perfil ativo.
