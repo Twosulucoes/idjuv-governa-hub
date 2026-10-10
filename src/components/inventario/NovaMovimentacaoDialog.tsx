@@ -39,7 +39,9 @@ import { toast } from "sonner";
 
 const formSchema = z.object({
   bem_id: z.string().min(1, "Selecione o bem"),
-  tipo_movimentacao: z.string().min(1, "Selecione o tipo"),
+  tipo_movimentacao: z.enum(["transferencia_interna", "cessao", "emprestimo", "recolhimento"], {
+    errorMap: () => ({ message: "Selecione o tipo" }),
+  }),
   unidade_local_destino_id: z.string().min(1, "Selecione a unidade de destino"),
   responsavel_destino_id: z.string().optional(),
   motivo: z.string().min(5, "Descreva o motivo (mín. 5 caracteres)"),
@@ -48,7 +50,7 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-const TIPOS_MOVIMENTACAO = [
+const TIPOS_MOVIMENTACAO: { value: FormData["tipo_movimentacao"]; label: string }[] = [
   { value: "transferencia_interna", label: "Transferência Interna" },
   { value: "cessao", label: "Cessão" },
   { value: "emprestimo", label: "Empréstimo" },
@@ -70,7 +72,7 @@ export function NovaMovimentacaoDialog({ open, onOpenChange }: NovaMovimentacaoD
       const { data, error } = await supabase
         .from("bens_patrimoniais")
         .select("id, numero_patrimonio, descricao, unidade_local_id")
-        .in("situacao", ["ativo", "alocado", "cadastrado", "tombado"])
+        .in("situacao", ["ativo", "cedido"])
         .order("numero_patrimonio");
       if (error) throw error;
       return data;
@@ -108,7 +110,7 @@ export function NovaMovimentacaoDialog({ open, onOpenChange }: NovaMovimentacaoD
     resolver: zodResolver(formSchema),
     defaultValues: {
       bem_id: "",
-      tipo_movimentacao: "",
+      tipo_movimentacao: undefined,
       unidade_local_destino_id: "",
       responsavel_destino_id: "",
       motivo: "",
@@ -126,7 +128,7 @@ export function NovaMovimentacaoDialog({ open, onOpenChange }: NovaMovimentacaoD
         .from("movimentacoes_patrimonio")
         .insert([{
           bem_id: formData.bem_id,
-          tipo: formData.tipo_movimentacao as "transferencia_interna" | "cessao" | "emprestimo" | "recolhimento",
+          tipo: formData.tipo_movimentacao,
           unidade_local_origem_id: bemSelecionado?.unidade_local_id || null,
           unidade_local_destino_id: formData.unidade_local_destino_id,
           responsavel_destino_id: formData.responsavel_destino_id || null,

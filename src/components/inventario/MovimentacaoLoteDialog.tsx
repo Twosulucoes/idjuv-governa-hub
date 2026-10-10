@@ -70,7 +70,7 @@ export function MovimentacaoLoteDialog({ open, onOpenChange, unidadeOrigemId }: 
   const [bensSelecionados, setBensSelecionados] = useState<string[]>([]);
   const [busca, setBusca] = useState("");
   const [etapa, setEtapa] = useState<"selecao" | "formulario" | "resultado">("selecao");
-  const [resultado, setResultado] = useState<{ sucesso: number; falhas: number } | null>(null);
+  const [resultado, setResultado] = useState<{ sucesso: number; falhas: number; primeiroErro?: string } | null>(null);
 
   // Buscar bens disponíveis
   const { data: bens, isLoading: loadingBens } = useQuery({
@@ -82,7 +82,7 @@ export function MovimentacaoLoteDialog({ open, onOpenChange, unidadeOrigemId }: 
           id, numero_patrimonio, descricao, categoria_bem, marca, modelo,
           unidade_local:unidades_locais!bens_patrimoniais_unidade_local_id_fkey(id, nome_unidade, codigo_unidade)
         `)
-        .in("situacao", ["ativo", "alocado", "cadastrado", "tombado"])
+        .in("situacao", ["ativo", "cedido"])
         .order("numero_patrimonio");
 
       if (unidadeOrigemId) {
@@ -461,7 +461,9 @@ export function MovimentacaoLoteDialog({ open, onOpenChange, unidadeOrigemId }: 
                   {resultado.sucesso} movimentações registradas!
                 </p>
                 {resultado.falhas > 0 && (
-                  <p className="text-sm text-destructive">{resultado.falhas} falhas</p>
+                  <p className="text-sm text-destructive">
+                    {resultado.falhas} falhas{resultado.primeiroErro ? `: ${resultado.primeiroErro}` : ""}
+                  </p>
                 )}
               </div>
             </div>

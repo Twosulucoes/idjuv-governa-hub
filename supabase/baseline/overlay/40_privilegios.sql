@@ -68,6 +68,9 @@ GRANT EXECUTE ON FUNCTION public.generate_schema_ddl() TO service_role;
 REVOKE EXECUTE ON FUNCTION public.fn_fotos_vistoria_inventario_imutavel() FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.fn_campanhas_inventario_unidades_autoria() FROM authenticated;
 
+-- ---- patrimônio (migração 20261010230000): o número de tombamento nasce no INSERT do bem ----
+REVOKE EXECUTE ON FUNCTION public.gerar_numero_tombamento(uuid) FROM authenticated;
+
 -- ---- privilégios das migrações de 2026-10-09/10 (o dump do schema não leva GRANT/REVOKE) ----
 -- Copiados das migrações 20261009120000 (avisos), 20261009150000 (envios), 20261009153000 (importações)
 -- e 20261010070000 (folha): funções de trigger sem EXECUTE para authenticated; RPC só da service role;

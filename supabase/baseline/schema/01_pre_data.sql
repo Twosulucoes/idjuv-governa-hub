@@ -634,7 +634,8 @@ CREATE TYPE public.status_coleta_inventario AS ENUM (
     'nao_localizado',
     'divergente',
     'avariado',
-    'em_manutencao'
+    'em_manutencao',
+    'sem_etiqueta'
 );
 
 
@@ -3997,20 +3998,79 @@ CREATE FUNCTION public.fn_gerar_numero_tombamento() RETURNS trigger
     LANGUAGE plpgsql
     SET search_path TO 'public'
     AS $$
-DECLARE
-  v_ano INTEGER := EXTRACT(YEAR FROM CURRENT_DATE);
-  v_seq INTEGER;
 BEGIN
-  IF NEW.numero_patrimonio IS NULL OR NEW.numero_patrimonio = '' THEN
-    v_seq := nextval('seq_tombamento_patrimonio');
-    NEW.numero_patrimonio := 'PAT-' || v_ano || '-' || LPAD(v_seq::TEXT, 6, '0');
+  NEW.numero_patrimonio   := NULLIF(upper(btrim(NEW.numero_patrimonio)), '');
+  NEW.patrimonio_anterior := NULLIF(upper(btrim(NEW.patrimonio_anterior)), '');
+  NEW.codigo_qr           := NULLIF(upper(btrim(NEW.codigo_qr)), '');
+
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.numero_patrimonio IS NULL THEN
+      NEW.numero_patrimonio := public.fn_proximo_numero_tombamento();
+    END IF;
+    NEW.codigo_qr := COALESCE(NEW.codigo_qr, NEW.numero_patrimonio);
+    RETURN NEW;
   END IF;
-  
-  -- Gerar código QR automaticamente
-  IF NEW.codigo_qr IS NULL THEN
-    NEW.codigo_qr := 'IDJUV-' || NEW.numero_patrimonio || '-' || LEFT(gen_random_uuid()::TEXT, 8);
+
+  -- UPDATE
+  -- Vazio ou igual ao atual (a menos de maiúsculas/espaços): mantém o valor gravado.
+  IF NEW.numero_patrimonio IS NULL OR NEW.numero_patrimonio = upper(btrim(OLD.numero_patrimonio)) THEN
+    NEW.numero_patrimonio := OLD.numero_patrimonio;
   END IF;
-  
+  IF NEW.numero_patrimonio IS DISTINCT FROM OLD.numero_patrimonio THEN
+    -- auth.uid() nulo = manutenção feita no servidor (service role / SQL), não pela API do app.
+    IF auth.uid() IS NOT NULL AND NOT public.is_admin_user(auth.uid()) THEN
+      RAISE EXCEPTION 'O número de tombamento não pode ser alterado depois de criado'
+        USING ERRCODE = '42501';
+    END IF;
+    NEW.patrimonio_anterior := COALESCE(NEW.patrimonio_anterior, OLD.numero_patrimonio);
+    IF NEW.codigo_qr IS NOT DISTINCT FROM upper(btrim(OLD.codigo_qr)) THEN
+      NEW.codigo_qr := NEW.numero_patrimonio;
+    END IF;
+  ELSIF NEW.codigo_qr IS NULL OR NEW.codigo_qr = upper(btrim(OLD.codigo_qr)) THEN
+    NEW.codigo_qr := OLD.codigo_qr;
+  ELSIF auth.uid() IS NOT NULL AND NOT public.is_admin_user(auth.uid()) THEN
+    -- O QR é o que a plaqueta carrega: trocá-lo desvia a leitura para outro bem.
+    RAISE EXCEPTION 'O código QR do bem não pode ser alterado' USING ERRCODE = '42501';
+  END IF;
+  NEW.codigo_qr := COALESCE(NEW.codigo_qr, NEW.numero_patrimonio);
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fn_guardar_decisao_patrimonio(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_guardar_decisao_patrimonio() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_iniciais text[] := CASE TG_TABLE_NAME
+                         WHEN 'baixas_patrimonio' THEN ARRAY['solicitada', 'em_analise']
+                         ELSE ARRAY['pendente'] END;
+BEGIN
+  IF auth.uid() IS NULL
+     OR public.has_permission_code(auth.uid(), 'patrimonio.tramitar')
+     OR public.is_admin_user(auth.uid()) THEN
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    IF COALESCE(NEW.status::text, v_iniciais[1]) <> ALL (v_iniciais)
+       OR NEW.aprovado_por IS NOT NULL OR NEW.data_aprovacao IS NOT NULL THEN
+      RAISE EXCEPTION 'Pedido de patrimônio nasce pendente; a decisão exige patrimonio.tramitar'
+        USING ERRCODE = '42501';
+    END IF;
+  ELSIF NEW.status::text IS DISTINCT FROM OLD.status::text
+          AND NOT (OLD.status::text = ANY (v_iniciais) AND NEW.status::text = ANY (v_iniciais))
+        OR NEW.aprovado_por IS DISTINCT FROM OLD.aprovado_por
+        OR NEW.data_aprovacao IS DISTINCT FROM OLD.data_aprovacao
+        OR NEW.motivo_rejeicao IS DISTINCT FROM OLD.motivo_rejeicao THEN
+    RAISE EXCEPTION 'Aprovar ou rejeitar exige a permissão patrimonio.tramitar'
+      USING ERRCODE = '42501';
+  END IF;
   RETURN NEW;
 END;
 $$;
@@ -4122,6 +4182,35 @@ BEGIN
   RETURN LPAD(v_sequencial::TEXT, 4, '0');
 END;
 $_$;
+
+
+--
+-- Name: fn_proximo_numero_tombamento(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_proximo_numero_tombamento() RETURNS text
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_numero text;
+BEGIN
+  -- Só quem tem o módulo consome a sequence (evita lacunas abertas por outros usuários).
+  IF auth.uid() IS NOT NULL
+     AND NOT (public.can_access_module(auth.uid(), 'patrimonio')
+              OR public.can_access_module(auth.uid(), 'patrimonio_mobile')) THEN
+    RAISE EXCEPTION 'Sem acesso ao módulo de patrimônio' USING ERRCODE = '42501';
+  END IF;
+  -- Sequence: sem corrida e sem reaproveitamento. O laço só pula um número que alguém
+  -- já tenha digitado à mão no mesmo formato.
+  LOOP
+    v_numero := 'PAT-' || to_char(CURRENT_DATE, 'YYYY') || '-'
+             || lpad(nextval('public.seq_tombamento_patrimonio')::text, 6, '0');
+    EXIT WHEN NOT EXISTS (SELECT 1 FROM bens_patrimoniais WHERE upper(btrim(numero_patrimonio)) = v_numero);
+  END LOOP;
+  RETURN v_numero;
+END;
+$$;
 
 
 --
@@ -4865,45 +4954,9 @@ END; $_$;
 --
 
 CREATE FUNCTION public.gerar_numero_tombamento(p_unidade_local_id uuid) RETURNS text
-    LANGUAGE plpgsql SECURITY DEFINER
+    LANGUAGE sql
     SET search_path TO 'public'
-    AS $_$
-DECLARE
-  v_codigo_unidade TEXT;
-  v_prefixo TEXT;
-  v_ultimo_seq INTEGER;
-  v_novo_seq INTEGER;
-  v_numero_patrimonio TEXT;
-BEGIN
-  -- Buscar código da unidade local
-  SELECT codigo_unidade INTO v_codigo_unidade
-  FROM unidades_locais
-  WHERE id = p_unidade_local_id;
-
-  -- Se não encontrou, usar código genérico
-  IF v_codigo_unidade IS NULL THEN
-    v_prefixo := 'IDJ-00';
-  ELSE
-    -- Extrair prefixo de 2 caracteres do tipo (GIN, EST, etc) ou usar primeiros 2 do código
-    v_prefixo := 'IDJ-' || LPAD(SUBSTRING(v_codigo_unidade FROM 1 FOR 2), 2, '0');
-  END IF;
-
-  -- Buscar último sequencial para este prefixo
-  SELECT COALESCE(MAX(
-    CAST(SUBSTRING(numero_patrimonio FROM '[0-9]+$') AS INTEGER)
-  ), 0) INTO v_ultimo_seq
-  FROM bens_patrimoniais
-  WHERE numero_patrimonio LIKE v_prefixo || '-%';
-
-  -- Incrementar
-  v_novo_seq := v_ultimo_seq + 1;
-
-  -- Formatar: IDJ-XX-0001
-  v_numero_patrimonio := v_prefixo || '-' || LPAD(v_novo_seq::TEXT, 4, '0');
-
-  RETURN v_numero_patrimonio;
-END;
-$_$;
+    AS $$ SELECT public.fn_proximo_numero_tombamento() $$;
 
 
 --
@@ -6314,6 +6367,194 @@ CREATE FUNCTION public.obter_protocolo_arbitro(p_id uuid) RETURNS text
 $$;
 
 
+SET default_table_access_method = heap;
+
+--
+-- Name: bens_patrimoniais; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.bens_patrimoniais (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    numero_patrimonio character varying(30) NOT NULL,
+    item_id uuid,
+    descricao character varying(200) NOT NULL,
+    especificacao text,
+    marca character varying(100),
+    modelo character varying(100),
+    numero_serie character varying(100),
+    data_aquisicao date NOT NULL,
+    valor_aquisicao numeric(18,2) NOT NULL,
+    nota_fiscal character varying(50),
+    empenho_id uuid,
+    fornecedor_id uuid,
+    unidade_id uuid,
+    unidade_local_id uuid,
+    responsavel_id uuid,
+    localizacao_especifica text,
+    valor_residual numeric(18,2),
+    depreciacao_acumulada numeric(18,2) DEFAULT 0,
+    valor_liquido numeric(18,2) GENERATED ALWAYS AS ((valor_aquisicao - COALESCE(depreciacao_acumulada, (0)::numeric))) STORED,
+    estado_conservacao character varying(30),
+    situacao character varying(30) DEFAULT 'ativo'::character varying,
+    garantia_ate date,
+    observacao text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    codigo_qr text,
+    situacao_inventario public.situacao_bem_patrimonio DEFAULT 'cadastrado'::public.situacao_bem_patrimonio,
+    categoria_bem public.categoria_bem,
+    subcategoria text,
+    patrimonio_anterior text,
+    forma_aquisicao public.forma_aquisicao DEFAULT 'compra'::public.forma_aquisicao,
+    fornecedor_cnpj_cpf text,
+    data_nota_fiscal date,
+    processo_sei text,
+    fonte_recurso_id uuid,
+    centro_custo_id uuid,
+    estado_conservacao_inventario public.estado_conservacao_inventario DEFAULT 'bom'::public.estado_conservacao_inventario,
+    vida_util_anos integer,
+    data_ultima_avaliacao date,
+    predio text,
+    andar text,
+    sala text,
+    ponto_especifico text,
+    cargo_responsavel text,
+    setor_responsavel_id uuid,
+    data_atribuicao_responsabilidade date,
+    termo_responsabilidade_url text,
+    foto_bem_url text,
+    foto_etiqueta_qr_url text,
+    pendencias jsonb DEFAULT '[]'::jsonb,
+    CONSTRAINT bens_patrimoniais_estado_conservacao_check CHECK (((estado_conservacao)::text = ANY ((ARRAY['otimo'::character varying, 'bom'::character varying, 'regular'::character varying, 'ruim'::character varying, 'inservivel'::character varying])::text[]))),
+    CONSTRAINT bens_patrimoniais_situacao_check CHECK (((situacao)::text = ANY ((ARRAY['ativo'::character varying, 'em_manutencao'::character varying, 'cedido'::character varying, 'baixado'::character varying, 'extraviado'::character varying, 'em_transferencia'::character varying])::text[])))
+);
+
+
+--
+-- Name: COLUMN bens_patrimoniais.unidade_local_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.bens_patrimoniais.unidade_local_id IS 'Referência obrigatória à Unidade Local onde o bem está fisicamente localizado';
+
+
+--
+-- Name: patrimonio_buscar_bem_por_codigo(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.patrimonio_buscar_bem_por_codigo(p_codigo text) RETURNS SETOF public.bens_patrimoniais
+    LANGUAGE sql STABLE
+    SET search_path TO 'public'
+    AS $$
+  WITH c AS (SELECT NULLIF(upper(btrim(p_codigo)), '') AS v)
+  SELECT b.*
+    FROM bens_patrimoniais b, c
+   WHERE c.v IS NOT NULL
+     AND (upper(btrim(b.numero_patrimonio)) = c.v
+          OR upper(btrim(b.codigo_qr)) = c.v
+          OR upper(btrim(b.patrimonio_anterior)) = c.v)
+   ORDER BY (upper(btrim(b.numero_patrimonio)) = c.v) DESC,
+            (upper(btrim(b.codigo_qr)) = c.v) DESC,
+            b.created_at
+   LIMIT 5
+$$;
+
+
+--
+-- Name: patrimonio_decidir_baixa(uuid, boolean, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.patrimonio_decidir_baixa(p_baixa_id uuid, p_aprovar boolean, p_motivo_rejeicao text DEFAULT NULL::text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_baixa baixas_patrimonio%ROWTYPE;
+BEGIN
+  IF NOT (public.has_permission_code(auth.uid(), 'patrimonio.tramitar')
+          OR public.is_admin_user(auth.uid())) THEN
+    RAISE EXCEPTION 'Sem permissão para decidir baixas de patrimônio' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_baixa FROM baixas_patrimonio WHERE id = p_baixa_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Baixa não encontrada' USING ERRCODE = 'P0002';
+  END IF;
+  IF v_baixa.status NOT IN ('solicitada', 'em_analise') THEN
+    RAISE EXCEPTION 'Esta baixa já foi decidida (%)', v_baixa.status USING ERRCODE = '22023';
+  END IF;
+
+  IF p_aprovar THEN
+    UPDATE baixas_patrimonio
+       SET status = 'aprovada', aprovado_por = auth.uid(), data_aprovacao = now(),
+           dados_bem_snapshot = COALESCE(dados_bem_snapshot,
+             (SELECT to_jsonb(b) FROM bens_patrimoniais b WHERE b.id = v_baixa.bem_id))
+     WHERE id = p_baixa_id;
+
+    PERFORM set_config('patrimonio.evento_registrado', 'on', true);
+    UPDATE bens_patrimoniais SET situacao = 'baixado', updated_at = now() WHERE id = v_baixa.bem_id;
+    PERFORM set_config('patrimonio.evento_registrado', 'off', true);
+  ELSE
+    IF btrim(COALESCE(p_motivo_rejeicao, '')) = '' THEN
+      RAISE EXCEPTION 'Informe o motivo da rejeição' USING ERRCODE = '22023';
+    END IF;
+    UPDATE baixas_patrimonio
+       SET status = 'rejeitada', aprovado_por = auth.uid(), data_aprovacao = now(),
+           motivo_rejeicao = btrim(p_motivo_rejeicao)
+     WHERE id = p_baixa_id;
+  END IF;
+
+  INSERT INTO historico_patrimonio (bem_id, tipo_evento, justificativa, dados_novos, usuario_id)
+  VALUES (v_baixa.bem_id,
+          CASE WHEN p_aprovar THEN 'baixa_aprovada' ELSE 'baixa_rejeitada' END,
+          CASE WHEN p_aprovar THEN v_baixa.justificativa ELSE btrim(p_motivo_rejeicao) END,
+          jsonb_build_object('baixa_id', p_baixa_id, 'motivo', v_baixa.motivo),
+          auth.uid());
+END;
+$$;
+
+
+--
+-- Name: patrimonio_decidir_movimentacao(uuid, boolean, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.patrimonio_decidir_movimentacao(p_movimentacao_id uuid, p_aprovar boolean, p_motivo_rejeicao text DEFAULT NULL::text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_status status_movimentacao_patrimonio;
+BEGIN
+  IF NOT (public.has_permission_code(auth.uid(), 'patrimonio.tramitar')
+          OR public.is_admin_user(auth.uid())) THEN
+    RAISE EXCEPTION 'Sem permissão para decidir movimentações de patrimônio' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT status INTO v_status FROM movimentacoes_patrimonio WHERE id = p_movimentacao_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Movimentação não encontrada' USING ERRCODE = 'P0002';
+  END IF;
+  IF v_status IS DISTINCT FROM 'pendente' THEN
+    RAISE EXCEPTION 'Esta movimentação já foi decidida (%)', v_status USING ERRCODE = '22023';
+  END IF;
+
+  IF p_aprovar THEN
+    UPDATE movimentacoes_patrimonio
+       SET status = 'aprovado', aprovado_por = auth.uid(), data_aprovacao = now()
+     WHERE id = p_movimentacao_id;
+  ELSE
+    IF btrim(COALESCE(p_motivo_rejeicao, '')) = '' THEN
+      RAISE EXCEPTION 'Informe o motivo da rejeição' USING ERRCODE = '22023';
+    END IF;
+    UPDATE movimentacoes_patrimonio
+       SET status = 'rejeitado', aprovado_por = auth.uid(), data_aprovacao = now(),
+           motivo_rejeicao = btrim(p_motivo_rejeicao)
+     WHERE id = p_movimentacao_id;
+  END IF;
+END;
+$$;
+
+
 --
 -- Name: perfil_ativo_atual(); Type: FUNCTION; Schema: public; Owner: -
 --
@@ -6916,6 +7157,23 @@ $$;
 
 
 --
+-- Name: registrar_historico_baixa(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.registrar_historico_baixa() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  INSERT INTO historico_patrimonio (bem_id, tipo_evento, justificativa, dados_novos, usuario_id)
+  VALUES (NEW.bem_id, 'baixa_solicitada', NEW.justificativa,
+          jsonb_build_object('baixa_id', NEW.id, 'motivo', NEW.motivo), auth.uid());
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: registrar_historico_demanda_ascom(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -7006,21 +7264,27 @@ CREATE FUNCTION public.registrar_historico_manutencao() RETURNS trigger
     AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
+    IF EXISTS (SELECT 1 FROM bens_patrimoniais
+                WHERE id = NEW.bem_id AND situacao IN ('baixado', 'extraviado')) THEN
+      RAISE EXCEPTION 'Bem baixado ou extraviado não entra em manutenção' USING ERRCODE = '22023';
+    END IF;
     INSERT INTO historico_patrimonio (bem_id, tipo_evento, manutencao_id, justificativa, usuario_id)
     VALUES (NEW.bem_id, 'manutencao_inicio', NEW.id, NEW.descricao_problema, auth.uid());
-    
+
     UPDATE bens_patrimoniais SET situacao = 'em_manutencao', updated_at = now() WHERE id = NEW.bem_id;
   END IF;
-  
-  IF TG_OP = 'UPDATE' AND NEW.status = 'concluida' AND (OLD.status IS DISTINCT FROM 'concluida') THEN
+
+  IF TG_OP = 'UPDATE' AND NEW.status IN ('concluida', 'cancelada')
+     AND OLD.status IS DISTINCT FROM NEW.status THEN
     INSERT INTO historico_patrimonio (bem_id, tipo_evento, manutencao_id, justificativa, usuario_id, dados_novos)
     VALUES (NEW.bem_id, 'manutencao_fim', NEW.id, NEW.observacoes, auth.uid(),
-            jsonb_build_object('custo_final', NEW.custo_final, 'data_conclusao', NEW.data_conclusao));
-    
-    UPDATE bens_patrimoniais SET situacao = 'alocado', updated_at = now()
-    WHERE id = NEW.bem_id AND situacao = 'em_manutencao';
+            jsonb_build_object('status', NEW.status, 'custo_final', NEW.custo_final,
+                               'data_conclusao', NEW.data_conclusao));
+
+    UPDATE bens_patrimoniais SET situacao = 'ativo', updated_at = now()
+     WHERE id = NEW.bem_id AND situacao = 'em_manutencao';
   END IF;
-  
+
   RETURN NEW;
 END;
 $$;
@@ -7035,32 +7299,39 @@ CREATE FUNCTION public.registrar_historico_movimentacao() RETURNS trigger
     SET search_path TO 'public'
     AS $$
 BEGIN
-  IF NEW.status = 'aprovada' AND (OLD IS NULL OR OLD.status IS DISTINCT FROM 'aprovada') THEN
+  IF NEW.status = 'aprovado' AND (TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM 'aprovado') THEN
     INSERT INTO historico_patrimonio (
       bem_id, tipo_evento, unidade_local_id, responsavel_id,
       movimentacao_id, justificativa, documento_url,
       dados_anteriores, dados_novos, usuario_id
     ) VALUES (
-      NEW.bem_id, 
-      NEW.tipo::TEXT,
-      NEW.unidade_local_destino_id,
+      NEW.bem_id,
+      CASE NEW.tipo WHEN 'transferencia_interna' THEN 'transferencia' ELSE NEW.tipo::text END,
+      COALESCE(NEW.unidade_local_destino_id, NEW.unidade_local_origem_id),
       NEW.responsavel_destino_id,
       NEW.id,
       NEW.motivo,
       NEW.termo_transferencia_url,
-      jsonb_build_object('unidade_local_id', NEW.unidade_local_origem_id),
-      jsonb_build_object('unidade_local_id', NEW.unidade_local_destino_id),
+      jsonb_build_object('unidade_local_id', NEW.unidade_local_origem_id,
+                         'unidade_id', NEW.unidade_origem_id,
+                         'responsavel_id', NEW.responsavel_origem_id),
+      jsonb_build_object('unidade_local_id', NEW.unidade_local_destino_id,
+                         'unidade_id', NEW.unidade_destino_id,
+                         'responsavel_id', NEW.responsavel_destino_id),
       auth.uid()
     );
-    
+
+    -- O evento acima já registra a mudança; o trigger do bem não grava outro.
+    PERFORM set_config('patrimonio.evento_registrado', 'on', true);
     UPDATE bens_patrimoniais
-    SET 
-      unidade_local_id = NEW.unidade_local_destino_id,
-      responsavel_id = COALESCE(NEW.responsavel_destino_id, responsavel_id),
-      updated_at = now()
-    WHERE id = NEW.bem_id;
+       SET unidade_local_id = COALESCE(NEW.unidade_local_destino_id, unidade_local_id),
+           unidade_id       = COALESCE(NEW.unidade_destino_id, unidade_id),
+           responsavel_id   = COALESCE(NEW.responsavel_destino_id, responsavel_id),
+           updated_at       = now()
+     WHERE id = NEW.bem_id;
+    PERFORM set_config('patrimonio.evento_registrado', 'off', true);
   END IF;
-  
+
   RETURN NEW;
 END;
 $$;
@@ -7086,6 +7357,11 @@ BEGIN
       to_jsonb(NEW), auth.uid()
     );
   ELSIF TG_OP = 'UPDATE' THEN
+    -- Movimentação aprovada e baixa decidida já gravaram o próprio evento.
+    IF current_setting('patrimonio.evento_registrado', true) = 'on' THEN
+      RETURN NEW;
+    END IF;
+
     IF OLD.unidade_local_id IS DISTINCT FROM NEW.unidade_local_id THEN
       INSERT INTO historico_patrimonio (
         bem_id, tipo_evento, unidade_local_id, responsavel_id,
@@ -7099,7 +7375,7 @@ BEGIN
         'Transferência automática', auth.uid()
       );
     END IF;
-    
+
     IF OLD.responsavel_id IS DISTINCT FROM NEW.responsavel_id THEN
       INSERT INTO historico_patrimonio (
         bem_id, tipo_evento, unidade_local_id, responsavel_id,
@@ -7111,20 +7387,21 @@ BEGIN
         'Troca de responsável', auth.uid()
       );
     END IF;
-    
-    IF OLD.situacao IS DISTINCT FROM NEW.situacao THEN
+
+    IF OLD.situacao IS DISTINCT FROM NEW.situacao
+       OR OLD.numero_patrimonio IS DISTINCT FROM NEW.numero_patrimonio THEN
       INSERT INTO historico_patrimonio (
         bem_id, tipo_evento, unidade_local_id, responsavel_id,
         dados_anteriores, dados_novos, usuario_id
       ) VALUES (
         NEW.id, 'atualizacao_dados', NEW.unidade_local_id, NEW.responsavel_id,
-        jsonb_build_object('situacao', OLD.situacao),
-        jsonb_build_object('situacao', NEW.situacao),
+        jsonb_build_object('situacao', OLD.situacao, 'numero_patrimonio', OLD.numero_patrimonio),
+        jsonb_build_object('situacao', NEW.situacao, 'numero_patrimonio', NEW.numero_patrimonio),
         auth.uid()
       );
     END IF;
   END IF;
-  
+
   RETURN NEW;
 END;
 $$;
@@ -8646,8 +8923,6 @@ END;
 $$;
 
 
-SET default_table_access_method = heap;
-
 --
 -- Name: _backup_usuario_modulos_old; Type: TABLE; Schema: public; Owner: -
 --
@@ -9325,75 +9600,6 @@ CREATE TABLE public.bancos_cnab (
 
 
 --
--- Name: bens_patrimoniais; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.bens_patrimoniais (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    numero_patrimonio character varying(30) NOT NULL,
-    item_id uuid,
-    descricao character varying(200) NOT NULL,
-    especificacao text,
-    marca character varying(100),
-    modelo character varying(100),
-    numero_serie character varying(100),
-    data_aquisicao date NOT NULL,
-    valor_aquisicao numeric(18,2) NOT NULL,
-    nota_fiscal character varying(50),
-    empenho_id uuid,
-    fornecedor_id uuid,
-    unidade_id uuid,
-    unidade_local_id uuid,
-    responsavel_id uuid,
-    localizacao_especifica text,
-    valor_residual numeric(18,2),
-    depreciacao_acumulada numeric(18,2) DEFAULT 0,
-    valor_liquido numeric(18,2) GENERATED ALWAYS AS ((valor_aquisicao - COALESCE(depreciacao_acumulada, (0)::numeric))) STORED,
-    estado_conservacao character varying(30),
-    situacao character varying(30) DEFAULT 'ativo'::character varying,
-    garantia_ate date,
-    observacao text,
-    created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now(),
-    created_by uuid,
-    codigo_qr text,
-    situacao_inventario public.situacao_bem_patrimonio DEFAULT 'cadastrado'::public.situacao_bem_patrimonio,
-    categoria_bem public.categoria_bem,
-    subcategoria text,
-    patrimonio_anterior text,
-    forma_aquisicao public.forma_aquisicao DEFAULT 'compra'::public.forma_aquisicao,
-    fornecedor_cnpj_cpf text,
-    data_nota_fiscal date,
-    processo_sei text,
-    fonte_recurso_id uuid,
-    centro_custo_id uuid,
-    estado_conservacao_inventario public.estado_conservacao_inventario DEFAULT 'bom'::public.estado_conservacao_inventario,
-    vida_util_anos integer,
-    data_ultima_avaliacao date,
-    predio text,
-    andar text,
-    sala text,
-    ponto_especifico text,
-    cargo_responsavel text,
-    setor_responsavel_id uuid,
-    data_atribuicao_responsabilidade date,
-    termo_responsabilidade_url text,
-    foto_bem_url text,
-    foto_etiqueta_qr_url text,
-    pendencias jsonb DEFAULT '[]'::jsonb,
-    CONSTRAINT bens_patrimoniais_estado_conservacao_check CHECK (((estado_conservacao)::text = ANY ((ARRAY['otimo'::character varying, 'bom'::character varying, 'regular'::character varying, 'ruim'::character varying, 'inservivel'::character varying])::text[]))),
-    CONSTRAINT bens_patrimoniais_situacao_check CHECK (((situacao)::text = ANY ((ARRAY['ativo'::character varying, 'em_manutencao'::character varying, 'cedido'::character varying, 'baixado'::character varying, 'extraviado'::character varying, 'em_transferencia'::character varying])::text[])))
-);
-
-
---
--- Name: COLUMN bens_patrimoniais.unidade_local_id; Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON COLUMN public.bens_patrimoniais.unidade_local_id IS 'Referência obrigatória à Unidade Local onde o bem está fisicamente localizado';
-
-
---
 -- Name: cadastro_arbitros; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -9514,7 +9720,7 @@ CREATE TABLE public.campanhas_inventario (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     created_by uuid,
-    CONSTRAINT campanhas_inventario_status_check CHECK ((status = ANY (ARRAY['planejada'::text, 'em_andamento'::text, 'concluida'::text, 'cancelada'::text])))
+    CONSTRAINT campanhas_inventario_status_check CHECK ((status = ANY (ARRAY['planejada'::text, 'em_andamento'::text, 'pausada'::text, 'concluida'::text, 'cancelada'::text])))
 );
 
 ALTER TABLE ONLY public.campanhas_inventario FORCE ROW LEVEL SECURITY;
@@ -14408,7 +14614,7 @@ CREATE TABLE public.movimentacoes_patrimonio (
     responsavel_destino_id uuid,
     motivo text NOT NULL,
     observacoes text,
-    solicitado_por uuid,
+    solicitado_por uuid DEFAULT auth.uid(),
     data_solicitacao timestamp with time zone DEFAULT now(),
     aprovado_por uuid,
     data_aprovacao timestamp with time zone,
