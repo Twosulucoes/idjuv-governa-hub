@@ -7332,10 +7332,24 @@ CREATE TRIGGER trg_validar_etapa_frequencia BEFORE INSERT OR DELETE OR UPDATE ON
 
 
 --
+-- Name: justificativas_ponto trg_validar_etapa_frequencia; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_validar_etapa_frequencia BEFORE INSERT OR DELETE OR UPDATE ON public.justificativas_ponto FOR EACH ROW EXECUTE FUNCTION public.validar_etapa_frequencia();
+
+
+--
 -- Name: solicitacoes_abono trg_validar_etapa_frequencia; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER trg_validar_etapa_frequencia BEFORE INSERT OR DELETE OR UPDATE ON public.solicitacoes_abono FOR EACH ROW EXECUTE FUNCTION public.validar_etapa_frequencia();
+
+
+--
+-- Name: solicitacoes_ajuste_ponto trg_validar_etapa_frequencia; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_validar_etapa_frequencia BEFORE INSERT OR DELETE OR UPDATE ON public.solicitacoes_ajuste_ponto FOR EACH ROW EXECUTE FUNCTION public.validar_etapa_frequencia();
 
 
 --
@@ -14440,13 +14454,6 @@ CREATE POLICY acesso_total_delete ON public.termos_cessao FOR DELETE TO authenti
 
 
 --
--- Name: tipos_abono acesso_total_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_delete ON public.tipos_abono FOR DELETE TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: user_org_units acesso_total_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -15672,13 +15679,6 @@ CREATE POLICY acesso_total_insert ON public.termos_cessao FOR INSERT TO authenti
 
 
 --
--- Name: tipos_abono acesso_total_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_insert ON public.tipos_abono FOR INSERT TO authenticated WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
 -- Name: user_org_units acesso_total_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -16887,13 +16887,6 @@ CREATE POLICY acesso_total_select ON public.solicitacoes_sic FOR SELECT TO authe
 --
 
 CREATE POLICY acesso_total_select ON public.termos_cessao FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
-
-
---
--- Name: tipos_abono acesso_total_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_select ON public.tipos_abono FOR SELECT TO authenticated USING ((auth.uid() IS NOT NULL));
 
 
 --
@@ -18126,13 +18119,6 @@ CREATE POLICY acesso_total_update ON public.solicitacoes_sic FOR UPDATE TO authe
 --
 
 CREATE POLICY acesso_total_update ON public.termos_cessao FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
-
-
---
--- Name: tipos_abono acesso_total_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY acesso_total_update ON public.tipos_abono FOR UPDATE TO authenticated USING ((auth.uid() IS NOT NULL)) WITH CHECK ((auth.uid() IS NOT NULL));
 
 
 --
@@ -20494,7 +20480,7 @@ CREATE POLICY rls_delete ON public.rubricas FOR DELETE TO authenticated USING ((
 -- Name: servidores rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.servidores FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.servidores.excluir'::text)));
+CREATE POLICY rls_delete ON public.servidores FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.servidores.excluir'::text) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(id)))));
 
 
 --
@@ -20508,7 +20494,7 @@ CREATE POLICY rls_delete ON public.solicitacoes_abono FOR DELETE TO authenticate
 -- Name: solicitacoes_ajuste_ponto rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.solicitacoes_ajuste_ponto FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.aprovar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text)) AND (public.is_admin_user(auth.uid()) OR (servidor_id IS DISTINCT FROM auth.uid()))));
+CREATE POLICY rls_delete ON public.solicitacoes_ajuste_ponto FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) AND (public.is_admin_user(auth.uid()) OR (servidor_id IS DISTINCT FROM auth.uid()))));
 
 
 --
@@ -20523,6 +20509,13 @@ CREATE POLICY rls_delete ON public.tabela_inss FOR DELETE TO authenticated USING
 --
 
 CREATE POLICY rls_delete ON public.tabela_irrf FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: tipos_abono rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.tipos_abono FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.configurar'::text)));
 
 
 --
@@ -20710,7 +20703,7 @@ CREATE POLICY rls_insert ON public.rubricas FOR INSERT TO authenticated WITH CHE
 -- Name: servidores rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.servidores FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_insert ON public.servidores FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(id)))));
 
 
 --
@@ -20739,6 +20732,13 @@ CREATE POLICY rls_insert ON public.tabela_inss FOR INSERT TO authenticated WITH 
 --
 
 CREATE POLICY rls_insert ON public.tabela_irrf FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: tipos_abono rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.tipos_abono FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.configurar'::text)));
 
 
 --
@@ -20960,6 +20960,13 @@ CREATE POLICY rls_select ON public.tabela_irrf FOR SELECT TO authenticated USING
 
 
 --
+-- Name: tipos_abono rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.tipos_abono FOR SELECT TO authenticated USING (public.is_active_user());
+
+
+--
 -- Name: user_modules rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21146,7 +21153,7 @@ CREATE POLICY rls_update ON public.rubricas FOR UPDATE TO authenticated USING ((
 -- Name: servidores rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.servidores FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_update ON public.servidores FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(id))))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(id)))));
 
 
 --
@@ -21175,6 +21182,13 @@ CREATE POLICY rls_update ON public.tabela_inss FOR UPDATE TO authenticated USING
 --
 
 CREATE POLICY rls_update ON public.tabela_irrf FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: tipos_abono rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.tipos_abono FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.configurar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.frequencia.configurar'::text)));
 
 
 --

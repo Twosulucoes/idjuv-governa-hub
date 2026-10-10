@@ -287,9 +287,9 @@ INSERT INTO persona VALUES
 INSERT INTO persona SELECT 'mod_' || e.enumlabel, md5('mod_' || e.enumlabel)::uuid
 FROM pg_enum e JOIN pg_type ty ON ty.oid = e.enumtypid WHERE ty.typname = 'app_module';
 -- Leitura do extra (sufixos ;chave[=valor] em qualquer ordem; ver o cabeçalho de scripts/db/gerar-rls.mjs)
--- códigos de escrita (classe permissao: escrita=a|b|c); NULL nas outras classes
+-- códigos de escrita (classe permissao, e catalogo com extra escrita=a|b|c); NULL nas outras classes
 CREATE FUNCTION pg_temp.codigos_escrita(classe text, extra text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
-  SELECT CASE WHEN classe = 'permissao' THEN string_to_array((regexp_match(extra, '^escrita=([^;]+)'))[1], '|') END
+  SELECT CASE WHEN classe IN ('permissao', 'catalogo') THEN string_to_array((regexp_match(extra, '^escrita=([^;]+)'))[1], '|') END
 $$;
 -- ;excluir=<código>|admin (permissao e proprio_leitura); NULL se não há
 CREATE FUNCTION pg_temp.excluir_de(classe text, extra text) RETURNS text LANGUAGE sql IMMUTABLE AS $$
@@ -519,13 +519,14 @@ BEGIN
     END IF;
 
     IF m.classe IN ('modulo','catalogo','proprio_leitura','proprio','proprio_filho','trilha','permissao') THEN
-      -- cada módulo do mapa vê e escreve (trilha: ninguém escreve; permissao: o módulo sozinho não escreve)
+      -- cada módulo do mapa vê e escreve (trilha: ninguém escreve; permissao e catalogo com escrita=: o módulo sozinho
+      -- não escreve)
       FOREACH mm IN ARRAY mods LOOP
         u_mod := (SELECT uid FROM persona WHERE nome = 'mod_' || mm);
         IF coalesce(ok_seed, false) AND pg_temp.sel(u_mod, 'authenticated', m.tabela) < 1 THEN
           PERFORM pg_temp.falha(m.tabela || ': módulo ' || mm || ' não enxerga a linha');
         END IF;
-        IF m.classe IN ('trilha', 'permissao') THEN
+        IF m.classe IN ('trilha', 'permissao') OR codigos IS NOT NULL THEN
           IF pg_temp.ins(u_mod, 'authenticated', m.tabela) <> 'negado' THEN
             PERFORM pg_temp.falha(m.tabela || ': módulo ' || mm || CASE WHEN m.classe = 'trilha'
               THEN ' consegue INSERT em trilha (só leitura)' ELSE ' SEM a permissão ' || codigo || ' consegue INSERT' END);
@@ -558,8 +559,9 @@ BEGIN
 
     -- escrita por permissão granular (classe permissao): o módulo lê e não escreve (bloco acima); escreve quem tem
     -- módulo E código (perm_<código>) ou o papel admin; a permissão avulsa sem módulo (perm_avulsa_<código>) não
-    -- escreve nem lê. A leitura própria (;proprio / ;pai / ;filho) é testada nos blocos de posse abaixo.
-    IF m.classe = 'permissao' THEN
+    -- escreve nem lê (catalogo com escrita=: não escreve, mas lê como qualquer usuário ativo). A leitura própria
+    -- (;proprio / ;pai / ;filho) é testada nos blocos de posse abaixo.
+    IF m.classe = 'permissao' OR (m.classe = 'catalogo' AND codigos IS NOT NULL) THEN
       IF codigos IS NULL OR array_length(codigos, 1) IS NULL THEN
         PERFORM pg_temp.falha(m.tabela || ': extra da classe permissao sem escrita=<código> (' || m.extra || ')');
       END IF;
@@ -577,7 +579,7 @@ BEGIN
         IF pg_temp.ins(u_avulsa, 'authenticated', m.tabela) <> 'negado' THEN
           PERFORM pg_temp.falha(m.tabela || ': permissão avulsa ' || codigo || ' SEM o módulo consegue INSERT');
         END IF;
-        IF coalesce(ok_seed, false) AND pg_temp.sel(u_avulsa, 'authenticated', m.tabela) > 0 THEN
+        IF coalesce(ok_seed, false) AND m.classe = 'permissao' AND pg_temp.sel(u_avulsa, 'authenticated', m.tabela) > 0 THEN
           PERFORM pg_temp.falha(m.tabela || ': permissão avulsa ' || codigo || ' SEM o módulo enxerga linhas');
         END IF;
         -- ;sem_autoaprovacao: dono da linha A, com a permissão, não insere para si pelo caminho da permissão (só pelo da
@@ -756,7 +758,7 @@ BEGIN
           WHEN m.classe IN ('admin', 'catalogo_admin', 'proprio_user', 'publico_admin') THEN pers.nome = 'admin'
           WHEN op = 'DELETE' AND excl = 'admin' THEN pers.nome = 'admin'
           WHEN op = 'DELETE' AND excl IS NOT NULL THEN pers.nome = 'admin' OR pers.nome = perm_excl
-          WHEN m.classe = 'permissao' THEN pers.nome = 'admin' OR pers.nome = ANY (perms)   -- módulo sozinho e permissão avulsa NÃO alteram nem apagam
+          WHEN m.classe = 'permissao' OR cardinality(perms) > 0 THEN pers.nome = 'admin' OR pers.nome = ANY (perms)   -- módulo sozinho e permissão avulsa NÃO alteram nem apagam
           ELSE pers.nome = 'admin' OR tem_mod
         END;
         n := CASE op WHEN 'UPDATE' THEN pg_temp.upd(pers.uid, 'authenticated', m.tabela) ELSE pg_temp.del(pers.uid, 'authenticated', m.tabela) END;
@@ -770,24 +772,32 @@ BEGIN
         END IF;
       END LOOP;
     END LOOP;
-    -- ;sem_autoaprovacao: com a permissão e dono da linha A, só a linha B (do outro) é alcançada. DELETE: com os códigos
-    -- da escrita quando não há ;excluir=; com ;excluir=<código>, com a persona desse código (;excluir=admin: só o admin)
+    -- ;sem_autoaprovacao: quem escreve e é dono da linha A só alcança a linha B (do outro). Quem escreve: permissao,
+    -- cada perm_<código> da escrita; proprio_leitura, o módulo (mod_<m>) e a persona de excluir=. DELETE: os mesmos
+    -- quando não há excluir=; com excluir=<código>, só a persona desse código; excluir=admin, ninguém aqui.
     IF pg_temp.tem_sufixo(m.extra, 'sem_autoaprovacao') THEN
-      FOREACH codigo IN ARRAY pg_temp.codigos_escrita(m.classe, m.extra)
-                              || CASE WHEN perm_excl IS NOT NULL AND excl <> ALL (pg_temp.codigos_escrita(m.classe, m.extra)) THEN ARRAY[excl] ELSE '{}'::text[] END LOOP
-        u_perm := (SELECT uid FROM persona WHERE nome = 'perm_' || codigo);
-        PERFORM pg_temp.tornar_dono_a(m.tabela, m.classe, m.extra, u_perm);
-        IF codigo = ANY (pg_temp.codigos_escrita(m.classe, m.extra)) THEN
-          n := pg_temp.upd(u_perm, 'authenticated', m.tabela);
-          IF n <> 1 THEN PERFORM pg_temp.falha(format('%s: dono da linha A com %s altera %s linha(s) (esperado 1: só a do outro)', m.tabela, codigo, n)); END IF;
+      FOR pers IN
+        SELECT pe.nome, pe.uid,
+               coalesce(pe.nome = ANY (perms) OR (m.classe = 'proprio_leitura' AND pe.nome IN ('mod_' || mods[1], perm_excl)), false) AS altera,
+               coalesce(CASE WHEN excl = 'admin' THEN false
+                             WHEN excl IS NOT NULL THEN pe.nome = perm_excl
+                             ELSE pe.nome = ANY (perms) OR (m.classe = 'proprio_leitura' AND pe.nome = 'mod_' || mods[1]) END, false) AS apaga
+          FROM persona pe
+         WHERE pe.nome = ANY (perms) OR pe.nome = perm_excl OR (m.classe = 'proprio_leitura' AND pe.nome = 'mod_' || mods[1])
+         ORDER BY pe.nome
+      LOOP
+        PERFORM pg_temp.tornar_dono_a(m.tabela, m.classe, m.extra, pers.uid);
+        IF pers.altera THEN
+          n := pg_temp.upd(pers.uid, 'authenticated', m.tabela);
+          IF n <> 1 THEN PERFORM pg_temp.falha(format('%s: %s, dono da linha A, altera %s linha(s) (esperado 1: só a do outro)', m.tabela, pers.nome, n)); END IF;
           checagens := checagens + 1;
         END IF;
-        IF excl IS NULL OR 'perm_' || codigo = perm_excl THEN
-          n := pg_temp.del(u_perm, 'authenticated', m.tabela);
-          IF n <> 1 THEN PERFORM pg_temp.falha(format('%s: dono da linha A com %s apaga %s linha(s) (esperado 1: só a do outro)', m.tabela, codigo, n)); END IF;
+        IF pers.apaga THEN
+          n := pg_temp.del(pers.uid, 'authenticated', m.tabela);
+          IF n <> 1 THEN PERFORM pg_temp.falha(format('%s: %s, dono da linha A, apaga %s linha(s) (esperado 1: só a do outro)', m.tabela, pers.nome, n)); END IF;
           checagens := checagens + 1;
         END IF;
-        PERFORM pg_temp.tornar_dono_a(m.tabela, m.classe, m.extra, u_perm, true);
+        PERFORM pg_temp.tornar_dono_a(m.tabela, m.classe, m.extra, pers.uid, true);
       END LOOP;
     END IF;
     -- anon nunca altera nem apaga
@@ -1542,6 +1552,12 @@ DECLARE
   aj_ch uuid := 'd2000000-0000-0000-0000-000000000041';        -- ajuste de ponto da própria chefia (posse por usuário)
   aj_a uuid := 'd2000000-0000-0000-0000-000000000042';         -- ajuste de ponto do usuário srv_a
   bh_rhp uuid := 'd2000000-0000-0000-0000-000000000051';       -- banco de horas do próprio RH
+  ab_aprov2 uuid := 'd2000000-0000-0000-0000-000000000006';    -- abono aprovado pelo RH, com a autoria registrada
+  aj_aprov uuid := 'd2000000-0000-0000-0000-000000000045';     -- ajuste já aprovado (com aprovador)
+  jp_pend uuid := 'd2000000-0000-0000-0000-000000000033';      -- justificativa pendente no ponto A
+  jp_aprov uuid := 'd2000000-0000-0000-0000-000000000034';     -- justificativa aprovada no ponto A
+  u_cfg uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.configurar');  -- configurador da frequência
+  u_nenhum uuid := (SELECT uid FROM persona WHERE nome='nenhum');
   u_a uuid := (SELECT uid FROM persona WHERE nome='srv_a');                         -- servidor A (profiles.servidor_id = A)
   chefia_ok text := 'status = ''aprovado_chefia'', aprovado_chefia_por = auth.uid(), aprovado_chefia_em = now()';
   rh_ok text := 'status = ''aprovado'', aprovado_rh_por = auth.uid(), aprovado_rh_em = now()';
@@ -1603,8 +1619,15 @@ BEGIN
     (ab_chefia, sa::uuid, tipo_rh, current_date, current_date, 'teste', 'aprovado_chefia'),
     (ab_aprov, sa::uuid, tipo_rh, current_date, current_date, 'teste', 'aprovado'),
     (ab_rej, sa::uuid, tipo_rh, current_date, current_date, 'teste', 'rejeitado');
+  INSERT INTO public.solicitacoes_abono (id, servidor_id, tipo_abono_id, data_inicio, data_fim, justificativa, status, aprovado_rh_por, aprovado_rh_em) VALUES
+    (ab_aprov2, sa::uuid, tipo_rh, current_date, current_date, 'teste', 'aprovado', u_rhp, now());
   INSERT INTO public.solicitacoes_ajuste_ponto (id, servidor_id, data_ocorrido, tipo_ajuste, motivo) VALUES
     (aj_ch, u_ch, current_date, 'teste', 'teste'), (aj_a, u_a, current_date, 'teste', 'teste');
+  INSERT INTO public.solicitacoes_ajuste_ponto (id, servidor_id, data_ocorrido, tipo_ajuste, motivo, status, aprovador_id, data_aprovacao) VALUES
+    (aj_aprov, u_a, current_date, 'teste', 'teste', 'aprovada', u_rhp, now());
+  INSERT INTO public.justificativas_ponto (id, registro_ponto_id, tipo, descricao, status, aprovador_id, data_aprovacao) VALUES
+    (jp_pend, ponto_a::uuid, (SELECT enumlabel::text::public.tipo_justificativa FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'tipo_justificativa' ORDER BY enumsortorder LIMIT 1), 'teste', 'pendente', NULL, NULL),
+    (jp_aprov, ponto_a::uuid, (SELECT enumlabel::text::public.tipo_justificativa FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'tipo_justificativa' ORDER BY enumsortorder LIMIT 1), 'teste', 'aprovada', u_rhp, now());
   FOR x IN SELECT * FROM (VALUES
       -- quem, linha, SET, esperado (ok:1 ou prefixo do erro)
       ('chefia', ab_pend, chefia_ok, 'ok:1'),
@@ -1682,7 +1705,7 @@ BEGIN
       ('chefia', ab_aprov, 'data_fim = data_fim + 5', 'erro:42501:Etapa do RH'),       -- estende abono aprovado
       ('chefia', ab_chefia, 'justificativa = ''outra''', 'erro:42501:Etapa do RH'),
       ('rh', ab_aprov, 'data_fim = data_fim + 5', 'ok:1'),                            -- o RH corrige
-      ('chefia', ab_pend, 'data_fim = data_fim + 1', 'ok:1'),                         -- pendente: a chefia ajusta
+      ('chefia', ab_pend, 'data_fim = data_fim + 1', 'erro:42501:Etapa do RH'),       -- nem em pendente a chefia edita (N4)
       ('chefia', ab_aprov, chefia_ok, 'erro:42501:Etapa do RH'),                      -- rebaixa o aprovado
       ('chefia', ab_rej, chefia_ok, 'erro:42501:Etapa do RH'),                        -- ressuscita o rejeitado
       ('chefia', ab_rej, 'status = ''pendente''', 'erro:42501:Etapa do RH'),
@@ -1804,7 +1827,123 @@ BEGIN
   r := pg_temp.sql_como(u_rhp, 'authenticated', 'DELETE FROM public.justificativas_ponto WHERE id = ''d2000000-0000-0000-0000-000000000032''');
   IF r <> 'ok:1' THEN PERFORM pg_temp.falha('justificativas_ponto: o RH não apaga justificativa de outro servidor (' || r || ')'); END IF;
 
-  FOREACH t IN ARRAY ARRAY['solicitacoes_abono', 'frequencia_fechamento'] LOOP
+  -- ===== reverificação de segurança da B2 (2ª rodada, migração 20261010100000): um negativo por contorno e os positivos
+  -- (N1) tipos_abono: a chefia não troca exige_aprovacao_rh (encerraria o fluxo e desfaria); o configurador troca
+  r := pg_temp.sql_como(u_ch, 'authenticated', format('UPDATE public.tipos_abono SET exige_aprovacao_rh = false WHERE id = %L', tipo_rh));
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('tipos_abono: a chefia (rh.aprovar) altera exige_aprovacao_rh (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', format('UPDATE public.tipos_abono SET nome = ''outro'' WHERE id = %L', tipo_rh));
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('tipos_abono: o módulo rh sem rh.frequencia.configurar altera o tipo (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', format('UPDATE public.tipos_abono SET exige_aprovacao_rh = false WHERE id = %L', tipo_rh));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('tipos_abono: quem tem rh.frequencia.configurar não edita o tipo de abono (' || r || ')'); END IF;
+  IF pg_temp.valor_desfeito_como(u_nenhum, 'authenticated', format('SELECT count(*)::text FROM public.tipos_abono WHERE id = %L', tipo_rh)) <> '1' THEN
+    PERFORM pg_temp.falha('tipos_abono: usuário ativo sem módulo deixou de ler o catálogo');
+  END IF;
+
+  -- (N2) servidores: o RH (módulo) não edita a PRÓPRIA ficha — nem pelo vínculo, nem pelo CPF (sem vínculo); edita a de outro
+  UPDATE public.servidores SET cpf = '111.222.333-44' WHERE id = sa::uuid;
+  UPDATE public.profiles SET cpf = '11122233344', servidor_id = NULL WHERE id = u_rh;
+  r := pg_temp.sql_como(u_rh, 'authenticated', format('UPDATE public.servidores SET cpf = ''00000000000'' WHERE id = %L', sa));
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('servidores: o RH sem vínculo troca o CPF da PRÓPRIA ficha (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', format('UPDATE public.servidores SET cpf = ''00000000000'' WHERE id = %L', sb));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('servidores: o RH não edita a ficha de outro servidor (' || r || ')'); END IF;
+  UPDATE public.profiles SET cpf = NULL, servidor_id = sa::uuid WHERE id = u_rh;
+  r := pg_temp.sql_como(u_rh, 'authenticated', format('UPDATE public.servidores SET cpf = ''00000000000'' WHERE id = %L', sa));
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('servidores: o RH edita a PRÓPRIA ficha pelo vínculo (' || r || ')'); END IF;
+  UPDATE public.profiles SET servidor_id = NULL WHERE id = u_rh;
+
+  -- (N3) autoria nula: a etapa grava o seu par mesmo sem o comando mandar; enquanto vale, o par não é apagado
+  FOR x IN SELECT * FROM (VALUES
+      ('chefia', 'solicitacoes_abono', ab_pend, 'status = ''aprovado_chefia''', 'aprovado_chefia'),        -- positivo do fluxo
+      ('chefia', 'solicitacoes_abono', ab_pend2, 'status = ''aprovado'', aprovado_chefia_em = now()', 'aprovado_chefia'),  -- encerra
+      ('rh', 'solicitacoes_abono', ab_chefia, 'status = ''aprovado''', 'aprovado_rh'),                    -- RH aprova
+      ('chefia', 'frequencia_fechamento', ff_novo, 'validado_chefia = true', 'validado_chefia'),
+      ('rh', 'frequencia_fechamento', ff_novo, 'consolidado_rh = true', 'consolidado_rh'),
+      ('rh', 'frequencia_fechamento', ff_cons, 'reaberto = true, justificativa_reabertura = ''t'', consolidado_rh = false, consolidado_rh_por = NULL, consolidado_rh_em = NULL', 'reaberto')
+    ) AS v(quem, tabela, linha, sets, etapa) LOOP
+    r := pg_temp.valor_desfeito_como(CASE x.quem WHEN 'chefia' THEN u_ch ELSE u_rhp END, 'authenticated',
+      format('UPDATE public.%I SET %s WHERE id = %L RETURNING coalesce(%I::text, ''NULO'') || ''|'' || coalesce((%I >= now() - interval ''1 minute'')::text, ''NULO'')',
+             x.tabela, x.sets, x.linha, x.etapa || '_por', x.etapa || '_em'));
+    IF r <> (CASE x.quem WHEN 'chefia' THEN u_ch ELSE u_rhp END)::text || '|true' THEN
+      PERFORM pg_temp.falha(format('%s: %s registra a etapa %s sem gravar a autoria (%s)', x.tabela, x.quem, x.etapa, r));
+    END IF;
+  END LOOP;
+  FOR x IN SELECT * FROM (VALUES
+      ('rh', 'solicitacoes_abono', ab_aprov2, 'aprovado_rh_por = NULL, aprovado_rh_em = NULL'),
+      ('rh', 'frequencia_fechamento', ff_cons, 'consolidado_rh_por = NULL'),
+      ('rh', 'frequencia_fechamento', ff_cons, 'validado_chefia_em = NULL'),
+      ('chefia', 'solicitacoes_ajuste_ponto', aj_aprov, 'aprovador_id = NULL, data_aprovacao = NULL'),
+      ('rh', 'solicitacoes_ajuste_ponto', aj_aprov, 'aprovador_id = NULL, data_aprovacao = NULL')
+    ) AS v(quem, tabela, linha, sets) LOOP
+    r := pg_temp.sql_como(CASE x.quem WHEN 'chefia' THEN u_ch ELSE u_rhp END, 'authenticated',
+                          format('UPDATE public.%I SET %s WHERE id = %L', x.tabela, x.sets, x.linha));
+    IF r NOT LIKE 'erro:42501%' THEN
+      PERFORM pg_temp.falha(format('%s: %s apaga a autoria de uma etapa que vale (SET %s deu %s)', x.tabela, x.quem, x.sets, r));
+    END IF;
+  END LOOP;
+
+  -- (N4) created_by do abono = quem insere (também o isento) e imutável; sem RH os dados não mudam nem em pendente
+  r := pg_temp.valor_desfeito_como(u_rhp, 'authenticated', format('INSERT INTO public.solicitacoes_abono (servidor_id, tipo_abono_id, data_inicio, data_fim, justificativa, created_by) VALUES (%L, %L, current_date, current_date, ''x'', %L) RETURNING created_by::text', sa, tipo_rh, u_admin));
+  IF r <> u_rhp::text THEN PERFORM pg_temp.falha('solicitacoes_abono: o RH (isento) grava created_by de outro usuário (' || r || ')'); END IF;
+  FOR x IN SELECT * FROM (VALUES
+      ('chefia', ab_pend, format('created_by = %L', u_admin), 'erro:42501'),
+      ('rh', ab_pend, format('created_by = %L', u_admin), 'erro:42501'),
+      ('chefia', ab_pend, 'data_fim = data_fim + 1', 'erro:42501:Etapa do RH'),
+      ('chefia', ab_pend, 'documento_url = ''http://x''', 'erro:42501:Etapa do RH'),
+      ('chefia', ab_pend, 'motivo_rejeicao = ''x''', 'erro:42501:Etapa do RH'),          -- motivo sem rejeitar
+      ('chefia', ab_pend, rejeita, 'ok:1'),                                              -- rejeitar o pendente segue
+      ('rh', ab_pend, 'data_fim = data_fim + 1', 'ok:1')                                 -- o RH corrige
+    ) AS v(quem, linha, sets, esperado) LOOP
+    r := pg_temp.sql_como(CASE x.quem WHEN 'chefia' THEN u_ch ELSE u_rhp END, 'authenticated',
+                          format('UPDATE public.solicitacoes_abono SET %s WHERE id = %L', x.sets, x.linha));
+    IF r NOT LIKE x.esperado || '%' THEN
+      PERFORM pg_temp.falha(format('solicitacoes_abono: %s com SET %s deu %s (esperado %s)', x.quem, x.sets, r, x.esperado));
+    END IF;
+  END LOOP;
+  -- o servidor não altera o próprio pedido (não há caminho de UPDATE pela posse)
+  r := pg_temp.sql_como(u_a, 'authenticated', format('UPDATE public.solicitacoes_abono SET justificativa = ''outra'' WHERE id = %L', ab_pend));
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('solicitacoes_abono: o servidor altera o próprio pedido (' || r || ')'); END IF;
+
+  -- (N5) justificativa e ajuste: decisão só a partir de pendente, texto imutável sem RH, autoria gravada; ajuste só o RH apaga
+  FOR x IN SELECT * FROM (VALUES
+      ('chefia', 'solicitacoes_ajuste_ponto', aj_a, 'motivo = ''outro''', 'erro:42501:Etapa do RH'),
+      ('chefia', 'solicitacoes_ajuste_ponto', aj_aprov, 'status = ''rejeitada''', 'erro:42501:Etapa do RH'),
+      ('chefia', 'solicitacoes_ajuste_ponto', aj_aprov, 'observacao_aprovador = ''x''', 'erro:42501:Etapa do RH'),
+      ('chefia', 'solicitacoes_ajuste_ponto', aj_a, 'status = ''cancelada''', 'erro:42501:Etapa do RH'),
+      ('rh', 'solicitacoes_ajuste_ponto', aj_aprov, 'status = ''rejeitada''', 'ok:1'),
+      ('rh', 'solicitacoes_ajuste_ponto', aj_a, 'motivo = ''outro''', 'ok:1'),
+      ('chefia', 'justificativas_ponto', jp_aprov, 'descricao = ''outra''', 'erro:42501:Etapa do RH'),
+      ('chefia', 'justificativas_ponto', jp_aprov, 'status = ''rejeitada''', 'erro:42501:Etapa do RH'),
+      ('chefia', 'justificativas_ponto', jp_pend, 'status = ''rejeitada''', 'ok:1'),
+      ('rh', 'justificativas_ponto', jp_aprov, 'status = ''rejeitada''', 'ok:1')
+    ) AS v(quem, tabela, linha, sets, esperado) LOOP
+    r := pg_temp.sql_como(CASE x.quem WHEN 'chefia' THEN u_ch ELSE u_rhp END, 'authenticated',
+                          format('UPDATE public.%I SET %s WHERE id = %L', x.tabela, x.sets, x.linha));
+    IF r NOT LIKE x.esperado || '%' THEN
+      PERFORM pg_temp.falha(format('%s: %s com SET %s deu %s (esperado %s)', x.tabela, x.quem, x.sets, r, x.esperado));
+    END IF;
+  END LOOP;
+  FOR x IN SELECT * FROM (VALUES ('solicitacoes_ajuste_ponto', aj_a), ('justificativas_ponto', jp_pend)) AS v(tabela, linha) LOOP
+    r := pg_temp.valor_desfeito_como(u_ch, 'authenticated',
+      format('UPDATE public.%I SET status = ''aprovada'', aprovador_id = %L, data_aprovacao = ''2000-01-01'' WHERE id = %L RETURNING aprovador_id::text || ''|'' || (data_aprovacao >= now() - interval ''1 minute'')::text',
+             x.tabela, u_admin, x.linha));
+    IF r <> u_ch::text || '|true' THEN PERFORM pg_temp.falha(format('%s: a chefia decide sem gravar a própria autoria (%s)', x.tabela, r)); END IF;
+    r := pg_temp.valor_desfeito_como(u_ch, 'authenticated',
+      format('UPDATE public.%I SET status = ''aprovada'' WHERE id = %L RETURNING coalesce(aprovador_id::text, ''NULO'')', x.tabela, x.linha));
+    IF r <> u_ch::text THEN PERFORM pg_temp.falha(format('%s: a chefia aprova e o aprovador fica nulo (%s)', x.tabela, r)); END IF;
+  END LOOP;
+  r := pg_temp.sql_como(u_ch, 'authenticated', format('DELETE FROM public.solicitacoes_ajuste_ponto WHERE id = %L', aj_a));
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('solicitacoes_ajuste_ponto: a chefia apaga o ajuste de outro usuário (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rhp, 'authenticated', format('DELETE FROM public.solicitacoes_ajuste_ponto WHERE id = %L', aj_a));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('solicitacoes_ajuste_ponto: o RH não apaga o ajuste de outro usuário (' || r || ')'); END IF;
+
+  -- (N6) CPF gravado sem o zero inicial casa com o CPF completo (lpad 11)
+  UPDATE public.servidores SET cpf = '012.345.678-90' WHERE id = sa::uuid;
+  UPDATE public.profiles SET cpf = '1234567890', servidor_id = NULL WHERE id = u_ch;
+  r := pg_temp.sql_como(u_ch, 'authenticated', format('UPDATE public.solicitacoes_abono SET %s WHERE id = %L', chefia_ok, ab_pend2));
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('solicitacoes_abono: aprovador sem vínculo com o CPF sem o zero inicial aprova o PRÓPRIO abono (' || r || ')'); END IF;
+  UPDATE public.profiles SET cpf = NULL WHERE id = u_ch;
+
+  FOREACH t IN ARRAY ARRAY['solicitacoes_abono', 'frequencia_fechamento', 'justificativas_ponto', 'solicitacoes_ajuste_ponto'] LOOP
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = ('public.' || t)::regclass AND tgname = 'trg_validar_etapa_frequencia' AND NOT tgisinternal AND tgenabled <> 'D') THEN
       PERFORM pg_temp.falha(t || ': falta o trigger trg_validar_etapa_frequencia');
     END IF;
