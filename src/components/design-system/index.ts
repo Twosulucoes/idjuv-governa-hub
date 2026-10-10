@@ -8,3 +8,4 @@ export { KpiCard, type KpiCardProps } from "./KpiCard";
 export { ChartCard, type ChartCardProps, type TabelaAlternativa } from "./ChartCard";
 export { FormSection, type FormSectionProps } from "./form/FormSection";
 export { ErrorSummary, type ErrorSummaryProps } from "./form/ErrorSummary";
+export { SkipLink, type SkipLinkProps } from "./SkipLink";
