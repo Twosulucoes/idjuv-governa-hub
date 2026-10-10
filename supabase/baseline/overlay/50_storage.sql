@@ -92,7 +92,7 @@ DROP POLICY IF EXISTS "st_inventario-evidencias_delete" ON storage.objects;
 CREATE POLICY "st_inventario-evidencias_delete" ON storage.objects FOR DELETE TO authenticated
   USING (bucket_id = 'inventario-evidencias' AND public.has_permission_code(auth.uid(), 'patrimonio.tramitar'));
 
--- Arquivos do RH (Onda B / B3, migração 20261010180000_onda_b_rh_storage.sql, mesmo texto): ler continua pelo módulo
+-- Arquivos do RH (Onda B / B3, migração 20261010210000_onda_b_rh_storage.sql, mesmo texto): ler continua pelo módulo
 -- rh, mais o dono do arquivo; gravar (INSERT/UPDATE/DELETE) exige o módulo E um código do catálogo, como as tabelas
 -- do RH na B2.
 --   frequencias ............... o servidor lê o PDF dele (eh_meu_arquivo_frequencia: arquivo_path em

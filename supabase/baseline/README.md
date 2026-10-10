@@ -28,6 +28,9 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 > (`module_permissions_catalog`, `module_settings`, `module_access_scopes`, `user_org_units`), a injeção em
 > `fn_gerar_numero_financeiro`, os stubs de acesso do overlay 10, `gestores_escolares`/`escolas_jer`,
 > `cadastro_arbitros(+_modalidades)` e o EXECUTE de `anon` (lista de RPCs públicas do overlay 40).
+> A `20261010200000_onda1_remover_acesso_total.sql` copia para 166 tabelas o bloco do
+> `rls/35_policies_geradas.sql` (removendo as `acesso_total_*`); ao mudar a classe ou os módulos de uma
+> dessas tabelas no `mapa.csv`, o histórico precisa de nova migração com o bloco regenerado.
 
 ## Conteúdo e ordem de aplicação (`aplicar.sh`, uma única transação)
 
@@ -62,7 +65,7 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas
 | Classe | Tabelas | Regra |
 |---|---|---|
 | `modulo` | 164 | módulo(s) do mapa leem e escrevem; admin (papel) também |
-| `permissao` | 25 | módulo lê (com `;proprio`/`;pai=` o servidor lê o seu, como `proprio_leitura`/`proprio_filho`; com `;filho=<tabela>.<fk>` lê a linha que tem uma filha sua — a folha em que tem ficha); **escreve só quem tem o módulo E a permissão granular** do `extra` (via `can_access_module` + `has_permission_code`; admin passa). Hoje: as 10 tabelas da folha (B1, `financeiro.folha.processar\|configurar`; migração `20261010070000_onda_b_folha_rls_permissao.sql`) e 12 do RH (B2: férias, licenças, viagens, ponto, frequência, abono, ajuste, justificativa, fechamento, configuração do fechamento, banco de horas e lançamentos; migração `20261010090000_onda_b_rh_permissoes.sql`) e 3 do RH na B3 (`frequencia_pacotes`, `frequencia_arquivos` e `documentos_requerimento_servidor`; migração `20261010180000_onda_b_rh_storage.sql`). As migrações carregam o mesmo SQL gerado |
+| `permissao` | 25 | módulo lê (com `;proprio`/`;pai=` o servidor lê o seu, como `proprio_leitura`/`proprio_filho`; com `;filho=<tabela>.<fk>` lê a linha que tem uma filha sua — a folha em que tem ficha); **escreve só quem tem o módulo E a permissão granular** do `extra` (via `can_access_module` + `has_permission_code`; admin passa). Hoje: as 10 tabelas da folha (B1, `financeiro.folha.processar\|configurar`; migração `20261010070000_onda_b_folha_rls_permissao.sql`) e 12 do RH (B2: férias, licenças, viagens, ponto, frequência, abono, ajuste, justificativa, fechamento, configuração do fechamento, banco de horas e lançamentos; migração `20261010090000_onda_b_rh_permissoes.sql`) e 3 do RH na B3 (`frequencia_pacotes`, `frequencia_arquivos` e `documentos_requerimento_servidor`; migração `20261010210000_onda_b_rh_storage.sql`). As migrações carregam o mesmo SQL gerado |
 | `trilha` | 9 | módulo lê; **ninguém escreve por API** (auditoria e históricos gravados por trigger) |
 | `proprio_leitura` / `proprio` / `proprio_filho` | 8 / 0 / 0 | módulo + o próprio servidor lê; em `proprio*` o servidor também cria o próprio pedido (status/aprovação forçados pelo overlay 20). Desde a B2, `servidores` (posse pela coluna `id`, DELETE com `rh.servidores.excluir`, e nos contornos `sem_autoaprovacao`: ninguém grava a própria ficha), `vinculos_servidor` e `lotacoes` estão aqui; as tabelas do RH que estavam em `proprio`/`proprio_filho` passaram a `permissao` (a última, `documentos_requerimento_servidor`, na B3). As classes `proprio` e `proprio_filho` continuam no gerador, sem tabela |
 | `catalogo` | 7 | qualquer usuário ativo lê; escrita por módulo, ou com `escrita=<código>` também pelo código (`tipos_abono`: `rh.frequencia.configurar`, nos contornos). `cargos` entrou na B2 |
@@ -264,7 +267,7 @@ Limites conhecidos:
   (já mesclada): recria `eh_meu_servidor` em plpgsql (mesmo texto do overlay `10`), as policies geradas de
   `tipos_abono`, `servidores` e `solicitacoes_ajuste_ponto` e `validar_etapa_frequencia`, agora também em
   `justificativas_ponto` e `solicitacoes_ajuste_ponto`.
-- **Migração `20261010180000` (B3, em PR rascunho) × overlays.** Carrega `eh_meu_arquivo_frequencia` e
+- **Migração `20261010210000` (B3, em PR rascunho) × overlays.** Carrega `eh_meu_arquivo_frequencia` e
   `eh_minha_pasta_servidor` (mesmo texto do overlay `10`, privilégios do overlay `40`), o SQL gerado de
   `frequencia_pacotes`, `frequencia_arquivos` e `documentos_requerimento_servidor`, o trigger de campos iniciais
   do pedido (mesmo texto do overlay `20`) e as policies `st_*` dos três buckets (mesmo texto do overlay `50`).

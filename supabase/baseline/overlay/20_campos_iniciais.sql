@@ -103,7 +103,7 @@ BEGIN
     ('solicitacoes_abono',               'perm:rh:rh.aprovar|rh.frequencia.lancar', 'status=pendente,aprovado_chefia_por=NULL,aprovado_chefia_em=NULL,aprovado_rh_por=NULL,aprovado_rh_em=NULL,observacao_aprovador=NULL,motivo_rejeicao=NULL,created_by=@uid'),
     ('justificativas_ponto',             'perm:rh:rh.aprovar|rh.frequencia.lancar:registros_ponto.registro_ponto_id', 'status=pendente,aprovador_id=NULL,data_aprovacao=NULL,observacao_aprovador=NULL,motivo_rejeicao=NULL,created_by=@uid'),
     ('solicitacoes_ajuste_ponto',        'perm:rh:rh.aprovar|rh.frequencia.lancar:usuario', 'status=pendente,aprovador_id=NULL,data_aprovacao=NULL,observacao_aprovador=NULL,motivo_rejeicao=NULL,created_by=@uid'),
-    -- B3 (migração 20261010180000): isento só quem tem o módulo E rh.servidores.editar, fora do próprio pedido; o
+    -- B3 (migração 20261010210000): isento só quem tem o módulo E rh.servidores.editar, fora do próprio pedido; o
     -- servidor que pede o próprio documento não grava arquivo assinado, data do envio nem link de modelo
     ('documentos_requerimento_servidor', 'perm:rh:rh.servidores.editar', 'status=pendente,arquivo_assinado_url=NULL,data_upload_assinado=NULL,modelo_url=NULL,created_by=@uid')
   ) AS v(tabela, isencao, campos)

@@ -51,6 +51,10 @@ GRANT EXECUTE ON FUNCTION public.arbitro_cpf_cadastrado(text) TO anon;
 GRANT EXECUTE ON FUNCTION public.obter_protocolo_arbitro(uuid) TO anon;
 GRANT EXECUTE ON FUNCTION public.consultar_gestor_por_cpf(text) TO anon;
 GRANT EXECUTE ON FUNCTION public.registrar_gestor_publico(uuid, text, text, text, date, text, text, text) TO anon;
+-- Portal da Transparência (migração 20261010200000): só os campos das telas, filtro de LGPD no servidor
+GRANT EXECUTE ON FUNCTION public.transparencia_execucao_orcamentaria() TO anon;
+GRANT EXECUTE ON FUNCTION public.transparencia_licitacoes(integer, text) TO anon;
+GRANT EXECUTE ON FUNCTION public.transparencia_patrimonio() TO anon;
 
 -- ---- funções só da service role (Edge Functions): fecham também para authenticated ----
 REVOKE EXECUTE ON FUNCTION public.list_public_tables() FROM authenticated;
@@ -87,7 +91,7 @@ DO $$ BEGIN
     REVOKE EXECUTE ON FUNCTION public.servidores_proteger_cpf() FROM authenticated;
   END IF;
 END $$;
--- ajudantes das policies de storage do RH (migração 20261010180000, B3; definidos no overlay/10): só authenticated
+-- ajudantes das policies de storage do RH (migração 20261010210000, B3; definidos no overlay/10): só authenticated
 -- executa (as policies os chamam como o usuário; a service role não passa por RLS). O dump não leva o REVOKE.
 REVOKE EXECUTE ON FUNCTION public.eh_meu_arquivo_frequencia(text) FROM PUBLIC, anon, service_role;
 REVOKE EXECUTE ON FUNCTION public.eh_minha_pasta_servidor(text) FROM PUBLIC, anon, service_role;

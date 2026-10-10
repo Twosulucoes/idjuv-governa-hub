@@ -92,7 +92,18 @@ permissões de 10/10/2026) fecha o restante do mesmo tipo de furo nesse banco:
   `registrar_gestor_publico`, `gerar_codigo_pre_cadastro`); `authenticated` mantém o que tinha. Função
   nova criada pelo `postgres` nasce sem EXECUTE para `anon`.
 
-As demais ~190 tabelas com `acesso_total_*` nesse banco continuam abertas a qualquer logado (Onda 1).
+A migração `supabase/migrations/20261010200000_onda1_remover_acesso_total.sql` (Onda 1) fecha as
+demais: em 166 tabelas troca as `acesso_total_*` (`TO authenticated USING (true)`) pelo bloco gerado
+do baseline (`35_policies_geradas.sql`, a partir do `mapa.csv`). Sem o módulo dono, o usuário não lê
+nem grava; trilhas (`*_audit_log`, históricos) ficam só leitura; catálogos são lidos por qualquer
+usuário ativo e escritos só pelo módulo. Tabelas usadas por telas de mais de um módulo têm vários
+donos no mapa (ex.: `documentos` = workflow|rh|gabinete|governanca|admin). Ficam de fora
+`frequencia_pacotes`, `frequencia_arquivos` e `documentos_requerimento_servidor`, fechadas pela migração de storage do RH
+(PR da Onda B do RH). Leitura de `anon` não muda. Num banco do baseline é no-op.
+
+Efeitos conhecidos: contadores de painel que somam tabelas de outro módulo mostram zero para quem não
+tem aquele módulo (ex.: processos no painel `/admin`); `cms_*` e `contatos_eventos_esportivos` só
+aparecem para quem tem `comunicacao`; o histórico de `/admin/paginas` é só do papel admin.
 
 ## Fluxo em tempo de execução
 
@@ -526,7 +537,7 @@ SELECT has_function_privilege('authenticated', 'public.eh_meu_servidor(uuid)', '
 
 ### Arquivos do RH e download de frequência (Onda B / B3)
 
-Migração `supabase/migrations/20261010180000_onda_b_rh_storage.sql` (spec
+Migração `supabase/migrations/20261010210000_onda_b_rh_storage.sql` (spec
 `docs/superpowers/specs/2026-10-10-onda-b-rh-storage-design.md`; **em PR rascunho**). Vem depois da
 `supabase/migrations/20261010170000_onda0_permissoes_urgente.sql` e depende da B1 e da B2 (formato `perm:` de
 `forcar_campos_iniciais`). É idempotente e vale nos dois estados do banco: no baseline o mesmo texto está nos

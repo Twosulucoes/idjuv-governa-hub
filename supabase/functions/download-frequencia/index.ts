@@ -3,7 +3,7 @@
  *
  * Fornece download autenticado de arquivos ZIP de frequência (URL assinada do bucket privado `frequencias`).
  *
- * Segurança (Onda B / B3, migração 20261010180000_onda_b_rh_storage.sql):
+ * Segurança (Onda B / B3, migração 20261010210000_onda_b_rh_storage.sql):
  * - exige token válido E, conferidos pelo banco com o id do usuário do token ANTES de qualquer leitura com a
  *   service role: módulo `rh` (can_access_module) e `rh.frequencia.visualizar` (has_permission_code), que já exigem
  *   perfil ativo; erro na checagem nega (403 genérico);

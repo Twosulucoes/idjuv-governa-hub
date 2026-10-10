@@ -50,7 +50,7 @@ sobre a `main` (depois das PRs #69, #71, #58 e #59). Premissas valem até o usu�
 
 ## O que muda
 
-1. Migração `supabase/migrations/20261010180000_onda_b_rh_storage.sql`:
+1. Migração `supabase/migrations/20261010210000_onda_b_rh_storage.sql`:
    - funções `eh_meu_arquivo_frequencia(text)` e `eh_minha_pasta_servidor(text)`: `plpgsql`/`sql`
      `STABLE SECURITY DEFINER`, `search_path` fixo, `EXECUTE` só para `authenticated`; a segunda valida o
      formato de uuid antes do cast; as duas comparam com `meu_servidor_id()` (vínculo do perfil, como a RLS

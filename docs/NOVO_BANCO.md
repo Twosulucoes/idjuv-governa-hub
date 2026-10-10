@@ -141,7 +141,7 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   ainda entregam o arquivo a quem tem a URL; fechar exige bucket privado + URL assinada no front. O
   `inventario-evidencias` (fotos da vistoria de inventário) já nasce privado e o front lê por URL assinada.
   Os buckets do RH `frequencias` e `documentos-requerimento` e o `documentos` também são privados; desde a B3
-  (migração `supabase/migrations/20261010180000_onda_b_rh_storage.sql`, em PR rascunho) o documento assinado do
+  (migração `supabase/migrations/20261010210000_onda_b_rh_storage.sql`, em PR rascunho) o documento assinado do
   servidor abre por URL assinada, mas portarias, atos e cedência ainda gravam link público (`getPublicUrl`) do
   bucket `documentos`, que num bucket privado não abre (pendência; ver [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#arquivos-do-rh-e-download-de-frequência-onda-b--b3)).
 - `fotos_vistoria_inventario` é da classe `preservar` do mapa de RLS: as policies vêm da migração

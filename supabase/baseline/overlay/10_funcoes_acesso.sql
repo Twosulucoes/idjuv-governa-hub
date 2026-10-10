@@ -138,7 +138,7 @@ GRANT EXECUTE ON FUNCTION public.eh_meu_servidor(uuid) TO authenticated;
 -- B3 (storage do RH): o objeto do bucket `frequencias` é o PDF de frequência do usuário logado? Verdadeira quando há
 -- uma linha em frequencia_arquivos com arquivo_path = _path e servidor_id = meu_servidor_id() (o vínculo do perfil
 -- ativo: o mesmo dono da RLS de frequencia_arquivos, ;proprio; sem vínculo, nada). Perfil ativo é pré-condição.
--- SECURITY DEFINER porque o servidor não precisa enxergar a linha de frequencia_arquivos pela RLS para ler o seu PDF. Nunca devolve NULL. Mesmo texto na migração 20261010180000_onda_b_rh_storage.sql; EXECUTE só para
+-- SECURITY DEFINER porque o servidor não precisa enxergar a linha de frequencia_arquivos pela RLS para ler o seu PDF. Nunca devolve NULL. Mesmo texto na migração 20261010210000_onda_b_rh_storage.sql; EXECUTE só para
 -- authenticated (overlay/40).
 CREATE OR REPLACE FUNCTION public.eh_meu_arquivo_frequencia(_path text)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
@@ -156,7 +156,7 @@ $$;
 -- <servidor_id>/<doc_id>.<ext> (DocumentosServidorTab): a primeira pasta precisa ter formato de uuid (conferido ANTES
 -- do cast, para nome fora do padrão dar false e não erro) e ser meu_servidor_id() (mesmo dono da RLS ;proprio).
 -- Perfil ativo é pré-condição.
--- Nunca devolve NULL. Mesmo texto na migração 20261010180000_onda_b_rh_storage.sql; EXECUTE só para authenticated
+-- Nunca devolve NULL. Mesmo texto na migração 20261010210000_onda_b_rh_storage.sql; EXECUTE só para authenticated
 -- (overlay/40).
 CREATE OR REPLACE FUNCTION public.eh_minha_pasta_servidor(_name text)
 RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$

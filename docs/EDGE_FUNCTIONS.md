@@ -69,7 +69,7 @@ JWT sem validar a assinatura) e o usuário com papel precisa ter o perfil ativo.
 ### Autorização do `download-frequencia` (Onda B / B3)
 
 A função lê `frequencia_pacotes` e assina URLs com a service role, então, desde a migração
-`supabase/migrations/20261010180000_onda_b_rh_storage.sql` (**em PR rascunho**):
+`supabase/migrations/20261010210000_onda_b_rh_storage.sql` (**em PR rascunho**):
 
 - exige `Authorization: Bearer` com token válido (`401` sem ele);
 - antes de qualquer leitura com a service role, confere no banco, com o id do usuário do token,
