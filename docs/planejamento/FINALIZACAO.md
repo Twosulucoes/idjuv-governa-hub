@@ -97,14 +97,14 @@ dependem de acesso ao Supabase do IDJUV.
 > nuvem (`IDJUV_DB_URL`), e migrações são aplicadas com `supabase db push --db-url`
 > ou `psql`, nunca direto em produção.
 7. `/prompt revisao --modulo rh Verificar no banco real as policies e funções S1–S7 da ANALISE_RH`
-8. `/prompt migracao --modulo rh RLS granular em folha, fichas, consignações, licenças e storage; search_path e permissão em processar_folha_pagamento`
-9. `/prompt migracao --modulo rh Trilha de auditoria (trigger genérico em audit_logs ou supa_audit) nas tabelas sensíveis do RH`
+8. `/prompt migracao --modulo rh RLS granular em folha, fichas, consignações, licenças e storage; search_path e permissão em processar_folha_pagamento` — **parcial (B1, em PR)**: a parte da folha está na migração `supabase/migrations/20261010070000_onda_b_folha_rls_permissao.sql` ([spec](../superpowers/specs/2026-10-10-onda-b-folha-seguranca-design.md), [plano](../superpowers/plans/2026-10-10-onda-b-folha-seguranca.md)): escrita nas 10 tabelas da folha só com `financeiro.folha.processar|configurar`, guarda e EXECUTE em `processar_folha_pagamento`, INSERT em folha fechada barrado, catálogo da folha no módulo `rh`, rotas `/folha*` por permissão. Restam licenças/férias/viagens/frequência por permissão e leitura própria em `servidores` (B2) e storage + `download-frequencia` (B3)
+9. `/prompt migracao --modulo rh Trilha de auditoria (trigger genérico em audit_logs ou supa_audit) nas tabelas sensíveis do RH` — **parcial (B1)**: `fn_audit_trigger('rh')` em `folhas_pagamento`, `itens_ficha_financeira` e `consignacoes`. `fichas_financeiras`, `dependentes_irrf` e as demais tabelas com dado pessoal ficam para a auditoria com mascaramento
 
 **Onda C — completar os fluxos que já existem**
 10. ~~`/prompt ajuste --modulo rh ServidorForm com zod, validação de CPF/PIS e erro do vínculo tratado`~~ — entregue na PR #49 (mesclada em 2026-10-09)
 11. ~~`/prompt crud --modulo rh Férias completas: editar/excluir, saldo de 30 dias, sobreposição, parcelas, 1/3`~~ — entregue na PR #51 (mesclada em 2026-10-09); 1/3 na folha ficou de fora
 12. `/prompt tela --modulo rh Fluxo de frequência: abono, validação da chefia, consolidação do RH e fechamento, usando os hooks já existentes` — em revisão na PR #52
-13. `/prompt tela --modulo rh Detalhe da folha: editar itens da ficha, consignações e dependentes IRRF`
+13. `/prompt tela --modulo rh Detalhe da folha: editar itens da ficha, consignações e dependentes IRRF` — front na PR #56; a parte de banco que ela deixou registrada (13b: RLS por permissão, guarda da RPC, INSERT em folha fechada, índice único de desconto por referência) entrou em B1 (item 8). Ficam para depois da #56: RPC de recálculo atômico da ficha e preservar itens manuais no reprocessamento
 14. `/prompt ajuste --modulo rh Viagens: editar/excluir e diária calculada por tabela`
 15. `/prompt relatorio --modulo rh Relatórios de férias, licenças, frequência, viagens e folha`
 

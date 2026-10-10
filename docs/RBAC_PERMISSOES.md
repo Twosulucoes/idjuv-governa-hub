@@ -136,6 +136,64 @@ não exige permissão: a RLS filtra pelo público-alvo (`can_access_module` dos 
   Mesma dívida de `/rh/meus-dados`: policy de leitura da própria linha em `servidores` e
   alinhamento `profiles.servidor_id` ↔ `servidores.user_id` (migração de RLS).
 
+### Folha: RLS por permissão (Onda B / B1)
+
+Migração `supabase/migrations/20261010070000_onda_b_folha_rls_permissao.sql` (spec
+`docs/superpowers/specs/2026-10-10-onda-b-folha-seguranca-design.md`; em PR, **ainda não aplicada em
+remoto**). A folha pertence ao módulo `rh`: **ler** exige o módulo; **escrever** exige a permissão granular
+que o front já usava como gate, conferida no banco por `has_permission_code` (o papel admin passa; o perfil
+precisa estar ativo). As policies `acesso_total_*` dessas dez tabelas são removidas na mesma transação.
+
+| Tabela | Leitura (SELECT) | Escrita (INSERT/UPDATE/DELETE) |
+|---|---|---|
+| `folhas_pagamento`, `lancamentos_folha`, `consignacoes`, `dependentes_irrf` | módulo `rh` | `financeiro.folha.processar` |
+| `fichas_financeiras` | módulo `rh` **ou** o próprio servidor (`servidor_id = meu_servidor_id()`) | `financeiro.folha.processar` |
+| `itens_ficha_financeira` | módulo `rh` **ou** itens da própria ficha | `financeiro.folha.processar` |
+| `parametros_folha`, `rubricas`, `tabela_inss`, `tabela_irrf` | módulo `rh` | `financeiro.folha.configurar` |
+
+- **RPC `processar_folha_pagamento`**: exige `financeiro.folha.processar` no início do corpo (erro `42501`,
+  que o handler de erros da função não engole) e volta a ser executável por `authenticated` — no baseline
+  estava sem EXECUTE e o botão Processar falhava; `anon` não executa. Fechar/reabrir folha não mudou:
+  `usuario_pode_fechar_folha` exige `rh.admin`, código que não existe no catálogo, logo só o papel admin
+  fecha e reabre (decisão de negócio pendente).
+- **Folha fechada** barra também o INSERT em `fichas_financeiras` e `itens_ficha_financeira` (admin passa),
+  como já valia para UPDATE/DELETE.
+- **Catálogo**: `financeiro.folha.visualizar|processar|configurar` passam a `module_code = 'rh'` em
+  `module_permissions_catalog` (e de `MODULE_PERMISSIONS.financeiro` para `.rh` em `src/types/auth.ts`)
+  **sem mudar de código** — gates do front, `role_permissions` e `user_permissions` continuam iguais. Como a
+  permissão de papel só vale para quem tem o módulo dela, `manager` com o módulo `rh` passa a ter
+  `processar` e `configurar` por papel; quem só tem o módulo `financeiro` deixa de recebê-las por papel.
+  `user` (só `visualizar`) perde escrita na folha.
+- **Rotas** (`ProtectedRoute` e `ROUTE_PERMISSIONS`): `/folha`, `/folha/fichas`, `/folha/gestao` e
+  `/folha/:id` exigem o módulo `rh` e `financeiro.folha.visualizar`; `/folha/rubricas` e
+  `/folha/configuracao`, o módulo `rh` e `financeiro.folha.configurar`. `ProtectedRoute` e `AuthContext`
+  não mudaram.
+- **Auditoria** (`fn_audit_trigger('rh')`) em `folhas_pagamento`, `itens_ficha_financeira` e `consignacoes`.
+  `fichas_financeiras` (dados bancários, PIS) e `dependentes_irrf` (CPF) ficam **sem** o trigger genérico,
+  que copia a linha inteira para `audit_logs`; auditoria com mascaramento é pendência.
+- Quem perde acesso: usuário com o módulo `rh` que escrevia na folha **sem** a permissão, direto na API.
+
+Conferência pós-merge, pelo administrador, no banco real:
+
+```sql
+SELECT count(*) FROM pg_policies
+ WHERE policyname ILIKE 'acesso_total%'
+   AND tablename IN ('folhas_pagamento','fichas_financeiras','itens_ficha_financeira','consignacoes',
+                     'dependentes_irrf','lancamentos_folha','parametros_folha','rubricas','tabela_inss','tabela_irrf');
+-- esperado: 0
+SELECT has_function_privilege('authenticated', 'public.processar_folha_pagamento(uuid)', 'EXECUTE'),  -- true
+       has_function_privilege('anon',          'public.processar_folha_pagamento(uuid)', 'EXECUTE');  -- false
+SELECT permission_code, module_code FROM module_permissions_catalog
+ WHERE permission_code LIKE 'financeiro.folha.%';  -- module_code = rh nas três linhas
+```
+
+Fora desta entrega, com spec própria: férias, licenças, viagens e frequência por permissão
+(`rh.<x>.criar|editar|gerenciar|lancar`), leitura da própria linha em `servidores` e autoatendimento (B2);
+storage `frequencias`/`documentos-requerimento`/`documentos` e a Edge Function `download-frequencia` (B3).
+Também pendentes: RPC de recálculo atômico da ficha e preservação dos itens manuais no reprocessamento
+(dependem da PR #56), quem fecha a folha, auditoria mascarada das tabelas com dado pessoal e a remoção de
+`src/hooks/useMotorFolha.ts` (motor de folha no cliente, sem uso por página).
+
 ### Importação de dados
 
 Cada importador declara a sua permissão (`src/lib/importacao/registro.ts`) e a RPC dele confere a

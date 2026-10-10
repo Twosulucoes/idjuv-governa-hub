@@ -18,13 +18,25 @@ muda em relação ao estado das migrações:
 - **RLS por módulo, falha fechada.** As policies `acesso_total_*` (qualquer usuário logado) saem; cada
   tabela recebe policies de `can_access_module` conforme `supabase/baseline/rls/mapa.csv` (fonte da
   verdade, gerada em `rls/35_policies_geradas.sql`). Tabela fora do mapa reprova no teste.
+- **RLS por permissão (classe `permissao` do gerador).** Leitura pelo módulo, como em `modulo`; escrita
+  (INSERT/UPDATE/DELETE) só com a permissão granular do `extra` (`escrita=<código>[;proprio|;pai=<tabela>.<fk>]`),
+  via `has_permission_code`. Hoje são as 10 tabelas da folha (`financeiro.folha.processar` para operar,
+  `financeiro.folha.configurar` para rubricas, parâmetros e tabelas de INSS/IRRF) — detalhe em
+  [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#folha-rls-por-permissão-onda-b--b1). `scripts/db/testar-rls.sql`
+  cobre a classe com uma persona por código (módulo + código em `user_modules.permissions`).
 - **Perfil ativo é pré-condição.** `is_admin_user`, `has_permission_code` e `meu_servidor_id` passam a
-  exigir `profiles.is_active`; administrador bloqueado deixa de ser administrador.
+  exigir `profiles.is_active`; administrador bloqueado deixa de ser administrador. Desde a migração
+  `supabase/migrations/20261010070000_onda_b_folha_rls_permissao.sql` essas funções-base (e `usuario_eh_admin`,
+  `has_role`/`has_module`/`can_access_module` sem stub, `registrar_transicao_folha`, `folhas_proteger_fechamento`,
+  `fechar_folha`, `reabrir_folha`) também são recriadas por migração, com o texto dos overlays 10 e 18: o banco
+  produzido só pelo replay das migrações passa a ter as mesmas funções do baseline.
 - **`profiles` protegido.** Um trigger impede quem não é admin de mudar `is_active`, `servidor_id`,
   bloqueio, tipo, CPF e e-mail; antes qualquer usuário se ativava e assumia o servidor de outro.
 - **RPCs.** `fn_gerar_numero_financeiro` aceita só tipos de uma lista (havia injeção de SQL); as RPCs de
-  leitura com dado pessoal rodam como o usuário (`SECURITY INVOKER`); as que escrevem na folha perdem o
-  EXECUTE de `authenticated`; função nova não nasce executável por `anon` nem por PUBLIC.
+  leitura com dado pessoal rodam como o usuário (`SECURITY INVOKER`); `fn_atualizar_situacao_servidor` perde o
+  EXECUTE de `authenticated` (`processar_folha_pagamento` voltou a ser executável por `authenticated` na migração
+  `20261010070000`, com guarda `financeiro.folha.processar` no corpo); função nova não nasce executável por
+  `anon` nem por PUBLIC.
 - **`anon`** só tem as 6 RPCs públicas (denúncia, dado oficial, árbitros, gestores escolares) e as tabelas de formulário/portal declaradas no mapa (coluna `anon`);
   `authenticated` mantém os privilégios padrão de tabela (menos `TRUNCATE`/`TRIGGER`, e sem escrita em
   `audit_logs`), limitados pela RLS. As exceções são as funções `SECURITY DEFINER` de apoio listadas no teste.
@@ -72,6 +84,29 @@ mudança de schema continua por migração nova (e regeneração do baseline). T
 `adicionais_tempo_servico`, `config_fechamento_folha`, `exportacoes_folha`,
 `bancos_cnab`, `remessas_bancarias`, `retornos_bancarios`,
 `itens_retorno_bancario`, `eventos_esocial`.
+
+Segurança da folha (**migração `supabase/migrations/20261010070000_onda_b_folha_rls_permissao.sql`, em PR,
+ainda não aplicada em remoto**; idempotente, vale tanto para o banco do baseline quanto para o produzido só
+pelas migrações):
+
+- Policies por permissão nas 10 tabelas da folha (classe `permissao`, acima) e remoção das `acesso_total_*`
+  delas na mesma transação.
+- `processar_folha_pagamento`: guarda `has_permission_code(auth.uid(), 'financeiro.folha.processar')` no
+  início (`42501`, não engolido pelo handler da função); EXECUTE para `authenticated` e `service_role`, não
+  para `anon`/PUBLIC. O `DELETE FROM fichas_financeiras` do reprocessamento continua (preservar itens
+  manuais é pendência).
+- Triggers BEFORE INSERT `trg_bloquear_insercao_ficha_fechada` (`fichas_financeiras`) e
+  `trg_bloquear_insercao_item_ficha_fechada` (`itens_ficha_financeira`): folha bloqueada
+  (`folha_esta_bloqueada`) recusa a inclusão com `42501`, exceto para `usuario_eh_admin` — espelho dos triggers
+  de UPDATE/DELETE já existentes.
+- Índice único parcial `itens_ficha_financeira_ficha_referencia_desconto_uidx` em
+  `(ficha_id, lower(referencia)) WHERE tipo = 'desconto' AND referencia IS NOT NULL` (um desconto por
+  referência em cada ficha). Criado só se não houver duplicata; com duplicata a migração emite `WARNING` no log
+  do CI e segue, e o índice fica para depois da limpeza manual.
+- Auditoria `fn_audit_trigger('rh')` (AFTER INSERT/UPDATE/DELETE) em `folhas_pagamento`,
+  `itens_ficha_financeira` e `consignacoes`. `fichas_financeiras` e `dependentes_irrf` ficam de fora de
+  propósito (dado bancário e CPF iriam inteiros para `audit_logs`).
+- `module_permissions_catalog`: `financeiro.folha.%` passa a `module_code = 'rh'` (códigos inalterados).
 
 ### Financeiro / orçamento
 Núcleo (prefixo `fin_`): `fin_solicitacoes`, `fin_solicitacao_itens`,
@@ -252,7 +287,8 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
 - **Folha / RH**: `calcular_inss_servidor`, `calcular_irrf`, `count_dependentes_irrf`,
   `fn_calcular_ferias`, `calcular_horas_trabalhadas`, `fechar_folha`,
   `reabrir_folha`, `usuario_pode_fechar_folha`, `usuario_pode_reabrir_folha`,
-  `fn_validar_margem_consignavel`, `fn_validar_teto_remuneratorio`,
+  `processar_folha_pagamento(p_folha_id)` (`SECURITY DEFINER`; exige `financeiro.folha.processar` e folha em
+  `aberta|processando|reaberta|previa`), `fn_validar_margem_consignavel`, `fn_validar_teto_remuneratorio`,
   `fn_atualizar_situacao_servidor`.
 - **Financeiro**: `fn_gerar_numero_financeiro`, `fn_inscrever_restos_pagar`.
 - **Importação**: `importar_qdd_fiplan(p_exercicio, p_linhas, p_arquivo, p_simular)` — `SECURITY DEFINER`,
