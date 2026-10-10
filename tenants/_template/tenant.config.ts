@@ -130,6 +130,13 @@ export const templateConfig: TenantConfig = {
   legal: {},
   integracoes: {},
 
+  // Tabela de diárias: preencha `linhas` com os valores do ato normativo de
+  // diárias da instituição (por categoria de cargo e faixa de destino). Vazia,
+  // a tela de viagens aceita quantidade e valor manuais.
+  rh: {
+    diarias: { linhas: [] },
+  },
+
   // Comece pelo núcleo genérico. Módulos da vertical de esporte
   // (`organizacoes`, `arbitros`, `gestores_escolares`, `programas`) só fazem
   // sentido para institutos do ramo — adicione se o cliente contratou.

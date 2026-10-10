@@ -541,6 +541,34 @@ SELECT has_function_privilege('authenticated', 'public.eh_meu_servidor(uuid)', '
   `RAISE` dos triggers (P0001) é repassado; os demais viram mensagem fixa com o código, sem nome de
   tabela/constraint nem o `DETAIL` do Postgres (que em CHECK traz a linha inteira, com dados pessoais).
 
+### Viagens: edição, cancelamento e exclusão
+
+- `/rh/viagens` (`GestaoViagensPage`) exige `rh.viagens.visualizar` na rota e no item de menu.
+  Dentro da página, criar exige `rh.viagens.criar` ou `rh.viagens.gerenciar`; editar, mudar
+  status e cancelar exigem `rh.viagens.editar` ou `rh.viagens.gerenciar`; o workflow DIRAF,
+  `rh.viagens.gerenciar` ou `financeiro.diarias.gerenciar`; excluir fisicamente só super admin,
+  e só viagem `solicitada` sem nº de SEI e sem portaria (`podeExcluir`,
+  `src/lib/diariasRegras.ts`). As quatro permissões `rh.viagens.*` existem no catálogo
+  (`admin` e `manager` têm todas; `user` só `visualizar`).
+- **No banco, desde a B2 (PR #69):** gravar em `viagens_diarias` exige o módulo `rh` ou
+  `financeiro` **e** `rh.viagens.criar|editar|gerenciar` ou `financeiro.diarias.gerenciar`, nunca na
+  própria viagem; DELETE só o papel admin (ver
+  [a subseção da B2](#férias-licenças-viagens-e-frequência-rls-por-permissão-onda-b--b2)). O banco
+  ainda não separa criar de editar nem confere status e campos: quem tem um dos códigos consegue,
+  pela API, alterar valor/quantidade de viagem concluída, voltar `concluida` para `solicitada` e
+  inserir direto em `concluida`; o admin exclui viagem com SEI e portaria (o front só deixa excluir
+  `solicitada` sem SEI e sem portaria). Não há trigger de bloqueio por status nem CHECK em
+  `tipo_onus`, `data_retorno >= data_saida`, `valor_total` ou valores negativos, e o motivo de
+  cancelamento continua em `observacoes`. Pendência: trigger `BEFORE UPDATE` com as transições de
+  `statusPermitidos` e o bloqueio de valores com DIRAF concluído, os CHECKs acima e a coluna
+  `motivo_cancelamento` — ver `superpowers/specs/2026-10-10-viagens-diarias-design.md`.
+- Usuário com módulo `financeiro` sem `rh` escreve em `viagens_diarias` mas não lê
+  `servidores`/`cargos`. A trilha fica em `audit_logs` (`audit_viagens_diarias`, before/after
+  completos, `user_id = auth.uid()`), legível apenas por admin.
+- A tabela de valores de diária fica no perfil do tenant (`rh.diarias`, ver `WHITE_LABEL.md`),
+  portanto vai no bundle do front; são valores públicos (ato normativo de diárias), sem dado
+  pessoal.
+
 ### Importação de dados
 
 Cada importador declara a sua permissão (`src/lib/importacao/registro.ts`) e a RPC dele confere a

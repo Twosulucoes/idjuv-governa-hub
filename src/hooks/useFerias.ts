@@ -17,6 +17,10 @@ import {
   type Ocupacao,
   type StatusFeriasServidor,
 } from "@/types/rh";
+import { SemPermissaoError, exigirLinhaAfetada } from "@/lib/supabaseErros";
+
+// Compatibilidade: `GestaoFeriasPage` importa o erro daqui.
+export { SemPermissaoError };
 
 const SELECT_COM_SERVIDOR = `
   *,
@@ -168,34 +172,6 @@ function useInvalidarFerias() {
       queryClient.invalidateQueries({ queryKey: ["ocupacoes-servidor", servidorId] });
     }
   };
-}
-
-/**
- * Erro lançado quando a operação não afeta linha alguma: com RLS, UPDATE/DELETE
- * sem permissão não dá erro, apenas retorna zero linhas.
- */
-export class SemPermissaoError extends Error {
-  constructor(acao: "alterar" | "excluir") {
-    super(
-      acao === "excluir"
-        ? "Sem permissão para excluir; cancele o registro."
-        : "Sem permissão para alterar o registro.",
-    );
-    this.name = "SemPermissaoError";
-  }
-}
-
-/** Resultado de UPDATE/DELETE: lança se houve erro ou se nenhuma linha foi afetada. */
-function exigirLinhaAfetada<T>(
-  resultado: { data: T[] | null; error: { code?: string; message: string } | null },
-  acao: "alterar" | "excluir",
-): T {
-  if (resultado.error) {
-    if (resultado.error.code === "42501") throw new SemPermissaoError(acao);
-    throw resultado.error;
-  }
-  if (!resultado.data || resultado.data.length === 0) throw new SemPermissaoError(acao);
-  return resultado.data[0];
 }
 
 export function useCriarFerias() {

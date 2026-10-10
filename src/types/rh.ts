@@ -3,6 +3,7 @@
 // ============================================
 
 import type { Database } from '@/integrations/supabase/types';
+import type { CategoriaCargo } from '@/core/tenant';
 
 // Re-exportar tipos de servidor
 export * from './servidor';
@@ -450,6 +451,22 @@ export interface PortariaServidor {
   created_by?: string;
 }
 
+/** Ônus da viagem: `sem_onus` não gera diárias nem processo DIRAF. */
+export type TipoOnus = 'com_onus' | 'sem_onus';
+export const TIPO_ONUS_LABELS: Record<TipoOnus, string> = {
+  com_onus: 'Com Ônus',
+  sem_onus: 'Sem Ônus',
+};
+
+/** Etapas do workflow da DIRAF para o processo SEI de pagamento das diárias. */
+export type WorkflowDirafStatus = 'pendente' | 'solicitado' | 'em_andamento' | 'concluido';
+export const WORKFLOW_DIRAF_LABELS: Record<WorkflowDirafStatus, string> = {
+  pendente: 'Pendente',
+  solicitado: 'Solicitado à DIRAF',
+  em_andamento: 'Em Andamento',
+  concluido: 'Concluído',
+};
+
 export interface ViagemDiaria {
   id: string;
   servidor_id: string;
@@ -457,26 +474,32 @@ export interface ViagemDiaria {
   data_retorno: string;
   destino_cidade: string;
   destino_uf: string;
-  destino_pais?: string;
+  destino_pais?: string | null;
   finalidade: string;
-  justificativa?: string;
-  portaria_numero?: string;
-  portaria_data?: string;
-  portaria_url?: string;
-  quantidade_diarias?: number;
-  valor_diaria?: number;
-  valor_total?: number;
-  meio_transporte?: string;
-  veiculo_oficial?: boolean;
-  passagem_aerea?: boolean;
-  relatorio_apresentado?: boolean;
-  relatorio_data?: string;
-  relatorio_url?: string;
+  justificativa?: string | null;
+  portaria_numero?: string | null;
+  portaria_data?: string | null;
+  portaria_url?: string | null;
+  quantidade_diarias?: number | null;
+  valor_diaria?: number | null;
+  valor_total?: number | null;
+  meio_transporte?: string | null;
+  veiculo_oficial?: boolean | null;
+  passagem_aerea?: boolean | null;
+  relatorio_apresentado?: boolean | null;
+  relatorio_data?: string | null;
+  relatorio_url?: string | null;
   status?: 'solicitada' | 'autorizada' | 'em_andamento' | 'concluida' | 'cancelada';
-  observacoes?: string;
-  created_at?: string;
-  updated_at?: string;
-  created_by?: string;
+  tipo_onus: TipoOnus;
+  numero_sei_diarias?: string | null;
+  workflow_diraf_status?: WorkflowDirafStatus | null;
+  workflow_diraf_solicitado_em?: string | null;
+  workflow_diraf_concluido_em?: string | null;
+  workflow_diraf_observacoes?: string | null;
+  observacoes?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  created_by?: string | null;
 }
 
 export type StatusViagemDiaria = NonNullable<ViagemDiaria['status']>;
@@ -487,6 +510,54 @@ export const VIAGEM_STATUS_LABELS: Record<StatusViagemDiaria, string> = {
   concluida: 'Concluída',
   cancelada: 'Cancelada',
 };
+
+/** Payload de criação/edição (colunas de sistema ficam de fora). */
+export type ViagemDiariaInput = Omit<
+  Database['public']['Tables']['viagens_diarias']['Insert'],
+  'id' | 'created_at' | 'created_by' | 'updated_at'
+>;
+
+/**
+ * Payload da edição pelo formulário: status e etapas/SEI do workflow DIRAF só mudam pelos
+ * hooks próprios (`useAtualizarStatusViagem`, `useAtualizarWorkflowDiraf`). Só o tipo fecha
+ * isso — a RLS continua por módulo.
+ */
+export type ViagemDiariaEdicao = Omit<
+  ViagemDiariaInput,
+  'status' | 'numero_sei_diarias' | 'workflow_diraf_solicitado_em' | 'workflow_diraf_concluido_em' | 'workflow_diraf_observacoes'
+>;
+
+/**
+ * Rótulos por categoria de cargo. Tipado pelo enum gerado e conferido contra a união do
+ * tenant: se o banco ganhar/perder uma categoria, o typecheck acusa aqui.
+ */
+export const CATEGORIA_CARGO_LABELS: Record<Database['public']['Enums']['categoria_cargo'], string> = {
+  efetivo: 'Efetivo',
+  comissionado: 'Comissionado',
+  funcao_gratificada: 'Função gratificada',
+  temporario: 'Temporário',
+  estagiario: 'Estagiário',
+} satisfies Record<CategoriaCargo, string>;
+
+/** Cargo do servidor usado para localizar a linha da tabela de diárias. */
+export interface CargoParaDiaria {
+  categoria: CategoriaCargo;
+  nivel_hierarquico: number | null;
+}
+
+/** Servidor na lista do formulário de viagem (cargo define o valor da diária). */
+export interface ServidorParaViagem {
+  id: string;
+  nome_completo: string;
+  matricula?: string | null;
+  cargo_atual_id?: string | null;
+  cargo: CargoParaDiaria | null;
+}
+
+/** Viagem com o servidor vinculado (join usado na listagem). */
+export interface ViagemDiariaComServidor extends ViagemDiaria {
+  servidor?: ServidorParaViagem;
+}
 
 export interface FeriasServidor {
   id: string;
