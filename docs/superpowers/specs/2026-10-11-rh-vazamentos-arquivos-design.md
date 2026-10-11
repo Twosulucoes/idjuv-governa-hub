@@ -43,3 +43,14 @@ permissão própria, e arquivos de banco e do eSocial gerados com dados errados,
 - Retorno CNAB e conciliação (onda H); eSocial de verdade, com tabelas, lote, assinatura e envio (onda G).
 - Motor da folha (onda F).
 - Apagar o `cargos.json` que ainda está na VPS: ação manual na VPS (o workflow de deploy já remove quando rodar).
+
+## Riscos aceitos nesta onda
+
+- **Conteúdo do CNAB montado no navegador.** O banco calcula `valor_total` e `quantidade_registros` pelas fichas
+  e guarda o sha256, mas não confere favorecidos e valores linha a linha. Quem tem `financeiro.folha.processar`
+  ainda pode, pela API, enviar um arquivo diferente das fichas. Fecha quando o arquivo for gerado no servidor.
+- **Remuneração em `servidores`, `vinculos_servidor` e `pre_cadastros`:** legível por todo o módulo `rh`
+  (a RLS filtra linhas, não colunas; privilégio por coluna quebraria os `select('*')`). Fica para uma onda
+  que separe esses campos.
+- **Dependentes do IRRF** (CPF e nascimento) seguem legíveis pelo módulo: decisão do RH.
+
