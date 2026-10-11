@@ -89,7 +89,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "servidores", label: "Servidores", icon: Users, route: "/rh/servidores" },
       { id: "gestao-lotacao", label: "Gestão de Lotação", icon: Building2, route: "/rh/gestao-lotacao" },
       { id: "designacoes", label: "Designações", icon: UserCog, route: "/rh/designacoes" },
-      { id: "comissoes", label: "Comissões", icon: Scale, route: "/rh/comissoes" },
+      { id: "comissoes", label: "Comissões", icon: Scale, route: "/rh/comissoes", permission: "rh" },
       { id: "portarias-pendencias", label: "Portarias (Pendências)", icon: FileText, route: "/rh/portarias/pendencias" },
       { 
         id: "frequencia", 

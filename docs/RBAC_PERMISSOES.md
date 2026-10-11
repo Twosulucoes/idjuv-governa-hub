@@ -868,7 +868,7 @@ do banco. Telas e hooks em
 | Rota | Guarda (`ProtectedRoute` e `ROUTE_PERMISSIONS`) | Menu | Gravação |
 |---|---|---|---|
 | `/admin/setores-modulos` (setores de cada módulo e modo da regra) | módulo `admin` e `admin.config` | "Setores dos Módulos" em Administração (`menu.config.ts` e `module-menus.config.ts`, `admin.config`) | só o **papel** admin (RLS de `setores_modulo` e `regra_lancamento`); sem o papel a tela é só consulta |
-| `/rh/comissoes` (comissões e membros) | módulo `rh` (`ROUTE_PERMISSIONS`: `'rh'`) | "Comissões" no RH (`menu.config.ts` com `rh.visualizar`, como os vizinhos; `module-menus.config.ts` sem permissão) | `rh.comissoes.gerenciar` (botões e RLS de `comissoes` e `comissoes_membros`) |
+| `/rh/comissoes` (comissões e membros) | módulo `rh` (`ROUTE_PERMISSIONS`: `'rh'`) | "Comissões" no RH, nos dois menus com a mesma exigência da rota: `permission: "rh"` (código sem ponto = o módulo) | `rh.comissoes.gerenciar` (botões e RLS de `comissoes` e `comissoes_membros`) |
 | `/rh/auditoria`, aba "Lançamento por setor" | `rh.auditoria.visualizar` (a mesma da trilha) | — | — (leitura: RLS de `audit_logs` e RPC `saneamento_lancamento`, que pede admin ou a mesma permissão) |
 
 - O aviso "somente consulta" (`AvisoSomenteConsulta`, no `ModuleLayout`, só no modo `exigir`) é UX: a fronteira é o
