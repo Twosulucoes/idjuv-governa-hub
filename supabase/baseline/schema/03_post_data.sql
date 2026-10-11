@@ -17131,13 +17131,6 @@ CREATE POLICY rls_delete ON public.estrutura_organizacional FOR DELETE TO authen
 
 
 --
--- Name: eventos_esocial rls_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_delete ON public.eventos_esocial FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
-
-
---
 -- Name: evidencias_controle rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -17797,13 +17790,6 @@ CREATE POLICY rls_delete ON public.regimes_trabalho FOR DELETE TO authenticated 
 --
 
 CREATE POLICY rls_delete ON public.registros_ponto FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
-
-
---
--- Name: remessas_bancarias rls_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_delete ON public.remessas_bancarias FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -20014,7 +20000,7 @@ CREATE POLICY rls_select ON public.ferias_servidor FOR SELECT TO authenticated U
 -- Name: fichas_financeiras rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.fichas_financeiras FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+CREATE POLICY rls_select ON public.fichas_financeiras FOR SELECT TO authenticated USING (((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.contracheques.visualizar'::text) OR public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) OR (servidor_id = public.meu_servidor_id())));
 
 
 --
@@ -20352,7 +20338,7 @@ CREATE POLICY rls_select ON public.itens_contrato FOR SELECT TO authenticated US
 -- Name: itens_ficha_financeira rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.itens_ficha_financeira FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (EXISTS ( SELECT 1
+CREATE POLICY rls_select ON public.itens_ficha_financeira FOR SELECT TO authenticated USING (((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.contracheques.visualizar'::text) OR public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) OR (EXISTS ( SELECT 1
    FROM public.fichas_financeiras p
   WHERE ((p.id = itens_ficha_financeira.ficha_id) AND (p.servidor_id = public.meu_servidor_id()))))));
 

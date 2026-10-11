@@ -127,6 +127,9 @@ REVOKE EXECUTE ON FUNCTION public.exigir_folha_fechada() FROM PUBLIC, anon, auth
 REVOKE EXECUTE ON FUNCTION public.remessa_integridade() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.cancelar_remessa(uuid, text) FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.cancelar_remessa(uuid, text) TO authenticated;
+-- remessas e eventos do eSocial sem DELETE pela API (migração 20261011010100, E3; a RLS também não tem policy de DELETE,
+-- classe modulo com excluir=ninguem no rls/mapa.csv): a remessa é cancelada por cancelar_remessa
+REVOKE DELETE ON public.remessas_bancarias, public.eventos_esocial FROM anon, authenticated;
 REVOKE ALL ON public.avisos_leituras FROM anon, authenticated;
 GRANT SELECT, INSERT, DELETE ON public.avisos_leituras TO authenticated;
 REVOKE ALL ON public.envios_log FROM anon, authenticated;

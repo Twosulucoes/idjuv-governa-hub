@@ -29,7 +29,9 @@ muda em relação ao estado das migrações:
   `frequencia_arquivos`, `documentos_requerimento_servidor`; mesma seção). A B2 acrescentou ao gerador lista de
   códigos (`escrita=a|b`) e os sufixos `;excluir=`, `;insere_proprio`, `;sem_autoaprovacao`, `;coluna=` e
   `;posse=usuario`; a correção de contornos levou `escrita=` à classe `catalogo` e `sem_autoaprovacao` à
-  `proprio_leitura` (formato no [README do baseline](../supabase/baseline/README.md)). `scripts/db/testar-rls.sql`
+  `proprio_leitura`; a E3 acrescentou `;leitura=<código>|<código>` (leitura pelo módulo exige também um dos
+  códigos) e `excluir=ninguem` (sem policy de DELETE), este também na classe `modulo` (formato no
+  [README do baseline](../supabase/baseline/README.md)). `scripts/db/testar-rls.sql`
   cobre a classe com uma persona por código (módulo + código em `user_modules.permissions`) e uma persona
   com a permissão avulsa sem o módulo (não lê nem escreve).
 - **Perfil ativo é pré-condição.** `is_admin_user`, `has_permission_code` e `meu_servidor_id` passam a
@@ -541,6 +543,28 @@ de CNAB, a tela e o eSocial do front são da mesma spec.
   CNAB e eSocial (Onda E3)" de `scripts/db/testar-rls.sql`.
 - **Fora**: retorno CNAB e conciliação (onda H); transmissão, lote e retificação do eSocial (onda G); evento do
   eSocial sem `folha_id` não passa pela regra da folha fechada.
+
+### Leitura dos contracheques e fim do DELETE — Onda E3 (banco, RLS)
+
+Migração `supabase/migrations/20261011010100_rh_contracheques_leitura.sql`, **em PR rascunho**; mesma spec (item 1,
+premissas 1 e 2; "sem DELETE pela API" dos itens 3 e 4). Separada da `20261011010000` porque **muda RLS existente**
+(decisão 3 da revisão do RH): pode ser segurada sem segurar a outra; sem ela, todo o módulo `rh` continua lendo os
+contracheques de todos e apagando remessas e eventos. Idempotente.
+
+- **Permissão nova** `rh.contracheques.visualizar` (módulo `rh`, `action_type = 'consultar'`), papéis `admin` e
+  `manager`. `financeiro.folha.visualizar` não serve: o papel `user` a recebe (carga por `action_type = 'visualizar'`).
+- **`fichas_financeiras` e `itens_ficha_financeira`**: SELECT pelo módulo `rh` passa a exigir também
+  `rh.contracheques.visualizar` **ou** `financeiro.folha.processar`; o servidor lê os próprios (posse por
+  `meu_servidor_id()`). Escrita sem mudança. `folhas_pagamento` não muda (só totais).
+- **`remessas_bancarias` e `eventos_esocial`**: sem policy de DELETE e sem o privilégio `DELETE` para `anon` e
+  `authenticated` (a API recebe `42501`, não "0 linhas"). Remessa se cancela pela RPC `cancelar_remessa`; a service
+  role continua podendo apagar.
+- Tabela por tabela e impacto no front em
+  [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#contracheques-remessas-e-eventos-do-esocial-rls-onda-e3-banco). No
+  baseline: `mapa.csv` (sufixos `;leitura=` e `excluir=ninguem`) → `35_policies_geradas.sql`, o REVOKE no
+  `overlay/40_privilegios.sql` e as linhas do catálogo em `schema/02_dados_catalogo.sql`. Testes no bloco "RH: leitura
+  dos contracheques e fim do DELETE (Onda E3, 0100)" de `scripts/db/testar-rls.sql`, mais as checagens genéricas de
+  `leitura=` e `excluir=ninguem`.
 
 ### Financeiro / orçamento
 Núcleo (prefixo `fin_`): `fin_solicitacoes`, `fin_solicitacao_itens`,

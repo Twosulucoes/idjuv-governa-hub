@@ -577,6 +577,7 @@ INSERT INTO public.module_permissions_catalog (id, module_code, permission_code,
 INSERT INTO public.module_permissions_catalog (id, module_code, permission_code, label, description, category, action_type, sort_order, created_at) VALUES ('d7b822f6-a65b-4b87-a580-c5e5cb10e03f', 'rh', 'financeiro.folha.processar', 'Processar Folha', NULL, 'Folha', 'processar', 2, '2026-10-10 07:03:14.260513+00');
 INSERT INTO public.module_permissions_catalog (id, module_code, permission_code, label, description, category, action_type, sort_order, created_at) VALUES ('283b1747-ac3e-42fe-a5a2-5aaa88b4ca1c', 'rh', 'financeiro.folha.configurar', 'Configurar Folha de Pagamento', NULL, 'Folha de Pagamento', 'configurar', 503, '2026-10-10 07:03:18.476244+00');
 INSERT INTO public.module_permissions_catalog (id, module_code, permission_code, label, description, category, action_type, sort_order, created_at) VALUES ('ec61f6af-1e43-4284-a560-14bc98b63252', 'rh', 'rh.auditoria.visualizar', 'Visualizar Trilha de Auditoria do RH', 'Lê a trilha (audit_logs) do módulo RH: quem lançou, alterou ou excluiu, e o antes/depois mascarado', 'Auditoria', 'auditar', 510, '2026-10-10 22:53:23.691153+00');
+INSERT INTO public.module_permissions_catalog (id, module_code, permission_code, label, description, category, action_type, sort_order, created_at) VALUES ('df904087-85f1-427a-8046-7d514b3fab6e', 'rh', 'rh.contracheques.visualizar', 'Visualizar Contracheques de Outros Servidores', 'Lê fichas financeiras e itens (contracheques) de todos os servidores; o servidor sempre lê o próprio', 'Folha', 'consultar', 511, '2026-10-11 01:46:26.180433+00');
 
 
 --
@@ -1027,6 +1028,8 @@ INSERT INTO public.role_permissions (id, role, permission, created_at, created_b
 INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('c83d9349-99d0-4f13-a12d-6c919d179d0a', 'user', 'compras.visualizar', '2026-10-10 07:03:18.476244+00', NULL);
 INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('ff1e8ed8-6a84-4915-8fff-5d1eb8a58af9', 'user', 'rh.visualizar', '2026-10-10 07:03:18.476244+00', NULL);
 INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('6ed00e85-fdde-4061-972a-c4641ca7db90', 'user', 'rh.self', '2026-10-10 07:03:18.476244+00', NULL);
+INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('fe9e2c8a-fe04-457e-8f94-f893f8b9e973', 'admin', 'rh.contracheques.visualizar', '2026-10-11 01:46:26.180433+00', NULL);
+INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('ec5c216b-02e8-43bc-923f-2a205b156f53', 'manager', 'rh.contracheques.visualizar', '2026-10-11 01:46:26.180433+00', NULL);
 
 
 --

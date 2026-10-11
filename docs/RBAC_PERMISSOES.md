@@ -197,8 +197,8 @@ removidas na mesma transação, e a migração também tira de `anon` todo privi
 |---|---|---|
 | `folhas_pagamento` | módulo `rh` **ou** o servidor que tem ficha nela (contracheque: `/rh/meu-contracheque` lê `folhas_pagamento!inner`) | módulo `rh` + `financeiro.folha.processar` |
 | `lancamentos_folha`, `consignacoes`, `dependentes_irrf` | módulo `rh` | módulo `rh` + `financeiro.folha.processar` |
-| `fichas_financeiras` | módulo `rh` **ou** o próprio servidor (`servidor_id = meu_servidor_id()`) | módulo `rh` + `financeiro.folha.processar` |
-| `itens_ficha_financeira` | módulo `rh` **ou** itens da própria ficha | módulo `rh` + `financeiro.folha.processar` |
+| `fichas_financeiras` | módulo `rh` **ou** o próprio servidor (`servidor_id = meu_servidor_id()`); desde a E3, módulo `rh` **e** `rh.contracheques.visualizar` ou `financeiro.folha.processar` (seção "Contracheques, remessas e eventos do eSocial: RLS") | módulo `rh` + `financeiro.folha.processar` |
+| `itens_ficha_financeira` | módulo `rh` **ou** itens da própria ficha; desde a E3, como `fichas_financeiras` | módulo `rh` + `financeiro.folha.processar` |
 | `parametros_folha`, `rubricas`, `tabela_inss`, `tabela_irrf` | módulo `rh` | módulo `rh` + `financeiro.folha.configurar` |
 
 - **RPC `processar_folha_pagamento`**: exige `financeiro.folha.processar` no início do corpo (erro `42501`,
@@ -736,6 +736,36 @@ RH: o dono decide no merge).
 - Esconder o item de menu e barrar a rota é UX; a fronteira é a RLS de `fichas_financeiras` e
   `itens_ficha_financeira` (ver [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md)).
 
+### Contracheques, remessas e eventos do eSocial: RLS (Onda E3, banco)
+
+Migração `supabase/migrations/20261011010100_rh_contracheques_leitura.sql`, **em PR rascunho**, separada da
+`20261011010000` porque muda RLS existente (decisão 3 da revisão do RH: o dono decide no merge; pode ser segurada sem
+segurar a outra). Mesmas policies em `supabase/baseline/rls/mapa.csv` → `35_policies_geradas.sql`.
+
+| Tabela | Leitura (SELECT) | Escrita | DELETE pela API |
+|---|---|---|---|
+| `fichas_financeiras` | módulo `rh` **e** (`rh.contracheques.visualizar` **ou** `financeiro.folha.processar`), **ou** o próprio servidor | módulo `rh` + `financeiro.folha.processar` (sem mudança) | como antes (módulo + `processar`) |
+| `itens_ficha_financeira` | igual, ou itens da própria ficha | igual | como antes |
+| `remessas_bancarias` | módulo `rh` (sem mudança) | módulo `rh` (sem mudança); arquivo e cancelamento exigem `processar` (`20261011010000`) | **nenhum**: sem policy e sem o privilégio (`42501`); cancela pela RPC `cancelar_remessa` |
+| `eventos_esocial` | módulo `rh` (sem mudança) | módulo `rh` (sem mudança) | **nenhum** (`42501`); retificação fica para a onda G |
+
+- **`rh.contracheques.visualizar`** (módulo `rh`, categoria Folha, `action_type = 'consultar'`), concedida aos papéis
+  `admin` e `manager`. Não é `financeiro.folha.visualizar` porque a carga de `20260916120000` dá ao papel `user` todo
+  código com `action_type = 'visualizar'` (e o backfill gravou-a em `user_modules.permissions`): todo usuário do RH a
+  tem. O `action_type` diferente impede que uma carga por tipo a entregue ao `user`; carga futura precisa excluí-la de
+  propósito. O teste confere o catálogo e a premissa (`get_user_permission_codes` do papel `user` contém
+  `financeiro.folha.visualizar`).
+- Só o módulo `rh` (sem um dos dois códigos) deixa de ler as fichas de todos; o servidor continua lendo o próprio
+  contracheque (`/rh/meu-contracheque`). `folhas_pagamento` não muda (só totais).
+- A service role continua podendo apagar remessas e eventos (operação manual, fora da API do navegador).
+- **Impacto no front (pendência):** telas que leem fichas ou itens de todos com quem não tem nenhum dos dois códigos
+  passam a receber lista vazia, sem erro — `useRelatoriosRH.ts` (card "Folha de pagamento", gate
+  `financeiro.folha.visualizar`), `useArquivosFolha.ts`, `useFolhaPagamento.ts`, `useMotorFolha.ts`,
+  `useContracheque.ts` e o detalhe da folha (`FolhaDetalhePage.tsx`, rota com `financeiro.folha.visualizar`). Quem
+  processa a folha (`processar`) continua vendo tudo.
+- Também sem mudança nesta onda (riscos registrados na spec): `eventos_esocial.payload` (CPF e remuneração) e
+  `lancamentos_folha` seguem legíveis por todo o módulo `rh`.
+
 ### Relatórios de RH (`/rh/relatorios`)
 
 - A rota exige `rh.relatorios.visualizar` (`App.tsx`, `ROUTE_PERMISSIONS`) e o item "Relatórios" do
@@ -757,8 +787,10 @@ RH: o dono decide no merge).
   `financeiro.folha.visualizar` ou super admin (`RelatoriosRHPage.tsx`, mesmo gate das rotas
   `/folha*` em `ROUTE_PERMISSIONS`; o catálogo concede essa permissão a admin, manager e user, então
   na prática só perfis customizados ficam de fora). É UX: a fronteira é a RLS de `folhas_pagamento` (SELECT a quem
-  tem o módulo `rh`) e de `fichas_financeiras`/`itens_ficha_financeira` (módulo `rh` ou a própria
-  ficha), em `35_policies_geradas.sql`. Nenhuma permissão nova no catálogo. Os três relatórios são
+  tem o módulo `rh`) e de `fichas_financeiras`/`itens_ficha_financeira` (desde a E3, módulo `rh` com
+  `rh.contracheques.visualizar` ou `financeiro.folha.processar`, ou a própria ficha), em `35_policies_geradas.sql`.
+  Quem tem só `financeiro.folha.visualizar` vê o card, mas os relatórios que somam fichas e itens voltam vazios para
+  ele desde a migração `20261011010100` (pendência de front registrada na seção da E3 abaixo). Nenhuma permissão nova no catálogo. Os três relatórios são
   agregados (sem nome, CPF, PIS ou dados bancários); o relatório nominal de folha ficou fora até
   decisão do usuário, pois exigiria gate próprio e `log_audit` como no contracheque.
 

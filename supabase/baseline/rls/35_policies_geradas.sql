@@ -1532,8 +1532,6 @@ CREATE POLICY "rls_update" ON public.eventos_esocial FOR UPDATE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')))
   WITH CHECK ((public.can_access_module(auth.uid(), 'rh')));
 DROP POLICY IF EXISTS "rls_delete" ON public.eventos_esocial;
-CREATE POLICY "rls_delete" ON public.eventos_esocial FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')));
 
 -- evidencias_controle  [modulo: governanca]
 DROP POLICY IF EXISTS "rls_select" ON public.evidencias_controle;
@@ -1658,7 +1656,7 @@ CREATE POLICY "rls_delete" ON public.ferias_servidor FOR DELETE TO authenticated
 -- fichas_financeiras  [permissao: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.fichas_financeiras;
 CREATE POLICY "rls_select" ON public.fichas_financeiras FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')) OR servidor_id = public.meu_servidor_id());
+  USING (((public.can_access_module(auth.uid(), 'rh')) AND (public.has_permission_code(auth.uid(), 'rh.contracheques.visualizar') OR public.has_permission_code(auth.uid(), 'financeiro.folha.processar'))) OR servidor_id = public.meu_servidor_id());
 DROP POLICY IF EXISTS "rls_insert" ON public.fichas_financeiras;
 CREATE POLICY "rls_insert" ON public.fichas_financeiras FOR INSERT TO authenticated
   WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
@@ -2343,7 +2341,7 @@ CREATE POLICY "rls_delete" ON public.itens_contrato FOR DELETE TO authenticated
 -- itens_ficha_financeira  [permissao: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.itens_ficha_financeira;
 CREATE POLICY "rls_select" ON public.itens_ficha_financeira FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')) OR EXISTS (SELECT 1 FROM public.fichas_financeiras p WHERE p.id = itens_ficha_financeira.ficha_id AND p.servidor_id = public.meu_servidor_id()));
+  USING (((public.can_access_module(auth.uid(), 'rh')) AND (public.has_permission_code(auth.uid(), 'rh.contracheques.visualizar') OR public.has_permission_code(auth.uid(), 'financeiro.folha.processar'))) OR EXISTS (SELECT 1 FROM public.fichas_financeiras p WHERE p.id = itens_ficha_financeira.ficha_id AND p.servidor_id = public.meu_servidor_id()));
 DROP POLICY IF EXISTS "rls_insert" ON public.itens_ficha_financeira;
 CREATE POLICY "rls_insert" ON public.itens_ficha_financeira FOR INSERT TO authenticated
   WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
@@ -3165,8 +3163,6 @@ CREATE POLICY "rls_update" ON public.remessas_bancarias FOR UPDATE TO authentica
   USING ((public.can_access_module(auth.uid(), 'rh')))
   WITH CHECK ((public.can_access_module(auth.uid(), 'rh')));
 DROP POLICY IF EXISTS "rls_delete" ON public.remessas_bancarias;
-CREATE POLICY "rls_delete" ON public.remessas_bancarias FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')));
 
 -- requisicao_itens  [modulo: patrimonio | patrimonio_mobile]
 DROP POLICY IF EXISTS "rls_select" ON public.requisicao_itens;

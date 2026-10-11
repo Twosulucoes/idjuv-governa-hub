@@ -37,7 +37,7 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 | # | Arquivo | O que faz | Origem |
 |---|---|---|---|
 | 1 | `schema/01_pre_data.sql` | tipos, funções, tabelas, views | **gerado** (`scripts/db/gerar-baseline.sh`) |
-| 2 | `schema/02_dados_catalogo.sql` | 20 tabelas de catálogo/parâmetros (865 linhas; `audit_colunas_sensiveis` entrou na E1) | **gerado** |
+| 2 | `schema/02_dados_catalogo.sql` | 20 tabelas de catálogo/parâmetros (868 linhas; `audit_colunas_sensiveis` entrou na E1, `rh.contracheques.visualizar` e seus 2 papéis na E3) | **gerado** |
 | 3 | `schema/03_post_data.sql` | constraints, índices, triggers, RLS ligado, policies do replay | **gerado** |
 | 4 | `overlay/10_funcoes_acesso.sql` | `is_admin_user`, `is_admin_atual`, `has_permission_code`, `meu_servidor_id` exigem perfil **ativo**; fim dos stubs “acesso total”; alias `usuario_eh_admin`; `eh_meu_servidor(uuid)` (B2: "este servidor é o do usuário?", por vínculo ou, sem vínculo, por CPF); `eh_meu_arquivo_frequencia(text)` e `eh_minha_pasta_servidor(text)` (B3: o objeto do storage é do servidor do usuário?) | à mão |
 | 5 | `overlay/12_protecao_profiles.sql` | trigger: quem não é admin não muda `is_active`, `servidor_id`, bloqueio, tipo, CPF, e-mail; policies de `profiles` sem duplicatas | à mão |
@@ -64,7 +64,7 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas
 
 | Classe | Tabelas | Regra |
 |---|---|---|
-| `modulo` | 164 | módulo(s) do mapa leem e escrevem; admin (papel) também |
+| `modulo` | 164 | módulo(s) do mapa leem e escrevem; admin (papel) também. `extra` aceita `excluir=<código>\|admin\|ninguem` (DELETE com o código, só do admin ou de ninguém pela API); `remessas_bancarias` e `eventos_esocial` usam `excluir=ninguem` desde a E3 (migração `20261011010100_rh_contracheques_leitura.sql`) |
 | `permissao` | 25 | módulo lê (com `;proprio`/`;pai=` o servidor lê o seu, como `proprio_leitura`/`proprio_filho`; com `;filho=<tabela>.<fk>` lê a linha que tem uma filha sua — a folha em que tem ficha); **escreve só quem tem o módulo E a permissão granular** do `extra` (via `can_access_module` + `has_permission_code`; admin passa). Hoje: as 10 tabelas da folha (B1, `financeiro.folha.processar\|configurar`; migração `20261010070000_onda_b_folha_rls_permissao.sql`) e 12 do RH (B2: férias, licenças, viagens, ponto, frequência, abono, ajuste, justificativa, fechamento, configuração do fechamento, banco de horas e lançamentos; migração `20261010090000_onda_b_rh_permissoes.sql`) e 3 do RH na B3 (`frequencia_pacotes`, `frequencia_arquivos` e `documentos_requerimento_servidor`; migração `20261010210000_onda_b_rh_storage.sql`). As migrações carregam o mesmo SQL gerado |
 | `trilha` | 9 | módulo lê; **ninguém escreve por API** (auditoria e históricos gravados por trigger) |
 | `proprio_leitura` / `proprio` / `proprio_filho` | 8 / 0 / 0 | módulo + o próprio servidor lê; em `proprio*` o servidor também cria o próprio pedido (status/aprovação forçados pelo overlay 20). Desde a B2, `servidores` (posse pela coluna `id`, DELETE com `rh.servidores.excluir`, e nos contornos `sem_autoaprovacao`: ninguém grava a própria ficha), `vinculos_servidor` e `lotacoes` estão aqui; as tabelas do RH que estavam em `proprio`/`proprio_filho` passaram a `permissao` (a última, `documentos_requerimento_servidor`, na B3). As classes `proprio` e `proprio_filho` continuam no gerador, sem tabela |
@@ -101,6 +101,8 @@ Classe `permissao`: `escrita=<c1>[|<c2>...][;<sufixo>]...`, com `escrita=` sempr
 | `;coluna=<col>` | coluna de posse de `;proprio` quando não é `servidor_id` |
 | `;excluir=<código>` | DELETE com o módulo **e** esse código, em vez da escrita |
 | `;excluir=admin` | DELETE só do papel admin |
+| `;excluir=ninguem` | sem policy de DELETE: ninguém apaga pela API, nem o admin (o privilégio `DELETE` sai no overlay `40` e na migração) |
+| `;leitura=a\|b` | a leitura pelo módulo exige também um dos códigos: `((<módulos>) AND (hp(a) OR hp(b))) OR <posse>`; a posse continua sem código. `fichas_financeiras` e `itens_ficha_financeira` usam `leitura=rh.contracheques.visualizar\|financeiro.folha.processar` (E3) |
 | `;insere_proprio` | o servidor também insere a linha que é dele (pedido); exige `;proprio` ou `;pai=` |
 | `;sem_autoaprovacao` | INSERT/UPDATE/DELETE pelo caminho da permissão (e o DELETE de `;excluir=<código>`) exigem que a linha **não** seja do usuário logado: `is_admin_user(auth.uid()) OR NOT eh_meu_servidor(<posse>)`. `eh_meu_servidor` confere o vínculo do perfil ou, sem vínculo, o CPF; o papel admin passa. Exige `;proprio` ou `;pai=` |
 | `;posse=usuario` | a coluna de posse (ou o `servidor_id` do pai, com `;pai=`) guarda o id do **usuário** (FK para `profiles(id)`): leitura e inserção próprias usam `<col> = auth.uid() AND is_active_user()`, e `;sem_autoaprovacao` usa `<posse> IS DISTINCT FROM auth.uid()`. Exige `;proprio` ou `;pai=`; `testar-rls.sql` confere que toda coluna de posse com FK para `profiles` o declara |
@@ -109,7 +111,7 @@ Classe `permissao`: `escrita=<c1>[|<c2>...][;<sufixo>]...`, com `escrita=` sempr
 
 Outras classes:
 
-- `proprio_leitura`: aceita `coluna=<col>`, `excluir=<código>|admin` e `sem_autoaprovacao` (este, dos
+- `proprio_leitura`: aceita `coluna=<col>`, `excluir=<código>|admin|ninguem` e `sem_autoaprovacao` (este, dos
   contornos: INSERT/UPDATE/DELETE pelo módulo exigem ainda `is_admin_user(auth.uid()) OR NOT
   eh_meu_servidor(<col>)`). `servidores` usa `coluna=id;excluir=rh.servidores.excluir;sem_autoaprovacao`.
 - `catalogo`: aceita `escrita=<código>[|<código>...]` (dos contornos): a escrita exige o módulo **e** um dos
@@ -196,6 +198,13 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
   `erro`); `enviado`/`aceito` sem recibo recusado (`23514`) e coluna `rascunho`; bucket `remessas-cnab` privado (anon,
   módulo sem o código, servidor e admin bloqueado não leem nem enviam; envio só de `<id>.rem` de remessa sem arquivo e
   não cancelada; ninguém troca nem apaga; só as duas policies do bucket); funções de trigger fora da API;
+- leitura dos contracheques e fim do DELETE (E3, migração `20261011010100`, bloco "RH: leitura dos contracheques e
+  fim do DELETE (Onda E3, 0100)"): catálogo de `rh.contracheques.visualizar` (`action_type` diferente de `visualizar`,
+  só admin e manager) e a premissa (o papel `user` com o módulo `rh` tem `financeiro.folha.visualizar`); fichas e itens
+  lidos por quem tem o código, `processar` ou o papel admin, e só o próprio pelo servidor; o papel `user` e o módulo
+  sem código leem 0; DELETE em remessas e eventos recusado (`42501`) até para o admin, sem policy nem privilégio. Nos
+  blocos por tabela, `;leitura=` mede persona por código de leitura (lê; a avulsa não; só leitura não insere) e
+  `excluir=ninguem` espera DELETE negado a todos;
 - inventário de campo: `fotos_vistoria_inventario` (INSERT só em nome próprio, UPDATE só do autor ou com
   `patrimonio.tramitar`, DELETE só com `patrimonio.tramitar`, campos de prova imutáveis), no bloco de
   cobertura adicional de `testar-rls.sql`;
@@ -203,7 +212,13 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
 - RPCs: injeção de SQL, `SECURITY DEFINER` sem checagem fora de lista revisada, privilégios padrão,
   campos que o autor não pode escolher nos formulários.
 
-Último resultado (2026-10-10, onda E2, migrações `20261011000200` e `20261011000300`, PostgreSQL 16.15): replay de
+Último resultado (2026-10-11, onda E3, migrações `20261011010000` e `20261011010100`, PostgreSQL 16): replay de
+**270 migrações com 0 falhas**; `validar-baseline.sh` com `EXIGIR_REPLAY=1` **APROVADO** — RLS com 0 falhas em 4534
+checagens de UPDATE/DELETE (235 tabelas), schema idêntico ao replay (44035 linhas), policies de storage, buckets, ACL de
+funções e triggers de `storage.objects` idênticos. As duas migrações aplicadas duas vezes no replay, no baseline novo e
+no baseline anterior à E3: sem erro e sem diferença entre a primeira e a segunda aplicação; o baseline anterior com as
+duas migrações dá o mesmo dump do baseline novo. Prova de vida no baseline anterior: 61 falhas sem as migrações, 22 só
+com a `20261011010000` e 0 com as duas. Antes, na E2 (migrações `20261011000200` e `20261011000300`): replay de
 **268 migrações com 0 falhas**; `validar-baseline.sh` com `EXIGIR_REPLAY=1` **APROVADO** — RLS com 0 falhas em 4534
 checagens de UPDATE/DELETE (235 tabelas), schema idêntico ao replay (43775 linhas) e triggers de `storage.objects`
 idênticos. As duas migrações aplicadas duas vezes no replay, no baseline novo e no baseline anterior à E2: sem erro e
@@ -260,8 +275,11 @@ Decisões de negócio (o baseline escolheu o mais restritivo que mantém o app f
   sigilo. Falta uma classe `sigilo_processo` no gerador.
 - **Módulo `rh` amplo demais para saúde e folha.** A escrita na folha (B1) e em férias, licenças, viagens e
   frequência (B2) já exige o código do catálogo; a **leitura** continua para qualquer usuário com o módulo
-  `rh`, inclusive o CID de `licencas_afastamentos`. `pensoes_alimenticias` e `remessas_bancarias` seguem
-  abertas, para ler e escrever, a quem tem o módulo. O padrão da B2 ("só com permissão": quem tem o módulo
+  `rh`, inclusive o CID de `licencas_afastamentos`, `lancamentos_folha` e o `payload` de `eventos_esocial` (CPF e
+  remuneração); as fichas e os itens do contracheque deixam de ser lidos só pelo módulo na E3 (`;leitura=`, migração
+  `20261011010100`). `pensoes_alimenticias` segue aberta, para ler e escrever, a quem tem o módulo;
+  `remessas_bancarias`, para ler e inserir (o arquivo e o cancelamento exigem `financeiro.folha.processar` desde a E3,
+  e ninguém apaga pela API). O padrão da B2 ("só com permissão": quem tem o módulo
   sem o código deixa de gravar) ainda precisa da confirmação do RH.
 - **`role_permissions` dá permissões `admin.*` ao papel `user`.** Quem tem o módulo `admin` passa a ter
   `admin.usuarios`. As Edge Functions `admin-create-user`, `admin-reset-password` e `delete-user` agora exigem o
@@ -344,6 +362,11 @@ Limites conhecidos:
   texto da migração. Limitação: num banco com número de remessa ou evento do eSocial repetidos, os índices únicos não
   são criados (`WARNING`; consulta pós-deploy em
   [`docs/BANCO_DE_DADOS.md`](../../docs/BANCO_DE_DADOS.md#integridade-da-remessa-cnab-e-do-esocial--onda-e3-banco)).
+- **Migração `20261011010100` (E3, em PR rascunho, muda RLS existente) × baseline.** As policies de
+  `fichas_financeiras`, `itens_ficha_financeira`, `remessas_bancarias` e `eventos_esocial` na migração são cópia literal
+  de `rls/35_policies_geradas.sql` (gerado do `mapa.csv`); o REVOKE de `DELETE` está no overlay `40`; a permissão
+  `rh.contracheques.visualizar` e as linhas de `role_permissions` (admin, manager) estão em `schema/02_dados_catalogo.sql`.
+  Se a migração for segurada no merge, o baseline fica à frente do banco só-migrações nesses quatro pontos.
 - **`servidores.situacao`** (anterior à B2): quem tem o módulo `rh` muda a situação de outro servidor, e isso
   bloqueia o perfil vinculado. Sem correção ainda.
 - Tabelas com fluxo de aprovação por RPC e UPDATE livre para o módulo: `folhas_pagamento` foi protegida (só quem
