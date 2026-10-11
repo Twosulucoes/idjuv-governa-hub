@@ -1853,6 +1853,9 @@ DROP POLICY IF EXISTS "rls_delete" ON public.fin_empenhos;
 CREATE POLICY "rls_delete" ON public.fin_empenhos FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'financeiro')));
 
+-- fin_extrato_lancamentos  [preservar: financeiro]
+-- (nenhuma policy gerada)
+
 -- fin_extrato_transacoes  [modulo: financeiro]
 DROP POLICY IF EXISTS "rls_select" ON public.fin_extrato_transacoes;
 CREATE POLICY "rls_select" ON public.fin_extrato_transacoes FOR SELECT TO authenticated
@@ -1943,6 +1946,9 @@ DROP POLICY IF EXISTS "rls_delete" ON public.fin_liquidacoes;
 CREATE POLICY "rls_delete" ON public.fin_liquidacoes FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'financeiro')));
 
+-- fin_movimentos_bancarios  [preservar: financeiro]
+-- (nenhuma policy gerada)
+
 -- fin_naturezas_despesa  [modulo: financeiro]
 DROP POLICY IF EXISTS "rls_select" ON public.fin_naturezas_despesa;
 CREATE POLICY "rls_select" ON public.fin_naturezas_despesa FOR SELECT TO authenticated
@@ -2032,6 +2038,9 @@ CREATE POLICY "rls_update" ON public.fin_receitas FOR UPDATE TO authenticated
 DROP POLICY IF EXISTS "rls_delete" ON public.fin_receitas;
 CREATE POLICY "rls_delete" ON public.fin_receitas FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'financeiro')));
+
+-- fin_remessas_bancarias  [preservar: financeiro]
+-- (nenhuma policy gerada)
 
 -- fin_restos_pagar  [modulo: financeiro]
 DROP POLICY IF EXISTS "rls_select" ON public.fin_restos_pagar;

@@ -966,6 +966,14 @@ ALTER TABLE ONLY public.dados_oficiais
 
 
 --
+-- Name: dados_oficiais dados_oficiais_url_http; Type: CHECK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.dados_oficiais
+    ADD CONSTRAINT dados_oficiais_url_http CHECK (((chave <> ALL (ARRAY['site'::text, 'diario_oficial_url'::text, 'portal_transparencia_url'::text])) OR (valor ~* '^https?://'::text))) NOT VALID;
+
+
+--
 -- Name: datas_importantes datas_importantes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1430,6 +1438,22 @@ ALTER TABLE ONLY public.fin_empenhos
 
 
 --
+-- Name: fin_extrato_lancamentos fin_extrato_lancamentos_chave_unica_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_extrato_lancamentos
+    ADD CONSTRAINT fin_extrato_lancamentos_chave_unica_key UNIQUE (chave_unica);
+
+
+--
+-- Name: fin_extrato_lancamentos fin_extrato_lancamentos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_extrato_lancamentos
+    ADD CONSTRAINT fin_extrato_lancamentos_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: fin_extrato_transacoes fin_extrato_transacoes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1499,6 +1523,22 @@ ALTER TABLE ONLY public.fin_liquidacoes
 
 ALTER TABLE ONLY public.fin_liquidacoes
     ADD CONSTRAINT fin_liquidacoes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: fin_movimentos_bancarios fin_movimentos_bancarios_chave_unica_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_movimentos_bancarios
+    ADD CONSTRAINT fin_movimentos_bancarios_chave_unica_key UNIQUE (chave_unica);
+
+
+--
+-- Name: fin_movimentos_bancarios fin_movimentos_bancarios_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_movimentos_bancarios
+    ADD CONSTRAINT fin_movimentos_bancarios_pkey PRIMARY KEY (id);
 
 
 --
@@ -1595,6 +1635,22 @@ ALTER TABLE ONLY public.fin_receitas
 
 ALTER TABLE ONLY public.fin_receitas
     ADD CONSTRAINT fin_receitas_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: fin_remessas_bancarias fin_remessas_bancarias_conta_layout_nsa_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_remessas_bancarias
+    ADD CONSTRAINT fin_remessas_bancarias_conta_layout_nsa_key UNIQUE (conta_autarquia_id, layout, nsa);
+
+
+--
+-- Name: fin_remessas_bancarias fin_remessas_bancarias_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_remessas_bancarias
+    ADD CONSTRAINT fin_remessas_bancarias_pkey PRIMARY KEY (id);
 
 
 --
@@ -4570,6 +4626,13 @@ CREATE INDEX idx_fin_adiantamentos_status ON public.fin_adiantamentos USING btre
 
 
 --
+-- Name: idx_fin_alteracoes_situacao_fiplan; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_alteracoes_situacao_fiplan ON public.fin_alteracoes_orcamentarias USING btree (exercicio, situacao_fiplan);
+
+
+--
 -- Name: idx_fin_audit_data; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4675,6 +4738,27 @@ CREATE INDEX idx_fin_empenhos_status ON public.fin_empenhos USING btree (status)
 
 
 --
+-- Name: idx_fin_extrato_lanc_conta_data; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_extrato_lanc_conta_data ON public.fin_extrato_lancamentos USING btree (conta_bancaria_id, data_lancamento);
+
+
+--
+-- Name: idx_fin_extrato_lanc_documento; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_extrato_lanc_documento ON public.fin_extrato_lancamentos USING btree (contrapartida_documento);
+
+
+--
+-- Name: idx_fin_extrato_lanc_pagamento; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_extrato_lanc_pagamento ON public.fin_extrato_lancamentos USING btree (pagamento_id);
+
+
+--
 -- Name: idx_fin_extrato_trans_extrato; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4735,6 +4819,55 @@ CREATE INDEX idx_fin_liquidacoes_exercicio ON public.fin_liquidacoes USING btree
 --
 
 CREATE INDEX idx_fin_liquidacoes_status ON public.fin_liquidacoes USING btree (status);
+
+
+--
+-- Name: idx_fin_mov_bancarios_documento; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_mov_bancarios_documento ON public.fin_movimentos_bancarios USING btree (favorecido_documento);
+
+
+--
+-- Name: idx_fin_mov_bancarios_identificador; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_mov_bancarios_identificador ON public.fin_movimentos_bancarios USING btree (identificador);
+
+
+--
+-- Name: idx_fin_mov_bancarios_importacao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_mov_bancarios_importacao ON public.fin_movimentos_bancarios USING btree (importacao_id);
+
+
+--
+-- Name: idx_fin_mov_bancarios_importacao_retorno; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_mov_bancarios_importacao_retorno ON public.fin_movimentos_bancarios USING btree (importacao_retorno_id);
+
+
+--
+-- Name: idx_fin_mov_bancarios_pagamento; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_mov_bancarios_pagamento ON public.fin_movimentos_bancarios USING btree (pagamento_id);
+
+
+--
+-- Name: idx_fin_mov_bancarios_remessa; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_mov_bancarios_remessa ON public.fin_movimentos_bancarios USING btree (remessa_id);
+
+
+--
+-- Name: idx_fin_mov_bancarios_situacao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_mov_bancarios_situacao ON public.fin_movimentos_bancarios USING btree (situacao);
 
 
 --
@@ -6572,6 +6705,13 @@ CREATE TRIGGER audit_controles_internos AFTER INSERT OR DELETE OR UPDATE ON publ
 
 
 --
+-- Name: dados_oficiais audit_dados_oficiais; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_dados_oficiais AFTER INSERT OR DELETE OR UPDATE ON public.dados_oficiais FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('admin');
+
+
+--
 -- Name: decisoes_administrativas audit_decisoes_administrativas; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -7650,6 +7790,27 @@ CREATE TRIGGER trg_audit_empenhos AFTER INSERT OR DELETE OR UPDATE ON public.fin
 
 
 --
+-- Name: fin_extrato_lancamentos trg_audit_fin_extrato_lancamentos; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_audit_fin_extrato_lancamentos AFTER INSERT OR DELETE OR UPDATE ON public.fin_extrato_lancamentos FOR EACH ROW EXECUTE FUNCTION public.fn_audit_financeiro();
+
+
+--
+-- Name: fin_movimentos_bancarios trg_audit_fin_movimentos_bancarios; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_audit_fin_movimentos_bancarios AFTER INSERT OR DELETE OR UPDATE ON public.fin_movimentos_bancarios FOR EACH ROW EXECUTE FUNCTION public.fn_audit_financeiro();
+
+
+--
+-- Name: fin_remessas_bancarias trg_audit_fin_remessas_bancarias; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_audit_fin_remessas_bancarias AFTER INSERT OR DELETE OR UPDATE ON public.fin_remessas_bancarias FOR EACH ROW EXECUTE FUNCTION public.fn_audit_financeiro();
+
+
+--
 -- Name: fornecedores trg_audit_fornecedores; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -7920,6 +8081,27 @@ CREATE TRIGGER trg_exigir_folha_fechada BEFORE INSERT ON public.remessas_bancari
 --
 
 CREATE TRIGGER trg_ferias_atualiza_situacao AFTER INSERT OR UPDATE ON public.ferias_servidor FOR EACH ROW EXECUTE FUNCTION public.trigger_ferias_atualiza_situacao();
+
+
+--
+-- Name: fin_alteracoes_orcamentarias trg_fin_alteracoes_bloquear_exclusao_confirmada; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_fin_alteracoes_bloquear_exclusao_confirmada BEFORE DELETE ON public.fin_alteracoes_orcamentarias FOR EACH ROW EXECUTE FUNCTION public.fin_alteracoes_bloquear_exclusao_confirmada();
+
+
+--
+-- Name: fin_alteracoes_orcamentarias trg_fin_alteracoes_proteger_situacao_fiplan; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_fin_alteracoes_proteger_situacao_fiplan BEFORE INSERT OR UPDATE ON public.fin_alteracoes_orcamentarias FOR EACH ROW EXECUTE FUNCTION public.fin_alteracoes_proteger_situacao_fiplan();
+
+
+--
+-- Name: fin_pagamentos trg_fin_pagamentos_proteger_baixa; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_fin_pagamentos_proteger_baixa BEFORE INSERT OR UPDATE ON public.fin_pagamentos FOR EACH ROW EXECUTE FUNCTION public.fin_pagamentos_proteger_baixa();
 
 
 --
@@ -8220,7 +8402,7 @@ CREATE TRIGGER trigger_conteudo_rascunho_updated_at BEFORE UPDATE ON public.cont
 -- Name: dados_oficiais trigger_dados_oficiais_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trigger_dados_oficiais_updated_at BEFORE UPDATE ON public.dados_oficiais FOR EACH ROW EXECUTE FUNCTION public.update_dados_oficiais_updated_at();
+CREATE TRIGGER trigger_dados_oficiais_updated_at BEFORE INSERT OR UPDATE ON public.dados_oficiais FOR EACH ROW EXECUTE FUNCTION public.update_dados_oficiais_updated_at();
 
 
 --
@@ -12916,6 +13098,14 @@ ALTER TABLE ONLY public.fin_alteracoes_orcamentarias
 
 
 --
+-- Name: fin_alteracoes_orcamentarias fin_alteracoes_orcamentarias_confirmado_fiplan_por_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_alteracoes_orcamentarias
+    ADD CONSTRAINT fin_alteracoes_orcamentarias_confirmado_fiplan_por_fkey FOREIGN KEY (confirmado_fiplan_por) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+
+--
 -- Name: fin_alteracoes_orcamentarias fin_alteracoes_orcamentarias_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13156,6 +13346,22 @@ ALTER TABLE ONLY public.fin_empenhos
 
 
 --
+-- Name: fin_extrato_lancamentos fin_extrato_lancamentos_conta_bancaria_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_extrato_lancamentos
+    ADD CONSTRAINT fin_extrato_lancamentos_conta_bancaria_id_fkey FOREIGN KEY (conta_bancaria_id) REFERENCES public.fin_contas_bancarias(id);
+
+
+--
+-- Name: fin_extrato_lancamentos fin_extrato_lancamentos_pagamento_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_extrato_lancamentos
+    ADD CONSTRAINT fin_extrato_lancamentos_pagamento_id_fkey FOREIGN KEY (pagamento_id) REFERENCES public.fin_pagamentos(id) ON DELETE SET NULL;
+
+
+--
 -- Name: fin_extrato_transacoes fin_extrato_transacoes_conciliado_por_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13300,6 +13506,54 @@ ALTER TABLE ONLY public.fin_liquidacoes
 
 
 --
+-- Name: fin_movimentos_bancarios fin_movimentos_bancarios_conciliado_por_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_movimentos_bancarios
+    ADD CONSTRAINT fin_movimentos_bancarios_conciliado_por_fkey FOREIGN KEY (conciliado_por) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: fin_movimentos_bancarios fin_movimentos_bancarios_corrigido_por_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_movimentos_bancarios
+    ADD CONSTRAINT fin_movimentos_bancarios_corrigido_por_fkey FOREIGN KEY (corrigido_por) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: fin_movimentos_bancarios fin_movimentos_bancarios_importacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_movimentos_bancarios
+    ADD CONSTRAINT fin_movimentos_bancarios_importacao_id_fkey FOREIGN KEY (importacao_id) REFERENCES public.importacoes(id) ON DELETE SET NULL;
+
+
+--
+-- Name: fin_movimentos_bancarios fin_movimentos_bancarios_importacao_retorno_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_movimentos_bancarios
+    ADD CONSTRAINT fin_movimentos_bancarios_importacao_retorno_id_fkey FOREIGN KEY (importacao_retorno_id) REFERENCES public.importacoes(id) ON DELETE SET NULL;
+
+
+--
+-- Name: fin_movimentos_bancarios fin_movimentos_bancarios_pagamento_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_movimentos_bancarios
+    ADD CONSTRAINT fin_movimentos_bancarios_pagamento_id_fkey FOREIGN KEY (pagamento_id) REFERENCES public.fin_pagamentos(id) ON DELETE SET NULL;
+
+
+--
+-- Name: fin_movimentos_bancarios fin_movimentos_bancarios_remessa_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_movimentos_bancarios
+    ADD CONSTRAINT fin_movimentos_bancarios_remessa_id_fkey FOREIGN KEY (remessa_id) REFERENCES public.fin_remessas_bancarias(id) ON DELETE SET NULL;
+
+
+--
 -- Name: fin_pagamentos fin_pagamentos_autorizado_por_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13425,6 +13679,22 @@ ALTER TABLE ONLY public.fin_receitas
 
 ALTER TABLE ONLY public.fin_receitas
     ADD CONSTRAINT fin_receitas_fonte_recurso_id_fkey FOREIGN KEY (fonte_recurso_id) REFERENCES public.fin_fontes_recurso(id);
+
+
+--
+-- Name: fin_remessas_bancarias fin_remessas_bancarias_conta_autarquia_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_remessas_bancarias
+    ADD CONSTRAINT fin_remessas_bancarias_conta_autarquia_id_fkey FOREIGN KEY (conta_autarquia_id) REFERENCES public.contas_autarquia(id);
+
+
+--
+-- Name: fin_remessas_bancarias fin_remessas_bancarias_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_remessas_bancarias
+    ADD CONSTRAINT fin_remessas_bancarias_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 
 
 --
@@ -16971,6 +17241,19 @@ ALTER TABLE public.fin_empenho_anulacoes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fin_empenhos ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: fin_extrato_lancamentos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_extrato_lancamentos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_extrato_lancamentos fin_extrato_lancamentos_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY fin_extrato_lancamentos_select ON public.fin_extrato_lancamentos FOR SELECT TO authenticated USING ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND public.can_access_module(auth.uid(), 'financeiro'::text)));
+
+
+--
 -- Name: fin_extrato_transacoes; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -17091,6 +17374,19 @@ CREATE POLICY fin_module_write ON public.pagamentos FOR INSERT TO authenticated 
 
 
 --
+-- Name: fin_movimentos_bancarios; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_movimentos_bancarios ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_movimentos_bancarios fin_movimentos_bancarios_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY fin_movimentos_bancarios_select ON public.fin_movimentos_bancarios FOR SELECT TO authenticated USING ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND public.can_access_module(auth.uid(), 'financeiro'::text)));
+
+
+--
 -- Name: fin_naturezas_despesa; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -17125,6 +17421,19 @@ ALTER TABLE public.fin_programas_orcamentarios ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.fin_receitas ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_remessas_bancarias; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_remessas_bancarias ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_remessas_bancarias fin_remessas_bancarias_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY fin_remessas_bancarias_select ON public.fin_remessas_bancarias FOR SELECT TO authenticated USING ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND public.can_access_module(auth.uid(), 'financeiro'::text)));
+
 
 --
 -- Name: fin_restos_pagar; Type: ROW SECURITY; Schema: public; Owner: -
@@ -21231,7 +21540,7 @@ CREATE POLICY rls_select ON public.creditos_adicionais FOR SELECT TO authenticat
 -- Name: dados_oficiais rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.dados_oficiais FOR SELECT TO authenticated USING (public.is_active_user());
+CREATE POLICY rls_select ON public.dados_oficiais FOR SELECT TO anon, authenticated USING (true);
 
 
 --

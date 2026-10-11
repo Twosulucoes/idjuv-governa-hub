@@ -10,9 +10,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
-import { Plus, FileCheck, Eye, Paperclip } from "lucide-react";
+import { Plus, FileCheck, Paperclip } from "lucide-react";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { useLiquidacoes } from "@/hooks/useFinanceiro";
+import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
+import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
 import type { Liquidacao } from "@/types/financeiro";
 
 /** Situação da liquidação → rótulo e tom do selo. */
@@ -80,8 +82,9 @@ const colunas: ColunaTabela<Liquidacao>[] = [
 export default function LiquidacoesPage() {
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [formOpen, setFormOpen] = useState(false);
+  const { exercicio, comExercicio } = useExercicioFinanceiro();
 
-  const { data: liquidacoes, isLoading, isError, refetch } = useLiquidacoes();
+  const { data: liquidacoes, isLoading, isError, refetch } = useLiquidacoes({ exercicio });
 
   const filteredLiquidacoes = useMemo(
     () => (liquidacoes ?? []).filter((liq) => statusFilter === "todos" || liq.status === statusFilter),
@@ -92,14 +95,17 @@ export default function LiquidacoesPage() {
     <ModuleLayout module="financeiro">
     <div className="space-y-6">
       <PageHeader
-        migalhas={[{ rotulo: "Financeiro", href: "/financeiro" }, { rotulo: "Liquidações" }]}
+        migalhas={[{ rotulo: "Financeiro", href: comExercicio("/financeiro") }, { rotulo: "Liquidações" }]}
         titulo="Liquidações"
-        descricao="Gestão de liquidações e atesto de despesas"
+        descricao={`Gestão de liquidações e atesto de despesas · exercício ${exercicio}`}
         acoes={
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Nova liquidação
-          </Button>
+          <>
+            <SeletorExercicio />
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Nova liquidação
+            </Button>
+          </>
         }
       />
 
@@ -131,11 +137,6 @@ export default function LiquidacoesPage() {
           titulo: "Nenhuma liquidação encontrada",
           descricao: "Não há liquidações para os filtros selecionados.",
         }}
-        acoesLinha={(liq) => (
-          <Button variant="ghost" size="icon" aria-label={`Ver liquidação ${liq.numero}`}>
-            <Eye className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        )}
       />
     </div>
     <LiquidacaoFormDialog open={formOpen} onOpenChange={setFormOpen} />

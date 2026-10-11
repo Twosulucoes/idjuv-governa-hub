@@ -224,14 +224,12 @@ import InstalarAppPage from "./pages/mobile/InstalarAppPage";
 import { ModuloHabilitado } from "@/components/auth/ModuloHabilitado";
 // Financeiro (ERP)
 import {
-  DashboardFinanceiroPage,
   SolicitacoesPage,
   EmpenhosPage,
   LiquidacoesPage,
   PagamentosPage,
   AdiantamentosPage,
   ContasBancariasPage,
-  OrcamentoPage,
   RelatoriosFinanceiroPage,
   PlaceholderDetalheFinanceiroPage,
   QDDPage,
@@ -239,6 +237,8 @@ import {
   RestosAPagarPage,
   SubEmpenhosPage,
 } from "./pages/financeiro";
+import ConciliacaoBancariaPage from "./pages/financeiro/ConciliacaoBancariaPage";
+import PagamentoDetalhePage from "./pages/financeiro/PagamentoDetalhePage";
 
 // Inventário e Patrimônio
 import {
@@ -1228,14 +1228,10 @@ const App = () => (
               {/* ============================================ */}
               {/* FINANCEIRO (ERP) - Com permissões mapeadas */}
               {/* ============================================ */}
-              <Route path="/financeiro" element={
-                <ProtectedRoute requiredPermissions="orcamento.visualizar">
-                  <DashboardFinanceiroPage />
-                </ProtectedRoute>
-              } />
+              {/* Orçamento virou o resumo no topo do QDD */}
               <Route path="/financeiro/orcamento" element={
                 <ProtectedRoute requiredPermissions="orcamento.visualizar">
-                  <OrcamentoPage />
+                  <Navigate to="/financeiro/qdd" replace />
                 </ProtectedRoute>
               } />
               <Route path="/financeiro/qdd" element={
@@ -1288,6 +1284,11 @@ const App = () => (
                   <RestosAPagarPage />
                 </ProtectedRoute>
               } />
+              <Route path="/financeiro/conciliacao" element={
+                <ProtectedRoute requiredModule="financeiro" requiredPermissions="pagamento.conciliar">
+                  <ConciliacaoBancariaPage />
+                </ProtectedRoute>
+              } />
               <Route path="/financeiro/sub-empenhos" element={
                 <ProtectedRoute requiredPermissions="orcamento.criar">
                   <SubEmpenhosPage />
@@ -1307,7 +1308,7 @@ const App = () => (
               } />
               <Route path="/financeiro/pagamentos/:id" element={
                 <ProtectedRoute requiredPermissions="orcamento.aprovar">
-                  <PlaceholderDetalheFinanceiroPage />
+                  <PagamentoDetalhePage />
                 </ProtectedRoute>
               } />
 

@@ -14,6 +14,8 @@ import { Plus, TrendingUp, TrendingDown, Search, Wallet, FileX } from 'lucide-re
 import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from '@/components/design-system';
 import { ModuleLayout } from '@/components/layout';
 import { useEmpenhos } from '@/hooks/useFinanceiro';
+import { useExercicioFinanceiro } from '@/hooks/useExercicioFinanceiro';
+import { SeletorExercicio } from '@/components/financeiro/SeletorExercicio';
 import { useSubEmpenhos, useCriarSubEmpenho } from '@/hooks/useSubEmpenhos';
 import { TIPO_SUB_EMPENHO_LABELS, type SubEmpenho } from '@/types/financeiro';
 
@@ -90,15 +92,16 @@ export default function SubEmpenhosPage() {
   const [justificativa, setJustificativa] = useState('');
   const [docReferencia, setDocReferencia] = useState('');
 
-  const { data: empenhos } = useEmpenhos();
-  const { data: subEmpenhos, isLoading, isError, refetch } = useSubEmpenhos(empenhoSelecionado || undefined);
+  const { exercicio, comExercicio } = useExercicioFinanceiro();
+  const { data: empenhos } = useEmpenhos({ exercicio });
+  // Empenho escolhido em outro exercício deixa de valer quando o ano muda
+  const empenhoAtual = empenhos?.find((e) => e.id === empenhoSelecionado);
+  const { data: subEmpenhos, isLoading, isError, refetch } = useSubEmpenhos(empenhoAtual?.id);
   const criarSubEmpenho = useCriarSubEmpenho();
 
   const empenhosFiltrados = empenhos?.filter((e) =>
     !busca || e.numero.toLowerCase().includes(busca.toLowerCase()) || e.objeto.toLowerCase().includes(busca.toLowerCase())
   );
-
-  const empenhoAtual = empenhos?.find((e) => e.id === empenhoSelecionado);
 
   const handleCriar = () => {
     if (!empenhoSelecionado || !valor || !justificativa) return;
@@ -125,23 +128,26 @@ export default function SubEmpenhosPage() {
     <ModuleLayout module="financeiro">
     <div className="space-y-6">
       <PageHeader
-        migalhas={[{ rotulo: 'Financeiro', href: '/financeiro' }, { rotulo: 'Sub-empenhos' }]}
+        migalhas={[{ rotulo: 'Financeiro', href: comExercicio('/financeiro') }, { rotulo: 'Sub-empenhos' }]}
         titulo="Sub-empenhos"
-        descricao="Reforço e anulação de empenhos"
+        descricao={`Reforço e anulação de empenhos · exercício ${exercicio}`}
         acoes={
-          empenhoAtual && (
-            <Button onClick={() => setNovoDialog(true)}>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Novo sub-empenho
-            </Button>
-          )
+          <>
+            <SeletorExercicio />
+            {empenhoAtual && (
+              <Button onClick={() => setNovoDialog(true)}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Novo sub-empenho
+              </Button>
+            )}
+          </>
         }
       />
 
       {/* Seleção do Empenho */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Selecionar empenho</CardTitle>
+          <CardTitle className="text-base">Selecionar empenho de {exercicio}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="relative">

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -10,9 +9,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
-import { Plus, Wallet, Eye, AlertTriangle } from "lucide-react";
+import { Wallet, AlertTriangle } from "lucide-react";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { useAdiantamentos } from "@/hooks/useFinanceiro";
+import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
+import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
 import { STATUS_ADIANTAMENTO_LABELS, type Adiantamento, type StatusAdiantamento } from "@/types/financeiro";
 
 const TOM_STATUS_ADIANTAMENTO: Record<StatusAdiantamento, TomStatus> = {
@@ -74,8 +75,9 @@ const colunas: ColunaTabela<Adiantamento>[] = [
 
 export default function AdiantamentosPage() {
   const [statusFilter, setStatusFilter] = useState<string>("todos");
+  const { exercicio, comExercicio } = useExercicioFinanceiro();
   
-  const { data: adiantamentos, isLoading, isError, refetch } = useAdiantamentos();
+  const { data: adiantamentos, isLoading, isError, refetch } = useAdiantamentos({ exercicio });
 
   const filteredAdiantamentos = (adiantamentos ?? []).filter(
     (adi) => statusFilter === "todos" || adi.status === statusFilter
@@ -89,15 +91,10 @@ export default function AdiantamentosPage() {
     <ModuleLayout module="financeiro">
     <div className="space-y-6">
       <PageHeader
-        migalhas={[{ rotulo: "Financeiro", href: "/financeiro" }, { rotulo: "Adiantamentos" }]}
+        migalhas={[{ rotulo: "Financeiro", href: comExercicio("/financeiro") }, { rotulo: "Adiantamentos" }]}
         titulo="Adiantamentos"
-        descricao="Suprimento de fundos e prestação de contas"
-        acoes={
-          <Button>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Novo adiantamento
-          </Button>
-        }
+        descricao={`Suprimento de fundos e prestação de contas · exercício ${exercicio}`}
+        acoes={<SeletorExercicio />}
       />
 
       {adiantamentosVencendo && adiantamentosVencendo.length > 0 && (
@@ -141,13 +138,8 @@ export default function AdiantamentosPage() {
         vazio={{
           icone: Wallet,
           titulo: "Nenhum adiantamento encontrado",
-          descricao: "Ajuste o filtro ou registre um adiantamento.",
+          descricao: "Ajuste o filtro ou escolha outro exercício.",
         }}
-        acoesLinha={(adi) => (
-          <Button variant="ghost" size="icon" aria-label={`Ver adiantamento ${adi.numero}`}>
-            <Eye className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        )}
       />
     </div>
     </ModuleLayout>

@@ -18,6 +18,8 @@ import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus }
 import { Plus, Eye, Receipt } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useEmpenhos } from "@/hooks/useFinanceiro";
+import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
+import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
 import { formatCurrency } from "@/lib/formatters";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -111,8 +113,10 @@ export default function EmpenhosPage() {
 
   const [filtroStatus, setFiltroStatus] = useState(statusParam);
   const [formOpen, setFormOpen] = useState(false);
+  const { exercicio, comExercicio } = useExercicioFinanceiro();
 
   const { data: empenhos, isLoading, isError, refetch } = useEmpenhos({
+    exercicio,
     status: filtroStatus && filtroStatus !== "todos" ? filtroStatus : undefined
   });
 
@@ -120,14 +124,17 @@ export default function EmpenhosPage() {
     <ModuleLayout module="financeiro">
       <div className="space-y-6">
         <PageHeader
-          migalhas={[{ rotulo: "Financeiro", href: "/financeiro" }, { rotulo: "Empenhos" }]}
+          migalhas={[{ rotulo: "Financeiro", href: comExercicio("/financeiro") }, { rotulo: "Empenhos" }]}
           titulo="Empenhos"
-          descricao="Gestão de notas de empenho"
+          descricao={`Gestão de notas de empenho · exercício ${exercicio}`}
           acoes={
-            <Button onClick={() => setFormOpen(true)}>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Novo empenho
-            </Button>
+            <>
+              <SeletorExercicio />
+              <Button onClick={() => setFormOpen(true)}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Novo empenho
+              </Button>
+            </>
           }
         />
 
@@ -163,7 +170,7 @@ export default function EmpenhosPage() {
           }}
           acoesLinha={(emp) => (
             <Button variant="ghost" size="icon" asChild>
-              <Link to={`/financeiro/empenhos/${emp.id}`} aria-label={`Ver empenho ${emp.numero}`}>
+              <Link to={comExercicio(`/financeiro/empenhos/${emp.id}`)} aria-label={`Ver empenho ${emp.numero}`}>
                 <Eye className="h-4 w-4" aria-hidden="true" />
               </Link>
             </Button>

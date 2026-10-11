@@ -9,11 +9,12 @@
 
 import { useState, useMemo } from "react";
 import { ModuleLayout } from "@/components/layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -41,14 +42,19 @@ import {
   Upload,
   Download,
   FileSpreadsheet,
-  AlertCircle,
   PieChart,
   TrendingUp,
-  DollarSign,
+  PiggyBank,
+  RefreshCw,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { formatCurrency } from "@/lib/formatters";
-import { useDotacoes } from "@/hooks/useFinanceiro";
+import { useDotacoes, useResumoOrcamentario, useUltimaImportacaoQdd } from "@/hooks/useFinanceiro";
+import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
+import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
+import { KpiCard } from "@/components/design-system";
 import { useAuth } from "@/contexts/AuthContext";
 import { ImportacaoWizard } from "@/components/importacao";
 import { importadorQddFiplan } from "@/lib/importacao/importadores/qddFiplan";
@@ -56,20 +62,18 @@ import * as XLSX from "xlsx";
 
 export default function QDDPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [exercicio, setExercicio] = useState(new Date().getFullYear().toString());
+  const { exercicio, setExercicio, comExercicio } = useExercicioFinanceiro();
   const [importOpen, setImportOpen] = useState(false);
   const [importando, setImportando] = useState(false);
   const [filterIDU, setFilterIDU] = useState("todos");
   const { hasPermission } = useAuth();
   const podeImportar = hasPermission(importadorQddFiplan.permissao);
 
-  // Exercícios: o próximo (o QDD do ano seguinte sai antes da virada) até 2024
-  const exercicios = useMemo(() => {
-    const proximo = new Date().getFullYear() + 1;
-    return Array.from({ length: proximo - 2024 + 1 }, (_, i) => String(proximo - i));
-  }, []);
-
-  const { data: dotacoes, isLoading } = useDotacoes(parseInt(exercicio));
+  const { data: dotacoes, isLoading } = useDotacoes(exercicio);
+  // Resumo do exercício inteiro (não acompanha os filtros da tabela)
+  const { data: resumo, isLoading: carregandoResumo } = useResumoOrcamentario(exercicio);
+  const { data: ultimaImportacao, isLoading: carregandoImportacao } = useUltimaImportacaoQdd(exercicio);
+  const percentualExecutado = resumo?.percentual_executado || 0;
 
   // Filtro
   const filtered = useMemo(() => {
@@ -178,18 +182,17 @@ export default function QDDPage() {
           <p className="text-muted-foreground">
             QDD - Exercício {exercicio} • {filtered.length} dotações
           </p>
+          <p className="mt-1 flex items-center gap-1.5 text-caption text-muted-foreground" aria-live="polite">
+            <RefreshCw className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            {carregandoImportacao
+              ? "Verificando a última importação do FIPLAN…"
+              : ultimaImportacao
+                ? `Atualizado pelo FIPLAN em ${format(new Date(ultimaImportacao.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} · ${ultimaImportacao.arquivo_nome}`
+                : `Ainda não importado do FIPLAN para ${exercicio}`}
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Select value={exercicio} onValueChange={setExercicio}>
-            <SelectTrigger className="w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {exercicios.map((ano) => (
-                <SelectItem key={ano} value={ano}>{ano}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SeletorExercicio />
           {podeImportar && (
             <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
               <Upload className="h-4 w-4 mr-2" />
@@ -201,52 +204,35 @@ export default function QDDPage() {
             Exportar
           </Button>
           <Button size="sm" asChild>
-            <Link to="/financeiro/alteracoes-orcamentarias">
+            <Link to={comExercicio("/financeiro/alteracoes-orcamentarias")}>
               Alterações Orçamentárias
             </Link>
           </Button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <PieChart className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Dotação Atual</span>
-            </div>
-            <p className="text-xl font-bold">{formatCurrency(totais.atual)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Empenhado</span>
-            </div>
-            <p className="text-xl font-bold">{formatCurrency(totais.empenhado)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Pago</span>
-            </div>
-            <p className="text-xl font-bold">{formatCurrency(totais.pago)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <AlertCircle className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Disponível</span>
-            </div>
-            <p className="text-xl font-bold">{formatCurrency(totais.disponivel)}</p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Resumo do exercício */}
+      <section aria-labelledby="qdd-indicadores">
+        <h2 id="qdd-indicadores" className="sr-only">Resumo orçamentário de {exercicio}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard rotulo="Dotação atual" valor={formatCurrency(resumo?.dotacao_atual || 0)} icone={PieChart} carregando={carregandoResumo} />
+          <KpiCard rotulo="Empenhado" valor={formatCurrency(resumo?.empenhado || 0)} icone={TrendingUp} carregando={carregandoResumo} />
+          <KpiCard rotulo="Saldo disponível" valor={formatCurrency(resumo?.saldo_disponivel || 0)} icone={PiggyBank} carregando={carregandoResumo} />
+          <Card>
+            <CardContent className="space-y-2 p-4">
+              <p className="text-body text-muted-foreground" id="qdd-execucao">Execução (pago / dotação)</p>
+              {carregandoResumo ? (
+                <Skeleton className="h-8 w-24" />
+              ) : (
+                <>
+                  <p className="text-h1 tabular-nums text-foreground">{percentualExecutado.toFixed(1)}%</p>
+                  <Progress value={percentualExecutado} className="h-2" aria-labelledby="qdd-execucao" />
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </section>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -396,7 +382,7 @@ export default function QDDPage() {
             importador={importadorQddFiplan}
             onOcupadoChange={setImportando}
             onConcluido={(_, parametros) => {
-              if (typeof parametros.exercicio === "number") setExercicio(String(parametros.exercicio));
+              if (typeof parametros.exercicio === "number") setExercicio(parametros.exercicio);
             }}
           />
         </DialogContent>

@@ -65,6 +65,7 @@ import {
   type LucideIcon,
   Bell,
   Mail,
+  ArrowLeftRight,
 } from "lucide-react";
 
 // ================================
@@ -117,6 +118,7 @@ export type PermissaoInstitucional =
   | 'orcamento.criar'
   | 'orcamento.aprovar'
   | 'orcamento.importar'
+  | 'pagamento.conciliar'
   // Patrimônio
   | 'patrimonio.visualizar'
   | 'patrimonio.criar'
@@ -598,10 +600,12 @@ export const menuConfig: MenuSection[] = [
         priority: 1,
       },
       {
-        id: "fin-orcamento",
-        label: "Orçamento",
-        route: "/financeiro/orcamento",
-        icon: Wallet,
+        // Orçamento: resumo e dotações ficam no QDD (fonte: FIPLAN)
+        id: "fin-qdd",
+        label: "QDD - Detalhamento",
+        labelShort: "QDD",
+        route: "/financeiro/qdd",
+        icon: FileText,
         permission: "orcamento.visualizar",
         priority: 2,
       },
@@ -674,6 +678,15 @@ export const menuConfig: MenuSection[] = [
         route: "/financeiro/contas-bancarias",
         icon: Building2,
         permission: "orcamento.aprovar",
+        priority: 5,
+      },
+      {
+        id: "fin-conciliacao",
+        label: "Conciliação Bancária",
+        labelShort: "Conciliação",
+        route: "/financeiro/conciliacao",
+        icon: ArrowLeftRight,
+        permission: "pagamento.conciliar",
         priority: 5,
       },
       {

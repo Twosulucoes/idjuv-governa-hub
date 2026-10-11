@@ -901,6 +901,40 @@ controla a tela e a RPC (e garante o registro em `importacoes`), não a escrita 
 Restringir isso é mudança de RLS existente (pendente, exige decisão). O histórico (`importacoes`) é lido por quem acessa o
 módulo da importação.
 
+O segundo importador, arquivo do banco (OBN600/CNAB 240), declara `pagamento.conciliar` (ver abaixo). Como
+`PERMISSOES_IMPORTACAO` junta as permissões de todos os importadores, quem tem só `pagamento.conciliar` também entra
+em `/admin/importacoes`, e lá vê só esse importador.
+
+### Conciliação bancária e Banco do Brasil (`pagamento.conciliar`)
+
+Permissão nova do catálogo do módulo `financeiro` (categoria "Pagamentos"), criada pela migração
+`supabase/migrations/20261011100100_fin_movimentos_bancarios.sql`. Spec:
+[`2026-10-11-financeiro-fiplan-banco-design.md`](./superpowers/specs/2026-10-11-financeiro-fiplan-banco-design.md).
+
+- **Quem tem por padrão:** papéis `admin` e `manager` (`role_permissions`), recortados pelo módulo `financeiro`
+  como as demais permissões de papel. O papel `user` não recebe; conceda pelo Painel de Permissões ou em
+  `user_permissions`.
+- **Rota:** `/financeiro/conciliacao` (`ProtectedRoute requiredModule="financeiro" requiredPermissions="pagamento.conciliar"`).
+  O item "Conciliação Bancária" do menu lateral (`menu.config.ts`) filtra pela mesma permissão. A rota não está em
+  `ROUTE_PERMISSIONS`: a exigência fica só no `App.tsx`.
+- **Banco:** as RPCs `importar_arquivo_bancario`, `conciliar_movimento_bancario`, `registrar_remessa_bancaria` e
+  `confirmar_remessa_bancaria` exigem perfil ativo, `can_access_module(…, 'financeiro')` e
+  `has_permission_code(…, 'pagamento.conciliar')` (erro `42501`). A permissão avulsa sem o módulo não basta.
+  `pode_conciliar_pagamentos()` faz a mesma checagem para a tela e para a Edge Function. Também `corrigir_conta_movimento`,
+  `obter_remessa_bancaria` e `cancelar_remessa_bancaria` (esta: autor da reserva ou papel admin).
+- **Baixa do pagamento (migração `20261011100400`):** marcar `fin_pagamentos` como `pago` (ou gravar
+  `data_efetivacao`) deixou de ser possível pela API para qualquer papel, admin inclusive (`42501`): só o retorno do
+  banco ou a conciliação bancária baixam, logo, na prática, quem tem `pagamento.conciliar`.
+- **Edge Function `bb-api`:** chama `pode_conciliar_pagamentos()` como o próprio usuário antes de usar a service
+  role; sem permissão responde `403` (ver [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md#banco-do-brasil-bb-api)).
+- **Leitura:** `fin_movimentos_bancarios`, `fin_remessas_bancarias` e `fin_extrato_lancamentos` são lidas por quem
+  tem perfil ativo e o módulo `financeiro`, mesmo sem `pagamento.conciliar` (é o que alimenta o histórico bancário
+  em `/financeiro/pagamentos/:id`, rota com `orcamento.aprovar`). Ninguém escreve nelas direto pela API.
+- **Alteração orçamentária no FIPLAN:** "Confirmar no FIPLAN" em `/financeiro/alteracoes-orcamentarias` usa a RPC
+  `confirmar_alteracao_fiplan`, que exige o módulo `financeiro` e `orcamento.aprovar` (não há permissão própria de
+  alteração no catálogo). Confirmada, a alteração não muda valor/dotações/tipo/exercício/status nem é excluída pela
+  API (admin inclusive). Detalhes das tabelas e RPCs em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
+
 ### Envio de e-mail e WhatsApp
 
 `admin.envios` (ver a tela `/admin/envios` e o histórico) e `admin.envios.configurar` (editar a

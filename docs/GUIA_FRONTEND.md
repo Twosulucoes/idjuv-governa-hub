@@ -39,8 +39,19 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `useParametrizacoesFrequencia`, `useGerarFrequenciaPDF`, `useFolhaPagamento`,
   `useFolhaCalculos`, `useMotorFolha`, `useFechamentoFolha`, `useContracheque`,
   `useRHIntegracoes`, `useRelatorios`, `usePortarias`, `usePreCadastro`.
-- **Financeiro**: `useFinanceiro`, `useAlteracoesOrcamentarias`, `useSubEmpenhos`,
-  `useRestosAPagar`.
+- **Financeiro**: `useFinanceiro` (inclui `useResumoOrcamentario`, `useUltimaImportacaoQdd`,
+  `useCriarSolicitacao`, `useCriarContaBancaria`), `useAlteracoesOrcamentarias` (inclui
+  `useConfirmarAlteracaoFiplan`), `useSubEmpenhos`, `useRestosAPagar`,
+  `useConciliacaoBancaria` (movimentos dos arquivos do banco, conciliação manual, reenvio Gestão MAX, detalhe do
+  pagamento e chamadas à Edge Function `bb-api`: `useStatusBB`, `useValidarContaBB`, `useImportarExtratoBB`).
+  Tipos da conciliação em `src/types/conciliacaoBancaria.ts`.
+- **Exercício do Financeiro** (`src/hooks/useExercicioFinanceiro.ts`): ano orçamentário compartilhado pelas telas
+  do módulo. Lê `?exercicio=` da URL; sem ele, o último ano escolhido no navegador (`localStorage`,
+  chave `financeiro:exercicio`); sem nenhum, o ano atual. Faixa: 2024 até o ano seguinte ao atual. Devolve
+  `exercicio`, `setExercicio` (grava na URL com `replace` e no navegador), `exercicios` (anos do seletor) e
+  `comExercicio(href)` para links internos levarem o ano. A UI é `SeletorExercicio`
+  (`src/components/financeiro/SeletorExercicio.tsx`). Tela nova do financeiro que filtra por ano deve usar este
+  hook, não um `useState` próprio.
 - **Patrimônio**: `usePatrimonio`, `useCadastroLote`, `useCadastroBemSimplificado`,
   `useMovimentacaoLote`, `useAlmoxarifado`, `useColetaOffline`. Inventário de
   campo: `useVistoriaInventario` (unidades da campanha, situação, fotos com URL
@@ -86,6 +97,13 @@ de chamar `supabase` direto dentro da página.
   `esocialXmlGenerator.ts`, `folhaCalculos.ts`/`folhaCalculoService.ts` (INSS,
   IRRF, consignações), `frequenciaCalculoService.ts`. Fluxo da remessa e do eSocial em
   [Arquivos da folha](#arquivos-da-folha-remessa-cnab-e-esocial-onda-e3).
+- **Arquivos bancários** (`src/lib/bancario/`, funções puras, sem Supabase nem DOM):
+  `src/lib/bancario/obn600.ts` (leitor da remessa/retorno de ordens bancárias do FIPLAN, linhas de 350 posições),
+  `src/lib/bancario/cnab240.ts` (leitor CNAB 240: SEGAD e Gestão MAX, segmentos A e B, ocorrências do retorno),
+  `src/lib/bancario/gestaoMaxCnab240.ts` (gerador do arquivo de reenvio no leiaute BB Gestão MAX, com
+  `validarRemessaGestaoMax`), `src/lib/bancario/comum.ts` (tipos, decodificação e campos por posição) e
+  `src/lib/bancario/exibicao.ts` (rótulos, datas e CPF/CNPJ mascarado para a tela). Não há manual oficial do
+  OBN600 no repositório: posições e códigos deduzidos dos arquivos estão marcados "conferir no manual" no código.
 - **Utils**: `formatters.ts` (máscaras), `utils.ts` (`cn`, helpers),
   `matriculaUtils.ts`, `statusColors.ts`, `supabase.ts`/`supabaseClient.ts`.
 - **Arquivos em bucket privado**: `src/lib/storageArquivos.ts`. Use ao gravar ou abrir arquivo de bucket
@@ -138,8 +156,13 @@ Estrutura genérica para trazer dados de arquivos de outros sistemas, sempre em 
 - `pdfTexto.ts` — texto posicionado de PDF via pdf.js (carregado sob demanda), agrupado em linhas,
   para relatórios tabulares em que colunas vazias somem no texto corrido.
 - `importadores/qddFiplan*.ts` — primeiro importador: PDF do QDD do FIPLAN → `importar_qdd_fiplan`.
+- `src/lib/importacao/importadores/arquivoBancario.ts` — arquivo do banco → `importar_arquivo_bancario`
+  (`id` `arquivo_bancario`, permissão `pagamento.conciliar`, aceita `.txt`, `.ret`, `.rem`). Decide o formato
+  pela largura da primeira linha (350 = OBN600, 240 = CNAB 240) e usa os leitores de `src/lib/bancario/`;
+  largura diferente é erro de leitura. O cabeçalho da prévia mostra formato, remessa/retorno, data, quantidade,
+  total e se o total confere com o trailer. CPF/CNPJ aparece mascarado na prévia.
 - UI: `ImportacaoWizard` e `HistoricoImportacoes` (`src/components/importacao/`), usados por
-  `ImportacoesPage` e por telas de módulo (ex.: `QDDPage`); hook `useImportacoes`.
+  `ImportacoesPage` e por telas de módulo (ex.: `QDDPage`, `ConciliacaoBancariaPage`); hook `useImportacoes`.
 
 **Importador novo:** (1) migração com uma RPC `importar_<algo>(…, p_simular boolean)` `SECURITY DEFINER`
 que confere a permissão, valida cada linha, devolve o formato de `ResultadoBanco` e, ao aplicar, insere em

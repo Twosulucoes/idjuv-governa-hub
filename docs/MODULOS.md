@@ -20,7 +20,8 @@ Gestão do próprio sistema. Páginas em `src/pages/admin/` (~25):
 - **Infra**: `AuditoriaPage`, `BackupOffsitePage`, `DisasterRecoveryPage`,
   `DatabaseSchemaPage`, `CalibradorSegadPage`, `SobreSistemaPage`, `AdminHelpPage`.
 - **Importação de dados**: `ImportacoesPage` (`/admin/importacoes`) lista os importadores que o usuário
-  pode usar e o histórico (`importacoes`). Primeiro importador: QDD do FIPLAN (financeiro).
+  pode usar e o histórico (`importacoes`). Importadores: QDD do FIPLAN e arquivo do banco
+  (OBN600/CNAB 240), ambos do financeiro.
 - **Envio de e-mail e WhatsApp**: `ConfigEnviosPage` (`/admin/envios`, menu "E-mail e WhatsApp"). O
   cliente configura o remetente (SMTP próprio ou Resend), a identidade visual do e-mail e o WhatsApp
   oficial (Meta Cloud API, templates por uso), grava as credenciais (só escrita, no Vault), envia teste
@@ -120,15 +121,47 @@ Licitações, aquisições e gestão contratual. Operados via
 
 ## Financeiro (`financeiro`)
 
-ERP orçamentário. `src/pages/financeiro/` (~14):
-`DashboardFinanceiroPage`, `OrcamentoPage`, `QDDPage`,
-`AlteracoesOrcamentariasPage`, `SolicitacoesPage`, `EmpenhosPage`,
-`SubEmpenhosPage`, `LiquidacoesPage`, `PagamentosPage`, `AdiantamentosPage`,
-`RestosAPagarPage`, `ContasBancariasPage`, `RelatoriosFinanceiroPage`.
-Fluxo: orçamento → solicitação → empenho → liquidação → pagamento.
-O `QDDPage` importa o PDF "Quadro de Detalhamento da Despesa - QDD" exportado do FIPLAN
-(permissão `orcamento.importar`), que cria/atualiza `fin_dotacoes` do exercício; o antigo
-import de planilha XLSX saiu (a exportação XLSX continua).
+ERP orçamentário. `src/pages/financeiro/` (15 arquivos em 2026-10-11; o painel do módulo em `/financeiro` é
+`src/pages/modulos/FinanceiroDashboardPage`): `QDDPage`, `AlteracoesOrcamentariasPage`, `SolicitacoesPage`,
+`EmpenhosPage`, `SubEmpenhosPage`, `LiquidacoesPage`, `PagamentosPage`, `PagamentoDetalhePage`,
+`AdiantamentosPage`, `RestosAPagarPage`, `ContasBancariasPage`, `ConciliacaoBancariaPage`,
+`RelatoriosFinanceiroPage` e `PlaceholderDetalheFinanceiroPage` (ainda usada em
+`/financeiro/solicitacoes/:id` e `/financeiro/empenhos/:id`).
+Fluxo: dotação (FIPLAN) → solicitação → empenho → liquidação → pagamento → arquivo do banco.
+Spec da reorganização: [`2026-10-11-financeiro-fiplan-banco-design.md`](./superpowers/specs/2026-10-11-financeiro-fiplan-banco-design.md).
+
+- **O FIPLAN é a fonte da verdade do orçamento.** O `QDDPage` importa o PDF "Quadro de Detalhamento da
+  Despesa - QDD" exportado do FIPLAN (permissão `orcamento.importar`), que cria/atualiza `fin_dotacoes` do
+  exercício e sobrescreve empenhado/liquidado/pago; o antigo import de planilha XLSX saiu (a exportação XLSX
+  continua). O topo da tela traz os cartões de resumo do exercício (dotação atual, empenhado, saldo disponível)
+  e o aviso "Atualizado pelo FIPLAN em <data> · <arquivo>" (ou "Ainda não importado"), lido do último registro
+  em `importacoes`. Não há mais "Nova dotação": dotação vem do FIPLAN.
+- **Orçamento saiu do menu.** `OrcamentoPage` foi removida; `/financeiro/orcamento` redireciona para
+  `/financeiro/qdd`.
+- **Exercício único no módulo.** O seletor `SeletorExercicio` (hook `useExercicioFinanceiro`, ver
+  [GUIA_FRONTEND.md](./GUIA_FRONTEND.md)) aparece no painel, QDD, Alterações, Solicitações, Empenhos,
+  Sub-Empenhos, Liquidações, Pagamentos, Adiantamentos e Conciliação. O ano vai para a URL (`?exercicio=`) e os
+  links internos o preservam. Liquidações e Adiantamentos passaram a filtrar por exercício.
+- **Alterações orçamentárias** ganharam número do processo SEI e a coluna "FIPLAN" (pendente/confirmada, com
+  data). A ação "Confirmar no FIPLAN" é manual, com diálogo de confirmação, e exige `orcamento.aprovar` no banco.
+- **Solicitações:** "Nova solicitação" abre `SolicitacaoFormDialog` (rascunho no exercício selecionado).
+  **Contas bancárias:** "Nova conta" abre `ContaBancariaFormDialog` (banco, agência, conta).
+- **Detalhe do pagamento** (`/financeiro/pagamentos/:id`, `PagamentoDetalhePage`): dados da ordem de pagamento
+  e o histórico bancário ligado a ela (remessa, retorno e reenvio lidos dos arquivos do banco e lançamentos do
+  extrato do BB).
+- **Conciliação bancária** (`/financeiro/conciliacao`, `ConciliacaoBancariaPage`, permissão
+  `pagamento.conciliar`; ver [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md)), em três abas:
+  - *Movimentos*: importa remessa ou retorno do banco (OBN600 do FIPLAN ou CNAB 240) pelo assistente de
+    importação, lista os movimentos do exercício por situação (pago, recusado, enviado, sem pagamento) e permite
+    vincular à mão um movimento a um pagamento (`ConciliarMovimentoDialog`);
+  - *Recusados*: corrigir banco/agência/conta (`CorrigirContaDialog`, com consulta à API de Validação de Contas
+    do BB para conta do banco 001) e gerar o arquivo de reenvio no leiaute do BB Gestão MAX
+    (`GerarRemessaDialog`; o NSA é reservado no banco). O arquivo é baixado e enviado pelo usuário no Gestão
+    MAX; o retorno volta pela aba Movimentos;
+  - *Banco do Brasil (API)*: situação da conexão, botão "Testar conexão" e importação do extrato de uma conta do
+    BB por período de até 31 dias (`BancoDoBrasilApiPainel`, Edge Function `bb-api`). Só leitura: nenhum
+    pagamento é feito pela API.
+  Componentes em `src/components/financeiro/conciliacao/`; dados em `src/hooks/useConciliacaoBancaria.ts`.
 
 ## Patrimônio (`patrimonio`) e Mobile (`patrimonio_mobile`)
 
