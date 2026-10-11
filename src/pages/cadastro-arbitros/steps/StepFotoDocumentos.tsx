@@ -5,6 +5,8 @@ import { Upload, X, Loader2, ImageIcon, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import type { ArbitroFormData } from '../CadastroArbitroPage';
+import { ImagemArbitro } from '../ArquivoArbitro';
+import { referenciaArquivoArbitro, registrarPreviaArbitro } from '@/hooks/useArquivoArbitro';
 
 interface Props {
   data: ArbitroFormData;
@@ -27,8 +29,9 @@ export function StepFotoDocumentos({ data, update }: Props) {
       toast.error('Erro no upload: ' + error.message);
       return null;
     }
-    const { data: urlData } = supabase.storage.from('arbitros-docs').getPublicUrl(path);
-    return urlData.publicUrl;
+    const referencia = referenciaArquivoArbitro(path);
+    registrarPreviaArbitro(referencia, file);
+    return referencia;
   }
 
   async function handleFoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -66,7 +69,7 @@ export function StepFotoDocumentos({ data, update }: Props) {
         <Label>Foto do Árbitro (até 2MB)</Label>
         {data.foto_url ? (
           <div className="relative w-32 h-32 rounded-lg overflow-hidden border">
-            <img src={data.foto_url} alt="Foto" className="w-full h-full object-cover" />
+            <ImagemArbitro referencia={data.foto_url} className="w-full h-full object-cover" />
             <button onClick={() => update('foto_url', '')} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600">
               <X className="h-3 w-3" />
             </button>

@@ -117,6 +117,12 @@ BEGIN
   END LOOP;
 END $$;
 
+-- Formulário público de gestores escolares: o INSERT anônimo só cria pré-cadastro "aguardando" (igual à
+-- migração 20261010170000; o trigger acima já força o status, a policy recusa em vez de corrigir).
+DROP POLICY IF EXISTS "insercao_publica_gestores" ON public.gestores_escolares;
+CREATE POLICY "insercao_publica_gestores" ON public.gestores_escolares FOR INSERT TO anon, authenticated
+  WITH CHECK (status = 'aguardando');
+
 -- Links gravados por quem envia o formulário público (foto e documentos do árbitro) aparecem como <a href>
 -- na tela da equipe: `javascript:` ou um endereço de phishing viravam link clicável dentro do sistema.
 -- Só ficam endereços do próprio bucket arbitros-docs (como o getPublicUrl do front os gera).

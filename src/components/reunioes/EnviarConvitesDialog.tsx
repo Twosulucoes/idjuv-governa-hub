@@ -232,7 +232,9 @@ export function EnviarConvitesDialog({
       });
 
       if (response.error) {
-        throw new Error(response.error.message || "Erro ao enviar convites");
+        // Respostas 4xx/429 da função chegam como FunctionsHttpError; a mensagem útil está no corpo.
+        const corpo = await (response.error as { context?: Response }).context?.json?.().catch(() => null);
+        throw new Error(corpo?.error || response.error.message || "Erro ao enviar convites");
       }
 
       const result: any = response.data;

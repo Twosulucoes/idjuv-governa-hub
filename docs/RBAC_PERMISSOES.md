@@ -105,6 +105,11 @@ Efeitos conhecidos: contadores de painel que somam tabelas de outro módulo most
 tem aquele módulo (ex.: processos no painel `/admin`); `cms_*` e `contatos_eventos_esportivos` só
 aparecem para quem tem `comunicacao`; o histórico de `/admin/paginas` é só do papel admin.
 
+Onda 2 (anexos e Edge Functions): o bucket `arbitros-docs` ficou privado (só o módulo `arbitros` lê, por URL
+assinada; o formulário público só envia), `database-schema` exige o papel admin, um admin não redefine a senha
+nem exclui outro admin, e o assistente de IA (`compras`) e o convite de reunião têm limites de uso. Detalhes em
+[`EDGE_FUNCTIONS.md`](./EDGE_FUNCTIONS.md).
+
 ## Fluxo em tempo de execução
 
 1. Login via Supabase Auth → `onAuthStateChange` no `AuthContext`.

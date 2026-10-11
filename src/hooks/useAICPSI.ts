@@ -40,7 +40,9 @@ export function useAICPSI({ documentType }: UseAICPSIOptions) {
 
     if (error) {
       console.error('AI error:', error);
-      throw new Error(error.message || 'Erro ao chamar IA');
+      // Respostas 4xx/429 da função chegam como FunctionsHttpError; a mensagem útil está no corpo.
+      const corpo = await (error as { context?: Response }).context?.json?.().catch(() => null);
+      throw new Error(corpo?.error || error.message || 'Erro ao chamar IA');
     }
 
     if (data?.error) {
@@ -104,13 +106,18 @@ export function useAICPSI({ documentType }: UseAICPSIOptions) {
     setIsReviewing(true);
     setReviewResult('');
     try {
+      // A função exige a sessão do usuário (não basta a chave pública).
+      const { data: sessao } = await supabase.auth.getSession();
+      const token = sessao.session?.access_token;
+      if (!token) throw new Error('Sessão expirada. Entre novamente.');
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cpsi-ai-assistant`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             action: 'review',

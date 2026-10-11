@@ -149,6 +149,39 @@ serve(async (req) => {
       });
     }
 
+    // Um administrador não redefine a senha de outro: com a senha temporária na mão, tomaria a conta
+    // dele sem deixar rastro. Para outro admin, só a recuperação por e-mail (o próprio dono recebe).
+    if (targetUserId !== requesterId) {
+      const { data: alvoAdmin, error: alvoError } = await admin
+        .from("user_roles")
+        .select("user_id")
+        .eq("user_id", targetUserId)
+        .eq("role", "admin")
+        .limit(1);
+
+      if (alvoError) {
+        return new Response(JSON.stringify({ error: "Falha ao verificar o usuário" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if ((alvoAdmin ?? []).length > 0) {
+        return new Response(
+          JSON.stringify({
+            error: "A senha de outro administrador só pode ser redefinida pela recuperação por e-mail.",
+          }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    const { data: alvo } = await admin
+      .from("profiles")
+      .select("email, full_name")
+      .eq("id", targetUserId)
+      .maybeSingle();
+
     const senhaTemporaria = generateTempPassword();
 
     // Atualizar senha do usuário (admin)
@@ -173,6 +206,18 @@ serve(async (req) => {
     await admin
       .from("user_security_settings")
       .upsert({ user_id: targetUserId, force_password_change: true }, { onConflict: "user_id" });
+
+    // Trilha: quem redefiniu a senha de quem (nunca a senha). Falha aqui não desfaz a troca, mas fica no log.
+    const { error: auditError } = await admin.from("audit_logs").insert({
+      action: "password_reset",
+      entity_type: "user",
+      entity_id: targetUserId,
+      user_id: requesterId,
+      module_name: "admin",
+      description: `Senha redefinida pelo administrador: ${alvo?.email ?? targetUserId}`,
+      metadata: { senha_temporaria: true },
+    });
+    if (auditError) console.error("Falha ao gravar auditoria do reset de senha:", auditError.message);
 
     return new Response(JSON.stringify({ senhaTemporaria }), {
       status: 200,
