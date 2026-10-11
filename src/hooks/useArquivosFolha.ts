@@ -46,15 +46,35 @@ const db = supabase as unknown as SupabaseClient;
 
 export const BUCKET_REMESSAS_CNAB = "remessas-cnab";
 
+export const MSG_REMESSA_ATIVA =
+  "Já existe remessa ativa desta folha nesta conta; cancele-a antes de gerar outra.";
+
 /**
  * Mensagem do banco para a tela: o texto do RAISE das regras da E3 passa como veio (RHE01 folha não fechada, RHE02
  * campo fixo, RHE03 cancelamento, 22023 valor inválido e o 42501 das funções, que diz a permissão que falta); a
  * recusa da RLS, duplicidade, obrigatório e chave estrangeira viram o texto fixo de `descreverErroBanco` (sem DETAIL).
+ * Com `contexto = "arquivo_remessa"` (envio do arquivo e UPDATE de arquivo_path/arquivo_sha256), P0002 e 42501 ganham
+ * texto próprio. Duplicidade do índice remessas_bancarias_folha_conta_ativa_uidx: `MSG_REMESSA_ATIVA`.
  */
-export function mensagemErroBanco(erro: unknown): string {
+export function mensagemErroBanco(erro: unknown, contexto?: "arquivo_remessa"): string {
   const e = (erro && typeof erro === "object" ? erro : null) as { code?: string; message?: string } | null;
   // Erro do Storage (StorageError/StorageApiError): sem código do Postgres; a mensagem é do serviço (bucket, policy)
-  if (e && "__isStorageError" in e && e.message) return e.message;
+  if (e && "__isStorageError" in e && e.message) {
+    if (contexto === "arquivo_remessa" && /row-level security|unauthorized|403/i.test(e.message)) {
+      return (
+        "O armazenamento recusou o arquivo: é preciso a permissão de processar a folha e a remessa tem de ser sua, " +
+        "gerada há menos de 1 hora e ainda sem arquivo."
+      );
+    }
+    return e.message;
+  }
+  if (e?.code === "23505" && /folha_conta_ativa/i.test(e.message ?? "")) return MSG_REMESSA_ATIVA;
+  if (contexto === "arquivo_remessa" && e?.code === "P0002") {
+    return "O banco não encontrou no armazenamento o arquivo enviado por você para esta remessa; ele não foi ligado à remessa.";
+  }
+  if (contexto === "arquivo_remessa" && e?.code === "42501") {
+    return "Só quem gerou a remessa, com a permissão de processar a folha, pode guardar o arquivo dela.";
+  }
   const tratados = ["23505", "23502", "23503", "PGRST116"];
   const recusaRls = e?.code === "42501" && /row-level security/i.test(e.message ?? "");
   if (e?.message && e.code && !tratados.includes(e.code) && !recusaRls) return e.message;
@@ -268,7 +288,8 @@ interface ParamsGerarRemessa {
  * upload no bucket privado → UPDATE de arquivo_path/arquivo_sha256 → registro na trilha (com remessa_id e número) →
  * download. Se o upload ou o UPDATE falhar, o arquivo não é entregue e a remessa sem arquivo é cancelada (melhor
  * esforço). Sem registro na trilha, o arquivo fica guardado mas não é entregue (baixa-se pela aba, com registro).
- * O banco recalcula valor_total e quantidade_registros da remessa; os enviados aqui são os do arquivo.
+ * O banco calcula valor_total e quantidade_registros pelas fichas no INSERT; lidos de volta, têm de bater com o arquivo
+ * (senão cancela, sem subir nem entregar). Uma remessa ativa por folha e conta (23505 → `MSG_REMESSA_ATIVA`).
  */
 export function useGerarRemessaCNAB() {
   const queryClient = useQueryClient();
@@ -293,16 +314,42 @@ export function useGerarRemessaCNAB() {
           valor_total: valorTotal,
           status: "gerada",
         })
-        .select("id, numero_remessa")
+        .select("id, numero_remessa, valor_total, quantidade_registros")
         .single();
       if (erroInsert || !criada) return { ok: false, mensagem: mensagemErroBanco(erroInsert) };
-      const remessa = criada as { id: string; numero_remessa: number };
+      const remessa = criada as {
+        id: string;
+        numero_remessa: number;
+        valor_total: number | string | null;
+        quantidade_registros: number | null;
+      };
 
       const cancelarSemArquivo = async (motivo: string) => {
         const { error } = await db.rpc("cancelar_remessa", { p_remessa_id: remessa.id, p_motivo: motivo });
         if (error) console.error("cancelar_remessa (remessa sem arquivo) falhou:", error);
         return !error;
       };
+
+      // O banco calcula valor e quantidade pelas fichas da folha (líquido > 0 com banco, agência e conta). Divergiu do
+      // arquivo montado aqui (fichas mudaram, leitura diferente): não sobe nem entrega, cancela e mostra a diferença.
+      const centavosBanco = Math.round(Number(remessa.valor_total ?? 0) * 100);
+      const centavosArquivo = Math.round(valorTotal * 100);
+      const qtdBanco = Number(remessa.quantidade_registros ?? 0);
+      if (centavosBanco !== centavosArquivo || qtdBanco !== quantidade) {
+        const fmt = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        const diferenca =
+          `banco: ${qtdBanco} pagamento(s), ${fmt(centavosBanco)}; arquivo: ${quantidade} pagamento(s), ` +
+          `${fmt(centavosArquivo)}`;
+        const cancelada = await cancelarSemArquivo(`Valor ou quantidade divergente do arquivo (${diferenca}).`.slice(0, 500));
+        queryClient.invalidateQueries({ queryKey: ["remessas-bancarias", p.folhaId] });
+        return {
+          ok: false,
+          mensagem:
+            `O total calculado pelo banco não confere com o arquivo (${diferenca}). O arquivo não foi guardado nem ` +
+            `entregue; a remessa nº ${remessa.numero_remessa} ${cancelada ? "foi cancelada" : "ficou sem arquivo: cancele-a na aba Remessas"}. ` +
+            "Atualize a tela e gere de novo.",
+        };
+      }
 
       let blob: Blob;
       let sha256: string;
@@ -334,7 +381,7 @@ export function useGerarRemessaCNAB() {
         return {
           ok: false as const,
           mensagem:
-            `Não foi possível guardar o arquivo da remessa nº ${remessa.numero_remessa} (${etapa}): ${mensagemErroBanco(erro)} ` +
+            `Não foi possível guardar o arquivo da remessa nº ${remessa.numero_remessa} (${etapa}): ${mensagemErroBanco(erro, "arquivo_remessa")} ` +
             `O arquivo não foi entregue; ${cancelada ? "a remessa foi cancelada. Gere de novo." : "cancele a remessa na aba Remessas e gere de novo."}`,
         };
       };

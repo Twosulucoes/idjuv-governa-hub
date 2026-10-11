@@ -216,7 +216,11 @@ migração `supabase/migrations/20261011010000_rh_cnab_esocial_integridade.sql`;
      → registro na trilha (`registrarAntes`, com `remessa_id`, `numero_remessa` e o sha256) → download do mesmo Blob.
      Se o upload ou o UPDATE falhar, o arquivo não é entregue e a remessa sem arquivo é cancelada pela RPC (se isso
      também falhar, a tela pede para cancelar na aba); sem registro na trilha, o arquivo fica guardado e não é
-     entregue (baixa-se pela aba);
+     entregue (baixa-se pela aba). O `.select()` do INSERT lê também `valor_total` e `quantidade_registros`
+     (calculados pelo banco pelas fichas com líquido > 0 e dados bancários): divergiu do arquivo, a remessa é
+     cancelada sem subir nem entregar e a tela mostra a diferença. Erros com texto próprio (`mensagemErroBanco`):
+     remessa ativa da mesma folha e conta (23505, índice `remessas_bancarias_folha_conta_ativa_uidx`: "cancele-a
+     antes"), objeto ausente no bucket ao ligar o arquivo (P0002) e arquivo de remessa gerada por outro (42501);
   3. o gerador (`src/lib/cnabGenerator.ts`, FEBRABAN 240 v10) usa tipo de serviço `30` (salários) e **um lote por forma
      de pagamento** (`formaDoFavorecido`): `01` crédito em conta no mesmo banco, `05` poupança no mesmo banco, `41`
      TED para outro banco (câmara `018`, finalidade TED `00004`); complemento de finalidade `CC`/`PP`; tudo marcado
@@ -232,6 +236,8 @@ migração `supabase/migrations/20261011010000_rh_cnab_esocial_integridade.sql`;
   ao banco"); remessa antiga sem arquivo mostra "arquivo não guardado". Não há excluir: "Cancelar" abre
   `CancelarRemessaDialog` (motivo obrigatório, zod) e chama `cancelar_remessa`. Gerar, baixar e cancelar pedem
   `financeiro.folha.processar` (o banco exige o mesmo; sem ela os botões ficam desabilitados).
+- **Reabrir folha** (`ReabrirFolhaDialog`): `reabrir_folha` recusa com remessa ativa (`{success: false, error}`); o
+  diálogo não fecha e mostra o motivo (além do toast). Cancele a remessa antes de reabrir.
 - **Permissão de tela:** gerar e baixar eventos do eSocial também pedem `financeiro.folha.processar`. Sem
   `rh.contracheques.visualizar` nem `processar`, o detalhe da folha avisa "Você vê apenas a sua ficha" e esconde os
   totais, e o card de folha dos relatórios não soma por unidade/rubrica (ver
