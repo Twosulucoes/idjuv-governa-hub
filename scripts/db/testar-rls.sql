@@ -3035,6 +3035,265 @@ BEGIN
   PERFORM pg_temp.nota('E2 (trilha do Storage do RH e índices da consulta): upload, troca, mover, exclusão, sem dado pessoal do caminho, origem sistema e leitura verificados');
 END $$;
 
+-- ---------------------------------------------------------------- RH: integridade de CNAB e eSocial (Onda E3) (TRIGGERS LIGADOS)
+-- Migração 20261011010000_rh_cnab_esocial_integridade.sql (spec docs/superpowers/specs/2026-10-11-rh-vazamentos-arquivos-design.md):
+--   * remessa e evento do eSocial recusados com folha aberta (RHE01), também ao trocar a folha do evento;
+--   * número da remessa dado pelo banco: o do cliente é ignorado, segue o maior da conta (inclusive antigo), não
+--     repete (índice único conta + número) e não muda depois; folha e conta também não (RHE02);
+--   * arquivo: caminho <id>.rem e sha256 juntos, uma vez, só com financeiro.folha.processar (42501/22023/RHE02);
+--   * cancelamento só por cancelar_remessa (motivo obrigatório, permissão, autor e data; RHE03 fora dela; cancelada
+--     não muda mais; processada não se cancela); RPC só para authenticated;
+--   * eSocial: mesmo evento da mesma folha e servidor não se repete (23505; 'erro' fica fora); 'enviado'/'aceito' sem
+--     recibo recusado (23514); coluna rascunho;
+--   * bucket privado remessas-cnab: anon, módulo sem o código e servidor não leem nem enviam; quem processa a folha
+--     envia só <id>.rem de remessa sem arquivo e não cancelada; ninguém troca nem apaga pela API;
+--   * funções de trigger fora da API.
+-- Colunas e funções novas lidas por to_jsonb(...) e SQL dinâmico: num banco anterior o bloco reprova sem abortar.
+SET session_replication_role = replica;
+DO $$
+BEGIN
+  -- folhas (aberta e fechadas), contas e uma remessa antiga (número 41 na conta 2), gravadas com os triggers desligados
+  INSERT INTO public.folhas_pagamento (id, competencia_ano, competencia_mes, tipo_folha, status) VALUES
+    ('e3000000-0000-0000-0000-0000000000f1', 2032, 1, 'mensal', 'aberta'),
+    ('e3000000-0000-0000-0000-0000000000f2', 2032, 2, 'mensal', 'fechada'),
+    ('e3000000-0000-0000-0000-0000000000f3', 2032, 3, 'mensal', 'fechada');
+  PERFORM pg_temp.seed_row('contas_autarquia', jsonb_build_object('id', 'e3000000-0000-0000-0000-0000000000c1'));
+  PERFORM pg_temp.seed_row('contas_autarquia', jsonb_build_object('id', 'e3000000-0000-0000-0000-0000000000c2'));
+  PERFORM pg_temp.seed_row('remessas_bancarias', jsonb_build_object('id', 'e3000000-0000-0000-0000-0000000000a0',
+    'folha_id', 'e3000000-0000-0000-0000-0000000000f2', 'conta_autarquia_id', 'e3000000-0000-0000-0000-0000000000c2',
+    'numero_remessa', 41, 'nome_arquivo', 'antiga.rem'));
+END $$;
+SET session_replication_role = origin;
+DO $$
+DECLARE
+  u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
+  u_nenhum uuid := (SELECT uid FROM persona WHERE nome='nenhum');
+  u_a uuid := (SELECT uid FROM persona WHERE nome='srv_a');
+  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');                          -- módulo rh, sem permissão
+  u_proc uuid := (SELECT uid FROM persona WHERE nome='perm_financeiro.folha.processar');
+  u_anon uuid := '00000000-0000-0000-0000-000000000000';
+  sa uuid := 'b0000000-0000-0000-0000-00000000000a';
+  sb uuid := 'b0000000-0000-0000-0000-00000000000b';
+  fa uuid := 'e3000000-0000-0000-0000-0000000000f1';   -- folha aberta
+  ff uuid := 'e3000000-0000-0000-0000-0000000000f2';   -- folha fechada
+  ff2 uuid := 'e3000000-0000-0000-0000-0000000000f3';  -- outra folha fechada
+  c1 uuid := 'e3000000-0000-0000-0000-0000000000c1';
+  c2 uuid := 'e3000000-0000-0000-0000-0000000000c2';
+  rm1 uuid := 'e3000000-0000-0000-0000-0000000000a1';
+  rm2 uuid := 'e3000000-0000-0000-0000-0000000000a2';
+  rm3 uuid := 'e3000000-0000-0000-0000-0000000000a3';
+  rm4 uuid := 'e3000000-0000-0000-0000-0000000000a4';
+  ev1 uuid := 'e3000000-0000-0000-0000-0000000000e1';
+  hash1 text := repeat('ab', 32);
+  ins_rem text := 'INSERT INTO public.remessas_bancarias (id, folha_id, conta_autarquia_id, numero_remessa, nome_arquivo, status) VALUES (%L, %L, %L, %s, ''teste.rem'', %L) RETURNING numero_remessa::text';
+  ins_ev text := 'INSERT INTO public.eventos_esocial (id, folha_id, servidor_id, tipo_evento, payload, status) VALUES (%L, %L, %L, %L, ''{}'', %L)';
+  r text; n int; j jsonb; f text;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM set_config('request.headers', '', true);
+  IF u_proc IS NULL THEN RAISE EXCEPTION 'falta a persona perm_financeiro.folha.processar (mapa.csv)'; END IF;
+
+  -- ===== folha fechada (RHE01)
+  r := pg_temp.sql_como(u_proc, 'authenticated', format(ins_rem, gen_random_uuid(), fa, c1, 999, 'gerada'));
+  IF r NOT LIKE 'erro:RHE01:%' THEN PERFORM pg_temp.falha('E3 CNAB: remessa de folha ABERTA aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_admin, 'authenticated', format(ins_rem, gen_random_uuid(), fa, c1, 999, 'gerada'));
+  IF r NOT LIKE 'erro:RHE01:%' THEN PERFORM pg_temp.falha('E3 CNAB: admin gera remessa de folha ABERTA (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', format(ins_ev, gen_random_uuid(), fa, sa, 'S-1200', 'pendente'));
+  IF r NOT LIKE 'erro:RHE01:%' THEN PERFORM pg_temp.falha('E3 eSocial: evento de folha ABERTA aceito (' || r || ')'); END IF;
+
+  -- ===== número da remessa: o do cliente é ignorado; segue o maior da conta; não muda depois
+  r := pg_temp.valor_como(u_proc, 'authenticated', format(ins_rem, rm1, ff, c1, 999, 'gerada'));
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('E3 CNAB: número do cliente não foi ignorado na 1ª remessa da conta (esperado 1, veio ' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_como(u_proc, 'authenticated', format(ins_rem, rm2, ff, c1, 1, 'gerada'));
+  IF r IS DISTINCT FROM '2' THEN PERFORM pg_temp.falha('E3 CNAB: 2ª remessa da conta repetiu ou não seguiu o número (esperado 2, veio ' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_como(u_proc, 'authenticated', format(ins_rem, rm3, ff2, c2, 1, 'gerada'));
+  IF r IS DISTINCT FROM '42' THEN PERFORM pg_temp.falha('E3 CNAB: numeração da conta 2 não seguiu a remessa antiga 41 (veio ' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_como(u_admin, 'authenticated', format(ins_rem, rm4, ff, c1, 2, 'gerada'));
+  IF r IS DISTINCT FROM '3' THEN PERFORM pg_temp.falha('E3 CNAB: 3ª remessa da conta 1 (admin) não veio 3 (' || coalesce(r, 'nulo') || ')'); END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_index i WHERE i.indexrelid = to_regclass('public.remessas_bancarias_conta_numero_uidx') AND i.indisunique
+                    AND pg_get_indexdef(i.indexrelid) LIKE '%(conta_autarquia_id, numero_remessa)') THEN
+    PERFORM pg_temp.falha('E3 CNAB: falta o índice único remessas_bancarias_conta_numero_uidx (conta, número)');
+  END IF;
+  -- mesmo com os triggers desligados (carga direta), o índice barra o número repetido
+  PERFORM set_config('session_replication_role', 'replica', true);
+  BEGIN
+    INSERT INTO public.remessas_bancarias (folha_id, conta_autarquia_id, numero_remessa, nome_arquivo) VALUES (ff, c1, 1, 'dup.rem');
+    PERFORM pg_temp.falha('E3 CNAB: número repetido na mesma conta aceito com os triggers desligados');
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  PERFORM set_config('session_replication_role', 'origin', true);
+  FOREACH f IN ARRAY ARRAY['numero_remessa = 7', format('folha_id = %L', ff2), format('conta_autarquia_id = %L', c2)] LOOP
+    r := pg_temp.sql_como(u_proc, 'authenticated', format('UPDATE public.remessas_bancarias SET %s WHERE id = %L', f, rm2));
+    IF r NOT LIKE 'erro:RHE02:%' THEN PERFORM pg_temp.falha('E3 CNAB: UPDATE ' || f || ' na remessa gerada passou (' || r || ')'); END IF;
+  END LOOP;
+
+  -- ===== arquivo: caminho e sha256 juntos, uma vez, com financeiro.folha.processar
+  r := pg_temp.sql_como(u_rh, 'authenticated', format('UPDATE public.remessas_bancarias SET arquivo_path = %L, arquivo_sha256 = %L WHERE id = %L', rm1 || '.rem', hash1, rm1));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('E3 CNAB: módulo rh SEM financeiro.folha.processar grava o arquivo (' || r || ')'); END IF;
+  FOREACH f IN ARRAY ARRAY[format('arquivo_path = %L, arquivo_sha256 = %L', 'outro.rem', hash1),
+                           format('arquivo_sha256 = %L', hash1),
+                           format('arquivo_path = %L, arquivo_sha256 = %L', rm1 || '.rem', upper(hash1)),
+                           format('arquivo_path = %L, arquivo_sha256 = %L', rm1 || '.rem', 'abc')] LOOP
+    r := pg_temp.sql_como(u_proc, 'authenticated', format('UPDATE public.remessas_bancarias SET %s WHERE id = %L', f, rm1));
+    IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('E3 CNAB: arquivo inválido aceito (' || f || ': ' || r || ')'); END IF;
+  END LOOP;
+  r := pg_temp.exec_como(u_proc, 'authenticated', format('UPDATE public.remessas_bancarias SET arquivo_path = %L, arquivo_sha256 = %L WHERE id = %L', rm1 || '.rem', hash1, rm1));
+  SELECT to_jsonb(x) INTO j FROM public.remessas_bancarias x WHERE id = rm1;
+  IF r <> 'ok' OR j ->> 'arquivo_path' IS DISTINCT FROM rm1 || '.rem' OR j ->> 'arquivo_sha256' IS DISTINCT FROM hash1 THEN
+    PERFORM pg_temp.falha('E3 CNAB: quem processa a folha não grava o arquivo da remessa (' || r || ')');
+  END IF;
+  FOREACH f IN ARRAY ARRAY[format('arquivo_sha256 = %L', repeat('cd', 32)), 'arquivo_path = NULL, arquivo_sha256 = NULL',
+                           format('arquivo_path = %L', rm2 || '.rem')] LOOP
+    r := pg_temp.sql_como(u_proc, 'authenticated', format('UPDATE public.remessas_bancarias SET %s WHERE id = %L', f, rm1));
+    IF r NOT LIKE 'erro:RHE02:%' THEN PERFORM pg_temp.falha('E3 CNAB: arquivo já gravado mudou (' || f || ': ' || r || ')'); END IF;
+    r := pg_temp.sql_como(u_admin, 'authenticated', format('UPDATE public.remessas_bancarias SET %s WHERE id = %L', f, rm1));
+    IF r NOT LIKE 'erro:RHE02:%' THEN PERFORM pg_temp.falha('E3 CNAB: admin muda o arquivo já gravado (' || f || ': ' || r || ')'); END IF;
+  END LOOP;
+
+  -- ===== cancelamento só pela RPC
+  r := pg_temp.sql_como(u_proc, 'authenticated', format(ins_rem, gen_random_uuid(), ff, c1, 9, 'cancelada'));
+  IF r NOT LIKE 'erro:RHE03:%' THEN PERFORM pg_temp.falha('E3 CNAB: remessa nasce cancelada pelo INSERT (' || r || ')'); END IF;
+  FOREACH f IN ARRAY ARRAY['status = ''cancelada''', 'motivo_cancelamento = ''sem RPC''', 'cancelada_em = now()'] LOOP
+    r := pg_temp.sql_como(u_admin, 'authenticated', format('UPDATE public.remessas_bancarias SET %s WHERE id = %L', f, rm2));
+    IF r NOT LIKE 'erro:RHE03:%' THEN PERFORM pg_temp.falha('E3 CNAB: cancelamento fora da RPC (' || f || ': ' || r || ')'); END IF;
+  END LOOP;
+  r := pg_temp.sql_como(u_rh, 'authenticated', format('SELECT public.cancelar_remessa(%L, %L)', rm2, 'motivo de teste'));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('E3 CNAB: cancelar_remessa sem financeiro.folha.processar (' || r || ')'); END IF;
+  FOREACH f IN ARRAY ARRAY['', '   ', 'abc'] LOOP
+    r := pg_temp.sql_como(u_proc, 'authenticated', format('SELECT public.cancelar_remessa(%L, %L)', rm2, f));
+    IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('E3 CNAB: cancelar_remessa sem motivo (' || quote_literal(f) || ': ' || r || ')'); END IF;
+  END LOOP;
+  r := pg_temp.sql_como(u_proc, 'authenticated', format('SELECT public.cancelar_remessa(NULL, %L)', 'motivo de teste'));
+  IF r NOT LIKE 'erro:22023:%' AND r NOT LIKE 'erro:P0002:%' THEN PERFORM pg_temp.falha('E3 CNAB: cancelar_remessa de remessa inexistente (' || r || ')'); END IF;
+  r := pg_temp.valor_como(u_proc, 'authenticated', format('SELECT status FROM public.cancelar_remessa(%L, %L)', rm2, '  arquivo gerado com a conta errada  '));
+  SELECT to_jsonb(x) INTO j FROM public.remessas_bancarias x WHERE id = rm2;
+  IF r IS DISTINCT FROM 'cancelada' OR j ->> 'status' IS DISTINCT FROM 'cancelada' OR j ->> 'cancelada_por' IS DISTINCT FROM u_proc::text
+     OR j ->> 'cancelada_em' IS NULL OR j ->> 'motivo_cancelamento' IS DISTINCT FROM 'arquivo gerado com a conta errada'
+     OR j ->> 'updated_by' IS DISTINCT FROM u_proc::text THEN
+    PERFORM pg_temp.falha('E3 CNAB: cancelar_remessa não gravou status, autor, data e motivo (' || coalesce(r, 'nulo') || ')');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.audit_logs a WHERE a.entity_type = 'remessas_bancarias' AND a.entity_id = rm2 AND a.action = 'update'
+                    AND a.module_name = 'rh' AND a.user_id = u_proc AND 'status' = ANY (a.campos_alterados)) THEN
+    PERFORM pg_temp.falha('E3 CNAB: cancelamento sem linha na trilha (audit_logs)');
+  END IF;
+  r := pg_temp.sql_como(u_proc, 'authenticated', format('SELECT public.cancelar_remessa(%L, %L)', rm2, 'de novo, outro motivo'));
+  IF r NOT LIKE 'erro:RHE03:%' THEN PERFORM pg_temp.falha('E3 CNAB: remessa cancelada duas vezes (' || r || ')'); END IF;
+  FOREACH f IN ARRAY ARRAY['observacoes = ''depois''', 'status = ''gerada''', 'motivo_cancelamento = ''outro'''] LOOP
+    r := pg_temp.sql_como(u_admin, 'authenticated', format('UPDATE public.remessas_bancarias SET %s WHERE id = %L', f, rm2));
+    IF r NOT LIKE 'erro:RHE02:%' THEN PERFORM pg_temp.falha('E3 CNAB: remessa cancelada mudou (' || f || ': ' || r || ')'); END IF;
+  END LOOP;
+  r := pg_temp.exec_como(u_proc, 'authenticated', format('UPDATE public.remessas_bancarias SET status = ''processada'' WHERE id = %L', rm3));
+  r := r || '/' || pg_temp.sql_como(u_proc, 'authenticated', format('SELECT public.cancelar_remessa(%L, %L)', rm3, 'motivo de teste'));
+  IF r NOT LIKE 'ok/erro:RHE03:%' THEN PERFORM pg_temp.falha('E3 CNAB: remessa processada cancelada (' || r || ')'); END IF;
+  IF to_regprocedure('public.cancelar_remessa(uuid,text)') IS NULL THEN
+    PERFORM pg_temp.falha('E3 CNAB: função cancelar_remessa(uuid, text) não existe');
+  ELSE
+    IF has_function_privilege('anon', 'public.cancelar_remessa(uuid,text)', 'EXECUTE') OR NOT has_function_privilege('authenticated', 'public.cancelar_remessa(uuid,text)', 'EXECUTE') THEN
+      PERFORM pg_temp.falha('E3 CNAB: cancelar_remessa deve ser executável só por authenticated (não anon)');
+    END IF;
+    IF NOT (SELECT prosecdef AND coalesce(proconfig::text, '') ~ 'search_path' FROM pg_proc WHERE oid = to_regprocedure('public.cancelar_remessa(uuid,text)')) THEN
+      PERFORM pg_temp.falha('E3 CNAB: cancelar_remessa sem SECURITY DEFINER ou sem search_path fixo');
+    END IF;
+  END IF;
+
+  -- ===== eSocial: sem repetição na mesma folha e servidor; 'erro' fica fora; folha do evento não vira aberta
+  r := pg_temp.exec_como(u_rh, 'authenticated', format(ins_ev, ev1, ff, sa, 'S-1200', 'pendente'));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('E3 eSocial: evento de folha fechada recusado (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', format(ins_ev, gen_random_uuid(), ff, sa, 'S-1200', 'pendente'));
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('E3 eSocial: S-1200 repetido para o mesmo servidor e folha (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', format(ins_ev, gen_random_uuid(), ff, sb, 'S-1200', 'pendente'));
+  IF r NOT LIKE 'ok:1' THEN PERFORM pg_temp.falha('E3 eSocial: S-1200 de outro servidor na mesma folha recusado (' || r || ')'); END IF;
+  r := pg_temp.exec_como(u_rh, 'authenticated', format(ins_ev, gen_random_uuid(), ff, NULL, 'S-1299', 'pendente'));
+  r := r || '/' || pg_temp.sql_como(u_rh, 'authenticated', format(ins_ev, gen_random_uuid(), ff, NULL, 'S-1299', 'pendente'));
+  IF r NOT LIKE 'ok/erro:23505:%' THEN PERFORM pg_temp.falha('E3 eSocial: S-1299 (sem servidor) repetido na mesma folha (' || r || ')'); END IF;
+  r := pg_temp.exec_como(u_rh, 'authenticated', format(ins_ev, gen_random_uuid(), ff, sa, 'S-1200', 'erro'));
+  r := r || '/' || pg_temp.exec_como(u_rh, 'authenticated', format(ins_ev, gen_random_uuid(), ff, sa, 'S-1200', 'erro'));
+  IF r <> 'ok/ok' THEN PERFORM pg_temp.falha('E3 eSocial: evento com erro de validação não pode ser gerado de novo (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', format('UPDATE public.eventos_esocial SET folha_id = %L WHERE id = %L', fa, ev1));
+  IF r NOT LIKE 'erro:RHE01:%' THEN PERFORM pg_temp.falha('E3 eSocial: evento passou para folha ABERTA por UPDATE (' || r || ')'); END IF;
+  -- transmitido só com recibo; rascunho = sem recibo
+  IF (SELECT to_jsonb(e) ->> 'rascunho' FROM public.eventos_esocial e WHERE id = ev1) IS DISTINCT FROM 'true' THEN
+    PERFORM pg_temp.falha('E3 eSocial: evento novo não está marcado como rascunho (coluna rascunho)');
+  END IF;
+  FOREACH f IN ARRAY ARRAY['enviado', 'aceito'] LOOP
+    r := pg_temp.sql_como(u_admin, 'authenticated', format('UPDATE public.eventos_esocial SET status = %L WHERE id = %L', f, ev1));
+    IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('E3 eSocial: evento ' || f || ' sem recibo (' || r || ')'); END IF;
+  END LOOP;
+  r := pg_temp.exec_como(u_admin, 'authenticated', format('UPDATE public.eventos_esocial SET status = ''enviado'', recibo = ''1.2.000000000000000001'' WHERE id = %L', ev1));
+  IF r <> 'ok' OR (SELECT to_jsonb(e) ->> 'rascunho' FROM public.eventos_esocial e WHERE id = ev1) IS DISTINCT FROM 'false' THEN
+    PERFORM pg_temp.falha('E3 eSocial: evento com recibo não sai do rascunho (' || r || ')');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_index i WHERE i.indexrelid = to_regclass('public.eventos_esocial_folha_evento_servidor_uidx') AND i.indisunique) THEN
+    PERFORM pg_temp.falha('E3 eSocial: falta o índice único eventos_esocial_folha_evento_servidor_uidx');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.eventos_esocial'::regclass
+                    AND conname = 'eventos_esocial_transmitido_com_recibo_check' AND convalidated) THEN
+    PERFORM pg_temp.falha('E3 eSocial: CHECK eventos_esocial_transmitido_com_recibo_check ausente ou não validado');
+  END IF;
+
+  -- ===== bucket privado remessas-cnab
+  IF (SELECT NOT public AND file_size_limit = 10485760 FROM storage.buckets WHERE id = 'remessas-cnab') IS NOT TRUE THEN
+    PERFORM pg_temp.falha('storage remessas-cnab: bucket ausente, público ou sem o limite de 10 MB');
+  END IF;
+  IF EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'remessas-cnab') THEN
+    INSERT INTO storage.objects (bucket_id, name) VALUES ('remessas-cnab', rm1 || '.rem');
+  END IF;
+  FOR f, n IN SELECT * FROM (VALUES ('admin', 1), ('perm_financeiro.folha.processar', 1), ('mod_rh', 0), ('nenhum', 0), ('srv_a', 0),
+                                    ('mod_financeiro', 0), ('perm_avulsa_financeiro.folha.processar', 0), ('admin_inativo', 0)) AS v(p, esperado) LOOP
+    IF pg_temp.sel_obj((SELECT uid FROM persona WHERE nome = f), 'authenticated', 'remessas-cnab') <> n THEN
+      PERFORM pg_temp.falha('storage remessas-cnab: ' || f || ' lê ' || CASE n WHEN 1 THEN 'nada (deveria ler)' ELSE 'o arquivo (não deveria)' END);
+    END IF;
+  END LOOP;
+  IF pg_temp.sel_obj(u_anon, 'anon', 'remessas-cnab') > 0 THEN PERFORM pg_temp.falha('storage remessas-cnab: anon lê'); END IF;
+  -- enviar: só <id>.rem de remessa sem arquivo e não cancelada, com o módulo E o código
+  IF pg_temp.ins_obj(u_proc, 'authenticated', 'remessas-cnab', rm4 || '.rem') <> 'passou' THEN PERFORM pg_temp.falha('storage remessas-cnab: quem processa a folha não envia o arquivo da remessa sem arquivo'); END IF;
+  IF pg_temp.ins_obj(u_admin, 'authenticated', 'remessas-cnab', rm4 || '.rem') <> 'passou' THEN PERFORM pg_temp.falha('storage remessas-cnab: admin não envia o arquivo da remessa'); END IF;
+  FOR f IN SELECT unnest(ARRAY['mod_rh', 'nenhum', 'srv_a', 'perm_avulsa_financeiro.folha.processar', 'admin_inativo']) LOOP
+    IF pg_temp.ins_obj((SELECT uid FROM persona WHERE nome = f), 'authenticated', 'remessas-cnab', rm4 || '.rem') <> 'negado' THEN
+      PERFORM pg_temp.falha('storage remessas-cnab: ' || f || ' envia arquivo de remessa');
+    END IF;
+  END LOOP;
+  IF pg_temp.ins_obj(u_anon, 'anon', 'remessas-cnab', rm4 || '.rem') <> 'negado' THEN PERFORM pg_temp.falha('storage remessas-cnab: anon envia'); END IF;
+  FOREACH f IN ARRAY ARRAY[rm1 || '.rem', rm2 || '.rem', 'qualquer.rem', rm4 || '.txt', 'pasta/' || rm4 || '.rem', gen_random_uuid() || '.rem'] LOOP
+    IF pg_temp.ins_obj(u_proc, 'authenticated', 'remessas-cnab', f) <> 'negado' THEN
+      PERFORM pg_temp.falha('storage remessas-cnab: envio aceito fora da regra (' || f || ': remessa com arquivo, cancelada, inexistente ou nome fora do formato)');
+    END IF;
+  END LOOP;
+  -- ninguém troca nem apaga pela API (nem quem processa, nem o admin)
+  FOR f IN SELECT unnest(ARRAY['admin', 'perm_financeiro.folha.processar', 'mod_rh']) LOOP
+    IF pg_temp.mut_obj((SELECT uid FROM persona WHERE nome = f), 'authenticated', 'remessas-cnab', 'UPDATE') > 0
+       OR pg_temp.mut_obj((SELECT uid FROM persona WHERE nome = f), 'authenticated', 'remessas-cnab', 'DELETE') > 0 THEN
+      PERFORM pg_temp.falha('storage remessas-cnab: ' || f || ' troca ou apaga o arquivo guardado');
+    END IF;
+  END LOOP;
+  IF pg_temp.mut_obj(NULL, 'anon', 'remessas-cnab', 'UPDATE') > 0 OR pg_temp.mut_obj(NULL, 'anon', 'remessas-cnab', 'DELETE') > 0 THEN
+    PERFORM pg_temp.falha('storage remessas-cnab: anon troca ou apaga');
+  END IF;
+  SELECT count(*) INTO n FROM pg_policies
+   WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname !~ '^st_remessas-cnab_(select|insert)$'
+     AND (coalesce(qual, '') || ' ' || coalesce(with_check, '')) ~ ('remessas-cnab|^((?!bucket_id).)*$');
+  IF n > 0 THEN PERFORM pg_temp.falha('storage remessas-cnab: ' || n || ' policy(ies) além de st_remessas-cnab_select/insert valem para o bucket'); END IF;
+  IF (SELECT count(*) FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname ~ '^st_remessas-cnab_') <> 2 THEN
+    PERFORM pg_temp.falha('storage remessas-cnab: esperadas só as policies de SELECT e INSERT');
+  END IF;
+
+  -- ===== estrutura: triggers ligados e funções de trigger fora da API
+  FOR f, r IN SELECT * FROM (VALUES ('remessas_bancarias', 'trg_exigir_folha_fechada'), ('eventos_esocial', 'trg_exigir_folha_fechada'),
+                                    ('remessas_bancarias', 'trg_remessa_integridade')) AS v(t, g) LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = ('public.' || f)::regclass AND tgname = r AND tgenabled = 'O') THEN
+      PERFORM pg_temp.falha('E3: trigger ' || r || ' ausente ou desligado em ' || f);
+    END IF;
+  END LOOP;
+  FOREACH f IN ARRAY ARRAY['public.exigir_folha_fechada()', 'public.remessa_integridade()'] LOOP
+    IF to_regprocedure(f) IS NULL THEN PERFORM pg_temp.falha('E3: função ' || f || ' não existe'); CONTINUE; END IF;
+    IF has_function_privilege('authenticated', f, 'EXECUTE') OR has_function_privilege('anon', f, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('E3: ' || f || ' executável pela API');
+    END IF;
+  END LOOP;
+
+  PERFORM pg_temp.nota('E3 (integridade de CNAB e eSocial): folha fechada, número da remessa, arquivo, cancelamento, eventos repetidos, recibo e bucket remessas-cnab verificados');
+END $$;
+
 -- ---------------------------------------------------------------- resumo
 SELECT nivel, msg FROM resultado ORDER BY nivel DESC, msg;
 \set QUIET off

@@ -46,8 +46,8 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 | 8 | `overlay/20_campos_iniciais.sql` | triggers: formulários públicos e pedidos do servidor não escolhem `status`, aprovação, autoria (nos pedidos do RH a isenção é por permissão, formato `perm:`, e nunca no próprio pedido); links do formulário de árbitros só do próprio bucket | à mão |
 | 9 | `overlay/30_remover_acesso_total.sql` | apaga as policies `acesso_total_*` e a tabela morta `_backup_usuario_modulos_old` | à mão |
 | 10 | `rls/35_policies_geradas.sql` | policies por módulo, **falha fechada** | **gerado** de `rls/mapa.csv` |
-| 11 | `overlay/40_privilegios.sql` | `anon` só com as exceções públicas; sem EXECUTE para PUBLIC em função nova; sem TRUNCATE/TRIGGER; `audit_logs` só-acréscimo; RPCs que escrevem fechadas; funções da E1 (autoria e trilha) sem EXECUTE pela API, exceto `registrar_evento` para `authenticated`; `trilha_storage` e `trilha_storage_chave` (E2) sem EXECUTE pela API | à mão |
-| 12 | `overlay/50_storage.sql` | buckets (com limite de tamanho/tipo no de árbitros, no privado `inventario-evidencias` e, desde a B3, no privado `documentos-requerimento`) e policies de storage por módulo; `frequencias` e `documentos-requerimento` (B3) gravam com módulo e código e o servidor lê o próprio arquivo; triggers `trilha_rh_storage_*` (E2) gravam na trilha a gravação, troca e exclusão de arquivo nesses dois buckets | à mão |
+| 11 | `overlay/40_privilegios.sql` | `anon` só com as exceções públicas; sem EXECUTE para PUBLIC em função nova; sem TRUNCATE/TRIGGER; `audit_logs` só-acréscimo; RPCs que escrevem fechadas; funções da E1 (autoria e trilha) sem EXECUTE pela API, exceto `registrar_evento` para `authenticated`; `trilha_storage` e `trilha_storage_chave` (E2) sem EXECUTE pela API; `exigir_folha_fechada` e `remessa_integridade` (E3) sem EXECUTE pela API e `cancelar_remessa` só para `authenticated` | à mão |
+| 12 | `overlay/50_storage.sql` | buckets (com limite de tamanho/tipo no de árbitros, no privado `inventario-evidencias` e, desde a B3, no privado `documentos-requerimento`) e policies de storage por módulo; `frequencias` e `documentos-requerimento` (B3) gravam com módulo e código e o servidor lê o próprio arquivo; triggers `trilha_rh_storage_*` (E2) gravam na trilha a gravação, troca e exclusão de arquivo nesses dois buckets; bucket privado `remessas-cnab` (E3: ler e enviar `<remessa_id>.rem` com o módulo `rh` e `financeiro.folha.processar`, sem UPDATE/DELETE) | à mão |
 | 13 | `overlay/60_realtime.sql` | publicação realtime (folha) | à mão |
 
 `lacunas/` guarda a migração que cobre as tabelas usadas e nunca criadas; ela só serve ao replay
@@ -186,6 +186,16 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
   extensão de lista fechada e Content-Type só `tipo/subtipo`; `log_audit` recusa `storage.*` e as duas RPCs tiram
   `servidor_alvo_id`/`fonte` do cliente; coluna `alvos` (GIN) com `s:`/`f:` nas linhas do recorte; `fechar_folha` e
   `reabrir_folha` no módulo `rh`;
+- integridade de CNAB e eSocial (E3, bloco "RH: integridade de CNAB e eSocial (Onda E3)" de `testar-rls.sql`, triggers
+  ligados): remessa e evento recusados com folha aberta (`RHE01`, também para o admin e ao trocar a folha do evento);
+  número da remessa do cliente ignorado, seguindo o maior da conta (inclusive remessa antiga) e sem repetir (índice
+  único também com os triggers desligados); folha, conta e número fixos (`RHE02`); caminho e sha256 do arquivo juntos,
+  uma vez, só com `financeiro.folha.processar` (`42501`/`22023`/`RHE02`, inclusive para o admin); cancelamento só por
+  `cancelar_remessa` (motivo e permissão exigidos, autor, data e trilha gravados; `RHE03` fora dela, em remessa já
+  cancelada ou processada; cancelada não muda mais); evento repetido na mesma folha e servidor recusado (`23505`, fora
+  `erro`); `enviado`/`aceito` sem recibo recusado (`23514`) e coluna `rascunho`; bucket `remessas-cnab` privado (anon,
+  módulo sem o código, servidor e admin bloqueado não leem nem enviam; envio só de `<id>.rem` de remessa sem arquivo e
+  não cancelada; ninguém troca nem apaga; só as duas policies do bucket); funções de trigger fora da API;
 - inventário de campo: `fotos_vistoria_inventario` (INSERT só em nome próprio, UPDATE só do autor ou com
   `patrimonio.tramitar`, DELETE só com `patrimonio.tramitar`, campos de prova imutáveis), no bloco de
   cobertura adicional de `testar-rls.sql`;
@@ -327,6 +337,13 @@ Limites conhecidos:
   schema), com o mesmo texto das migrações. Limitação: sem o privilégio `TRIGGER` em `storage.objects` no banco de destino, a migração emite
   `WARNING` e os arquivos ficam sem trilha (consulta pós-deploy em
   [`docs/BANCO_DE_DADOS.md`](../../docs/BANCO_DE_DADOS.md#consulta-da-trilha-e-arquivos-do-rh-no-storage--onda-e2-banco)).
+- **Migração `20261011010000` (E3, em PR rascunho) × overlays.** Colunas, `exigir_folha_fechada`,
+  `remessa_integridade`, `cancelar_remessa`, `get_proximo_numero_remessa` (prévia sem o ano), os triggers, os dois
+  índices únicos e o CHECK do recibo chegam pelo replay em `schema/`; o bucket `remessas-cnab` e as policies
+  `st_remessas-cnab_*` estão no overlay `50` (o dump só leva `public`) e os REVOKE/GRANT no overlay `40`, com o mesmo
+  texto da migração. Limitação: num banco com número de remessa ou evento do eSocial repetidos, os índices únicos não
+  são criados (`WARNING`; consulta pós-deploy em
+  [`docs/BANCO_DE_DADOS.md`](../../docs/BANCO_DE_DADOS.md#integridade-da-remessa-cnab-e-do-esocial--onda-e3-banco)).
 - **`servidores.situacao`** (anterior à B2): quem tem o módulo `rh` muda a situação de outro servidor, e isso
   bloqueia o perfil vinculado. Sem correção ainda.
 - Tabelas com fluxo de aprovação por RPC e UPDATE livre para o módulo: `folhas_pagamento` foi protegida (só quem

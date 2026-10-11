@@ -2982,6 +2982,13 @@ ALTER TABLE ONLY public.vinculos_servidor
 
 
 --
+-- Name: eventos_esocial_folha_evento_servidor_uidx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX eventos_esocial_folha_evento_servidor_uidx ON public.eventos_esocial USING btree (folha_id, tipo_evento, COALESCE(servidor_id, '00000000-0000-0000-0000-000000000000'::uuid)) WHERE ((folha_id IS NOT NULL) AND (status <> ALL (ARRAY['erro'::public.status_evento_esocial, 'rejeitado'::public.status_evento_esocial])));
+
+
+--
 -- Name: idx_acesso_sigiloso_processo; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6202,6 +6209,13 @@ CREATE UNIQUE INDEX itens_ficha_financeira_ficha_referencia_desconto_uidx ON pub
 
 
 --
+-- Name: remessas_bancarias_conta_numero_uidx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX remessas_bancarias_conta_numero_uidx ON public.remessas_bancarias USING btree (conta_autarquia_id, numero_remessa);
+
+
+--
 -- Name: uq_bens_patrimoniais_numero_norm; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7700,6 +7714,20 @@ CREATE TRIGGER trg_encerrar_vinculo_anterior AFTER INSERT OR UPDATE ON public.vi
 
 
 --
+-- Name: eventos_esocial trg_exigir_folha_fechada; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_exigir_folha_fechada BEFORE INSERT OR UPDATE OF folha_id ON public.eventos_esocial FOR EACH ROW EXECUTE FUNCTION public.exigir_folha_fechada();
+
+
+--
+-- Name: remessas_bancarias trg_exigir_folha_fechada; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_exigir_folha_fechada BEFORE INSERT ON public.remessas_bancarias FOR EACH ROW EXECUTE FUNCTION public.exigir_folha_fechada();
+
+
+--
 -- Name: ferias_servidor trg_ferias_atualiza_situacao; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -7865,6 +7893,13 @@ CREATE TRIGGER trg_registrar_fase_licitacao BEFORE UPDATE OF fase_atual ON publi
 --
 
 CREATE TRIGGER trg_registrar_transicao_folha BEFORE UPDATE ON public.folhas_pagamento FOR EACH ROW EXECUTE FUNCTION public.registrar_transicao_folha();
+
+
+--
+-- Name: remessas_bancarias trg_remessa_integridade; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_remessa_integridade BEFORE INSERT OR UPDATE ON public.remessas_bancarias FOR EACH ROW EXECUTE FUNCTION public.remessa_integridade();
 
 
 --

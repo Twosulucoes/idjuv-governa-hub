@@ -483,6 +483,65 @@ só-migrações; spec [`2026-10-10-rh-trilha-tela-design.md`](./superpowers/spec
 - **Fora**: o bucket `documentos` (workflow e RH) continua sem trilha; leitura (download por URL assinada) não passa
   pelo banco e é registrada pelo front com `registrar_evento`.
 
+### Integridade da remessa CNAB e do eSocial — Onda E3 (banco)
+
+Migração `supabase/migrations/20261011010000_rh_cnab_esocial_integridade.sql`, **em PR rascunho**; spec
+[`2026-10-11-rh-vazamentos-arquivos-design.md`](./superpowers/specs/2026-10-11-rh-vazamentos-arquivos-design.md)
+(itens 3 e 4). Idempotente, vale para o banco do baseline e para o só-migrações. Não mexe em RLS existente: o fim do
+DELETE pela API nas duas tabelas e a leitura dos contracheques ficam na `20261011010100` (seção seguinte). O gerador
+de CNAB, a tela e o eSocial do front são da mesma spec.
+
+- **Folha fechada** — trigger `trg_exigir_folha_fechada` (função `exigir_folha_fechada`, `SECURITY DEFINER`) em
+  `remessas_bancarias` (BEFORE INSERT) e `eventos_esocial` (BEFORE INSERT e UPDATE de `folha_id`): folha com status
+  diferente de `fechada` recusa com **`RHE01`**, para todos (admin e service role inclusive). Evento sem `folha_id`
+  (não periódico) não passa por aqui.
+- **Número da remessa** — `trg_remessa_integridade` (função `remessa_integridade`) dá `numero_remessa` no INSERT:
+  maior número da conta + 1, sob `pg_advisory_xact_lock` por conta (duas gerações simultâneas na mesma conta esperam
+  uma pela outra). O valor mandado pelo cliente é **ignorado**; o front lê o número com `.select()` depois do INSERT.
+  Não reinicia no ano e não reaproveita número de remessa cancelada. Índice único
+  `remessas_bancarias_conta_numero_uidx (conta_autarquia_id, numero_remessa)`. `folha_id`, `conta_autarquia_id` e
+  `numero_remessa` não mudam depois do INSERT (**`RHE02`**). `get_proximo_numero_remessa(p_conta_id, p_ano)` passa a
+  ser só prévia com a mesma regra (`p_ano` ignorado; antes contava por ano).
+- **Arquivo guardado** — colunas `arquivo_path` (`<remessa_id>.rem` no bucket privado `remessas-cnab`) e
+  `arquivo_sha256` (64 dígitos hex minúsculos). Gravadas juntas, de nulo para valor, **uma vez** e por quem tem o
+  módulo `rh` e `financeiro.folha.processar` (senão `42501`; caminho ou hash fora do formato, `22023`); depois não
+  mudam nem somem (`RHE02`, também para o admin). A origem `sistema` (service role) dispensa só a permissão. As
+  colunas antigas `arquivo_url` e `hash_arquivo` ficam sem uso.
+- **Bucket `remessas-cnab`** (privado, 10 MB, `text/plain` ou `application/octet-stream`): `st_remessas-cnab_select`
+  e `st_remessas-cnab_insert` exigem o módulo `rh` **e** `financeiro.folha.processar`; o envio só aceita o nome
+  `<uuid>.rem` de uma remessa que existe, não está cancelada e ainda não tem arquivo. Não há policy de UPDATE nem de
+  DELETE: o arquivo não é trocado nem apagado pela API, e baixar de novo serve o mesmo arquivo (URL assinada). `anon`
+  não lê nem envia. Mesmo texto no `overlay/50_storage.sql`; a migração avisa (`WARNING`) se outra policy de
+  `storage.objects` valer para o bucket.
+- **Cancelamento** — colunas `cancelada_em`, `cancelada_por` (sem FK, como a autoria da E1) e `motivo_cancelamento`.
+  RPC `cancelar_remessa(p_remessa_id uuid, p_motivo text)` (`SECURITY DEFINER`, `search_path` fixo, EXECUTE só para
+  `authenticated`): exige o módulo `rh` e `financeiro.folha.processar` (`42501`), motivo de 5 a 1000 caracteres
+  (`22023`), remessa existente (`P0002`) que não esteja cancelada nem `processada` (`RHE03`); grava status
+  `cancelada`, `cancelada_em = now()`, `cancelada_por = auth.uid()` e o motivo, e devolve uma linha (`id`,
+  `numero_remessa`, `status`, `cancelada_em`, `cancelada_por`, `motivo_cancelamento`). Status `cancelada` ou as
+  colunas de cancelamento por UPDATE direto, ou INSERT já cancelado: **`RHE03`**. Remessa cancelada não muda mais
+  (`RHE02`). A trilha da E1 (`audit_remessas_bancarias`) registra o cancelamento com o servidor responsável.
+- **eSocial** — índice único parcial `eventos_esocial_folha_evento_servidor_uidx` em
+  `(folha_id, tipo_evento, coalesce(servidor_id, '00000000-…'))` onde `folha_id IS NOT NULL` e status fora de
+  `erro`/`rejeitado`: gerar de novo o mesmo evento da mesma folha para o mesmo servidor dá `23505` (evento sem servidor,
+  como o S-1299, conta uma vez por folha); evento com `erro` de validação pode ser gerado de novo. **O front precisa
+  gravar `servidor_id` nos eventos por servidor (S-1200, S-1210)**, senão o segundo da mesma folha colide. CHECK
+  `eventos_esocial_transmitido_com_recibo_check`: status `enviado` ou `aceito` exige `recibo` (`23514`). Coluna gerada
+  `rascunho` (`recibo IS NULL`): todo evento é rascunho não transmitido até existir a transmissão (onda G).
+- **Banco já em uso** — os índices únicos só são criados se não houver repetição (numeração antiga `MAX+1` sem
+  trava, evento gerado duas vezes); havendo, a migração **não apaga nem renumera**: emite `WARNING` no log do CI e
+  segue sem o índice (os triggers já impedem número novo repetido). O CHECK do recibo entra `NOT VALID` e só é
+  validado se nenhuma linha antiga violar. Consulta pós-deploy:
+  `select to_regclass('public.remessas_bancarias_conta_numero_uidx'), to_regclass('public.eventos_esocial_folha_evento_servidor_uidx')`.
+- **Códigos de erro**: `RHE01` folha não fechada; `RHE02` campo fixo da remessa ou remessa cancelada alterados;
+  `RHE03` cancelamento fora da RPC ou remessa que não se cancela; `42501` sem permissão; `22023` valor inválido;
+  `23505` evento ou número repetido; `23514` transmitido sem recibo.
+- **No baseline** colunas, funções, triggers, índices e CHECK chegam por `schema/`; o bucket e as policies pelo
+  `overlay/50_storage.sql`; os REVOKE/GRANT pelo `overlay/40_privilegios.sql`. Testes no bloco "RH: integridade de
+  CNAB e eSocial (Onda E3)" de `scripts/db/testar-rls.sql`.
+- **Fora**: retorno CNAB e conciliação (onda H); transmissão, lote e retificação do eSocial (onda G); evento do
+  eSocial sem `folha_id` não passa pela regra da folha fechada.
+
 ### Financeiro / orçamento
 Núcleo (prefixo `fin_`): `fin_solicitacoes`, `fin_solicitacao_itens`,
 `fin_empenhos`, `fin_sub_empenhos`, `fin_empenho_anulacoes`, `fin_liquidacoes`,
@@ -748,7 +807,9 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   qualquer usuário ativo (sem ano, CPF, contato ou lotação).
 - **Envios**: `pode_ver_envios`, `pode_configurar_envios` (policies), `salvar_segredo_envio(canal, segredo)`
   (grava a credencial no Vault) e `config_envio_servidor(canal)` (só service role).
-- **Bancário**: `get_proximo_numero_remessa`.
+- **Bancário**: `get_proximo_numero_remessa` (prévia do número; desde a E3 o número vem do trigger no INSERT) e
+  `cancelar_remessa(p_remessa_id, p_motivo)` (E3: cancela com motivo e autor; seção "Integridade da remessa CNAB e do
+  eSocial — Onda E3").
 
 ## Convenções
 
