@@ -707,44 +707,8 @@ export function useSaveDependenteIRRF() {
 // ============== REMESSA BANCÁRIA: geração, arquivo guardado e cancelamento ==============
 // Em src/hooks/useArquivosFolha.ts (onda E3): o número vem do banco no INSERT e não há exclusão.
 
-// ============== CRIAR EVENTO ESOCIAL ==============
-export function useCreateEventoESocial() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (evento: {
-      folha_id?: string;
-      servidor_id?: string;
-      tipo_evento: string;
-      payload_xml?: string;
-      competencia_ano?: number;
-      competencia_mes?: number;
-    }) => {
-      const insertData = {
-        folha_id: evento.folha_id,
-        servidor_id: evento.servidor_id,
-        tipo_evento: evento.tipo_evento,
-        payload_xml: evento.payload_xml,
-        competencia_ano: evento.competencia_ano,
-        competencia_mes: evento.competencia_mes,
-        status: 'pendente' as const,
-      };
-      const { data, error } = await supabase
-        .from('eventos_esocial')
-        .insert(insertData as any)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (_, variables) => {
-      if (variables.folha_id) {
-        queryClient.invalidateQueries({ queryKey: ['eventos-esocial', variables.folha_id] });
-      }
-      toast.success('Evento eSocial gerado!');
-    },
-    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
-  });
-}
+// ============== EVENTOS ESOCIAL: gravação e download ==============
+// Em src/hooks/useArquivosFolha.ts (onda E3): um evento por folha e servidor, sem exclusão.
 
 // ============== CONFIG AUTARQUIA ==============
 export function useConfigAutarquia() {

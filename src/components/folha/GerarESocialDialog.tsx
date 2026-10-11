@@ -35,6 +35,7 @@ import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { useConfigAutarquia, useEventosESocialFolha } from "@/hooks/useFolhaPagamento";
 import {
   dataPagamentoNaCompetencia,
+  faltaFichas,
   nomeArquivoEventoESocial,
   useDiaPagamentoFolha,
   useFichasESocial,
@@ -51,6 +52,8 @@ interface GerarESocialDialogProps {
   ano: number;
   /** Eventos só são gerados com a folha fechada (o banco também recusa). */
   folhaFechada: boolean;
+  /** `folhas_pagamento.quantidade_servidores`: a leitura das fichas tem de bater (senão os eventos sairiam incompletos). */
+  quantidadeServidores: number | null;
 }
 
 /** gravado: novo; existente: já estava gravado (índice único), mostra o gravado; erro: não gravado, não sai da tela. */
@@ -79,6 +82,7 @@ export function GerarESocialDialog({
   mes,
   ano,
   folhaFechada,
+  quantidadeServidores,
 }: GerarESocialDialogProps) {
   const [gerando, setGerando] = useState(false);
   const [eventosGerados, setEventosGerados] = useState<EventoGerado[]>([]);
@@ -106,8 +110,13 @@ export function GerarESocialDialog({
       },
     });
 
-  const { data: config } = useConfigAutarquia();
-  const { data: fichas } = useFichasESocial(folhaId, open);
+  const qConfig = useConfigAutarquia();
+  const qFichas = useFichasESocial(folhaId, open);
+  const config = qConfig.data;
+  const fichas = qFichas.data;
+  const carregando = qConfig.isLoading || qFichas.isLoading;
+  const erroConsulta = qConfig.isError || qFichas.isError;
+  const leituraIncompleta = fichas ? faltaFichas(fichas.length, quantidadeServidores) : null;
   const { data: diaPagamento } = useDiaPagamentoFolha(open);
   const { data: eventosExistentes } = useEventosESocialFolha(open ? folhaId : undefined);
   const gravarEventos = useGravarEventosESocial();
@@ -123,6 +132,11 @@ export function GerarESocialDialog({
     setDataSugerida(true);
   }, [open, dataSugerida, diaPagamento, ano, mes]);
 
+  // O S-1299 gerado aqui é o da competência: pagamento fora do mês da competência pediria o S-1299 do mês do
+  // pagamento (S-1210 é apurado pelo mês do pagamento), que esta tela ainda não gera. Bloqueia com explicação.
+  const pagamentoForaDaCompetencia =
+    /^\d{4}-\d{2}-\d{2}$/.test(dataPagamento) && dataPagamento.substring(0, 7) !== formatarPeriodo(ano, mes);
+
   const handleGerarEventos = async () => {
     if (!folhaFechada) {
       toast.error("Feche a folha antes de gerar os eventos do eSocial.");
@@ -132,12 +146,20 @@ export function GerarESocialDialog({
       toast.error("Dados incompletos para geração");
       return;
     }
+    if (leituraIncompleta) {
+      toast.error(leituraIncompleta);
+      return;
+    }
     if (!ambiente) {
       toast.error("Escolha o ambiente do eSocial em Configurações da Folha.");
       return;
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dataPagamento)) {
       toast.error("Informe a data de pagamento da folha.");
+      return;
+    }
+    if (pagamentoForaDaCompetencia) {
+      toast.error("A data de pagamento precisa estar no mês da competência.");
       return;
     }
 
@@ -153,9 +175,16 @@ export function GerarESocialDialog({
       const cnpjLimpo = config.cnpj.replace(/\D/g, "");
       const cnpjRaiz = cnpjLimpo.substring(0, 8);
 
+      // Ordem estável (matrícula, depois id da ficha): gerar de novo produz a mesma sequência
+      const fichasOrdenadas = [...fichas].sort(
+        (a, b) =>
+          (a.servidor?.matricula ?? "").localeCompare(b.servidor?.matricula ?? "", "pt-BR", { numeric: true }) ||
+          a.id.localeCompare(b.id),
+      );
+
       // Gerar S-1200 e S-1210 para cada servidor
       let sequencial = 1;
-      for (const ficha of fichas) {
+      for (const ficha of fichasOrdenadas) {
         if (!ficha.servidor) continue;
 
         const trabalhador: DadosTrabalhador = {
@@ -212,7 +241,8 @@ export function GerarESocialDialog({
 
         // Gerar ID único para S-1200
         const idEventoS1200 = gerarIdEventoOficial(1, cnpjRaiz, sequencial);
-        const idDemonstativo = sequencial.toString().padStart(3, "0");
+        // ideDmDev estável (até 30 caracteres): derivado do id da ficha, liga o S-1200 ao S-1210 da mesma ficha
+        const idDemonstativo = ficha.id.replace(/-/g, "").slice(0, 30);
 
         // Construir evento S-1200
         const eventoS1200: EventoS1200Xml = {
@@ -400,7 +430,7 @@ export function GerarESocialDialog({
   const handleDownloadXml = async (evento: EventoGerado) => {
     if (!podeSair(evento)) return;
     if (!(await registrarSaidaESocial("download", [evento], "baixado (XML, rascunho)"))) return;
-    downloadXml(evento.xml, nomeArquivoEventoESocial(evento.tipo, evento.servidorNome, ano, mes));
+    downloadXml(evento.xml, nomeArquivoEventoESocial(evento.tipo, evento.idEvento, ano, mes));
     toast.success("XML (rascunho) baixado!");
   };
 
@@ -410,7 +440,7 @@ export function GerarESocialDialog({
     if (!(await registrarSaidaESocial("download", disponiveis, "baixados (XML, todos, rascunho)"))) return;
     // Download individual de cada XML
     for (const evento of disponiveis) {
-      downloadXml(evento.xml, nomeArquivoEventoESocial(evento.tipo, evento.servidorNome, ano, mes));
+      downloadXml(evento.xml, nomeArquivoEventoESocial(evento.tipo, evento.idEvento, ano, mes));
     }
     toast.success(`${disponiveis.length} arquivos XML (rascunho) baixados!`);
   };
@@ -518,7 +548,8 @@ export function GerarESocialDialog({
             <AlertTitle>Rascunho, não transmitido</AlertTitle>
             <AlertDescription>
               Este sistema ainda não assina nem envia eventos ao eSocial. Os XML gerados aqui são rascunho para
-              conferência: não valem como envio e saem com "RASCUNHO_NAO_TRANSMITIDO" no nome do arquivo.
+              conferência: não valem como envio, saem com "RASCUNHO_NAO_TRANSMITIDO" no nome do arquivo e com o
+              comentário "RASCUNHO NAO TRANSMITIDO" dentro do XML.
             </AlertDescription>
           </Alert>
 
@@ -529,6 +560,25 @@ export function GerarESocialDialog({
               <AlertDescription>
                 Os eventos do eSocial só podem ser gerados com a folha fechada. Feche a folha e volte aqui.
               </AlertDescription>
+            </Alert>
+          )}
+
+          {erroConsulta && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Não foi possível carregar os dados</AlertTitle>
+              <AlertDescription>
+                Falhou a leitura da configuração ou das fichas da folha. Feche e abra de novo; se continuar, verifique
+                seu acesso.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {!erroConsulta && leituraIncompleta && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Fichas incompletas</AlertTitle>
+              <AlertDescription>{leituraIncompleta}</AlertDescription>
             </Alert>
           )}
 
@@ -594,6 +644,12 @@ export function GerarESocialDialog({
                     ? `Sugerida pelo dia de pagamento da configuração de fechamento (dia ${diaPagamento}).`
                     : "Sem dia de pagamento na configuração de fechamento: informe a data."}
                 </p>
+                {pagamentoForaDaCompetencia && (
+                  <p className="text-xs text-destructive">
+                    A data precisa estar no mês da competência ({competencia}). Pagamento em outro mês pediria o
+                    fechamento (S-1299) do mês do pagamento, que esta tela ainda não gera.
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -684,7 +740,17 @@ export function GerarESocialDialog({
           {eventosGerados.length === 0 && (
             <Button
               onClick={handleGerarEventos}
-              disabled={gerando || !folhaFechada || !config?.cnpj || !ambiente || !dataPagamento}
+              disabled={
+                gerando ||
+                carregando ||
+                erroConsulta ||
+                !!leituraIncompleta ||
+                !folhaFechada ||
+                !config?.cnpj ||
+                !ambiente ||
+                !dataPagamento ||
+                pagamentoForaDaCompetencia
+              }
               title={!folhaFechada ? "Disponível com a folha fechada" : undefined}
             >
               {gerando ? (

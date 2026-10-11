@@ -21,6 +21,9 @@ export function ambienteESocial(valor: string | null | undefined): 1 | 2 | null 
   return null;
 }
 
+/** Marca no próprio XML: o arquivo é rascunho, nada foi transmitido (fica até a onda G assinar e enviar). */
+export const COMENTARIO_RASCUNHO = "<!-- RASCUNHO NAO TRANSMITIDO -->";
+
 export const AMBIENTE_ESOCIAL_LABELS: Record<1 | 2, string> = {
   1: "Produção",
   2: "Produção restrita (homologação)",
@@ -210,6 +213,7 @@ export function gerarXmlS1200(
   idEvento: string
 ): string {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
+${COMENTARIO_RASCUNHO}
 <eSocial xmlns="${ESOCIAL_NAMESPACES.S1200}">
   <evtRemun Id="${idEvento}">
     <ideEvento>
@@ -288,6 +292,7 @@ export function gerarXmlS1210(
   idEvento: string
 ): string {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
+${COMENTARIO_RASCUNHO}
 <eSocial xmlns="${ESOCIAL_NAMESPACES.S1210}">
   <evtPgtos Id="${idEvento}">
     <ideEvento>
@@ -336,6 +341,7 @@ export function gerarXmlS1299(
   idEvento: string
 ): string {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
+${COMENTARIO_RASCUNHO}
 <eSocial xmlns="${ESOCIAL_NAMESPACES.S1299}">
   <evtFechaEvPer Id="${idEvento}">
     <ideEvento>

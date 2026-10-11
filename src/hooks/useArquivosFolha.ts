@@ -27,6 +27,7 @@ import { getTenantSnapshotOuNulo } from "@/core/tenant";
 import { BANCOS } from "@/types/rh";
 import { calcularSha256 } from "@/lib/filaFotosOffline";
 import { descreverErroBanco } from "@/lib/folhaFichaRegras";
+import { buscarTodasPaginas } from "@/hooks/useRelatoriosRH";
 import {
   arquivoCNAB,
   downloadCNAB,
@@ -38,7 +39,7 @@ import {
   type EnderecoPagador,
 } from "@/lib/cnabGenerator";
 import { downloadXml } from "@/lib/esocialXmlGenerator";
-import { MSG_FALHA_REGISTRO, useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
+import { MSG_FALHA_REGISTRO, registrarEvento, useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 
 // Cast local mínimo: colunas e RPC novas da E3 fora de types.ts (gerado); este client sem tipagem só é usado aqui.
 const db = supabase as unknown as SupabaseClient;
@@ -52,6 +53,8 @@ export const BUCKET_REMESSAS_CNAB = "remessas-cnab";
  */
 export function mensagemErroBanco(erro: unknown): string {
   const e = (erro && typeof erro === "object" ? erro : null) as { code?: string; message?: string } | null;
+  // Erro do Storage (StorageError/StorageApiError): sem código do Postgres; a mensagem é do serviço (bucket, policy)
+  if (e && "__isStorageError" in e && e.message) return e.message;
   const tratados = ["23505", "23502", "23503", "PGRST116"];
   const recusaRls = e?.code === "42501" && /row-level security/i.test(e.message ?? "");
   if (e?.message && e.code && !tratados.includes(e.code) && !recusaRls) return e.message;
@@ -87,10 +90,43 @@ export interface RemessaComArquivo {
   motivo_cancelamento?: string | null;
 }
 
-/** Contas ativas, configuração e fichas com líquido > 0 (com endereço do servidor para o segmento B). */
+/** Fichas da folha para a remessa, uma página (com o endereço do servidor para o segmento B). */
+const consultaFichasRemessa = (folhaId: string, de: number, ate: number) =>
+  supabase
+    .from("fichas_financeiras")
+    .select(
+      `*, servidor:servidores(id, nome_completo, cpf, matricula, endereco_logradouro, endereco_numero,
+       endereco_complemento, endereco_bairro, endereco_cidade, endereco_cep, endereco_uf)`,
+    )
+    .eq("folha_id", folhaId)
+    .order("id")
+    .range(de, ate);
+
+export type FichaRemessa = NonNullable<Awaited<ReturnType<typeof consultaFichasRemessa>>["data"]>[number];
+
+/**
+ * Leitura incompleta da folha: menos fichas do que `folhas_pagamento.quantidade_servidores` (a RLS esconde as fichas
+ * de outros servidores de quem não tem permissão de lê-las) ou nenhuma. Devolve a explicação, ou null se está completa.
+ */
+export function faltaFichas(lidas: number, quantidadeServidores: number | null | undefined): string | null {
+  if (lidas === 0) return "Nenhuma ficha financeira lida desta folha: não há o que gerar.";
+  if (quantidadeServidores && lidas < quantidadeServidores) {
+    return (
+      `Só ${lidas} de ${quantidadeServidores} fichas desta folha puderam ser lidas (seu acesso não alcança todas, ` +
+      "ou a folha mudou). O arquivo sairia incompleto e não será gerado."
+    );
+  }
+  return null;
+}
+
+/**
+ * Contas ativas, configuração e todas as fichas da folha (paginadas; a tela filtra líquido > 0 e confere a contagem
+ * com `quantidade_servidores`).
+ */
 export function useDadosRemessaCNAB(folhaId: string, habilitado: boolean) {
   const contas = useQuery({
-    queryKey: ["contas-autarquia-ativas"],
+    // Sob ['contas-autarquia'] para pegar a invalidação de useSaveContaAutarquia/useDeleteContaAutarquia
+    queryKey: ["contas-autarquia", "ativas"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contas_autarquia")
@@ -115,18 +151,7 @@ export function useDadosRemessaCNAB(folhaId: string, habilitado: boolean) {
 
   const fichas = useQuery({
     queryKey: ["fichas-para-remessa", folhaId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("fichas_financeiras")
-        .select(
-          `*, servidor:servidores(id, nome_completo, cpf, endereco_logradouro, endereco_numero, endereco_complemento,
-           endereco_bairro, endereco_cidade, endereco_cep, endereco_uf)`,
-        )
-        .eq("folha_id", folhaId)
-        .gt("valor_liquido", 0);
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => buscarTodasPaginas<FichaRemessa>((de, ate) => consultaFichasRemessa(folhaId, de, ate)),
     enabled: habilitado,
   });
 
@@ -136,7 +161,6 @@ export function useDadosRemessaCNAB(folhaId: string, habilitado: boolean) {
 type DadosRemessa = ReturnType<typeof useDadosRemessaCNAB>;
 type ContaRemessa = NonNullable<DadosRemessa["contas"]["data"]>[number];
 type ConfigRemessa = NonNullable<DadosRemessa["config"]["data"]>;
-type FichaRemessa = NonNullable<DadosRemessa["fichas"]["data"]>[number];
 
 /** Ficha com o mínimo para entrar na remessa (código do banco, agência e conta). */
 export const fichaTemBanco = (f: Pick<FichaRemessa, "banco_codigo" | "banco_agencia" | "banco_conta">) =>
@@ -240,9 +264,11 @@ interface ParamsGerarRemessa {
 }
 
 /**
- * Gera, guarda e entrega a remessa, nesta ordem: registro na trilha (E2) → INSERT (número do banco) → arquivo com
- * esse número → sha256 → upload no bucket privado → UPDATE de arquivo_path/arquivo_sha256 → download. Se o upload ou
- * o UPDATE falhar, o arquivo não é entregue e a remessa sem arquivo é cancelada (melhor esforço).
+ * Gera, guarda e entrega a remessa, nesta ordem: INSERT (número do banco) → arquivo com esse número → sha256 →
+ * upload no bucket privado → UPDATE de arquivo_path/arquivo_sha256 → registro na trilha (com remessa_id e número) →
+ * download. Se o upload ou o UPDATE falhar, o arquivo não é entregue e a remessa sem arquivo é cancelada (melhor
+ * esforço). Sem registro na trilha, o arquivo fica guardado mas não é entregue (baixa-se pela aba, com registro).
+ * O banco recalcula valor_total e quantidade_registros da remessa; os enviados aqui são os do arquivo.
  */
 export function useGerarRemessaCNAB() {
   const queryClient = useQueryClient();
@@ -251,25 +277,9 @@ export function useGerarRemessaCNAB() {
   return useCallback(
     async (p: ParamsGerarRemessa): Promise<ResultadoRemessa> => {
       const quantidade = p.favorecidos.length;
-      const valorTotal = Math.round(p.favorecidos.reduce((soma, f) => soma + f.valor, 0) * 100) / 100;
+      // Soma em centavos inteiros, como no trailer do arquivo
+      const valorTotal = p.favorecidos.reduce((soma, f) => soma + Math.round(f.valor * 100), 0) / 100;
       const nomeArquivo = `CNAB240_${p.competenciaAno}${doisDigitos(p.competenciaMes)}_${carimbo()}.REM`;
-
-      // Trilha: sem registro, sem remessa e sem arquivo
-      const registrado = await registrarAntes({
-        acao: "download",
-        entidade: "arquivo_cnab",
-        entidadeId: p.folhaId,
-        descricao: `Remessa CNAB 240 ${nomeArquivo} gerada`,
-        metadados: {
-          folha_id: p.folhaId,
-          conta_autarquia_id: p.contaId,
-          nome_arquivo: nomeArquivo,
-          quantidade_registros: quantidade,
-          valor_total: valorTotal,
-          layout: "CNAB240",
-        },
-      });
-      if (!registrado) return { ok: false, mensagem: MSG_FALHA_REGISTRO };
 
       // INSERT: o número vem do banco
       const { data: criada, error: erroInsert } = await db
@@ -340,9 +350,36 @@ export function useGerarRemessaCNAB() {
         .eq("id", remessa.id)
         .select("id");
       if (erroUpdate || !atualizada?.length) return falhaGuarda("registro do arquivo na remessa", erroUpdate);
+      queryClient.invalidateQueries({ queryKey: ["remessas-bancarias", p.folhaId] });
+
+      // Trilha: depois do INSERT (com o número) e antes de entregar; sem registro, não entrega
+      const registrado = await registrarAntes({
+        acao: "download",
+        entidade: "arquivo_cnab",
+        entidadeId: p.folhaId,
+        descricao: `Remessa CNAB 240 nº ${remessa.numero_remessa} gerada (${nomeArquivo})`,
+        metadados: {
+          folha_id: p.folhaId,
+          remessa_id: remessa.id,
+          numero_remessa: remessa.numero_remessa,
+          conta_autarquia_id: p.contaId,
+          nome_arquivo: nomeArquivo,
+          quantidade_registros: quantidade,
+          valor_total: valorTotal,
+          sha256,
+          layout: "CNAB240",
+        },
+      });
+      if (!registrado) {
+        return {
+          ok: false,
+          mensagem:
+            `A remessa nº ${remessa.numero_remessa} foi gerada e o arquivo está guardado, mas o registro na trilha falhou: ` +
+            "o arquivo não foi entregue. Baixe-o pela aba Remessas.",
+        };
+      }
 
       downloadCNAB(blob, nomeArquivo);
-      queryClient.invalidateQueries({ queryKey: ["remessas-bancarias", p.folhaId] });
       return { ok: true, numero: remessa.numero_remessa, nomeArquivo, quantidade, valorTotal };
     },
     [queryClient, registrarAntes],
@@ -350,27 +387,41 @@ export function useGerarRemessaCNAB() {
 }
 
 /**
- * "Baixar de novo": lê o arquivo guardado por URL assinada curta, confere o sha256 gravado na remessa, registra o
- * download e entrega. Lança Error com mensagem pronta para a tela.
+ * "Baixar de novo": lê o arquivo guardado (download autenticado do Storage), confere o sha256 gravado na remessa,
+ * registra o download e entrega. Hash divergente: registra a divergência na trilha e não entrega. Remessa cancelada
+ * não é entregue. Lança Error com mensagem pronta para a tela.
  */
 export function useBaixarRemessaGuardada() {
   const { registrarAntes } = useRegistrarEvento();
 
   return useCallback(
     async (r: RemessaComArquivo): Promise<boolean> => {
+      if (r.status === "cancelada") {
+        throw new Error("Remessa cancelada: o arquivo não é entregue. Não envie ao banco.");
+      }
       if (!r.arquivo_path || !r.arquivo_sha256) {
         throw new Error("Arquivo não guardado: esta remessa foi gerada antes do arquivo passar a ser guardado.");
       }
-      const { data: assinada, error } = await supabase.storage
-        .from(BUCKET_REMESSAS_CNAB)
-        .createSignedUrl(r.arquivo_path, 60);
-      if (error || !assinada?.signedUrl) throw new Error("Não foi possível abrir o arquivo guardado da remessa.");
-
-      const resposta = await fetch(assinada.signedUrl);
-      if (!resposta.ok) throw new Error("Não foi possível baixar o arquivo guardado da remessa.");
-      const blob = await resposta.blob();
-      const sha256 = await calcularSha256(blob);
-      if (sha256 !== r.arquivo_sha256.toLowerCase()) {
+      const { data: blob, error } = await supabase.storage.from(BUCKET_REMESSAS_CNAB).download(r.arquivo_path);
+      if (error || !blob) {
+        console.error("Download da remessa guardada falhou:", error);
+        throw new Error(`Não foi possível baixar o arquivo guardado da remessa: ${mensagemErroBanco(error)}`);
+      }
+      const esperado = r.arquivo_sha256.toLowerCase();
+      const obtido = await calcularSha256(blob);
+      if (obtido !== esperado) {
+        // Divergência vai para a trilha (melhor esforço) e o arquivo não sai
+        try {
+          await registrarEvento({
+            acao: "download",
+            entidade: "remessas_bancarias",
+            entidadeId: r.id,
+            descricao: `Remessa CNAB 240 nº ${r.numero_remessa}: arquivo guardado com hash divergente, não entregue`,
+            metadados: { folha_id: r.folha_id, remessa_id: r.id, hash_divergente: true, esperado, obtido },
+          });
+        } catch (erro) {
+          console.error("registrar_evento (hash divergente) falhou:", erro);
+        }
         throw new Error("O arquivo guardado não confere com o hash registrado na remessa. Ele não foi entregue.");
       }
 
@@ -379,7 +430,7 @@ export function useBaixarRemessaGuardada() {
         entidade: "remessas_bancarias",
         entidadeId: r.id,
         descricao: `Remessa CNAB 240 nº ${r.numero_remessa} baixada de novo (arquivo guardado)`,
-        metadados: { folha_id: r.folha_id, remessa_id: r.id, numero_remessa: r.numero_remessa, sha256 },
+        metadados: { folha_id: r.folha_id, remessa_id: r.id, numero_remessa: r.numero_remessa, sha256: obtido },
       });
       if (!registrado) return false;
 
@@ -412,18 +463,22 @@ export function useCancelarRemessa() {
 // eSocial (rascunho, não transmitido)
 // ============================================================================
 
-/** Fichas com servidor e itens para os eventos S-1200/S-1210. */
+/** Fichas da folha com servidor e itens, uma página. */
+const consultaFichasESocial = (folhaId: string, de: number, ate: number) =>
+  supabase
+    .from("fichas_financeiras")
+    .select(`*, servidor:servidores(id, nome_completo, cpf, pis_pasep, matricula), itens:itens_ficha_financeira(*)`)
+    .eq("folha_id", folhaId)
+    .order("id")
+    .range(de, ate);
+
+export type FichaESocial = NonNullable<Awaited<ReturnType<typeof consultaFichasESocial>>["data"]>[number];
+
+/** Todas as fichas da folha (paginadas) com servidor e itens, para os eventos S-1200/S-1210. */
 export function useFichasESocial(folhaId: string, habilitado: boolean) {
   return useQuery({
     queryKey: ["fichas-esocial", folhaId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("fichas_financeiras")
-        .select(`*, servidor:servidores(id, nome_completo, cpf, pis_pasep, matricula), itens:itens_ficha_financeira(*)`)
-        .eq("folha_id", folhaId);
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => buscarTodasPaginas<FichaESocial>((de, ate) => consultaFichasESocial(folhaId, de, ate)),
     enabled: habilitado,
   });
 }
@@ -453,17 +508,13 @@ export function dataPagamentoNaCompetencia(ano: number, mes: number, dia: number
   return `${ano}-${doisDigitos(mes)}-${doisDigitos(Math.min(dia, ultimo))}`;
 }
 
-const rotuloArquivo = (texto: string) =>
-  texto
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^A-Za-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 60) || "evento";
-
-/** Nome do XML: sempre marcado como rascunho não transmitido. */
-export function nomeArquivoEventoESocial(tipo: string, rotulo: string | null | undefined, ano: number, mes: number) {
-  return `RASCUNHO_NAO_TRANSMITIDO_${tipo}_${rotuloArquivo(rotulo || "fechamento")}_${ano}-${doisDigitos(mes)}.xml`;
+/**
+ * Nome do XML: sempre marcado como rascunho não transmitido e identificado pelo id do evento (nunca pelo nome do
+ * servidor: o nome do arquivo aparece em pasta de download, e-mail e log).
+ */
+export function nomeArquivoEventoESocial(tipo: string, idEvento: string | null | undefined, ano: number, mes: number) {
+  const id = (idEvento ?? "").replace(/[^A-Za-z0-9]+/g, "").slice(0, 40) || "sem-id";
+  return `RASCUNHO_NAO_TRANSMITIDO_${tipo}_${ano}-${doisDigitos(mes)}_${id}.xml`;
 }
 
 export interface EventoParaGravar {
@@ -559,7 +610,6 @@ export function useBaixarEventoESocial() {
     async (
       ev: Pick<EventoExistente, "id" | "tipo_evento" | "id_evento" | "payload_xml"> & {
         folhaId: string;
-        rotulo?: string | null;
         ano: number;
         mes: number;
       },
@@ -576,7 +626,7 @@ export function useBaixarEventoESocial() {
         metadados: { folha_id: ev.folhaId, tipo: ev.tipo_evento, id_evento: ev.id_evento, rascunho: true },
       });
       if (!registrado) return false;
-      downloadXml(ev.payload_xml, nomeArquivoEventoESocial(ev.tipo_evento, ev.rotulo, ev.ano, ev.mes));
+      downloadXml(ev.payload_xml, nomeArquivoEventoESocial(ev.tipo_evento, ev.id_evento || ev.id, ev.ano, ev.mes));
       return true;
     },
     [registrarAntes],

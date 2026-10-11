@@ -222,11 +222,13 @@ export default function FolhaDetalhePage() {
         id_evento: evento.id_evento,
         payload_xml: evento.payload_xml,
         folhaId: folha.id,
-        rotulo: (evento.servidor as { nome_completo?: string | null } | null)?.nome_completo,
         ano: folha.competencia_ano,
         mes: folha.competencia_mes,
       });
       if (ok) toast.success("XML (rascunho) baixado.");
+    } catch (erro) {
+      console.error("Erro ao baixar o XML do evento:", erro);
+      toast.error("Não foi possível baixar o XML do evento.");
     } finally {
       setBaixandoArquivoId(null);
     }
@@ -764,11 +766,15 @@ export default function FolhaDetalhePage() {
                                         variant="ghost"
                                         size="icon"
                                         title={
-                                          podeProcessarFolha
-                                            ? "Baixar o arquivo guardado (confere o hash)"
-                                            : motivoSemProcessar
+                                          r.status === "cancelada"
+                                            ? "Remessa cancelada: não envie ao banco"
+                                            : podeProcessarFolha
+                                              ? "Baixar o arquivo guardado (confere o hash)"
+                                              : motivoSemProcessar
                                         }
-                                        disabled={!podeProcessarFolha || baixandoArquivoId === r.id}
+                                        disabled={
+                                          r.status === "cancelada" || !podeProcessarFolha || baixandoArquivoId === r.id
+                                        }
                                         onClick={() => handleBaixarRemessa(r)}
                                       >
                                         {baixandoArquivoId === r.id ? (
@@ -969,6 +975,7 @@ export default function FolhaDetalhePage() {
         competenciaAno={folha.competencia_ano}
         competenciaMes={folha.competencia_mes}
         folhaFechada={folhaFechada}
+        quantidadeServidores={folha.quantidade_servidores}
       />
 
       <CancelarRemessaDialog
@@ -984,6 +991,7 @@ export default function FolhaDetalhePage() {
         mes={folha.competencia_mes}
         ano={folha.competencia_ano}
         folhaFechada={folhaFechada}
+        quantidadeServidores={folha.quantidade_servidores}
       />
       
       {fichaDetalheId && (

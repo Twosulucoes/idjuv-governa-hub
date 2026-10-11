@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, Download, AlertTriangle, CheckCircle2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import {
+  faltaFichas,
   fichaTemBanco,
   montarDadosRemessa,
   useDadosRemessaCNAB,
@@ -22,6 +23,8 @@ interface GerarRemessaDialogProps {
   competenciaMes: number;
   /** A remessa só é gerada com a folha fechada (o banco também recusa). */
   folhaFechada: boolean;
+  /** `folhas_pagamento.quantidade_servidores`: a leitura das fichas tem de bater (senão o arquivo sairia incompleto). */
+  quantidadeServidores: number | null;
 }
 
 export function GerarRemessaDialog({
@@ -32,6 +35,7 @@ export function GerarRemessaDialog({
   competenciaAno,
   competenciaMes,
   folhaFechada,
+  quantidadeServidores,
 }: GerarRemessaDialogProps) {
   const [contaSelecionada, setContaSelecionada] = useState<string>("");
   const [gerando, setGerando] = useState(false);
@@ -40,7 +44,12 @@ export function GerarRemessaDialog({
   const { contas: qContas, config: qConfig, fichas: qFichas } = useDadosRemessaCNAB(folhaId, open);
   const contas = qContas.data;
   const config = qConfig.data;
-  const fichas = qFichas.data;
+  const todasFichas = qFichas.data;
+  // Só entra quem tem líquido a receber
+  const fichas = todasFichas?.filter((f) => (f.valor_liquido ?? 0) > 0);
+  const carregando = qContas.isLoading || qConfig.isLoading || qFichas.isLoading;
+  const erroConsulta = qContas.isError || qConfig.isError || qFichas.isError;
+  const leituraIncompleta = todasFichas ? faltaFichas(todasFichas.length, quantidadeServidores) : null;
   const gerarRemessa = useGerarRemessaCNAB();
 
   const handleGerar = async () => {
@@ -48,8 +57,12 @@ export function GerarRemessaDialog({
       toast.error("Feche a folha antes de gerar a remessa.");
       return;
     }
-    if (!contaSelecionada || !config || !fichas) {
+    if (!contaSelecionada || !config || !fichas || !todasFichas) {
       toast.error("Selecione uma conta e verifique os dados");
+      return;
+    }
+    if (leituraIncompleta) {
+      setResultado({ sucesso: false, mensagem: leituraIncompleta });
       return;
     }
 
@@ -89,8 +102,8 @@ export function GerarRemessaDialog({
         favorecidos,
       });
       if (r.ok === false) {
+        // O erro fica no alerta do diálogo (o registro na trilha já avisa por toast quando falha)
         setResultado({ sucesso: false, mensagem: r.mensagem });
-        toast.error("Remessa não gerada");
         return;
       }
       setResultado({
@@ -147,7 +160,26 @@ export function GerarRemessaDialog({
                 </Alert>
               )}
 
-              {!config?.cnpj && (
+              {erroConsulta && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Não foi possível carregar os dados</AlertTitle>
+                  <AlertDescription>
+                    Falhou a leitura das contas, da configuração ou das fichas da folha. Feche e abra de novo; se
+                    continuar, verifique seu acesso.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {!erroConsulta && leituraIncompleta && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Fichas incompletas</AlertTitle>
+                  <AlertDescription>{leituraIncompleta}</AlertDescription>
+                </Alert>
+              )}
+
+              {!carregando && !erroConsulta && !config?.cnpj && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Configuração Incompleta</AlertTitle>
@@ -253,7 +285,15 @@ export function GerarRemessaDialog({
               </Button>
               <Button
                 onClick={handleGerar}
-                disabled={gerando || !folhaFechada || !contaSelecionada || !config?.cnpj}
+                disabled={
+                  gerando ||
+                  carregando ||
+                  erroConsulta ||
+                  !!leituraIncompleta ||
+                  !folhaFechada ||
+                  !contaSelecionada ||
+                  !config?.cnpj
+                }
                 title={!folhaFechada ? "Disponível com a folha fechada" : undefined}
               >
                 {gerando ? (

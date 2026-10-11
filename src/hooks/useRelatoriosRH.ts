@@ -58,7 +58,7 @@ type ConstrutorPagina = (de: number, ate: number) => PromiseLike<{ data: unknown
  * Percorre todas as páginas até vir uma vazia. Avança pelo que de fato veio (e não por
  * `PAGINA`), para não pular linhas se o `max-rows` do servidor for menor que o pedido.
  */
-async function buscarTodasPaginas<T>(construir: ConstrutorPagina): Promise<T[]> {
+export async function buscarTodasPaginas<T>(construir: ConstrutorPagina): Promise<T[]> {
   const todas: T[] = [];
   for (let de = 0; ; ) {
     const { data, error } = await construir(de, de + PAGINA - 1);
